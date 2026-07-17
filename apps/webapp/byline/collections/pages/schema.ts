@@ -97,7 +97,7 @@ export const Pages = defineCollection({
       optional: true,
     },
     // hasMany relation demo — an ordered list of Media references rendered as
-    // drag-reorderable summary tiles in the editor. See docs/04-collections/02-relationships.md.
+    // drag-reorderable summary tiles in the editor. See docs/04-collections/03-relationships.md.
     {
       name: 'gallery',
       label: 'Gallery',

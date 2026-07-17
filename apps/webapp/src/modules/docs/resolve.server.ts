@@ -7,7 +7,7 @@
  */
 
 /**
- * Read-time splat resolver for the `docs` document tree (docs/04-collections/03-document-trees.md →
+ * Read-time splat resolver for the `docs` document tree (docs/04-collections/04-document-trees.md →
  * "Public URL resolution"). Shared by the HTML splat route and the `.md`
  * channel so both resolve a hierarchical URL the same way.
  *

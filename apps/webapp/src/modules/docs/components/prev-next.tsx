@@ -14,7 +14,7 @@
  * pinned right, each with a small direction eyebrow over the document title.
  *
  * The "spine" is the pre-order (depth-first) flatten of the document tree — the
- * linear reading order (docs/04-collections/03-document-trees.md); prev / next are the current
+ * linear reading order (docs/04-collections/04-document-trees.md); prev / next are the current
  * document's neighbours in it. The tree is already loaded by the docs layout
  * (`getDocsNavFn`), so this reads the parent route's loader data — no extra
  * fetch — and finds the neighbours by the current document's `chain`. Renders

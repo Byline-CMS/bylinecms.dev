@@ -680,7 +680,7 @@ export interface IDocumentCommands {
    * **before** (its right neighbour). Either may be null — `{}` appends as the
    * only/last child, `beforeDocumentId` alone appends after it, `afterDocumentId`
    * alone prepends before it. Both are resolved within the *target* parent
-   * group. See docs/04-collections/03-document-trees.md.
+   * group. See docs/04-collections/04-document-trees.md.
    */
   placeTreeNode(params: {
     collectionId: string
@@ -696,7 +696,7 @@ export interface IDocumentCommands {
    * Remove a document's edge row, returning it to the *unplaced* state (in the
    * collection, but not in the tree). Distinct from document deletion — the
    * document and its content are untouched. No-op when the node is already
-   * unplaced. See docs/04-collections/03-document-trees.md.
+   * unplaced. See docs/04-collections/04-document-trees.md.
    */
   removeFromTree(params: {
     collectionId: string
@@ -809,7 +809,7 @@ export interface IDocumentQueries {
    *
    * Source-locale only: this resolves the single canonical slug, which is the
    * only path row a document has today. When per-locale paths land (see
-   * docs/04-collections/04-document-paths.md → "Phase — per-locale paths"), the write-side hook
+   * docs/04-collections/05-document-paths.md → "Phase — per-locale paths"), the write-side hook
    * contexts that consume this must be enriched to carry the locale each path
    * was derived under (or the full `locale → path` set) — a single canonical
    * `path` is no longer sufficient for per-localised-URL cache/CDN purges.
@@ -1040,7 +1040,7 @@ export interface IDocumentQueries {
    * parent, increasing toward the root). Empty for a root or unplaced node.
    *
    * Backs breadcrumbs and the read-time hierarchical-URL canonicalization
-   * (docs/04-collections/03-document-trees.md). Depth-bounded as a backstop against pathological
+   * (docs/04-collections/04-document-trees.md). Depth-bounded as a backstop against pathological
    * key state even though the write-path cycle guard prevents true cycles.
    *
    * **Status-at-edge.** `readMode: 'published'` joins
@@ -1065,7 +1065,7 @@ export interface IDocumentQueries {
    * `order_key`. `parentDocumentId: null` returns the collection's root nodes.
    * Scoped to `collectionId` so root reads (which have no parent to scope by)
    * stay within the collection. One level only — the recursive subtree read is
-   * a separate query. See docs/04-collections/03-document-trees.md.
+   * a separate query. See docs/04-collections/04-document-trees.md.
    */
   getTreeChildren(params: {
     collectionId: string
@@ -1074,7 +1074,7 @@ export interface IDocumentQueries {
 
   /**
    * Resolve a single node's placement state in the tree, distinguishing the
-   * three tri-states (docs/04-collections/03-document-trees.md → "Node placement"):
+   * three tri-states (docs/04-collections/04-document-trees.md → "Node placement"):
    *
    *   - **Unplaced** (no edge row) → `{ placed: false, parentDocumentId: null }`
    *   - **Root** (edge row, null parent) → `{ placed: true,  parentDocumentId: null }`
@@ -1108,7 +1108,7 @@ export interface IDocumentQueries {
    * `byline_current_published_documents` and drops any node without a current
    * published version; because the walk only recurses through *included*
    * nodes, an unpublished node's entire subtree is omitted — the spine is
-   * broken and descendants are not promoted (see docs/04-collections/03-document-trees.md).
+   * broken and descendants are not promoted (see docs/04-collections/04-document-trees.md).
    * `readMode: 'any'` (the default) includes every current, non-deleted node.
    * Optional `filters` enforce `beforeRead` at every edge with the same
    * no-promotion semantics. Depth-bounded by `maxDepth` as a backstop.

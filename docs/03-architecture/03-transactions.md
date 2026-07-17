@@ -102,8 +102,8 @@ Delete is deliberately different: storage cleanup, `afterTreeChange`, and
 `afterDelete` are all attempted independently and failures return a committed
 result rather than rejecting the already-complete delete. Side-effect consumers
 must therefore be idempotent and use the reconciliation paths described for
-[system fields](../04-collections/04-document-paths.md#server-transport) and
-[document trees](../04-collections/03-document-trees.md#invalidation) where
+[system fields](../04-collections/05-document-paths.md#server-transport) and
+[document trees](../04-collections/04-document-trees.md#invalidation) where
 available.
 
 When `get()` already returns a tx and a command opens its own
@@ -153,7 +153,7 @@ A sharp line, because conflating the two leads to a wrong design:
   the file, write the DB record in a transaction, and on DB failure delete
   the file (the upload flow already carries partial compensation:
   `shouldCreateDocument: true` "rolls back storage on failure", see
-  [File / Media Uploads](../04-collections/05-file-media-uploads.md)). This work makes the *DB
+  [File / Media Uploads](../04-collections/06-file-media-uploads.md)). This work makes the *DB
   side* of uploads atomic and tidier; the file↔DB boundary still needs
   compensation. "Transactions fix uploads" is **not** a promise this makes.
 

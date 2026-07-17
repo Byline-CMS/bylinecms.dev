@@ -1,75 +1,78 @@
 ---
 title: "Blocks"
 path: "blocks"
-summary: "Block architecture: defineBlock, the per-block schema/admin split (defineBlockAdmin), the dedicated code field, how blocks participate in type generation, and the FORRU legacy-block migration mapping."
+summary: "Block architecture: defineBlock, the per-block schema/admin split (defineBlockAdmin), tailoring editors per block, blocks in type generation and storage, inline uploads with upload.location, and the reference blocks."
 ---
 
 # Blocks
 
-> **Status: implementation plan (target 4.2).** This document is currently the
-> agreed strategy and phased plan for the blocks work. It is updated as each
-> phase lands and will be rewritten as a present-state reference when the 4.2
-> release ships (at which point the `docs/04-collections/` folder is renumbered
-> and this file takes its permanent place as `02-blocks.md`).
-
 Companions:
-- [Fields API](./01-fields.md) — field types, the schema-vs-admin split, conditional visibility, virtual fields.
-- [Rich Text](./06-rich-text.md) — the Lexical adapter and per-field editor overrides.
-- [Relationships](./02-relationships.md) — relation fields and populate (block fields participate identically).
+- [Fields API](./01-fields.md) — field types (including `code`), the schema-vs-admin split, conditional visibility, virtual fields.
+- [Rich Text](./07-rich-text.md) — the Lexical adapter, `lexicalEditor()`, and per-field editor overrides.
+- [Relationships](./03-relationships.md) — relation fields and populate (block fields participate identically).
+- [File / Media Uploads](./06-file-media-uploads.md) — inline upload fields and `upload.location`.
 
----
-
-## 1. Present-state architecture (4.1)
+## Overview
 
 A block is a reusable, typed unit of structured content that editors compose
-inside a `type: 'blocks'` field. Blocks are **schema-only** objects today:
+inside a `type: 'blocks'` field. Like collections, blocks live on two sides of
+the schema/admin split:
 
 ```ts
-// apps/webapp/byline/blocks/photo-block.ts (React-free, tsx-loadable)
-export const PhotoBlock = defineBlock({
-  blockType: 'photoBlock',
-  label: 'Photo Block',
-  fields: [ /* ordinary Field[] — text, select, relation, richText, … */ ],
+// apps/webapp/byline/blocks/quote-block.ts (schema — React-free, tsx-loadable)
+export const QuoteBlock = defineBlock({
+  blockType: 'quoteBlock',
+  label: 'Quote Block',
+  fields: [ /* ordinary Field[] — text, select, relation, richText, code, … */ ],
+})
+
+// apps/webapp/byline/blocks/quote-block.admin.ts (admin — may carry React)
+export const QuoteBlockAdmin = defineBlockAdmin(QuoteBlock, {
+  fields: { quoteText: { editor: PlainLexicalEditor } },
 })
 ```
 
-Key machinery:
+A collection consumes blocks through a normal field:
+
+```ts
+{ name: 'content', type: 'blocks', optional: true, blocks: [RichTextBlock, PhotoBlock, CodeBlock, QuoteBlock] }
+```
+
+Stored data is a flat array of `{ _id, _type, ...fields }` items — `_type`
+discriminates the union, `_id` (UUIDv7, held in `store_meta`) is the stable
+item identity that drag-reordering and the patch system key on.
+
+Everything that works for collection fields works for block child fields:
+conditional visibility (`condition(data, siblingData)`), virtual fields,
+field-level hooks and validation, localization per child field, relations
+(with populate), and inline upload fields.
+
+## Key machinery
 
 | Concern | Where |
 |---|---|
-| `Block` / `BlocksField` interfaces | `packages/core/src/@types/field-types.ts` (~430) |
-| `defineBlock`, `BlockFieldData`, `BlockData`, `BlocksUnion` | `packages/core/src/@types/collection-types.ts` (~1394) |
-| Storage | flat EAV rows; item identity (`_id`, `_type`) in `store_meta` (UUIDv7) |
+| `Block` / `BlocksField` interfaces | `packages/core/src/@types/field-types.ts` |
+| `defineBlock`, `BlockFieldData`, `BlockData`, `BlocksUnion` | `packages/core/src/@types/collection-types.ts` |
+| `BlockAdminConfig`, `defineBlockAdmin` | `packages/core/src/@types/admin-types.ts` |
+| Registration | `ClientConfig.blockAdmin` (`packages/core/src/@types/site-config.ts`) |
+| Boot validation | `validateBlockAdminConfigs` in `packages/core/src/config/validate-admin-configs.ts` |
 | Admin rendering | `packages/admin/src/fields/blocks/blocks-field.tsx` — each block instance renders through a synthesized `GroupField` → `FieldRenderer` per child |
+| Storage | flat EAV rows; item identity (`_id`, `_type`) in `store_meta` (UUIDv7) |
 | Type generation | `packages/core/src/codegen/index.ts` — structural dedup of block contracts across collections; emits `<X>BlockData` (+ `AllLocales`) discriminated on `_type`, inside `declare module '@byline/generated-types'` |
 | Frontend registry | `apps/webapp/src/ui/byline/render-blocks.tsx` — exhaustive `switch (block._type)` with a `never` guard |
-
-What already works for block child fields (no new machinery needed):
-- **Conditional visibility** — `BaseField.condition(data, siblingData)` is evaluated by `useFieldCondition` in `field-renderer.tsx`, which block children reach through `GroupField`.
-- **Virtual fields** — participate in the save, never persisted.
-- **Field-level hooks and validation** — `Block.hooks` / per-field `hooks`.
-- **Type generation** — blocks are fully covered; the same block used in several collections emits one deduped contract.
-
-The two gaps this plan closes:
-
-1. **No admin-side counterpart to `defineAdmin()`.** A richText field inside a
-   block can only inherit the *global* `fields.richText.editor` registration —
-   no per-block-field `editor` or `components` overrides.
-2. **No dedicated `code` field type.**
+| Reference blocks | `apps/webapp/byline/blocks/{richtext,photo,code,quote}-block.ts` (+ `.admin.ts` where tailored) |
 
 ---
 
-## 2. Phase A — per-block schema/admin split (`defineBlockAdmin`)
-
-*Status: implemented (unreleased).*
+## Per-block admin config (`defineBlockAdmin`)
 
 Blocks keep the collections' contract: **schema files stay React-free**; admin
-config lives separately and may carry React.
+config lives separately and may carry React (editor components, slot
+components).
 
 ### API (`@byline/core`)
 
 ```ts
-// packages/core/src/@types/admin-types.ts
 export interface BlockAdminConfig {
   blockType: string
   /** Per-field rendering overrides, keyed by the block's top-level field names. */
@@ -83,18 +86,20 @@ export function defineBlockAdmin<B extends Block>(
 ```
 
 `FieldAdminConfig` is reused unchanged (`components` slots + `editor`
-override). v1 addresses **top-level block field names only** — the same
+override), and the type parameter constrains the `fields` keys to the block's
+actual field names. Addresses **top-level block field names only** — the same
 limitation the collection-level `fields{}` map has.
 
 ### Registration — blockType-keyed registry
 
 ```ts
-// ClientConfig (packages/core/src/@types/site-config.ts)
-blockAdmin?: BlockAdminConfig[]
+// byline/admin.config.ts
+blockAdmin: [QuoteBlockAdmin, PhotoBlockAdmin],
 ```
 
-Registered in the app's `admin.config.ts` alongside `admin:`. Rationale for a
-registry over per-collection nesting:
+Registered site-wide on `ClientConfig.blockAdmin` and applied wherever the
+block renders — any collection, any nesting. Rationale for a registry over
+per-collection nesting:
 
 - Blocks are cross-collection deduped units — codegen already treats the same
   block in `docs` and `pages` as one contract; a blockType-keyed registry gives
@@ -105,190 +110,144 @@ registry over per-collection nesting:
   `blockType`; a per-collection override layer can be added later without
   breaking this API.
 
-### Threading (`@byline/admin`)
+Boot validation (`validateBlockAdminConfigs`, run by `defineClientConfig`)
+walks all collections' fields collecting `blockType → Block` and fails on
+unknown blockTypes, duplicate entries, or `fields` keys that aren't top-level
+fields of the block.
 
-- `group-field.tsx` — new optional prop
-  `fieldAdmin?: Record<string, FieldAdminConfig>`; passes
-  `components`/`editor` per child into `FieldRenderer`. (This is the
-  generalized nested-admin seam; `ArrayField` can adopt the same prop later.)
-- `blocks-field.tsx` — resolves `getClientConfig().blockAdmin` into a memoized
-  map; passes `fieldAdmin={map.get(item._type)?.fields}` to the synthesized
-  `GroupField`.
-- `field-renderer.tsx` — unchanged.
+### How the override reaches the widget
 
-> **Why `group-field.tsx`? — the three "group" concepts.** Byline has (1) the
-> **structural `group` field** (`type: 'group'` in a schema — shapes stored
-> data; rendered by `packages/admin/src/fields/group/group-field.tsx`), (2)
-> the **admin layout group primitive** (`groups:` in `CollectionAdminConfig` —
-> pure visual clustering of top-level fields; rendered by the presentation
-> layer; untouched by this work), and (3) the **synthesized GroupField inside
-> `BlocksField`** — blocks have no child-rendering machinery of their own;
-> each block instance renders by fabricating a structural-group field object
-> (`{ type: 'group', name: blockType, fields: block.fields }`) and handing it
-> to the structural widget. That synthesized path is the funnel through which
-> every block child reaches `FieldRenderer`, which is why the `fieldAdmin`
-> prop lands on the structural `GroupField`. Plain schema `group` fields
-> receive no `fieldAdmin` today, so they are unaffected — the prop is simply
-> the generalized seam future nested-admin work would reuse.
+`BlocksField` has no child-rendering machinery of its own — each block
+instance renders by synthesizing a structural-group field object
+(`{ type: 'group', name: blockType, fields: block.fields }`) and handing it to
+`GroupField`, which loops the children through `FieldRenderer`. The admin
+config rides that hand-off: `BlocksField` resolves the registry by
+`item._type` and passes the entry's `fields` map as `GroupField`'s
+`fieldAdmin` prop; `GroupField` plucks `components`/`editor` per child name
+into `FieldRenderer`, where the existing resolution
+(`editor ?? getClientConfig().fields.richText.editor`) lets the per-block
+override beat the site-wide default.
 
-### Boot validation
+> **The three "group" concepts.** Byline has (1) the **structural `group`
+> field** (`type: 'group'` in a schema — shapes stored data; rendered by
+> `packages/admin/src/fields/group/group-field.tsx`), (2) the **admin layout
+> group primitive** (`groups:` in `CollectionAdminConfig` — pure visual
+> clustering of top-level fields; rendered by the presentation layer), and
+> (3) the **synthesized GroupField inside `BlocksField`** described above.
+> The `fieldAdmin` prop lands on the structural widget because blocks render
+> *through* it; plain schema `group` fields receive no `fieldAdmin` today, so
+> they are unaffected — the prop is the generalized seam future nested-admin
+> work (e.g. `ArrayField`) would reuse.
 
-`validateBlockAdminConfigs(blockAdmin, collections)` called next to
-`validateAdminConfigs` in `defineClientConfig`: walks all collections' fields
-collecting `blockType → Block`; fails on unknown blockType, duplicate entries,
-or `fields` keys that aren't top-level fields of that block.
-
-### Explicitly unchanged
+### What block admin config never touches
 
 `defineBlock` / `BlockData` / serialization / codegen / storage / zod — admin
-config never enters the schema graph.
+config never enters the schema graph. Adding or changing a block's admin
+entry changes no generated type and no stored byte.
 
 ---
 
-## 3. Phase B — dedicated `code` field type
+## Tailoring editors per block
 
-*Status: implemented (unreleased).*
+The worked pattern for giving one block's richText field its own editor
+(reference implementations: `apps/webapp/byline/blocks/photo-block{.ts,.admin.ts}`
+and `quote-block{.ts,.admin.ts}`):
 
-A new value field riding the existing `store_text` table — **no migration**.
-The admin widget is **CodeMirror 6** (not Monaco): lighter, MIT, fully
-bundleable (no CDN runtime), lazy-loaded so it never lands in the main admin
-chunk.
+- **Settings half (schema)** — build an `EditorConfig` from
+  `structuredClone(defaultEditorConfig)` (imported from
+  `@byline/richtext-lexical/server`, the data-only subpath) and bake it into
+  the block field's `editorConfig`. JSON-safe: toolbar toggles, placeholder,
+  markdown behavior.
+- **Extension half (admin)** — build the editor component inline with
+  `lexicalEditor((c) => …removals…)` from `@byline/richtext-lexical/config`
+  in the block's `.admin.ts`, registered via `defineBlockAdmin`. React-safe:
+  which node extensions (Insert-menu items, links, floating UI) survive.
 
-### Schema type
+The two reference blocks deliberately differ: PhotoBlock's caption keeps
+`Link`/`AutoLink` (photo credits carry links); QuoteBlock's quotation removes
+them. Both replace the site-wide AI-enabled editor for that one field while
+every other richText field keeps it.
+
+---
+
+## Blocks and type generation
+
+Blocks are fully covered by `emitCollectionTypes` (see the generate script in
+`apps/webapp/byline/scripts/generate-types.ts`):
+
+- Block contracts are **structurally deduped across collections** — the same
+  block object (or two blocks with identical `blockType` + field signature)
+  emits one exported alias (`QuoteBlockData` + `QuoteBlockDataAllLocales`).
+- A `blocks` field renders as `Array<A | B | …>` discriminated on `_type`,
+  which is what makes the frontend registry's exhaustive `switch` + `never`
+  guard work: register a block in any schema, regenerate, and the typecheck
+  fails until a renderer exists.
+- Admin config, upload config, and `editorConfig` are **not** part of the
+  structural contract — per-collection block-factory instances (see below)
+  share one generated type as long as `blockType` and field shapes match.
+
+---
+
+## Blocks with inline uploads (`upload.location`)
+
+Blocks may carry their own `image`/`file` fields instead of relating to a
+media collection — right when the asset is document-owned (uploaded in place,
+never reused). Because the same block is typically consumed by several
+collections, write upload-carrying blocks as **factories** so each collection
+instantiates its own storage scope:
 
 ```ts
-{
-  name: 'code',
-  type: 'code',
-  language?: string,        // static default highlight language
-  languageField?: string,   // name of a SIBLING field (e.g. a select) whose
-                            // value drives highlighting at runtime
-  validation?: { minLength?: number; maxLength?: number; rules?: ValidationRule[] },
-}
+export const attachmentsBlock = (opts: { location: string }) =>
+  defineBlock({
+    blockType: 'attachmentsBlock',
+    fields: [
+      {
+        name: 'attachments', type: 'array',
+        fields: [{
+          name: 'file', type: 'file',
+          upload: { mimeTypes: ['application/pdf'], location: opts.location },
+        }],
+      },
+    ],
+  })
+
+// news schema: attachmentsBlock({ location: 'news/attachments' })
+// pages schema: attachmentsBlock({ location: 'pages/attachments' })
 ```
 
-`languageField` models the classic "language select + code editor" block shape
-directly (and unlike Payload's code field, the sibling select actually drives
-the editor). Min/max length are **enforced** by the zod builder.
+`upload.location` is boot-validated plain data — see
+[File / Media Uploads → Scope a field's storage location](./06-file-media-uploads.md).
+Factory instances dedupe to one generated block type (upload config is not
+part of the codegen contract). Keep the field *structure* identical across
+instances — structural drift forks the contract.
 
-### Seams
-
-Core: `CodeField` + `ValueField` union (`field-types.ts`); `field-data-types.ts`
-(`code: string`); `field-store-map.ts` (`{ storeType: 'text', valueColumn: 'value' }`);
-zod builder case; codegen `describeField` + `fieldType` (→ `string`, no
-FORMAT_VERSION bump); `collection-fingerprint.ts`; `validate-collections.ts`
-value-field list. Deliberately **excluded** from `TEXT_LEAF_TYPES` in
-`build-search-document.ts` (code bodies are full-text noise). Contract test:
-`field-store-map.test.node.ts` VALUE_FIELD_TYPES; codegen fixtures
-(`all-fields.*`) gain a code field top-level + inside a block.
-
-db-postgres: `storage-flatten.ts` text group gains `case 'code'`; restore keys
-off `field-store-map` (no change); round-trip fixture extended.
-
-Admin (`packages/admin/src/fields/code/`):
-- `code-field.tsx` — clones the `text-area-field.tsx` plumbing (slots, errors,
-  locale badge); resolves effective language from `languageField` sibling value
-  else static `language`.
-- `code-editor.tsx` — owns all CodeMirror imports; loaded via `React.lazy` +
-  `Suspense` (plain read-only textarea fallback). Per-language grammars
-  lazy-load through a loader map + CodeMirror `Compartment`.
-- Theme: one `EditorView.theme` + `HighlightStyle` built on CSS custom
-  properties (`--byline-code-*`) with light/`.dark` values in CSS — follows
-  admin theme flips with zero JS.
-- Deps (regular deps of `@byline/admin`): `@codemirror/{state,view,language,commands}`
-  + lang packs (javascript, json, html, css, markdown, python, sql, yaml).
+For library assets (reused, curated, own lifecycle) prefer a relation to a
+media collection instead — the reference PhotoBlock relates to `media`.
 
 ---
 
-## 4. Phase C — reference blocks (bylinecms.dev)
+## Migrating Payload blocks
 
-*Status: implemented (unreleased). Remaining: browser-preview verification of the
-lazy CodeMirror chunk, theme flip, and the plain-vs-AI editor contrast — the
-blocks themselves are exercised and persisting correctly via manual admin use.*
-
-Two new blocks in `apps/webapp/byline/blocks/`, registered in the `docs` and
-`pages` collections, wired end-to-end (typegen → frontend registry → tests →
-seeds):
-
-- **CodeBlock** — exercises the code field: `language` select (default
-  `typescript`) + `code` field with `languageField: 'language'` + optional
-  `caption`. Frontend renders a server-renderable `<pre><code>` (consumers may
-  wire shiki/prism).
-- **QuoteBlock** — exercises the block admin split: `highlightQuote` (text,
-  localized, optional), `quoteText` (richText, localized), `source` (text,
-  non-localized, optional). `quote-block.admin.ts` registers a plain non-AI
-  editor on `quoteText` via `defineBlockAdmin` while the site-wide editor stays
-  `LexicalRichTextAi` — the visible proof of Phase A. Deliberately the FORRU
-  quote shape minus the image, so the migration guide can point at it.
+A complete, decision-worked migration plan from a production Payload block
+library (17 blocks) to Byline blocks — including the relation-vs-inline-upload
+decision rule, polymorphic-relation workarounds, per-block field mappings, and
+the frontend porting loop — lives in the FORRU project:
+`beta.forru.org/MIGRATION-PLAN.md` §7 (BLOCKS) and §8 (FRONT END). It doubles
+as the playbook for any Payload → Byline block migration.
 
 ---
 
-## 5. Phase D — FORRU legacy-block migration mapping
+## Code map
 
-*Status: **done** — the full, decision-complete migration guide lives in the
-FORRU project itself: `beta.forru.org/MIGRATION-PLAN.md` §7 (BLOCKS) and §8
-(FRONT END). It supersedes the sketch below (kept here as the framework-side
-summary) and adds: the relation-vs-inline-upload decision rule, the
-block-factory pattern for collection-relative storage directories (pairs with
-the queued `upload.directory` option — recommended for 4.2), and the position
-that video/audio remain `file`-field helpers rather than new primitives.
-Executed in beta.forru.org against published `@byline/* ^4.2.0`.*
-
-### Global caveats
-
-**Polymorphic relation gap.** Byline's `RelationField` has a single
-`targetCollection`; Payload's `relationship` accepts many. Affected:
-`related-content` (10 targets), `banner` links. Options:
-
-- **(a)** `targetType` select + N conditional single-target relation fields
-  (`condition` works inside blocks today) — *recommended for banner* (2–3
-  realistic targets).
-- **(b)** Audit production content and restrict to the collections actually
-  linked — *recommended for related-content*.
-- **(c)** Defer pending a core polymorphic-relation feature (roadmap candidate,
-  out of 4.2 scope).
-
-**Media modeling parameterized.** Relation targets below are placeholders —
-`<MEDIA>`, `<VIDEOS>`, `<ATTACHMENTS>`, `<GALLERIES>` — decided per block at
-migration time (single `media` collection vs split collections).
-
-### Per-block mapping
-
-| Legacy block | Byline sketch | Notes |
-|---|---|---|
-| **richtext** | — | Already in beta. |
-| **photo** | Delta on beta's `photoBlock`: add `position` select, `useSourcePhotoCaption` checkbox, `caption` richText with `condition: (_d, s) => !s?.useSourcePhotoCaption` | Conditions inside blocks work today. |
-| **code** | `language` select + `code` field (`languageField: 'language'`) | Beta's existing code serializer UI (`src/ui/byline/components/code/`) renders it. Legacy never wired the select to the editor; byline does. |
-| **quote** | Reference QuoteBlock + optional `image` relation → `<MEDIA>` | |
-| **faq** | `faq` array of group `{ question: text (localized), answer: richText (localized) }` | |
-| **banner** | `tagline` text (localized), `bannerText` richText (localized), `position` select, `links` array (min 1 / max 2) of group `{ type select, conditional relation(s) per caveat (a), url text (condition type === 'custom'), label, appearance select }` | Polymorphic workaround (a). |
-| **gallery** | `format` select, `thumbnailSize` select (`condition: (_d, s) => s?.format === 'lightbox'`), `showDescription` checkbox, relation → `<GALLERIES>` | |
-| **attachments** | `format` select (widgets/links), `headingText` text (localized, default "Downloads"), `attachments` array of relation → `<ATTACHMENTS>` | |
-| **video** | `position` select, `video` relation → `<VIDEOS>`, optional `videoMobile` relation, `useSourceVideoCaption` checkbox, conditional `caption` richText | |
-| **video-embed** | `type` select (youtube/vimeo), `position` select, `url` text, `caption` richText | Payload's admin-preview `ui` field maps to `defineBlockAdmin(…, { fields: { url: { components: { afterField: VideoEmbedPreview } } } })` — optional / phase 2. |
-| **timeline** | `title` text (localized), `items` array of group `{ title, period, description richText }`, all localized | |
-| **plaintext** | richText with a restricted per-block editor via `defineBlockAdmin` (minimal extension set) — the idiomatic 4.2 answer; `textArea` is the low-tech alternative | Used only by `parts` in legacy. |
-| **recent-publications** | `show` integer, `defaultValue: 3` | Trivial. |
-| **markdown** | **Skip** | Never rendered in legacy. If ever needed: `code` field with `language: 'markdown'`. |
-| **bios**, **slider** | **Skip** (unused in legacy) | Sketches on request — "only if needed". |
-
-### Per-block mechanics checklist (beta.forru.org)
-
-1. Schema file in `byline/blocks/<name>-block.ts` (React-free).
-2. Register in the target collections' `blocks:` arrays.
-3. `pnpm byline:generate` — regenerate `byline/generated/collection-types.ts`.
-4. Add the `case '<blockType>'` to `src/ui/byline/render-blocks.tsx` (the
-   `never` guard forces it) + frontend component.
-5. Seed / content-migration entry as applicable.
-6. If the block has admin overrides: `<name>-block.admin.ts` +
-   `blockAdmin: […]` in the admin config.
-
----
-
-## 6. Phase E — doc finalization
-
-*Status: planned (last).* Rewrite this document as a present-state reference;
-renumber `docs/04-collections/` (relationships→03, document-trees→04,
-document-paths→05, file-media-uploads→06, rich-text→07,
-collection-versioning→08) and update all cross-references (~65 refs across ~40
-files including CLAUDE.md, README, JSDoc comments, and CLI templates).
+| Concern | Location |
+|---|---|
+| `defineBlock` + block data types | `packages/core/src/@types/collection-types.ts` |
+| `defineBlockAdmin` + `BlockAdminConfig` | `packages/core/src/@types/admin-types.ts` |
+| `blockAdmin` registration slot | `packages/core/src/@types/site-config.ts` (`ClientConfig`) |
+| Boot validation + tests | `packages/core/src/config/validate-admin-configs{.ts,.test.node.ts}` |
+| BlocksField (picker, D&D, registry resolution) | `packages/admin/src/fields/blocks/blocks-field.tsx` |
+| GroupField `fieldAdmin` threading | `packages/admin/src/fields/group/group-field.tsx` |
+| Codegen (dedup, `_type` unions) | `packages/core/src/codegen/index.ts` |
+| Reference block schemas | `apps/webapp/byline/blocks/*.ts` |
+| Reference block admin configs | `apps/webapp/byline/blocks/*.admin.ts` |
+| Reference frontend registry + components | `apps/webapp/src/ui/byline/render-blocks.tsx`, `src/ui/byline/blocks/*` |

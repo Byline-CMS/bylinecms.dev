@@ -8,7 +8,7 @@ summary: "Byline's Lexical-based rich text editor: the extension API, built-in n
 
 Companions:
 - [Core Composition](../03-architecture/02-core-composition.md) — the broader roadmap for how Byline composes adapter packages (db, storage, session, editors).
-- [Relationships](./02-relationships.md) — the relation-field primitive that richtext links and inline images are layered on top of.
+- [Relationships](./03-relationships.md) — the relation-field primitive that richtext links and inline images are layered on top of.
 
 ## Overview
 

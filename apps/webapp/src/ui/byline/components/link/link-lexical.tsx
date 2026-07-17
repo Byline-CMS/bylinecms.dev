@@ -100,7 +100,7 @@ function isLocalHref(href: string): boolean {
  * usable href can be built — the serializer treats that as the signal
  * to strip the `<a>` / `<LangLink>` wrapper and render children plain.
  *
- * Internal-link fallback chain (see docs/04-collections/06-rich-text.md):
+ * Internal-link fallback chain (see docs/04-collections/07-rich-text.md):
  *   1. `document._resolved === false` → strip wrapper.
  *   2. `document.path` starts with `/` → use as-is (canonicalised by
  *      the server-side embed walker via `buildDocumentPath`).

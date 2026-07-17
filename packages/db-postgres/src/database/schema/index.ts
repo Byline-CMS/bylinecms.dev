@@ -166,7 +166,7 @@ export const documentVersions = pgTable(
 // installation's default content locale; per-locale UI is a future phase
 // that adds rows for additional locales without reshaping the schema.
 // History is intentionally not preserved here — path rows are updated in
-// place. See `docs/04-collections/04-document-paths.md` § "Path uniqueness".
+// place. See `docs/04-collections/05-document-paths.md` § "Path uniqueness".
 export const documentPaths = pgTable(
   'byline_document_paths',
   {
@@ -245,7 +245,7 @@ export const documentVersionLocales = pgTable(
   (table) => [primaryKey({ columns: [table.document_version_id, table.locale] })]
 )
 
-// Document Tree — single-parent ordered adjacency. See docs/04-collections/03-document-trees.md.
+// Document Tree — single-parent ordered adjacency. See docs/04-collections/04-document-trees.md.
 //
 // A document-grain, unversioned hierarchy primitive for `tree: true`
 // collections (self-referential, single collection). Rows reference the logical
@@ -288,7 +288,7 @@ export const documentRelationships = pgTable(
 // `path` is intentionally NOT projected here. Path resolution is locale-
 // aware and lives in the storage adapter's read functions, which join
 // `byline_document_paths` with the requested locale + default-locale
-// fallback. See docs/04-collections/04-document-paths.md.
+// fallback. See docs/04-collections/05-document-paths.md.
 export const currentDocumentsView = pgView('byline_current_documents').as((qb) => {
   const sq = qb.$with('sq').as(
     qb
@@ -719,7 +719,7 @@ export const documentRelationshipsRelations = relations(documentRelationships, (
 }))
 
 // Document-tree edges on the logical document. The tree read path itself is a
-// recursive CTE (see docs/04-collections/03-document-trees.md), not the Drizzle query builder —
+// recursive CTE (see docs/04-collections/04-document-trees.md), not the Drizzle query builder —
 // these relations exist for completeness / ad-hoc joins.
 export const documentTreeRelations = relations(documents, ({ many }) => ({
   // The membership edge where this document is the child — its placement in the

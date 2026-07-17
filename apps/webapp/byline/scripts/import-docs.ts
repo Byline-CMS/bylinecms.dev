@@ -61,7 +61,7 @@
  *                 number directories/files with `NN-` prefixes to curate the
  *                 TOC — prefixes never reach the slug (paths come from
  *                 frontmatter). The `docs` collection must be `tree: true`.
- *                 See docs/04-collections/03-document-trees.md.
+ *                 See docs/04-collections/04-document-trees.md.
  */
 
 import '../load-env.js'

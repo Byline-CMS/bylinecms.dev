@@ -240,7 +240,7 @@ document `path` (via `originalData.path`), so create / status-change / unpublish
 / delete could not invalidate a specific detail page and the cache fell back to
 a collection-wide sweep. That was a historical artefact — the contexts predated
 `path` being promoted to the document grain (see `bylinecms.dev`
-`docs/04-collections/04-document-paths.md`).
+`docs/04-collections/05-document-paths.md`).
 
 **Fixed in `@byline/core` 3.1:** `path` is now present on every lifecycle
 context — `AfterCreateContext`, `AfterUpdateContext`, `StatusChangeContext`,

@@ -9,7 +9,7 @@ summary: "How actors, abilities, and request context flow through Byline — plu
 Companions:
 - [Collections](../04-collections/index.md) — lifecycle hooks (including `beforeRead` / `afterRead`) live on the collection schema; this doc is the reference for the auth subsystem the hooks plug into.
 - [Routing & API](../05-reading-and-delivery/02-routing-and-api.md) — server-fn transport that resolves `RequestContext` and passes it down.
-- [Relationships](../04-collections/02-relationships.md) — `ReadContext` is the seed for the actor-carrying `RequestContext`; populate threads `beforeRead` through to populated target collections.
+- [Relationships](../04-collections/03-relationships.md) — `ReadContext` is the seed for the actor-carrying `RequestContext`; populate threads `beforeRead` through to populated target collections.
 - [Client SDK](../05-reading-and-delivery/01-client-sdk.md) — the in-process SDK is where actor threading becomes externally visible.
 
 ## Overview
@@ -469,7 +469,7 @@ Two helpers, one per realm:
 Call sites:
 
 - Every `document-lifecycle.*` write entry point (`createDocument`, `updateDocument`, `updateDocumentWithPatches`, `changeStatus`, `unpublishDocument`, `deleteDocument`, `restoreDocumentVersion`, `duplicateDocument`, `copyToLocale`).
-- `field-upload.uploadField` — uploads are effectively a write under collection scope, gated on `create` even when `shouldCreateDocument: false`. See [File / Media Uploads](../04-collections/05-file-media-uploads.md).
+- `field-upload.uploadField` — uploads are effectively a write under collection scope, gated on `create` even when `shouldCreateDocument: false`. See [File / Media Uploads](../04-collections/06-file-media-uploads.md).
 - `@byline/client` on every read path: ordinary finds, collection and zone search, status counts, history/version reads, audit-log access gates, document-tree reads, relation populate, and richtext target hydration.
 - Every admin webapp document-collection server fn (`packages/host-tanstack-start/src/server-fns/collections/`). Writes thread `requestContext` into `DocumentLifecycleContext`; ordinary reads delegate to the admin `BylineClient` so the same collection and row gates run.
 

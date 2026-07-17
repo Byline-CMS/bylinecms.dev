@@ -8,14 +8,15 @@ summary: "Defining collections in Byline: defineCollection, the workflow system,
 
 Companions:
 - [Fields](./01-fields.md) — field-level schema and admin (slot components, helper factories, the per-field richtext editor swap).
-- [Rich Text](./06-rich-text.md) — the Lexical adapter, its `EditorConfig`, and per-field overrides.
+- [Blocks](./02-blocks.md) — `defineBlock` / `defineBlockAdmin`, the per-block schema/admin split, and block-tailored editors.
+- [Rich Text](./07-rich-text.md) — the Lexical adapter, its `EditorConfig`, and per-field overrides.
 - [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — auth + access-control subsystem, including six worked `beforeRead` row-scoping recipes (owner-only drafts, multi-tenant, soft-delete, …).
 - [Document Storage](../03-architecture/01-document-storage.md) — *document* versioning (the sibling pillar — this doc covers *schema* versioning).
-- [Document Paths](./04-document-paths.md) — how `useAsPath` lands in `byline_document_paths`.
+- [Document Paths](./05-document-paths.md) — how `useAsPath` lands in `byline_document_paths`.
 
 ## Overview
 
-A collection is the unit of authoring in Byline. Like a Django model with its `ModelAdmin`, it lives in two places: a **schema** that declares what the collection *is* (`CollectionDefinition`, returned by `defineCollection`), and an **admin** that declares how it *renders* in the dashboard (`CollectionAdminConfig`, returned by `defineAdmin`). The two are linked by the schema's `path`. This doc is the working reference for both halves; the related [Collection Versioning](./07-collection-versioning.md) reference covers the schema-versioning layer that records which schema version each document was authored against.
+A collection is the unit of authoring in Byline. Like a Django model with its `ModelAdmin`, it lives in two places: a **schema** that declares what the collection *is* (`CollectionDefinition`, returned by `defineCollection`), and an **admin** that declares how it *renders* in the dashboard (`CollectionAdminConfig`, returned by `defineAdmin`). The two are linked by the schema's `path`. This doc is the working reference for both halves; the related [Collection Versioning](./08-collection-versioning.md) reference covers the schema-versioning layer that records which schema version each document was authored against.
 
 ```
 schema.ts                            admin.tsx
@@ -275,9 +276,9 @@ const doc = await client.collection('news').findById(id)
 console.log(doc.collectionVersion)  // 3
 ```
 
-What you cannot do *yet*: ask the server to render that document against the historical schema. Reads still use the live `CollectionDefinition` regardless of `collectionVersion`. See [the boundary](./07-collection-versioning.md#boundary--what-does-not-read-by-version-yet).
+What you cannot do *yet*: ask the server to render that document against the historical schema. Reads still use the live `CollectionDefinition` regardless of `collectionVersion`. See [the boundary](./08-collection-versioning.md#boundary--what-does-not-read-by-version-yet).
 
-→ [Collection Versioning](./07-collection-versioning.md)
+→ [Collection Versioning](./08-collection-versioning.md)
 
 ---
 
@@ -322,7 +323,7 @@ export interface CollectionDefinition {
 | `labels` | Display strings for the admin shell (sidebar, breadcrumbs, "New X" buttons). |
 | `fields` | Schema-side field definitions. See [Fields](./01-fields.md) for the field-level model. |
 | `useAsTitle` | The field whose value is the document's single-line label — form heading, relation widget summary, populate's default projection, log lines. Analogous to Django's `Model.__str__`. |
-| `useAsPath` | The field whose value initialises a document's `path` row in `byline_document_paths`. Slugified once; sticky after creation. Collections without `useAsPath` receive a UUID path. See [Document Paths](./04-document-paths.md). |
+| `useAsPath` | The field whose value initialises a document's `path` row in `byline_document_paths`. Slugified once; sticky after creation. Collections without `useAsPath` receive a UUID path. See [Document Paths](./05-document-paths.md). |
 | `workflow` | Sequential workflow config — see [Workflow](#workflow). Defaults to a standard `draft` → `published` → `archived` triple. |
 | `hooks` | Lifecycle hooks (server-side). See [Lifecycle hooks](#lifecycle-hooks). |
 | `search` | Role-based **provider indexing** config for site search (`body` / `facets` / `filters` / `zones`) — see [Search](../05-reading-and-delivery/07-search.md). Does not affect the admin list view's search box. |

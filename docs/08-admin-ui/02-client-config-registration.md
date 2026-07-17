@@ -23,7 +23,7 @@ even possible given that custom slot components legitimately need React context.
 
 Companions:
 - [Core Composition](../03-architecture/02-core-composition.md) — the *server* composition story (`initBylineCore()`); this doc is the *client* config analogue.
-- [Rich Text](../04-collections/06-rich-text.md) — the richtext editor slot, which was the first heavy slot made lazy (the `lexicalEditor` factory; see also `@byline/richtext-lexical/config`).
+- [Rich Text](../04-collections/07-rich-text.md) — the richtext editor slot, which was the first heavy slot made lazy (the `lexicalEditor` factory; see also `@byline/richtext-lexical/config`).
 
 :::note
 Byline registers the client config from two points today. Collapsing that to a

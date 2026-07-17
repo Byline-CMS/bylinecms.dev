@@ -30,7 +30,7 @@ mutating in place. This gives version history and audit trails for free; a
 `ROW_NUMBER() OVER PARTITION` view resolves the current version per document.
 
 See [Document Storage → Versioning](./01-document-storage.md#versioning) for the
-document-versioning runtime, and [Collection Versioning](../04-collections/07-collection-versioning.md)
+document-versioning runtime, and [Collection Versioning](../04-collections/08-collection-versioning.md)
 for the *schema*-versioning track that records which schema shape each document
 was authored against.
 
@@ -46,13 +46,13 @@ at two distinct levels to match:
   the *logical document* rather than to any one version, and are **sticky across
   versions**:
   - `path` — the document's URL slug (`byline_document_paths`); see
-    [Document Paths](../04-collections/04-document-paths.md).
+    [Document Paths](../04-collections/05-document-paths.md).
   - `availableLocales` — the editorial set of advertised content locales
     (`byline_document_available_locales`); see
     [Content locales](../07-internationalization/03-content-locales.md).
   - the **tree edge** — the document's single parent and its order among siblings
     (`byline_document_relationships`); see
-    [Document Trees](../04-collections/03-document-trees.md).
+    [Document Trees](../04-collections/04-document-trees.md).
 
 Document-level fields are written by dedicated, **non-versioned** commands
 (`updateDocumentPath`, `setDocumentAvailableLocales`, `placeTreeNode`) that mint

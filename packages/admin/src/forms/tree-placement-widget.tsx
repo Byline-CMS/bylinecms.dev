@@ -30,7 +30,7 @@ export interface TreePlacementWidgetProps {
 
 /**
  * Sidebar widget for placing the current document within its collection's
- * single-parent document tree (the `tree: true` primitive — docs/04-collections/03-document-trees.md).
+ * single-parent document tree (the `tree: true` primitive — docs/04-collections/04-document-trees.md).
  *
  * The tree is document-grain and **unversioned**, so changes here write
  * immediately (independent of the form's content save). The editor picks a

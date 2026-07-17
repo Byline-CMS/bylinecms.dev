@@ -135,7 +135,7 @@ export interface FormRendererProps {
    * Opts the document-tree placement widget into the sidebar (above the
    * available-locales widget). Sourced from `CollectionDefinition.tree` by the
    * caller. Renders only in edit mode (placement needs a persisted document)
-   * and only when the host wires the tree services. See docs/04-collections/03-document-trees.md.
+   * and only when the host wires the tree services. See docs/04-collections/04-document-trees.md.
    */
   tree?: boolean
   headingLabel?: string

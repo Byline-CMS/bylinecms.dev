@@ -81,20 +81,20 @@ Collection schema and admin (columns, layout, preview, custom list views) plus
 schema versioning.
 
 - **[Fields](docs/04-collections/01-fields.md)** — field schemas, admin and field helpers.
-- **[Relationships](docs/04-collections/02-relationships.md)** — cross-collection
+- **[Relationships](docs/04-collections/03-relationships.md)** — cross-collection
   relations, populate, the relation envelope, recursion safety via
   `ReadContext`, and `hasMany` as a future phase.
-- **[Document Trees](docs/04-collections/03-document-trees.md)** — hierarchical
+- **[Document Trees](docs/04-collections/04-document-trees.md)** — hierarchical
   documents, tree mode, and auto-placement.
-- **[Document Paths](docs/04-collections/04-document-paths.md)** — the `path`
+- **[Document Paths](docs/04-collections/05-document-paths.md)** — the `path`
   system attribute (stored in a dedicated `byline_document_paths` table keyed by
   `(document_id, locale)`), `useAsPath`, the slugifier, and the path widget.
-- **[File & Media Uploads](docs/04-collections/05-file-media-uploads.md)** —
+- **[File & Media Uploads](docs/04-collections/06-file-media-uploads.md)** —
   field-level uploads, the two-round-trip flow, `beforeStore`/`afterStore`
   hooks, and variant persistence.
-- **[Rich Text](docs/04-collections/06-rich-text.md)** — pluggable richtext
+- **[Rich Text](docs/04-collections/07-rich-text.md)** — pluggable richtext
   editor adapter, the current Lexical implementation, and per-field overrides.
-- **[Collection Versioning](docs/04-collections/07-collection-versioning.md)** —
+- **[Collection Versioning](docs/04-collections/08-collection-versioning.md)** —
   schema versioning: Phase 1 (data model + fingerprinting) shipped; later phases
   deferred.
 

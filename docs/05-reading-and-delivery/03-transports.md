@@ -19,7 +19,7 @@ Companions:
 - [Client SDK](./01-client-sdk.md) — `@byline/client` is the in-process transport and the layer every other transport delegates to. Transports are bindings over the same `CollectionHandle` / `document-lifecycle` surface.
 - [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — service-layer enforcement (`assertActorCanPerform`) means transports carry no policy; they only resolve a `RequestContext`. The per-transport context resolver is the one genuinely pluggable auth seam.
 - [MCP Server](./05-mcp-server.md) — MCP is a *peer transport* in this family, sharing the operation layer but binding it to tools/resources/prompts instead of HTTP routes.
-- [Relationships](../04-collections/02-relationships.md) — `populate` / `depth` are part of the operation surface every transport exposes; relationship completeness (`hasMany`) gates a satisfying read experience over any transport.
+- [Relationships](../04-collections/03-relationships.md) — `populate` / `depth` are part of the operation surface every transport exposes; relationship completeness (`hasMany`) gates a satisfying read experience over any transport.
 
 ## Overview
 

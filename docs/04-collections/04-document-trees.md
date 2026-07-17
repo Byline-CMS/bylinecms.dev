@@ -437,7 +437,7 @@ for different tools:
 
 - **Multi-home topics** — a topic that belongs under several parents is a
   cross-link, expressed with an ordinary "See also"
-  [relation field](./02-relationships.md), not a second tree edge. The tree keeps
+  [relation field](./03-relationships.md), not a second tree edge. The tree keeps
   one canonical spine; cross-links add the lateral connections.
 - **Firmly two-level, parent-owns-an-ordered-list structures** — a parent that
   owns an ordered array of children (with order as the array index) is better

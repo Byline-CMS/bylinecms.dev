@@ -8,7 +8,7 @@ summary: "How byline_document_paths keys (document_id, locale) → path, why pat
 
 Companions:
 - [Document Storage](../03-architecture/01-document-storage.md) — `path` was the first system attribute promoted out of the EAV layer; it now lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`, separate from `documentVersions`.
-- [Relationships](./02-relationships.md) — `path` is the routing identifier used by relation filters (`where: { category: { path: 'news' } }`) and resolved via `findByPath` under the same `readMode` rule populate honours, with locale fallback applied per request.
+- [Relationships](./03-relationships.md) — `path` is the routing identifier used by relation filters (`where: { category: { path: 'news' } }`) and resolved via `findByPath` under the same `readMode` rule populate honours, with locale fallback applied per request.
 - [Collections](./index.md) — `useAsPath` participates in the collection schema fingerprint (see the Fingerprint section).
 
 ## Overview

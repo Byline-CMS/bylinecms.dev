@@ -836,7 +836,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   }
 
   // -------------------------------------------------------------------------
-  // Document tree (the `tree: true` primitive — docs/04-collections/03-document-trees.md)
+  // Document tree (the `tree: true` primitive — docs/04-collections/04-document-trees.md)
   //
   // A document-grain, unversioned single-parent ordered hierarchy. Reads/writes
   // here go through the storage adapter's dedicated tree commands, NOT the

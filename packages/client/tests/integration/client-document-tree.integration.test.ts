@@ -11,7 +11,7 @@
  * `removeFromTree`, `getSubtree`, `getAncestors`) end-to-end against the live
  * `byline_test` Postgres. Verifies the nested hydration, root-first ancestor
  * walk, status-at-edge subtree hiding, and the `tree: true` guard.
- * See docs/04-collections/03-document-trees.md.
+ * See docs/04-collections/04-document-trees.md.
  */
 
 import type { CollectionDefinition } from '@byline/core'

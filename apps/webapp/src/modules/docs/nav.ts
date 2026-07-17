@@ -16,7 +16,7 @@
  * tree order, rather than a flat `orderKey`-sorted list. Each node carries its
  * full URL `chain` (segments after `/docs/`) so the drawer and index can emit
  * **direct hierarchical links** with no canonical 301 hop. See
- * docs/04-collections/03-document-trees.md.
+ * docs/04-collections/04-document-trees.md.
  */
 
 import { createServerFn } from '@tanstack/react-start'

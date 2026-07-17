@@ -26,7 +26,7 @@
  * documents. The guard is in place from day one so that the hook work
  * in Phase 4+ cannot reintroduce the problem.
  *
- * See docs/04-collections/02-relationships.md for the full design rationale.
+ * See docs/04-collections/03-relationships.md for the full design rationale.
  *
  * ---------------------------------------------------------------------
  * DSL summary

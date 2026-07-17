@@ -20,8 +20,8 @@ If you're evaluating Byline, the development environment is the quickest way to 
   schema/admin split).
 - **Model your content** — [Collections](../04-collections/index.md) is the
   working reference for defining a collection, its [fields](../04-collections/01-fields.md),
-  [relationships](../04-collections/02-relationships.md), and
-  [rich text](../04-collections/06-rich-text.md).
+  [relationships](../04-collections/03-relationships.md), and
+  [rich text](../04-collections/07-rich-text.md).
 - **Read it back out** — the [Client SDK](../05-reading-and-delivery/01-client-sdk.md)
   is how a frontend or script queries and writes Byline content.
 - **Why it exists** — [Why Byline](../02-why-byline/index.md) sets out the

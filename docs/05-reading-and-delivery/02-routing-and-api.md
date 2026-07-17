@@ -8,7 +8,7 @@ summary: "The current internal-transport phase — TanStack Start server functio
 
 Companions:
 - [Transports](./03-transports.md) — the concrete shape of the stable HTTP boundary this doc defers: a framework-agnostic operation contract bound to Nitro / Fastify / Hono, plus MCP as a peer transport.
-- [File / Media Uploads](../04-collections/05-file-media-uploads.md) — uploads ride on the same internal transport described here.
+- [File / Media Uploads](../04-collections/06-file-media-uploads.md) — uploads ride on the same internal transport described here.
 - [Document Storage](../03-architecture/01-document-storage.md) — what the document write/read services persist.
 - [Client SDK](./01-client-sdk.md) — the in-process client that admin server fns and (future) public HTTP routes both delegate to.
 
@@ -170,7 +170,7 @@ Per-collection document operations against the universal storage layer. All of t
 | `status.ts`   | `POST` | Workflow transition (`PATCH-shape`); validates against `defineWorkflow` config.                  |
 | `history.ts`  | `GET`  | Version history for a document.                                                                  |
 | `stats.ts`    | `GET`  | Document counts grouped by status — feeds the dashboard cards.                                   |
-| `upload.ts`   | `POST` | Field-level file upload; full pipeline documented in [File / Media Uploads](../04-collections/05-file-media-uploads.md). |
+| `upload.ts`   | `POST` | Field-level file upload; full pipeline documented in [File / Media Uploads](../04-collections/06-file-media-uploads.md). |
 | `utils.ts`    | —      | `serialise()` helpers shared across the above.                                                   |
 
 ### `auth/` — sign-in / sign-out / session

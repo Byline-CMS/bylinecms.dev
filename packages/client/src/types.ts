@@ -496,7 +496,7 @@ export interface UpdateOptions {
 }
 
 // ---------------------------------------------------------------------------
-// Document-tree options (the `tree: true` primitive — docs/04-collections/03-document-trees.md)
+// Document-tree options (the `tree: true` primitive — docs/04-collections/04-document-trees.md)
 // ---------------------------------------------------------------------------
 
 /**

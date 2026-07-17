@@ -8,7 +8,7 @@
 
 /**
  * Public docs detail at a **hierarchical URL** — the splat route for the
- * `tree: true` docs collection (docs/04-collections/03-document-trees.md → "Public URL
+ * `tree: true` docs collection (docs/04-collections/04-document-trees.md → "Public URL
  * resolution"). `params._splat` is everything after `/docs/`
  * (`getting-started/cli`). The loader leaf-resolves the document, derives the
  * ancestor chain, and:

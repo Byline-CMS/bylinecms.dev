@@ -10,10 +10,10 @@ Companions:
 - [Document Storage](../03-architecture/01-document-storage.md) — the foundational EAV layer relations read and write against (`store_relation` is one of the seven typed stores).
 - [Client SDK](../05-reading-and-delivery/01-client-sdk.md) — `@byline/client` is where most relation reads land; the populate / `WithPopulated` patterns are documented there too.
 - [Collections](./index.md) — `picker` column definitions for relation-picker rows, and the `useAsTitle` field used by populate's default projection.
-- [Document Paths](./04-document-paths.md) — `path` lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`. Used by relation filters (`where: { category: { path: 'news' } }`) and locale-resolved per request.
+- [Document Paths](./05-document-paths.md) — `path` lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`. Used by relation filters (`where: { category: { path: 'news' } }`) and locale-resolved per request.
 - [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — populate threads `RequestContext` so `beforeRead` / `afterRead` apply to populated targets.
-- [File / Media Uploads](./05-file-media-uploads.md) — the `Media` collection plus a relation pointing at it is the canonical "shared media library" pattern.
-- [Rich Text](./06-rich-text.md) — document links inside richtext field values are a second consumer of the relation envelope.
+- [File / Media Uploads](./06-file-media-uploads.md) — the `Media` collection plus a relation pointing at it is the canonical "shared media library" pattern.
+- [Rich Text](./07-rich-text.md) — document links inside richtext field values are a second consumer of the relation envelope.
 
 ## Overview
 
@@ -475,7 +475,7 @@ The old `z.any()` catch-all is gone — the picker's contract is enforced at for
 
 A second application of the relationship primitive: links to other Byline documents *inside* a richtext field value, plus inline-image references to media documents. Two paired Lexical plugins consume the same `DocumentRelation` envelope this doc defines.
 
-The full present-state strategy — how the link and inline-image modals embed picked targets at picker time, the on-save server walker that canonicalises `document.path` via `CollectionDefinition.buildDocumentPath`, the persisted Lexical JSON shapes, the `embedRelationsOnSave` / `populateRelationsOnRead` field-level flags, and the embed / populate adapter contracts — lives in **[Rich Text → Relations — embed and populate](./06-rich-text.md#relations--embed-and-populate)**.
+The full present-state strategy — how the link and inline-image modals embed picked targets at picker time, the on-save server walker that canonicalises `document.path` via `CollectionDefinition.buildDocumentPath`, the persisted Lexical JSON shapes, the `embedRelationsOnSave` / `populateRelationsOnRead` field-level flags, and the embed / populate adapter contracts — lives in **[Rich Text → Relations — embed and populate](./07-rich-text.md#relations--embed-and-populate)**.
 
 One eligibility flag stays here because it lives on `CollectionDefinition`, not on the editor adapter:
 
@@ -510,7 +510,7 @@ The first production relation is in the News collection (`apps/webapp/byline/col
 }
 ```
 
-…and the seeded News documents in `apps/webapp/byline/seeds/documents.ts` reference existing Media items. Editing a news item shows the picker; saving writes through the standard form-state pipeline; reloading the API preview at depth 1 shows the populated Media envelope (including the file's `variants` array — see [File / Media Uploads](./05-file-media-uploads.md)); depth 2 walks into Media's own field set; deleting the referenced Media item and reloading at depth 1 shows the `_resolved: false` placeholder rather than a crash.
+…and the seeded News documents in `apps/webapp/byline/seeds/documents.ts` reference existing Media items. Editing a news item shows the picker; saving writes through the standard form-state pipeline; reloading the API preview at depth 1 shows the populated Media envelope (including the file's `variants` array — see [File / Media Uploads](./06-file-media-uploads.md)); depth 2 walks into Media's own field set; deleting the referenced Media item and reloading at depth 1 shows the `_resolved: false` placeholder rather than a crash.
 
 ---
 
@@ -608,7 +608,7 @@ indexed paths where `field_name` is the index segment).
 | Admin API preview depth selector | `apps/webapp/src/routes/_byline/<configured-admin-segment>/collections/$collection/$id/api.tsx` |
 | Admin `getDocument` server fn | `packages/host-tanstack-start/src/server-fns/collections/get.ts` |
 | `linksInEditor` flag | `packages/core/src/@types/collection-types.ts` (`CollectionDefinition.linksInEditor`) |
-| Richtext document links + embed / populate strategy | [Rich Text → Relations — embed and populate](./06-rich-text.md#relations--embed-and-populate) |
+| Richtext document links + embed / populate strategy | [Rich Text → Relations — embed and populate](./07-rich-text.md#relations--embed-and-populate) |
 | Reference relation field | `apps/webapp/byline/collections/news/schema.ts` (`featureImage` field) |
 | Reference list reading populated relations | `apps/webapp/src/modules/news/list.ts` |
 | Reference detail reading populated relations | `apps/webapp/src/modules/news/detail.ts` |

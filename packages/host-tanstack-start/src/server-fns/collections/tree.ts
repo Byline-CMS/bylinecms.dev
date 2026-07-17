@@ -11,7 +11,7 @@
  * behind the sidebar tree-placement widget. Thin wrappers over the
  * `@byline/client` tree API, which asserts the actor ability, enforces the
  * cycle / same-collection invariants, and fires the `afterTreeChange`
- * invalidation hook. See docs/04-collections/03-document-trees.md.
+ * invalidation hook. See docs/04-collections/04-document-trees.md.
  */
 
 import { createServerFn } from '@tanstack/react-start'

@@ -9,7 +9,7 @@ summary: "The in-process @byline/client SDK above the storage primitives — fin
 Companions:
 - [Routing & API](./02-routing-and-api.md) — broader transport-phase context: admin UI is the only client today, stable HTTP is deferred. The SDK is what fills the gap.
 - [Document Storage](../03-architecture/01-document-storage.md) — storage primitives the SDK sits above.
-- [Relationships](../04-collections/02-relationships.md) — `populate` / `depth` machinery the SDK exposes.
+- [Relationships](../04-collections/03-relationships.md) — `populate` / `depth` machinery the SDK exposes.
 - [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — `RequestContext` threading and `beforeRead` / `afterRead` enforcement.
 - [Collections](../04-collections/index.md) — `CollectionAdminConfig.preview.url` builder used by the admin preview affordance.
 - [`packages/client/DESIGN.md`](../packages/client/DESIGN.md) — implementation-detail design doc; phase-by-phase status snapshot.
@@ -189,7 +189,7 @@ where: { authors: { $every: { status: 'published' } } }
 where: { authors: { $none: {} } }
 ```
 
-→ [Filtering](#filtering) · [Relationships § Query quantifiers](../04-collections/02-relationships.md#query-quantifiers)
+→ [Filtering](#filtering) · [Relationships § Query quantifiers](../04-collections/03-relationships.md#query-quantifiers)
 
 ### 5. Sort and pagination
 
@@ -229,7 +229,7 @@ await client.collection('news').find({
 
 The default projection includes the target's `useAsTitle` field implicitly, so link labels keep working even if the caller didn't list it. Populate threads `readMode` through every hop — published-mode reads stay on `current_published_documents` all the way down.
 
-→ [Population](#population) · [Relationships § Populate](../04-collections/02-relationships.md#populate)
+→ [Population](#population) · [Relationships § Populate](../04-collections/03-relationships.md#populate)
 
 ### 7. Type a populated relation with `WithPopulated`
 
@@ -552,7 +552,7 @@ populate: { heroImage: true, author: { populate: { dept: true } } }
 depth: 2                                                    // default 1 when populate present
 ```
 
-The default projection includes the target's `useAsTitle` field implicitly, so widgets that render link labels keep working even if the caller's `select` didn't ask for it. Before each target fetch, populate asserts the target collection's `read` ability and applies its strict `beforeRead` predicate; row-hidden targets become unresolved relation values, while a missing target-collection ability rejects the read. See [Relationships § Populate](../04-collections/02-relationships.md#populate).
+The default projection includes the target's `useAsTitle` field implicitly, so widgets that render link labels keep working even if the caller's `select` didn't ask for it. Before each target fetch, populate asserts the target collection's `read` ability and applies its strict `beforeRead` predicate; row-hidden targets become unresolved relation values, while a missing target-collection ability rejects the read. See [Relationships § Populate](../04-collections/03-relationships.md#populate).
 
 ### Typing populated relations
 

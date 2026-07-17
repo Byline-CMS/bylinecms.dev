@@ -57,7 +57,7 @@ type TxConnection = Parameters<Parameters<DatabaseConnection['transaction']>[0]>
  * Depth backstop for the document-tree recursive walks (cycle guard, ancestor
  * walk). The write-path cycle guard prevents true cycles, so this only bounds
  * recursion against pre-existing pathological state — far deeper than any real
- * documentation hierarchy. See docs/04-collections/03-document-trees.md.
+ * documentation hierarchy. See docs/04-collections/04-document-trees.md.
  */
 const TREE_MAX_DEPTH = 10_000
 

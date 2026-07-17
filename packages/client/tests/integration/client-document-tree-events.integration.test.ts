@@ -11,7 +11,7 @@
  * collection hook fires once per structural write with the affected set, and a
  * document delete on a `tree: true` collection promotes the deleted node's
  * children to root (the soft-delete equivalent of the table's promote/cascade
- * foreign keys). See docs/04-collections/03-document-trees.md.
+ * foreign keys). See docs/04-collections/04-document-trees.md.
  */
 
 import type { CollectionDefinition, TreeChangeContext } from '@byline/core'
