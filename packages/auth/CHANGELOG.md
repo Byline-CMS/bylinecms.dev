@@ -1,5 +1,12 @@
 # @byline/auth
 
+## 4.2.0
+
+### Minor Changes
+
+- added per-block admin config (`defineBlockAdmin`) and a dedicated `code` field with a CodeMirror 6 admin widget
+  added `upload.location` storage scoping, friendly upload keys with a configurable filename slugifier, and `itemViewSort` for relation pickers
+
 ## 4.1.0
 
 ### Minor Changes

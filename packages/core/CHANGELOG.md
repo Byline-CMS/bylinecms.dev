@@ -1,5 +1,29 @@
 # @byline/core
 
+## 4.2.0
+
+### Minor Changes
+
+- d169052: Blocks: per-block admin config and a dedicated code field.
+
+  - **`defineBlockAdmin()` / `ClientConfig.blockAdmin`** — the block-scoped half of the schema/admin split. A `BlockAdminConfig` carries per-field rendering overrides (`components`, richtext `editor`) keyed by the block's top-level field names, registered site-wide by `blockType` and applied wherever the block renders. Boot-validated against the blocks declared across collections. Block-nested richText fields can now opt into a specific editor (e.g. a plain non-AI editor on one block while the site-wide registration stays AI-enabled).
+  - **`type: 'code'` field** — a dedicated source-code field storing a plain string in the existing text store (no migration). The admin widget is a lazily-loaded CodeMirror 6 editor (kept out of the main admin chunk; per-language grammars load on demand) with light/dark theming driven by CSS custom properties. `language` sets a static highlight language; `languageField` binds highlighting to a sibling select at runtime. Excluded from full-text search indexing by design; exports as a fenced block in the markdown surface.
+
+- 5993060: Friendly upload storage keys + configurable filename slugifier.
+
+  New uploads are stored as `<location|collection>/<slugified-base>-<suffix>.<ext>` (e.g. `events/meeting-agenda-4fa35g.pdf`) instead of `<collection>/<uuid>-<filename>` — the filename leads and the entropy rides as a short 6-char base36 suffix before the extension, so downloads, object-store consoles, and logs show human-readable names. Providers verify the candidate key is free (`exists()`) and retry with a fresh suffix on collision, falling back to a full-entropy UUID suffix after three straight collisions — collision safety is preserved, not traded away. The base name is slugified by a new installation-wide `ServerConfig.uploads.filenameSlugifier` (the upload parallel of the path `slugifier`; default `slugifyFilename` exported from `@byline/core`), which receives the base name plus `{ collectionPath, fieldName, mimeType }` context. `beforeStore` hooks are unaffected: `{ filename }` overrides keep composing, `{ storagePath }` stays verbatim. Existing stored objects keep their recorded paths; the new layout applies to new uploads only.
+
+- added per-block admin config (`defineBlockAdmin`) and a dedicated `code` field with a CodeMirror 6 admin widget
+  added `upload.location` storage scoping, friendly upload keys with a configurable filename slugifier, and `itemViewSort` for relation pickers
+- 5993060: `upload.location` — declarative storage-key scope per upload field.
+
+  An `image`/`file` field's `upload.location` (e.g. `'publications/covers'`, nested segments allowed) replaces the default `<collectionPath>/` storage-key scope, so multiple upload fields on one collection no longer mix their objects in a single directory. Providers keep their own entropy and filename sanitisation beneath the scope (`<location>/<uuid>-<filename>`), so collision behaviour is unchanged. Precedence: `beforeStore` `{ storagePath }` (verbatim, unchanged) → `location` → collection default; `{ filename }` hook overrides keep composing with the location. Plain data (isomorphic-safe), boot-validated (POSIX segments, no `..`, no stray slashes), and folded into the collection fingerprint. Hooks remain the tool for dynamic keys. Note: changing `location` later does not move previously stored objects.
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/auth@4.2.0
+
 ## 4.1.0
 
 ### Minor Changes

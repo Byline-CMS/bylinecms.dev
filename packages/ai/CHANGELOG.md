@@ -1,5 +1,22 @@
 # @infonomic/ai
 
+## 4.2.0
+
+### Minor Changes
+
+- added per-block admin config (`defineBlockAdmin`) and a dedicated `code` field with a CodeMirror 6 admin widget
+  added `upload.location` storage scoping, friendly upload keys with a configurable filename slugifier, and `itemViewSort` for relation pickers
+
+### Patch Changes
+
+- Updated dependencies [d169052]
+- Updated dependencies [5993060]
+- Updated dependencies
+- Updated dependencies [5993060]
+  - @byline/core@4.2.0
+  - @byline/richtext-lexical@4.2.0
+  - @byline/ui@4.2.0
+
 ## 4.1.0
 
 ### Minor Changes
