@@ -10,6 +10,7 @@ import type { CollectionFieldData } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
 
 import { CodeBlock } from '../../blocks/code-block.js'
+import { FAQBlock } from '../../blocks/faq-block.js'
 import { PhotoBlock } from '../../blocks/photo-block.js'
 import { QuoteBlock } from '../../blocks/quote-block.js'
 import { RichTextBlock } from '../../blocks/richtext-block.js'
@@ -110,7 +111,7 @@ export const Docs = defineCollection({
       label: 'Content',
       type: 'blocks',
       optional: true,
-      blocks: [RichTextBlock, PhotoBlock, CodeBlock, QuoteBlock],
+      blocks: [RichTextBlock, PhotoBlock, CodeBlock, QuoteBlock, FAQBlock],
     },
   ],
 })

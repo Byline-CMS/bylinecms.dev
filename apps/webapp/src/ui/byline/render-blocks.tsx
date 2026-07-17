@@ -1,6 +1,7 @@
 import { Section } from '@byline/ui/react'
 
 import { CodeBlock } from '@/ui/byline/blocks/code-block'
+import { FAQBlock } from '@/ui/byline/blocks/faq-block'
 import { PhotoBlock } from '@/ui/byline/blocks/photo-block'
 import { QuoteBlock } from '@/ui/byline/blocks/quote-block'
 import { RichTextBlock } from '@/ui/byline/blocks/richtext-block'
@@ -63,6 +64,10 @@ function renderBlock(
     case 'quoteBlock':
       return (
         <QuoteBlock id={block._id} block={block} lng={lng} constrainedLayout={constrainedLayout} />
+      )
+    case 'faqBlock':
+      return (
+        <FAQBlock id={block._id} block={block} lng={lng} constrainedLayout={constrainedLayout} />
       )
     default:
       return reportUnsupportedBlock(block)
