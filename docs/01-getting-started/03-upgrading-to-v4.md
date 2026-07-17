@@ -6,12 +6,6 @@ summary: "Application migration guide for Byline 4.x: package alignment, route c
 
 # Upgrading from 3.21 to 4.x
 
-Byline 4.0 hardens boundaries that a 3.21 application could accidentally cross:
-server lifecycle code can no longer rely on a dynamic import inside an
-isomorphic schema as a browser boundary, request-scoped reads bind to one stable
-authority, and database adapters must provide the complete transaction and
-audit contract.
-
 For an application using the published Postgres and TanStack Start packages,
 the main migration is application wiring. Existing documents and uploads do not
 need to be rewritten. Byline 4.0.0 adds no Byline-owned database or search-index
@@ -443,4 +437,3 @@ Deploy the v4 package set and matching application wiring as one release. Since
 inverse application deployment: restore the previous lockfile/build and its
 3.21 configuration together. Restore database or object-store backups only if
 the application itself performed unrelated data changes during the deployment.
-
