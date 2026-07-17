@@ -230,8 +230,80 @@ describe('validateAdminConfigs', () => {
       fields: { nonexistent: {} },
     }
     expect(() => validateAdminConfigs([admin], [collection])).toThrow(
-      /not a top-level schema field/
+      /does not resolve to a field declaration/
     )
+  })
+
+  // Rule 6 — dotted schema-path keys. A dedicated collection with nested
+  // structure: files (array) → filesGroup (group) → leaf fields, plus a
+  // blocks field to prove traversal through blocks is rejected.
+  const nestedCollection: CollectionDefinition = {
+    path: 'library',
+    labels: { singular: 'Item', plural: 'Items' },
+    useAsPath: 'title',
+    fields: [
+      { name: 'title', label: 'Title', type: 'text' },
+      {
+        name: 'files',
+        label: 'Files',
+        type: 'array',
+        fields: [
+          {
+            name: 'filesGroup',
+            type: 'group',
+            fields: [
+              { name: 'publicationFile', label: 'File', type: 'file' },
+              { name: 'notes', label: 'Notes', type: 'richText' },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'sections',
+        label: 'Sections',
+        type: 'blocks',
+        blocks: [
+          {
+            blockType: 'proseBlock',
+            fields: [{ name: 'body', label: 'Body', type: 'richText' }],
+          },
+        ],
+      },
+    ],
+  } as CollectionDefinition
+  const nestedAdmin = (fields: Record<string, object>): CollectionAdminConfig => ({
+    slug: 'library',
+    fields: fields as CollectionAdminConfig['fields'],
+  })
+
+  it('accepts a dotted fields key through array and group declarations', () => {
+    expect(() =>
+      validateAdminConfigs([nestedAdmin({ 'files.filesGroup.notes': {} })], [nestedCollection])
+    ).not.toThrow()
+  })
+
+  it('rejects a dotted fields key whose leaf does not exist', () => {
+    expect(() =>
+      validateAdminConfigs([nestedAdmin({ 'files.filesGroup.missing': {} })], [nestedCollection])
+    ).toThrow(/does not resolve to a field declaration/)
+  })
+
+  it('rejects a dotted fields key that walks through a value field', () => {
+    expect(() =>
+      validateAdminConfigs([nestedAdmin({ 'title.anything': {} })], [nestedCollection])
+    ).toThrow(/does not resolve to a field declaration/)
+  })
+
+  it('rejects a fields key carrying an item index', () => {
+    expect(() =>
+      validateAdminConfigs([nestedAdmin({ 'files[0].filesGroup.notes': {} })], [nestedCollection])
+    ).toThrow(/index-free schema paths/)
+  })
+
+  it('rejects a fields key that traverses a blocks field', () => {
+    expect(() =>
+      validateAdminConfigs([nestedAdmin({ 'sections.body': {} })], [nestedCollection])
+    ).toThrow(/blockAdmin/)
   })
 
   // Rule 7 — defaultSort sanity.
@@ -429,13 +501,67 @@ describe('validateBlockAdminConfigs', () => {
   })
 
   // Rule 3 — fields map sanity.
-  it('rejects a fields key that is not a top-level field of the block', () => {
+  it('rejects a fields key that is not a field of the block', () => {
     expect(() =>
       validateBlockAdminConfigs(
         [{ blockType: 'quoteBlock', fields: { doesNotExist: {} } }],
         [blockCollection]
       )
-    ).toThrow(/not a top-level field of the block/)
+    ).toThrow(/does not resolve to a field declaration/)
+  })
+
+  // Rule 3 — dotted schema-path keys inside a block (array-in-block, the
+  // FAQBlock shape).
+  const faqBlock = {
+    blockType: 'faqBlock',
+    fields: [
+      {
+        name: 'faq',
+        label: 'Questions',
+        type: 'array',
+        fields: [
+          { name: 'question', label: 'Question', type: 'text' },
+          { name: 'answer', label: 'Answer', type: 'richText' },
+        ],
+      },
+    ],
+  }
+
+  const faqCollection: CollectionDefinition = {
+    path: 'docs',
+    labels: { singular: 'Doc', plural: 'Docs' },
+    useAsPath: 'title',
+    fields: [
+      { name: 'title', label: 'Title', type: 'text' },
+      { name: 'content', label: 'Content', type: 'blocks', blocks: [faqBlock] },
+    ],
+  } as CollectionDefinition
+
+  it('accepts a dotted fields key addressing a field inside an array in the block', () => {
+    expect(() =>
+      validateBlockAdminConfigs(
+        [{ blockType: 'faqBlock', fields: { 'faq.answer': {} } }],
+        [faqCollection]
+      )
+    ).not.toThrow()
+  })
+
+  it('rejects a dotted fields key whose leaf is not declared in the block', () => {
+    expect(() =>
+      validateBlockAdminConfigs(
+        [{ blockType: 'faqBlock', fields: { 'faq.missing': {} } }],
+        [faqCollection]
+      )
+    ).toThrow(/does not resolve to a field declaration/)
+  })
+
+  it('rejects a block fields key carrying an item index', () => {
+    expect(() =>
+      validateBlockAdminConfigs(
+        [{ blockType: 'faqBlock', fields: { 'faq[0].answer': {} } }],
+        [faqCollection]
+      )
+    ).toThrow(/index-free schema paths/)
   })
 
   it('accepts the union of field names when a blockType appears in several collections', () => {

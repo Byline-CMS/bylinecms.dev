@@ -10,6 +10,7 @@ import type {
   ArrayField as ArrayFieldType,
   BlocksField as BlocksFieldType,
   Field,
+  FieldAdminConfig,
   FieldComponentSlots,
   GroupField as GroupFieldType,
   RichTextEditorComponent,
@@ -68,6 +69,15 @@ interface FieldRendererProps {
    * Ignored when `field.type !== 'richText'`.
    */
   editor?: RichTextEditorComponent
+  /**
+   * Admin overrides for this field's *descendants*, keyed by dotted,
+   * index-free schema paths relative to this field ('answer',
+   * 'filesGroup.publicationFile'). Only meaningful when `field` is a
+   * structural `group` / `array` — the widget slices the map per child
+   * (see `sliceFieldAdmin`). `components` / `editor` above stay the
+   * overrides for this field itself.
+   */
+  fieldAdmin?: Record<string, FieldAdminConfig>
 }
 
 export const FieldRenderer = ({
@@ -80,6 +90,7 @@ export const FieldRenderer = ({
   contentLocale,
   components,
   editor,
+  fieldAdmin,
 }: FieldRendererProps) => {
   const path = basePath ? `${basePath}.${field.name}` : field.name
   const htmlId = path.replace(/[[\].]/g, '-')
@@ -291,6 +302,7 @@ export const FieldRenderer = ({
             path={path}
             collectionPath={collectionPath}
             contentLocale={contentLocale}
+            fieldAdmin={fieldAdmin}
           />
         )
       case 'blocks':
@@ -313,6 +325,7 @@ export const FieldRenderer = ({
             disableSorting={disableSorting}
             collectionPath={collectionPath}
             contentLocale={contentLocale}
+            fieldAdmin={fieldAdmin}
           />
         )
       default:

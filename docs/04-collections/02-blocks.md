@@ -60,7 +60,7 @@ field-level hooks and validation, localization per child field, relations
 | Storage | flat EAV rows; item identity (`_id`, `_type`) in `store_meta` (UUIDv7) |
 | Type generation | `packages/core/src/codegen/index.ts` — structural dedup of block contracts across collections; emits `<X>BlockData` (+ `AllLocales`) discriminated on `_type`, inside `declare module '@byline/generated-types'` |
 | Frontend registry | `apps/webapp/src/ui/byline/render-blocks.tsx` — exhaustive `switch (block._type)` with a `never` guard |
-| Reference blocks | `apps/webapp/byline/blocks/{richtext,photo,code,quote}-block.ts` (+ `.admin.ts` where tailored) |
+| Reference blocks | `apps/webapp/byline/blocks/{richtext,photo,code,quote,faq}-block.ts` (+ `.admin.ts` where tailored; `faq-block.admin.ts` is the dotted schema-path reference) |
 
 ---
 
@@ -75,20 +75,30 @@ components).
 ```ts
 export interface BlockAdminConfig {
   blockType: string
-  /** Per-field rendering overrides, keyed by the block's top-level field names. */
+  /** Per-field overrides, keyed by index-free schema paths relative to the block root. */
   fields?: Record<string, FieldAdminConfig>
 }
 
 export function defineBlockAdmin<B extends Block>(
   block: B,
-  config: { fields?: Partial<Record<Extract<keyof BlockFieldData<B>, string>, FieldAdminConfig>> }
+  config: {
+    fields?: Partial<
+      Record<Extract<keyof BlockFieldData<B>, string> | (string & {}), FieldAdminConfig>
+    >
+  }
 ): BlockAdminConfig
 ```
 
 `FieldAdminConfig` is reused unchanged (`components` slots + `editor`
-override), and the type parameter constrains the `fields` keys to the block's
-actual field names. Addresses **top-level block field names only** — the same
-limitation the collection-level `fields{}` map has.
+override). Keys are **schema paths** relative to the block root: a top-level
+field name (`quoteText`, which the type parameter autocompletes) or a dotted,
+index-free path through the block's `group` / `array` structure
+(`faq.answer` — see [Schema paths vs instance paths](./01-fields.md#schema-paths-vs-instance-paths)).
+A schema path addresses a field *declaration*, so one entry applies to that
+field in every array item. Paths never traverse a nested `blocks` field — an
+inner block resolves its own registry entry wherever it renders. The
+collection-level `fields{}` map speaks the same notation for non-block
+nesting.
 
 ### Registration — blockType-keyed registry
 
@@ -111,9 +121,12 @@ per-collection nesting:
   breaking this API.
 
 Boot validation (`validateBlockAdminConfigs`, run by `defineClientConfig`)
-walks all collections' fields collecting `blockType → Block` and fails on
-unknown blockTypes, duplicate entries, or `fields` keys that aren't top-level
-fields of the block.
+walks all collections' fields collecting `blockType → Block` declaration
+sites and fails on unknown blockTypes, duplicate entries, or `fields` keys
+that don't resolve as schema paths within the block (an index-carrying key,
+a path through a value field or a nested `blocks` field, or a leaf that
+isn't declared — checked against the union of declaration sites when the
+same `blockType` appears in several collections).
 
 ### How the override reaches the widget
 
@@ -123,8 +136,13 @@ instance renders by synthesizing a structural-group field object
 `GroupField`, which loops the children through `FieldRenderer`. The admin
 config rides that hand-off: `BlocksField` resolves the registry by
 `item._type` and passes the entry's `fields` map as `GroupField`'s
-`fieldAdmin` prop; `GroupField` plucks `components`/`editor` per child name
-into `FieldRenderer`, where the existing resolution
+`fieldAdmin` prop. Each structural widget then consumes the map one level at
+a time: a child's exact-name entry becomes its `components`/`editor` props,
+and its descendant entries are re-keyed with the prefix stripped
+(`sliceFieldAdmin`, `packages/admin/src/fields/field-admin.ts`) and threaded
+on through `FieldRenderer` into the child's own `GroupField`/`ArrayField`.
+That is how a dotted key like `faq.answer` walks the widget tree to the
+right leaf, where the existing resolution
 (`editor ?? getClientConfig().fields.richText.editor`) lets the per-block
 override beat the site-wide default.
 
@@ -135,9 +153,10 @@ override beat the site-wide default.
 > clustering of top-level fields; rendered by the presentation layer), and
 > (3) the **synthesized GroupField inside `BlocksField`** described above.
 > The `fieldAdmin` prop lands on the structural widget because blocks render
-> *through* it; plain schema `group` fields receive no `fieldAdmin` today, so
-> they are unaffected — the prop is the generalized seam future nested-admin
-> work (e.g. `ArrayField`) would reuse.
+> *through* it; plain schema `group` and `array` fields receive the same prop
+> from the collection admin config's `fields{}` map (sliced per level by
+> `FormRenderer` → `FieldRenderer`), so dotted keys work identically inside
+> and outside blocks.
 
 ### What block admin config never touches
 
@@ -167,6 +186,12 @@ The two reference blocks deliberately differ: PhotoBlock's caption keeps
 `Link`/`AutoLink` (photo credits carry links); QuoteBlock's quotation removes
 them. Both replace the site-wide AI-enabled editor for that one field while
 every other richText field keeps it.
+
+FAQBlock (`faq-block{.ts,.admin.ts}`) extends the same pattern to a **nested**
+field: its answer editor's settings half is baked into the `answer` field
+inside the block's `faq` array, and the extension half is registered with the
+dotted schema-path key `faq.answer` — one entry that applies to the answer
+field of every FAQ item.
 
 ---
 

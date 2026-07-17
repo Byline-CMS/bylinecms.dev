@@ -8,11 +8,12 @@
 
 import { useEffect, useState } from 'react'
 
-import type { ArrayField as ArrayFieldType, Field } from '@byline/core'
+import type { ArrayField as ArrayFieldType, Field, FieldAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { DraggableSortable, IconButton, moveItem, PlusIcon } from '@byline/ui/react'
 import cx from 'classnames'
 
+import { sliceFieldAdmin } from '../../fields/field-admin'
 import { defaultScalarForField } from '../../fields/field-helpers'
 import { FieldRenderer } from '../../fields/field-renderer'
 import { SortableItem } from '../../fields/sortable-item'
@@ -20,8 +21,9 @@ import { useFormContext } from '../../forms/form-context'
 import styles from './array-field.module.css'
 
 // ---------------------------------------------------------------------------
-// ArrayField — renders `type: 'array'` fields. Children are homogeneous:
-// either single value fields or a single group definition. Supports D&D.
+// ArrayField — renders `type: 'array'` fields. Each item renders every child
+// field declared in the array's `fields` (value fields and/or groups, in any
+// combination). Supports D&D.
 // ---------------------------------------------------------------------------
 
 export const ArrayField = ({
@@ -31,6 +33,7 @@ export const ArrayField = ({
   disableSorting = false,
   collectionPath,
   contentLocale,
+  fieldAdmin,
 }: {
   field: ArrayFieldType
   defaultValue: any
@@ -49,6 +52,16 @@ export const ArrayField = ({
    * can render their locale badge.
    */
   contentLocale?: string
+  /**
+   * Admin overrides for the array's child fields, keyed by dotted,
+   * index-free schema paths relative to this array ('answer',
+   * 'filesGroup.publicationFile'). Schema paths address declarations, so
+   * one entry applies to that field in every item. Arrives pre-sliced from
+   * the enclosing widget (`FieldRenderer` / `GroupField`); exact-name
+   * entries apply to the child, deeper entries are re-sliced and threaded
+   * on (see `sliceFieldAdmin`).
+   */
+  fieldAdmin?: Record<string, FieldAdminConfig>
 }) => {
   const { appendPatch, getFieldValue, getFieldValues, setFieldStore } = useFormContext()
   const { t } = useTranslation('byline-admin')
@@ -207,8 +220,11 @@ export const ArrayField = ({
       const initial = item[childField.name]
 
       if (childField.type === 'group' && childField.fields && childField.fields.length > 0) {
-        // Group child — render its inner fields with the group's sub-object
+        // Group child — render its inner fields with the group's sub-object.
+        // fieldAdmin slices one level per structural hop: the group's
+        // descendant map first, then each inner field's own slice.
         const groupData = initial && typeof initial === 'object' ? initial : {}
+        const groupAdmin = sliceFieldAdmin(fieldAdmin, childField.name)
         return (
           <div
             key={childField.name}
@@ -228,6 +244,9 @@ export const ArrayField = ({
                 disableSorting={true}
                 collectionPath={collectionPath}
                 contentLocale={contentLocale}
+                components={groupAdmin?.[innerField.name]?.components}
+                editor={groupAdmin?.[innerField.name]?.editor}
+                fieldAdmin={sliceFieldAdmin(groupAdmin, innerField.name)}
               />
             ))}
           </div>
@@ -243,6 +262,9 @@ export const ArrayField = ({
           disableSorting={true}
           collectionPath={collectionPath}
           contentLocale={contentLocale}
+          components={fieldAdmin?.[childField.name]?.components}
+          editor={fieldAdmin?.[childField.name]?.editor}
+          fieldAdmin={sliceFieldAdmin(fieldAdmin, childField.name)}
         />
       )
     })

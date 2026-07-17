@@ -36,10 +36,10 @@ const answerEditorConfig: EditorConfig = (() => {
  * ISSUE-array-fields-in-blocks.md (repo root): the `faq` array renders
  * without add / remove / drag-reorder controls in the admin.
  *
- * NOTE: `defineBlockAdmin` addresses top-level block field names only, so
- * a per-field editor (extension) override cannot reach `answer` inside
- * the array — it renders with the site-wide editor registration plus the
- * compact settings above.
+ * The extension half of the answer editor lives in ./faq-block.admin.ts,
+ * addressed with the dotted schema-path key `faq.answer` — the reference
+ * for per-field admin overrides reaching fields nested inside a block's
+ * group/array structure.
  */
 export const FAQBlock = defineBlock({
   blockType: 'faqBlock',

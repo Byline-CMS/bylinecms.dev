@@ -23,6 +23,7 @@
 import type { ClientConfig } from '@byline/core'
 import { defineClientConfig } from '@byline/core'
 
+import { FAQBlockAdmin } from './blocks/faq-block.admin.js'
 import { PhotoBlockAdmin } from './blocks/photo-block.admin.js'
 import { QuoteBlockAdmin } from './blocks/quote-block.admin.js'
 import { DocsAdmin } from './collections/docs/admin.js'
@@ -44,10 +45,12 @@ export const config: ClientConfig = {
   collections,
   admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, NewsCategoriesAdmin],
   // Per-block admin config, keyed by blockType — applies wherever the block
-  // renders. Both entries opt a block richtext field into the minimal
+  // renders. Quote/Photo opt a block richtext field into the minimal
   // editor (extension half of `lexicalRichTextMinimal`, see the block
   // schema files) while the site-wide registration below stays AI-enabled.
-  blockAdmin: [QuoteBlockAdmin, PhotoBlockAdmin],
+  // FAQ is the dotted schema-path reference: its `faq.answer` key reaches
+  // the answer field inside the block's array.
+  blockAdmin: [QuoteBlockAdmin, PhotoBlockAdmin, FAQBlockAdmin],
   fields: {
     // Site-wide registration of the AI-enabled editor on every richtext
     // field. `LexicalRichTextAi` is built with

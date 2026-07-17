@@ -302,7 +302,9 @@ test.describe('document editor', () => {
     // required, so type a minimal body to keep the save valid, then toggle the
     // checkbox off.
     await page.getByRole('tab', { name: 'Content', exact: true }).click()
-    await page.getByRole('button', { name: 'Add block' }).click()
+    // `.first()` — the add-row renders an icon button and a text-styled
+    // label button that both accessibly-name "Add block".
+    await page.getByRole('button', { name: 'Add block' }).first().click()
     await page.getByText('Richtext Block', { exact: true }).click()
 
     const editor = page.locator('.ContentEditable__root').first()
@@ -336,7 +338,9 @@ test.describe('document editor', () => {
     await page.getByRole('tab', { name: 'Content', exact: true }).click()
 
     // Add a Richtext Block via the blocks picker modal.
-    await page.getByRole('button', { name: 'Add block' }).click()
+    // `.first()` — the add-row renders an icon button and a text-styled
+    // label button that both accessibly-name "Add block".
+    await page.getByRole('button', { name: 'Add block' }).first().click()
     await page.getByText('Richtext Block', { exact: true }).click()
 
     // The Lexical editor mounts a contenteditable. It's code-split and

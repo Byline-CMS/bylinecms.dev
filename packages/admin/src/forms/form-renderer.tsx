@@ -24,6 +24,7 @@ import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, ComboButton } from '@byline/ui/react'
 import cx from 'classnames'
 
+import { sliceFieldAdmin } from '../fields/field-admin'
 import { FieldRenderer } from '../fields/field-renderer'
 import { useBylineFieldServices } from '../fields/field-services-context'
 import { AdminGroup } from '../presentation/group'
@@ -488,6 +489,7 @@ const FormContent = ({
         contentLocale={contentLocale}
         components={adminConfig?.fields?.[field.name]?.components}
         editor={adminConfig?.fields?.[field.name]?.editor}
+        fieldAdmin={sliceFieldAdmin(adminConfig?.fields, field.name)}
       />
     )
   }

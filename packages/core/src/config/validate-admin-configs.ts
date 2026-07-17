@@ -15,6 +15,76 @@ import type {
 } from '../@types/index.js'
 
 /**
+ * Result of resolving a dotted, index-free schema path against a field set.
+ */
+type SchemaPathResolution = 'ok' | 'blocks' | 'unresolved'
+
+/**
+ * Resolve a dotted schema path (`faq.answer`, `files.filesGroup.publicationFile`)
+ * against a field set. Schema paths address field *declarations*: every
+ * segment names a field, intermediate segments must be `group` / `array`
+ * structure fields, and no segment carries an item index. Returns:
+ *
+ *  - `'ok'`         — the path resolves to a field declaration;
+ *  - `'blocks'`     — the path tries to traverse a `type: 'blocks'` field
+ *                     (blocks resolve their own admin config from the
+ *                     blockType-keyed registry, so this is always an error);
+ *  - `'unresolved'` — a segment doesn't name a field, or a value field
+ *                     appears mid-path.
+ */
+function resolveSchemaPath(fields: readonly Field[], path: string): SchemaPathResolution {
+  const segments = path.split('.')
+  let current: readonly Field[] = fields
+
+  for (let i = 0; i < segments.length; i++) {
+    const name = segments[i]
+    const field = current.find((f) => 'name' in f && f.name === name)
+    if (field == null) return 'unresolved'
+    if (i === segments.length - 1) return 'ok'
+
+    if (field.type === 'group' || field.type === 'array') {
+      current = field.fields
+    } else if (field.type === 'blocks') {
+      return 'blocks'
+    } else {
+      return 'unresolved'
+    }
+  }
+  return 'unresolved'
+}
+
+/**
+ * Shared validation for a `fields{}` override map (collection- or block-level):
+ * keys must be dotted, index-free schema paths that resolve to a field
+ * declaration without traversing a `blocks` field. `subject` names the config
+ * in error messages (`Collection "docs"` / `Block "faqBlock"`).
+ */
+function validateFieldAdminKeys(
+  keys: readonly string[],
+  resolve: (key: string) => SchemaPathResolution,
+  fail: (msg: string) => never
+): void {
+  for (const key of keys) {
+    if (key.includes('[')) {
+      fail(
+        `\`fields["${key}"]\` contains an item index. Field override keys are index-free schema paths addressing field declarations (e.g. "faq.answer"), not instance paths (e.g. "faq[0].answer").`
+      )
+    }
+    const resolution = resolve(key)
+    if (resolution === 'blocks') {
+      fail(
+        `\`fields["${key}"]\` traverses a \`type: 'blocks'\` field. Blocks resolve their own overrides from the blockType-keyed \`blockAdmin\` registry — register a block admin config for the inner block instead.`
+      )
+    }
+    if (resolution === 'unresolved') {
+      fail(
+        `\`fields["${key}"]\` does not resolve to a field declaration. Keys are dotted, index-free schema paths whose intermediate segments are \`group\` / \`array\` fields (e.g. "faq.answer").`
+      )
+    }
+  }
+}
+
+/**
  * Validate every admin config in a configuration.
  *
  * Enforced rules (per admin config):
@@ -30,8 +100,9 @@ import type {
  *     are unique within an admin config and don't shadow schema field names.
  *  5. Nesting — `tabSets` only appear in `layout.main`; rows contain only
  *     schema field names; groups exclude tabSets and nested groups.
- *  6. `fields` map sanity — every key in `admin.fields` matches a top-level
- *     schema field name.
+ *  6. `fields` map sanity — every key in `admin.fields` is a dotted,
+ *     index-free schema path resolving to a field declaration (top-level
+ *     name or a path through group/array fields; never through blocks).
  *  7. `defaultSort` sanity — `field` resolves to a top-level schema field
  *     or a document-level column (`createdAt` / `updatedAt` / `path`), the
  *     direction (when given) is `asc` | `desc`, and the option is rejected
@@ -66,9 +137,11 @@ export function validateAdminConfigs(
  *     `type: 'blocks'` field across the registered collections (blocks have
  *     no global registry; the collections walk is the source of truth).
  *  2. Uniqueness — no two entries share a `blockType`.
- *  3. `fields` map sanity — every key matches a top-level field name of the
- *     block (when the same `blockType` appears in several collections, the
- *     union of their top-level field names is accepted).
+ *  3. `fields` map sanity — every key is a dotted, index-free schema path
+ *     resolving to a field declaration of the block (top-level name or a
+ *     path through group/array fields; never through a nested blocks field).
+ *     When the same `blockType` appears in several collections, a key is
+ *     accepted if it resolves in any declaration site (union semantics).
  *
  * Throws a plain `Error` for the same reason `validateAdminConfigs` does —
  * this runs at startup, before the logger is necessarily wired up.
@@ -79,19 +152,19 @@ export function validateBlockAdminConfigs(
 ): void {
   if (blockAdmins == null || blockAdmins.length === 0) return
 
-  // Collect blockType → union of top-level field names across every
-  // declaration site (including blocks nested inside groups/arrays/blocks).
-  const blockFieldNames = new Map<string, Set<string>>()
+  // Collect blockType → declaration sites across every registered collection
+  // (including blocks nested inside groups/arrays/blocks). Structural drift
+  // between same-blockType declarations is possible, so keys validate against
+  // the union of sites.
+  const blocksByType = new Map<string, Block[]>()
 
   const walkBlock = (block: Block): void => {
-    let names = blockFieldNames.get(block.blockType)
-    if (names == null) {
-      names = new Set<string>()
-      blockFieldNames.set(block.blockType, names)
+    let sites = blocksByType.get(block.blockType)
+    if (sites == null) {
+      sites = []
+      blocksByType.set(block.blockType, sites)
     }
-    for (const field of block.fields) {
-      if ('name' in field) names.add(field.name)
-    }
+    sites.push(block)
     walkFields(block.fields)
   }
 
@@ -120,22 +193,33 @@ export function validateBlockAdminConfigs(
     seen.add(entry.blockType)
 
     // Rule 1 — block pairing.
-    const names = blockFieldNames.get(entry.blockType)
-    if (names == null) {
+    const sites = blocksByType.get(entry.blockType)
+    if (sites == null) {
       throw new Error(
         `Block admin config "${entry.blockType}" has no matching block (no \`type: 'blocks'\` field of any registered collection declares a block with \`blockType: '${entry.blockType}'\`).`
       )
     }
 
-    // Rule 3 — `fields` keys must be top-level field names of the block.
+    // Rule 3 — `fields` keys must be schema paths resolving within the block
+    // (union across declaration sites). 'blocks' beats 'unresolved' in the
+    // union so the traversal error surfaces when any site has the nested
+    // blocks field the key tried to walk through.
     if (entry.fields != null) {
-      for (const key of Object.keys(entry.fields)) {
-        if (!names.has(key)) {
-          throw new Error(
-            `Block "${entry.blockType}": \`fields["${key}"]\` references a name that is not a top-level field of the block. Per-field overrides apply only to the block's top-level fields.`
-          )
+      validateFieldAdminKeys(
+        Object.keys(entry.fields),
+        (key) => {
+          let best: SchemaPathResolution = 'unresolved'
+          for (const block of sites) {
+            const resolution = resolveSchemaPath(block.fields, key)
+            if (resolution === 'ok') return 'ok'
+            if (resolution === 'blocks') best = 'blocks'
+          }
+          return best
+        },
+        (msg: string): never => {
+          throw new Error(`Block "${entry.blockType}": ${msg}`)
         }
-      }
+      )
     }
   }
 }
@@ -331,15 +415,14 @@ function validateOne(
     }
   }
 
-  // Rule 6 — `fields` map keys must match top-level schema field names.
+  // Rule 6 — `fields` map keys must be schema paths resolving to a field
+  // declaration of the collection.
   if (admin.fields != null) {
-    for (const key of Object.keys(admin.fields)) {
-      if (!topLevelFieldNames.has(key)) {
-        fail(
-          `\`fields["${key}"]\` references a name that is not a top-level schema field. Per-field overrides apply only to top-level schema fields.`
-        )
-      }
-    }
+    validateFieldAdminKeys(
+      Object.keys(admin.fields),
+      (key) => resolveSchemaPath(collection.fields, key),
+      fail
+    )
   }
 
   // Rule 2 + 3 — layout: name resolution + bookkeeping (every schema field

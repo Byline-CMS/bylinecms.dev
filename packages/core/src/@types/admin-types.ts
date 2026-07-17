@@ -315,7 +315,12 @@ export interface CollectionAdminConfig<T = any> {
   layout?: LayoutDefinition
 
   /**
-   * Per-field rendering overrides, keyed by field name.
+   * Per-field rendering overrides, keyed by schema path: a top-level field
+   * name (`title`) or a dotted, index-free path through `group` / `array`
+   * structure fields (`files.filesGroup.publicationFile`). Paths address
+   * field *declarations*, never item instances (no `[0]` indices), and never
+   * traverse a `blocks` field — blocks take their overrides from the
+   * blockType-keyed `ClientConfig.blockAdmin` registry instead.
    * Placement is no longer expressed here — see the layout primitives above.
    */
   fields?: Record<string, FieldAdminConfig>
@@ -462,10 +467,13 @@ export function defineAdmin<T = any>(
  * collection genuinely needs different presentation for "the same" block,
  * define a second block with a distinct `blockType`.
  *
- * v1 scope: `fields` keys address the block's **top-level** field names only —
- * the same limitation `CollectionAdminConfig.fields` has for collections.
- * Fields nested inside a group/array within the block inherit site-wide
- * defaults.
+ * `fields` keys are **schema paths** relative to the block root: a top-level
+ * field name (`quoteText`) or a dotted path through `group` / `array`
+ * structure fields (`faq.answer`). Schema paths are index-free — they address
+ * field *declarations*, not item instances (`faq.answer`, never
+ * `faq[0].answer`) — the same notation `upload` validation and the upload
+ * executor use. Paths never traverse a nested `blocks` field: an inner block
+ * resolves its own `blockAdmin` registry entry wherever it renders.
  */
 export interface BlockAdminConfig {
   /** Must match the `blockType` of the corresponding `defineBlock()` definition. */
@@ -473,7 +481,8 @@ export interface BlockAdminConfig {
 
   /**
    * Per-field rendering overrides (`components` slots, richtext `editor`),
-   * keyed by the block's top-level field names. Same shape and semantics as
+   * keyed by index-free schema paths relative to the block root (`alt`,
+   * `faq.answer`). Same shape and semantics as
    * `CollectionAdminConfig.fields`.
    */
   fields?: Record<string, FieldAdminConfig>
@@ -481,8 +490,10 @@ export interface BlockAdminConfig {
 
 /**
  * Type-safe factory for creating a `BlockAdminConfig` linked to a block
- * schema. Sets `blockType` from the block's `blockType` and constrains the
- * `fields` keys to the block's own top-level field names.
+ * schema. Sets `blockType` from the block's `blockType`. `fields` keys
+ * autocomplete the block's top-level field names; nested declarations are
+ * addressed with dotted, index-free schema paths (`faq.answer`), validated
+ * against the block's field tree at boot (`validateBlockAdminConfigs`).
  *
  * Lives on the admin side of the schema/admin split: block schema files stay
  * React-free and tsx-loadable, while this config may carry React component
@@ -505,7 +516,17 @@ export interface BlockAdminConfig {
 export function defineBlockAdmin<B extends Block>(
   block: B,
   config: {
-    fields?: Partial<Record<Extract<keyof BlockFieldData<B>, string>, FieldAdminConfig>>
+    /**
+     * Keyed by schema path relative to the block root. Top-level field names
+     * autocomplete; nested fields are addressed with dotted, index-free
+     * paths (`faq.answer`) — accepted as plain strings here and resolved
+     * against the block's field tree at boot.
+     */
+    // `string & {}` keeps the top-level literal keys visible to autocomplete
+    // while still accepting arbitrary dotted schema paths.
+    fields?: Partial<
+      Record<Extract<keyof BlockFieldData<B>, string> | (string & {}), FieldAdminConfig>
+    >
   }
 ): BlockAdminConfig {
   return {

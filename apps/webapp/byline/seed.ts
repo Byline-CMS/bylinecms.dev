@@ -12,12 +12,14 @@ import './server.config.js'
 
 import { seedAdmin } from './seeds/admin.js'
 import { seedDocs } from './seeds/docs.js'
+import { seedFaqFixture } from './seeds/faq-fixture.js'
 import { seedNewsCategories } from './seeds/news-categories.js'
 
 async function run() {
   await seedAdmin()
   await seedNewsCategories()
   await seedDocs()
+  await seedFaqFixture()
 }
 
 run()

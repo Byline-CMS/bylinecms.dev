@@ -12,6 +12,7 @@ import type { Field, FieldAdminConfig, GroupField as GroupFieldType } from '@byl
 import { ErrorText } from '@byline/ui/react'
 import cx from 'classnames'
 
+import { sliceFieldAdmin } from '../../fields/field-admin'
 import { placeholderForField } from '../../fields/field-helpers'
 import { FieldRenderer } from '../../fields/field-renderer'
 import { useFieldError } from '../../forms/form-context'
@@ -46,10 +47,13 @@ interface GroupFieldProps {
   contentLocale?: string
   /**
    * Per-child-field admin overrides (`components` slots, richtext `editor`),
-   * keyed by child field name. Threaded by `BlocksField` from the site-wide
-   * `ClientConfig.blockAdmin` registry so block children can take per-field
-   * admin config; plain groups receive none today (their children inherit
-   * site-wide defaults).
+   * keyed by dotted, index-free schema paths relative to this group
+   * ('caption', 'faq.answer'). Threaded by `BlocksField` from the site-wide
+   * `ClientConfig.blockAdmin` registry (block children render through a
+   * synthesized group) and by `FieldRenderer` for plain schema groups, whose
+   * map arrives pre-sliced from the collection admin config. Exact-name
+   * entries apply to the child itself; deeper entries are re-sliced and
+   * threaded on (see `sliceFieldAdmin`).
    */
   fieldAdmin?: Record<string, FieldAdminConfig>
 }
@@ -105,6 +109,7 @@ export const GroupField = ({
               contentLocale={contentLocale}
               components={fieldAdmin?.[innerField.name]?.components}
               editor={fieldAdmin?.[innerField.name]?.editor}
+              fieldAdmin={sliceFieldAdmin(fieldAdmin, innerField.name)}
             />
           )
         })}

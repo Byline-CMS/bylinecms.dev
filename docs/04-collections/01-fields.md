@@ -15,7 +15,7 @@ Companions:
 
 A field in Byline lives on two sides of a deliberate split. The **schema** describes what the field *is* — name, type, validation, defaults, schema-level adapter config. The **admin** describes how the field *renders* in the dashboard — slot-component overrides for label, input, help text, adornments, and the per-field richtext editor swap. This doc is the working reference for both sides: how the split works, how to write helpers for each side, and how field-level component slots compose.
 
-The split mirrors Django's `Model` / `ModelAdmin`. The same field name appears on both sides — the schema's `fields[]` array declares the data; the admin's `fields{}` map (keyed by schema field name) attaches presentation.
+The split mirrors Django's `Model` / `ModelAdmin`. The same field name appears on both sides — the schema's `fields[]` array declares the data; the admin's `fields{}` map (keyed by [schema path](#schema-paths-vs-instance-paths) — a top-level name, or a dotted path to a declaration nested in group/array structure) attaches presentation.
 
 ```
 fields: [                            fields: {
@@ -434,9 +434,33 @@ Lives on the admin side because it carries a React component reference, and sche
 
 For *settings* differences only (placeholder, toolbar toggles, the inline-image upload collection), use a schema-side preset like `lexicalRichTextCompact` instead — that data is JSON-safe and rides along in `RichTextField.editorConfig`. See [Rich Text](./07-rich-text.md) for the full editor configuration story.
 
+### Schema paths vs instance paths
+
+Byline addresses fields with two distinct notations, and every API uses exactly one of them:
+
+- **Schema paths** are dotted and **index-free**: `files.filesGroup.publicationFile`, `faq.answer`. They address a field *declaration* — one entry names the field wherever it occurs, in every array item. Intermediate segments must be `group` / `array` structure fields; a schema path never carries an item index and never traverses a `blocks` field (blocks resolve their own admin config from the `blockAdmin` registry). Used by: the admin `fields{}` maps (collection- and block-level), `search.body` declarations, and boot-validation error messages (`walkFieldsWithPath`).
+- **Instance paths** carry bracket indices: `files[2].filesGroup.publicationFile`, `content[0].faq[1].answer`. They address a *value* in one specific item of one specific document. Used by: the patch system (`field.*` / `array.*` / `block.*` paths), the form store, field-hook `ctx.path`, and `setFieldValue`.
+
+The upload executor is the worked bridge between the two: a widget posts its instance path, and `findUploadFieldByPath` strips the indices to recover the schema path and the `upload` config declared there.
+
+Boot validation rejects `fields{}` keys that carry an index or don't resolve to a declaration, so a mixed-up notation fails at startup, not silently at render time.
+
+### Per-field admin config for nested fields
+
+A collection's `fields{}` map reaches nested declarations directly with a dotted schema-path key:
+
+```ts
+// admin.tsx — override the editor of a richText field inside an array item's group
+fields: {
+  'files.filesGroup.notes': { editor: PlainLexicalEditor },
+}
+```
+
+The override applies to that field in **every** item of the array — schema paths address declarations, not items. The one boundary is `blocks`: a collection-level key never reaches into a block; that's `defineBlockAdmin`'s job below.
+
 ### Per-block field admin config (`defineBlockAdmin`)
 
-Fields nested inside a block can't be addressed from a collection's `fields{}` map (that map is top-level-only). The block-scoped counterpart is `defineBlockAdmin`: an admin config keyed by the block's own top-level field names, registered site-wide on `ClientConfig.blockAdmin` and applied wherever the block renders — any collection, any nesting.
+Fields inside a block are addressed by the block-scoped counterpart, `defineBlockAdmin`: an admin config keyed by schema paths relative to the block root, registered site-wide on `ClientConfig.blockAdmin` and applied wherever the block renders — any collection, any nesting. Nested declarations inside the block use the same dotted keys (`faq.answer` — see `apps/webapp/byline/blocks/faq-block.admin.ts`, the reference).
 
 ```ts
 // blocks/quote-block.admin.ts (admin-side — may carry React)
@@ -453,7 +477,7 @@ export const QuoteBlockAdmin = defineBlockAdmin(QuoteBlock, {
 blockAdmin: [QuoteBlockAdmin],
 ```
 
-The same schema/admin split applies: `defineBlock()` files stay React-free; the `.admin.ts` companion imports the schema, never the reverse. Registration is keyed by `blockType` because blocks are cross-collection units — the same block object shared by several collections gets one admin identity (mirroring how type generation dedupes block contracts). Boot validation rejects unknown `blockType`s, duplicates, and field keys that aren't top-level fields of the block. See [Blocks](./02-blocks.md) for the full design.
+The same schema/admin split applies: `defineBlock()` files stay React-free; the `.admin.ts` companion imports the schema, never the reverse. Registration is keyed by `blockType` because blocks are cross-collection units — the same block object shared by several collections gets one admin identity (mirroring how type generation dedupes block contracts). Boot validation rejects unknown `blockType`s, duplicates, and `fields` keys that don't resolve as schema paths within the block. See [Blocks](./02-blocks.md) for the full design.
 
 ### Mixing both layers
 
@@ -493,7 +517,7 @@ When present, the admin form renders the field only while the function returns `
 
 Conditions are plain functions over form data, so they are safe in the isomorphic schema — the same rule as inline field hooks (no server-only imports).
 
-Tab-level conditions are the admin-side sibling of this feature: `TabDefinition.condition(data)` on a `CollectionAdminConfig` shows/hides an entire tab. Field-level `condition` lives on the schema because it sits on the field it controls at any nesting depth — including fields inside groups, array items, and blocks, which the admin config's top-level `fields{}` map cannot address.
+Tab-level conditions are the admin-side sibling of this feature: `TabDefinition.condition(data)` on a `CollectionAdminConfig` shows/hides an entire tab. Field-level `condition` lives on the schema because it is *data-dependent per item* — a condition inside an array item observes its own item's values, which a declaration-addressed admin override (one entry per schema path) has no way to express.
 
 ### Field hooks and cross-field writes
 
