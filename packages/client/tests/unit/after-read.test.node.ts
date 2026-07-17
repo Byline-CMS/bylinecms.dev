@@ -376,7 +376,8 @@ describe('afterRead — populate interaction', () => {
       .collection('posts')
       .find({ populate: { author: true } })
 
-    expect((result.docs[0]?.fields.author as any).document.fields).not.toHaveProperty('privateName')
+    const author = result.docs[0]?.fields.author as any
+    expect(author.document.fields).not.toHaveProperty('privateName')
     expect(authorsHook.mock.calls[0]?.[0].requestContext.actor.id).toBe('denied')
   })
 })

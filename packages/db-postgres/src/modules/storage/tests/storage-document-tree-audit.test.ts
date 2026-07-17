@@ -217,9 +217,9 @@ describe('document-tree lifecycle audit atomicity', () => {
     ])
     const reparent = audit?.entries.find((entry) => entry.action === 'document.tree.reparented')
     expect(reparent?.before).toMatchObject({ placed: true })
-    expect((reparent?.before as { parentDocumentId: string }).parentDocumentId).not.toBe(
-      (reparent?.after as { parentDocumentId: string }).parentDocumentId
-    )
+    const before = reparent?.before as { parentDocumentId: string }
+    const after = reparent?.after as { parentDocumentId: string }
+    expect(before.parentDocumentId).not.toBe(after.parentDocumentId)
   })
 
   it('returns locked pre-removal descendants to the post-commit tree event', async () => {

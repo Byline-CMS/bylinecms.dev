@@ -65,9 +65,33 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
   let schema: z.ZodType
 
   switch (field.type) {
-    case 'array':
-      schema = z.any().array()
+    case 'array': {
+      // Homogeneous item objects built by recursing into the array's child
+      // fields — the item shape mirrors `createFieldsSchema` one level down,
+      // so requiredness and per-type validation apply inside items exactly
+      // as they do at the top level (threading `strict` keeps reads lenient
+      // for schema-evolved documents). `_id` is the synthetic item identity
+      // (assigned client-side on add, persisted via store_meta) — always
+      // accepted, never required. `.passthrough()` tolerates auxiliary keys
+      // (e.g. legacy seed-data `id` aliases) instead of stripping them.
+      // Group children stay `z.any()` via the `group` case below — the same
+      // depth boundary top-level groups have.
+      const itemShape: Record<string, z.ZodType<any>> = {
+        _id: z.string().optional(),
+      }
+      for (const child of field.fields ?? []) {
+        itemShape[child.name] = fieldToZodSchema(child, strict)
+      }
+      let arraySchema = z.array(z.object(itemShape).passthrough())
+      if (field.validation?.minLength != null) {
+        arraySchema = arraySchema.min(field.validation.minLength)
+      }
+      if (field.validation?.maxLength != null) {
+        arraySchema = arraySchema.max(field.validation.maxLength)
+      }
+      schema = arraySchema
       break
+    }
 
     case 'text': {
       let textSchema = z.string()
