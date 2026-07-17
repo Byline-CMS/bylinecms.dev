@@ -35,7 +35,7 @@ Use a scope when changes are clearly confined to one area, e.g. `feat(search):`,
 
 4. Stage the appropriate files (prefer specific files over `git add -A`). Do not stage `.env` files, credentials, or secrets.
 5. If `$ARGUMENTS` is provided, use it as a hint for the message but still follow the format above.
-6. DO NOT include any co-authored by Claude or co-authored by any other AI agent or tool in any commit messages.
+6. DO NOT create a co-authored commit or include any co-authored by Claude or co-authored by any other AI agent or tool in any commit messages.
 7. Create the commit with the conventional commit message only:
 
 ```
