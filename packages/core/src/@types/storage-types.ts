@@ -45,9 +45,22 @@ export interface UploadFileOptions {
    */
   collection?: string
   /**
+   * Declarative storage-key scope replacing the `collection` default —
+   * threaded from the field's `UploadConfig.location` (e.g.
+   * `'news/attachments'`, nested segments allowed). Providers use it exactly
+   * where they would have used `collection`, keeping their own entropy and
+   * filename sanitisation (unlike `targetStoragePath`, which is written
+   * verbatim and bypasses the collision guard). Ignored when
+   * `targetStoragePath` is set.
+   *
+   * Always POSIX-style (forward slashes), no leading/trailing slash —
+   * boot-validated on the schema side before it reaches providers.
+   */
+  location?: string
+  /**
    * Explicit, fully-qualified storage path / object key the provider must
    * write to verbatim. When set, providers MUST place the file at exactly
-   * this path — no UUID prefix, year/month rewrite, or `pathPrefix` injection.
+   * this path — no entropy suffix, year/month rewrite, or `pathPrefix` injection.
    *
    * Used by the image-variant pipeline (`generateImageVariants`) to write
    * sibling files alongside an already-stored original (e.g. so the

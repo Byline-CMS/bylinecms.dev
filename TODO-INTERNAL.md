@@ -47,15 +47,15 @@ Then external drivers (the RAG/vector/hybrid payoff; home for the private BM25 w
 
 ### Bulk "refresh embedded relations" admin command
 
-For richtext fields in snapshot mode (`embedRelationsOnSave: true, populateRelationsOnRead: false`), embedded data drifts when targets change. A bulk command would walk every richtext value in a chosen collection (or installation-wide), re-resolve each relation, and re-embed the cached fields in place — without bumping `documentVersions`. Useful when staleness compounds (e.g. a bulk title rename) and per-document re-saves aren't practical. See [RELATIONSHIPS.md → Phase — bulk refresh denormalised links](./docs/04-collections/02-relationships.md#phase--bulk-refresh-denormalised-links-command).
+For richtext fields in snapshot mode (`embedRelationsOnSave: true, populateRelationsOnRead: false`), embedded data drifts when targets change. A bulk command would walk every richtext value in a chosen collection (or installation-wide), re-resolve each relation, and re-embed the cached fields in place — without bumping `documentVersions`. Useful when staleness compounds (e.g. a bulk title rename) and per-document re-saves aren't practical. See [RELATIONSHIPS.md → Phase — bulk refresh denormalised links](./docs/04-collections/03-relationships.md#phase--bulk-refresh-denormalised-links-command).
 
 ### Cascade-delete acted on
 
-The `cascade_delete` flag round-trips today but isn't enforced. Future write-path pass walks relations to deleted targets and applies the policy: `true` → hard-delete the referencing rows; `false` → leave in place (`_resolved: false` on read); `'restrict'` → refuse the delete with `ERR_REFERENTIAL_INTEGRITY`. Shares design surface with the integrity-scanning track. See [RELATIONSHIPS.md → Phase — cascade-delete acted on](./docs/04-collections/02-relationships.md#phase--cascade-delete-acted-on).
+The `cascade_delete` flag round-trips today but isn't enforced. Future write-path pass walks relations to deleted targets and applies the policy: `true` → hard-delete the referencing rows; `false` → leave in place (`_resolved: false` on read); `'restrict'` → refuse the delete with `ERR_REFERENTIAL_INTEGRITY`. Shares design surface with the integrity-scanning track. See [RELATIONSHIPS.md → Phase — cascade-delete acted on](./docs/04-collections/03-relationships.md#phase--cascade-delete-acted-on).
 
 ### Cross-document link integrity job
 
-Periodic admin command that scans richtext fields and `store_relation` rows for links to deleted or unresolvable targets, then surfaces them in a "broken links" admin view. Reuses populate's missing-target detection (`_resolved: false`) but materialises the result as a triage list. See [RELATIONSHIPS.md → Phase — cross-document link integrity job](./docs/04-collections/02-relationships.md#phase--cross-document-link-integrity-job).
+Periodic admin command that scans richtext fields and `store_relation` rows for links to deleted or unresolvable targets, then surfaces them in a "broken links" admin view. Reuses populate's missing-target detection (`_resolved: false`) but materialises the result as a triage list. See [RELATIONSHIPS.md → Phase — cross-document link integrity job](./docs/04-collections/03-relationships.md#phase--cross-document-link-integrity-job).
 
 ### Historical config snapshots — `collection_versions` history table
 
@@ -96,12 +96,6 @@ Cost framing today is a 4-place tax per new admin area: package factory + webapp
 
 ---
 
-### Upload `directory` — declarative storage-key scope per upload field
-
-Inline `image`/`file` fields all share one `<collectionPath>/` storage-key scope (`buildObjectKey(pathPrefix, collection, filename)` in both providers), so a collection with two upload fields mixes their objects in one directory. This is the *normal* case, not an edge case — the FORRU publications collection hit it immediately (covers + attached PDFs both landing in `publications/`), and the only lever today is a `beforeStore` hook returning `{ storagePath }`: a separate server-only module plus the dynamic-import loader form, all to express a constant string. Hooks are the right tool for **dynamic** keys (e.g. FORRU's deterministic serial-based PDF names); they're the wrong altitude for static configuration — and a schema prop is isomorphic-safe (plain string, no server-only graph) and visible to the collection fingerprint.
-
-Proposed shape: `upload.directory?: string` (e.g. `'publications/covers'`, nested segments allowed) replacing the default `<collectionPath>/` scope. Precedence: `beforeStore` `{ storagePath }` (verbatim, unchanged) → `upload.directory` → collection-path default; `{ filename }` hook overrides keep composing with the directory. Implementation: extend `UploadFileOptions` with a `scope` defaulting to `collection` at the `field-upload.ts` call site, so both `storage-local` and `storage-s3` keep their own entropy/sanitisation (do NOT route through `targetStoragePath`, which bypasses the provider's UUID collision guard). Validate segments at boot (safe chars, no leading/trailing/duplicate slashes). Variants need no work — they already derive sibling paths from the stored original. Doc note, not machinery: changing `directory` later doesn't move existing objects (same as hooks today). Worked host example to simplify once shipped: FORRU `publications/cover-hooks.ts` collapses to the prop; `file-hooks.ts` keeps its hook (dynamic name) minus the hardcoded prefix. (Raised 2026-07-14 during the FORRU content migration.)
-
 ### Lazy admin-locale loading — async bundle map past the ~5-locale threshold
 
 `@byline/i18n/admin` ships every bundled locale via static `import enJson from './en.json'` statements, so the bundler inlines a fixed-size set and **all** of them land in the initial admin JS payload. The design always named ~5 locales as the point where lazy loading earns its complexity (see [I18N.md → Bundling and code-splitting](./docs/07-internationalization/02-admin-translations.md#bundling-and-code-splitting) and the `Remaining work` bullet). **That threshold is now crossed:** as of 2026-06-14 the admin ships **7** interface locales (`en`, `fr`, `es`, `de`, `it`, `zh-CN`, `ko`) — so this is no longer hypothetical, it's a live (if low-severity) payload-weight item.
@@ -126,6 +120,12 @@ Design surface to work through: (1) **scope** — preferences are almost certain
 
 Each entry names the trigger that would move it into Next. No work happens until the trigger fires.
 
+### Upload `Content-Disposition` — original filenames on download
+
+With friendly storage keys shipped (4.2: `<location|collection>/<slug>-<suffix>.<ext>`), the remaining download-UX gap is cosmetic: the saved filename carries the slug + suffix, not the pretty original (`Meeting Agenda 2026.pdf`, Unicode/Thai names). `Content-Disposition` closes it: S3 accepts it as per-object metadata at `PutObject` time (we already persist `originalFilename` in `StoredFileValue`, and the S3 provider already sets analogous per-upload metadata — roughly one RFC 5987 `filename*` encoding plus one parameter), and presigned URLs can set it dynamically via `response-content-disposition` with zero stored state.
+
+**Trigger:** two design questions need owners before shipping. (1) **Local-provider symmetry** — local storage doesn't serve HTTP; the host's runtime handler would need the original filename at request time, meaning either a `store_file` lookup per static-file request or sidecar metadata written next to the file. Shipping S3-only would make provider behavior visibly divergent. (2) **The `inline` vs `attachment` policy** — images want `inline`, `.docx` wants `attachment`, PDFs are debatable; likely a small per-field or per-MIME policy on `UploadConfig`. Move to Next when a real download-affordance ask arrives (or the FORRU beta wants original Thai filenames on library downloads).
+
 ### Upload `collectionPath` — read from form context instead of prop-drilling
 
 **Shipped (the prop-drilling fix):** `collectionPath` now threads through `ArrayField` and `GroupField` into their child `FieldRenderer`s (2026-07-08), so `file` / `image` fields nested in an array, a group, or a group-in-array render their upload widget instead of the empty placeholder. Previously both container fields dropped the prop, so a nested upload field never received the path it needs to reach `/upload` and silently fell back to `fields.file.empty` — only top-level upload fields worked.
@@ -144,27 +144,27 @@ Each entry names the trigger that would move it into Next. No work happens until
 
 ### Per-locale paths (translated slugs)
 
-**Trigger:** a real consumer needs translated slugs as a CMS concern (not just locale-prefixed routing in the frontend). The structural answer is on file: a new `document_paths` table keyed by `(collection_id, locale, path)`, not extending the existing column or pushing `path` into the EAV. See [DOCUMENT-PATHS.md → Phase — per-locale paths](./docs/04-collections/04-document-paths.md#phase--per-locale-paths-the-larger-one).
+**Trigger:** a real consumer needs translated slugs as a CMS concern (not just locale-prefixed routing in the frontend). The structural answer is on file: a new `document_paths` table keyed by `(collection_id, locale, path)`, not extending the existing column or pushing `path` into the EAV. See [DOCUMENT-PATHS.md → Phase — per-locale paths](./docs/04-collections/05-document-paths.md#phase--per-locale-paths-the-larger-one).
 
 ### Per-collection slugifier override
 
-**Trigger:** a real need (e.g. media collection that wants to preserve filename extensions). The plumbing point is well-defined: `useAsPath: { source, formatter }` taking precedence over `ServerConfig.slugifier`. See [DOCUMENT-PATHS.md → Phase — per-collection slugifier override](./docs/04-collections/04-document-paths.md#phase--per-collection-slugifier-override).
+**Trigger:** a real need (e.g. media collection that wants to preserve filename extensions). The plumbing point is well-defined: `useAsPath: { source, formatter }` taking precedence over `ServerConfig.slugifier`. See [DOCUMENT-PATHS.md → Phase — per-collection slugifier override](./docs/04-collections/05-document-paths.md#phase--per-collection-slugifier-override).
 
 ### Editor lifecycle hooks for richtext (Phase 3b)
 
-**Trigger:** a second editor implementation arrives (`@byline/richtext-tiptap`, `@byline/richtext-md`) **and** it can't achieve correct round-trip behaviour through the existing `FieldHooks` and collection hooks alone. Adapter-level `beforeChange` / `afterChange` / `beforeRead` / `serialize` / `deserialize` is genuinely editor-specific and best designed against two concrete shapes rather than one. See [RICHTEXT.md → Phase 3b](./docs/04-collections/06-rich-text.md#phase-3b--user-land-editor-lifecycle-hooks-deferred).
+**Trigger:** a second editor implementation arrives (`@byline/richtext-tiptap`, `@byline/richtext-md`) **and** it can't achieve correct round-trip behaviour through the existing `FieldHooks` and collection hooks alone. Adapter-level `beforeChange` / `afterChange` / `beforeRead` / `serialize` / `deserialize` is genuinely editor-specific and best designed against two concrete shapes rather than one. See [RICHTEXT.md → Phase 3b](./docs/04-collections/07-rich-text.md#phase-3b--user-land-editor-lifecycle-hooks-deferred).
 
 ### Feature-graph configuration for richtext (Phase 4)
 
-**Trigger:** at least two editor packages have a *compatible* feature surface that cannot be expressed as plain editor-specific props. Until then, `RichTextField.editorConfig: unknown` plus per-package config types is the right shape. See [RICHTEXT.md → Phase 4](./docs/04-collections/06-rich-text.md#phase-4--feature-graph-configuration-only-if-phase-23-demand-it).
+**Trigger:** at least two editor packages have a *compatible* feature surface that cannot be expressed as plain editor-specific props. Until then, `RichTextField.editorConfig: unknown` plus per-package config types is the right shape. See [RICHTEXT.md → Phase 4](./docs/04-collections/07-rich-text.md#phase-4--feature-graph-configuration-only-if-phase-23-demand-it).
 
 ### Editor-side server pipeline — search / excerpt / plain text (richtext Phase 5)
 
-**Trigger:** the search / indexing story takes shape. Independent of the adapter contract; could ship at any point but slots most naturally next to a search consumer. See [RICHTEXT.md → Phase 5](./docs/04-collections/06-rich-text.md#phase-5--editor-side-server-pipeline-search-excerpt-plain-text).
+**Trigger:** the search / indexing story takes shape. Independent of the adapter contract; could ship at any point but slots most naturally next to a search consumer. See [RICHTEXT.md → Phase 5](./docs/04-collections/07-rich-text.md#phase-5--editor-side-server-pipeline-search-excerpt-plain-text).
 
 ### Per-collection / per-field editor selection (richtext Phase 6)
 
-**Trigger:** a real product ask for editor variance per collection or per field (e.g. markdown editor in a docs collection alongside Lexical in a marketing collection). Mechanically easy; the product question is the harder half. See [RICHTEXT.md → Phase 6](./docs/04-collections/06-rich-text.md#phase-6--per-collection--per-field-editor-selection).
+**Trigger:** a real product ask for editor variance per collection or per field (e.g. markdown editor in a docs collection alongside Lexical in a marketing collection). Mechanically easy; the product question is the harder half. Note: the *component*-level halves of this shipped in 4.2 — per-field `FieldAdminConfig.editor` at the collection level and per-block-field via `defineBlockAdmin` ([BLOCKS.md](./docs/04-collections/02-blocks.md)); what remains is schema-side *adapter* selection (a different editor package per collection/field, with per-adapter value shapes). See [RICHTEXT.md → Phase 6](./docs/04-collections/07-rich-text.md#phase-6--per-collection--per-field-editor-selection).
 
 ### Collection-versioning Phases 3–5
 
@@ -191,4 +191,4 @@ See [AUTHN-AUTHZ.md → Explicitly deferred](./docs/06-auth-and-security/01-auth
 
 ### Stable HTTP transport for `path`
 
-**Trigger:** the broader stable HTTP API transport (see above). The widget already posts `path` as a top-level field through server fns; once the HTTP boundary lands, `path` falls out of the same wire-shape pass. Trivial work; flagged here so it isn't forgotten. See [DOCUMENT-PATHS.md → Phase — stable HTTP transport for path](./docs/04-collections/04-document-paths.md#phase--stable-http-transport-for-path).
+**Trigger:** the broader stable HTTP API transport (see above). The widget already posts `path` as a top-level field through server fns; once the HTTP boundary lands, `path` falls out of the same wire-shape pass. Trivial work; flagged here so it isn't forgotten. See [DOCUMENT-PATHS.md → Phase — stable HTTP transport for path](./docs/04-collections/05-document-paths.md#phase--stable-http-transport-for-path).

@@ -92,6 +92,28 @@ export interface UploadConfig {
    * Omit to allow all types.
    */
   mimeTypes?: string[]
+  /**
+   * Declarative storage location (key scope) for this field's uploads,
+   * replacing the default `<collectionPath>/` scope. Nested segments are
+   * allowed — e.g. `'publications/covers'`, `'news/attachments'`. Providers
+   * keep their own entropy and filename sanitisation beneath it
+   * (`<location>/<filename>-<suffix>.<ext>`), so collision behaviour is unchanged.
+   *
+   * Precedence: a `beforeStore` hook returning `{ storagePath }` (written
+   * verbatim) → `location` → the collection-path default. A `{ filename }`
+   * hook override keeps composing with `location`. Use `location` for
+   * static scoping; hooks remain the tool for *dynamic* keys (per-document
+   * serials, tenant prefixes).
+   *
+   * Boot-validated: POSIX-style forward slashes; segments of
+   * `A–Z a–z 0–9 . _ -`; no leading/trailing/duplicate slashes; no `.` or
+   * `..` segments.
+   *
+   * Note: changing `location` later does not move previously stored objects
+   * (same as renaming via hooks) — existing documents keep their recorded
+   * `storagePath`.
+   */
+  location?: string
   /** Maximum file size in bytes. Omit for no limit. */
   maxFileSize?: number
   /**
@@ -616,7 +638,7 @@ export interface DeleteContext {
 
 /**
  * Context passed to the `afterTreeChange` hook — the structural-change
- * invalidation event for `tree: true` collections (docs/04-collections/03-document-trees.md).
+ * invalidation event for `tree: true` collections (docs/04-collections/04-document-trees.md).
  *
  * Tree mutations are document-grain and **unversioned**, so the normal
  * version-write invalidation (`afterCreate` / `afterUpdate` / `afterStatusChange`)
@@ -665,11 +687,11 @@ export interface TreeChangeContext {
  *     override is threaded into `storage.upload(...)`, so generated
  *     image variants automatically inherit the new prefix. The storage
  *     provider still derives the final key (e.g. local storage prefixes
- *     `<collection>/<uuid>-` for collision avoidance).
+ *     `<collection>/<basename>-<suffix>.<ext>` for collision avoidance).
  *   - Take **full control of the storage key** by returning
  *     `{ storagePath }` — a fully-qualified, POSIX-style path (no
  *     leading slash) that is threaded into `storage.upload(...)` as
- *     `targetStoragePath` and written **verbatim**: no UUID prefix, no
+ *     `targetStoragePath` and written **verbatim**: no entropy suffix, no
  *     collection namespace, no provider rewriting. The hook assumes
  *     responsibility for sanitisation and collision avoidance (see
  *     `UploadFileOptions.targetStoragePath`). Generated image variants
@@ -729,7 +751,7 @@ export interface BeforeStoreContext {
  *                           provider still derives the final key.
  *   - `{ storagePath }`   → take full control of the storage key: written
  *                           verbatim via `UploadFileOptions.targetStoragePath`
- *                           (no UUID prefix / provider rewriting). May be
+ *                           (no entropy suffix / provider rewriting). May be
  *                           combined with `filename`; without it, the stored
  *                           filename defaults to the path's basename.
  *   - `{ error }`         → reject the upload; surfaces as
@@ -874,7 +896,7 @@ export async function resolveUploadHooks(
  * by populate. A hook that performs its own reads should thread this
  * context back in via `client.collection(...).findById(id, { _readContext:
  * readContext })` so the visited set and read budget are preserved —
- * essential to foreclose the A→B→A loop (see `docs/04-collections/02-relationships.md`).
+ * essential to foreclose the A→B→A loop (see `docs/04-collections/03-relationships.md`).
  */
 export interface AfterReadContext {
   /** The raw reconstructed document. Mutate in place — changes persist. */
@@ -1022,7 +1044,7 @@ export interface CollectionHooks {
    * (`removeFromTree`), or the promote-children-to-root that accompanies a
    * delete. Tree writes mint no document version, so this is the only
    * invalidation signal for them. Fires once per write with the full affected
-   * set ({@link TreeChangeContext}). See docs/04-collections/03-document-trees.md.
+   * set ({@link TreeChangeContext}). See docs/04-collections/04-document-trees.md.
    */
   afterTreeChange?: CollectionHookSlot<TreeChangeContext>
 
@@ -1341,7 +1363,7 @@ export interface CollectionDefinition {
    * touch no user fields. Do **not** also declare a `parent` relation field; the
    * tree owns structure (a topic that genuinely belongs in two places is a
    * cross-link relation field, never a second tree edge). See
-   * docs/04-collections/03-document-trees.md.
+   * docs/04-collections/04-document-trees.md.
    */
   tree?: boolean
   /**

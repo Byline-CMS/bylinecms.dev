@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { randomBytes } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { pipeline } from 'node:stream/promises'
@@ -62,19 +63,39 @@ function sanitiseFilename(filename: string): string {
   return `${safe || 'file'}${ext.toLowerCase()}`
 }
 
+const SUFFIX_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'
+
 /**
- * Build a namespaced storage sub-path, e.g.:
- *   `media/a1b2c3d4-e5f6-...-photo.jpg`
- *
- * The UUIDv4 prefix is sufficient to prevent filename collisions without the
- * extra year/month directory nesting, and it simplifies variant path derivation
- * and cleanup on deletion.
+ * Short random base36 suffix appended to stored basenames. Six characters
+ * (36^6 ≈ 2.2 billion) keep filenames human-friendly while making
+ * collisions among same-named files in one scope vanishingly rare — and
+ * the upload path verifies availability with `exists()` and retries, so
+ * the residual risk is handled rather than merely improbable.
  */
-function buildStoragePath(collection: string | undefined, filename: string): string {
-  const uid = uuidv4()
+function randomSuffix(length = 6): string {
+  let out = ''
+  for (const byte of randomBytes(length)) {
+    out += SUFFIX_ALPHABET.charAt(byte % SUFFIX_ALPHABET.length)
+  }
+  return out
+}
+
+/**
+ * Compose a candidate storage sub-path, e.g.:
+ *   `events/meeting-agenda-4fa35g.pdf`
+ *
+ * `scope` is the field's `upload.location` when declared (may carry nested
+ * segments, e.g. `news/attachments`), else the collection path. The
+ * filename leads (arriving pre-slugified from `uploadField`'s configurable
+ * filename slugifier; `sanitiseFilename` re-applies the default rules as a
+ * safety net for direct callers) and the entropy rides as a short suffix
+ * before the extension — friendly to download as, browse, and log.
+ */
+function buildStoragePath(scope: string | undefined, filename: string, suffix: string): string {
   const safe = sanitiseFilename(filename)
-  const prefix = collection ?? 'uploads'
-  return `${prefix}/${uid}-${safe}`
+  const ext = path.extname(safe)
+  const base = path.basename(safe, ext)
+  return `${scope ?? 'uploads'}/${base}-${suffix}${ext}`
 }
 
 // ---------------------------------------------------------------------------
@@ -97,8 +118,7 @@ class LocalStorageProvider implements IStorageProvider {
     stream: NodeJS.ReadableStream | Buffer,
     options: UploadFileOptions
   ): Promise<StoredFileLocation> {
-    const storagePath =
-      options.targetStoragePath ?? buildStoragePath(options.collection, options.filename)
+    const storagePath = options.targetStoragePath ?? (await this.availableStoragePath(options))
     const absolutePath = path.join(this.uploadDir, storagePath)
 
     // Ensure the target directory exists.
@@ -116,6 +136,21 @@ class LocalStorageProvider implements IStorageProvider {
       storagePath: storagePath,
       storageUrl: this.getUrl(storagePath),
     }
+  }
+
+  /**
+   * Pick an unclaimed storage path: compose the friendly key, verify it is
+   * free, and retry with a fresh suffix on collision. After three straight
+   * collisions (pathological — a same-named file avalanche) fall back to a
+   * full-entropy UUID suffix, which cannot realistically collide.
+   */
+  private async availableStoragePath(options: UploadFileOptions): Promise<string> {
+    const scope = options.location ?? options.collection
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const candidate = buildStoragePath(scope, options.filename, randomSuffix())
+      if (!(await this.exists(candidate))) return candidate
+    }
+    return buildStoragePath(scope, options.filename, uuidv4())
   }
 
   async delete(storagePath: string): Promise<void> {
@@ -180,7 +215,9 @@ class LocalStorageProvider implements IStorageProvider {
  * Create a local filesystem storage provider.
  *
  * Uploaded files are written under `uploadDir`, organised into sub-paths:
- *   `<collection>/<uuid>-<filename>`
+ *   `<location|collection>/<filename>-<suffix>.<ext>`
+ * (e.g. `events/meeting-agenda-4fa35g.pdf` — a short base36 suffix keeps
+ * names friendly; availability is verified with a retry on collision).
  *
  * The provider generates a public URL by prepending `baseUrl` to the
  * storage path. Pair this with a runtime file handler (Express

@@ -293,5 +293,51 @@ export function validateCollections(collections: readonly CollectionDefinition[]
     }
 
     validateVirtualFields(collection)
+    validateUploadLocations(collection)
   }
+}
+
+/**
+ * Enforce the `upload.location` shape for every upload-capable field. The
+ * value is a declarative storage-key scope handed to storage providers
+ * (`<location>/<uuid>-<filename>`), so it must be a clean POSIX-style
+ * segment path:
+ *
+ *   - non-empty string, forward slashes only;
+ *   - no leading / trailing / duplicate slashes;
+ *   - segments of `A–Z a–z 0–9 . _ -` only (no spaces, no backslashes);
+ *   - no `.` or `..` segments (path traversal).
+ */
+function validateUploadLocations(collection: CollectionDefinition): void {
+  walkFieldsWithPath(collection.fields, (field, fieldPath) => {
+    if (field.type !== 'file' && field.type !== 'image') return
+    const location = field.upload?.location
+    if (location === undefined) return
+
+    const fail = (reason: string): never => {
+      throw new Error(
+        `Collection "${collection.path}" field "${fieldPath}" has invalid \`upload.location\` ` +
+          `${JSON.stringify(location)}: ${reason}`
+      )
+    }
+
+    if (typeof location !== 'string' || location.length === 0) {
+      fail('must be a non-empty string.')
+    }
+    if (location.startsWith('/') || location.endsWith('/')) {
+      fail('must not start or end with a slash.')
+    }
+    const segments = location.split('/')
+    for (const segment of segments) {
+      if (segment.length === 0) {
+        fail('must not contain duplicate slashes.')
+      }
+      if (segment === '.' || segment === '..') {
+        fail('must not contain `.` or `..` segments.')
+      }
+      if (!/^[A-Za-z0-9._-]+$/.test(segment)) {
+        fail(`segment "${segment}" contains unsupported characters (allowed: A–Z a–z 0–9 . _ -).`)
+      }
+    }
+  })
 }

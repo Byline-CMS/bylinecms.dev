@@ -137,6 +137,10 @@ function canonicalUpload(u: UploadConfig): Record<string, unknown> {
   const out: Record<string, unknown> = {}
   if (u.mimeTypes !== undefined) out.mimeTypes = [...u.mimeTypes].sort()
   if (u.maxFileSize !== undefined) out.maxFileSize = u.maxFileSize
+  // Storage-key scope: where new uploads land is part of the field's
+  // storage contract (existing objects never move on change, but the
+  // declaration itself is schema-shape).
+  if (u.location !== undefined) out.location = u.location
   if (u.sizes !== undefined) {
     out.sizes = u.sizes
       .map((s) => ({

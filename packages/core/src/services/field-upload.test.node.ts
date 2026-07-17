@@ -388,7 +388,7 @@ describe('uploadField service', () => {
       shouldCreateDocument: false,
     })
 
-    // Explicit key is handed to the provider verbatim — no UUID prefix,
+    // Explicit key is handed to the provider verbatim — no entropy suffix,
     // no collection-derived key.
     expect(upload).toHaveBeenCalledWith(
       expect.any(Buffer),

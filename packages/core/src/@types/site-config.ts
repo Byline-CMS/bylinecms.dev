@@ -9,6 +9,7 @@
 import type { SessionProvider } from '@byline/auth'
 
 import type { SlugifierFn } from '../utils/slugify.js'
+import type { FilenameSlugifierFn } from '../utils/slugify-filename.js'
 import type { BlockAdminConfig, CollectionAdminConfig } from './admin-types.js'
 import type {
   CollectionDefinition,
@@ -293,6 +294,23 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    * `defineClientConfig`. See {@link ClientConfig.slugifier}.
    */
   slugifier?: SlugifierFn
+  /**
+   * Installation-wide upload defaults.
+   *
+   * `filenameSlugifier` — the filename parallel of {@link slugifier}: applied
+   * to every uploaded file's **base name** (extension split off, lowercased,
+   * and reattached by the framework) before the `beforeStore` hook chain and
+   * storage-key composition. Falls back to the default `slugifyFilename`
+   * from `@byline/core` when not set. Server-only — filenames are derived
+   * exclusively at write time, so no client copy is needed.
+   *
+   * The stored key's basename becomes
+   * `<slugified-base>-<6-char suffix>.<ext>` (see the storage providers), so
+   * this function decides the human-readable half of every stored filename.
+   */
+  uploads?: {
+    filenameSlugifier?: FilenameSlugifierFn
+  }
   /**
    * Session provider for admin authentication. Optional in Phase 3 —
    * installations without a provider configured simply can't sign in

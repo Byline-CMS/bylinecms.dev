@@ -198,6 +198,7 @@ export const uploadCollectionField = createServerFn({ method: 'POST' })
           logger,
           defaultLocale: serverConfig.i18n.content.defaultLocale,
           slugifier: serverConfig.slugifier,
+          filenameSlugifier: serverConfig.uploads?.filenameSlugifier,
           requestContext: await getAdminRequestContext(),
           imageProcessor: {
             extractMeta: extractImageMeta,

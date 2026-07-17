@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { randomBytes } from 'node:crypto'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 
@@ -94,7 +95,7 @@ export interface S3StorageConfig {
    * uploads compute their key from the original's `storagePath`, which
    * already carries the prefix.
    *
-   * @example `'byline'` → keys stored as `byline/<collection>/<uuid>-<filename>`
+   * @example `'byline'` → keys stored as `byline/<collection>/<filename>-<suffix>.<ext>`
    */
   pathPrefix?: string
   /**
@@ -110,7 +111,7 @@ export interface S3StorageConfig {
   /**
    * Default `Cache-Control` header written to every uploaded object's
    * metadata, used by S3/CDNs when serving the file. Long-lived
-   * immutable URLs are common for content with UUID-prefixed keys.
+   * immutable URLs are common for content with collision-proof keys.
    *
    * @example `'public, max-age=31536000, immutable'`
    */
@@ -151,24 +152,48 @@ function sanitiseFilename(filename: string): string {
   return `${safe || 'file'}${ext.toLowerCase()}`
 }
 
+const SUFFIX_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'
+
 /**
- * Build a namespaced object key, e.g.:
- *   `[pathPrefix/]media/a1b2c3d4-e5f6-...-photo.jpg`
+ * Short random base36 suffix appended to stored basenames. Six characters
+ * (36^6 ≈ 2.2 billion) keep filenames human-friendly while making
+ * collisions among same-named files in one scope vanishingly rare — and
+ * the upload path verifies availability with `exists()` (one HeadObject)
+ * and retries, so the residual risk is handled rather than merely
+ * improbable.
+ */
+function randomSuffix(length = 6): string {
+  let out = ''
+  for (const byte of randomBytes(length)) {
+    out += SUFFIX_ALPHABET.charAt(byte % SUFFIX_ALPHABET.length)
+  }
+  return out
+}
+
+/**
+ * Compose a candidate object key, e.g.:
+ *   `[pathPrefix/]events/meeting-agenda-4fa35g.pdf`
  *
- * The UUIDv4 prefix is sufficient to prevent filename collisions without
- * year/month directory nesting, and it simplifies variant path derivation
- * and cleanup on deletion. The high-entropy UUID prefix also gives S3
- * enough scatter to auto-scale per prefix without a hot-partition concern.
+ * `scope` is the field's `upload.location` when declared (may carry nested
+ * segments, e.g. `news/attachments`), else the collection path. The
+ * filename leads (arriving pre-slugified from `uploadField`'s configurable
+ * filename slugifier; `sanitiseFilename` re-applies the default rules as a
+ * safety net for direct callers) and the entropy rides as a short suffix
+ * before the extension — friendly to download as, browse in the console,
+ * and log. At CMS scales the reduced key-prefix scatter is irrelevant to
+ * S3's per-prefix request limits (thousands of requests/second — orders of
+ * magnitude above editorial traffic).
  */
 function buildObjectKey(
   pathPrefix: string | undefined,
-  collection: string | undefined,
-  filename: string
+  scope: string | undefined,
+  filename: string,
+  suffix: string
 ): string {
-  const uid = uuidv4()
   const safe = sanitiseFilename(filename)
-  const scope = collection ?? 'uploads'
-  const key = `${scope}/${uid}-${safe}`
+  const ext = path.extname(safe)
+  const base = path.basename(safe, ext)
+  const key = `${scope ?? 'uploads'}/${base}-${suffix}${ext}`
   return pathPrefix ? `${pathPrefix}/${key}` : key
 }
 
@@ -245,9 +270,7 @@ class S3StorageProvider implements IStorageProvider {
     stream: NodeJS.ReadableStream | Buffer,
     options: UploadFileOptions
   ): Promise<StoredFileLocation> {
-    const objectKey =
-      options.targetStoragePath ??
-      buildObjectKey(this.pathPrefix, options.collection, options.filename)
+    const objectKey = options.targetStoragePath ?? (await this.availableObjectKey(options))
 
     const userMetadata = resolveMetadata(this.metadata, options)
 
@@ -317,6 +340,22 @@ class S3StorageProvider implements IStorageProvider {
     }
   }
 
+  /**
+   * Pick an unclaimed object key: compose the friendly key, verify it is
+   * free (one HeadObject), and retry with a fresh suffix on collision.
+   * After three straight collisions (pathological — a same-named file
+   * avalanche) fall back to a full-entropy UUID suffix, which cannot
+   * realistically collide.
+   */
+  private async availableObjectKey(options: UploadFileOptions): Promise<string> {
+    const scope = options.location ?? options.collection
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const candidate = buildObjectKey(this.pathPrefix, scope, options.filename, randomSuffix())
+      if (!(await this.exists(candidate))) return candidate
+    }
+    return buildObjectKey(this.pathPrefix, scope, options.filename, uuidv4())
+  }
+
   async exists(storagePath: string): Promise<boolean> {
     try {
       await this.client.send(
@@ -353,7 +392,7 @@ class S3StorageProvider implements IStorageProvider {
  * `forcePathStyle: true` for non-AWS providers.
  *
  * Uploaded files are stored at:
- *   `[pathPrefix/]<collection>/<uuid>-<filename>`
+ *   `[pathPrefix/]<location|collection>/<filename>-<suffix>.<ext>`
  *
  * Image variants (thumbnail / card / etc.) are written as siblings of the
  * original under the same prefix, e.g.:

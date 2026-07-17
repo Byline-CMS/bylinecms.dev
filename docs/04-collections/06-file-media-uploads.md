@@ -10,7 +10,7 @@ Companions:
 - [Collections](./index.md) — collection schema and admin (the Media collection is a worked example).
 - [Fields](./01-fields.md) — schema/admin split applied to fields, including upload fields.
 - [Document Storage](../03-architecture/01-document-storage.md) — `store_file` is the row that backs a persisted upload.
-- [Relationships](./02-relationships.md) — `populate` over a `relation` to a media collection carries the file envelope and its variants in one round-trip.
+- [Relationships](./03-relationships.md) — `populate` over a `relation` to a media collection carries the file envelope and its variants in one round-trip.
 - [Client SDK](../05-reading-and-delivery/01-client-sdk.md) — reading uploaded files (and their variants) via `@byline/client`.
 - [Routing & API](../05-reading-and-delivery/02-routing-and-api.md) — the upload transport is an internal TanStack Start server function today; a stable public HTTP boundary is deferred.
 
@@ -20,6 +20,7 @@ Uploads in Byline are a **field-level** concern. An `image` or `file` field decl
 
 - `mimeTypes` — what the field accepts
 - `maxFileSize` — per-file size cap
+- `location` — declarative storage-key scope replacing the `<collectionPath>/` default
 - `sizes` — Sharp-driven image variants (named, with width / height / fit / format / quality)
 - `storage` — optional per-field storage provider, falling through to the site-wide default
 - `hooks` — `beforeStore` / `afterStore` server-side hooks with rich field-and-form context
@@ -177,7 +178,43 @@ bug.
 
 → [Storage routing](#storage-routing)
 
-### 5. Rename uploaded files via `beforeStore`
+### 5. Scope a field's storage location (`upload.location`)
+
+Every upload field defaults to a `<collectionPath>/` storage-key scope, so a
+collection with several upload fields mixes their objects in one directory.
+`upload.location` declares the scope per field — nested segments allowed —
+while the provider keeps its own entropy and filename sanitisation beneath it
+(`<location>/<filename>-<suffix>.<ext>`). It is plain data (isomorphic-safe, unlike
+`upload.storage`) and folds into the collection fingerprint.
+
+**Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
+
+```ts
+fields: [
+  {
+    name: 'cover',
+    type: 'image',
+    upload: { mimeTypes: ['image/*'], location: 'publications/covers' },
+  },
+  {
+    name: 'attachment',
+    type: 'file',
+    upload: { mimeTypes: ['application/pdf'], location: 'publications/files' },
+  },
+]
+```
+
+Precedence: a `beforeStore` hook returning `{ storagePath }` (verbatim key)
+wins over `location`, which wins over the collection default; a `{ filename }`
+hook override keeps composing with `location`. Use `location` for static
+scoping and hooks for *dynamic* keys (per-document serials, tenant prefixes).
+Boot-validated (POSIX segments, no `..`, no stray slashes). Changing it later
+does **not** move previously stored objects — existing documents keep their
+recorded `storagePath`.
+
+→ [How uploaded files are stored](#how-uploaded-files-are-stored)
+
+### 6. Rename uploaded files via `beforeStore`
 
 The `beforeStore` hook fires after auth + mime/size validation and before the storage write. Return a string to rewrite the filename; return `{ error }` to reject. Generated variant filenames inherit the new prefix automatically (`<basename>-<variantName>.<ext>`).
 
@@ -215,7 +252,7 @@ Multi-function chains stack with fold semantics — each function sees the previ
 
 → [`beforeStore` and `afterStore` hooks](#beforestore-and-afterstore-hooks)
 
-### 6. Audit / notify on success via `afterStore`
+### 7. Audit / notify on success via `afterStore`
 
 `afterStore` runs after the storage write and variant generation, with the persisted `StoredFileValue` in hand. It is specifically best-effort: failures are logged via `logger.error`, do not roll back the storage write, and do not reject the upload.
 
@@ -241,7 +278,7 @@ export default {
 
 → [`beforeStore` and `afterStore` hooks](#beforestore-and-afterstore-hooks)
 
-### 7. Read an uploaded image on the public side
+### 8. Read an uploaded image on the public side
 
 The `StoredFileValue` envelope round-trips intact through `@byline/client`. Variants ride along — no second round-trip — so you can build a `<picture>` / `srcset` directly.
 
@@ -262,7 +299,7 @@ For per-image rendering, `apps/webapp/src/ui/byline/components/responsive-image/
 
 → [Reading uploaded files](#reading-uploaded-files)
 
-### 8. Pick a single named variant
+### 9. Pick a single named variant
 
 For thumbnails and other fixed-size renders, look up the variant by name. The pattern used by `MediaThumbnail`:
 
@@ -278,7 +315,7 @@ const url = thumb?.storageUrl ?? img?.storageUrl   // fallback to original
 
 → [Variant persistence on `store_file`](#variant-persistence-on-store_file)
 
-### 9. Read an uploaded image through a populated relation
+### 10. Read an uploaded image through a populated relation
 
 When a non-media collection references the Media library, populate carries the entire `StoredFileValue` (including variants) on the related document's `fields.image`. No extra round-trip.
 
@@ -302,7 +339,7 @@ const featureImage = result.docs[0]?.fields.featureImage?.document?.fields.image
 
 → [Reading uploaded files](#reading-uploaded-files)
 
-### 10. Call the upload server function directly
+### 11. Call the upload server function directly
 
 For non-form callers (scripted ingest or eventual drag-into-list-view shortcuts),
 call the TanStack host's server-function wrapper. Passing `true` stores the bytes
@@ -326,7 +363,7 @@ handles this automatically via `executeUploads` and calls the same transport wit
 
 → [The transport server function](#the-transport-server-function)
 
-### 11. Use SVG safely
+### 12. Use SVG safely
 
 SVG bypass is built in. `ResponsiveImage` short-circuits to the raw `<img src>` when `image.mimeType === 'image/svg+xml'` because variants aren't generated for SVG (no rasterisation, no upscaling). If you accept SVG, ensure your image-rendering component honours that bypass — Byline's `ResponsiveImage` already does.
 
@@ -338,6 +375,37 @@ mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xm
 
 → [Files vs images](#files-vs-images)
 
+### 13. Replace the filename slugifier
+
+Stored keys default to `<location|collection>/<slugified-base>-<suffix>.<ext>`
+(e.g. `events/meeting-agenda-4fa35g.pdf`). The slugified half comes from the
+installation's filename slugifier — the upload parallel of the path
+`slugifier`, and replaceable the same way. It receives the **base name only**
+(the framework splits, lowercases, and reattaches the extension) plus a
+context (`collectionPath`, `fieldName`, `mimeType`) for per-collection
+policies. Server-only: filenames are derived exclusively at write time.
+
+**Edit:** `apps/webapp/byline/server.config.ts`
+
+```ts
+import type { FilenameSlugifierFn } from '@byline/core'
+
+const filenameSlugifier: FilenameSlugifierFn = (base, { collectionPath }) =>
+  `${collectionPath}-${base.toLowerCase().replace(/[^a-z0-9._-]/g, '-')}`
+
+defineServerConfig({
+  // ...
+  uploads: { filenameSlugifier },
+})
+```
+
+Falls back to the default `slugifyFilename` from `@byline/core` when not set.
+The storage provider re-sanitises as a safety net, and its short random
+suffix (verified free via `exists()`, retried on collision) is appended after
+whatever this function returns.
+
+→ [How uploaded files are stored](#how-uploaded-files-are-stored)
+
 ---
 
 ## Architecture
@@ -347,6 +415,7 @@ mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xm
 ```ts
 interface UploadConfig {
   mimeTypes?: string[]                // e.g. ['image/jpeg', 'image/png', 'image/*', '*/*']
+  location?: string                   // storage-key scope, e.g. 'publications/covers'
   maxFileSize?: number                // bytes
   sizes?: ImageSize[]                 // Sharp variants for image MIME uploads
   storage?: IStorageProvider          // overrides ServerConfig.storage for this field
@@ -444,7 +513,7 @@ The diagram below traces what happens when a user picks an image in the Media ad
 │  │     2. findUploadField(definition.fields, 'image')                     │  │
 │  │     3. read field.upload  (mimeTypes, maxFileSize, sizes, hooks)       │  │
 │  │     4. validate mimeType + fileSize against field.upload               │  │
-│  │     5. sanitiseFilename + run beforeStore hook chain                   │  │
+│  │     5. resolveUploadFilename (slugify) + beforeStore hook chain        │  │
 │  │        (may rename or short-circuit with ERR_VALIDATION)               │  │
 │  │     6. storage.upload(buffer, { filename, mimeType, ... })             │  │
 │  │     7. imageProcessor.extractMeta(buffer, mimeType)                    │  │
@@ -495,11 +564,11 @@ Both are handled. The code is symmetric on `'image' | 'file'`:
 The upload round-trip writes **bytes only**, not database rows. With `shouldCreateDocument: false`, the only durable state `field-upload.ts` touches is `storage.upload(buffer, ...)` (and, for images, the variant writes inside `imageProcessor.generateVariants`). For the local provider that means:
 
 ```
-buildStoragePath(collection, filename)  →  'media/<uuidv4>-<sanitised-filename>'
+availableStoragePath(options)  →  'media/meeting-agenda-4fa35g.pdf'
 fs.mkdirSync(...) + fs.writeFile(absolutePath, buffer)
 ```
 
-(see `packages/storage-local/src/local-storage-provider.ts`). S3 is the same shape, different backend. The UUIDv4 prefix is what makes it safe to do this without a DB allocation step — the path is collision-free by construction.
+(see `packages/storage-local/src/local-storage-provider.ts`). S3 is the same shape, different backend. The key is `<location|collection>/<slugified-base>-<suffix>.<ext>`: the filename leads (slugified by the installation's `ServerConfig.uploads.filenameSlugifier`, else the default `slugifyFilename`), and a short 6-char base36 suffix rides before the extension. The provider verifies the candidate key is free (`exists()`) and retries with a fresh suffix on collision — after three straight collisions it falls back to a full-entropy UUID suffix — so the path is collision-safe without a DB allocation step, and downloads arrive with human-readable names.
 
 The service then synthesises a `StoredFileValue` in memory:
 
@@ -508,8 +577,8 @@ The service then synthesises a `StoredFileValue` in memory:
   fileId: crypto.randomUUID(),
   filename, originalFilename, mimeType, fileSize,
   storageProvider: 'local' | 's3',
-  storagePath:    'media/<uuid>-photo.jpg',
-  storageUrl:     '/uploads/media/<uuid>-photo.jpg',
+  storagePath:    'media/photo-4fa35g.jpg',
+  storageUrl:     '/uploads/media/photo-4fa35g.jpg',
   imageWidth, imageHeight, imageFormat,
   processingStatus: 'complete',
   variants: [{ name, storagePath, storageUrl, width, height, format }, ...],
@@ -640,7 +709,7 @@ a `/tmp` file with a future streaming adapter — the contract is agnostic).
 interface BeforeStoreContext {
   fieldName: string                      // which field is being uploaded to
   field: ImageField | FileField          // full field definition
-  filename: string                       // sanitised default; hook may override
+  filename: string                       // slugified default; hook may override
   storagePath?: string                   // override from an earlier hook
   mimeType: string
   fileSize: number

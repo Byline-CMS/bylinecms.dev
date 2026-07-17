@@ -501,4 +501,86 @@ describe('validateCollections', () => {
     }
     expect(() => validateCollections([collection])).toThrow(/listSearch.*virtual/s)
   })
+
+  // upload.location — declarative storage-key scope shape.
+  const withLocation = (location: string): CollectionDefinition => ({
+    ...baseCollection,
+    fields: [
+      { name: 'title', label: 'Title', type: 'text' },
+      { name: 'cover', label: 'Cover', type: 'image', optional: true, upload: { location } },
+    ],
+  })
+
+  it('accepts a single-segment upload.location', () => {
+    expect(() => validateCollections([withLocation('covers')])).not.toThrow()
+  })
+
+  it('accepts a nested upload.location', () => {
+    expect(() => validateCollections([withLocation('publications/covers')])).not.toThrow()
+  })
+
+  it('rejects an empty upload.location', () => {
+    expect(() => validateCollections([withLocation('')])).toThrow(/non-empty string/)
+  })
+
+  it('rejects a leading slash in upload.location', () => {
+    expect(() => validateCollections([withLocation('/covers')])).toThrow(
+      /must not start or end with a slash/
+    )
+  })
+
+  it('rejects a trailing slash in upload.location', () => {
+    expect(() => validateCollections([withLocation('covers/')])).toThrow(
+      /must not start or end with a slash/
+    )
+  })
+
+  it('rejects duplicate slashes in upload.location', () => {
+    expect(() => validateCollections([withLocation('a//b')])).toThrow(
+      /must not contain duplicate slashes/
+    )
+  })
+
+  it('rejects dot segments in upload.location', () => {
+    expect(() => validateCollections([withLocation('a/../b')])).toThrow(
+      /must not contain `\.` or `\.\.` segments/
+    )
+  })
+
+  it('rejects unsupported characters in upload.location', () => {
+    expect(() => validateCollections([withLocation('news attachments')])).toThrow(
+      /unsupported characters/
+    )
+  })
+
+  it('validates upload.location on fields nested inside blocks', () => {
+    const collection: CollectionDefinition = {
+      ...baseCollection,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        {
+          name: 'content',
+          label: 'Content',
+          type: 'blocks',
+          blocks: [
+            {
+              blockType: 'attachmentsBlock',
+              fields: [
+                {
+                  name: 'file',
+                  label: 'File',
+                  type: 'file',
+                  optional: true,
+                  upload: { location: 'bad//path' },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    expect(() => validateCollections([collection])).toThrow(
+      /content\.file.*must not contain duplicate slashes/s
+    )
+  })
 })

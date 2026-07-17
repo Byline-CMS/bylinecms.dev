@@ -12,6 +12,7 @@ import { resolveUploadHooks } from '../@types/index.js'
 import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
 import { ERR_DATABASE, ERR_STORAGE, ERR_VALIDATION } from '../lib/errors.js'
 import { withLogContext } from '../lib/logger.js'
+import { type FilenameSlugifierFn, resolveUploadFilename } from '../utils/slugify-filename.js'
 import { createDocument, type DocumentLifecycleContext } from './document-lifecycle/index.js'
 import type {
   AfterStoreContext,
@@ -94,6 +95,12 @@ export interface FieldUploadContext {
   /** Optional installation slugifier, forwarded to the lifecycle context. */
   slugifier?: SlugifierFn
   /**
+   * Optional installation filename slugifier
+   * (`ServerConfig.uploads.filenameSlugifier`), applied to the uploaded base
+   * name before the `beforeStore` chain. Defaults to `slugifyFilename`.
+   */
+  filenameSlugifier?: FilenameSlugifierFn
+  /**
    * Request-scoped auth context. Forwarded to the internal
    * `DocumentLifecycleContext` when an upload creates a document, and
    * consulted directly at the upload entry for the `create` ability
@@ -134,18 +141,6 @@ function isMimeTypeAllowed(mimeType: string, allowedTypes: string[]): boolean {
     }
     return allowed === mimeType
   })
-}
-
-function sanitiseFilename(filename: string): string {
-  const lastDot = filename.lastIndexOf('.')
-  const ext = lastDot !== -1 ? filename.slice(lastDot).toLowerCase() : ''
-  const base = lastDot !== -1 ? filename.slice(0, lastDot) : filename
-  const safe = base
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-  return `${safe || 'file'}${ext}`
 }
 
 /**
@@ -205,7 +200,7 @@ interface BeforeStoreChainResult {
  *
  *   - return a string or `{ filename }` to substitute a new filename;
  *   - return `{ storagePath }` to take full control of the storage key
- *     (bypasses provider key derivation — no UUID prefix). When set
+ *     (bypasses provider key derivation — no entropy suffix). When set
  *     without `filename`, the filename defaults to the path's basename;
  *   - return `{ error }` to short-circuit with `ERR_VALIDATION`;
  *   - return `void` / `undefined` to leave current values unchanged.
@@ -364,7 +359,14 @@ export async function uploadField(
       //    was supplied at the upload entry we hand them an empty one
       //    rather than throw — `assertActorCanPerform` is the auth gate
       //    for whether the upload should run at all, not the hook layer.
-      const sanitised = sanitiseFilename(originalFilename || 'upload')
+      //    The filename is slugified first (installation
+      //    `uploads.filenameSlugifier`, else the default) so hooks observe
+      //    the storage-ready base name.
+      const sanitised = resolveUploadFilename(originalFilename || 'upload', ctx.filenameSlugifier, {
+        collectionPath,
+        fieldName,
+        mimeType,
+      })
       // Resolve the field's upload hooks once. The loader form
       // (`hooks: () => import('./media.hooks.js')`) keeps server-only hook
       // graphs out of the client bundle; the inline form returns as-is.
@@ -404,6 +406,11 @@ export async function uploadField(
           mimeType,
           size: fileSize,
           collection: collectionPath,
+          // Declarative storage-key scope (`upload.location`). Providers use
+          // it in place of the collection default while keeping their own
+          // entropy + sanitisation. An explicit hook `storagePath` still wins
+          // (targetStoragePath is written verbatim, below).
+          ...(upload.location !== undefined && { location: upload.location }),
           ...(effectiveStoragePath !== undefined && { targetStoragePath: effectiveStoragePath }),
         })
       } catch (err: unknown) {

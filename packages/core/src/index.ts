@@ -96,5 +96,11 @@ export {
   type SlugifyContext,
   slugify,
 } from './utils/slugify.js'
+export {
+  type FilenameSlugifierFn,
+  type FilenameSlugifyContext,
+  resolveUploadFilename,
+  slugifyFilename,
+} from './utils/slugify-filename.js'
 export { getUploadFields, hasUploadField, isUploadField } from './utils/storage-utils.js'
 export * from './workflow/index.js'
