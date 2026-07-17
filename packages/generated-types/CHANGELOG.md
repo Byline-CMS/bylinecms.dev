@@ -1,5 +1,12 @@
 # @byline/generated-types
 
+## 4.3.0
+
+### Minor Changes
+
+- arrays inside blocks are now fully editable and drag-sortable, and dotted schema-path keys let field admin overrides reach nested declarations (`faq.answer`);
+  fixed patch aliasing that duplicated array items added inside a just-added block, and array items now validate against their child field schemas
+
 ## 4.2.0
 
 ### Minor Changes
