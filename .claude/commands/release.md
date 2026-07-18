@@ -5,7 +5,7 @@ allowed-tools: AskUserQuestion, Bash, Read, Write
 argument-hint: [optional bump level: patch|minor|major]
 ---
 
-Drive the full release loop for the `@byline/*` lockstep set, end to end. The 12 publishable packages listed under `fixed` in `.changeset/config.json` always move together to the same version.
+Drive the full release loop for the `@byline/*` lockstep set, end to end. The publishable packages listed under `fixed` in `.changeset/config.json` (currently 15) always move together to the same version. Always read the set from that file — it has grown before.
 
 ## What this command does
 
@@ -61,6 +61,9 @@ This text goes verbatim into the changeset markdown body, where `pnpm version-pa
 
 Pick a slug — `release-<timestamp>` is fine (e.g. `release-2026-05-22-1545`). Write `.changeset/<slug>.md` with frontmatter listing every package in the fixed group, all at the chosen bump level, followed by the summary derived in Step 2:
 
+The list below is a snapshot for shape only — generate the real one from
+`fixed[0]`, never by copying this:
+
 ```markdown
 ---
 "@byline/admin": <level>
@@ -70,8 +73,11 @@ Pick a slug — `release-<timestamp>` is fine (e.g. `release-2026-05-22-1545`). 
 "@byline/client": <level>
 "@byline/core": <level>
 "@byline/db-postgres": <level>
+"@byline/generated-types": <level>
 "@byline/host-tanstack-start": <level>
+"@byline/i18n": <level>
 "@byline/richtext-lexical": <level>
+"@byline/search-postgres": <level>
 "@byline/storage-local": <level>
 "@byline/storage-s3": <level>
 "@byline/ui": <level>
