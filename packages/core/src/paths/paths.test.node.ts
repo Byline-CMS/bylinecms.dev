@@ -195,6 +195,55 @@ describe('walkFieldDeclarations', () => {
   it('visits structure fields themselves, not only leaves', () => {
     expect(collect()).toEqual(expect.arrayContaining(['files', 'files.filesGroup', 'content']))
   })
+
+  it('reports every block through onBlock, addressed by its own path', () => {
+    const blocks: string[] = []
+    walkFieldDeclarations(fields, () => {}, {
+      onBlock: (block, segments) => {
+        blocks.push(`${formatDeclarationPath(segments)} (${block.blockType})`)
+      },
+    })
+    expect(blocks).toEqual(['content.photoBlock (photoBlock)', 'content.videoBlock (videoBlock)'])
+  })
+
+  it('reports a block declaring no fields, which the field visitor cannot see', () => {
+    // Validation that must inspect every block — the dot-free check on block
+    // types, for one — would silently stop covering empty blocks if blocks
+    // were inferred from the segments of the fields inside them.
+    const withEmpty = [
+      {
+        name: 'content',
+        label: 'C',
+        type: 'blocks',
+        blocks: [{ blockType: 'emptyBlock', fields: [] }],
+      },
+    ] as FieldSet
+
+    const visited: string[] = []
+    const blocks: string[] = []
+    walkFieldDeclarations(
+      withEmpty,
+      (_field, segments) => visited.push(formatDeclarationPath(segments)),
+      { onBlock: (block) => blocks.push(block.blockType) }
+    )
+
+    expect(visited).toEqual(['content'])
+    expect(blocks).toEqual(['emptyBlock'])
+  })
+
+  it('reports each block before the fields inside it', () => {
+    const events: string[] = []
+    walkFieldDeclarations(
+      fields,
+      (_field, segments) => events.push(`field:${formatDeclarationPath(segments)}`),
+      {
+        onBlock: (_block, segments) => events.push(`block:${formatDeclarationPath(segments)}`),
+      }
+    )
+    expect(events.indexOf('block:content.photoBlock')).toBeLessThan(
+      events.indexOf('field:content.photoBlock.gallery')
+    )
+  })
 })
 
 describe('resolveDeclarationPath', () => {

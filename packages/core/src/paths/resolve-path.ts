@@ -7,7 +7,7 @@
  */
 
 import { parseDeclarationPath } from './parse-path.js'
-import type { Field } from '../@types/index.js'
+import type { Block, Field } from '../@types/index.js'
 import type { PathResolution, PathSegment, ResolveOptions } from './path-types.js'
 
 // ---------------------------------------------------------------------------
@@ -15,6 +15,20 @@ import type { PathResolution, PathSegment, ResolveOptions } from './path-types.j
 // declaration paths, and resolving a declaration path back to the field it
 // addresses.
 // ---------------------------------------------------------------------------
+
+export interface WalkOptions {
+  /**
+   * Called for every block declaration encountered, immediately before its
+   * fields are visited, with the segments addressing the block itself
+   * (`content.photoBlock`).
+   *
+   * Blocks are declaration sites in their own right, and a block with no
+   * fields is invisible to `visit` — so validation that must see every block
+   * regardless of its contents needs this rather than inferring blocks from
+   * the segments of the fields inside them.
+   */
+  readonly onBlock?: (block: Block, segments: readonly PathSegment[]) => void
+}
 
 /**
  * Visit every field declaration in a field set, depth first, handing each one
@@ -31,23 +45,29 @@ import type { PathResolution, PathSegment, ResolveOptions } from './path-types.j
 export function walkFieldDeclarations(
   fields: readonly Field[],
   visit: (field: Field, segments: readonly PathSegment[]) => void,
-  prefix: readonly PathSegment[] = []
+  options: WalkOptions = {}
 ): void {
-  for (const field of fields) {
-    const segments: PathSegment[] = [...prefix, { kind: 'field', name: field.name }]
-    visit(field, segments)
+  const walk = (current: readonly Field[], prefix: readonly PathSegment[]): void => {
+    for (const field of current) {
+      const segments: PathSegment[] = [...prefix, { kind: 'field', name: field.name }]
+      visit(field, segments)
 
-    if (field.type === 'group' || field.type === 'array') {
-      walkFieldDeclarations(field.fields, visit, segments)
-    } else if (field.type === 'blocks') {
-      for (const block of field.blocks) {
-        walkFieldDeclarations(block.fields, visit, [
-          ...segments,
-          { kind: 'blockType', blockType: block.blockType },
-        ])
+      if (field.type === 'group' || field.type === 'array') {
+        walk(field.fields, segments)
+      } else if (field.type === 'blocks') {
+        for (const block of field.blocks) {
+          const blockSegments: PathSegment[] = [
+            ...segments,
+            { kind: 'blockType', blockType: block.blockType },
+          ]
+          options.onBlock?.(block, blockSegments)
+          walk(block.fields, blockSegments)
+        }
       }
     }
   }
+
+  walk(fields, [])
 }
 
 /**

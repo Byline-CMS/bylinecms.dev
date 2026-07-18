@@ -277,8 +277,23 @@ each later step either preserves output or shows a deliberate diff.
   ambiguous form. The dry run had only been run against the characterization
   file, not the whole suite. Run the *full* package suite when estimating
   blast radius for 2b–2d.
-- **2b. Upload registry (`indexUploadFields`) → shared serialiser.** Expected
-  byte-identical; the characterization test proves it. Pure refactor.
+- **2b. Upload registry (`indexUploadFields`) → shared serialiser. DONE.**
+  Byte-identical, verified by diffing real output from the old and new
+  implementations (via `git stash`) across seven nesting shapes: top level,
+  group, array→group, block, array-inside-block, and block-inside-array. No
+  key changed.
+
+  **`walkFieldDeclarations` gained an `onBlock` callback because of this
+  phase.** `indexUploadFields` does three jobs, not one: it builds registry
+  keys, detects duplicate upload leaf names, *and* asserts every field name and
+  block type is dot-free. That last one visits every block — **including a
+  block declaring no fields**, which never reaches the field visitor. A
+  straight swap to the field-only walk would have silently stopped validating
+  those. Caught by probing the edge case before changing anything, and now
+  pinned by a test.
+
+  `validateBlockAdminConfigs` has its own block-collecting walker too, so
+  `onBlock` should let 2c retire that one as well.
 - **2c. Admin `fields{}` (`resolveSchemaPath`) → shared resolver +
   `blocks: 'forbidden'`.** Output-identical; deletes the second walker.
 - **2d. `findUploadFieldByPath` → `toDeclarationPath` + registry lookup.**

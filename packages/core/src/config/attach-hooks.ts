@@ -1,8 +1,8 @@
+import { formatDeclarationPath, walkFieldDeclarations } from '../paths/index.js'
 import type {
   CollectionDefinition,
   CollectionHooks,
   CollectionHooksLoader,
-  Field,
   FileField,
   ImageField,
   ServerHooksConfig,
@@ -159,39 +159,37 @@ function indexUploadFields(
 ): void {
   const leafPaths = new Map<string, string>()
 
-  const walk = (fields: readonly Field[], prefix: readonly string[]): void => {
-    for (const field of fields) {
+  walkFieldDeclarations(
+    collection.fields,
+    (field, segments) => {
       assertDotFreeSegment(
         field.name,
         `field name "${field.name}" in collection "${collection.path}"`
       )
-      const path = [...prefix, field.name]
-      if ((field.type === 'file' || field.type === 'image') && field.upload !== undefined) {
-        const canonical = [collection.path, ...path].join('.')
-        const previous = leafPaths.get(field.name)
-        if (previous !== undefined) {
-          throw new Error(
-            `Collection "${collection.path}" has duplicate upload-capable leaf name "${field.name}" at "${previous}" and "${canonical}". Upload leaf names must be unique within a collection.`
-          )
-        }
-        leafPaths.set(field.name, canonical)
-        uploadFields.set(canonical, field)
-      }
-      if (field.type === 'group' || field.type === 'array') {
-        walk(field.fields, path)
-      } else if (field.type === 'blocks') {
-        for (const block of field.blocks) {
-          assertDotFreeSegment(
-            block.blockType,
-            `block type "${block.blockType}" in collection "${collection.path}"`
-          )
-          walk(block.fields, [...path, block.blockType])
-        }
-      }
-    }
-  }
+      if ((field.type !== 'file' && field.type !== 'image') || field.upload === undefined) return
 
-  walk(collection.fields, [])
+      const canonical = `${collection.path}.${formatDeclarationPath(segments)}`
+      const previous = leafPaths.get(field.name)
+      if (previous !== undefined) {
+        throw new Error(
+          `Collection "${collection.path}" has duplicate upload-capable leaf name "${field.name}" at "${previous}" and "${canonical}". Upload leaf names must be unique within a collection.`
+        )
+      }
+      leafPaths.set(field.name, canonical)
+      uploadFields.set(canonical, field)
+    },
+    {
+      // Every block is checked, including one declaring no fields — such a
+      // block never reaches the field visitor, so inferring block types from
+      // field segments alone would silently stop validating them.
+      onBlock: (block) => {
+        assertDotFreeSegment(
+          block.blockType,
+          `block type "${block.blockType}" in collection "${collection.path}"`
+        )
+      },
+    }
+  )
 }
 
 function assertDotFreeSegment(segment: string, label: string): void {
