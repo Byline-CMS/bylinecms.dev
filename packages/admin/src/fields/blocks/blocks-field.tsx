@@ -42,11 +42,19 @@ export const BlocksField = ({
   field,
   defaultValue,
   path,
+  collectionPath,
   contentLocale,
 }: {
   field: BlocksFieldType
   defaultValue: any
   path: string
+  /**
+   * Owning collection path, forwarded to each block item's fields. Upload
+   * widgets (`file` / `image`) render their drop zone only when they have
+   * one, since it addresses the upload endpoint — so a `file` field declared
+   * inside a block is read-only without this.
+   */
+  collectionPath?: string
   /**
    * Active content locale, forwarded to each block item's fields so
    * localized widgets nested inside a block (e.g. a `localized` richText)
@@ -254,6 +262,7 @@ export const BlocksField = ({
         // are grip-scoped, so the inner array's drags can't leak into the
         // block-level context (and vice versa).
         disableSorting={false}
+        collectionPath={collectionPath}
         contentLocale={contentLocale}
         fieldAdmin={blockAdminByType.get(item._type)?.fields}
       />

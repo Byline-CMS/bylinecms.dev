@@ -313,6 +313,7 @@ export const FieldRenderer = ({
             field={field as unknown as BlocksFieldType}
             defaultValue={defaultValue}
             path={path}
+            collectionPath={collectionPath}
             contentLocale={contentLocale}
           />
         )
