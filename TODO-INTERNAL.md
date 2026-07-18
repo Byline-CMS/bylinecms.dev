@@ -136,6 +136,24 @@ With friendly storage keys shipped (4.2: `<location|collection>/<slug>-<suffix>.
 
 **Trigger:** first non-admin client arrives (mobile, desktop, third-party). Today every read/write goes through TanStack Start server fns inside the admin webapp; no stable HTTP shape is published. Designed across the full surface area at that point, not just one verb. See [ROUTING-API.md](./docs/05-reading-and-delivery/02-routing-and-api.md) and the deferral note in `CLAUDE.md`.
 
+### `search.body` — address a specific nested field
+
+**Shipped (what works today):** `search.{body,facets,filters}` name **top-level** fields. Nested content is still indexed — naming a container (`group` / `array` / `blocks`) in `search.body` walks it recursively and flattens every nested `richText` / `text` / `textArea` leaf into one body string. So for a publications-style schema, `body: ['files']` does index `files[].filesGroup.caption`, and `body: ['content']` does index a photo block's caption. Boot validation (2026-07-19) rejects a dotted path with a message pointing the author at the container, rather than the previous silent no-op.
+
+**What is missing.** Container naming is all-or-nothing, which leaves three things unexpressible:
+
+1. **Exclusion** — `body: ['files']` also indexes an `internalNote` sibling; there is no way to take the caption without the note.
+2. **Block-type selectivity** — `body: ['content']` indexes captions from *every* block variant. "Photo captions but not video captions" cannot be said at all, and no amount of container naming approximates it.
+3. **Differentiated weighting** — everything inside a container inherits that container's single `boost`. Captions cannot be weighted differently from the prose around them.
+
+(2) and (3) are the real gaps; (1) is mostly cosmetic since extra text costs recall, not correctness.
+
+**What it would take.** The resolution half already exists: `resolveDeclarationPath` (`packages/core/src/paths/`) resolves `files.filesGroup.caption` and `content.photoBlock.caption` today, including reclassifying `photoBlock` as a block-type segment. What is new is *value* collection — walk schema and data together, fanning out at each array (collect from every item) and at each blocks field (collect only from items whose `_type` matches the block-type segment), then flatten the terminal leaves. Same shape as the schema-plus-data walk in `admin/forms/upload-executor.ts`, but collecting many values rather than resolving one. Roughly 70–90 lines plus tests; the block-type filter falls out of the grammar rather than needing invention.
+
+**Design question to settle first.** How a nested entry with its own boost coexists with a broader container entry covering the same text — `body: ['content', { field: 'content.photoBlock.caption', boost: 3 }]` would index that caption twice at two weights. Either define the narrower entry as overriding the broader one for its subtree, or reject the overlap at boot. Worth deciding before writing the collector, since it shapes the API.
+
+**Trigger:** search quality actually needs per-field weighting or exclusion inside a container — most likely when tuning relevance on a corpus where captions or block prose are drowning out titles/abstracts. Until then, naming the container indexes the right content at a single weight, which is sufficient. Note that the boot validation makes demand visible: anyone reaching for the dotted form now gets an error, so this will resurface as a question rather than as silent under-indexing.
+
 ### Field path grammar — remaining follow-ons
 
 **Shipped:** `packages/core/src/paths/` is the single implementation of both field-path notations, and every config-time producer and consumer routes through it (see [Path Grammar](./docs/03-architecture/04-path-grammar.md)). Two follow-ons were identified and deliberately left.
