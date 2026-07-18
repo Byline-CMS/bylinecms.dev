@@ -7,9 +7,15 @@
  */
 
 /**
- * Dynamic sitemap building blocks — the entry type, an aggregator over
+ * Dynamic sitemap building blocks — the entry types, an aggregator over
  * per-collection getters, and the XML serializer. The route handler
  * (`src/routes/sitemap[.]xml.ts`) wires these together.
+ *
+ * Also home to the substrate shared by both agent-facing surfaces:
+ * `PublishedEntry`, `PUBLISHED_TTL_MS` and `stringOrUndefined`. The
+ * per-collection getters that produce those entries live in their own
+ * modules (`@/modules/<x>/published`) so each collection owns its
+ * enumeration; only the shape they agree on is centralised here.
  *
  * hreflang alternates are derived from the same `resolveAlternates` helper
  * that `getMeta` uses, so the sitemap and per-page meta advertise an
@@ -33,6 +39,33 @@ export interface SitemapEntry {
   /** The document's public advertised locale set (`availableLocales ∩
    * _availableVersionLocales`) → hreflang alternates. See `advertisedLocalesFor`. */
   advertisedLocales?: string[] | null
+}
+
+/**
+ * One published document, in the shape both `sitemap.xml` and `llms.txt`
+ * need: URL segments, `lastmod` + advertised locales (sitemap), title +
+ * description (llms.txt). Produced by the per-collection getters in
+ * `@/modules/<x>/published`.
+ */
+export interface PublishedEntry {
+  /** Path segments after the locale prefix, e.g. `['news', 'my-post']`. */
+  segments: string[]
+  /** The document's display title (llms.txt link text). */
+  title?: string
+  /** Short description (llms.txt link notes). */
+  description?: string
+  /** Publication / update date for `<lastmod>`. */
+  lastmod?: Date | string | null
+  /** Advertised locale set (`availableLocales ∩ _availableVersionLocales`). */
+  advertisedLocales?: string[] | null
+}
+
+/** Published-document scans change infrequently; cache for an hour. */
+export const PUBLISHED_TTL_MS = 60 * 60 * 1000
+
+/** Narrow an unknown field value to a non-blank string, or `undefined`. */
+export function stringOrUndefined(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined
 }
 
 const XML_ESCAPE: Record<string, string> = {

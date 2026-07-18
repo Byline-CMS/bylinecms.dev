@@ -35,6 +35,7 @@ export const FAQBlockAdmin = defineBlockAdmin(FAQBlock, {
           // Insert-menu contributors an answer doesn't need — plain prose
           // with lists and links, no media or layout structures.
           .remove(builtInExtensions.Admonition)
+          .remove(builtInExtensions.HorizontalRule)
           .remove(builtInExtensions.InlineImage)
           .remove(builtInExtensions.Layout)
           .remove(builtInExtensions.Table)

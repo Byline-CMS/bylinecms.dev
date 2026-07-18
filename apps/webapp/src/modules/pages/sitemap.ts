@@ -7,16 +7,16 @@
  */
 
 /**
- * Per-collection sitemap getter for `pages` — a thin shape adapter over
- * the shared published-URL enumeration in `@/lib/published-index`, which
- * `llms.txt` consumes too (one scan, one cache entry, no drift).
+ * Per-collection sitemap getter for `pages` — a thin shape adapter over this
+ * module's published-URL enumeration (`./published`), which `llms.txt`
+ * consumes too (one scan, one cache entry, no drift).
  */
 
-import { getPagesIndex } from '@/lib/published-index'
 import { type SitemapEntry, toSitemapDate } from '@/lib/sitemap'
+import { getPublishedPages } from '@/modules/pages/published'
 
 export async function getPagesSitemap(): Promise<SitemapEntry[]> {
-  const entries = await getPagesIndex()
+  const entries = await getPublishedPages()
   return entries.map((entry) => ({
     segments: entry.segments,
     lastmod: toSitemapDate(entry.lastmod),

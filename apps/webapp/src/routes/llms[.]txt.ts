@@ -12,8 +12,8 @@
  * a handler-local dynamic `import()` to keep the server-only chain out of
  * the browser bundle, HTTP-layer caching via `Cache-Control`.
  *
- * Both surfaces consume the same published-URL enumeration
- * (`@/lib/published-index`) — the sitemap advertises HTML URLs to
+ * Both surfaces consume the same per-collection published-URL enumeration
+ * (`@/modules/<x>/published`) — the sitemap advertises HTML URLs to
  * crawlers, `llms.txt` advertises the `.md` representations to agents.
  */
 
@@ -27,13 +27,16 @@ export const Route = createFileRoute('/llms.txt')({
     handlers: {
       GET: async () => {
         const { serverUrl, siteName, siteDescription } = getPublicConfig()
-        const [{ getDocsIndex, getNewsIndex, getPagesIndex }] = await Promise.all([
-          import('@/lib/published-index'),
-        ])
+        const [{ getPublishedDocs }, { getPublishedNews }, { getPublishedPages }] =
+          await Promise.all([
+            import('@/modules/docs/published'),
+            import('@/modules/news/published'),
+            import('@/modules/pages/published'),
+          ])
         const [docs, news, pages] = await Promise.all([
-          getDocsIndex(),
-          getNewsIndex(),
-          getPagesIndex(),
+          getPublishedDocs(),
+          getPublishedNews(),
+          getPublishedPages(),
         ])
         const body = generateLlmsTxt(
           [

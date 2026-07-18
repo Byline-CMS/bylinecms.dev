@@ -14,19 +14,19 @@
  * surface, not the HTML page.
  *
  * Sections are built from the same per-collection published-URL
- * enumeration the sitemap uses (`@/lib/published-index`) — one scan, one
- * cache entry, no drift between the two surfaces. Like the sitemap, the
- * index is locale-agnostic: links are default-locale canonical URLs and
- * the per-locale variants advertise themselves via the documents' own
- * hreflang alternates.
+ * enumeration the sitemap uses (`@/modules/<x>/published`) — one
+ * scan, one cache entry, no drift between the two surfaces. Like the
+ * sitemap, the index is locale-agnostic: links are default-locale canonical
+ * URLs and the per-locale variants advertise themselves via the documents'
+ * own hreflang alternates.
  */
 
-import type { PublishedIndexEntry } from '@/lib/published-index'
+import type { PublishedEntry } from '@/lib/sitemap'
 
 export interface LlmsSection {
   /** H2 section heading, e.g. `Documentation`. */
   title: string
-  entries: PublishedIndexEntry[]
+  entries: PublishedEntry[]
 }
 
 export function generateLlmsTxt(
