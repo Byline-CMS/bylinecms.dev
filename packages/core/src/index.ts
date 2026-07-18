@@ -76,6 +76,7 @@ export {
 export { type BylineLogger, getLogger } from './lib/logger.js'
 export { AsyncRegistry, type RegisteredServices, Registry } from './lib/registry.js'
 export * from './patches/index.js'
+export * from './paths/index.js'
 export {
   mergePredicates,
   type ParseContext,
