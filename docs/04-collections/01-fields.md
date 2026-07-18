@@ -438,10 +438,16 @@ For *settings* differences only (placeholder, toolbar toggles, the inline-image 
 
 Byline addresses fields with two distinct notations, and every API uses exactly one of them:
 
-- **Schema paths** are dotted and **index-free**: `files.filesGroup.publicationFile`, `faq.answer`. They address a field *declaration* — one entry names the field wherever it occurs, in every array item. Intermediate segments must be `group` / `array` structure fields; a schema path never carries an item index and never traverses a `blocks` field (blocks resolve their own admin config from the `blockAdmin` registry). Used by: the admin `fields{}` maps (collection- and block-level), `search.body` declarations, and boot-validation error messages (`walkFieldsWithPath`).
-- **Instance paths** carry bracket indices: `files[2].filesGroup.publicationFile`, `content[0].faq[1].answer`. They address a *value* in one specific item of one specific document. Used by: the patch system (`field.*` / `array.*` / `block.*` paths), the form store, field-hook `ctx.path`, and `setFieldValue`.
+- **Schema paths** are dotted and **index-free**: `files.filesGroup.publicationFile`, `faq.answer`. They address a field *declaration* — one entry names the field wherever it occurs, in every array item. Intermediate segments must be `group` / `array` structure fields, or a `blocks` field followed by a block type (`content.photoBlock.alt`). Used by: the admin `fields{}` maps (collection- and block-level), the upload hook registry (`ServerConfig.hooks.uploads`, prefixed with the collection path), and boot-validation error messages.
+- **Instance paths** carry bracket indices: `files[2].filesGroup.publicationFile`, `content[0].faq[1].answer`. They address a *value* in one specific item of one specific document. Blocks need no discriminator here — the item itself carries its `_type`. Used by: the patch system (`field.*` / `array.*` / `block.*` paths), the form store, field-hook `ctx.path`, and `setFieldValue`.
 
-The upload executor is the worked bridge between the two: a widget posts its instance path, and `findUploadFieldByPath` strips the indices to recover the schema path and the `upload` config declared there.
+The block-type segment is what makes a schema path unambiguous: two blocks in the same `blocks` field may each declare a field called `alt`, and only the block type tells them apart. Instance paths don't need it because the item resolves the question.
+
+**Admin `fields{}` keys are the one deliberate exception**: they never traverse a `blocks` field at all, even with a block type. Fields inside a block take their overrides from the blockType-keyed `blockAdmin` registry instead, so that one registration applies wherever the block renders. Boot validation rejects a collection-level key that reaches into a block, and points at `blockAdmin`.
+
+The upload executor bridges the two notations: a widget posts its instance path, and the executor strips the indices to recover the declaring field and its `upload` config.
+
+> **Known inconsistency.** Field paths quoted in boot-validation error messages currently omit the block-type segment, so a field inside a block is reported as `content.alt` rather than `content.photoBlock.alt`. Where two blocks in one field declare the same field name, the message cannot distinguish them. Being addressed; the paths above are the intended form.
 
 Boot validation rejects `fields{}` keys that carry an index or don't resolve to a declaration, so a mixed-up notation fails at startup, not silently at render time.
 

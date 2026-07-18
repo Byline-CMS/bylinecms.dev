@@ -16,7 +16,7 @@ per-collection tables and no migrations when a collection's shape changes. It
 resembles an entity-attribute-value store, partitioned by primitive type: typed
 `store_*` tables give proper column types, indexability, and full-text / GIN
 indexing — a meaningful advantage over a single JSONB-per-document blob. A custom
-path notation (`content.1.photoBlock.0.display`) addresses each value, and the
+path notation (`content.1.photoBlock.display`) addresses each value, and the
 storage layer flattens documents into rows on write and reconstructs them on
 read.
 

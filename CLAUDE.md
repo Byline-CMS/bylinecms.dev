@@ -81,7 +81,7 @@ Env files: `apps/webapp/.env` and `packages/db-postgres/.env` (copy from `.env.e
 
 ### Universal Storage (EAV-per-type)
 
-Documents are stored in typed `store_*` tables (`store_text`, `store_numeric`, `store_boolean`, `store_datetime`, `store_json`, `store_file`, `store_relation`) plus `store_meta` for stable block/array-item identities. A custom path notation (e.g. `content.1.photoBlock.0.display`) addresses each value.
+Documents are stored in typed `store_*` tables (`store_text`, `store_numeric`, `store_boolean`, `store_datetime`, `store_json`, `store_file`, `store_relation`) plus `store_meta` for stable block/array-item identities. A custom path notation (e.g. `content.1.photoBlock.display`) addresses each value — a blocks field is followed by the item index and then the block type; array items contribute their index after the field name (`content.1.photoBlock.gallery.0.alt`).
 
 - **Flatten** (write): `packages/db-postgres/src/modules/storage/storage-utils.ts` → `flattenFieldSetData()`
 - **Reconstruct** (read): `packages/db-postgres/src/modules/storage/storage-utils.ts` → `restoreFieldSetData()` — schema-aware, handles meta rows (`_id`, `_type`), locale resolution, and type-correct value extraction inline
