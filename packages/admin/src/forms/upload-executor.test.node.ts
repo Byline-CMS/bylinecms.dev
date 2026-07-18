@@ -263,7 +263,7 @@ describe('executeUploads — upload fields inside blocks', () => {
       getFormValues: blocksFormValues,
     })
 
-    expect(bodies[0]!.get('title')).toBe('Hello')
+    expect(bodies[0]?.get('title')).toBe('Hello')
   })
 
   it('resolves upload.context for a field in a later block', async () => {
@@ -280,7 +280,7 @@ describe('executeUploads — upload fields inside blocks', () => {
       getFormValues: blocksFormValues,
     })
 
-    expect(bodies[0]!.get('title')).toBe('Hello')
+    expect(bodies[0]?.get('title')).toBe('Hello')
   })
 
   it('addresses a block item by stable id as well as position', async () => {
@@ -292,7 +292,7 @@ describe('executeUploads — upload fields inside blocks', () => {
       getFormValues: blocksFormValues,
     })
 
-    expect(bodies[0]!.get('title')).toBe('Hello')
+    expect(bodies[0]?.get('title')).toBe('Hello')
   })
 
   it('still resolves when the addressed block item is missing from form state', async () => {
@@ -309,8 +309,8 @@ describe('executeUploads — upload fields inside blocks', () => {
       getFormValues: blocksFormValues,
     })
 
-    expect(bodies[0]!.get('title')).toBe('Hello')
-    expect(bodies[0]!.get('fieldPath')).toBe('content[7].gallery[0].poster')
+    expect(bodies[0]?.get('title')).toBe('Hello')
+    expect(bodies[0]?.get('fieldPath')).toBe('content[7].gallery[0].poster')
   })
 
   it('falls back to a unique match when form values cannot disambiguate', async () => {
@@ -324,7 +324,7 @@ describe('executeUploads — upload fields inside blocks', () => {
       getFormValues: () => ({ title: 'Hello' }),
     })
 
-    expect(bodies[0]!.get('title')).toBe('Hello')
+    expect(bodies[0]?.get('title')).toBe('Hello')
   })
 
   it('sends no context when the path genuinely identifies no single declaration', async () => {
@@ -358,6 +358,6 @@ describe('executeUploads — upload fields inside blocks', () => {
 
     await executeUploads(uploads, fn, { fields: ambiguous, getFormValues: () => ({ title: 'x' }) })
 
-    expect(bodies[0]!.get('title')).toBeNull()
+    expect(bodies[0]?.get('title')).toBeNull()
   })
 })
