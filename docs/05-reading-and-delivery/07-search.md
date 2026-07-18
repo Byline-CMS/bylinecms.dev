@@ -159,6 +159,16 @@ type SearchFieldDecl = string | { field: string; boost?: number }
 - **`zones`** — named scopes; defaults to a single implicit zone equal to the
   collection path when omitted.
 
+All three of `body` / `facets` / `filters` name **top-level** fields of the
+collection. Nested content is reached by naming its top-level *container*, as
+above — there is no way to address one specific nested declaration, so a dotted
+path is rejected at boot rather than silently indexing nothing. Boot validation
+also rejects a name that matches no field, a `facets` entry that is not a
+`relation`, and a `filters` entry naming a container. Before those checks
+existed, each of these was skipped silently by `buildSearchDocument`, and a
+collection could index less than its author intended with no signal at boot or
+at index time.
+
 The worked example is the `docs` collection:
 `search: { body: [{ field: 'title', boost: 2 }, 'summary', 'content'] }` —
 `content` is a `blocks` field, so its nested RichTextBlock prose (and PhotoBlock

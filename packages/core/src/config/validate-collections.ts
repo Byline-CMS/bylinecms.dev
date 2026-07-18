@@ -121,6 +121,66 @@ function searchReferencedFieldNames(collection: CollectionDefinition): Set<strin
 }
 
 /**
+ * Enforce that every field named by a collection's `search` config resolves.
+ *
+ * `buildSearchDocument` looks each name up among the collection's **top-level**
+ * fields and silently skips anything it cannot resolve, so an unrecognised or
+ * dotted name produced a collection that indexed less than its author thought
+ * — with no error at boot and no signal at index time.
+ *
+ * Nested content is reachable, but by naming its top-level *container*: a
+ * `group` / `array` / `blocks` field named in `search.body` is walked
+ * recursively and every nested text leaf is flattened into the body. What is
+ * not supported is addressing one specific nested declaration, which is why a
+ * dotted path is rejected outright rather than accepted and ignored.
+ */
+function validateSearchFields(collection: CollectionDefinition): void {
+  const search = collection.search
+  if (search == null) return
+
+  const topLevel = (name: string): Field | undefined =>
+    collection.fields.find((f) => 'name' in f && f.name === name)
+
+  const check = (name: string, option: 'body' | 'facets' | 'filters'): Field => {
+    if (name.includes('.')) {
+      throw new Error(
+        `Collection "${collection.path}" names '${name}' in \`search.${option}\` but search config addresses top-level fields only. To index content nested inside a \`group\` / \`array\` / \`blocks\` field, name the top-level container — it is walked recursively and every nested text leaf is flattened into the body.`
+      )
+    }
+    const field = topLevel(name)
+    if (field == null) {
+      throw new Error(
+        `Collection "${collection.path}" names '${name}' in \`search.${option}\` but no top-level field with that name exists.`
+      )
+    }
+    return field
+  }
+
+  for (const decl of search.body ?? []) {
+    check(typeof decl === 'string' ? decl : decl.field, 'body')
+  }
+
+  for (const decl of search.facets ?? []) {
+    const name = typeof decl === 'string' ? decl : decl.field
+    const field = check(name, 'facets')
+    if (field.type !== 'relation') {
+      throw new Error(
+        `Collection "${collection.path}" names '${name}' in \`search.facets\` but field "${name}" has type "${field.type}". Facets are controlled-vocabulary references — name a \`relation\` field.`
+      )
+    }
+  }
+
+  for (const name of search.filters ?? []) {
+    const field = check(name, 'filters')
+    if (field.type === 'group' || field.type === 'array' || field.type === 'blocks') {
+      throw new Error(
+        `Collection "${collection.path}" names '${name}' in \`search.filters\` but field "${name}" has type "${field.type}". Filters project a single scalar value — name a value field.`
+      )
+    }
+  }
+}
+
+/**
  * Enforce the `virtual` field constraints for one collection. See
  * `BaseField.virtual` in field-types.ts for the contract these rules back:
  *
@@ -284,6 +344,7 @@ export function validateCollections(collections: readonly CollectionDefinition[]
       )
     }
 
+    validateSearchFields(collection)
     validateVirtualFields(collection)
     validateUploadLocations(collection)
   }

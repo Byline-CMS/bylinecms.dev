@@ -586,3 +586,86 @@ describe('validateCollections', () => {
     )
   })
 })
+
+// ---------------------------------------------------------------------------
+// search config field resolution
+//
+// `buildSearchDocument` resolves each name among the collection's top-level
+// fields and silently skips what it cannot resolve, so an unrecognised name
+// used to produce a collection that indexed less than its author intended,
+// with no signal at boot or at index time.
+// ---------------------------------------------------------------------------
+
+describe('validateCollections — search config fields', () => {
+  const searchable = (search: Record<string, unknown>): CollectionDefinition =>
+    ({
+      ...baseCollection,
+      search,
+      fields: [
+        { name: 'title', label: 'Title', type: 'text' },
+        { name: 'summary', label: 'Summary', type: 'text' },
+        { name: 'featured', label: 'Featured', type: 'checkbox' },
+        { name: 'topics', label: 'Topics', type: 'relation', targetCollection: 'topics' },
+        { name: 'format', label: 'Format', type: 'select', options: [] },
+        {
+          name: 'files',
+          label: 'Files',
+          type: 'array',
+          fields: [
+            {
+              name: 'filesGroup',
+              type: 'group',
+              fields: [{ name: 'caption', label: 'Caption', type: 'text' }],
+            },
+          ],
+        },
+      ],
+    }) as CollectionDefinition
+
+  it('accepts top-level names, including a container in body', () => {
+    expect(() =>
+      validateCollections([
+        searchable({
+          body: [{ field: 'title', boost: 2 }, 'summary', 'files'],
+          facets: ['topics'],
+          filters: ['featured'],
+        }),
+      ])
+    ).not.toThrow()
+  })
+
+  it('rejects a body name that does not exist', () => {
+    expect(() => validateCollections([searchable({ body: ['titel'] })])).toThrow(
+      /no top-level field with that name exists/
+    )
+  })
+
+  it('rejects a dotted path and explains what to name instead', () => {
+    // Accepting it would be worse than rejecting: the indexer would resolve
+    // nothing and silently index an empty body.
+    expect(() => validateCollections([searchable({ body: ['files.filesGroup.caption'] })])).toThrow(
+      /top-level fields only.*name the top-level container/s
+    )
+  })
+
+  it('rejects a facet that is not a relation', () => {
+    expect(() => validateCollections([searchable({ facets: ['format'] })])).toThrow(
+      /Facets are controlled-vocabulary references/
+    )
+  })
+
+  it('rejects a filter naming a container field', () => {
+    expect(() => validateCollections([searchable({ filters: ['files'] })])).toThrow(
+      /Filters project a single scalar value/
+    )
+  })
+
+  it('checks facets and filters too, not only body', () => {
+    expect(() => validateCollections([searchable({ facets: ['nope'] })])).toThrow(
+      /no top-level field with that name exists/
+    )
+    expect(() => validateCollections([searchable({ filters: ['nope'] })])).toThrow(
+      /no top-level field with that name exists/
+    )
+  })
+})
