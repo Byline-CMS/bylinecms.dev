@@ -1,6 +1,7 @@
 // Core implementation of the patch engine
 
 import { isBlocksField, isStructureField } from '../@types/field-types.js'
+import { parseInstancePath } from '../paths/parse-path.js'
 import type { CollectionDefinition } from '../@types/collection-types.js'
 import type { BlocksField, Field } from '../@types/field-types.js'
 import type {
@@ -30,7 +31,10 @@ interface PathSegmentId {
 
 type PathSegment = PathSegmentField | PathSegmentIndex | PathSegmentId
 
-// Very small path grammar:
+// Instance-path grammar — see `@byline/core` `paths/`. Patch paths address
+// items, so they carry selectors and no block type (the item holds `_type`).
+//
+// Historical shapes, unchanged:
 // - "foo.bar" -> [{field: 'foo'}, {field: 'bar'}]
 // - "reviews[0].rating" -> [{field: 'reviews'}, {index: 0}, {field: 'rating'}]
 // - "reviews[id=abc].rating" -> [{field: 'reviews'}, {id: 'abc'}, {field: 'rating'}]
@@ -38,35 +42,21 @@ type PathSegment = PathSegmentField | PathSegmentIndex | PathSegmentId
 export function parsePatchPath(path: PatchPath): PathSegment[] {
   if (!path) return []
 
-  const segments: PathSegment[] = []
-  const parts = String(path).split('.')
+  const parsed = parseInstancePath(String(path))
+  // An unparseable path yields no segments, so callers reject the patch
+  // rather than applying it somewhere else. The previous hand-rolled parser
+  // was lenient — `"a["` produced `[field: 'a']`, and the patch was then
+  // applied at `a`, a path the client never addressed. Silent misapplication
+  // is a worse failure than a rejected patch.
+  if (!parsed.ok) return []
 
-  for (const part of parts) {
-    const fieldMatch = part.match(/^([^[]+)/)
-    if (!fieldMatch) {
-      continue
-    }
-    const field = fieldMatch[1]!
-    segments.push({ kind: 'field', key: field })
-
-    const bracketRegex = /\[([^\]]+)\]/g
-    let match: RegExpExecArray | null
-    // Biome: avoid assignment in the while condition
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      match = bracketRegex.exec(part)
-      if (match === null) break
-
-      const token = match[1]!
-      if (/^\d+$/.test(token)) {
-        segments.push({ kind: 'index', index: Number.parseInt(token, 10) })
-      } else if (token.startsWith('id=')) {
-        segments.push({ kind: 'id', id: token.slice(3) })
-      }
-    }
-  }
-
-  return segments
+  return parsed.segments.map((segment) =>
+    segment.kind === 'field'
+      ? // The grammar names this `name`; the patch resolver has always called
+        // it `key`. Renamed at the boundary rather than churning consumers.
+        ({ kind: 'field', key: segment.name } satisfies PathSegment)
+      : (segment as PathSegment)
+  )
 }
 
 // Very small, best-effort resolver that walks the CollectionDefinition to find
@@ -232,7 +222,10 @@ function ensurePath(
 function applyFieldPatch(doc: any, patch: FieldPatch) {
   const segments = parsePatchPath(patch.path)
   if (segments.length === 0) {
-    throw new Error('Empty path for field patch')
+    // Covers both an empty path and one that did not parse.
+    throw new Error(
+      `Empty or unparseable path for field patch: ${JSON.stringify(patch.path ?? '')}`
+    )
   }
 
   if (patch.kind === 'field.set') {

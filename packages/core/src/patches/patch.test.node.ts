@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { applyPatches } from './apply-patches.js'
+import { applyPatches, parsePatchPath } from './apply-patches.js'
 import type { CollectionDefinition } from '../@types/collection-types.js'
 import type { DocumentPatch } from './patch-types.js'
 
@@ -322,5 +322,59 @@ describe('applyPatches', () => {
     }
 
     expect(updated.content[0]?.constrainedWidth).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Patch paths are instance paths
+//
+// `parsePatchPath` delegates to the shared grammar's `parseInstancePath`
+// (`@byline/core` `paths/`). The two agree on every well-formed path; they
+// differ only in that a malformed one is now rejected rather than partially
+// parsed.
+// ---------------------------------------------------------------------------
+
+describe('parsePatchPath — shared instance-path grammar', () => {
+  it('parses positional and id selectors', () => {
+    expect(parsePatchPath('content[0].gallery[1].alt')).toEqual([
+      { kind: 'field', key: 'content' },
+      { kind: 'index', index: 0 },
+      { kind: 'field', key: 'gallery' },
+      { kind: 'index', index: 1 },
+      { kind: 'field', key: 'alt' },
+    ])
+    expect(parsePatchPath('content[id=abc].alt')).toEqual([
+      { kind: 'field', key: 'content' },
+      { kind: 'id', id: 'abc' },
+      { kind: 'field', key: 'alt' },
+    ])
+  })
+
+  it('carries no block-type segment — the addressed item holds its own `_type`', () => {
+    expect(parsePatchPath('content[0].alt')).not.toContainEqual({
+      kind: 'field',
+      key: 'photoBlock',
+    })
+  })
+
+  it('rejects a malformed path instead of parsing it partially', () => {
+    // Previously `'a['` yielded `[{ kind: 'field', key: 'a' }]`, so a patch
+    // was applied at `a` — a path the client never addressed. Returning no
+    // segments makes callers reject the patch instead.
+    for (const malformed of ['a[', 'a[]', 'a[x]', 'a]b', 'a..b']) {
+      expect(parsePatchPath(malformed)).toEqual([])
+    }
+  })
+
+  it('surfaces a malformed path as a patch error rather than a silent write', () => {
+    const original = { title: 'original' }
+    const { doc, errors } = applyPatches(DocsDefinition, original, [
+      { kind: 'field.set', path: 'title[', value: 'injected' } as unknown as DocumentPatch,
+    ])
+
+    expect(errors).toHaveLength(1)
+    expect(errors[0]?.message).toMatch(/unparseable path/i)
+    // The truncated path `title` is never written.
+    expect((doc as { title?: string }).title).toBe('original')
   })
 })
