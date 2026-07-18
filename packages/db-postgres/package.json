@@ -37,7 +37,7 @@
     "drizzle:push": "tsc -p tsconfig.json && drizzle-kit push --config=drizzle.config.ts",
     "drizzle:drop": "drizzle-kit drop --config=drizzle.config.ts",
     "drizzle:seed": "tsx --no-warnings --env-file=.env ./src/database/seeds/index.ts",
-    "test": "echo 'db-postgres has no unit tests; run pnpm test:integration for the DB-backed suite.'",
+    "test": "vitest run --mode=node",
     "test:integration": "LOG_LEVEL=off vitest run --mode=integration",
     "test:watch": "LOG_LEVEL=off vitest --mode=integration",
     "typecheck": "tsc --noEmit"
