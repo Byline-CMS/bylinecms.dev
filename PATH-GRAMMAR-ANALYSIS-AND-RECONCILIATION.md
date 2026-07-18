@@ -312,10 +312,40 @@ each later step either preserves output or shows a deliberate diff.
 
   Net: −51 lines in `validate-admin-configs.ts`, and the hand-rolled descents
   this work started with are gone from `packages/core/src/config/`.
-- **2d. `findUploadFieldByPath` → `toDeclarationPath` + registry lookup.**
-  A correctness win rather than tidying: removes the first-block-wins guess at
-  `upload-executor.ts:296`, which today is safe only because the leaf-uniqueness
-  constraint props it up. Requires the upload e2e exercised, not just unit tests.
+- **2d. `findUploadFieldByPath` → schema + data resolution. DONE.**
+
+  **The plan's design for this phase was wrong.** "`toDeclarationPath` +
+  registry lookup" cannot work: a form field path is an *instance* path
+  (`content[1].gallery[0].poster`) and carries no block type, so
+  `toDeclarationSegments` yields `content.gallery.poster` — not a valid
+  declaration path, and no string processing recovers the discriminator.
+
+  The model says where it lives: instance paths omit the block type *because
+  the item carries it*. `executeUploads` already receives `getFormValues`
+  (`form-renderer.tsx:400`) and block items carry `_type`
+  (`blocks-field.tsx:160`), so the walk now descends schema and form data
+  together, reading `_type` at each block hop. Where data can't disambiguate
+  (stale form state, no execution context) it tries every block and accepts
+  only a unique match — ambiguity returns nothing rather than a guess.
+
+  **The bug was reachable and silent.** Leaf-uniqueness constrains only
+  upload-capable leaf names, not intermediate ones. Two blocks each declaring
+  an array named `gallery`, one holding `heroImage` and the other `poster`,
+  boots cleanly — but uploading `poster` matched `gallery` in the *first*
+  block, failed to find `poster` there, and dropped the declared
+  `upload.context` with no error. Server-side `beforeStore` / `afterStore`
+  hooks simply never received it.
+
+  Verified by six tests added to the existing `executeUploads` harness, five
+  of which fail against the old implementation. The sixth is the first-block
+  case, where the guess happened to be right — the shape of the bug exactly.
+  Playwright was not needed: the harness drives the real entry point with a
+  real `FieldSet` and `File` against a mocked transport, asserting on outgoing
+  `FormData`.
+
+  Remaining gap, for a manual check: the harness supplies `fieldPath` itself,
+  so it cannot prove the paths the widgets emit match. Verified by reading
+  (`blocks-field.tsx:222`), not by running.
 
 ### Phase 3 — evaluate, do not presume
 

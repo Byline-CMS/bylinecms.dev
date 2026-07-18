@@ -15,6 +15,7 @@
  */
 
 import type { Field, StoredFileValue, UploadConfig } from '@byline/core'
+import { type PathSegment, parseInstancePath } from '@byline/core'
 
 import { get as getNestedValue } from './nested-path'
 import type { UploadFieldFn } from '../fields/field-services-types'
@@ -149,13 +150,16 @@ function buildUploadFormData(
     formData.append('documentId', executionContext.documentId)
   }
 
+  // Resolved once per upload, before locating the field: a `blocks` hop in
+  // the path can only be resolved by reading the addressed item's `_type`.
+  const formValues = executionContext?.getFormValues?.()
+
   const contextPaths =
     executionContext?.fields != null
-      ? findUploadFieldByPath(executionContext.fields, fieldPath)?.context
+      ? findUploadFieldByPath(executionContext.fields, fieldPath, formValues)?.context
       : undefined
 
-  if (contextPaths && contextPaths.length > 0 && executionContext?.getFormValues) {
-    const formValues = executionContext.getFormValues()
+  if (contextPaths && contextPaths.length > 0 && formValues) {
     for (const contextPath of contextPaths) {
       const resolvedPath = resolveContextPath(fieldPath, contextPath)
       if (resolvedPath === undefined) continue
@@ -263,43 +267,100 @@ function isRelationEnvelope(value: unknown): value is { targetDocumentId: string
 
 /**
  * Locate the upload-capable `image | file` schema field addressed by a form
- * field path, walking `group` / `array` / `blocks` structures. Array indices
- * in the path (`files[2]`) map onto the schema's repeating field (`files`);
- * blocks are matched by trying each block's field set (block-type info is
- * not encoded in the path, so the first block containing the remaining path
- * wins — upload leaf names must be unique among a collection's
- * upload-capable fields anyway, per the server-side resolver's contract).
+ * field path, walking `group` / `array` / `blocks` structures.
+ *
+ * The path is an *instance* path (`content[1].gallery[0].poster`), so it
+ * carries no block type — a block item's type lives on the item itself, as
+ * `_type`. Passing `formValues` therefore lets a `blocks` hop be resolved
+ * exactly: read the addressed item, take its `_type`, descend into that
+ * block. Without form values the block type is genuinely unknowable from the
+ * path, so every block is tried and the result is accepted only when exactly
+ * one resolves — ambiguity returns `undefined` rather than a guess.
  */
 function findUploadFieldByPath(
   fields: readonly Field[],
-  fieldPath: string
+  fieldPath: string,
+  formValues?: Record<string, any>
 ): UploadConfig | undefined {
-  const segments = fieldPath.split('.').map((s) => s.replace(/\[\d+\]$/, ''))
+  const parsed = parseInstancePath(fieldPath)
+  if (!parsed.ok) return undefined
+  return resolveUploadConfig(fields, parsed.segments, formValues)
+}
 
-  let currentFields: readonly Field[] = fields
-  for (let i = 0; i < segments.length; i++) {
-    const name = segments[i]
-    const isLeaf = i === segments.length - 1
-    const field = currentFields.find((f) => f.name === name)
-    if (!field) return undefined
-
-    if (isLeaf) {
-      return field.type === 'image' || field.type === 'file' ? field.upload : undefined
-    }
-
-    if (field.type === 'group' || field.type === 'array') {
-      currentFields = field.fields
-      continue
-    }
-    if (field.type === 'blocks') {
-      const remaining = segments[i + 1]
-      const block = field.blocks.find((b) => b.fields.some((f) => f.name === remaining))
-      if (!block) return undefined
-      currentFields = block.fields
-      continue
-    }
-    return undefined
+/** Select the item an index / id segment addresses, when data is available. */
+function selectItem(value: unknown, segment: PathSegment): unknown {
+  if (!Array.isArray(value)) return undefined
+  if (segment.kind === 'index') return value[segment.index]
+  if (segment.kind === 'id') {
+    return value.find((item) => (item as { _id?: unknown } | null)?._id === segment.id)
   }
+  return undefined
+}
+
+/**
+ * Walk instance-path segments against the schema, carrying the corresponding
+ * slice of form data alongside so `blocks` hops can read `_type`.
+ */
+function resolveUploadConfig(
+  fields: readonly Field[],
+  segments: readonly PathSegment[],
+  value: unknown
+): UploadConfig | undefined {
+  const head = segments[0]
+  if (head == null || head.kind !== 'field') return undefined
+
+  const field = fields.find((candidate) => candidate.name === head.name)
+  if (field == null) return undefined
+
+  const fieldValue = (value as Record<string, unknown> | undefined)?.[head.name]
+  const rest = segments.slice(1)
+
+  if (rest.length === 0) {
+    return field.type === 'image' || field.type === 'file' ? field.upload : undefined
+  }
+
+  if (field.type === 'group') {
+    return resolveUploadConfig(field.fields, rest, fieldValue)
+  }
+
+  if (field.type === 'array') {
+    // An item selector may be absent when the caller addresses the array's
+    // child declaration rather than one item; the child fields are the same.
+    const selector = rest[0]
+    if (selector?.kind === 'index' || selector?.kind === 'id') {
+      return resolveUploadConfig(field.fields, rest.slice(1), selectItem(fieldValue, selector))
+    }
+    return resolveUploadConfig(field.fields, rest, undefined)
+  }
+
+  if (field.type === 'blocks') {
+    const selector = rest[0]
+    const remainder = selector?.kind === 'index' || selector?.kind === 'id' ? rest.slice(1) : rest
+    const item =
+      selector?.kind === 'index' || selector?.kind === 'id'
+        ? selectItem(fieldValue, selector)
+        : undefined
+
+    const blockType = (item as { _type?: unknown } | undefined)?._type
+    if (typeof blockType === 'string') {
+      const block = field.blocks.find((candidate) => candidate.blockType === blockType)
+      return block == null ? undefined : resolveUploadConfig(block.fields, remainder, item)
+    }
+
+    // No data to disambiguate. Try every block and accept a unique answer;
+    // two matches mean the path genuinely does not identify one declaration.
+    let found: UploadConfig | undefined
+    let matches = 0
+    for (const block of field.blocks) {
+      const result = resolveUploadConfig(block.fields, remainder, undefined)
+      if (result !== undefined) {
+        matches += 1
+        found = result
+      }
+    }
+    return matches === 1 ? found : undefined
+  }
+
   return undefined
 }
 
