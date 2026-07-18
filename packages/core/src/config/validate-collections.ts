@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { formatDeclarationPath, walkFieldDeclarations } from '../paths/index.js'
 import { fieldTypeToStore } from '../storage/field-store-map.js'
 import type { CollectionDefinition, Field, FieldType } from '../@types/index.js'
 
@@ -85,26 +86,23 @@ function walkFields(fields: readonly Field[], visit: (field: Field) => void): vo
 }
 
 /**
- * Path-aware variant of `walkFields` — visits every field with its dotted
- * schema path (e.g. `files.filesGroup.generateThumbnail`) so validation
+ * Path-aware variant of `walkFields` — visits every field with its
+ * declaration path (e.g. `files.filesGroup.generateThumbnail`) so validation
  * errors can point at the exact declaration site.
+ *
+ * Delegates to the shared grammar's canonical walk. It previously descended
+ * into blocks without recording the block type, which made the emitted path
+ * ambiguous whenever two blocks in one field declared the same field name —
+ * both rendered as `content.alt`, and the message could not say which was at
+ * fault. `walkFieldDeclarations` carries the block type through.
  */
 function walkFieldsWithPath(
   fields: readonly Field[],
-  visit: (field: Field, fieldPath: string) => void,
-  prefix = ''
+  visit: (field: Field, fieldPath: string) => void
 ): void {
-  for (const field of fields) {
-    const fieldPath = prefix === '' ? field.name : `${prefix}.${field.name}`
-    visit(field, fieldPath)
-    if (field.type === 'group' || field.type === 'array') {
-      walkFieldsWithPath(field.fields, visit, fieldPath)
-    } else if (field.type === 'blocks') {
-      for (const block of field.blocks) {
-        walkFieldsWithPath(block.fields, visit, fieldPath)
-      }
-    }
-  }
+  walkFieldDeclarations(fields, (field, segments) => {
+    visit(field, formatDeclarationPath(segments))
+  })
 }
 
 /**

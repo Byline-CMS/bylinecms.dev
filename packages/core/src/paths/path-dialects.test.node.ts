@@ -33,9 +33,10 @@ import type { CollectionAdminConfig, CollectionDefinition } from '../@types/inde
 //     no indices. The block type IS required — without it, two blocks in the
 //     same field that declare the same field name are indistinguishable.
 //
-// Some assertions below pin behaviour that is known to be WRONG. Those are
-// marked `KNOWN DEFECT` and cite the fix that will change them. A failure
-// there is expected progress; a failure anywhere else is a regression.
+// The dialects do not all agree yet. Where one is deliberately narrower than
+// the grammar (admin `fields{}` barring block traversal) the comment says so;
+// where one is still being brought into line, it cites the phase that moves
+// it. A failure here means a dialect changed — check it was on purpose.
 // ---------------------------------------------------------------------------
 
 /**
@@ -215,11 +216,11 @@ describe('path dialect — block admin fields{} override keys', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Dialect 3 — boot-validation error message paths (DECLARATION paths, LOSSY)
+// Dialect 3 — boot-validation error message paths (DECLARATION paths)
 //
 // Produced by `walkFieldsWithPath` (config/validate-collections.ts) and
-// interpolated into user-facing error messages. It walks into blocks but
-// DROPS the block type, so it emits an ambiguous declaration path.
+// interpolated into user-facing error messages. Now delegates to the shared
+// grammar's `walkFieldDeclarations`, so it agrees with the upload registry.
 // ---------------------------------------------------------------------------
 
 describe('path dialect — boot-validation error message paths', () => {
@@ -234,19 +235,15 @@ describe('path dialect — boot-validation error message paths', () => {
     }
   }
 
-  it('KNOWN DEFECT: omits the block type, yielding an ambiguous path', () => {
-    // Phase 2a makes this `content.photoBlock.gallery.alt`. When that lands,
-    // update this expectation and delete the collision test below.
-    expect(pathInError()).toBe('content.gallery.alt')
+  it('qualifies the path with the block type', () => {
+    expect(pathInError()).toBe('content.photoBlock.gallery.alt')
   })
 
-  it('KNOWN DEFECT: the emitted path collides across block types', () => {
-    // `photoBlock.gallery.alt` and `videoBlock.alt` are different declarations.
-    // Neither is identifiable from the emitted path, because the block type —
-    // the only thing distinguishing them — is exactly what gets dropped.
-    const emitted = pathInError()
-    expect(emitted).not.toContain('photoBlock')
-    expect(emitted).not.toContain('videoBlock')
+  it('identifies which block declaration is at fault', () => {
+    // The fixture declares `alt` in both photoBlock and videoBlock. Before the
+    // block type was carried through, both rendered as `content.alt` and the
+    // message could not say which declaration it meant.
+    expect(pathInError()).toContain('photoBlock')
   })
 })
 

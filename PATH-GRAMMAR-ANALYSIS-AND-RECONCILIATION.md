@@ -263,10 +263,20 @@ each later step either preserves output or shows a deliberate diff.
 
 ### Phase 2 — migrate config-time consumers, one commit each
 
-- **2a. `walkFieldsWithPath` → blockType-qualified.** The only intentional
-  behaviour change: `content.gallery.alt` → `content.photoBlock.gallery.alt`.
-  Fixes the ambiguity. User-visible, but error messages only — no API surface.
-  Independent of the rest; can ship standalone.
+- **2a. `walkFieldsWithPath` → blockType-qualified. DONE.** Now delegates to
+  `walkFieldDeclarations`; the local recursive walk is deleted.
+  `content.gallery.alt` → `content.photoBlock.gallery.alt`. Message text only —
+  the set of fields visited and every accept/reject decision are unchanged.
+  Verified end to end: a collection with `caption` declared in two block types
+  now reports `content.videoBlock.caption`, naming which declaration is at
+  fault, where both previously rendered as `content.caption`.
+
+  Note for later phases: the dry run in Phase 1 predicted two failing
+  assertions and there were three — `validate-collections.test.node.ts`
+  ("validates upload.location on fields nested inside blocks") also pinned the
+  ambiguous form. The dry run had only been run against the characterization
+  file, not the whole suite. Run the *full* package suite when estimating
+  blast radius for 2b–2d.
 - **2b. Upload registry (`indexUploadFields`) → shared serialiser.** Expected
   byte-identical; the characterization test proves it. Pure refactor.
 - **2c. Admin `fields{}` (`resolveSchemaPath`) → shared resolver +

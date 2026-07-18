@@ -579,8 +579,10 @@ describe('validateCollections', () => {
         },
       ],
     }
+    // The path names the block type, so the message identifies which block's
+    // `file` declaration is at fault rather than just `content.file`.
     expect(() => validateCollections([collection])).toThrow(
-      /content\.file.*must not contain duplicate slashes/s
+      /content\.attachmentsBlock\.file.*must not contain duplicate slashes/s
     )
   })
 })

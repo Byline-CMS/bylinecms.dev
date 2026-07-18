@@ -447,8 +447,6 @@ The block-type segment is what makes a schema path unambiguous: two blocks in th
 
 The upload executor bridges the two notations: a widget posts its instance path, and the executor strips the indices to recover the declaring field and its `upload` config.
 
-> **Known inconsistency.** Field paths quoted in boot-validation error messages currently omit the block-type segment, so a field inside a block is reported as `content.alt` rather than `content.photoBlock.alt`. Where two blocks in one field declare the same field name, the message cannot distinguish them. Being addressed; the paths above are the intended form.
-
 Boot validation rejects `fields{}` keys that carry an index or don't resolve to a declaration, so a mixed-up notation fails at startup, not silently at render time.
 
 ### Per-field admin config for nested fields
