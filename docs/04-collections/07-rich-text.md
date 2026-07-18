@@ -588,6 +588,14 @@ The two layouts differ for historical / Lexical-mechanics reasons (the link node
 
 Step 2 is the happy path post-walker. Step 3 is heal-on-write fallback for legacy nodes and picker-time-but-not-yet-walked sessions. Step 1 is the explicit unresolved-target signal (deleted, unpublished in the selected view, or row-hidden). Step 4 is the safety net. No two-slot ambiguity, no data migration required when adopting the new pipeline — every next save normalises the field.
 
+**Why the picker does not compose the path itself.** Step 3's generic compose is wrong for any collection whose public route differs from its collection path — `/publications/0000152` where the real route is `/library/0000152`. It is tempting to fix this by calling `buildDocumentPath` in the link picker, which is possible: collection *definitions* are registered in the browser via `ClientConfig.collections`, so the hook is reachable client-side. Two things argue against it.
+
+First, the value is not observable before save. No admin surface renders `document.path` — the floating link editor deliberately shows an admin edit URL (`floating-link-editor.tsx`), and the link modal shows the target's title. The only readers are the server-side walker, the markdown serializer, and the public renderer, all of which operate on saved or populated data.
+
+Second, `record.fields` at pick time is only what `resolveSelectFields` asked the listing endpoint for (picker columns + `useAsTitle` + `displayField`). A hook reading anything outside that projection — like the `pages` hook's `area` — sees `undefined` and composes a confidently wrong path rather than an obviously generic one. That is a worse failure mode for a value the walker overwrites on the next save anyway.
+
+This calculus would change if a host rendered unsaved editor state in a live preview pane. The prerequisite would be a way for a collection to declare which fields its `buildDocumentPath` needs, so the picker can request them — `extraSelectFields` is the existing mechanism, but nothing declarative feeds it today.
+
 ### Server-side embed and populate
 
 Same Lexical visitor pipeline, two trigger points. The package ships two distinct factories that build the registered functions:

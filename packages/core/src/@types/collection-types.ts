@@ -1294,9 +1294,15 @@ export interface CollectionDefinition {
    *
    * Receives the same minimal document shape as
    * `CollectionAdminConfig.preview.url` (`PreviewDocument`-style envelope:
-   * top-level columns plus `fields`) so the two hooks can share an
-   * implementation today and `preview.url` can default to
-   * `buildDocumentPath` in a later pass.
+   * top-level columns plus `fields`), so the two hooks can share an
+   * implementation. `preview.url` already defaults to this hook when
+   * omitted — see `resolvePreviewUrl` in `@byline/host-tanstack-start` —
+   * so the admin Preview button and the public path agree by construction.
+   *
+   * Note the `null` return is read differently by the two surfaces:
+   * `resolvePreviewUrl` hides the Preview affordance, while the richtext
+   * walker treats it as "no path could be built" and falls through to the
+   * generic `/${collectionPath}/${path}` compose.
    */
   buildDocumentPath?: (
     doc: { id: string; path: string; status: string; fields: Record<string, any> },
