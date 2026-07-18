@@ -69,6 +69,11 @@ function renderBlock(
       return (
         <FAQBlock id={block._id} block={block} lng={lng} constrainedLayout={constrainedLayout} />
       )
+    case 'attachmentBlock':
+      // Admin-side scaffolding for exercising uploads nested inside blocks
+      // (see byline/blocks/attachment-block.ts). Deliberately renders nothing
+      // on the public site — it exists to be edited, not published.
+      return null
     default:
       return reportUnsupportedBlock(block)
   }
