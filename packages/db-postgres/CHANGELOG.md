@@ -1,5 +1,19 @@
 # @byline/db-postgres
 
+## 4.4.0
+
+### Minor Changes
+
+- fixed upload fields declared inside blocks — **`@byline/admin`** now renders the drop zone and resolves `upload.context` against the addressed block
+  added a shared field path grammar in **`@byline/core`**; boot now rejects unresolvable `search` config names and malformed patch paths
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@4.4.0
+  - @byline/auth@4.4.0
+  - @byline/core@4.4.0
+
 ## 4.3.0
 
 ### Minor Changes
