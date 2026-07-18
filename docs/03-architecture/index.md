@@ -21,7 +21,9 @@ storage layer flattens documents into rows on write and reconstructs them on
 read.
 
 For the full treatment — data model, benchmarks, and risks — see
-[Document Storage](./01-document-storage.md).
+[Document Storage](./01-document-storage.md). The path notation above is one of
+two: values in a document are addressed by *instance* path, field declarations
+in the schema by *declaration* path. See [Path Grammar](./04-path-grammar.md).
 
 ## 2. Immutable versioning
 

@@ -136,6 +136,14 @@ With friendly storage keys shipped (4.2: `<location|collection>/<slug>-<suffix>.
 
 **Trigger:** first non-admin client arrives (mobile, desktop, third-party). Today every read/write goes through TanStack Start server fns inside the admin webapp; no stable HTTP shape is published. Designed across the full surface area at that point, not just one verb. See [ROUTING-API.md](./docs/05-reading-and-delivery/02-routing-and-api.md) and the deferral note in `CLAUDE.md`.
 
+### Field path grammar — remaining follow-ons
+
+**Shipped:** `packages/core/src/paths/` is the single implementation of both field-path notations, and every config-time producer and consumer routes through it (see [Path Grammar](./docs/03-architecture/04-path-grammar.md)). Two follow-ons were identified and deliberately left.
+
+**Trigger (relax upload leaf-name uniqueness):** ships with the stable HTTP API transport above, not before. `attach-hooks.ts` rejects duplicate upload-capable leaf names within a collection because the *server* selects the target field by leaf name (`resolveUploadField` in `host-tanstack-start/src/server-fns/collections/upload.ts` matches `f.name === requested`). The grammar now makes the alternative straightforward — the client computes the block-qualified declaration path (it can read `_type` from form state) and the server resolves it with `resolveDeclarationPath` — but that changes what the upload request carries, and the transport boundary should be designed across the whole surface at once rather than around one field.
+
+**Trigger (paired resolution / index trail):** a second consumer asks for it. FORRU's extraction config uses a wildcard notation of its own (`files[].filesGroup.publicationFile`) with a hand-rolled walker that fans out across array items and resolves sibling paths against the *same* item. The `[]` marker is redundant against a schema-aware resolver — the schema already knows `files` is an array — so that half is obsoleted by this work. The paired-resolution semantic is a genuine gap with exactly one consumer today, which is too thin a basis for a public API.
+
 ### Per-locale paths (translated slugs)
 
 **Trigger:** a real consumer needs translated slugs as a CMS concern (not just locale-prefixed routing in the frontend). The structural answer is on file: a new `document_paths` table keyed by `(collection_id, locale, path)`, not extending the existing column or pushing `path` into the EAV. See [DOCUMENT-PATHS.md → Phase — per-locale paths](./docs/04-collections/05-document-paths.md#phase--per-locale-paths-the-larger-one).

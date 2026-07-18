@@ -77,9 +77,15 @@ function* walkCounterSites(
 }
 
 /**
- * Resolve a counter value already present in `previousData` at the
- * same dotted path as the site. Returns `undefined` if the value is
- * missing or not a finite number.
+ * Resolve a counter value already present in `previousData` at the same
+ * dotted path as the site. Returns `undefined` if the value is missing or
+ * not a finite number.
+ *
+ * `path` is a plain object accessor, **not** a field path in the sense of
+ * `@byline/core` `paths/` — it walks data, never the schema, and stops at
+ * any array because counters may not be declared inside `array` / `blocks`
+ * (see `walkCounterSites`). It therefore needs no item selectors and no
+ * block-type segments, which is why it does not use the shared grammar.
  */
 function readPreviousValue(previousData: Record<string, any>, path: string): number | undefined {
   const segments = path.split('.')

@@ -162,6 +162,14 @@ A higher-level, DSL-like API for querying documents from outside the admin UI. S
 
 The single source of truth for collection-field-type → EAV store table + value column lives in `packages/core/src/storage/field-store-map.ts`. Both `@byline/client` (where-clause parsing) and `@byline/db-postgres` (UNION ALL + filter SQL generation) consume it. A contract test (`field-store-map.test.node.ts`) enumerates every declared field type to prevent drift.
 
+### Field Path Grammar
+
+Byline addresses a field with one of two notations, and the distinction is load-bearing: **instance paths** address a value in one item of one document (`content[1].gallery[0].alt` — selectors required, no block type, because the item carries its own `_type`); **declaration paths** address a field declaration in the schema (`content.photoBlock.gallery.alt` — no selectors, block type *required*, since two blocks may declare the same field name). Eliding the selectors from a storage path yields exactly the declaration path — they are one grammar with two serialisations.
+
+`packages/core/src/paths/` is the single implementation: one `PathSegment` AST, `parseDeclarationPath` / `parseInstancePath` + formatters, `toDeclarationSegments` (the instance → declaration projection), `resolveDeclarationPath` (schema-aware, with `blocks: 'qualified' | 'forbidden'`), and `walkFieldDeclarations` (the canonical schema walk, plus an `onBlock` callback for validation that must see every block including empty ones). Parsing is schema-*unaware* — a block type and a field name are both bare identifiers, so only resolution against a field set can tell them apart.
+
+Storage `field_path` (persisted) and patch paths (wire format) are frozen; the config-time notations all route through the module. Admin `fields{}` keys are the one deliberate narrowing — block traversal is barred entirely, because fields inside a block take their overrides from the blockType-keyed `blockAdmin` registry. Two contract tests pin every notation (`packages/core/src/paths/path-dialects.test.node.ts`, `packages/db-postgres/src/modules/storage/storage-paths.test.node.ts`). Full reference: [docs/03-architecture/04-path-grammar.md](docs/03-architecture/04-path-grammar.md).
+
 ### Markdown export (agent surface)
 
 One-way Lexical → markdown serialization (`lexicalToMarkdown`, `@byline/richtext-lexical/server`) registered through the editor-agnostic `ServerConfig.fields.richText.toMarkdown` seam; the schema-aware `documentToMarkdown` assembler in `packages/core/src/services/document-to-markdown.ts`; app-owned `.md` routes per content locale, `llms.txt`, and three advertisement channels (`.md` URLs, head `rel=alternate` links, `Accept: text/markdown` 302 negotiation) in `apps/webapp`. Published-only and read-only; the output format is a contract surface pinned by tests. See docs/05-reading-and-delivery/04-markdown-export.md.

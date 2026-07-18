@@ -7,6 +7,7 @@ summary: "Universal EAV-per-type storage: typed store_* tables, the path notatio
 # Core Document Storage
 
 Companions:
+- [Path Grammar](./04-path-grammar.md) — `field_path` on the `store_*` rows is one of two field-path notations; that document is the reference for both and for how they relate.
 - [Relationships](../04-collections/03-relationships.md) — the first read consumer that spans collections.
 - [Document Paths](../04-collections/05-document-paths.md) — `path` was the first system attribute promoted out of the EAV layer; it now lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`, separate from `documentVersions`.
 - [Collection Versioning](../04-collections/08-collection-versioning.md) — schema versioning sits beside, but is independent of, document versioning.
