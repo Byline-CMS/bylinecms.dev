@@ -31,7 +31,6 @@ export const ArrayField = ({
   defaultValue,
   path,
   disableSorting = false,
-  collectionPath,
   contentLocale,
   fieldAdmin,
 }: {
@@ -39,13 +38,6 @@ export const ArrayField = ({
   defaultValue: any
   path: string
   disableSorting?: boolean
-  /**
-   * Collection path forwarded to upload-capable fields (`file` / `image`)
-   * nested inside an array item, which need it to reach the `/upload`
-   * endpoint. Without it those fields fall back to their empty placeholder
-   * and never render an upload widget.
-   */
-  collectionPath?: string
   /**
    * Active content locale, forwarded to each array item's fields so
    * localized widgets nested inside an array (e.g. a `localized` richText)
@@ -242,7 +234,6 @@ export const ArrayField = ({
                 defaultValue={groupData[innerField.name]}
                 basePath={`${arrayElementPath}.${childField.name}`}
                 disableSorting={true}
-                collectionPath={collectionPath}
                 contentLocale={contentLocale}
                 components={groupAdmin?.[innerField.name]?.components}
                 editor={groupAdmin?.[innerField.name]?.editor}
@@ -260,7 +251,6 @@ export const ArrayField = ({
           defaultValue={initial}
           basePath={arrayElementPath}
           disableSorting={true}
-          collectionPath={collectionPath}
           contentLocale={contentLocale}
           components={fieldAdmin?.[childField.name]?.components}
           editor={fieldAdmin?.[childField.name]?.editor}

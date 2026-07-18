@@ -485,7 +485,6 @@ const FormContent = ({
         key={field.name}
         field={field}
         defaultValue={initialData?.fields?.[field.name]}
-        collectionPath={collectionPath}
         contentLocale={contentLocale}
         components={adminConfig?.fields?.[field.name]?.components}
         editor={adminConfig?.fields?.[field.name]?.editor}
@@ -778,6 +777,7 @@ export const FormRenderer = ({
       key={`${initialLocale ?? 'default'}-${initialData?.versionId ?? ''}`}
       initialData={initialData}
       documentId={mode === 'edit' && typeof initialData?.id === 'string' ? initialData.id : null}
+      collectionPath={collectionPath ?? null}
     >
       <FormContent
         mode={mode}

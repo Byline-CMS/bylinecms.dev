@@ -49,8 +49,6 @@ interface FieldRendererProps {
   basePath?: string
   disableSorting?: boolean
   hideLabel?: boolean
-  /** Collection path (e.g. `'media'`) forwarded to upload-capable fields. */
-  collectionPath?: string
   /**
    * The active content locale (e.g. `'en'`, `'fr'`). When provided and
    * `field.localized === true`, a small locale badge is shown so the editor
@@ -86,7 +84,6 @@ export const FieldRenderer = ({
   basePath,
   disableSorting,
   hideLabel,
-  collectionPath,
   contentLocale,
   components,
   editor,
@@ -256,7 +253,6 @@ export const FieldRenderer = ({
             defaultValue={defaultValue}
             onChange={handleChange}
             path={path}
-            collectionPath={collectionPath}
           />
         )
       case 'image':
@@ -266,7 +262,6 @@ export const FieldRenderer = ({
             defaultValue={defaultValue}
             onChange={handleChange}
             path={path}
-            collectionPath={collectionPath}
           />
         )
       case 'relation':
@@ -301,7 +296,6 @@ export const FieldRenderer = ({
             defaultValue={defaultValue}
             path={path}
             disableSorting={disableSorting}
-            collectionPath={collectionPath}
             contentLocale={contentLocale}
             fieldAdmin={fieldAdmin}
           />
@@ -313,7 +307,6 @@ export const FieldRenderer = ({
             field={field as unknown as BlocksFieldType}
             defaultValue={defaultValue}
             path={path}
-            collectionPath={collectionPath}
             contentLocale={contentLocale}
           />
         )
@@ -325,7 +318,6 @@ export const FieldRenderer = ({
             defaultValue={defaultValue}
             path={path}
             disableSorting={disableSorting}
-            collectionPath={collectionPath}
             contentLocale={contentLocale}
             fieldAdmin={fieldAdmin}
           />

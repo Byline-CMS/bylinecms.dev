@@ -44,12 +44,6 @@ interface GroupFieldProps {
    */
   disableSorting?: boolean
   /**
-   * Collection path forwarded to upload-capable child fields (`file` / `image`),
-   * which need it to reach the `/upload` endpoint. Without it those fields fall
-   * back to their empty placeholder and never render an upload widget.
-   */
-  collectionPath?: string
-  /**
    * Active content locale, forwarded to child fields so localized widgets
    * nested inside the group (e.g. a `localized` richText) can render their
    * locale badge.
@@ -73,7 +67,6 @@ export const GroupField = ({
   defaultValue,
   path,
   disableSorting = true,
-  collectionPath,
   contentLocale,
   fieldAdmin,
 }: GroupFieldProps) => {
@@ -116,7 +109,6 @@ export const GroupField = ({
               defaultValue={groupData[innerField.name]}
               basePath={path}
               disableSorting={disableSorting}
-              collectionPath={collectionPath}
               contentLocale={contentLocale}
               components={fieldAdmin?.[innerField.name]?.components}
               editor={fieldAdmin?.[innerField.name]?.editor}

@@ -90,6 +90,19 @@ interface FormContextType {
    * `@byline/core`).
    */
   documentId: string | null
+  /**
+   * Path of the collection this form edits, `null` when the form is rendered
+   * without one. Upload widgets need it to address the upload endpoint.
+   *
+   * It lives here rather than being passed down because it is constant for
+   * the whole form: threading it as a prop meant every nesting-capable
+   * container (`array`, `group`, `blocks`) had to remember to forward it,
+   * and a container that forgot silently rendered upload fields read-only —
+   * no error, just a missing drop zone. That happened twice, in `array` /
+   * `group` and then in `blocks`. A value read from context cannot be
+   * dropped by a container that never carries it.
+   */
+  collectionPath: string | null
   setFieldValue: (name: string, value: any) => void
   setFieldStore: (name: string, value: any) => void
   getFieldValue: (name: string) => any
@@ -158,6 +171,7 @@ export const FormProvider = ({
   children,
   initialData = {},
   documentId = null,
+  collectionPath = null,
 }: {
   children: React.ReactNode
   initialData?: Record<string, any>
@@ -166,6 +180,12 @@ export const FormProvider = ({
    * the context for upload widgets honouring `upload.requireSavedDocument`.
    */
   documentId?: string | null
+  /**
+   * Path of the collection being edited. Exposed on the context so upload
+   * widgets can reach the upload endpoint from any nesting depth without
+   * every container forwarding it — see `FormContextType.collectionPath`.
+   */
+  collectionPath?: string | null
 }) => {
   const fieldValues = useRef<Record<string, any>>(
     JSON.parse(JSON.stringify(initialData?.fields ?? initialData))
@@ -662,6 +682,7 @@ export const FormProvider = ({
     <FormContext.Provider
       value={{
         documentId,
+        collectionPath,
         setFieldValue,
         setFieldStore,
         getFieldValue,

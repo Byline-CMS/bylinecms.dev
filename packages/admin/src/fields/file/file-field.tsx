@@ -57,8 +57,6 @@ function triggerDownload(url: string, filename?: string) {
 
 interface FileFieldProps {
   field: FieldType
-  /** Collection path required to call the /upload endpoint. */
-  collectionPath?: string
   value?: StoredFileValue | null
   defaultValue?: StoredFileValue | null
   onChange?: (value: StoredFileValue | null) => void
@@ -67,7 +65,6 @@ interface FileFieldProps {
 
 export const FileField = ({
   field,
-  collectionPath,
   value,
   defaultValue,
   onChange: _onChange,
@@ -79,7 +76,10 @@ export const FileField = ({
   const isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<StoredFileValue | null | undefined>(fieldPath)
   const isUploading = useIsFieldUploading(fieldPath)
-  const { removePendingUpload, documentId } = useFormContext()
+  // `collectionPath` comes from form context rather than a prop: it is
+  // constant for the form, and prop-drilling it meant any container that
+  // forgot to forward it silently rendered this widget read-only.
+  const { removePendingUpload, documentId, collectionPath } = useFormContext()
 
   const handleChange = useFieldChangeHandler(field, fieldPath)
 

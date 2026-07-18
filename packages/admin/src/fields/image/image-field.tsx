@@ -38,8 +38,6 @@ import { ImageUploadField } from './image-upload-field'
 
 interface ImageFieldProps {
   field: FieldType
-  /** Collection path required to call the /upload endpoint. */
-  collectionPath?: string
   // Stored value is currently a plain object with file/image metadata
   // coming from the seed data / storage layer.
   value?: StoredFileValue | null
@@ -50,7 +48,6 @@ interface ImageFieldProps {
 
 export const ImageField = ({
   field,
-  collectionPath,
   value,
   defaultValue,
   onChange: _onChange,
@@ -61,7 +58,10 @@ export const ImageField = ({
   const isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<StoredFileValue | null | undefined>(fieldPath)
   const isUploading = useIsFieldUploading(fieldPath)
-  const { removePendingUpload, documentId } = useFormContext()
+  // `collectionPath` comes from form context rather than a prop: it is
+  // constant for the form, and prop-drilling it meant any container that
+  // forgot to forward it silently rendered this widget read-only.
+  const { removePendingUpload, documentId, collectionPath } = useFormContext()
   const { t } = useTranslation('byline-admin')
 
   // Re-use the standard field change handler so patches are emitted correctly.
