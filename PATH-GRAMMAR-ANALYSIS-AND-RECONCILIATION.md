@@ -295,7 +295,23 @@ each later step either preserves output or shows a deliberate diff.
   `validateBlockAdminConfigs` has its own block-collecting walker too, so
   `onBlock` should let 2c retire that one as well.
 - **2c. Admin `fields{}` (`resolveSchemaPath`) → shared resolver +
-  `blocks: 'forbidden'`.** Output-identical; deletes the second walker.
+  `blocks: 'forbidden'`. DONE.** `resolveSchemaPath` is now a one-line
+  delegation; the hand-rolled resolution loop is gone. Unlike 2b there were no
+  incidental responsibilities riding along — both walks here were pure
+  collection.
+
+  Also retired two further walkers:
+  - `validateBlockAdminConfigs`' block collector, now `onBlock`. Verified
+    old-vs-new identical across nested blocks (a block inside a block), a
+    block inside an array, and the same blockType declared in two collections
+    with drifted field sets (union semantics). Nested-block recursion was the
+    subtle part and is now pinned by a test.
+  - `validate-collections`' path-free `walkFields`, now a delegation. Costs a
+    segment array per field on a walk that ignores paths — irrelevant at boot,
+    and it removes the last duplicated descent in that file.
+
+  Net: −51 lines in `validate-admin-configs.ts`, and the hand-rolled descents
+  this work started with are gone from `packages/core/src/config/`.
 - **2d. `findUploadFieldByPath` → `toDeclarationPath` + registry lookup.**
   A correctness win rather than tidying: removes the first-block-wins guess at
   `upload-executor.ts:296`, which today is safe only because the leaf-uniqueness

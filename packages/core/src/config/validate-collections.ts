@@ -72,17 +72,11 @@ function hasLocalizedField(fields: readonly Field[]): boolean {
   return found
 }
 
+/** Every field declaration, for checks that don't care where it sits. */
 function walkFields(fields: readonly Field[], visit: (field: Field) => void): void {
-  for (const field of fields) {
+  walkFieldDeclarations(fields, (field) => {
     visit(field)
-    if (field.type === 'group' || field.type === 'array') {
-      walkFields(field.fields, visit)
-    } else if (field.type === 'blocks') {
-      for (const block of field.blocks) {
-        walkFields(block.fields, visit)
-      }
-    }
-  }
+  })
 }
 
 /**

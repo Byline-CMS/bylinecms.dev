@@ -6,6 +6,11 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import {
+  type PathResolution,
+  resolveDeclarationPath,
+  walkFieldDeclarations,
+} from '../paths/index.js'
 import type {
   Block,
   BlockAdminConfig,
@@ -15,42 +20,26 @@ import type {
 } from '../@types/index.js'
 
 /**
- * Result of resolving a dotted, index-free schema path against a field set.
+ * Result of resolving a schema path against a field set — the grammar's
+ * resolution status, narrowed to what this module reports on.
+ *
+ * `'blocks'` is kept distinct from `'unresolved'` because the two warrant
+ * different guidance: a key that legitimately names a field inside a block
+ * isn't malformed, it just belongs in the `blockAdmin` registry instead.
  */
-type SchemaPathResolution = 'ok' | 'blocks' | 'unresolved'
+type SchemaPathResolution = PathResolution['status']
 
 /**
- * Resolve a dotted schema path (`faq.answer`, `files.filesGroup.publicationFile`)
- * against a field set. Schema paths address field *declarations*: every
- * segment names a field, intermediate segments must be `group` / `array`
- * structure fields, and no segment carries an item index. Returns:
+ * Resolve a `fields{}` override key against a field set.
  *
- *  - `'ok'`         — the path resolves to a field declaration;
- *  - `'blocks'`     — the path tries to traverse a `type: 'blocks'` field
- *                     (blocks resolve their own admin config from the
- *                     blockType-keyed registry, so this is always an error);
- *  - `'unresolved'` — a segment doesn't name a field, or a value field
- *                     appears mid-path.
+ * Admin override keys are declaration paths with one deliberate narrowing:
+ * they may not traverse a `blocks` field at all, even correctly qualified by
+ * block type. Fields inside a block take their overrides from the
+ * blockType-keyed `blockAdmin` registry, so that one registration applies
+ * wherever the block renders.
  */
 function resolveSchemaPath(fields: readonly Field[], path: string): SchemaPathResolution {
-  const segments = path.split('.')
-  let current: readonly Field[] = fields
-
-  for (let i = 0; i < segments.length; i++) {
-    const name = segments[i]
-    const field = current.find((f) => 'name' in f && f.name === name)
-    if (field == null) return 'unresolved'
-    if (i === segments.length - 1) return 'ok'
-
-    if (field.type === 'group' || field.type === 'array') {
-      current = field.fields
-    } else if (field.type === 'blocks') {
-      return 'blocks'
-    } else {
-      return 'unresolved'
-    }
-  }
-  return 'unresolved'
+  return resolveDeclarationPath(fields, path, { blocks: 'forbidden' }).status
 }
 
 /**
@@ -158,28 +147,14 @@ export function validateBlockAdminConfigs(
   // the union of sites.
   const blocksByType = new Map<string, Block[]>()
 
-  const walkBlock = (block: Block): void => {
-    let sites = blocksByType.get(block.blockType)
-    if (sites == null) {
-      sites = []
-      blocksByType.set(block.blockType, sites)
-    }
-    sites.push(block)
-    walkFields(block.fields)
-  }
-
-  const walkFields = (fields: readonly Field[]): void => {
-    for (const field of fields) {
-      if (field.type === 'blocks') {
-        for (const block of field.blocks) walkBlock(block)
-      } else if ('fields' in field && Array.isArray(field.fields)) {
-        walkFields(field.fields)
-      }
-    }
-  }
-
   for (const collection of collections) {
-    walkFields(collection.fields)
+    walkFieldDeclarations(collection.fields, () => {}, {
+      onBlock: (block) => {
+        const sites = blocksByType.get(block.blockType)
+        if (sites == null) blocksByType.set(block.blockType, [block])
+        else sites.push(block)
+      },
+    })
   }
 
   const seen = new Set<string>()

@@ -206,6 +206,38 @@ describe('walkFieldDeclarations', () => {
     expect(blocks).toEqual(['content.photoBlock (photoBlock)', 'content.videoBlock (videoBlock)'])
   })
 
+  it('reports blocks nested inside other blocks', () => {
+    // `validateBlockAdminConfigs` collects every declaration site of a block
+    // type, and a block may be declared inside another block. The walk has to
+    // recurse through block fields, not just collection fields.
+    const nested = [
+      {
+        name: 'content',
+        label: 'C',
+        type: 'blocks',
+        blocks: [
+          {
+            blockType: 'outerBlock',
+            fields: [
+              {
+                name: 'inner',
+                label: 'I',
+                type: 'blocks',
+                blocks: [{ blockType: 'deepBlock', fields: [{ name: 'deep', type: 'text' }] }],
+              },
+            ],
+          },
+        ],
+      },
+    ] as FieldSet
+
+    const seen: string[] = []
+    walkFieldDeclarations(nested, () => {}, {
+      onBlock: (_block, segments) => seen.push(formatDeclarationPath(segments)),
+    })
+    expect(seen).toEqual(['content.outerBlock', 'content.outerBlock.inner.deepBlock'])
+  })
+
   it('reports a block declaring no fields, which the field visitor cannot see', () => {
     // Validation that must inspect every block — the dot-free check on block
     // types, for one — would silently stop covering empty blocks if blocks
