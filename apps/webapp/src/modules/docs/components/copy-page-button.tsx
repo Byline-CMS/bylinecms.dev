@@ -113,7 +113,11 @@ export function CopyPageButton({ markdownPath, labels }: CopyPageButtonProps): R
       intent="noeffect"
       size="sm"
       type="button"
-      align="end"
+      // Open the menu rightward from the button's left edge, into the article
+      // column. The button sits at the left of the utility row, so an
+      // end-aligned menu would open leftward over the docs drawer — which
+      // stacks above the dropdown — and be clipped behind it.
+      align="start"
       dataSide="bottom"
       disabled={state === 'busy'}
       options={[
