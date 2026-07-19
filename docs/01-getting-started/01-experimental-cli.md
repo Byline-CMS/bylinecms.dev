@@ -128,10 +128,10 @@ to rerun phases that already detect as complete. Missing generated artifacts and
 recognized canonical predecessors can be upgraded, while divergent user-owned
 scaffold, route, Vite, Turbo, and CI files are preserved with a manual note.
 
-The CLI derives its dependency policy from its own release. For CLI `4.3.0`,
+The CLI derives its dependency policy from its own release. For CLI `4.5.0`,
 registry-backed `@byline/*` dependency ranges must be wholly within
-`>=4.3.0 <5.0.0-0`; missing or incompatible declarations are planned at
-`^4.3.0`. Unbounded ranges, ranges admitting v5, and tags such as `latest` are
+`>=4.5.0 <5.0.0-0`; missing or incompatible declarations are planned at
+`^4.5.0`. Unbounded ranges, ranges admitting v5, and tags such as `latest` are
 not compatible. Explicit compatible `workspace:` ranges are preserved. Bare
 `workspace:*`, `workspace:^`, and `workspace:~` links are never replaced: the
 linked version must resolve from exactly one included workspace package manifest
