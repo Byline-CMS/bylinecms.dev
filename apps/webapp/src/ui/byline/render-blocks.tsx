@@ -69,10 +69,6 @@ function renderBlock(
       return (
         <FAQBlock id={block._id} block={block} lng={lng} constrainedLayout={constrainedLayout} />
       )
-    case 'uploadTestBlock':
-      // Admin-only diagnostic fixture for nested deferred uploads. It has no
-      // public presentation and is removed after manual verification.
-      return null
     default:
       return reportUnsupportedBlock(block)
   }

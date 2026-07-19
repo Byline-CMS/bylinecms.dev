@@ -14,7 +14,6 @@ import { FAQBlock } from '~/blocks/faq-block'
 import { PhotoBlock } from '~/blocks/photo-block'
 import { QuoteBlock } from '~/blocks/quote-block'
 import { RichTextBlock } from '~/blocks/richtext-block'
-import { UploadTestBlock } from '~/blocks/upload-test-block'
 import { publishedOnField } from '~/fields/published-on-field'
 
 // ---- Schema (server-safe, no UI concerns) ----
@@ -127,7 +126,7 @@ export const Pages = defineCollection({
       label: 'Content',
       type: 'blocks',
       optional: true,
-      blocks: [RichTextBlock, PhotoBlock, CodeBlock, QuoteBlock, FAQBlock, UploadTestBlock],
+      blocks: [RichTextBlock, PhotoBlock, CodeBlock, QuoteBlock, FAQBlock],
     },
     publishedOnField,
   ],

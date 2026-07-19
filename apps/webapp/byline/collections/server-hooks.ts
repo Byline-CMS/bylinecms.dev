@@ -16,9 +16,4 @@ export const serverHooks = {
   // uploads: {
   //   'media.image': () => import('./media/hooks.js'),
   // },
-  uploads: {
-    'pages.content.uploadTestBlock.blockFile': () => import('../blocks/upload-test-block.hooks.js'),
-    'pages.content.uploadTestBlock.attachments.file': () =>
-      import('../blocks/upload-test-block.hooks.js'),
-  },
 } satisfies ServerHooksConfig
