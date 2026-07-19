@@ -1,5 +1,19 @@
 # @byline/db-postgres
 
+## 4.5.0
+
+### Minor Changes
+
+- added ComboButton menu icons, MarkdownIcon, and a dropdown anchor prop to `@byline/ui`
+  fixed modal overlay-click dismissal and nested-heading anchor id derivation
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@4.5.0
+  - @byline/auth@4.5.0
+  - @byline/core@4.5.0
+
 ## 4.4.1
 
 ### Patch Changes

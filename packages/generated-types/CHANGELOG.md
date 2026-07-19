@@ -1,5 +1,12 @@
 # @byline/generated-types
 
+## 4.5.0
+
+### Minor Changes
+
+- added ComboButton menu icons, MarkdownIcon, and a dropdown anchor prop to `@byline/ui`
+  fixed modal overlay-click dismissal and nested-heading anchor id derivation
+
 ## 4.4.1
 
 ### Patch Changes
