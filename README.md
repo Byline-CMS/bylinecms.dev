@@ -144,9 +144,9 @@ schema versioning.
 ### 8. [Admin UI](docs/08-admin-ui/index.md)
 
 - **[UI Kit](docs/08-admin-ui/01-ui-kit.md)** — `@byline/ui` as a single
-  brand-coherent UI surface: the foundational kit synced from `@infonomic/uikit`,
-  the byline-prefixed cascade-layer system, the `pnpm sync:uikit` workflow, and
-  the `./react/{admin,fields,forms,services}` subpath exports.
+  brand-coherent UI surface: the foundational kit shared with `@infonomic/uikit`,
+  the byline-prefixed cascade-layer system, and the
+  `./react/{admin,fields,forms,services}` subpath exports.
 - **[Client-config Registration](docs/08-admin-ui/02-client-config-registration.md)**
   — how the admin/editor config is registered on the client and code-split away
   from public routes.

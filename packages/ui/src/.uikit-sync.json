@@ -1,9 +1,0 @@
-{
-  "upstream": "@infonomic/uikit",
-  "upstreamPath": "/Users/tony/Clients/Infonomic/Projects/uikit/packages/uikit",
-  "upstreamSha": "70d936a49b9b233dc718ccf1f29acb3daf3009f1",
-  "upstreamDirty": true,
-  "syncedAt": "2026-05-03T20:12:55Z",
-  "syncedDirs": ["components", "icons", "hooks", "lib", "loaders", "styles", "utils", "widgets"],
-  "syncedFiles": ["uikit.ts"]
-}

@@ -32,8 +32,7 @@
     "typecheck": "tsc --noEmit",
     "clean": "node scripts/clean.js node_modules dist build types .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
-    "skip:test": "vitest",
-    "sync:uikit": "./scripts/sync-from-uikit.sh"
+    "skip:test": "vitest"
   },
   "sideEffects": [
     "**/*.css"

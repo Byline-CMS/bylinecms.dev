@@ -1,6 +1,7 @@
 // ---------------------------------------------------------------------
-// Synced from @infonomic/uikit (src/react.ts). Do not edit by hand.
-// To change anything here, edit upstream and re-run pnpm sync:uikit.
+// Shared surface with @infonomic/uikit (its src/react.ts). The two kits
+// are kept in step by porting changes manually, in either direction; this
+// file may be edited directly. See this package's README.
 // ---------------------------------------------------------------------
 
 /**

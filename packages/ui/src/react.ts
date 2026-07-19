@@ -27,6 +27,6 @@
 // Generic vertical-list sortable helpers over @dnd-kit/sortable. No
 // CMS concepts in the API — callers pass ids + an onDragEnd callback.
 export * from './dnd/draggable-sortable/index.js'
-// Foundational surface — synced from @infonomic/uikit. See
-// scripts/sync-from-uikit.sh and src/.uikit-sync.json.
+// Foundational surface — shared with @infonomic/uikit and kept in step by
+// porting changes manually in either direction. See this package's README.
 export * from './uikit.js'

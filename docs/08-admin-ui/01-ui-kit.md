@@ -8,11 +8,11 @@ summary: "The shared @byline/ui component library — primitives, themed surface
 
 Companions:
 - [Getting Started](../01-getting-started/index.md) — onboarding flow that pulls in `@byline/ui` styles and components.
-- Upstream: [github.com/infonomic/uikit](https://github.com/infonomic/uikit) — the source of truth for the foundational components and stylesheets.
+- Companion project: [github.com/infonomic/uikit](https://github.com/infonomic/uikit) — the sibling kit this package shares its foundational components and stylesheets with.
 
 ## Overview
 
-`@byline/ui` is Byline's **framework-agnostic React primitives package** — `Button`, `Card`, `Modal`, `Input`, `Drawer`, `Table`, `Search`, `Datepicker`, every icon, every loader, plus the cascade-layered stylesheet system and a generic `DraggableSortable` over `@dnd-kit/sortable`. The entire surface is **synced verbatim** from [`@infonomic/uikit`](https://github.com/infonomic/uikit), the upstream open-source project the Byline maintainers also author. Byline does not fork these components; the upstream repository remains the single source of truth.
+`@byline/ui` is Byline's **framework-agnostic React primitives package** — `Button`, `Card`, `Modal`, `Input`, `Drawer`, `Table`, `Search`, `Datepicker`, every icon, every loader, plus the cascade-layered stylesheet system and a generic `DraggableSortable` over `@dnd-kit/sortable`. This foundational surface is **shared with** [`@infonomic/uikit`](https://github.com/infonomic/uikit), the sibling open-source project the Byline maintainers also author. The two kits are kept in step by porting changes manually, in whichever direction a change originates — neither copy is the sole source of truth, and the shared files in this package may be edited directly.
 
 :::note[What changed in v2.6.0]
 Earlier versions of `@byline/ui` also carried Byline-specific surfaces — the document-editor form runtime, field widgets, admin layout primitives, and editor-shared widgets (status badge, diff modal). Those moved to `@byline/admin` in v2.6.0 because they embed CMS concepts (`CollectionDefinition`, `CollectionAdminConfig`, `DocumentPatch`, workflow status) and had no non-admin consumers. The reshape leaves `@byline/ui` as a true primitives package; the admin-aware surface is now `@byline/admin/react`. See the v2.6.0 release notes for the full symbol-move list.
@@ -26,7 +26,7 @@ Earlier iterations of Byline depended directly on `@infonomic/uikit` as a runtim
 - CSS imports and Tailwind glob configuration that referenced both packages by name.
 - Brand inconsistency: every consumer's `node_modules` carried the `@infonomic/uikit` lockfile entry; admin DOM classes carried the upstream prefix.
 
-Folding the foundational surface into `@byline/ui` cleans up all three. The upstream package stays as the design-and-development home for the primitives — the place where new components are built, refined, and tested in Storybook — but Byline ships a single, self-contained UI dependency.
+Folding the foundational surface into `@byline/ui` cleans up all three. The companion package stays as the design-and-development home for the primitives — the place where new components are built, refined, and tested in Storybook — but Byline ships a single, self-contained UI dependency.
 
 ## Philosophy of the upstream kit
 
@@ -56,13 +56,13 @@ The kit's stylesheets declare a strict layer order at the top of the cascade:
 
 Each component CSS Module wraps its rules in `@layer byline-components { ... }`. Anything a consumer writes outside any `@layer` automatically wins specificity, so overrides are CSS-clean — no `!important`, no specificity ladders.
 
-The layer prefix is `byline-`, not `infonomic-`, even though the source files come from upstream. The sync script renames every `@layer infonomic-*` declaration to `@layer byline-*` as part of the post-sync rewrite. The DOM-level `:global(.infonomic-X)` class hooks (paired with `className="infonomic-X"` in the components) are deliberately *not* renamed — they're a separate surface, intended for consumer-side theme overrides keyed by the upstream's stable class names.
+The layer prefix is `byline-`, not `infonomic-`, even though these files are shared with the companion kit. Every `@layer infonomic-*` declaration is renamed to `@layer byline-*` when a change is ported across. The DOM-level `:global(.infonomic-X)` class hooks (paired with `className="infonomic-X"` in the components) are deliberately *not* renamed — they're a separate surface, intended for consumer-side theme overrides keyed by the companion kit's stable class names.
 
-## What's synced and what's not
+## What's shared and what's not
 
-The sync script (`packages/ui/scripts/sync-from-uikit.sh`) mirrors eight subtrees from upstream into `packages/ui/src/`:
+Eight subtrees under `packages/ui/src/` are shared with the companion kit:
 
-| Synced subtree | Contents |
+| Shared subtree | Contents |
 |---|---|
 | `components/` | Foundational React components (Button, Card, Modal, Input, etc.) |
 | `icons/` | Icon components, including brand icons (Github, Google, Infonomic) |
@@ -73,50 +73,22 @@ The sync script (`packages/ui/scripts/sync-from-uikit.sh`) mirrors eight subtree
 | `utils/` | Helper modules referenced by components |
 | `widgets/` | Higher-order widgets (Modal, Drawer, Datepicker, Search, Timeline) |
 
-Plus `src/uikit.ts`, the upstream's `react.ts` barrel renamed on copy. Byline's `src/react.ts` re-exports from `./uikit.js` and adds the dnd helpers; the four subsystem barrels (`admin.ts`, `fields.ts`, `forms.ts`, `services.ts`) carry the Byline-specific surface.
+Plus `src/uikit.ts`, the companion kit's `react.ts` barrel under a Byline name. Byline's `src/react.ts` re-exports from `./uikit.js` and adds the dnd helpers; the four subsystem barrels (`admin.ts`, `fields.ts`, `forms.ts`, `services.ts`) carry the Byline-specific surface.
 
-Excluded from the sync:
+The companion kit also carries files that have no place here and are never ported across: `*.astro` entrypoints (Byline ships no Astro components), the `theme/` subtree (unused here), `*.stories.*` (Storybook lives there), and `__tests__/` / `*.test.*`.
 
-- `*.astro` files — Byline doesn't ship Astro components.
-- `theme/` — Byline doesn't currently use the upstream `theme/` subtree.
-- `*.stories.*` — Storybook stories live upstream.
-- `__tests__/`, `*.test.*` — tests stay upstream too.
+The Byline-owned subtrees (`admin/`, `fields/`, `forms/`, `services/`, `dnd/`) exist only in this package and have no companion counterpart.
 
-The Byline-owned subtrees (`admin/`, `fields/`, `forms/`, `services/`, `dnd/`) are never touched by the sync.
+## Keeping the two kits in step
 
-## The sync workflow
+The shared subtrees are maintained by **porting changes manually, in whichever direction a change originates**. A fix or new component authored here is copied into `@infonomic/uikit`; one authored there is copied here. Either copy may be edited directly, and neither is the sole source of truth — so a change made in this repository (such as a new icon or a component fix) does not wait on an upstream release to land.
 
-When upstream ships a new component or fixes a bug:
+Two mechanical points to preserve when porting:
 
-```sh
-cd packages/ui
-pnpm sync:uikit           # default upstream path: ../../../../../uikit/packages/uikit
-# or:
-UIKIT_PATH=/abs/path pnpm sync:uikit
-```
+- **CSS layer prefix.** Rename every `@layer infonomic-*` declaration to `@layer byline-*` when copying a stylesheet in (and back the other way when copying out). The `:global(.infonomic-X)` class hooks are left as-is — see the cascade-layer section above.
+- **The `uikit.ts` barrel.** This file mirrors the companion kit's `react.ts` export list. When the shared surface gains or loses an export, update `uikit.ts` to match; `src/react.ts` re-exports it, so a missing line there is a build error.
 
-The script:
-
-1. Captures upstream's git SHA and dirty-flag for the manifest.
-2. Rsyncs each synced subtree with `--delete --delete-excluded` so removed-upstream files are also removed locally.
-3. Renames `@layer infonomic-*` → `@layer byline-*` across all synced `*.css` files.
-4. Copies upstream's `react.ts` into `src/uikit.ts` with a "do not edit by hand" header.
-5. Writes `src/.uikit-sync.json` recording the upstream SHA, timestamp, and which subtrees were synced.
-
-The manifest is committed alongside the synced content, so a PR diff makes the upstream version bump visible:
-
-```json
-{
-  "upstream": "@infonomic/uikit",
-  "upstreamSha": "70d936a49b9b233dc718ccf1f29acb3daf3009f1",
-  "upstreamDirty": false,
-  "syncedAt": "2026-05-03T19:55:10Z",
-  "syncedDirs": ["components", "icons", "hooks", "lib", "loaders", "styles", "utils", "widgets"],
-  "syncedFiles": ["uikit.ts"]
-}
-```
-
-**Edit upstream, never the synced copy.** Hand-editing files inside `packages/ui/src/{components,icons,hooks,lib,loaders,styles,utils,widgets}/` will be silently overwritten on the next sync.
+An earlier one-way sync script (`sync-from-uikit.sh`) mirrored the companion kit over these subtrees wholesale. It was removed once maintenance became bidirectional, because a wholesale mirror would discard any change authored on this side that had not yet been ported the other way.
 
 ## Public API
 
