@@ -6,6 +6,12 @@ summary: "The agent-readable surface: one-way Lexical → markdown serialization
 
 # Markdown Export
 
+Companions:
+- [Rich Text](../04-collections/07-rich-text.md) — the `lexicalToMarkdown` serializer this surface registers, and why it differs from the editor's bidirectional markdown source toggle.
+- [Core Composition](../03-architecture/02-core-composition.md) — the `ServerConfig.fields.richText.toMarkdown` seam that keeps `@byline/core` editor-agnostic.
+- [Caching](./06-caching.md) — the L1 detail-tag and HTTP `s-maxage` posture the `.md` variants share with their HTML pages.
+- [Routing & API](./02-routing-and-api.md) — why the `.md` routes are app-owned representations, not a transport boundary.
+
 The markdown export surface serves a **markdown representation of every published
 document at its canonical URL + `.md`** — `/docs/getting-started.md`,
 `/fr/news/foo.md` — plus an `llms.txt` site index ([llmstxt.org](https://llmstxt.org))

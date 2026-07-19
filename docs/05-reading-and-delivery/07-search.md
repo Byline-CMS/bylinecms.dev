@@ -20,6 +20,14 @@ and the **MCP** tool (Phase 5). Each section
 below marks what is shipped vs planned.
 :::
 
+Companions:
+- [Client SDK](./01-client-sdk.md) — `search()` lands here alongside `find()`; the legacy `where.query` `ILIKE` is its primitive ancestor.
+- [Markdown Export](./04-markdown-export.md) — `lexicalToText` is the search sibling of `lexicalToMarkdown` / `documentToMarkdown`; both flatten rich content for non-HTML consumers.
+- [MCP Server](./05-mcp-server.md) — the headline future consumer (Phase 5).
+- [Collections](../04-collections/index.md) — the collection `search` config and the lifecycle hooks that maintain the index.
+- [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — the `collections.<path>.reindex` ability and the `beforeRead` row-scoping that search honours.
+- [Search and document extraction strategy](./08-search-extraction-strategy.md) — forward-looking landscape + tiered strategy for Phases 3–4 (attachment extraction, external drivers).
+
 ## Overview
 
 The **primary use case is developer-facing search through the
@@ -775,20 +783,3 @@ construction — which is the proof the seam boundary is drawn correctly.
 - **Multi-tenant scoping at scale.** Whether providers should accept a scoping
   predicate (the `beforeRead` `QueryPredicate`) to avoid over-fetch when scoping
   is highly selective — a driver-capability question.
-
-## Companions
-
-- [Client SDK](./01-client-sdk.md) — `search()` lands here alongside `find()`;
-  the legacy `where.query` `ILIKE` is its primitive ancestor.
-- [Markdown Export](./04-markdown-export.md) — `lexicalToText` is the search
-  sibling of `lexicalToMarkdown` / `documentToMarkdown`; both flatten rich
-  content for non-HTML consumers.
-- [MCP Server](./05-mcp-server.md) — the headline future consumer (Phase 5).
-- [Collections](../04-collections/index.md) — the collection `search` config and
-  the lifecycle hooks that maintain the index.
-- [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) —
-  the `collections.<path>.reindex` ability and the `beforeRead`
-  row-scoping that search honours.
-- [Search and document extraction strategy](./08-search-extraction-strategy.md) —
-  forward-looking landscape + tiered strategy for Phases 3–4 (attachment
-  extraction, external drivers).

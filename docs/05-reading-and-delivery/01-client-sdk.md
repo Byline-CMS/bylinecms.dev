@@ -18,6 +18,8 @@ Companions:
 
 `@byline/client` is an **in-process, server-side SDK** for querying and mutating Byline documents. It sits above the storage primitives (`IDbAdapter`) and the `document-lifecycle` services, and exposes a richer DSL than the adapter alone: field-level filters, sort, pagination, populate, status awareness, and automatic `beforeRead` / `afterRead` hook firing. It is *not* a browser-safe SDK, *not* a public HTTP client, and *not* a framework-agnostic network transport client.
 
+Read this document when you are building a public frontend, a feed or sitemap, a seed or migration script, or any other server-side consumer that needs to read or write Byline content from outside the admin UI.
+
 The distinction matters because Byline today is in an internal transport phase (see [Routing & API](./02-routing-and-api.md)). The admin UI is the only active client, TanStack Start server functions are the internal transport boundary, and stable/public HTTP transport is intentionally deferred until the first real non-admin client arrives. `@byline/client` fits that phase well — it lives in the same Node process as Byline Core, holds direct references to the configured DB and storage adapters, and does no network I/O of its own.
 
 What this gives consumers in trusted runtimes:

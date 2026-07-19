@@ -173,6 +173,8 @@ Per-collection document operations against the universal storage layer. All of t
 | `upload.ts`   | `POST` | Field-level file upload; full pipeline documented in [File / Media Uploads](../04-collections/06-file-media-uploads.md). |
 | `utils.ts`    | —      | `serialise()` helpers shared across the above.                                                   |
 
+The table above is the core document surface. Feature-specific operations ship alongside it as further files in the same directory, each following the same thin-wrapper pattern: `duplicate.ts` and `restore-version.ts`; `reorder.ts` (see [Orderable collections](../04-collections/index.md#orderable-collections)); `reindex.ts` (see [Search](./07-search.md)); `copy-to-locale.ts` and `delete-locale.ts` (see [Internationalization](../07-internationalization/index.md)); and `tree.ts` / `tree-mutation.ts` / `tree-read.ts` (see [Document Trees](../04-collections/04-document-trees.md)). See `packages/host-tanstack-start/src/server-fns/collections/` for the canonical file list.
+
 ### `auth/` — sign-in / sign-out / session
 
 | File              | Verb   | Purpose                                                          |

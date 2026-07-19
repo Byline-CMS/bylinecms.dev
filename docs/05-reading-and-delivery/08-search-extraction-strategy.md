@@ -21,6 +21,10 @@ those phases begin, the relevant section here should graduate into its own
 design doc alongside `07-search.md` (as the search design did).
 :::
 
+Companions:
+- [Search & Retrieval](./07-search.md) — the present-state reference for the shipped search subsystem; this brief is the strategy source for its still-unbuilt phases.
+- [Transports](./03-transports.md) — the contract-plus-bindings packaging pattern the external-driver tiers (§1) would follow.
+
 **Context assumed throughout:**
 
 - Byline CMS is PostgreSQL-first, with a package/adapter-based architecture. Search is intended to
