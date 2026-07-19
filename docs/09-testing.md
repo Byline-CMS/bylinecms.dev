@@ -6,6 +6,10 @@ summary: "Two suites, two commands: pnpm test (unit, no Postgres) and pnpm test:
 
 # Testing
 
+Companions:
+- [Development environment and example application](./01-getting-started/02-development-environment.md) — the Postgres container and database setup the integration suite builds on.
+- [Markdown Export](./05-reading-and-delivery/04-markdown-export.md) — the agent-facing routes the agent-surface specs pin the served output of.
+
 Two test suites, two commands:
 
 - **`pnpm test`** — unit tests across every package. Pure CPU, no Postgres needed.
@@ -103,13 +107,20 @@ Filter by test name with `-t`:
 pnpm vitest run --mode=integration -t "tampered"
 ```
 
-Watch mode (re-runs on file change):
+Watch mode (re-runs on file change) — a per-package script, run it from inside the package:
 
 ```sh
-pnpm test:watch
+cd packages/core && pnpm test:watch
 ```
 
 ## Editor smoke suite (Playwright)
+
+:::note[Under review — paused]
+Byline's browser-level end-to-end tests currently run on Playwright, and the two
+suites below are still present and runnable. Playwright itself is under review,
+and its use is paused for now — hold off on growing new reliance on it while that
+review is open. The instructions below describe the suites as they stand today.
+:::
 
 Browser-level happy paths over the admin document editor — the regression net for the
 surfaces unit tests structurally can't see (`@byline/admin` forms/fields, host-adapter
