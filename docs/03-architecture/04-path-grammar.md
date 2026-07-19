@@ -1,84 +1,104 @@
 ---
 title: "Path Grammar"
 path: "path-grammar"
-summary: "How Byline addresses fields across persisted storage, schema declarations, patches, and forms; where the dialects correspond, and where their contracts deliberately differ."
+summary: "How Byline identifies fields in stored documents, schemas, patches, forms, and upload configuration."
 ---
 
 # Path Grammar
 
 Companions:
-- [Document Storage](./01-document-storage.md) — `field_path` on value-store rows and `path` on `store_meta` rows carry persisted dotted paths; that document shows real rows.
-- [Fields](../04-collections/01-fields.md) — the author-facing account: which notation each config option takes.
-- [Collections](../04-collections/index.md) — upload hook registry keys (`ServerConfig.hooks.uploads`) are declaration paths.
-- [Blocks](../04-collections/02-blocks.md) — why per-field admin overrides inside a block come from the `blockAdmin` registry rather than a path.
 
-## Why a field has an address at all
+- [Document Storage](./01-document-storage.md) explains how `field_path` and
+  `store_meta.path` appear in stored rows.
+- [Fields](../04-collections/01-fields.md) explains which path format each
+  collection option accepts.
+- [Collections](../04-collections/index.md) documents upload hooks. Their
+  registry keys are declaration paths.
+- [Blocks](../04-collections/02-blocks.md) explains why field overrides inside
+  blocks use the `blockAdmin` registry.
 
-Byline does not store a document as a JSON blob. Persisted value leaves become
-rows in typed store tables — `store_text`, `store_numeric`, `store_file`, and
-the rest — selected by field type. Arrays and blocks also emit `store_meta`
-rows for item identity; groups emit no row of their own; absent, `null`, and
-virtual values emit no row. [Document Storage](./01-document-storage.md) covers
-the complete mapping.
+Byline uses paths in database storage, schema configuration, validation errors,
+form state, patches, and uploads. These paths look similar, but they do not all
+identify the same thing:
 
-That representation makes fields independently addressable and queryable, but
-it does not make a save a field-only version. The admin sends patches, the
-lifecycle applies them to a reconstructed document, and the database creates a
-new immutable document version by flattening the complete resulting data for
-the edited locale (while carrying forward other locales). Paths identify the
-rows inside that version; they are not a per-field version history or audit
-diff.
+- An **instance path** identifies a value in one document.
+- A **declaration path** identifies a field in a collection schema.
 
-Content is hierarchical by nature; a relational database is not, and it is
-extremely good at what it does instead — indexing, constraints, set-based
-queries, transactional integrity. Flattening and reconstruction is the bridge
-between the two. Decomposing a document into typed rows on the way in, and
-rebuilding the hierarchy on the way out, is what lets a tree-shaped document
-enjoy the strengths of an RDBMS rather than sitting opaquely inside a single
-column.
+Database storage uses a third, persisted notation. This guide explains when to
+use each format, then documents their APIs and limits.
 
-The bridge only holds if it carries the structure across intact. Each row has
-to record precisely where in the hierarchy its value came from — enough to
-rebuild the document in the shape the editor handed over, down to the fourth
-item of an array nested inside the second block of a blocks field.
+## Why Byline needs field paths
 
-That record is a field path. It is a string: value rows store it in
-`field_path`, while structural identity rows use `store_meta.path`. It is the
-reason a row knows it holds the alt text of the first image in the gallery of
-the photo block at position 1 — rather than just holding the string
-`"Sunrise over the bay"`.
+A Byline document can contain nested groups, arrays, blocks, and relations.
+Rather than storing the document as one opaque JSON value, Byline flattens its
+values into typed tables such as `store_text`, `store_numeric`, and
+`store_file`. This keeps the values available to relational indexes,
+constraints, queries, and transactions.
 
-## The same question across the system
+Each row needs a path so Byline can reconstruct the document. For example, the
+path can identify the alt text for the first image in a gallery inside the
+second block on a page. Arrays and blocks also produce `store_meta` rows for
+item identity. Groups do not produce rows of their own, and absent, `null`, and
+virtual values are not stored. [Document Storage](./01-document-storage.md)
+documents the full mapping.
 
-Storage is where paths start, but it is not where they stop. Several parts of
-Byline need to point at a field. The four central cases below explain the two
-main concepts; later sections document narrower diagnostics and configuration
-APIs that intentionally use other shapes.
+Saving still creates one immutable document version. Byline's admin user
+interface sends patches, the server applies them to the reconstructed
+document, and the complete result for the edited locale is flattened into a
+new version. Other locales are carried forward. Paths identify values within
+that version; they do not create separate versions or audit histories for
+individual fields.
 
-**Taking a document apart, and putting it back.** The flattener emits one path
-per value on the way in; the reconstructor reads those paths back into nested
-shape on the way out. The round trip has to be lossless — a path that cannot
-express "inside this block variant" is a document that comes back wrong.
+## Two questions, two kinds of path
 
-**Editing one field without sending the document.** When you change a caption
-in the admin UI, the editor sends a patch that names what changed rather than
-posting the whole document:
+Most Byline paths answer one of two questions:
 
+1. Which value in this document do you mean?
+2. Which field in this schema do you mean?
+
+The answer determines whether to use an instance path or a declaration path.
+
+### Instance paths identify document values
+
+An instance path identifies a value in one document. It selects array and block
+items by stable ID or position.
+
+```text
+content[id=block-id].gallery[id=image-id].alt
 ```
-content[id=01924f…].gallery[id=01924g…].alt
+
+The path does not include a block type. The selected block item already
+contains `_type`, which identifies its schema. Selectors are only needed inside
+repeating fields, so these are also valid instance paths:
+
+```text
+title
+metadata.caption
+content
 ```
 
-Addressing items by stable id rather than position is what keeps that patch
-bound to the same item when the gallery is reordered earlier in the editing
-session or patch stream. Saved concurrent edits are handled separately by the
-document-version conflict check. Stable addressing is one prerequisite for
-more collaborative behavior later, not conflict resolution by itself.
+The first two identify values; `content` can be a structural patch target.
 
-**Saying how a field should behave.** This is the one you will meet while
-configuring your own installation. An FAQ answer is a `richText` field nested
-inside an array inside a block, and it should not offer the same editor as a
-full page body — no tables, no embeds, no layout, just prose with lists and
-links. You say so by addressing the field's *declaration*:
+Byline prefers `[id=…]` because it continues to identify the same item after a
+reorder. `[0]` identifies whichever item is first when the path is evaluated.
+Stable IDs keep form state, hooks, deferred uploads, and patches attached to
+the intended item. They do not resolve concurrent saves; the document-version
+conflict check handles that separately.
+
+### Declaration paths identify schema fields
+
+A declaration path identifies a field definition in a collection schema. It
+contains no item selectors.
+
+```text
+content.photoBlock.gallery.alt
+```
+
+Declaration paths include the block type because different blocks can declare
+fields with the same name. Without `photoBlock`, `content.gallery.alt` could be
+ambiguous.
+
+These paths appear most often in configuration and error messages. For example:
 
 ```ts
 export const FAQBlockAdmin = defineBlockAdmin(FAQBlock, {
@@ -88,172 +108,221 @@ export const FAQBlockAdmin = defineBlockAdmin(FAQBlock, {
 })
 ```
 
-(The real thing is `apps/webapp/byline/blocks/faq-block.admin.ts`.) Note what
-that key does *not* have: no item index. It is not describing the answer of the
-third FAQ in one document — it is describing every answer field in every FAQ
-item of every document that uses this block. The same shape configures a
-compact editor for a photo caption, a custom widget for a field, or a slot in a
-layout.
+The key configures every `answer` declared at that location, not one array
+item. The example comes from
+`apps/webapp/byline/blocks/faq-block.admin.ts`. Block-qualified paths also keep
+validation errors unambiguous.
 
-**Telling an author which field is wrong.** If two blocks in the same field
-both declare `alt`, a validation error saying `content.alt` has told the author
-almost nothing. It has to say which `alt`:
+## Path formats at a glance
 
-```
-content.photoBlock.gallery.alt
-```
+The examples below all refer to an upload-capable `heroImage` field with this
+schema:
 
-The first two of those address a **value in a particular document**. The second
-two address a **declaration in the schema** — a rule about a field, held once,
-applying everywhere that field appears. That distinction turns out to explain
-the central differences between the notations that follow.
-
-## Two categories
-
-The shared configuration and editing path APIs distinguish two categories by
-what the path addresses. Persisted storage carries the same information in an
-older dotted dialect described separately below.
-
-**Instance paths address a value in one document.** A selector is required only
-when the path descends into one particular repeating item. Top-level and group
-paths (`title`, `metadata.caption`) and structural patch targets (`content`) are
-valid without one. A block type is absent because the addressed item carries
-its own `_type`.
-
-```
-content[id=block-id].gallery[id=image-id].alt
+```text
+collection: pages
+blocks field: content
+block type: photoBlock
+array field: gallery
+field: heroImage
 ```
 
-**Declaration paths address a field declaration in the schema.** There are no
-item selectors. A block type is **required**, because without it two blocks
-declared in the same field cannot be told apart.
-
-```
-content.photoBlock.gallery.alt
-```
-
-Both defects that motivated consolidating the shared path APIs were failures of
-that rule. An ambiguous declaration path — one that dropped the block type —
-could not say which of two `alt` declarations a validation error referred to.
-And an instance path resolved *without* consulting the item's `_type` picked
-the wrong block, silently dropping that field's `upload.context`. Neither was
-only a tokenisation bug; both were consumers applying the wrong path semantics.
-
-### The projection relationship
-
-Take a persisted storage path for an upload-capable image field and remove its
-positional segments:
-
-```
-content.0.photoBlock.gallery.1.heroImage
-  → content.photoBlock.gallery.heroImage
-  → pages.content.photoBlock.gallery.heroImage
-```
-
-The first projection is the collection-relative declaration path; prefixing the
-collection produces the upload hook registry key. This is a useful
-**correspondence**, not one parser operating on both strings.
-Storage constructs and restores dotted `string[]` paths directly. The shared
-core module parses declaration paths and bracket-form instance paths; it does
-not parse the persisted storage dialect. A storage contract test derives the
-elision relationship from real flattener output by splitting and filtering the
-dotted string (`packages/db-postgres/src/modules/storage/storage-paths.test.node.ts`).
-
-The shared `PathSegment` type can represent fields, block types, indices, and
-IDs, so schema-aware producers can format a known segment list for either
-declaration or bracket-instance use. Parsing an instance string alone cannot
-reconstruct an omitted block type; resolving that relationship requires the
-schema and the addressed block item's `_type`.
-
-### Storage is its own persisted dialect
-
-Storage `field_path` carries position and block type —
-`content.0.photoBlock.gallery.1.heroImage` — where a patch path for the same
-value carries bracket selectors and omits the type. Storage builds these paths
-as arrays of strings, joins them with `.` for insertion, and splits them on `.`
-for reconstruction. It does not call `parseInstancePath`.
-
-The difference is what else is in reach at the moment the path is read. In
-memory, resolving `content[0].alt` means the item is right there and can be
-asked its `_type`. A value row has no `_type` column; the separate
-`store_meta.path` encodes the block type. A row addressed `content.0.alt` would
-need a join against its siblings before anyone could say which block's `alt` it
-holds. Including the block type in each stored path makes the row
-self-describing. It would also allow a storage-level query to filter by block
-type without joining the meta row, although the current public query DSL does
-not expose that predicate.
-
-It is also what makes the elision above work. Strip the positional segments from
-`content.0.photoBlock.gallery.1.heroImage` and a valid declaration path falls
-out. Strip them from a hypothetical `content.0.gallery.1.heroImage` and you get
-`content.gallery.heroImage`, which resolves to nothing, because the
-discriminator was never written down. The elision test guards exactly this.
-
-The block's meta row is stored at `content.0.photoBlock`: the path encodes the
-block type, while its `item_id` column stores `_id`. Array meta rows use paths
-such as `gallery.0`. Ordered has-many relations are different again: each
-target is one relation row at `authors.0`, `authors.1`, and so on, with no
-`store_meta` item identity because the target document ID is the identity.
-
-## The notations
-
-Target field throughout this table: upload-capable image field `heroImage`,
-inside array `gallery`, inside block `photoBlock`, inside blocks field
-`content`, in collection `pages`.
-
-| Notation | For that field | Selectors | Block type |
-|---|---|---|---|
-| Storage `field_path` | `content.0.photoBlock.gallery.1.heroImage` | `.n` positional | after the index |
-| Upload hook registry | `pages.content.photoBlock.gallery.heroImage` | none | required, collection-prefixed |
-| Collection-schema validation | `content.photoBlock.gallery.heroImage` | none | required |
-| Collection admin `fields{}` | *unreachable — see below* | rejected | traversal rejected |
-| Block admin `fields{}` | `gallery.heroImage` | none | block-root-relative |
-| Field patch paths | `content[id=…].gallery[id=…].heroImage` | `[n]` or `[id=…]` | absent |
-| Structural patch paths | `content` or `content[id=…].gallery` | only for enclosing items | absent |
-| Form instance paths | `content[id=…].gallery[id=…].heroImage` | `[id=…]`, with `[n]` fallback | absent |
-
-The patch and form rows use the same bracket notation. Both parse through
-`parseInstancePath` and accept either selector form. Producers prefer
-`[id=…]` because field state, hooks, deferred uploads, and patches can outlive a
-reorder that would invalidate a position. Form paths retain `[n]` for id-less
-or path-unsafe create defaults and legacy data. Structural edits keep that
-fallback's immediate form-store order coherent, but only canonical `_id` paths
-provide stable identity to deferred or asynchronous work across a reorder.
-
-Structural `array.move` and `array.remove` patches identify the container with
-the patch `path` and the item separately with `itemId`; their positional
-fallback is a numeric `itemId`, not a bracket selector appended to the path.
-
-Two further dotted notations exist and are deliberately **not** field paths:
-
-- `UploadConfig.context` (`../caption`, `/title`) is a *relative* addressing
-  language layered on top of an instance path, resolved filesystem-style
-  against the upload field's containing scope.
-- The counter allocator's previous-value lookup walks a data object and stops
-  at any array. Counters cannot be declared inside `array` / `blocks`, so it
-  needs neither selectors nor block types.
-
-Uploads carry three different addresses that should not be conflated:
-
-| Upload address | Example | Purpose |
+| Context | Path | What it identifies |
 |---|---|---|
-| Registry declaration key | `pages.content.photoBlock.gallery.heroImage` | Selects server hook/config; collection-prefixed and block-qualified. |
-| Request `field` | `heroImage` | Selects an upload field by leaf name; upload-capable leaf names must be unique within a collection. |
-| Request/hook `fieldPath` | `content[id=…].gallery[id=…].heroImage` | Identifies the runtime form value and reaches hooks in the request fields bag. |
+| Stored `field_path` | `content.0.photoBlock.gallery.1.heroImage` | One stored value, using dotted positions and a block type |
+| Upload hook registry | `pages.content.photoBlock.gallery.heroImage` | One upload field declaration, prefixed by collection |
+| Collection validation | `content.photoBlock.gallery.heroImage` | One field declaration |
+| Collection admin `fields{}` | Not reachable through blocks | Block traversal is rejected |
+| Block admin `fields{}` | `gallery.heroImage` | One declaration relative to the block root |
+| Field patch | `content[id=…].gallery[id=…].heroImage` | One document value |
+| Structural patch | `content` or `content[id=…].gallery` | A repeating container |
+| Form state | `content[id=…].gallery[id=…].heroImage` | One document value, with positional fallback when needed |
 
-`UploadConfig.context` paths resolve textually from the upload field's
-containing instance scope. Missing values and paths that climb above the root
-are omitted. Values are serialised into multipart fields named by the context
-path's leaf; if duplicate leaves are appended, the server's fields bag retains
-the later value. If the addressed block item is unavailable, the executor
-accepts a declaration only when exactly one block variant matches, otherwise it
-sends no context for that ambiguous field.
+Patch paths and form paths use the same bracket notation. Both
+`parseInstancePath` and the form path helpers accept `[id=…]` and `[n]`
+selectors.
 
-## The shared module
+Structural `array.move` and `array.remove` patches work slightly differently.
+The patch `path` identifies the array or blocks field, and a separate `itemId`
+identifies the item. When stable identity is unavailable, `itemId` may be a
+numeric position.
 
-`packages/core/src/paths/` is the shared implementation for declaration paths
-and bracket-form instance paths. Persisted dotted storage paths remain in the
-Postgres adapter. One segment AST backs the shared serialisations:
+## Persisted storage paths
+
+Storage paths use dotted positions and include block types:
+
+```text
+content.0.photoBlock.gallery.1.heroImage
+```
+
+The Postgres adapter builds these paths as string arrays, joins them with `.`
+for storage, and splits them during reconstruction. It does not use
+`parseInstancePath`.
+
+The path includes the block type because a value row has no `_type` column.
+Block metadata is stored separately in `store_meta`. Without `photoBlock`,
+Byline would need related metadata to determine which schema owns the value.
+The current format also permits a storage-level block-type filter without a
+metadata join, although the public query API does not expose one.
+
+The block metadata row for this example is stored at:
+
+```text
+content.0.photoBlock
+```
+
+The path records the type, and `item_id` stores the block's `_id`. Array
+metadata uses paths such as `gallery.0`. Ordered has-many relations instead use
+one relation row per target at `authors.0`, `authors.1`, and so on. They need no
+`store_meta` identity because the target document ID identifies the item.
+
+### How storage paths relate to declaration paths
+
+Removing positions from a storage path produces its collection-relative
+declaration path:
+
+```text
+content.0.photoBlock.gallery.1.heroImage
+content.photoBlock.gallery.heroImage
+pages.content.photoBlock.gallery.heroImage
+```
+
+The second line removes positions to produce the declaration path. The third
+adds the collection prefix used by the upload hook registry.
+
+This relationship does not mean one parser accepts all three formats. Storage
+handles dotted strings directly; the shared core module parses declaration
+paths and bracket-form instance paths. The block type must remain in storage:
+removing positions from `content.0.gallery.1.heroImage` would produce the
+invalid declaration path `content.gallery.heroImage`.
+
+`packages/db-postgres/src/modules/storage/storage-paths.test.node.ts` verifies
+this relationship from real flattener output.
+
+## Form and patch paths
+
+The admin user interface uses instance paths for form state, hooks, conditions,
+deferred uploads, and patches.
+
+For canonical array and block items, Byline emits stable ID selectors:
+
+```text
+content[id=block-id].gallery[id=image-id].heroImage
+```
+
+New items receive `_id` values in the browser before the first save. Reordering
+updates both the rendered list and the form store.
+
+A stable form write fails if its ID no longer exists. This stops late
+asynchronous work from recreating a removed item or changing a sibling.
+Removing an item clears its pending uploads. During upload execution, the form
+is inert so structural edits cannot invalidate the save's upload snapshot.
+
+### Positional fallback
+
+Form paths retain `[n]` for legacy items and create defaults without a usable
+ID. An `[id=…]` value must be a non-empty string without `.`, `[`, or `]`.
+Structural edits keep positional form state synchronized immediately, but a
+position is not stable across deferred work and reorders. Use canonical `_id`
+data when identity must survive them.
+
+### Patch application
+
+`parsePatchPath` uses `parseInstancePath` but preserves the existing patch
+segment property `key` instead of `name`. Malformed paths produce no segments,
+so their patches are rejected rather than applied to a partial path.
+
+This is syntax validation, not full schema validation. Field resolution remains
+best-effort and searches block variants by child name rather than the selected
+item's `_type`. Server-side `field.set` can also create an `{ _id }` item when
+an ID is absent, while admin form writes deliberately fail if an ID target has
+disappeared.
+
+A positional patch uses the array order at that point in the patch stream.
+The optimistic concurrency check rejects a stale `documentVersionId` rather
+than rebasing it across a reorder saved by another request.
+
+## Declaration paths in configuration
+
+Declaration paths support schema-aware configuration, upload hook registration,
+and validation messages. They contain no selectors and include every block
+type needed to identify the field:
+
+```text
+content.photoBlock.gallery.heroImage
+```
+
+The resolver checks the path against the schema because text alone cannot
+distinguish a field name from a block type. Both are bare dotted segments.
+
+### Admin field overrides
+
+Collection admin `fields{}` keys cannot enter a blocks field, even with the
+correct block type. Fields inside blocks use the block-type-keyed `blockAdmin`
+registry instead. That registration applies wherever the block renders.
+Startup validation rejects an override that enters a block and directs the
+developer to `blockAdmin`.
+
+A collection admin configuration may still name the blocks field itself:
+
+```text
+content
+```
+
+The blocks field has its own label and description, so this does not enter a
+block.
+
+A block admin `fields{}` map is relative to the block root:
+
+```text
+faq.answer
+```
+
+It may enter groups and arrays, but a nested blocks field uses its own
+`blockAdmin`.
+
+The core API expresses this rule as:
+
+```ts
+resolveDeclarationPath(fields, key, { blocks: 'forbidden' })
+```
+
+This is a resolver policy, not a separate grammar.
+
+## Upload paths and context
+
+Uploads use three addresses:
+
+| Address | Example | Purpose |
+|---|---|---|
+| Registry declaration key | `pages.content.photoBlock.gallery.heroImage` | Selects the server upload hook and configuration |
+| Request `field` | `heroImage` | Selects an upload field by leaf name |
+| Request and hook `fieldPath` | `content[id=…].gallery[id=…].heroImage` | Identifies the form value and its key in the hook fields bag |
+
+Upload-capable leaf names must be unique within a collection because `field`
+contains only the leaf name.
+
+`UploadConfig.context` uses a separate relative addressing language:
+
+```text
+../caption
+/title
+```
+
+Byline resolves these strings from the upload field's containing instance scope
+in the same way as filesystem paths. Every dotted instance-path segment is
+currently navigational. If a future grammar adds metadata segments, context
+resolution must ignore them when counting parent scopes.
+
+Missing values and paths above the document root are omitted. Each value enters
+the multipart request under its context path's leaf name; for duplicate leaves,
+the later value wins. If the block item is unavailable, upload resolution uses
+a declaration only when exactly one block variant matches. An ambiguous match
+produces no context.
+
+## The shared path module
+
+`packages/core/src/paths/` implements declaration and bracket-form instance
+paths. The Postgres adapter owns dotted storage paths. Shared APIs use:
 
 ```ts
 type PathSegment =
@@ -265,173 +334,134 @@ type PathSegment =
 
 | Function | Purpose |
 |---|---|
-| `parseDeclarationPath` | Dotted, index-free. Rejects selectors outright. |
-| `parseInstancePath` | Bracket selectors, positional or `[id=…]`. |
-| `formatDeclarationPath` / `formatInstancePath` | Serialise a segment list either way. |
-| `toDeclarationSegments` | Drop selectors from an already typed/schema-aware segment list. |
-| `resolveDeclarationPath` | Resolve against a field set; `blocks: 'qualified' \| 'forbidden'`. |
-| `walkFieldDeclarations` | The canonical schema walk, with an `onBlock` callback. |
+| `parseDeclarationPath` | Parses a dotted path with no selectors |
+| `parseInstancePath` | Parses bracket selectors in `[n]` or `[id=…]` form |
+| `formatDeclarationPath` | Formats a segment list as a declaration path |
+| `formatInstancePath` | Formats a segment list as a bracket-form instance path |
+| `toDeclarationSegments` | Removes selectors from a typed, schema-aware segment list |
+| `resolveDeclarationPath` | Resolves a declaration path against fields, with qualified or forbidden block traversal |
+| `walkFieldDeclarations` | Walks a schema and emits canonical declaration segments |
 
-The parsers validate syntax, not schema semantics. `parseInstancePath` accepts
-selector-free paths and consecutive selectors; it does not prove that a
-selector follows an array/blocks field, that a field exists, or that an ID is
-present in document data. There is currently no general schema-aware
+### What parsing does and does not validate
+
+Parsers validate syntax, not the collection schema or document.
+`parseInstancePath` accepts selector-free paths and consecutive selectors. It
+does not prove that a selector follows an array or blocks field, that a field
+exists, or that an ID exists. There is no general schema-aware
 `resolveInstancePath`; consumers apply the semantics they need.
 
-### Parsing cannot classify a block type
+`parseDeclarationPath` initially classifies bare segments as fields because
+text cannot distinguish `photoBlock` from a field name.
+`resolveDeclarationPath` reclassifies them against the schema.
 
-A block type and a field name are both bare identifiers, so **parsing is
-schema-unaware**: `parseDeclarationPath` returns only `field` segments.
-`resolveDeclarationPath` reclassifies them against a field set and returns
-correctly typed segments the parser could not have produced.
+A schema walker already knows each segment's kind, so
+`walkFieldDeclarations` emits `blockType` segments directly. Its `onBlock`
+callback also visits empty blocks, ensuring validation does not miss them.
 
-Producers are the other way round. A caller walking a schema already knows
-which is which, so `walkFieldDeclarations` emits `blockType` segments directly.
-Canonical declaration-path producers should use it rather than re-implementing
-the descent. Some service diagnostics intentionally retain narrower legacy
-walkers and are listed under [Adjacent path-like APIs](#adjacent-path-like-apis).
+### Convert typed segments, not raw text
 
-`onBlock` exists because a block declaring no fields is invisible to a
-field visitor, and validation that must see every block (the dot-free check on
-block types, for one) would silently stop covering those.
+`toDeclarationSegments` removes selectors from typed segments. Do not split
+text and discard numeric components: a field can legitimately be named `0`.
+The typed form preserves it as a field.
 
-### Projection is done over segments, not text
+The conversion cannot add a block type omitted from an instance path. Start
+with schema-aware segments or inspect the selected item's `_type`.
 
-`toDeclarationSegments` filters a typed list. The equivalent regex over raw
-text — `/^\d+$/` against each dot-separated part — deletes a field legitimately
-named `0`. Working over segments cannot, because `0` there is a `field`.
-
-It does not invent a block discriminator omitted from a parsed instance path.
-The safe instance-to-declaration projection therefore starts from a
-schema-aware segment list, or resolves the addressed block item before looking
-up its declaration.
-
-### Lexical and length limits
+### Character and length limits
 
 Path segments are not escaped or quoted. Collection paths, field names, and
 block types used by upload indexing must be non-empty and cannot contain `.`,
-`[`, or `]`. Form stable IDs use `[id=…]` only for non-empty strings without
-those characters; unsafe or noncanonical IDs fall back to position.
+`[`, or `]`.
 
-The form helper deliberately does not support quoted keys, negative indices,
-or array-form paths. The persisted database columns cap `field_path` and
-`parent_path` at 500 characters and `field_name` at 255 characters.
+The form path helper does not support quoted keys, negative indices, or paths
+provided as arrays.
 
-## What is frozen
+Database columns impose these length limits:
 
-**Storage `field_path` is persisted data.** Changing that grammar is a
-migration, not a refactor. It is documented here and pinned by tests; it is not
-a candidate for change. The bracket-instance parser does not recognise dotted
-storage syntax: it parses the string successfully, but misclassifies numeric
-and block-type components as ordinary field names.
+- `field_path`: 500 characters
+- `parent_path`: 500 characters
+- `field_name`: 255 characters
 
-**Patch paths are a wire format.** `parsePatchPath` delegates to
-`parseInstancePath` — the two agree on every well-formed path — but the segment
-shape it returns (`key` rather than `name`) is preserved for its consumers. A
-malformed path yields no segments, so the patch is rejected rather than applied
-at a truncated path.
+## Compatibility boundaries
 
-That is a syntactic guarantee, not complete schema validation. Patch field
-resolution is best-effort and currently searches block variants by child field
-name rather than resolving the addressed item's `_type`. Patch application is
-data-driven: stable IDs prevent reorder mis-targeting when the item exists, but
-server-side `field.set` path creation can synthesise an `{ _id }` item when an
-ID is absent. Admin form writes deliberately fail closed for a missing ID, so
-normal stale asynchronous UI work does not enqueue such a patch.
+Persisted and client/server path formats cannot change as internal refactors.
 
-Positional field patches resolve against the array order at that point in the
-patch stream. Updates that supply a stale `documentVersionId` fail the
-optimistic-concurrency check instead of being rebased across another saved
-reorder.
+### Storage paths require a migration
 
-## Admin's deliberate narrowing
+Changing storage `field_path` requires a data migration. The instance parser
+can parse a dotted storage string as text, but it treats positions and block
+types as field names. Do not pass storage paths to `parseInstancePath`.
 
-Admin `fields{}` override keys are declaration paths with block traversal
-**barred entirely**, even when correctly qualified. For collection admin, a
-field inside a block must take its override from the blockType-keyed
-`blockAdmin` registry instead, so one registration applies wherever that block
-renders — in any collection, at any nesting depth. Boot validation rejects a
-collection-level key that reaches into a block and points the author at
-`blockAdmin`.
+### Patch paths are a wire format
 
-A block admin's own `fields{}` map is valid and resolves relative to that block
-root: `faq.answer`, not `content.faqBlock.faq.answer`. It may descend through
-groups and arrays but may not traverse a nested blocks field; that nested block
-uses its own `blockAdmin` registration.
+Patch paths cross the client/server boundary. A change must account for
+different client and server versions, saved payloads, and every consumer. Treat
+patch syntax as a protocol.
 
-What is barred is *traversal*. A key naming the blocks field itself —
-`content`, not `content.photoBlock.gallery.alt` — resolves normally, because
-that field carries a label and a description like any other and overriding it
-says nothing about the blocks inside it.
+## Other path-like APIs
 
-This is expressed as `resolveDeclarationPath(fields, key, { blocks: 'forbidden' })`
-— a policy on the shared resolver, not a second grammar.
+These path-like APIs have narrower contracts and must not be passed to the
+shared resolvers:
 
-## Adjacent path-like APIs
-
-Not every nested configuration or diagnostic string is one of the canonical
-field paths above. These APIs have narrower contracts and must not be fed to the
-shared path resolvers:
-
-| Site | Shape | Contract |
+| API | Example | Contract |
 |---|---|---|
-| `walkFieldTree` diagnostics | `content.1.richText` | Dotted runtime positions, no block discriminator; for logs/errors only. |
-| Rich-text boot diagnostics | `content.<photoBlock>.caption` | Schema diagnostic with angle-bracketed block types; not a declaration-path input. |
-| Search config | `title`, `content` | Top-level field names only; a named body container is traversed recursively. |
-| Relation `where` | `{ gallery: { $some: { path: 'news' } } }` | Nested query objects; each relation scope resolves top-level keys against its target collection. |
-| Populate map | `{ author: true }` | Relation leaf names matched anywhere in the field tree, not rooted paths. Same-named leaves share the selector. |
-| Upload context | `../caption`, `/title` | Relative/root language resolved against an instance scope. |
+| `walkFieldTree` diagnostics | `content.1.richText` | Runtime positions without block types; used only in logs and errors |
+| Rich-text startup diagnostics | `content.<photoBlock>.caption` | Diagnostic notation with block types in angle brackets |
+| Search configuration | `title`, `content` | Top-level field names; a named body container is traversed recursively |
+| Relation `where` | `{ gallery: { $some: { path: 'news' } } }` | Nested query objects resolved within each relation target |
+| Populate map | `{ author: true }` | Relation leaf names matched anywhere in the field tree; same-named leaves share a selector |
+| Upload context | `../caption`, `/title` | Relative or root addressing resolved from an instance scope |
 
-Collection-schema validation produced by `validateCollections` uses canonical
-block-qualified declaration paths. Other validators may use their dedicated
-diagnostic notation, so “boot error path” alone does not identify a grammar.
+`validateCollections` uses block-qualified declaration paths. Other validators
+may use their own diagnostic format, so "startup error path" does not identify
+one grammar.
 
-## Where each notation lives
+The counter allocator uses dotted keys to read previous values and stops at
+arrays. Counters cannot appear inside arrays or blocks, so this is not a field
+path API.
 
-| Site | Role |
+## Implementation reference
+
+| Location | Responsibility |
 |---|---|
-| `db-postgres/…/storage-flatten.ts`, `storage-insert.ts` | produces and serialises dotted storage paths |
-| `db-postgres/…/storage-restore.ts`, `storage-queries.ts` | consumes dotted storage paths |
-| `core/config/attach-hooks.ts` | produces upload registry keys |
-| `core/config/validate-collections.ts` | produces validation error paths |
-| `core/config/validate-admin-configs.ts` | consumes admin `fields{}` keys |
-| `core/patches/apply-patches.ts` | consumes patch paths |
-| `admin/forms/nested-path.ts` | reads/writes bracket instance paths in form state |
-| `admin/forms/repeating-items.ts` | emits stable-ID form paths with positional fallback |
-| `admin/forms/upload-executor.ts` | resolves upload fields/context through bracket instance paths |
+| `db-postgres/…/storage-flatten.ts`, `storage-insert.ts` | Produces and serializes dotted storage paths |
+| `db-postgres/…/storage-restore.ts`, `storage-queries.ts` | Reads dotted storage paths |
+| `core/config/attach-hooks.ts` | Produces upload registry keys |
+| `core/config/validate-collections.ts` | Produces collection validation paths |
+| `core/config/validate-admin-configs.ts` | Resolves admin `fields{}` keys |
+| `core/patches/apply-patches.ts` | Reads patch paths |
+| `admin/forms/nested-path.ts` | Reads and writes form state using bracket instance paths |
+| `admin/forms/repeating-items.ts` | Produces stable-ID form paths with positional fallback |
+| `admin/forms/upload-executor.ts` | Resolves upload fields and context |
 
-## Guard against drift
+## Contract tests
 
-Two contract tests pin the central config/patch dialects and their storage
-correspondence:
+The central contracts are covered by:
 
-- `packages/core/src/paths/path-dialects.test.node.ts` — the config-time
-  notations and cross-notation relationships, including a fixture that declares
-  the same field name in two block types;
-- `packages/db-postgres/src/modules/storage/storage-paths.test.node.ts` —
-  selected single-block storage shapes and the dotted elision relationship,
-  from real flattener output.
+- `packages/core/src/paths/path-dialects.test.node.ts` covers configuration and
+  patch formats, including two block types that declare the same field name.
+- `packages/db-postgres/src/modules/storage/storage-paths.test.node.ts` covers
+  real flattener output and the relationship between stored and declaration
+  paths.
 
-Form reads/writes, stable-ID fallback, upload context resolution, and pending
-upload cleanup are pinned separately in:
+Form behavior is covered by:
 
-- `packages/admin/src/forms/nested-path.test.node.ts`;
-- `packages/admin/src/forms/repeating-items.test.node.ts`;
-- `packages/admin/src/forms/upload-executor.test.node.ts`;
-- `packages/admin/src/forms/pending-uploads.test.node.ts`.
+- `packages/admin/src/forms/nested-path.test.node.ts`
+- `packages/admin/src/forms/repeating-items.test.node.ts`
+- `packages/admin/src/forms/upload-executor.test.node.ts`
+- `packages/admin/src/forms/pending-uploads.test.node.ts`
 
-Search, relation, populate, and service-diagnostic contracts have their own
-tests; adding another notation does not automatically surface in the two path
-contract fixtures above.
+Search, relation, populate, and diagnostic APIs have separate tests. A new
+path-like notation does not automatically enter the central contract tests.
 
-## Fingerprints are a separate boundary
+## Collection fingerprints are separate
 
-The runtime collection fingerprint includes data-shape components such as the
-collection path, field names and selected data-shape properties, structure, and
-block types. Under an unchanged collection path, changes to those included
-field/structure/block-type components alter the fingerprint and normally
-auto-bump the existing collection version. Changing the collection path instead
-registers a different collection unless an explicit migration handles the
-rename. Generated collection types carry a separate hash of generated output.
-Neither hash validates path grammar, and neither includes admin override keys,
-upload hook registrations, search config, or upload context declarations.
+The runtime collection fingerprint includes the collection path, field names,
+selected field properties, structure, and block types. With an unchanged
+collection path, changing an included component normally increments the
+collection version. Changing the collection path registers a new collection
+unless a migration handles the rename.
+
+Generated collection types have a separate output hash. Neither hash validates
+path grammar or includes admin overrides, upload hooks, search configuration,
+or upload context.
