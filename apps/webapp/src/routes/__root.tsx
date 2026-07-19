@@ -11,6 +11,8 @@ import type { ReactNode } from 'react'
 import { createRootRoute, HeadContent, Outlet, Scripts, useLocation } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 
+import { ScrollToTop } from '@byline/ui/react'
+
 import { i18nConfig, isRoutableLocale } from '@/i18n/i18n-config'
 import { getMeta } from '@/lib/meta'
 import { RootError, RootNotFound } from '@/ui/components/route-error'
@@ -58,6 +60,7 @@ function RootComponent() {
       <ThemeProvider force={Theme.DARK}>
         <Outlet />
         <TanStackRouterDevtools />
+        <ScrollToTop />
       </ThemeProvider>
     </RootDocument>
   )
