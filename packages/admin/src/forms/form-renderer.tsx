@@ -551,6 +551,8 @@ const FormContent = ({
       noValidate
       onSubmit={handleSubmit}
       className={cx('byline-form', styles.form)}
+      inert={isUploading ? true : undefined}
+      aria-busy={isUploading}
     >
       <div className={cx('byline-form-heading-row', styles['heading-row'])}>
         <h1 className={cx('byline-form-heading', styles.heading)}>{heading}</h1>

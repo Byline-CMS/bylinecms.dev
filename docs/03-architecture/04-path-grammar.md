@@ -172,13 +172,16 @@ Target field throughout: `alt`, inside array `gallery`, inside block
 | Boot-validation errors | `content.photoBlock.gallery.alt` | none | required |
 | Admin `fields{}` keys | *unreachable — see below* | rejected | rejected |
 | Patch paths | `content[id=…].gallery[id=…].alt` | `[n]` or `[id=…]` | absent |
-| Form instance paths | `content[0].gallery[0].alt` | `[n]` or `[id=…]` | absent |
+| Form instance paths | `content[id=…].gallery[id=…].alt` | `[id=…]`, with `[n]` fallback | absent |
 
 The last two rows are one notation, not two. Both parse through
 `parseInstancePath` and both accept either selector form; the examples differ
-only in what each site typically *emits*. Patches prefer `[id=…]` because a
-patch outlives the reorder that would invalidate a position, while form paths
-are positional because they address the item currently rendered at that index.
+only in what each site typically *emits*. Both prefer `[id=…]` because field
+state, hooks, deferred uploads and patches can outlive a reorder that would
+invalidate a position. Form paths retain `[n]` for id-less create defaults and
+legacy data. Structural edits keep that fallback's immediate form-store order
+coherent, but only canonical `_id` paths provide stable identity to deferred or
+asynchronous work across a reorder.
 
 Two further dotted notations exist and are deliberately **not** field paths:
 

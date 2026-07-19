@@ -71,11 +71,15 @@ export const FileUploadField = ({
 
       const pendingValue = createPendingStoredFileValue(file, previewUrl)
 
-      addPendingUpload(fieldPath, {
-        file,
-        previewUrl,
-        collectionPath,
-      })
+      if (
+        !addPendingUpload(fieldPath, {
+          file,
+          previewUrl,
+          collectionPath,
+        })
+      ) {
+        return
+      }
 
       setStatus('idle')
       onUploaded(pendingValue)

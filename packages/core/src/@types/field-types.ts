@@ -92,7 +92,8 @@ export interface FieldHookContext {
   data: Record<string, any>
 
   /**
-   * Dot-path of the field inside the document, e.g. `"content.0.richText"`.
+   * Instance path of the field inside the document, e.g.
+   * `"content[id=block-id].richText"`.
    */
   path: string
 
@@ -122,7 +123,7 @@ export interface FieldHookContext {
    * items (a checkbox that unchecks its siblings) or clearing a dependent
    * field when its driver changes. Paths use the same dot + bracket
    * notation as `FieldHookContext.path`, e.g.
-   * `files[1].filesGroup.generateThumbnail`.
+   * `files[id=file-id].filesGroup.generateThumbnail`.
    */
   setFieldValue: (path: string, value: any) => void
 }

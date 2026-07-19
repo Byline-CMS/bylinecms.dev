@@ -31,6 +31,8 @@ import { defaultScalarForField } from '../../fields/field-helpers'
 import { GroupField } from '../../fields/group/group-field'
 import { SortableItem } from '../../fields/sortable-item'
 import { useFormContext } from '../../forms/form-context'
+import { hasExistingIdTargets } from '../../forms/nested-path'
+import { moveRepeatingItems, repeatingItemId, repeatingItemPath } from '../../forms/repeating-items'
 import styles from './blocks-field.module.css'
 
 // ---------------------------------------------------------------------------
@@ -54,7 +56,8 @@ export const BlocksField = ({
    */
   contentLocale?: string
 }) => {
-  const { appendPatch, getFieldValue, getFieldValues, setFieldStore } = useFormContext()
+  const { appendPatch, getFieldValue, getFieldValues, removePendingUploadsUnder, setFieldStore } =
+    useFormContext()
   const { t } = useTranslation('byline-admin')
   const [items, setItems] = useState<{ id: string; data: any }[]>([])
   const [showAddBlockModal, setShowAddBlockModal] = useState(false)
@@ -118,27 +121,20 @@ export const BlocksField = ({
     moveFromIndex: number
     moveToIndex: number
   }) => {
-    setItems((prev) => moveItem(prev, moveFromIndex, moveToIndex))
     const currentArray = (getFieldValue(path) ?? defaultValue) as any[]
+    if (!Array.isArray(currentArray)) return
 
-    if (Array.isArray(currentArray)) {
-      const clampedFrom = Math.max(0, Math.min(moveFromIndex, currentArray.length - 1))
-      const clampedTo = Math.max(0, Math.min(moveToIndex, currentArray.length - 1))
-      if (clampedFrom === clampedTo) return
+    const move = moveRepeatingItems(currentArray, moveFromIndex, moveToIndex)
+    if (move == null) return
 
-      const item = currentArray[clampedFrom]
-      const itemId =
-        item && typeof item === 'object' && '_id' in item
-          ? String((item as { _id: string })._id)
-          : String(clampedFrom)
-
-      appendPatch({
-        kind: 'array.move',
-        path: path,
-        itemId,
-        toIndex: clampedTo,
-      })
-    }
+    setItems((prev) => moveItem(prev, move.fromIndex, move.toIndex))
+    setFieldStore(path, move.items)
+    appendPatch({
+      kind: 'array.move',
+      path,
+      itemId: move.itemId,
+      toIndex: move.toIndex,
+    })
   }
 
   const handleAddItem = async (forcedVariantName?: string, atIndex?: number) => {
@@ -162,6 +158,8 @@ export const BlocksField = ({
     for (const f of compositeFields) {
       newItem[f.name] = await defaultScalarForField(f, getFieldValues)
     }
+
+    if (!hasExistingIdTargets(getFieldValues(), path)) return
 
     const currentArray = (getFieldValue(path) ?? defaultValue) as any[]
     const insertAt = atIndex != null ? atIndex : currentArray ? currentArray.length : 0
@@ -190,12 +188,11 @@ export const BlocksField = ({
     if (!Array.isArray(currentArray) || index < 0 || index >= currentArray.length) return
 
     const item = currentArray[index]
-    const itemId =
-      item && typeof item === 'object' && '_id' in item
-        ? String((item as { _id: string })._id)
-        : String(index)
+    const itemPath = repeatingItemPath(path, item, index)
+    const itemId = repeatingItemId(item) ?? String(index)
 
     setItems((prev) => prev.filter((_, i) => i !== index))
+    removePendingUploadsUnder(itemPath)
 
     appendPatch({
       kind: 'array.remove',
@@ -219,7 +216,7 @@ export const BlocksField = ({
 
   const renderItem = (itemWrapper: { id: string; data: any }, index: number) => {
     const item = itemWrapper.data
-    const arrayElementPath = `${path}[${index}]`
+    const arrayElementPath = repeatingItemPath(path, item, index)
 
     if (!item || typeof item !== 'object' || typeof item._type !== 'string') return null
 
@@ -233,9 +230,9 @@ export const BlocksField = ({
     // Render the block's children directly with arrayElementPath as the
     // path (not basePath).  FieldRenderer would append the group name
     // (e.g. "richTextBlock") producing paths like
-    // "content[0].richTextBlock.constrainedWidth", but the flat block
+    // "content[id=...].richTextBlock.constrainedWidth", but the flat block
     // shape stores fields directly on the item so the correct path is
-    // "content[0].constrainedWidth".
+    // "content[id=...].constrainedWidth".
     const body = (
       <GroupField
         key={subField.blockType}

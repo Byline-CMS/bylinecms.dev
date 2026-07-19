@@ -18,7 +18,7 @@
  */
 
 import type { ChangeEvent, DragEvent } from 'react'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
   createPendingStoredFileValue,
@@ -62,11 +62,19 @@ export const ImageUploadField = ({
   accept = 'image/*',
 }: ImageUploadFieldProps) => {
   const inputRef = useRef<HTMLInputElement>(null)
+  const mountedRef = useRef(true)
   const [status, setStatus] = useState<SelectionStatus>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const { addPendingUpload } = useFormContext()
   const { t } = useTranslation('byline-admin')
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   // -------------------------------------------------------------------------
   // Core file selection logic (deferred upload)
@@ -90,6 +98,11 @@ export const ImageUploadField = ({
       // Extract image dimensions for the pending value
       const img = new Image()
       img.onload = () => {
+        if (!mountedRef.current) {
+          URL.revokeObjectURL(previewUrl)
+          return
+        }
+
         // SVGs without explicit width/height attrs (viewBox-only) report naturalWidth/Height = 0.
         // Skip dimensions when zero so they are stored as null (scalable, no fixed size).
         const w = img.naturalWidth
@@ -100,11 +113,15 @@ export const ImageUploadField = ({
         const pendingValue = createPendingStoredFileValue(file, previewUrl, dimensions)
 
         // Register the pending upload in form context
-        addPendingUpload(fieldPath, {
-          file,
-          previewUrl,
-          collectionPath,
-        })
+        if (
+          !addPendingUpload(fieldPath, {
+            file,
+            previewUrl,
+            collectionPath,
+          })
+        ) {
+          return
+        }
 
         setStatus('idle')
         onUploaded(pendingValue)
@@ -112,6 +129,7 @@ export const ImageUploadField = ({
 
       img.onerror = () => {
         URL.revokeObjectURL(previewUrl)
+        if (!mountedRef.current) return
         setStatus('error')
         setErrorMessage(t('fields.image.upload.errors.cannotRead'))
       }

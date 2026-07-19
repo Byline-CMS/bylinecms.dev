@@ -184,6 +184,35 @@ describe('applyPatches', () => {
     expect(moved.reviews.map((r) => r._id)).toEqual(['c', 'a', 'b'])
   })
 
+  it('applies field patches against the array order at that point in the patch stream', () => {
+    const original = {
+      links: [
+        { _id: 'a', link: 'A' },
+        { _id: 'b', link: 'B' },
+      ],
+    }
+
+    const positional = applyPatches(DocsDefinition, original, [
+      { kind: 'array.move', path: 'links', itemId: 'b', toIndex: 0 },
+      { kind: 'field.set', path: 'links[0].link', value: 'moved B' },
+    ])
+    expect(positional.errors).toHaveLength(0)
+    expect((positional.doc as typeof original).links).toEqual([
+      { _id: 'b', link: 'moved B' },
+      { _id: 'a', link: 'A' },
+    ])
+
+    const stable = applyPatches(DocsDefinition, original, [
+      { kind: 'array.move', path: 'links', itemId: 'b', toIndex: 0 },
+      { kind: 'field.set', path: 'links[id=b].link', value: 'same B' },
+    ])
+    expect(stable.errors).toHaveLength(0)
+    expect((stable.doc as typeof original).links).toEqual([
+      { _id: 'b', link: 'same B' },
+      { _id: 'a', link: 'A' },
+    ])
+  })
+
   it('array.remove removes an item by stable _id', () => {
     const original = {
       reviews: [

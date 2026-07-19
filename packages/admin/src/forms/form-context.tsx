@@ -19,7 +19,12 @@ import type { DocumentPatch, FieldSetPatch } from '@byline/core/patches'
 // outright. A bare `from 'lodash-es'` import otherwise pools into a single
 // ~85KB chunk that leaks onto the public frontend bundle (form-context is
 // reachable from the layout graph).
-import { get as getNestedValue, set as setNestedValue } from './nested-path'
+import {
+  get as getNestedValue,
+  hasExistingIdTargets,
+  setWithResult as setNestedValue,
+} from './nested-path'
+import { deletePendingUploadsUnderPath } from './pending-uploads'
 import { useTrackedSlot } from './use-tracked-slot'
 
 interface FormError {
@@ -130,8 +135,9 @@ interface FormContextType {
   subscribeErrors: (listener: ErrorsListener) => () => void
   subscribeMeta: (listener: MetaListener) => () => void
   // Pending uploads (deferred until save)
-  addPendingUpload: (fieldPath: string, upload: PendingUpload) => void
+  addPendingUpload: (fieldPath: string, upload: PendingUpload) => boolean
   removePendingUpload: (fieldPath: string) => void
+  removePendingUploadsUnder: (itemPath: string) => void
   getPendingUploads: () => Map<string, PendingUpload>
   hasPendingUploads: () => boolean
   clearPendingUploads: () => void
@@ -284,13 +290,14 @@ export const FormProvider = ({
       const newFieldValues = { ...fieldValues.current }
 
       // Keep nested path values up to date for generic usage and patches.
-      setNestedValue(newFieldValues, name, value)
+      if (!setNestedValue(newFieldValues, name, value)) return false
 
       fieldValues.current = newFieldValues
       dirtyFields.current.add(name)
 
       notifyFieldListeners(name, value)
       notifyMetaListeners()
+      return true
     },
     [notifyFieldListeners, notifyMetaListeners]
   )
@@ -304,7 +311,7 @@ export const FormProvider = ({
 
   const setFieldValue = useCallback(
     (name: string, value: any) => {
-      updateFieldStoreInternal(name, value)
+      if (!updateFieldStoreInternal(name, value)) return
 
       const patch: FieldSetPatch = {
         kind: 'field.set',
@@ -421,6 +428,14 @@ export const FormProvider = ({
 
   const addPendingUpload = useCallback(
     (fieldPath: string, upload: PendingUpload) => {
+      // Image metadata extraction is asynchronous. If its containing item was
+      // removed while decoding, discard the late registration rather than
+      // allowing submit to recreate or overwrite an item through a stale path.
+      if (!hasExistingIdTargets(fieldValues.current, fieldPath)) {
+        URL.revokeObjectURL(upload.previewUrl)
+        return false
+      }
+
       // If there's an existing pending upload for this path, revoke its blob URL
       const existing = pendingUploadsRef.current.get(fieldPath)
       if (existing) {
@@ -429,6 +444,7 @@ export const FormProvider = ({
       pendingUploadsRef.current.set(fieldPath, upload)
       dirtyFields.current.add(fieldPath)
       notifyMetaListeners()
+      return true
     },
     [notifyMetaListeners]
   )
@@ -441,6 +457,16 @@ export const FormProvider = ({
         pendingUploadsRef.current.delete(fieldPath)
         notifyMetaListeners()
       }
+    },
+    [notifyMetaListeners]
+  )
+
+  const removePendingUploadsUnder = useCallback(
+    (itemPath: string) => {
+      const deleted = deletePendingUploadsUnderPath(pendingUploadsRef.current, itemPath, (url) =>
+        URL.revokeObjectURL(url)
+      )
+      if (deleted) notifyMetaListeners()
     },
     [notifyMetaListeners]
   )
@@ -708,6 +734,7 @@ export const FormProvider = ({
         subscribeMeta,
         addPendingUpload,
         removePendingUpload,
+        removePendingUploadsUnder,
         getPendingUploads,
         hasPendingUploads,
         clearPendingUploads,

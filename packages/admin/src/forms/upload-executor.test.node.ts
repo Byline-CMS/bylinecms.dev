@@ -99,10 +99,11 @@ const blocksFields: Field[] = [
                 name: 'poster',
                 label: 'Poster',
                 type: 'image',
-                upload: { context: ['/title'] },
+                upload: { context: ['../caption', '/title'] },
               },
             ],
           },
+          { name: 'caption', label: 'Caption', type: 'text' },
         ],
       },
     ],
@@ -113,8 +114,13 @@ const blocksFields: Field[] = [
 const blocksFormValues = () => ({
   title: 'Hello',
   content: [
-    { _type: 'photoBlock', _id: 'blk-photo', gallery: [{}] },
-    { _type: 'videoBlock', _id: 'blk-video', gallery: [{}] },
+    { _type: 'photoBlock', _id: 'blk-photo', gallery: [{ _id: 'gallery-photo' }] },
+    {
+      _type: 'videoBlock',
+      _id: 'blk-video',
+      gallery: [{ _id: 'gallery-video' }],
+      caption: 'Video caption',
+    },
   ],
 })
 
@@ -292,6 +298,21 @@ describe('executeUploads — upload fields inside blocks', () => {
       getFormValues: blocksFormValues,
     })
 
+    expect(bodies[0]?.get('title')).toBe('Hello')
+  })
+
+  it('resolves sibling context through stable outer and inner item paths', async () => {
+    const { fn, bodies } = captureUploadField()
+    const uploads = new Map([
+      ['content[id=blk-video].gallery[id=gallery-video].poster', imageUpload()],
+    ])
+
+    await executeUploads(uploads, fn, {
+      fields: blocksFields,
+      getFormValues: blocksFormValues,
+    })
+
+    expect(bodies[0]?.get('caption')).toBe('Video caption')
     expect(bodies[0]?.get('title')).toBe('Hello')
   })
 

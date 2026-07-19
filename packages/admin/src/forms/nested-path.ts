@@ -8,7 +8,7 @@
  * Minimal nested `get`/`set` over string field paths, replacing lodash-es
  * (which pulled a large shared chunk onto unrelated bundles). Supports the
  * dot + bracket notation produced by the form field-path builders, e.g.
- * `title`, `a.b.c`, `items[0].title`, `blocks[2].nested[1].field`.
+ * `title`, `a.b.c`, `items[0].title`, `blocks[id=abc].nested[1].field`.
  *
  * `set` mirrors lodash semantics: it creates intermediate **arrays** when the
  * next path segment is a numeric index and plain **objects** otherwise, and it
@@ -19,42 +19,130 @@
  * form paths ever produce. See nested-path.test.node.ts for the covered cases.
  */
 
-const isIndexKey = (key: string): boolean => /^(?:0|[1-9]\d*)$/.test(key)
+import { type PathSegment, parseInstancePath } from '@byline/core'
 
 /** Split a field path into segments: `items[0].title` -> ['items','0','title']. */
 export function toPath(path: string): string[] {
   return path.match(/[^.[\]]+/g) ?? []
 }
 
+function selectId(value: unknown, id: string): number {
+  if (!Array.isArray(value)) return -1
+  return value.findIndex((item) => item != null && typeof item === 'object' && item._id === id)
+}
+
+function newContainer(next: PathSegment | undefined): any[] | Record<string, unknown> {
+  return next?.kind === 'index' || next?.kind === 'id' ? [] : {}
+}
+
 // Returns `any` (not `T | undefined`) to match lodash's loose `get` contract,
 // so existing call sites that treat the result as `any` keep type-checking.
 export function get<T = any>(object: unknown, path: string): T {
   if (object == null) return undefined as T
+  const parsed = parseInstancePath(path)
+  if (!parsed.ok) return undefined as T
+
   let current: any = object
-  for (const key of toPath(path)) {
+  for (const segment of parsed.segments) {
     if (current == null) return undefined as T
-    current = current[key]
+    if (segment.kind === 'field') {
+      current = current[segment.name]
+    } else if (segment.kind === 'index') {
+      current = current[segment.index]
+    } else if (segment.kind === 'id') {
+      const index = selectId(current, segment.id)
+      if (index === -1) return undefined as T
+      current = current[index]
+    } else {
+      return undefined as T
+    }
   }
   return current as T
 }
 
-export function set<T extends object>(object: T, path: string, value: unknown): T {
-  if (object == null) return object
-  const keys = toPath(path)
-  if (keys.length === 0) return object
+/** Whether every stable-id selector in a path still identifies a live item. */
+export function hasExistingIdTargets(object: unknown, path: string): boolean {
+  const parsed = parseInstancePath(path)
+  if (!parsed.ok) return false
 
   let current: any = object
-  for (let i = 0; i < keys.length - 1; i++) {
-    // Bounded by the loop condition, so these indexed reads are always defined.
-    const key = keys[i] as string
-    const nextKey = keys[i + 1] as string
-    const existing = current[key]
-    if (existing == null || typeof existing !== 'object') {
-      // Create the container the next segment needs: array for an index, else object.
-      current[key] = isIndexKey(nextKey) ? [] : {}
+  for (const segment of parsed.segments) {
+    if (segment.kind === 'field') {
+      current = current?.[segment.name]
+    } else if (segment.kind === 'index') {
+      current = current?.[segment.index]
+    } else if (segment.kind === 'id') {
+      const index = selectId(current, segment.id)
+      if (index === -1) return false
+      current = current[index]
+    } else {
+      return false
     }
-    current = current[key]
   }
-  current[keys[keys.length - 1] as string] = value
+  return true
+}
+
+/** Set a path and report whether all stable-id selectors resolved. */
+export function setWithResult<T extends object>(object: T, path: string, value: unknown): boolean {
+  if (object == null) return false
+  const parsed = parseInstancePath(path)
+  if (!parsed.ok || parsed.segments.length === 0) return false
+
+  let current: any = object
+  for (let i = 0; i < parsed.segments.length; i++) {
+    const segment = parsed.segments[i] as PathSegment
+    const next = parsed.segments[i + 1]
+    const last = i === parsed.segments.length - 1
+
+    if (segment.kind === 'field') {
+      if (last) {
+        current[segment.name] = value
+        return true
+      }
+      const existing = current[segment.name]
+      if (existing == null || typeof existing !== 'object') {
+        // Do not create a partial container on the way to an item identity
+        // that may no longer exist. Normal non-ID lodash-style writes still
+        // create their intermediate structure below.
+        if (parsed.segments.slice(i + 1).some((candidate) => candidate.kind === 'id')) return false
+        current[segment.name] = newContainer(next)
+      }
+      current = current[segment.name]
+      continue
+    }
+
+    if (segment.kind === 'index') {
+      if (!Array.isArray(current)) return false
+      if (last) {
+        current[segment.index] = value
+        return true
+      }
+      const existing = current[segment.index]
+      if (existing == null || typeof existing !== 'object') {
+        if (parsed.segments.slice(i + 1).some((candidate) => candidate.kind === 'id')) return false
+        current[segment.index] = newContainer(next)
+      }
+      current = current[segment.index]
+      continue
+    }
+
+    if (segment.kind === 'id') {
+      const index = selectId(current, segment.id)
+      if (index === -1) return false
+      if (last) {
+        current[index] = value
+        return true
+      }
+      current = current[index]
+      continue
+    }
+
+    return false
+  }
+  return false
+}
+
+export function set<T extends object>(object: T, path: string, value: unknown): T {
+  setWithResult(object, path, value)
   return object
 }

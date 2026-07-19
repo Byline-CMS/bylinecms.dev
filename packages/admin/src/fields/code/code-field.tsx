@@ -24,7 +24,7 @@ const CodeEditor = React.lazy(() => import('./code-editor'))
 
 /**
  * Resolve the form-store path of a sibling field (same group/block/array
- * item scope). `content[0].code` + `language` → `content[0].language`;
+ * item scope). `content[id=x].code` + `language` → `content[id=x].language`;
  * a top-level `code` + `language` → `language`.
  */
 const siblingFieldPath = (fieldPath: string, siblingName: string): string => {

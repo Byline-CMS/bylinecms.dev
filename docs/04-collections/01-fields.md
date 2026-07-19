@@ -439,7 +439,7 @@ For *settings* differences only (placeholder, toolbar toggles, the inline-image 
 Byline addresses fields with two notations, and every config option takes exactly one of them. Which one depends on whether the thing being addressed is a *declaration* or a *value*.
 
 - **Schema paths** are dotted and **index-free**: `files.filesGroup.publicationFile`, `faq.answer`. They address a field *declaration*, so one entry names the field wherever it occurs — in every array item. A `blocks` field is followed by a block type (`content.photoBlock.alt`), which is what tells two blocks declaring the same field name apart. You write these in the admin `fields{}` maps and in the upload hook registry (`ServerConfig.hooks.uploads`, prefixed with the collection path); boot-validation errors quote them back to you.
-- **Instance paths** carry bracket selectors: `files[2].filesGroup.publicationFile`, `content[0].faq[1].answer`. They address a *value* in one item of one document. No block type here — the addressed item carries its own `_type`. These are what the patch system, the form store, field-hook `ctx.path`, and `setFieldValue` deal in; you rarely write one by hand.
+- **Instance paths** carry bracket selectors: `files[id=file-id].filesGroup.publicationFile`, `content[id=block-id].faq[id=item-id].answer`. They address a *value* in one item of one document. No block type here — the addressed item carries its own `_type`. The form and patch systems prefer stable `_id` selectors and retain positional `[2]` selectors for id-less compatibility data. These are what the patch system, the form store, field-hook `ctx.path`, and `setFieldValue` deal in; you rarely write one by hand.
 
 **Admin `fields{}` keys are the one deliberate exception**: they never traverse a `blocks` field at all, even with a block type. Fields inside a block take their overrides from the blockType-keyed `blockAdmin` registry instead, so that one registration applies wherever the block renders. Boot validation rejects a collection-level key that reaches into a block, and points at `blockAdmin`.
 
@@ -509,7 +509,7 @@ condition?: (data: Record<string, any>, siblingData: Record<string, any>) => boo
 
 When present, the admin form renders the field only while the function returns `true`. The predicate is re-evaluated on every form edit (the same meta-subscribe loop that drives tab-level `condition` functions), and the field only re-renders when the boolean actually flips — a stable condition costs one function call per edit.
 
-**The two arguments.** `data` is the full live form data. `siblingData` is the field's *immediate scope* — the enclosing group or array item's values. For a field at `files[2].filesGroup.thumbnailPage`, `siblingData` is that item's `filesGroup` object, so a condition inside an array item observes its own item, not the document root (and not item 0). For root-level fields, `siblingData` is the same object as `data`. This scoping is what lets one field definition drive per-item behaviour across an entire array.
+**The two arguments.** `data` is the full live form data. `siblingData` is the field's *immediate scope* — the enclosing group or array item's values. For a field at `files[id=file-id].filesGroup.thumbnailPage`, `siblingData` is that item's `filesGroup` object, so a condition inside an array item observes its own item, not the document root (and not item 0). For root-level fields, `siblingData` is the same object as `data`. This scoping is what lets one field definition drive per-item behaviour across an entire array.
 
 **A rendering hint, not enforcement.** `condition` sits in the same family as `readOnly`: schema-side properties that shape the editing experience without any server-side effect. Consequences worth knowing:
 
@@ -542,7 +542,7 @@ Both receive a `FieldHookContext`:
   value: any                      // the incoming value
   previousValue: any
   data: Record<string, any>       // full live form data
-  path: string                    // e.g. 'files[2].filesGroup.generateThumbnail'
+  path: string                    // e.g. 'files[id=file-id].filesGroup.generateThumbnail'
   field: Field                    // the field definition
   operation: 'change' | 'submit'
   setFieldValue: (path: string, value: any) => void  // cross-field write

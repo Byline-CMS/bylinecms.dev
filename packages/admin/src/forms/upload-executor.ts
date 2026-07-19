@@ -216,7 +216,10 @@ function resolveContextPath(fieldPath: string, contextPath: string): string | un
   }
 
   // Scope = the upload field's containing segments (dot-split keeps array
-  // indices attached to their segment: `files[2]` stays one hop).
+  // selectors attached to their segment: `files[id=x]` stays one hop).
+  // This relies on every dotted form-path segment being a real data scope. If
+  // the grammar ever adds descriptive/non-navigating segments, classify and
+  // remove them before counting `..` hops rather than changing parent scope.
   const scope = fieldPath.split('.')
   scope.pop() // drop the upload field's own leaf segment
 

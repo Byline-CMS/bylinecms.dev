@@ -18,6 +18,8 @@ import { defaultScalarForField } from '../../fields/field-helpers'
 import { FieldRenderer } from '../../fields/field-renderer'
 import { SortableItem, StaticItem } from '../../fields/sortable-item'
 import { useFormContext } from '../../forms/form-context'
+import { hasExistingIdTargets } from '../../forms/nested-path'
+import { moveRepeatingItems, repeatingItemId, repeatingItemPath } from '../../forms/repeating-items'
 import styles from './array-field.module.css'
 
 // ---------------------------------------------------------------------------
@@ -55,7 +57,8 @@ export const ArrayField = ({
    */
   fieldAdmin?: Record<string, FieldAdminConfig>
 }) => {
-  const { appendPatch, getFieldValue, getFieldValues, setFieldStore } = useFormContext()
+  const { appendPatch, getFieldValue, getFieldValues, removePendingUploadsUnder, setFieldStore } =
+    useFormContext()
   const { t } = useTranslation('byline-admin')
   const [items, setItems] = useState<{ id: string; data: any }[]>([])
 
@@ -72,10 +75,10 @@ export const ArrayField = ({
       setItems(
         source.map((item: any) => ({
           id:
-            item && typeof item === 'object' && 'id' in item
-              ? String((item as { id: string }).id)
-              : item && typeof item === 'object' && '_id' in item
-                ? String((item as { _id: string })._id)
+            item && typeof item === 'object' && '_id' in item
+              ? String((item as { _id: string })._id)
+              : item && typeof item === 'object' && 'id' in item
+                ? String((item as { id: string }).id)
                 : crypto.randomUUID(),
           data: item,
         }))
@@ -85,23 +88,6 @@ export const ArrayField = ({
     }
   }, [defaultValue, getFieldValue, path])
 
-  /**
-   * Stable patch identity for an array item. Persisted items carry `_id`
-   * (the array-item identity from `store_meta`) — that is what the server's
-   * patch engine matches on (`applyArrayPatch`: `item._id === patch.itemId`),
-   * so it MUST be preferred here. `id` is accepted as a legacy/seed-data
-   * alias. Items added this session have neither (the storage layer assigns
-   * `_id` at write time), so fall back to the item's current index — the
-   * patch engine resolves a pure-integer itemId as an index fallback.
-   */
-  const patchItemId = (item: unknown, index: number): string => {
-    if (item && typeof item === 'object') {
-      if ('_id' in item) return String((item as { _id: string })._id)
-      if ('id' in item) return String((item as { id: string }).id)
-    }
-    return String(index)
-  }
-
   const handleDragEnd = ({
     moveFromIndex,
     moveToIndex,
@@ -109,23 +95,20 @@ export const ArrayField = ({
     moveFromIndex: number
     moveToIndex: number
   }) => {
-    setItems((prev) => moveItem(prev, moveFromIndex, moveToIndex))
     const currentArray = (getFieldValue(path) ?? defaultValue) as any[]
+    if (!Array.isArray(currentArray)) return
 
-    if (Array.isArray(currentArray)) {
-      const clampedFrom = Math.max(0, Math.min(moveFromIndex, currentArray.length - 1))
-      const clampedTo = Math.max(0, Math.min(moveToIndex, currentArray.length - 1))
-      if (clampedFrom === clampedTo) return
+    const move = moveRepeatingItems(currentArray, moveFromIndex, moveToIndex)
+    if (move == null) return
 
-      const item = currentArray[clampedFrom]
-
-      appendPatch({
-        kind: 'array.move',
-        path: path,
-        itemId: patchItemId(item, clampedFrom),
-        toIndex: clampedTo,
-      })
-    }
+    setItems((prev) => moveItem(prev, move.fromIndex, move.toIndex))
+    setFieldStore(path, move.items)
+    appendPatch({
+      kind: 'array.move',
+      path,
+      itemId: move.itemId,
+      toIndex: move.toIndex,
+    })
   }
 
   const handleAddItem = async (atIndex?: number) => {
@@ -152,6 +135,11 @@ export const ArrayField = ({
         newItem[childField.name] = await defaultScalarForField(childField, getFieldValues)
       }
     }
+
+    // Defaults may resolve asynchronously. If an enclosing stable-id item was
+    // removed in the meantime, do not append a structural patch that would
+    // recreate that missing parent on the server.
+    if (!hasExistingIdTargets(getFieldValues(), path)) return
 
     const currentArray = (getFieldValue(path) ?? defaultValue) as any[]
     const insertAt = atIndex != null ? atIndex : currentArray ? currentArray.length : 0
@@ -180,13 +168,15 @@ export const ArrayField = ({
     if (!Array.isArray(currentArray) || index < 0 || index >= currentArray.length) return
 
     const item = currentArray[index]
+    const itemPath = repeatingItemPath(path, item, index)
 
     setItems((prev) => prev.filter((_, i) => i !== index))
+    removePendingUploadsUnder(itemPath)
 
     appendPatch({
       kind: 'array.remove',
       path: path,
-      itemId: patchItemId(item, index),
+      itemId: repeatingItemId(item) ?? String(index),
     })
 
     const newArrayValue = [...currentArray]
@@ -200,7 +190,7 @@ export const ArrayField = ({
 
   const renderItem = (itemWrapper: { id: string; data: any }, index: number) => {
     const item = itemWrapper.data
-    const arrayElementPath = `${path}[${index}]`
+    const arrayElementPath = repeatingItemPath(path, item, index)
 
     if (!item || typeof item !== 'object') return null
 
