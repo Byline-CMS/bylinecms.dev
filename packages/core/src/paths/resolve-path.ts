@@ -115,6 +115,10 @@ export function resolveDeclarationPath(
     if (field == null) return { status: 'unresolved', at: i }
     resolved.push({ kind: 'field', name: field.name })
 
+    // Deliberately ahead of the `blocks: 'forbidden'` check below: that policy
+    // bars *traversal* into a block, so a path ending on the blocks field
+    // resolves normally. The field carries a label like any other and is a
+    // legitimate admin override target.
     const isLast = i === input.length - 1
     if (isLast) return { status: 'ok', field, segments: resolved }
 

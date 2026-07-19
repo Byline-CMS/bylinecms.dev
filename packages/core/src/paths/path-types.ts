@@ -88,7 +88,8 @@ export interface ResolveOptions {
    * - `'forbidden'` — stop and report `status: 'blocks'`. Used by the admin
    *   `fields{}` maps, where per-field overrides inside a block belong to the
    *   blockType-keyed `blockAdmin` registry so that one registration applies
-   *   wherever the block renders.
+   *   wherever the block renders. This bars *traversal* only: a path ending on
+   *   the blocks field resolves `ok`, since that field is itself overridable.
    */
   readonly blocks?: 'qualified' | 'forbidden'
 }

@@ -69,7 +69,13 @@ Target field throughout: `alt`, inside array `gallery`, inside block
 | Boot-validation errors | `content.photoBlock.gallery.alt` | none | required |
 | Admin `fields{}` keys | *unreachable — see below* | rejected | rejected |
 | Patch paths | `content[id=…].gallery[id=…].alt` | `[n]` or `[id=…]` | absent |
-| Form instance paths | `content[0].gallery[0].alt` | `[n]` | absent |
+| Form instance paths | `content[0].gallery[0].alt` | `[n]` or `[id=…]` | absent |
+
+The last two rows are one notation, not two. Both parse through
+`parseInstancePath` and both accept either selector form; the examples differ
+only in what each site typically *emits*. Patches prefer `[id=…]` because a
+patch outlives the reorder that would invalidate a position, while form paths
+are positional because they address the item currently rendered at that index.
 
 Two further dotted notations exist and are deliberately **not** field paths:
 
@@ -145,6 +151,11 @@ their overrides from the blockType-keyed `blockAdmin` registry instead, so one
 registration applies wherever that block renders — in any collection, at any
 nesting depth. Boot validation rejects a collection-level key that reaches into
 a block and points the author at `blockAdmin`.
+
+What is barred is *traversal*. A key naming the blocks field itself —
+`content`, not `content.photoBlock.gallery.alt` — resolves normally, because
+that field carries a label and a description like any other and overriding it
+says nothing about the blocks inside it.
 
 This is expressed as `resolveDeclarationPath(fields, key, { blocks: 'forbidden' })`
 — a policy on the shared resolver, not a second grammar.

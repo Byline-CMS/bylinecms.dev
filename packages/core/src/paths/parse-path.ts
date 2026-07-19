@@ -32,7 +32,11 @@ const ID_TOKEN = /^\[id=(.+)\]$/
  */
 export function parseDeclarationPath(path: string): PathParseResult {
   if (path.trim() === '') return { ok: false, reason: 'empty' }
-  if (path.includes('[') || path.includes(']')) return { ok: false, reason: 'index' }
+  if (path.includes('[')) return { ok: false, reason: 'index' }
+  // A closing bracket with no opener is not an item selector the caller wrote
+  // in the wrong dialect — it is a typo, and saying so beats advice about
+  // declaration paths not taking indices.
+  if (path.includes(']')) return { ok: false, reason: 'malformed' }
 
   const segments: PathSegment[] = []
   for (const part of path.split('.')) {

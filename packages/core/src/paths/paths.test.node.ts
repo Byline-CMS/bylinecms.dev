@@ -84,6 +84,12 @@ describe('parseDeclarationPath', () => {
     })
   })
 
+  it('distinguishes a stray bracket from a wrong-dialect index', () => {
+    // `index` steers the author from instance notation to declaration
+    // notation; that advice is misleading for what is only a typo.
+    expect(parseDeclarationPath('files].caption')).toEqual({ ok: false, reason: 'malformed' })
+  })
+
   it('rejects empty paths and empty segments', () => {
     expect(parseDeclarationPath('')).toEqual({ ok: false, reason: 'empty' })
     expect(parseDeclarationPath('   ')).toEqual({ ok: false, reason: 'empty' })
@@ -122,6 +128,14 @@ describe('parseInstancePath', () => {
     for (const bad of ['a[', 'a[]', 'a[x]', 'a]b']) {
       expect(parseInstancePath(bad).ok).toBe(false)
     }
+  })
+
+  it('rejects an id containing a closing bracket rather than truncating it', () => {
+    // Ids are UUIDv7 today, so this is unreachable in practice. Pinned because
+    // the id token is scanned to the first `]`: the guarantee worth holding is
+    // that an id which somehow contains one is rejected outright, never
+    // silently shortened into a different — and possibly valid — id.
+    expect(parseInstancePath('gallery[id=a]b].alt').ok).toBe(false)
   })
 })
 
@@ -312,6 +326,16 @@ describe('resolveDeclarationPath', () => {
     expect(resolveDeclarationPath(fields, 'content.alt', { blocks: 'forbidden' }).status).toBe(
       'blocks'
     )
+  })
+
+  it('resolves the blocks field itself under `forbidden`', () => {
+    // `forbidden` bars *traversal* into a block, not addressing the blocks
+    // field. A blocks field carries a label like any other, so an admin
+    // `fields{}` key naming it is a legitimate override target — what the
+    // narrowing rules out is reaching past it to the fields inside.
+    const result = resolveDeclarationPath(fields, 'content', { blocks: 'forbidden' })
+    expect(result.status).toBe('ok')
+    expect(result.status === 'ok' && result.field.type).toBe('blocks')
   })
 
   it('rejects an unknown block type', () => {
