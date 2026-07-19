@@ -21,17 +21,23 @@
  * This is a public read: it does NOT pass through the admin auth boundary.
  */
 
+import { useMemo } from 'react'
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
 
 import { Container, Section } from '@byline/ui/react'
+import cx from 'classnames'
 
 import { useTranslations } from '@/i18n/client/translations-provider'
 import { useInterfaceLocale } from '@/i18n/hooks/use-locale-navigation'
 import { advertisedLocalesFor, resolveAlternates } from '@/lib/alternates'
 import { buildLocalizedPath, getMeta, truncateForMeta } from '@/lib/meta'
 import { DocDetails } from '@/modules/docs/components/details'
+import detailsLayoutStyles from '@/modules/docs/components/details-layout.module.css'
+import { DocsPageUtilities } from '@/modules/docs/components/page-utilities'
 import { DocsPrevNext } from '@/modules/docs/components/prev-next'
+import { DocsToc } from '@/modules/docs/components/toc'
 import { type DocSplatResult, getDocBySplatFn } from '@/modules/docs/details'
+import { extractDocHeadings } from '@/modules/docs/toc'
 import { BreadcrumbsClient } from '@/ui/components/breadcrumbs/breadcrumbs-client'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 import type { RoutableLocale } from '@/i18n/i18n-config'
@@ -102,11 +108,20 @@ export const Route = createFileRoute('/$lng/_frontend/docs/$')({
 })
 
 function RouteComponent() {
-  const { resolution } = Route.useLoaderData() as RouteLoaderData
+  const { resolution, lng } = Route.useLoaderData() as RouteLoaderData
   const { doc, ancestors, chainSegments } = resolution
   const { t } = useTranslations('frontend')
   const interfaceLocale = useInterfaceLocale()
   const title = doc.fields.title ?? doc.path ?? doc.id
+
+  // Contents are derived from the stored Lexical content rather than measured
+  // from the DOM, so the rail is server-rendered with the page and its anchors
+  // match the ids `HeadingWithAnchorSerializer` emits. See `@/modules/docs/toc`.
+  const headings = useMemo(() => extractDocHeadings(doc.fields.content), [doc.fields.content])
+
+  // The markdown representation this document already advertises — the same
+  // URL carried by the head `rel=alternate` link.
+  const markdownPath = `${buildLocalizedPath(lng, 'docs', ...chainSegments)}.md`
 
   // Breadcrumbs follow the tree (structure) but link to the composed
   // hierarchical URL (presentation) — each ancestor's href is the cumulative
@@ -132,8 +147,24 @@ function RouteComponent() {
       <BreadcrumbsClient breadcrumbs={breadcrumbs} />
       <Section>
         <Container>
-          <DocDetails result={doc} lng={interfaceLocale} />
-          <DocsPrevNext currentChain={chainSegments.join('/')} lng={interfaceLocale} />
+          <div className={cx('byline-docs-details-layout', detailsLayoutStyles.layout)}>
+            <div className={cx('byline-docs-details-main', detailsLayoutStyles.main)}>
+              <DocsPageUtilities
+                markdownPath={markdownPath}
+                headings={headings}
+                labels={{
+                  copyPage: t('docsCopyPage'),
+                  copied: t('docsCopyPageCopied'),
+                  failed: t('docsCopyPageFailed'),
+                  viewAsMarkdown: t('docsViewAsMarkdown'),
+                  onThisPage: t('docsOnThisPage'),
+                }}
+              />
+              <DocDetails result={doc} lng={interfaceLocale} />
+              <DocsPrevNext currentChain={chainSegments.join('/')} lng={interfaceLocale} />
+            </div>
+            <DocsToc headings={headings} label={t('docsOnThisPage')} />
+          </div>
         </Container>
       </Section>
     </>

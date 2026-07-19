@@ -1,0 +1,19 @@
+/**
+ * Utility row above a document's title: "Copy Page" on the left, the
+ * "On this Page" sheet trigger on the right.
+ *
+ * Override handle: .byline-docs-page-utilities
+ */
+
+/* "Copy Page" stays left at every width — it belongs to the document and reads
+   as the first thing above the title. The sheet trigger holds the right until
+   the contents move into the sticky rail, where it hides itself and leaves
+   "Copy Page" in the place it already occupied. */
+.row,
+:global(.byline-docs-page-utilities) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}

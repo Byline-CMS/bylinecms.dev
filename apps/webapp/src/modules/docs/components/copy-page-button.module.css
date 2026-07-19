@@ -1,0 +1,22 @@
+/**
+ * "Copy page" control — copies the document's markdown representation, or
+ * opens it, via the dropdown half of a combo button.
+ *
+ * Override handles:
+ *   .byline-docs-copy-page        — the combo-button wrapper
+ *   .byline-docs-copy-page-button — the main (copy) half
+ */
+
+.button,
+:global(.byline-docs-copy-page-button) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.icon,
+:global(.byline-docs-copy-page-icon) {
+  display: inline-flex;
+  flex-shrink: 0;
+}

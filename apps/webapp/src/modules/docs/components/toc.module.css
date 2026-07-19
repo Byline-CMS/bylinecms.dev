@@ -1,0 +1,141 @@
+/**
+ * "On this page" contents rail.
+ *
+ * Override handles:
+ *   .byline-docs-toc-aside — the sticky <aside> column (desktop only)
+ *   .byline-docs-toc       — the <nav> holding the heading list
+ *   .byline-docs-toc-link  — one heading entry
+ */
+
+.aside,
+:global(.byline-docs-toc-aside) {
+  display: none;
+}
+
+/* The rail appears only once the drawer, the article and a third column can
+   coexist without squeezing the prose. Below this the contents lift into the
+   bottom sheet instead. */
+@media screen and (width >= 1100px) {
+  .aside,
+  :global(.byline-docs-toc-aside) {
+    display: block;
+    flex-shrink: 0;
+    /* Width of the third column. The article column absorbs the difference, so
+       widening this narrows the prose at the low end of the breakpoint. */
+    width: 265px;
+  }
+}
+
+/* Two independent knobs, both safe to tweak by eye:
+   • `margin-top` — where the rail sits AT REST, before the page has scrolled.
+     The rail's column starts level with the "Copy Page" row, so it needs
+     pulling up to reach the breadcrumb's line. -2.5rem would sit it exactly
+     level with the breadcrumb and the drawer's search input; it is set a little
+     below that deliberately, since dead-level read as slightly high against the
+     rail's uppercase heading. The other two are in docs/route.tsx and
+     docs-drawer.module.css — note that the breadcrumb's `mt-3` also shifts this
+     column, so a change there needs the same change back here.
+   • `top` — where the rail parks ONCE STUCK, far enough below the 50px app bar
+     to read as its own column rather than tucked under the bar.
+   Changing one does not move the other. */
+.nav,
+:global(.byline-docs-toc) {
+  position: sticky;
+  top: 70px;
+  margin-top: -2rem;
+  max-height: calc(100vh - 95px);
+  padding-left: 1rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.heading,
+:global(.byline-docs-toc-heading) {
+  margin: 0 0 0.6rem;
+  padding-left: 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gray-600, #4b5563);
+}
+
+:is([data-theme="dark"], :global(.dark)) .heading,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-toc-heading) {
+  color: var(--gray-400, #9ca3af);
+}
+
+.list,
+:global(.byline-docs-toc-list) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-left: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+}
+
+:is([data-theme="dark"], :global(.dark)) .list,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-toc-list) {
+  border-left-color: var(--canvas-700);
+}
+
+.item,
+:global(.byline-docs-toc-item) {
+  margin: 0;
+}
+
+.link,
+:global(.byline-docs-toc-link) {
+  display: block;
+  padding: 0.3rem 0.5rem 0.3rem 0.6rem;
+  margin-left: -1px;
+  border-left: 2px solid transparent;
+  color: var(--gray-600, #4b5563);
+  font-size: 0.875rem;
+  line-height: 1.35;
+  text-decoration: none;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease;
+}
+
+.link:hover,
+:global(.byline-docs-toc-link):hover {
+  color: var(--primary-700);
+}
+
+:is([data-theme="dark"], :global(.dark)) .link,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-toc-link) {
+  color: var(--gray-400, #9ca3af);
+}
+
+:is([data-theme="dark"], :global(.dark)) .link:hover,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-toc-link):hover {
+  color: var(--primary-200);
+}
+
+/* Nested heading level — indented under its parent section. */
+.linkLevel3,
+:global(.byline-docs-toc-link-h3) {
+  padding-left: 1.4rem;
+  font-size: 0.825rem;
+}
+
+.linkActive,
+:global(.byline-docs-toc-link-active) {
+  border-left-color: var(--primary-700);
+  color: var(--primary-900);
+  font-weight: 500;
+}
+
+:is([data-theme="dark"], :global(.dark)) .linkActive,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-docs-toc-link-active) {
+  border-left-color: var(--primary-300);
+  color: var(--primary-200);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link,
+  :global(.byline-docs-toc-link) {
+    transition: none;
+  }
+}

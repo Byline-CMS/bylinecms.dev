@@ -1,0 +1,41 @@
+/**
+ * Detail-view layout for a docs document — the article beside its "On this
+ * page" rail. The docs menu drawer is the outer third column and is owned by
+ * the docs layout route, not this file.
+ *
+ * Single column until the rail's breakpoint (see toc.module.css), where the
+ * rail becomes visible and claims its track. The two files share the 1100px
+ * breakpoint so the column and its contents appear together.
+ *
+ * Override handle: .byline-docs-details-layout
+ */
+
+.layout,
+:global(.byline-docs-details-layout) {
+  display: flex;
+  /* Stretch, not flex-start: the rail's <aside> has to span the full article
+     height for the sticky <nav> inside it to have anywhere to travel. Pinning
+     the aside to flex-start collapses it to its content height and the rail
+     scrolls away with the page. */
+  align-items: stretch;
+  gap: 2rem;
+}
+
+.main,
+:global(.byline-docs-details-main) {
+  /* min-width: 0 keeps wide children — code blocks, tables — from forcing the
+     flex item past its track instead of scrolling inside it. */
+  min-width: 0;
+  flex: 1 1 auto;
+  max-width: 920px;
+}
+
+/* Below the rail's breakpoint the article is the only column, and centring it
+   keeps the prose measure where it was before the rail existed. */
+@media screen and (width < 1100px) {
+  .main,
+  :global(.byline-docs-details-main) {
+    margin-left: auto;
+    margin-right: auto;
+  }
+}

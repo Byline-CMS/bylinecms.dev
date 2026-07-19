@@ -177,25 +177,31 @@ export function DocsDrawer({ nodes, lng }: DocsDrawerProps): React.JSX.Element |
       })}
       {...handlers}
     >
-      <div className={cx('byline-docs-drawer-header', styles.header)}>
-        <DocsSearchTrigger lng={lng} onNavigate={closeDrawer} />
+      {/* Search and tree share one sticky box: the search stays pinned to the
+          top of it while the tree scrolls underneath, so the search input is
+          reachable at any scroll depth. Sticking the tree alone (with the
+          search above it as a sibling) let the search scroll away. */}
+      <div className={cx('byline-docs-drawer-sticky', styles.sticky)}>
+        <div className={cx('byline-docs-drawer-header', styles.header)}>
+          <DocsSearchTrigger lng={lng} onNavigate={closeDrawer} />
+        </div>
+        <nav className={cx('byline-docs-drawer docs-drawer', styles.nav)}>
+          <ul>
+            {nodes.map((node) => (
+              <NavItem
+                key={node.id}
+                node={node}
+                depth={0}
+                activeKey={activeKey}
+                expanded={expanded}
+                onToggle={toggle}
+                lng={lng}
+                onNavigate={closeDrawer}
+              />
+            ))}
+          </ul>
+        </nav>
       </div>
-      <nav className={cx('byline-docs-drawer docs-drawer', styles.nav)}>
-        <ul>
-          {nodes.map((node) => (
-            <NavItem
-              key={node.id}
-              node={node}
-              depth={0}
-              activeKey={activeKey}
-              expanded={expanded}
-              onToggle={toggle}
-              lng={lng}
-              onNavigate={closeDrawer}
-            />
-          ))}
-        </ul>
-      </nav>
     </aside>
   )
 }

@@ -37,7 +37,11 @@ function DocsLayout() {
     <div className="flex flex-1 w-full">
       <DocsDrawer nodes={nodes} lng={interfaceLocale} />
       <DocsContent>
-        <Section className="mt-0 mb-4">
+        {/* mt-3 puts the breadcrumb on the same line as the drawer's search
+            input and the "On this Page" rail — see the matching notes in
+            docs-drawer.module.css and toc.module.css. Changing one of the three
+            without the others breaks the alignment. */}
+        <Section className="mt-3 mb-4">
           <Container>
             <DocsBreadcrumbs />
           </Container>

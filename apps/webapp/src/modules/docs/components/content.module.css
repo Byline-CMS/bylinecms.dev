@@ -14,3 +14,20 @@
   padding-top: 1rem;
   padding-bottom: 1.5rem;
 }
+
+/* Keep a heading clear of the sticky 50px app bar when it is reached by
+   fragment — from the heading's own anchor link, the "On this page" rail, or a
+   link arriving from elsewhere. Without this the target sits underneath the
+   bar. */
+.root :global(h2[id]),
+.root :global(h3[id]),
+.root :global(h4[id]),
+.root :global(h5[id]),
+.root :global(h6[id]),
+:global(.byline-docs-content) :global(h2[id]),
+:global(.byline-docs-content) :global(h3[id]),
+:global(.byline-docs-content) :global(h4[id]),
+:global(.byline-docs-content) :global(h5[id]),
+:global(.byline-docs-content) :global(h6[id]) {
+  scroll-margin-top: 70px;
+}

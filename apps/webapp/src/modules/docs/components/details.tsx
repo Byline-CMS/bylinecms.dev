@@ -23,8 +23,11 @@ export function DocDetails({ result, lng }: DocDetailsProps) {
   const featureImage = featureMedia?.image
   const imageAlt = featureMedia?.altText ?? featureMedia?.title ?? title
 
+  // Width and centring belong to the enclosing column — see
+  // details-layout.module.css — so the article can share a row with the
+  // "On this page" rail.
   return (
-    <article className="prose max-w-[920px] mx-auto">
+    <article className="prose">
       <header className="mb-0">
         <h1 className="m-0">{title}</h1>
       </header>

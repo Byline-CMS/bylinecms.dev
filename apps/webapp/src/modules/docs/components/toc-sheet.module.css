@@ -1,0 +1,84 @@
+/**
+ * Bottom-sheet presentation of the contents navigator, for viewports too
+ * narrow to carry the rail as a third column.
+ *
+ * Override handles:
+ *   .byline-docs-toc-sheet-trigger — the dropdown-style trigger button
+ *   .byline-docs-toc-sheet         — the sheet panel itself
+ */
+
+.trigger,
+:global(.byline-docs-toc-sheet-trigger) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* The rail takes over above this width — matches the breakpoint in
+   toc.module.css, so exactly one presentation is ever visible. */
+@media screen and (width >= 1100px) {
+  .trigger,
+  :global(.byline-docs-toc-sheet-trigger) {
+    display: none;
+  }
+}
+
+.triggerIcon,
+:global(.byline-docs-toc-sheet-trigger-icon) {
+  display: inline-flex;
+  transition: transform 200ms ease;
+}
+
+.triggerIconOpen,
+:global(.byline-docs-toc-sheet-trigger-icon-open) {
+  transform: rotate(180deg);
+}
+
+/* Phone: Modal's popup wrapper already anchors to the bottom below 40rem, so
+   the sheet look is the container shedding its side margins and its bottom
+   corners to sit flush against the edge of the screen. */
+.sheet,
+:global(.byline-docs-toc-sheet) {
+  min-height: 0;
+  max-height: 70vh;
+  margin-left: 0;
+  margin-right: 0;
+  border-bottom: none;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Tablet: at 40rem Modal re-centres the popup and drops the container to
+   `width: auto`, which collapses it to the width of the longest heading. Give
+   it a deliberate width so the contents have room to breathe, and restore the
+   full border and radius now that it reads as a centred dialog rather than a
+   sheet anchored to the bottom edge. */
+@media screen and (width >= 40rem) {
+  .sheet,
+  :global(.byline-docs-toc-sheet) {
+    width: min(34rem, 90vw);
+    max-height: 75vh;
+    border-bottom: 1px solid var(--border-color);
+    border-bottom-left-radius: var(--border-radius-md);
+    border-bottom-right-radius: var(--border-radius-md);
+  }
+}
+
+.sheetHeader,
+:global(.byline-docs-toc-sheet-header) {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.sheetContent,
+:global(.byline-docs-toc-sheet-content) {
+  overflow-y: auto;
+  padding-bottom: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .triggerIcon,
+  :global(.byline-docs-toc-sheet-trigger-icon) {
+    transition: none;
+  }
+}

@@ -73,24 +73,42 @@
   border-right: none;
 }
 
+/* Sticky box holding the search and the tree together. The box is what sticks;
+   inside it the search is fixed height and the tree takes the remaining space
+   and scrolls, so the search never leaves the viewport. */
+.sticky,
+:global(.byline-docs-drawer-sticky) {
+  position: sticky;
+  top: 35px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 60px);
+  margin-bottom: 1rem;
+}
+
 .nav,
 :global(.byline-docs-drawer) {
-  position: sticky;
-  top: 55px;
+  flex: 1 1 auto;
+  /* min-height: 0 lets this shrink below its content height so the overflow
+     scrolls here rather than pushing the sticky box taller than the viewport. */
+  min-height: 0;
   margin-top: 0.8rem;
-  margin-bottom: 1rem;
-  max-height: calc(100vh - 60px);
   overflow-y: auto;
   scrollbar-width: thin;
 }
 
-/* Search entry point at the top of the drawer. */
+/* Search entry point, pinned to the top of the sticky box.
+   The 1.75rem top padding lands the input on the same line as the breadcrumb
+   and the "On this Page" rail at rest — see the matching notes in
+   docs/route.tsx and toc.module.css. Changing one of the three without the
+   others breaks the alignment. */
 .header,
 :global(.byline-docs-drawer-header) {
   display: flex;
+  flex-shrink: 0;
   width: 100%;
   justify-content: flex-start;
-  padding: 2rem 0.75rem 0 0.7rem;
+  padding: 1.75rem 0.75rem 0 0.7rem;
 }
 
 /* Top-level list gets the outer breathing room; nested lists reset. */
@@ -254,8 +272,10 @@
   }
 }
 
+/* Desktop steps the tree down from the touch-friendly 1.1rem so the nav reads
+   as secondary to the article beside it. Mobile keeps the larger tap target. */
 @media screen and (width >= 48rem) {
   :global(.byline-docs-drawer .link) {
-    font-size: 1rem;
+    font-size: 0.95rem;
   }
 }
