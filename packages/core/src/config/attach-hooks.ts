@@ -42,7 +42,7 @@ export function prepareHookAttachment(config: {
   const uploadFields = new Map<string, UploadField>()
 
   for (const collection of config.collections) {
-    assertDotFreeSegment(collection.path, `collection path "${collection.path}"`)
+    assertPathSafeSegment(collection.path, `collection path "${collection.path}"`)
     collections.set(collection.path, collection)
     indexUploadFields(collection, uploadFields)
   }
@@ -162,7 +162,7 @@ function indexUploadFields(
   walkFieldDeclarations(
     collection.fields,
     (field, segments) => {
-      assertDotFreeSegment(
+      assertPathSafeSegment(
         field.name,
         `field name "${field.name}" in collection "${collection.path}"`
       )
@@ -183,7 +183,7 @@ function indexUploadFields(
       // block never reaches the field visitor, so inferring block types from
       // field segments alone would silently stop validating them.
       onBlock: (block) => {
-        assertDotFreeSegment(
+        assertPathSafeSegment(
           block.blockType,
           `block type "${block.blockType}" in collection "${collection.path}"`
         )
@@ -192,8 +192,25 @@ function indexUploadFields(
   )
 }
 
-function assertDotFreeSegment(segment: string, label: string): void {
-  if (segment.length === 0 || segment.includes('.')) {
-    throw new Error(`${label} must be a non-empty, dot-free hook registry path segment.`)
+/**
+ * A name that appears as a path segment must not contain the grammar's own
+ * punctuation.
+ *
+ * `.` separates segments in every notation. `[` and `]` delimit item selectors
+ * in instance paths, which field names already reach — a field named `a[0]`
+ * would not survive the round trip through `parseInstancePath`. Both are
+ * rejected where the name is declared rather than left to corrupt a path
+ * later.
+ */
+function assertPathSafeSegment(segment: string, label: string): void {
+  if (segment.length === 0) {
+    throw new Error(`${label} must be a non-empty path segment.`)
+  }
+  for (const character of ['.', '[', ']']) {
+    if (segment.includes(character)) {
+      throw new Error(
+        `${label} must not contain "${character}" — it is field path grammar punctuation.`
+      )
+    }
   }
 }

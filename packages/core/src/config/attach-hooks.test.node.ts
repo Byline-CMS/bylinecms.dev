@@ -202,14 +202,16 @@ describe('server hook attachment', () => {
     expect(definition.hooks).toBe(stable)
   })
 
-  it('rejects dotted registry segments and duplicate upload leaf names at boot', () => {
+  it('rejects path-punctuation in registry segments and duplicate upload leaf names at boot', () => {
     expect(() => prepareHookAttachment({ collections: [collection('docs.archive')] })).toThrow(
-      /dot-free/
+      /grammar punctuation/
     )
 
     const dottedField = collection()
     dottedField.fields = [{ name: 'meta.asset', type: 'file', upload: {} }]
-    expect(() => prepareHookAttachment({ collections: [dottedField] })).toThrow(/dot-free/)
+    expect(() => prepareHookAttachment({ collections: [dottedField] })).toThrow(
+      /grammar punctuation/
+    )
 
     const dottedBlock = collection()
     dottedBlock.fields = [
@@ -219,7 +221,29 @@ describe('server hook attachment', () => {
         blocks: [{ blockType: 'hero.large', fields: [] }],
       },
     ]
-    expect(() => prepareHookAttachment({ collections: [dottedBlock] })).toThrow(/dot-free/)
+    expect(() => prepareHookAttachment({ collections: [dottedBlock] })).toThrow(
+      /grammar punctuation/
+    )
+
+    // Brackets delimit item selectors in instance paths, which field names
+    // reach — so they are rejected for the same reason dots are.
+    const bracketField = collection()
+    bracketField.fields = [{ name: 'asset[0]', type: 'file', upload: {} }]
+    expect(() => prepareHookAttachment({ collections: [bracketField] })).toThrow(
+      /grammar punctuation/
+    )
+
+    const bracketBlock = collection()
+    bracketBlock.fields = [
+      {
+        name: 'content',
+        type: 'blocks',
+        blocks: [{ blockType: 'hero[large]', fields: [] }],
+      },
+    ]
+    expect(() => prepareHookAttachment({ collections: [bracketBlock] })).toThrow(
+      /grammar punctuation/
+    )
 
     const duplicate = collection()
     duplicate.fields = [
