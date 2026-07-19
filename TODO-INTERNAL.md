@@ -114,6 +114,15 @@ Design surface to work through: (1) **scope** — preferences are almost certain
 
 **Shipped groundwork (2026-07-14):** the *collection-configured* layer landed — `CollectionAdminConfig.defaultSort: { field, direction }` (boot-validated; rejected on `orderable` collections), applied by the list server fn when no explicit `order` param is present and echoed through `meta.order`/`meta.desc` so the header sort indicator shows the effective sort on a params-less landing. The per-user preference described above slots between the URL params and that configured default: URL → user preference → `defaultSort` → `created_at desc`.
 
+**Two mechanisms, not one (raised 2026-07-19).** The ask has since widened to include filter options and "return to the page I was on after editing and closing a document". Those are not the same feature as sticky preferences, and conflating them produces the wrong behaviour in both:
+
+- **Preferences** are durable and cross-visit: `page_size`, default sort, and now arguably the filter set (`status`, `locale`). A user who always works in French drafts wants that on every landing. These are what the entry above describes.
+- **Return-to state** is a single round trip: open a document from page 7 of a filtered list, save, close, land back on page 7 of that same list. This is navigation state belonging to one journey, not a preference. Persisting `page` as a preference is the wrong shape — it strands a user on page 7 of a list they have since re-filtered, which is exactly why the entry above excludes it.
+
+The return-to half is probably the cheaper and more valuable of the two, and it does not need any storage mechanism: the list route already holds complete state in its search params, so the editor can carry a return target (a `from` param, or router history state) and the close/save action can navigate back to it. Precedence stays as stated above — an explicit URL param always wins — and a return target is just an explicit param, so the two compose without conflict.
+
+Worth settling which of the two is actually wanted before building either. If the ask is "stop re-setting my page size", that is the preference store. If it is "closing a document dumps me back at page 1", that is the return target, and no persistence is involved.
+
 ---
 
 ## Deferred
@@ -125,6 +134,28 @@ Each entry names the trigger that would move it into Next. No work happens until
 With friendly storage keys shipped (4.2: `<location|collection>/<slug>-<suffix>.<ext>`), the remaining download-UX gap is cosmetic: the saved filename carries the slug + suffix, not the pretty original (`Meeting Agenda 2026.pdf`, Unicode/Thai names). `Content-Disposition` closes it: S3 accepts it as per-object metadata at `PutObject` time (we already persist `originalFilename` in `StoredFileValue`, and the S3 provider already sets analogous per-upload metadata — roughly one RFC 5987 `filename*` encoding plus one parameter), and presigned URLs can set it dynamically via `response-content-disposition` with zero stored state.
 
 **Trigger:** two design questions need owners before shipping. (1) **Local-provider symmetry** — local storage doesn't serve HTTP; the host's runtime handler would need the original filename at request time, meaning either a `store_file` lookup per static-file request or sidecar metadata written next to the file. Shipping S3-only would make provider behavior visibly divergent. (2) **The `inline` vs `attachment` policy** — images want `inline`, `.docx` wants `attachment`, PDFs are debatable; likely a small per-field or per-MIME policy on `UploadConfig`. Move to Next when a real download-affordance ask arrives (or the FORRU beta wants original Thai filenames on library downloads).
+
+### Uploads — transactional staging, committed with the document write
+
+Today an upload and the document write that references it are two independent operations. The admin defers pending uploads and executes them on save (`executeUploads`, `packages/admin/src/forms/upload-executor.ts`), each one storing its file through the provider and returning a `StoredFileValue` that is then written into the document. If the document write fails after that point — validation, a hook throwing, a lost connection — the file is already stored and nothing references it. The reverse also holds: a partially successful multi-file save leaves some files stored and some not, with no record of which.
+
+The proposal is to make the upload two-phase. Files land in a temporary staging area first, optionally alongside a sidecar carrying the metadata and placement instructions, and are promoted to their final storage keys only as part of committing the document create or update. A failed document write discards the staging area instead of leaving orphans.
+
+Design surface to work through: (1) **storage providers are not transactional** — neither the local filesystem nor S3 can enrol in the Postgres transaction, so this is a two-phase commit with compensating actions, and the honest goal is a narrow failure window plus a sweeper for what escapes it, not true atomicity; (2) **where the boundary sits** — promotion has to happen inside the same `document-lifecycle` create/update call that opens the transaction, which means the lifecycle service gains knowledge of staged files it does not have today; (3) **staging lifetime and cleanup** — abandoned staging entries need a TTL and a sweep, which is the same machinery the cleanup entry below wants; (4) **friendly storage keys** (4.2) are derived at store time from the collection and slug, so promotion is a rename/copy into the final key rather than a no-op move, and on S3 a copy plus delete.
+
+**Trigger:** orphaned files from failed saves become operationally visible — storage growth, a reconciliation script, or a support case where a file exists but no document references it. Until then the single-phase path is simpler and the failure is rare and non-corrupting. Shares a sweeper with the cleanup entry below; do them together if either is picked up.
+
+### Uploads — deletion and cleanup across versioned history
+
+Collection-owned `file` and `image` fields never delete stored media. Removing the field value, removing the block or array item that contains it, or deleting the document itself all leave the stored file in place. Storage grows monotonically, and there is currently no way to satisfy a deletion request for a specific asset.
+
+The reason this is not a simple "delete on removal" is immutable versioning. A `store_file` row belongs to one document version. Removing a file in the current version does not remove it from the versions before it, so deleting the stored object on removal would retroactively break history — an older version would still reference an object that no longer exists, and restoring that version would produce a broken document. Any strategy has to answer what file deletion means when history is meant to be immutable.
+
+Options, roughly in increasing order of cost: (1) **never delete**, and treat storage as append-only — honest, cheapest, and what happens today by accident rather than by decision; (2) **reference-count across versions** and delete only when the last referencing version is itself pruned, which requires a version-pruning story that does not exist yet; (3) **soft-delete plus a garbage-collection sweep** that marks candidates and deletes after a retention window, keeping restore possible inside that window; (4) **hard-delete on request** as an explicit destructive admin action that accepts breaking older versions, needed for takedown and erasure requests regardless of which of the above is chosen.
+
+Related surfaces: `upload.location` scoping (4.2) determines what a per-collection or per-location sweep can address; the transactional staging entry above needs the same sweeper for abandoned staging entries; and this shares its shape with [Cascade-delete acted on](#cascade-delete-acted-on), which asks the same question for relation targets.
+
+**Trigger:** storage cost or growth becomes visible, or a deletion request arrives that must be honoured (takedown, erasure). Option (4) alone may be enough to satisfy the second without committing to a full lifecycle.
 
 ### Build-time `server-only` poison for collection hooks
 
@@ -161,6 +192,24 @@ With friendly storage keys shipped (4.2: `<location|collection>/<slug>-<suffix>.
 **Trigger (relax upload leaf-name uniqueness):** ships with the stable HTTP API transport above, not before. `attach-hooks.ts` rejects duplicate upload-capable leaf names within a collection because the *server* selects the target field by leaf name (`resolveUploadField` in `host-tanstack-start/src/server-fns/collections/upload.ts` matches `f.name === requested`). The grammar now makes the alternative straightforward — the client computes the block-qualified declaration path (it can read `_type` from form state) and the server resolves it with `resolveDeclarationPath` — but that changes what the upload request carries, and the transport boundary should be designed across the whole surface at once rather than around one field.
 
 **Trigger (paired resolution / index trail):** a second consumer asks for it. FORRU's extraction config uses a wildcard notation of its own (`files[].filesGroup.publicationFile`) with a hand-rolled walker that fans out across array items and resolves sibling paths against the *same* item. The `[]` marker is redundant against a schema-aware resolver — the schema already knows `files` is an array — so that half is obsoleted by this work. The paired-resolution semantic is a genuine gap with exactly one consumer today, which is too thin a basis for a public API.
+
+### Block-qualified runtime paths — implemented and rejected
+
+**Status: not a pending item.** Recorded so the design is not proposed a second time. [Path Grammar](./docs/03-architecture/04-path-grammar.md) is authoritative for what Byline does today.
+
+Form and patch paths carry no block type; persisted storage paths do, because a value row has no `_type` column while an in-memory item does. Carrying the block type through the runtime notations as well was implemented in full on 2026-07-19, to give one visually consistent notation across logs, patch payloads and storage rows. It was abandoned rather than merged.
+
+**Why.** The added segment addresses nothing in the data — block items are stored flat, `{ _id, _type, ...fields }` — so every consumer had to recognise it and skip it. Three did: the patch walkers, the admin form store, and upload resolution. Three defects followed:
+
+1. A reorder combined with a heterogeneous block wrote a phantom object into a stale item.
+2. The block type was carried but never enforced, so a mismatched segment silently edited the real field. The cost of an assertion was paid without gaining the integrity of one.
+3. `UploadConfig.context` regressed. `resolveContextPath` counts every dotted segment as one scope level, so `../` stopped inside the block instead of reaching the document root. Confirmed by direct test — a public API regression.
+
+The general lesson is the third: each non-navigating segment creates another place that must know to erase it, and nothing enforces that obligation. Two of the three consumers were missed on the first implementation pass and the third was found only in review. The cost kept growing while the value stayed fixed at visual consistency alone.
+
+Both real benefits — resolving the exact block declaration, and resolving an upload without form data — are obtainable from a schema-and-data-aware resolver that reads `_type`, with no change to any payload.
+
+**Trigger to revisit:** a genuinely cold consumer, meaning a persisted operation log, peer synchronisation, or collaborative editing, where a path is read without the document in hand. At that point the block type becomes load-bearing rather than decorative, and should be a validated assertion that is rejected on mismatch, parsed centrally, and explicitly ignored by relative-scope arithmetic — not a pseudo-navigation segment that every data walker strips. The regression in (3) is now pinned by a test (`packages/admin/src/forms/upload-executor.test.node.ts`, "climbs out of the block to the document root").
 
 ### Per-locale paths (translated slugs)
 
