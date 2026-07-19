@@ -104,6 +104,15 @@ const blocksFields: Field[] = [
             ],
           },
           { name: 'caption', label: 'Caption', type: 'text' },
+          {
+            // Declared directly on the block, unlike `poster` above. This is
+            // the only depth at which `..` must leave the block entirely, so
+            // it is the only depth that can detect a scope miscount.
+            name: 'blockFile',
+            label: 'Block file',
+            type: 'file',
+            upload: { context: ['caption', '../title'] },
+          },
         ],
       },
     ],
@@ -314,6 +323,37 @@ describe('executeUploads — upload fields inside blocks', () => {
 
     expect(bodies[0]?.get('caption')).toBe('Video caption')
     expect(bodies[0]?.get('title')).toBe('Hello')
+  })
+
+  it('climbs out of the block to the document root for an upload declared on the block', async () => {
+    // The scope boundary, and the one case that can catch a miscount.
+    //
+    // `poster` sits inside `gallery[]`, so its `../caption` climbs from the
+    // array item to the *block item* — a hop that stays inside the block.
+    // `blockFile` sits on the block itself, so `../title` has to leave the
+    // block and land at the document root.
+    //
+    // Those two behave differently under a path that carries a segment which
+    // addresses nothing. An abandoned experiment qualified instance paths with
+    // the block type (`content[1].videoBlock.blockFile`), and because
+    // `resolveContextPath` counts every dotted segment as one scope,`..`
+    // stopped one level short: `../title` resolved to `content[1].title`
+    // inside the block rather than the root, and arrived empty. The
+    // inside-the-block case absorbed the extra segment and kept passing —
+    // which is exactly why it cannot stand in for this one.
+    const { fn, bodies } = captureUploadField()
+    const uploads = new Map([['content[1].blockFile', pendingUpload()]])
+
+    await executeUploads(uploads, fn, {
+      fields: blocksFields,
+      getFormValues: blocksFormValues,
+    })
+
+    // Root-level `title`, not the block's own `caption` scope.
+    expect(bodies[0]?.get('title')).toBe('Hello')
+    // The sibling still resolves, so a failure above is the climb specifically
+    // and not block resolution having gone wrong generally.
+    expect(bodies[0]?.get('caption')).toBe('Video caption')
   })
 
   it('still resolves when the addressed block item is missing from form state', async () => {
