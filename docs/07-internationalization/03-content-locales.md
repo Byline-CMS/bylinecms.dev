@@ -4,7 +4,13 @@ path: "i18n-content-locales"
 summary: "The language a document is published in: per-document locale resolution and fallback (onMissingLocale), the version-level completeness rule, and the editorial availableLocales control that decides which locales a document advertises in hreflang, sitemaps, and 'Also available in…' menus."
 ---
 
-## Content locales
+# Content locales
+
+Companions:
+- [Internationalization](./index.md) — the three-axis overview; content locales are the axis that lives in the data.
+- [The host i18n system](./01-host-i18n.md) — how a host turns the available/advertised facts here into `hreflang`, canonical, and sitemap entries.
+- [Administering content locales](./04-administering-locales.md) — switching a system's default content locale safely.
+- [Document Paths](../04-collections/05-document-paths.md) — the per-`(document, locale)` path row and the `sourceLocale` anchor content resolution builds on.
 
 A **content locale** is the language a *document* is published in. Unlike
 interface locales (a UI-chrome concern), content locales live in the data: each

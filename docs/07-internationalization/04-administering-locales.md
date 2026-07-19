@@ -4,6 +4,13 @@ path: "i18n-administering"
 summary: "The administrative task of switching a system's default content locale safely: why the default doubles as a per-document data anchor, the per-document source_locale that makes the switch a non-event, and the bulk re-anchor workflow for moving documents onto a new default."
 ---
 
+# Administering content locales
+
+Companions:
+- [Content locales](./03-content-locales.md) — what a content locale is, and the resolution / fallback / advertising machinery this administrative task operates on.
+- [Document Paths](../04-collections/05-document-paths.md) — the per-`(document, locale)` path row that a re-anchor moves onto the new default locale.
+- [Internationalization](./index.md) — the three-axis overview.
+
 ## Switching the default content locale
 
 A system's default content locale (`i18n.content.defaultLocale`) does two

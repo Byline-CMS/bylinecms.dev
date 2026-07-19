@@ -4,14 +4,20 @@ path: "i18n-host"
 summary: "How a host application coordinates with Byline's content locales: the routable-vs-advertised distinction, the non-sticky content-locale rule, clean default-locale URLs via an isomorphic rewrite, and the single dependency-free reach into Byline's locale set."
 ---
 
-## The host i18n system
+# The host i18n system
+
+Companions:
+- [Internationalization](./index.md) — the three-axis overview this is the public-site half of.
+- [Content locales](./03-content-locales.md) — the available/advertised locale facts the host turns into `hreflang`, canonical, and sitemap entries.
+- [Document Paths](../04-collections/05-document-paths.md) — the same core-stores-the-slug, host-composes-the-URL boundary applied to locale routing.
+- [Routing & API](../05-reading-and-delivery/02-routing-and-api.md) — the resolved `routes` config the locale rewrite reads to skip admin, API, and sign-in trees.
 
 This repo ships a worked, copy-and-adapt example of a host frontend that
 coordinates with Byline's content locales. It is a *reference*, not a turnkey
 module — SEO conventions, URL strategy, and routing differ per host and per
 framework, so Byline deliberately does not bake one opinion into the CMS.
 
-### What the host owns
+## What the host owns
 
 Byline core stops at **facts**. Per read, it tells you which content locale a
 document resolved to, and which locales it is *available* and *advertised* in.
@@ -34,7 +40,7 @@ The host owns:
   availability, distinct from the global interface-language switcher.
 - **`<meta>` / Open Graph / Twitter** tags.
 
-### Routable vs advertised, and the non-sticky rule
+## Routable vs advertised, and the non-sticky rule
 
 The key design idea on the host side is that the set of locales a URL can
 *resolve* is wider than the set it *promotes*:
@@ -48,7 +54,7 @@ content-only deep link such as `/ja/news/foo` works even though the frontend
 chrome has no Japanese bundle (the chrome falls back to the default interface
 locale; the *content* still renders in Japanese).
 
-#### Clean default-locale URLs via an isomorphic rewrite
+### Clean default-locale URLs via an isomorphic rewrite
 
 `$lng` is a **required** segment internally, but the default-locale prefix is
 never visible in the address bar. An isomorphic URL-rewrite pair
@@ -75,7 +81,7 @@ arrangement replaced an earlier optional `{-$lng}` matcher plus per-locale route
 shims / virtual routes — the rewrite removes that machinery while keeping clean
 default-locale URLs.)
 
-#### The non-sticky rule
+### The non-sticky rule
 
 A content-only locale must **not** become sticky. If a visitor on the English
 site follows one Japanese article, the `/ja` prefix must not pin Japanese into
@@ -99,7 +105,7 @@ The net effect is exactly the property called out in the introduction: a content
 translation is discoverable and linkable, but it never silently switches and
 sticks as an interface locale.
 
-#### Content locale vs interface locale (chrome), and why chrome is deterministic
+### Content locale vs interface locale (chrome), and why chrome is deterministic
 
 Two locales are in play on any URL, exposed as two hooks:
 
@@ -126,7 +132,7 @@ construction.
 > add a normalized interface-locale dimension to its CDN cache key — an ops-only
 > change that leaves the app deterministic-by-default.
 
-### The single reach into Byline
+## The single reach into Byline
 
 The host frontend needs to know Byline's content-locale set, and it gets it from
 **one** explicit boundary: `apps/webapp/byline/public.ts`. That client-safe barrel
@@ -191,7 +197,7 @@ Runtime config getters are not the public client boundary. Import from
 `byline/public.ts`, not `byline/i18n.ts`, in public client code.
 :::
 
-### Reference implementation files
+## Reference implementation files
 
 A worked TanStack-Start host, all under `apps/webapp/`:
 

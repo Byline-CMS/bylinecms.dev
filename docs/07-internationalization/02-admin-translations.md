@@ -4,7 +4,12 @@ path: "i18n-admin"
 summary: "Translating the Byline admin shell with the @byline/i18n package: registering the bundled locales, the useTranslation hook, server-side translation, ICU message formatting, per-user locale preference, and the extension surface for plugins and custom fields."
 ---
 
-## Admin interface translations
+# Admin interface translations
+
+Companions:
+- [Internationalization](./index.md) — the three-axis overview; this is the admin-interface axis, isolated from host and content translation.
+- [The host i18n system](./01-host-i18n.md) — the public-site translation system this is deliberately kept separate from.
+- [Content locales](./03-content-locales.md) — the independent axis: what language a document publishes in, distinct from what language the admin renders in.
 
 The Byline admin shell renders end-to-end in English and French today, with
 hooks for plugins, custom fields, and extensions to register their own
