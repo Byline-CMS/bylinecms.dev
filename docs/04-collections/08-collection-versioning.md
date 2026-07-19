@@ -4,7 +4,16 @@ path: "collection-versioning"
 summary: "Byline records which schema version each document was written against. How the collection fingerprint (schema_hash) decides when a version bumps, the auto-bump-with-pin policy, startup reconciliation, and the boundary: what is recorded today versus what is not yet read by version."
 ---
 
+# Collection Versioning
+
+Companions:
+- [Document Storage](../03-architecture/01-document-storage.md) — the *document* versioning this is the schema-side companion to (the sibling pillar).
+- [Collections](./index.md) — the `version?` pin and the `useAsPath` / `useAsTitle` fields that participate in the fingerprint.
+- [Architecture — document level vs version level](../03-architecture/index.md#3-document-level-vs-version-level) — where schema versioning sits among Byline's versioning stories.
+
 Immutable versioning is one of Byline's differentiating pillars. The *document* half of that story is fundamental: every save writes a new `documentVersions` row keyed by UUIDv7, a `current_documents` view resolves "the latest" via `ROW_NUMBER() OVER PARTITION`, and a status change is the deliberate exception that mutates a row in place. **Collection versioning** is the schema-side companion: on every document save, Byline records which version of the collection's *schema* the document was written against.
+
+Read this document when you need to reason about which schema a stored document was written against, understand when a schema edit bumps the recorded version, or pin a version explicitly across environments.
 
 > **What you can rely on.** Every document version carries an integer `collection_version` you can read and reason about, and every collection row carries a `schema_hash` that bumps when the data-affecting parts of the schema change. The aim is that a document version can later be resolved against the collection schema *as it was* when the version was written, and migrated forward in memory. Today Byline records the version; it does not yet read documents by it — the read path uses the live `CollectionDefinition` regardless of `collection_version`. See [the boundary](#boundary-what-does-not-read-by-version-yet) below for exactly where that line sits.
 
@@ -45,7 +54,7 @@ Both `current_documents` and `current_published_documents` views project `collec
 - `upload.storage` (provider implementation, not data shape)
 - Select option `label`s
 
-The stripping rules are enforced by **whitelist** — known keys are copied; unknown keys are dropped. So adding a new presentational field to `CollectionDefinition` will not silently churn versions. Stability is covered by 19 contract tests in `collection-fingerprint.test.node.ts`: key-order invariance, function exclusion, every "does NOT bump" rule, and every "DOES bump" rule.
+The stripping rules are enforced by **whitelist** — known keys are copied; unknown keys are dropped. So adding a new presentational field to `CollectionDefinition` will not silently churn versions. Stability is covered by the contract tests in `collection-fingerprint.test.node.ts`: key-order invariance, function exclusion, every "does NOT bump" rule, and every "DOES bump" rule.
 
 **Why SHA-256, why Web Crypto.** SHA-256 over a 32-bit hash because this is the tamper-evidence record for the lifetime of the installation — collision resistance matters. 64 hex chars is cheap to store and compare. The hash is computed via `crypto.subtle.digest` (Web Crypto), not Node's `node:crypto`. An earlier iteration imported `node:crypto.createHash`; Vite's module-graph walker pulled the import into the client bundle (via `core.ts` → `collection-bootstrap.ts` → fingerprint) even though the client never calls `fingerprintCollection`. Externalising `node:crypto` would have thrown at runtime. The Web Crypto switch eliminated the issue without conditional platform code; the side-effect is that `fingerprintCollection` is `async`.
 

@@ -7,14 +7,19 @@ summary: "Byline's Lexical-based rich text editor: the extension API, built-in n
 # Rich Text Editor
 
 Companions:
-- [Core Composition](../03-architecture/02-core-composition.md) — the broader roadmap for how Byline composes adapter packages (db, storage, session, editors).
+- [Fields](./01-fields.md) — the per-field editor override (`FieldAdminConfig.editor`) and the schema-side settings preset (`lexicalRichTextCompact`).
+- [Blocks](./02-blocks.md) — tailoring one block's richText field with its own editor via `defineBlockAdmin`.
 - [Relationships](./03-relationships.md) — the relation-field primitive that richtext links and inline images are layered on top of.
+- [Core Composition](../03-architecture/02-core-composition.md) — the field-level adapter slots (`ServerConfig.fields.richText.*`) this editor registers through.
+- [Markdown Export](../05-reading-and-delivery/04-markdown-export.md) — the one-way serializer the `toMarkdown` server factory feeds.
 
 ## Overview
 
-Byline's richtext is pluggable through a deliberately small adapter contract. Today the project ships one editor — `@byline/richtext-lexical` — built on Lexical. The cross-editor contract (a client render component and a server populate function) stays minimal so a future TipTap or markdown adapter can fit the same shape. On top of that, the Lexical adapter exposes a **BYO-extension surface** built on Lexical's [Extensions API](https://lexical.dev/docs/extensions/intro) — site authors and third parties register Lexical extensions through a chainable list and contribute toolbar / floating-UI items through typed peer dependencies on `BylineToolbarExtension` and `BylineFloatingUIExtension`.
+A `richText` field gives an editor a full document editing surface — headings, links, inline images, tables, code, admonitions. Byline's richtext is pluggable through a deliberately small adapter contract, and today the project ships one editor: `@byline/richtext-lexical`, built on Lexical. The cross-editor contract (a client render component and a server populate function) stays minimal so a future TipTap or markdown adapter can fit the same shape. On top of that, the Lexical adapter exposes a **BYO-extension surface** built on Lexical's [Extensions API](https://lexical.dev/docs/extensions/intro) — you register Lexical extensions through a chainable list and contribute toolbar and floating-UI items through typed peer dependencies on `BylineToolbarExtension` and `BylineFloatingUIExtension`.
 
-`@byline/ui` no longer depends on Lexical at all. `@byline/richtext-lexical` ships two entry points — the default export is the React render surface; `@byline/richtext-lexical/server` carries two factories (`lexicalEditorEmbedServer` and `lexicalEditorPopulateServer`) that wire the same visitor pipeline into the framework's write and read paths respectively.
+Read this document when you are registering the editor, turning built-in features on or off, contributing a toolbar or floating-UI item, or wiring the server adapters that embedded relations and search indexing depend on.
+
+`@byline/ui` no longer depends on Lexical at all. `@byline/richtext-lexical` ships two entry points: the default export is the React render surface, and `@byline/richtext-lexical/server` carries the server-side factories — `lexicalEditorEmbedServer` and `lexicalEditorPopulateServer` (the write- and read-path visitor pipeline), plus `lexicalEditorToMarkdownServer` and `lexicalEditorToTextServer` (the [markdown export](../05-reading-and-delivery/04-markdown-export.md) and [search-indexing](../05-reading-and-delivery/07-search.md) serializers).
 
 ---
 

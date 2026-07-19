@@ -9,7 +9,7 @@ summary: "First-class typed relations: the populate pipeline, depth-bounded recu
 Companions:
 - [Document Storage](../03-architecture/01-document-storage.md) — the foundational EAV layer relations read and write against (`store_relation` is one of the seven typed stores).
 - [Client SDK](../05-reading-and-delivery/01-client-sdk.md) — `@byline/client` is where most relation reads land; the populate / `WithPopulated` patterns are documented there too.
-- [Collections](./index.md) — `picker` column definitions for relation-picker rows, and the `useAsTitle` field used by populate's default projection.
+- [Collections](./index.md) — `itemView` column definitions for relation-picker rows, and the `useAsTitle` field used by populate's default projection.
 - [Document Paths](./05-document-paths.md) — `path` lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`. Used by relation filters (`where: { category: { path: 'news' } }`) and locale-resolved per request.
 - [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — populate threads `RequestContext` so `beforeRead` / `afterRead` apply to populated targets.
 - [File / Media Uploads](./06-file-media-uploads.md) — the `Media` collection plus a relation pointing at it is the canonical "shared media library" pattern.
@@ -17,7 +17,9 @@ Companions:
 
 ## Overview
 
-A relation in Byline is a typed reference from one document to another. Relations are first-class citizens of the storage layer (`store_relation` is one of the seven typed `store_*` tables) and a first-class field type (`RelationField`). Every relation carries the target's logical id and collection id, plus optional link metadata (`relationship_type`, `cascade_delete`).
+A relation is a typed reference from one document to another — a news article pointing at its category, or at the media item it uses as a feature image. Relations are first-class in two places: the storage layer (`store_relation` is one of the seven typed `store_*` tables) and the field model (`RelationField`). Every relation carries the target's logical id and collection id, plus optional link metadata (`relationship_type`, `cascade_delete`).
+
+Read this document when you are declaring a relation field, reading related documents back, or filtering a query by a relation's target. Most of the surface area is about *populate* — turning a stored reference into the target document at read time.
 
 Today's surface is intentionally focused:
 
@@ -335,7 +337,7 @@ store_relation
   cascade_delete        boolean             -- nullable; not yet acted on
 ```
 
-The flatten/reconstruct pipeline in `packages/db-postgres/src/modules/storage/storage-utils.ts` round-trips the reference shape: a `RelationField`'s value at write time is `{ target_document_id, target_collection_id, relationship_type?, cascade_delete? }`, and that's exactly what's reconstructed on read before populate runs.
+The flatten/reconstruct pipeline (`storage-flatten.ts` and `storage-restore.ts` in `packages/db-postgres/src/modules/storage/`) round-trips the reference shape: a `RelationField`'s value at write time is `{ target_document_id, target_collection_id, relationship_type?, cascade_delete? }`, and that is exactly what is reconstructed on read before populate runs.
 
 ### The relation envelope — four states, one shape
 
@@ -411,7 +413,7 @@ The **default projection** is the document row metadata that's always free (`doc
 
 **`useAsTitle` lives on `CollectionDefinition`.** The default projection is **schema-aware without a UI dependency**. `useAsTitle` was deliberately placed on `CollectionDefinition` (server-safe) rather than on `CollectionAdminConfig` (admin-only) so populate, `afterRead` consumers, and any future access-control consumer can read a document's identity without taking a UI runtime dependency. Django's `Model.__str__` is the analogue.
 
-`CollectionAdminConfig` retains a separate `picker?: ColumnDefinition[]` slot that drives rich row rendering in the relation-picker modal (e.g. thumbnail + title + status for Media). It's distinct from `columns` (which drives list-view rendering); formatters are reusable across both. See [Collections § Columns and picker](./index.md#columns-and-picker).
+`CollectionAdminConfig` carries a separate `itemView?: ColumnDefinition[]` slot that drives rich row rendering in the relation-picker modal (e.g. thumbnail + title + status for Media). It is distinct from `columns` (which drives list-view rendering); formatters are reusable across both. (`picker?` is a deprecated alias for `itemView`.) See [Collections § Columns and itemView](./index.md#columns-and-itemview).
 
 ### Status awareness through populate
 

@@ -16,7 +16,7 @@ Companions:
 
 ## Overview
 
-Uploads in Byline are a **field-level** concern. An `image` or `file` field declares its own `upload` block, and that block carries everything the upload pipeline needs to validate, store, post-process, and hook into the bytes:
+Uploads in Byline are a **field-level** concern. You add an `image` or `file` field, give it an `upload` block, and that block carries everything the pipeline needs to validate, store, post-process, and hook into the bytes:
 
 - `mimeTypes` — what the field accepts
 - `maxFileSize` — per-file size cap
@@ -37,6 +37,8 @@ This is unlike the more common "the collection *is* a media library" model. In B
 - **Both, in the same schema.** A `Page` can have `heroImage` inline *and* `gallery: relation(many) → media` side by side.
 
 The "is this a media library?" question is a UI concern, not a schema one — the admin shows gallery affordances for collections it knows about by convention, not by a flag in the schema.
+
+Read this document when you are adding an upload field, configuring image variants, routing a field to a specific storage backend, or hooking into the store step to rename files or trigger side effects.
 
 ---
 

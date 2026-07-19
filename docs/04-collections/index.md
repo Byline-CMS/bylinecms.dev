@@ -16,14 +16,18 @@ Companions:
 
 ## Overview
 
-A collection is the unit of authoring in Byline. Like a Django model with its `ModelAdmin`, it lives in two places: a **schema** that declares what the collection *is* (`CollectionDefinition`, returned by `defineCollection`), and an **admin** that declares how it *renders* in the dashboard (`CollectionAdminConfig`, returned by `defineAdmin`). The two are linked by the schema's `path`. This doc is the working reference for both halves; the related [Collection Versioning](./08-collection-versioning.md) reference covers the schema-versioning layer that records which schema version each document was authored against.
+A collection is the unit of authoring in Byline — one collection per content type, and every [document](../03-architecture/01-document-storage.md) is an instance of exactly one. Defining a collection is how you tell Byline what a content type contains and how editors work with it.
+
+You define it in two places, the way a Django model pairs with its `ModelAdmin`: a **schema** that declares what the collection *is* (`CollectionDefinition`, returned by `defineCollection`), and an **admin** config that declares how it *renders* in the dashboard (`CollectionAdminConfig`, returned by `defineAdmin`). The schema's `path` links the two.
+
+This document is the working reference for both halves. Read the [Quick reference](#quick-reference) if you know the shape you need and want the minimal recipe; read [Architecture](#architecture) for how the pieces fit. The related [Collection Versioning](./08-collection-versioning.md) reference covers the schema-versioning layer that records which schema version each document was authored against.
 
 ```
 schema.ts                            admin.tsx
 ─────────                            ────────
 defineCollection({                   defineAdmin(News, {
   path: 'news',                        columns,
-  fields: [...],                       picker,
+  fields: [...],                       itemView,
   useAsTitle,                          tabSets / rows / groups / layout,
   workflow,                            preview.url,
   hooks,                               listView,
@@ -104,7 +108,7 @@ const columns: ColumnDefinition[] = [
 defineAdmin(News, { columns })
 ```
 
-→ [Columns and picker](#columns-and-picker)
+→ [Columns and itemView](#columns-and-itemview)
 
 ### 4. Set item-view columns
 
@@ -122,7 +126,7 @@ const itemViewColumns: ColumnDefinition[] = [
 defineAdmin(Media, { itemView: itemViewColumns })
 ```
 
-→ [Columns and picker](#columns-and-picker)
+→ [Columns and itemView](#columns-and-itemview)
 
 ### 5. Group fields into tabs, rows, and groups
 
@@ -291,7 +295,7 @@ A collection lives in two files:
 - **Schema** (`collections/<name>/schema.ts`) — a `CollectionDefinition` returned by `defineCollection`. Pure data: `path`, `labels`, `fields[]`, `useAsTitle`, `useAsPath`, `workflow`, `hooks`, `search`, `showStats`, `linksInEditor`, `orderable`, `version`. **Must be tsx-loadable** — the server bootstrap in `apps/webapp/byline/server.config.ts` imports schemas directly so seeds and migrations can run outside Vite. No React. No CSS modules. No browser-only globals.
 
   The schema is **isomorphic** — the same module is *also* pulled into the **client** admin bundle (the admin shell reads field config from it). So the constraint runs both ways: just as a schema must avoid browser-only globals (so the server bootstrap can load it), it must avoid **server-only** modules (so the client can bundle it without dragging Node built-ins or backend code into the browser). Declarative field data and isomorphic-safe field hooks satisfy both directions. Register lifecycle/upload hooks that reach server-only code through the [server-only hook registry](#server-only-hook-registry), outside the schema graph.
-- **Admin** (`collections/<name>/admin.tsx`) — a `CollectionAdminConfig` returned by `defineAdmin`. UI overrides: `columns`, `picker`, `tabSets` / `rows` / `groups` / `layout`, `preview.url`, `listView`, `fields{}` (per-field admin), `group`. React, CSS modules, and Vite-managed imports are all fine.
+- **Admin** (`collections/<name>/admin.tsx`) — a `CollectionAdminConfig` returned by `defineAdmin`. UI overrides: `columns`, `itemView`, `tabSets` / `rows` / `groups` / `layout`, `preview.url`, `listView`, `listActions`, `fields{}` (per-field admin), `group`. React, CSS modules, and Vite-managed imports are all fine.
 
 The split mirrors Django's `Model` / `ModelAdmin`. The same field names appear on both sides — the schema declares what the field *is*; the admin declares how it *renders*. The two halves are linked by the schema's `path` (`defineAdmin(schema, …)` sets `slug` from `schema.path` automatically). See [Fields](./01-fields.md) for the equivalent split at the field level.
 
@@ -305,7 +309,13 @@ export interface CollectionDefinition {
   fields: Field[]
   workflow?: WorkflowConfig
   hooks?: CollectionHooks | CollectionHooksLoader
-  search?: { fields: string[] }
+  search?: {                               // provider indexing — see Search
+    body?: SearchFieldDecl[]
+    facets?: SearchFieldDecl[]
+    filters?: string[]
+    zones?: string[]
+  }
+  listSearch?: string[]                    // admin list-view search box
   useAsTitle?: string
   useAsPath?: string
   linksInEditor?: boolean
@@ -343,7 +353,9 @@ export interface CollectionAdminConfig<T = any> {
   slug: string                           // set automatically by defineAdmin
   group?: string                         // sidebar grouping
   columns?: ColumnDefinition<T>[]        // default list view
-  picker?: ColumnDefinition<T>[]         // relation picker rows
+  itemView?: ColumnDefinition<T>[]       // single-item rows (picker, tiles, cells)
+  itemViewSort?: ListDefaultSort<T>      // default sort for itemView results
+  picker?: ColumnDefinition<T>[]         // deprecated alias for itemView
   defaultColumns?: string[]
   tabSets?: TabSetDefinition[]
   rows?: RowDefinition[]
@@ -352,14 +364,15 @@ export interface CollectionAdminConfig<T = any> {
   fields?: Record<string, FieldAdminConfig>
   preview?: { url: (doc, ctx) => string | null }
   listView?: (props: ListViewComponentProps) => any
+  listActions?: Array<(props: ListActionComponentProps) => any>  // list-header slot
 }
 ```
 
-The four major slot areas are: **columns** (list view + relation picker), **layout** (tabs / rows / groups composed into main/sidebar), **preview** (the preview URL builder), and **listView** (the custom-component escape hatch). Per-field admin lives in `fields{}` and is documented in [Fields](./01-fields.md).
+The major slot areas are: **columns** (the default list view), **itemView** (how a single document renders when it appears elsewhere — a relation picker row, a tile, a cell), **layout** (tabs / rows / groups composed into main and sidebar), **preview** (the preview URL builder), **listView** (the custom-component escape hatch), and **listActions** (a header slot on the list view, used by the search Reindex button). Per-field admin lives in `fields{}` and is documented in [Fields](./01-fields.md).
 
-### Columns and picker
+### Columns and itemView
 
-A `ColumnDefinition` maps a field name (or a top-level column like `status` / `updatedAt`) to a column header. The shape is the same for both `columns` (list view) and `picker` (relation picker rows), so formatters and helpers are reusable across both.
+A `ColumnDefinition` maps a field name (or a top-level column like `status` / `updatedAt`) to a column header. The shape is the same for both `columns` (the list view) and `itemView` (how one document renders when it appears elsewhere — a relation picker row, a tile, a cell), so formatters and helpers are reusable across both.
 
 ```ts
 export interface ColumnDefinition<T = any> {
@@ -378,7 +391,7 @@ export type ColumnFormatter<T = any> =
 
 **Formatter forms.** The plain-function form is fine for one-line transformations. The `{ component }` form gives you a real React component for the cell — hooks, context, conditional rendering all work. Built-ins like `DateTimeFormatter` and project-local components like `MediaThumbnail` use this form.
 
-**Picker columns.** When omitted, the relation picker falls back to a single-line render of `useAsTitle` + `path`. Define `picker` when you want a tailored row for one of your collections appearing as a relation target — typically narrower than the list-view columns. See `apps/webapp/byline/collections/media/admin.tsx` for the canonical example.
+**itemView columns.** When omitted, a document appearing as a relation target falls back to a single-line render of `useAsTitle` + `path`. Define `itemView` when you want a tailored row for one of your collections in that position — typically narrower than the list-view columns. The `picker` key is a deprecated alias for `itemView`, kept working for back-compatibility; `itemView` wins when both are present. See `apps/webapp/byline/collections/media/admin.tsx` for the canonical example.
 
 ### Layout primitives
 
@@ -543,7 +556,7 @@ Status changes mutate the existing version row in-place — they are lifecycle m
 
 ### Lifecycle hooks
 
-`CollectionHooks` on `CollectionDefinition` provides server-side lifecycle hooks for documents in the collection. Each hook accepts a single function or an array of functions executed sequentially.
+`CollectionHooks` on `CollectionDefinition` gives you server-side lifecycle hooks for the collection's documents. Each hook takes a single function or an array of functions run sequentially.
 
 | Phase | Hooks |
 |---|---|
@@ -556,9 +569,20 @@ Status changes mutate the existing version row in-place — they are lifecycle m
 | Document tree | `afterTreeChange` |
 | Read | `beforeRead` (row-scoping predicate), `afterRead` (per-materialization mutation) |
 
-**`beforeRead`** is the row-scoping hook. It returns a `QueryPredicate` that is ANDed with caller filters, but the two inputs compile separately: caller `where` uses the ordinary query parser, while the hook predicate uses the strict security compiler. The strict result compiles once per logical `ReadContext` + collection + effective read mode in private, authority-bound state; concurrent populate branches share that result. Unsupported fields/operators or malformed values throw rather than being weakened or dropped, and top-level `status` / `path` operators are emitted as document-column filters consistently across list, detail, populate, count, history, and tree reads. The deprecated caller-owned `ReadContext.beforeReadCache` is ignored, and attempting to reuse a logical read across authorities fails closed. Coverage is end-to-end — ordinary reads and counts, every immutable row in `history()` / `findByVersion()`, tree edges and hydration, search authorization, populated relations, and rich-text document/image targets all apply the target collection's ability and predicate. `auditLog()` is the deliberate exception described in [Auditability](../06-auth-and-security/02-auditability.md): it gates the document-grain log through the current document rather than applying a predicate to each audit row. See [Authentication & Authorization — Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping-the-beforeread-hook) for the full reference and worked recipes.
+The two read hooks carry the security-sensitive behaviour, so they are worth reading closely. The full reference and worked recipes live in [Authentication & Authorization — Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping-the-beforeread-hook); the summary is here.
 
-**`afterRead`** runs after populate on each fresh raw document materialization and receives mutable `ctx.doc`, the operation's immutable actor-aware `requestContext` (including effective `readMode`), and the shared `readContext`. The same object is processed only once, but a freshly materialized object may run again even for the same version. If a nested hook read reaches a version whose hook is still active, core fails closed with `ERR_READ_RECURSION` rather than returning a partially redacted object. Thread `ctx.readContext` into nested reads so budgets, predicate caching, and active-recursion guards remain effective.
+**`beforeRead`** is the row-scoping hook. You return a `QueryPredicate`, and Byline ANDs it with the caller's filters — but the two compile through different paths, and the difference is the point:
+
+- Your caller's `where` goes through the ordinary query parser. Your hook predicate goes through the **strict security compiler**: an unsupported field or operator, or a malformed value, **throws** rather than being weakened or dropped. A scoping rule that cannot be honoured fails the read; it never silently widens it.
+- The strict result compiles once per logical read — keyed on `ReadContext`, collection, and effective read mode — in private, authority-bound state that concurrent populate branches share. Reusing a logical read across authorities fails closed, and the deprecated caller-owned `ReadContext.beforeReadCache` is ignored.
+- Top-level `status` and `path` operators become document-column filters, applied consistently across list, detail, populate, count, history, and tree reads.
+- Coverage is end-to-end. Ordinary reads and counts, every immutable row in `history()` and `findByVersion()`, tree edges and hydration, search authorization, populated relations, and rich-text document and image targets all apply the target collection's ability and predicate. The one deliberate exception is `auditLog()`, which gates the document-grain log through the current document rather than applying a predicate to each audit row — see [Auditability](../06-auth-and-security/02-auditability.md).
+
+**`afterRead`** runs after populate, once per freshly materialized raw document, and lets you mutate what the read returns:
+
+- You receive a mutable `ctx.doc`, the operation's immutable actor-aware `requestContext` (including the effective `readMode`), and the shared `readContext`.
+- A given object runs through the hook only once, though a freshly materialized object may run again for the same version.
+- If a read you issue inside the hook reaches a version whose hook is still active, core fails closed with `ERR_READ_RECURSION` rather than returning a partially redacted object. Thread `ctx.readContext` into any nested read so the budgets, predicate cache, and active-recursion guard stay effective.
 
 `afterSystemFieldsChange` and `afterTreeChange` run **after** their audited transaction commits. The system-field context distinguishes requested intent from fields that actually changed and carries locked previous/current path and advertised-locale snapshots. Actual changes fire once; exact no-ops normally write, audit, and emit nothing. Callers may opt into no-op reconciliation to re-run failed side effects without another mutation or audit row (`SystemFieldsChangeContext.reconciliation` identifies that case; tree consumers must simply be idempotent). Hook arrays remain sequential and fail-fast.
 

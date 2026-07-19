@@ -1,10 +1,17 @@
 ---
 title: "Document Trees"
 path: "document-tree"
-summary: "A document-level, single-parent, ordered hierarchy for self-referential collections — the structural backbone for documentation and book sites. Enable it with tree: true and Byline gives you a navigable table of contents, hierarchical URLs, breadcrumbs, and prev/next, all without versioning the structure."
+summary: "A document-level, single-parent, ordered hierarchy for self-referential collections: enable it with tree: true for a navigable table of contents, hierarchical URLs, breadcrumbs, and prev/next — all without versioning the structure."
 ---
 
 # Document Trees
+
+Companions:
+- [Architecture — document level vs version level](../03-architecture/index.md#3-document-level-vs-version-level) — why the tree edge sits outside the version stream, alongside `path` and `availableLocales`.
+- [Document Paths](./05-document-paths.md) — the flat leaf slug the tree composes hierarchical URLs from at read time.
+- [Relationships](./03-relationships.md) — the cross-link relation field to reach for when a topic belongs in more than one place.
+- [Transactions](../03-architecture/03-transactions.md) — the atomic mutate-plus-audit and delete-reconciliation guarantees a tree collection's adapter must supply.
+- [Auditability](../06-auth-and-security/02-auditability.md) — the tree action rows (`document.tree.placed`, `.reparented`, `.reordered`, `.removed`).
 
 A **document tree** turns a collection into a navigable hierarchy: an ordered,
 single-parent table of contents where every document knows its place. It is the

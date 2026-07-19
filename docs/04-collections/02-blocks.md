@@ -15,8 +15,13 @@ Companions:
 ## Overview
 
 A block is a reusable, typed unit of structured content that editors compose
-inside a `type: 'blocks'` field. Like collections, blocks live on two sides of
-the schema/admin split:
+inside a `type: 'blocks'` field — a quote, a photo with a caption, a code
+sample. You reach for a block when a field needs to hold a mix-and-match
+sequence of these units rather than one fixed shape.
+
+Read this document when you are defining a new block, tailoring one block's
+editor, or wiring blocks into a collection. Like collections, blocks live on
+two sides of the schema/admin split:
 
 ```ts
 // apps/webapp/byline/blocks/quote-block.ts (schema — React-free, tsx-loadable)

@@ -13,9 +13,14 @@ Companions:
 
 ## Overview
 
-A field in Byline lives on two sides of a deliberate split. The **schema** describes what the field *is* — name, type, validation, defaults, schema-level adapter config. The **admin** describes how the field *renders* in the dashboard — slot-component overrides for label, input, help text, adornments, and the per-field richtext editor swap. This doc is the working reference for both sides: how the split works, how to write helpers for each side, and how field-level component slots compose.
+A field is one piece of a collection's content — a title, a body, a publish date. You declare fields on two sides of a deliberate split, and knowing which side a thing belongs on is most of what this document teaches.
 
-The split mirrors Django's `Model` / `ModelAdmin`. The same field name appears on both sides — the schema's `fields[]` array declares the data; the admin's `fields{}` map (keyed by [schema path](#schema-paths-vs-instance-paths) — a top-level name, or a dotted path to a declaration nested in group/array structure) attaches presentation.
+- The **schema** side describes what the field *is*: its name, type, validation, defaults, and schema-level adapter config. It is pure data and must stay tsx-loadable.
+- The **admin** side describes how the field *renders* in the dashboard: slot-component overrides for the label, input, help text, and adornments, plus the per-field richtext editor swap. React lives here.
+
+Read this document when you are adding fields to a collection, reaching for a reusable field helper, or replacing part of a field's rendering. It is the working reference for both sides — how the split works, how to write helpers for each side, and how the field-level component slots compose.
+
+The split mirrors Django's `Model` / `ModelAdmin`. The same field name appears on both sides: the schema's `fields[]` array declares the data, and the admin's `fields{}` map attaches presentation, keyed by [schema path](#schema-paths-vs-instance-paths) — a top-level name, or a dotted path to a declaration nested in group or array structure.
 
 ```
 fields: [                            fields: {

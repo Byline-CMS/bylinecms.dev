@@ -13,7 +13,9 @@ Companions:
 
 ## Overview
 
-`path` is a reserved system attribute. It is the routing primitive that resolves a URL path back to a document — the cheapest path-resolution lookup in the system, used by `findByPath` and by relation filters. Storage lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)` with a unique constraint on `(collection_id, locale, path)`. See [Path uniqueness](#path-uniqueness) below for the full schema and lifecycle behaviour.
+A document's **path** is its stable, human-readable address — the slug you put in a URL, such as `launch-2026`. It is a reserved system attribute and the cheapest path-resolution lookup in the system, used by `findByPath` and by relation filters. Storage lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)` with a unique constraint on `(collection_id, locale, path)`. See [Path uniqueness](#path-uniqueness) below for the full schema and lifecycle behaviour.
+
+Read this document when you are choosing which field drives a collection's URLs, overriding a slug from a seed or import, or handling a path collision.
 
 Three rules anchor the model:
 
@@ -260,4 +262,4 @@ Once a document row is known, reads compose a fallback chain `[requested, source
 | Form rendering integration                          | `packages/admin/src/forms/form-renderer.tsx`                              |
 | Integration tests (collision, upsert, fallback)     | `packages/db-postgres/src/modules/storage/tests/storage-document-paths.test.ts` |
 | Lifecycle tests (warn, conflict translation)        | `packages/core/src/services/document-lifecycle.test.node.ts`              |
-| Reference collections using `useAsPath`             | `apps/webapp/byline/collections/{pages,news,docs,categories}/schema.ts`   |
+| Reference collections using `useAsPath`             | `apps/webapp/byline/collections/{pages,news,docs,news-categories}/schema.ts` |
