@@ -6,7 +6,7 @@ summary: "Why Byline exists: an AI-first, structurally sound headless CMS that t
 
 # Mission & Vision
 
-## Why Byline Exists
+## Why Byline exists
 
 Byline grew out of a frustration that we suspect many projects share. In our
 experience, most content management systems struggle with at least one of three
@@ -15,7 +15,7 @@ struggle with all three. And when they try to support all three at the same
 time, they tend to break — sometimes obviously, or more commonly, in ways that
 don't surface until you're deep into a real project with real stakes.
 
-## The Three Pillars
+## The three pillars
 
 We believe that content management rests on three pillars, and that these
 pillars can coexist without creating mutually exclusive states or trade-offs
@@ -50,7 +50,7 @@ an audit trail accounts for the structural changes that sit outside it. See
 [Document level vs version level](../03-architecture/index.md#3-document-level-vs-version-level)
 for the full picture.
 
-## Data Ownership
+## Data ownership
 
 We believe that if you create and store content, you should be able to get it
 back out. Not through an export plugin that sort of works. Not through an API
@@ -67,7 +67,7 @@ building a platform that does everything for everyone. And we're not pretending
 we have all the answers. Byline ships as a stable 4.x release, with meaningful
 work still ahead.
 
-## Building in the Open
+## Building in the open
 
 The developers of Byline have worked extensively with non-profits and NGOs,
 and this work has shown us the value of certain freedoms: the freedom to own,
@@ -75,7 +75,7 @@ control, and share content that deserves to be seen. We're building in the
 open because we think the problems we're solving are shared problems, and
 because we'd rather build with people who understand them than in isolation.
 
-## A Note on AI Usage in the Development of Byline
+## A note on AI usage in the development of Byline
 
 The core storage model, early UI, and schema / admin configuration system were
 all developed by hand, drawing on years of experience building solutions on
@@ -89,7 +89,7 @@ on our own.
 
 Our hunch is that even within the rapidly evolving world of LLM-based AI, a
 content management system like Byline will remain a useful tool for our work
-and for the organizations we support. We're also excited by the potential for
+and for the organisations we support. We're also excited by the potential for
 building higher-level AI-enabled services on top of Byline. It's hard to
 predict how this will all play out in a world of software development that is
 changing fast, though we believe the mission and vision above — along with our
