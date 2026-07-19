@@ -43,6 +43,7 @@ const Content = ({
   align,
   alignOffset,
   collisionPadding,
+  anchor,
   ...rest
 }: {
   ref?: React.RefObject<React.ComponentRef<'div'>>
@@ -53,6 +54,14 @@ const Content = ({
   align?: React.ComponentProps<typeof Menu.Positioner>['align']
   alignOffset?: React.ComponentProps<typeof Menu.Positioner>['alignOffset']
   collisionPadding?: React.ComponentProps<typeof Menu.Positioner>['collisionPadding']
+  /**
+   * Element the popup is positioned against. Defaults to the trigger, which is
+   * the right answer when the trigger is the whole control. Pass a wider
+   * element when the trigger is only part of it — a combo button's dropdown
+   * half, say — so `align` measures against the control the user sees rather
+   * than against the narrow trigger.
+   */
+  anchor?: React.ComponentProps<typeof Menu.Positioner>['anchor']
 } & Omit<React.ComponentProps<typeof Menu.Popup>, 'className'>): React.JSX.Element => {
   return (
     <Menu.Positioner
@@ -61,6 +70,7 @@ const Content = ({
       align={align}
       alignOffset={alignOffset}
       collisionPadding={collisionPadding}
+      anchor={anchor}
     >
       <Menu.Popup
         ref={ref}

@@ -56,6 +56,25 @@
 
   .combo-button-options-item,
   :global(.byline-combo-button-options-item) {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     padding: 0 4px;
+  }
+
+  /* Fixed box so labels line up whether or not an item carries an icon. */
+  .combo-button-options-item-icon,
+  :global(.byline-combo-button-options-item-icon) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .combo-button-options-item-label,
+  :global(.byline-combo-button-options-item-label) {
+    min-width: 0;
   }
 }
