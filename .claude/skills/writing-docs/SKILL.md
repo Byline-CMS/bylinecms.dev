@@ -163,6 +163,7 @@ These are the things the current docs most often miss. Non-negotiable.
 
 Plainer than the README. The README is allowed marketing energy — slogans, "foot-gun protection", the three-pillars framing. Docs are not. A doc describes what the system does, directly, for a developer evaluating or learning Byline. No metaphors, slogans, compressed fragments, or rhetorical flourishes, and nothing that asks the reader to infer unstated context.
 
+- **Address the reader as "you."** "You declare a field on two sides", "read this document when you are wiring an adapter" — not "one declares" or "the developer declares". Open every document by orienting that reader: what the subject is, in one concrete sentence, and when they would reach for it. This is separate from naming *system* actors (below): the Postgres adapter and the server are still "the Postgres adapter" and "the server", never personified and never "you". The gold-standard exemplars show the register in practice.
 - **Do:** write clear, grammatically complete sentences; name concrete subjects — "Byline's admin UI", "the server", "the Postgres adapter" — not vague shorthand like "the admin"; state limitations plainly; use active voice; reach for a small table or example when it makes a distinction easier to scan.
 - **Don't:** "simply", "just", "easy", "powerful", "seamless"; marketing adjectives; metaphors and slogans; hedging ("it might be possible to perhaps…"); undefined acronyms; a wall of prose where a list or code block is clearer.
 - **Plain English must not weaken the contract.** Simplify the wording, never the meaning: keep the precise limits, boundaries, and technical qualifications intact. A doc that reads easily but softens a guarantee is wrong.
@@ -230,6 +231,7 @@ Run this against the draft. If any answer is "no", fix it before delivering.
 - [ ] Does every "you can do X" claim have runnable, real-API code next to it?
 - [ ] Are shipped vs deferred features clearly distinguished?
 - [ ] Is the voice plain and direct — no slogans, metaphors, or filler words — while keeping every technical qualification intact?
+- [ ] Is the reader addressed as "you", with system actors still named concretely (not personified)?
 - [ ] Does the front matter carry `title`/`path`/`summary`, with no key outside the allowed set and `title` matching the first H1?
 - [ ] Do all relative links point at `.md` files inside `docs/`, and does every anchor fragment name a heading that exists?
 - [ ] Is the file in the right numbered section, with the next free `NN-` prefix and an entry in that section's `index.md`?
@@ -242,7 +244,7 @@ The `/document` command runs `pnpm docs:check` as a final mechanical gate — th
 
 Read at least one of these before writing. A concrete exemplar calibrates tone and depth better than any rule above.
 
-- [`docs/04-collections/05-document-paths.md`](../../../docs/04-collections/05-document-paths.md) — the reference + explanation hybrid at its cleanest: Overview with three anchoring rules, a task-indexed Quick reference with **Edit:** lines, then the full contract. Match this for any subsystem doc.
-- [`docs/03-architecture/01-document-storage.md`](../../../docs/03-architecture/01-document-storage.md) — dense architecture explanation that still orients in its first paragraph; also the model for Companions entries that say *why* the companion is relevant, and for citing external evidence as an absolute URL.
+- **[`docs/03-architecture/01-document-storage.md`](../../../docs/03-architecture/01-document-storage.md) — the primary model for voice and register.** Read it first. It opens with a vocabulary block that defines every term before use, orients the reader in its first paragraph, addresses the reader as "you" throughout without personifying system actors, walks one concrete document from save to rows to read before the reference sections, and treats the three storage alternatives symmetrically. It is also the model for Companions entries that say *why* the companion is relevant, and for citing external evidence as an absolute URL. When in doubt about tone or how much to show versus tell, match this.
+- [`docs/04-collections/05-document-paths.md`](../../../docs/04-collections/05-document-paths.md) — the model for **structure** in a reference + explanation hybrid: Overview with a few anchoring rules, a task-indexed Quick reference with **Edit:** lines, then the full contract, then honest limitations. Match its shape for any subsystem doc.
 
 When revising an existing doc, match the exemplar it is closest to rather than importing a shape from elsewhere.

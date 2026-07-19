@@ -83,6 +83,7 @@ Env files: `apps/webapp/.env` and `packages/db-postgres/.env` (copy from `.env.e
 - The front matter `title` and first H1 text must match exactly. Document import and processing removes the first H1 and uses the front matter title in its place.
 - Write for developers evaluating or learning Byline. Introduce the main concept and required vocabulary first, then add APIs, limits, compatibility boundaries, implementation references, and tests.
 - Use clear, direct, grammatically complete sentences. Name concrete actors such as “Byline’s admin user interface,” “the server,” or “the Postgres adapter”; avoid vague shorthand such as “the admin.”
+- Address the reader as “you” (“you declare a field on two sides”, “read this document when you are …”), not “one” or “the developer.” This is about the reader; it does not change the rule above — still name concrete *system* actors rather than personify them. Open each document by orienting the reader: what the subject is, and when they would reach for it.
 - Avoid metaphors, slogans, compressed fragments, repeated explanations, and prose that assumes unstated repository knowledge. Plain English must preserve important technical qualifications.
 - Verify claims against current code, manifests, and tests. Prefer relative links to companion documents over duplicated explanations.
 - Run `pnpm docs:check` and `git diff --check` after documentation changes. Use `/document` for the complete writing and verification workflow.
@@ -93,8 +94,8 @@ Env files: `apps/webapp/.env` and `packages/db-postgres/.env` (copy from `.env.e
 
 Documents are stored in typed `store_*` tables (`store_text`, `store_numeric`, `store_boolean`, `store_datetime`, `store_json`, `store_file`, `store_relation`) plus `store_meta` for stable block/array-item identities. A custom path notation (e.g. `content.1.photoBlock.display`) addresses each value — a blocks field is followed by the item index and then the block type; array items contribute their index after the field name (`content.1.photoBlock.gallery.0.alt`).
 
-- **Flatten** (write): `packages/db-postgres/src/modules/storage/storage-utils.ts` → `flattenFieldSetData()`
-- **Reconstruct** (read): `packages/db-postgres/src/modules/storage/storage-utils.ts` → `restoreFieldSetData()` — schema-aware, handles meta rows (`_id`, `_type`), locale resolution, and type-correct value extraction inline
+- **Flatten** (write): `packages/db-postgres/src/modules/storage/storage-flatten.ts` → `flattenFieldSetData()`
+- **Reconstruct** (read): `packages/db-postgres/src/modules/storage/storage-restore.ts` → `restoreFieldSetData()` — schema-aware, handles meta rows (`_id`, `_type`), locale resolution, and type-correct value extraction inline
 - **Store manifest**: `packages/db-postgres/src/modules/storage/storage-store-manifest.ts` — declarative column manifest generates per-store SELECT lists for the UNION ALL. Adding a column is a one-line change; positional mismatches are structurally impossible. The adapter-agnostic `fieldTypeToStore` / `fieldTypeToStoreType` mappings live in `@byline/core` (see "Field → Store Mapping" below) and are re-exported here for adapter-internal use.
 - **Selective field loading**: For list views, `resolveStoreTypes()` determines which store tables are needed for the requested fields, builds a partial UNION ALL (skipping irrelevant tables), and trims the reconstructed output to only the requested fields. Driven by `CollectionAdminConfig.columns`.
 - Block/array items carry a stable `_id` (UUIDv7) in `store_meta` for identity tracking. The `_id` is synthetic metadata — **never persist it via `flattenFieldSetData`**, never treat it as a data key in renderers.
