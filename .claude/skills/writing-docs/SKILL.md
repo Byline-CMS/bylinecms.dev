@@ -1,6 +1,6 @@
 ---
 name: writing-docs
-description: Use when creating, rewriting, tightening, or reviewing any Byline CMS documentation — the files under docs/ (MISSION, ARCHITECTURE, GETTING-STARTED, the numbered subsystem references, the recipe cookbooks) and per-package DESIGN.md files. Trigger whenever the user asks to write, draft, improve, or review a doc; add a setup or getting-started section; document a subsystem, package, or API; or turn design notes into reference. Also use whenever a new subsystem or package ships and needs documenting. This skill encodes Byline's documentation standard — doc-type selection, required structure, definition-before-use, runnable code examples, and house voice — so new and revised docs land first-class rather than "not terrible."
+description: Use when creating, rewriting, tightening, or reviewing any Byline CMS documentation — the numbered section directories under docs/ (getting started, why Byline, architecture, collections, reading and delivery, auth and security, internationalization, admin UI) and per-package DESIGN.md files. Trigger whenever the user asks to write, draft, improve, or review a doc; add a setup or getting-started section; document a subsystem, package, or API; or turn design notes into reference. Also use whenever a new subsystem or package ships and needs documenting. This skill encodes Byline's documentation standard — doc-type selection, required structure, definition-before-use, runnable code examples, and house voice — so new and revised docs land first-class rather than "not terrible."
 ---
 
 # Writing Byline docs
@@ -15,12 +15,12 @@ Most weak Byline docs fail because they try to be a tutorial, a reference, and a
 
 | Type | Job | Byline examples |
 |------|-----|-----------------|
-| **Tutorial** | Teach a newcomer by walking them through a guaranteed-to-work path. Learning-oriented. | `GETTING-STARTED.md` |
-| **How-to / recipe** | Get a competent user to an outcome for a specific task. Assumes background. | `ACCESS-CONTROL-RECIPES.md`, `RELEASE-INSTRUCTIONS.md` |
-| **Reference** | Let a working developer look up exact facts fast. No narrative. | the surface of `FIELDS-API.md`, `CLIENT-SDK.md`, the `store_*` table listings |
-| **Explanation** | Build understanding — the "why", the tradeoffs, the rejected alternatives. | `MISSION.md`, `ARCHITECTURE.md`, package `DESIGN.md` files |
+| **Tutorial** | Teach a newcomer by walking them through a guaranteed-to-work path. Learning-oriented. | `docs/01-getting-started/index.md`, `docs/01-getting-started/02-development-environment.md` |
+| **How-to / recipe** | Get a competent user to an outcome for a specific task. Assumes background. | the Quick Reference recipes in `docs/06-auth-and-security/01-authn-authz.md`, the per-task entries in `docs/04-collections/05-document-paths.md` |
+| **Reference** | Let a working developer look up exact facts fast. No narrative. | the surface sections of `docs/04-collections/01-fields.md`, `docs/05-reading-and-delivery/01-client-sdk.md`, the `store_*` table listings |
+| **Explanation** | Build understanding — the "why", the tradeoffs, the rejected alternatives. | `docs/02-why-byline/01-mission.md`, `docs/03-architecture/index.md`, `packages/client/DESIGN.md` |
 
-The numbered subsystem docs (`CORE-DOCUMENT-STORAGE`, `DOCUMENT-PATHS`, `RELATIONSHIPS`, …) are deliberately **reference + explanation hybrids**. That's allowed — but section them so the two stay separate: an explanation part ("how it works and why") and a reference part ("the exact surface"). Do not answer a "why" question in the middle of a lookup table, or drop an API signature into a paragraph of rationale.
+The numbered subsystem docs (`docs/03-architecture/01-document-storage.md`, `docs/04-collections/05-document-paths.md`, `docs/04-collections/03-relationships.md`, …) are deliberately **reference + explanation hybrids**. That's allowed — but section them so the two stay separate: an explanation part ("how it works and why") and a reference part ("the exact surface"). Do not answer a "why" question in the middle of a lookup table, or drop an API signature into a paragraph of rationale.
 
 If you can't name the type in one word, the doc isn't scoped yet. Split it.
 
@@ -30,7 +30,7 @@ Every doc, whatever its type, opens with the same house wrapper; the type-specif
 
 ### House format (every doc)
 
-Docs under `docs/` are processed by an import pipeline, so the top of the file is not free-form:
+Docs under `docs/` are processed by an import pipeline and validated by `pnpm docs:check`, so the top of the file is not free-form:
 
 ```markdown
 ---
@@ -42,15 +42,36 @@ summary: "One sentence describing what the document explains."
 # Human-readable title
 
 Companions:
-
 - [Related topic](./relative-path.md) — why it's relevant.
 ```
 
-- `title`, `path`, and `summary` are required.
-- The front-matter `title` and the first H1 text must match **exactly**. The pipeline strips the first H1 and substitutes the front-matter title, so a mismatch silently changes the rendered heading.
-- `Companions:` goes immediately below the H1. Relative links only, each with a one-line reason. Include a doc only if it's a genuine prerequisite, an adjacent concept, or a more detailed contract — and link it rather than repeating its explanation.
+- **Only `title` is enforced** by the checker; `path` falls back to a slug derived from the title and `summary` is optional. House convention is to write all three explicitly, so do — a doc missing `summary` will pass the gate and still be wrong.
+- **Unknown front-matter keys are a hard error.** The allowed set is `title`, `path`, `summary`, `status`, `locale`, `publishedOn`, `featureImage`, `constrainedWidth`. A typo does not silently no-op; it fails the file.
+- The front-matter `title` and the first H1 must match. The comparison is case-insensitive against the H1's flattened text, so inline formatting in the H1 is fine — `# Client SDK (\`@byline/client\`)` matches `title: "Client SDK (@byline/client)"`. Never put backticks or emphasis in the front-matter title itself. On a mismatch the pipeline renders both, producing a duplicate heading.
+- `Companions:` goes immediately below the H1, with the list on the next line (no blank line between). Relative links only, each with a one-line reason. Include a doc only if it's a genuine prerequisite, an adjacent concept, or a more detailed contract — and link it rather than repeating its explanation.
 
 In the skeletons below, the `# <Title>` line is this same H1, sitting under the front matter.
+
+### Where the file goes
+
+`docs/` is organised as numbered section directories, each with an `index.md` plus `NN-`-prefixed member documents:
+
+```text
+docs/01-getting-started/   02-why-byline/   03-architecture/   04-collections/
+docs/05-reading-and-delivery/   06-auth-and-security/   07-internationalization/   08-admin-ui/
+docs/09-testing.md
+```
+
+Place a new doc in the section whose subject it belongs to and give it the next free `NN-` prefix. The `index.md` of that section is its overview and table of contents — add the new document to it. If nothing fits, say so and ask rather than inventing a section.
+
+### What `pnpm docs:check` enforces
+
+Beyond front matter and the H1 match, the checker validates the link graph. Each of these fails the build:
+
+- **Relative links must resolve to a file inside the import set** (`docs/**/*.md`). A relative link out of `docs/` — `../../README.md`, `../../RELEASE-INSTRUCTIONS.md` — is an error. Link repo-root files as absolute GitHub URLs instead.
+- **Relative links must end in `.md`.** A bare relative target resolves against the published `/docs/` route and is rejected.
+- **Anchor fragments are resolved against the target document's headings.** `[…](./05-document-paths.md#path-uniqueness)` fails if that heading doesn't exist — this applies to same-document anchors too.
+- **Canonical routes must be unique.** Two documents whose front-matter `path` (or title-derived slug) collide is an error.
 
 ### Tutorial
 ```
@@ -116,12 +137,23 @@ Reference is consulted, not read. Optimise for someone scanning with Cmd-F, not 
 ```
 No numbered steps. This is for understanding, so it's allowed to be discursive — but it still opens by naming the question it answers.
 
+### Section conventions in the subsystem docs
+
+The reference + explanation hybrids follow a settled shape. Match it when you add or revise one:
+
+1. `## Overview` — what the subsystem is, then the two or three rules that anchor the model. This is the orientation the reader gets from a search result.
+2. `---` then `## Quick reference` — one entry per task, each with the minimal shape, an **Edit:** line naming the file the reader actually changes, and a link down to the deeper section.
+3. The detailed sections — the full contract, per topic.
+4. `## Not yet shipped` — deferred work, clearly fenced.
+
+[`docs/04-collections/05-document-paths.md`](../../../docs/04-collections/05-document-paths.md) is the cleanest example of the pattern.
+
 ## Step 3 — Apply the universal bar (every type)
 
 These are the things the current docs most often miss. Non-negotiable.
 
 - **Orientation in the first two sentences.** What is this, who is it for, where does it sit? A reader who lands here from a search result must not have to reverse-engineer the context. This is the single most common failure — fix it first.
-- **Define before use.** The first time a doc uses a Byline term — `store_*` typed tables, `DocumentPatch`, `ReadContext`, the relation envelope, `useAsPath`, `defineAdmin`, the `beforeRead`/`beforeStore`/`afterStore` hooks — define it in a clause or link to the doc that does. Never assume the reader arrived via the doc that would have defined it.
+- **Define before use.** The first time a doc uses a Byline term — `store_*` typed tables, `DocumentPatch`, `ReadContext`, the relation envelope, `useAsPath`, `defineAdmin`, the collection lifecycle hooks (`beforeRead` / `afterRead` / `beforeCreate`) or the upload hooks (`beforeStore` / `afterStore`, which are a different family on the field's upload config) — define it in a clause or link to the doc that does. Never assume the reader arrived via the doc that would have defined it.
 - **Show, don't paraphrase.** If a point can be made in code, make it in code. Examples must be real (actual Byline APIs and types), complete (copy-paste-able, imports included where they matter), and minimal (nothing incidental). A toy example that doesn't reflect real usage is worse than none — it teaches the wrong shape.
 - **Be honest about shipped vs deferred.** Keep the existing convention of naming what's implemented and what's a future phase. Never document aspirational API as if it exists.
 - **Cross-link.** Every term you *don't* define here should link to the doc that does. Docs are a graph, not a pile.
@@ -135,6 +167,14 @@ Plainer than the README. The README is allowed marketing energy — slogans, "fo
 - **Don't:** "simply", "just", "easy", "powerful", "seamless"; marketing adjectives; metaphors and slogans; hedging ("it might be possible to perhaps…"); undefined acronyms; a wall of prose where a list or code block is clearer.
 - **Plain English must not weaken the contract.** Simplify the wording, never the meaning: keep the precise limits, boundaries, and technical qualifications intact. A doc that reads easily but softens a guarantee is wrong.
 
+### House mechanics
+
+- Em-dash (—), not a hyphen, for parenthetical breaks.
+- Sentence case everywhere, including headings: "Not yet shipped", not "Not Yet Shipped".
+- Code-format every file path, table name, type, and symbol: `docs/04-collections/01-fields.md`, `store_text`, `ReadContext`.
+- British spelling is fine and used throughout the corpus ("materialises", "behaviour", "normalises"). Don't convert existing text either way.
+- Prefer a relative link to a companion document over restating its explanation.
+
 ## Anti-patterns — what "not first-class" looks like here
 
 Name these when reviewing; avoid them when writing.
@@ -147,7 +187,8 @@ Name these when reviewing; avoid them when writing.
 6. **Stub-as-doc** — a heading with "TODO" or one hand-wavy sentence under it, shipped as if complete.
 7. **Prose where a table/list wins** — parameters, options, or comparisons buried in sentences.
 8. **Slogans and metaphors** — README-style flourishes ("three pillars, not three plugins") dropped into a reference doc. Docs describe; they don't sell.
-9. **Broken front matter** — missing `title`/`path`/`summary`, or a front-matter `title` that doesn't match the first H1 (the pipeline will silently override the heading).
+9. **Broken front matter** — missing `title`/`path`/`summary`, an unknown key (a hard error, not a no-op), or a front-matter `title` that doesn't match the first H1 (the rendered page gets a duplicate heading).
+10. **Links that don't survive the checker** — a relative link out of `docs/`, a relative target without a `.md` extension, or an anchor fragment naming a heading that doesn't exist in the target.
 
 ## Worked example
 
@@ -155,26 +196,29 @@ Name these when reviewing; avoid them when writing.
 > Documents are addressed by a path notation and flattened into the typed store tables. The path is derived via `useAsPath` and slugified.
 
 **First-class (orients, defines, shows):**
-> A document's **path** is its stable, human-readable address — the slug you'd put in a URL, e.g. `blog/hello-world`. Paths live in their own table, `byline_document_paths`, keyed by `(document_id, locale)`, so a document can carry one path per locale. You choose which field drives the path with `useAsPath`; Byline slugifies that field's value on save.
+> A document's **path** is its stable, human-readable address — the slug that resolves a URL back to a document, e.g. `hello-world`. It is a reserved system attribute, not a collection field: paths live in their own table, `byline_document_paths`, keyed by `(document_id, locale)` with a unique constraint on `(collection_id, locale, path)`. `useAsPath` on the collection definition names the field whose slugified value initialises the path on create.
 >
 > ```ts
-> // Collection definition — the `title` field drives the path.
-> defineCollection({
->   name: 'articles',
+> // apps/webapp/byline/collections/news/schema.ts
+> export const News = defineCollection({
+>   path: 'news',
+>   labels: { singular: 'News', plural: 'News' },
+>   useAsTitle: 'title',
+>   useAsPath: 'title', // The `title` field seeds the document path.
 >   fields: [
->     text({ name: 'title', useAsPath: true }),
->     richtext({ name: 'body' }),
+>     { name: 'title', label: 'Title', type: 'text', localized: true },
+>     { name: 'summary', label: 'Summary', type: 'textArea', localized: true },
 >   ],
 > })
 >
-> // Saving { title: "Hello, World!" } yields a row in byline_document_paths:
+> // Creating { title: "Hello, World!" } yields a row in byline_document_paths:
 > //   document_id  locale  path
 > //   <uuidv7>     en      hello-world
 > ```
 >
-> Per-locale paths (a different slug for each translation) are a future phase — today the slugifier runs once per locale off the same source field. See [RELATIONSHIPS.md](./RELATIONSHIPS.md) for how paths resolve across linked documents.
+> The named field must be top-level and of a path-compatible type (`text`, `textArea`, `select`, `date`, `datetime`, `time`); a collection without `useAsPath` gets a UUID path instead. Each document carries one canonical path, stored under its `sourceLocale` — localised slugs (`/en/about` vs `/de/ueber-uns`) are deferred, and frontends prefix `/{locale}/{path}` over the single canonical value. See [Relationships](../../../docs/04-collections/03-relationships.md) for how `path` is used in relation filters.
 
-(The exact API above is illustrative — use the real current surface when you write.)
+Note what the code does that the prose can't: it shows `useAsPath` sitting on the collection rather than the field, and it shows the field literal shape. Both are things a reader would otherwise guess wrong. When you write your own example, open the real schema file and copy the current surface — do not reconstruct it from memory.
 
 ## Self-check before finishing
 
@@ -186,7 +230,9 @@ Run this against the draft. If any answer is "no", fix it before delivering.
 - [ ] Does every "you can do X" claim have runnable, real-API code next to it?
 - [ ] Are shipped vs deferred features clearly distinguished?
 - [ ] Is the voice plain and direct — no slogans, metaphors, or filler words — while keeping every technical qualification intact?
-- [ ] Does the front matter carry `title`/`path`/`summary`, with `title` matching the first H1 exactly?
+- [ ] Does the front matter carry `title`/`path`/`summary`, with no key outside the allowed set and `title` matching the first H1?
+- [ ] Do all relative links point at `.md` files inside `docs/`, and does every anchor fragment name a heading that exists?
+- [ ] Is the file in the right numbered section, with the next free `NN-` prefix and an entry in that section's `index.md`?
 - [ ] Are code symbols, paths, commands, limits, and behavioural claims verified against the current repo, not memory?
 - [ ] Would this doc, as written, actually let someone *do the thing* without opening the source?
 
@@ -194,6 +240,9 @@ The `/document` command runs `pnpm docs:check` as a final mechanical gate — th
 
 ## Gold-standard exemplars
 
-*(none yet — highest-leverage addition to this skill)*
+Read at least one of these before writing. A concrete exemplar calibrates tone and depth better than any rule above.
 
-Once one doc is rewritten to the bar you want, list it here and tell the skill to match it. A single concrete exemplar calibrates tone and depth better than any rule above. Until then, the rules and the worked example carry the standard.
+- [`docs/04-collections/05-document-paths.md`](../../../docs/04-collections/05-document-paths.md) — the reference + explanation hybrid at its cleanest: Overview with three anchoring rules, a task-indexed Quick reference with **Edit:** lines, then the full contract. Match this for any subsystem doc.
+- [`docs/03-architecture/01-document-storage.md`](../../../docs/03-architecture/01-document-storage.md) — dense architecture explanation that still orients in its first paragraph; also the model for Companions entries that say *why* the companion is relevant, and for citing external evidence as an absolute URL.
+
+When revising an existing doc, match the exemplar it is closest to rather than importing a shape from elsewhere.
