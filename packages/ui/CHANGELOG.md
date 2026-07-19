@@ -1,5 +1,13 @@
 # @byline/ui
 
+## 4.4.1
+
+### Patch Changes
+
+- fixed admin form paths losing their target after a block or array reorder — items are now addressed by stable id, so edits, conditions and deferred uploads follow their own item. **`FieldHookContext.path`** and hook `setFieldValue` paths now use `[id=…]` selectors instead of positional indices
+
+  tightened field path validation in **`@byline/core`** — bracket characters are rejected in field and block names, and a malformed path is reported as malformed rather than as a wrong-dialect index
+
 ## 4.4.0
 
 ### Minor Changes
