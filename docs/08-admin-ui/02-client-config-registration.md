@@ -6,6 +6,10 @@ summary: "Why the Byline client config is registered from two points on the _byl
 
 # Client-config registration
 
+Companions:
+- [Core Composition](../03-architecture/02-core-composition.md) — the *server* composition story (`initBylineCore()`); this doc is the *client* config analogue.
+- [Rich Text](../04-collections/07-rich-text.md) — the richtext editor slot, which was the first heavy slot made lazy (the `lexicalEditor` factory; see also `@byline/richtext-lexical/config`).
+
 **The goal in one sentence:** keep Byline's **admin-area** JavaScript and
 bundles — the document editor, field widgets, the richtext/AI editors, the
 whole admin UI — from *leaking* into the **public surface** of the host
@@ -20,10 +24,6 @@ This doc covers how `apps/webapp/byline/admin.config.ts` (the browser/SSR
 today, the root cause that blocks collapsing those to a single eager point,
 and — the load-bearing question — whether an eager single-point registration is
 even possible given that custom slot components legitimately need React context.
-
-Companions:
-- [Core Composition](../03-architecture/02-core-composition.md) — the *server* composition story (`initBylineCore()`); this doc is the *client* config analogue.
-- [Rich Text](../04-collections/07-rich-text.md) — the richtext editor slot, which was the first heavy slot made lazy (the `lexicalEditor` factory; see also `@byline/richtext-lexical/config`).
 
 :::note
 Byline registers the client config from two points today. Collapsing that to a

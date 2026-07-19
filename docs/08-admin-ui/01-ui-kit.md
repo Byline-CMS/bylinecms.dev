@@ -73,11 +73,11 @@ Eight subtrees under `packages/ui/src/` are shared with the companion kit:
 | `utils/` | Helper modules referenced by components |
 | `widgets/` | Higher-order widgets (Modal, Drawer, Datepicker, Search, Timeline) |
 
-Plus `src/uikit.ts`, the companion kit's `react.ts` barrel under a Byline name. Byline's `src/react.ts` re-exports from `./uikit.js` and adds the dnd helpers; the four subsystem barrels (`admin.ts`, `fields.ts`, `forms.ts`, `services.ts`) carry the Byline-specific surface.
+Plus `src/uikit.ts`, the companion kit's `react.ts` barrel under a Byline name. Byline's `src/react.ts` re-exports from `./uikit.js` and adds the dnd helpers. The Byline-specific admin surface that once lived here (the form runtime, field widgets, admin layout primitives) moved to `@byline/admin` in v2.6.0 — see the note above.
 
 The companion kit also carries files that have no place here and are never ported across: `*.astro` entrypoints (Byline ships no Astro components), the `theme/` subtree (unused here), `*.stories.*` (Storybook lives there), and `__tests__/` / `*.test.*`.
 
-The Byline-owned subtrees (`admin/`, `fields/`, `forms/`, `services/`, `dnd/`) exist only in this package and have no companion counterpart.
+The Byline-owned `dnd/` subtree exists only in this package and has no companion counterpart. (The former `admin/`, `fields/`, `forms/`, and `services/` subtrees moved to `@byline/admin` in v2.6.0.)
 
 ## Keeping the two kits in step
 
