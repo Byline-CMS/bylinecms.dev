@@ -77,6 +77,16 @@ Env files: `apps/webapp/.env` and `packages/db-postgres/.env` (copy from `.env.e
 - Biome config: 2-space indent, single quotes, LF line endings, 100-char line width, trailing commas (ES5), no semicolons.
 - Import ordering is enforced by Biome: Node builtins → URLs → React → TanStack → packages → local (with blank line separators).
 
+## Documentation Style
+
+- Developer documents under `docs/` use YAML front matter with `title`, `path`, and a one-sentence `summary`. Follow it with one H1 and a `Companions:` list immediately below the title.
+- The front matter `title` and first H1 text must match exactly. Document import and processing removes the first H1 and uses the front matter title in its place.
+- Write for developers evaluating or learning Byline. Introduce the main concept and required vocabulary first, then add APIs, limits, compatibility boundaries, implementation references, and tests.
+- Use clear, direct, grammatically complete sentences. Name concrete actors such as “Byline’s admin user interface,” “the server,” or “the Postgres adapter”; avoid vague shorthand such as “the admin.”
+- Avoid metaphors, slogans, compressed fragments, repeated explanations, and prose that assumes unstated repository knowledge. Plain English must preserve important technical qualifications.
+- Verify claims against current code, manifests, and tests. Prefer relative links to companion documents over duplicated explanations.
+- Run `pnpm docs:check` and `git diff --check` after documentation changes. Use `/document` for the complete writing and verification workflow.
+
 ## Architecture
 
 ### Universal Storage (EAV-per-type)

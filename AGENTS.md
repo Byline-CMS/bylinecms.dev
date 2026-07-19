@@ -16,6 +16,15 @@
 - Run one DB test from its package: `pnpm vitest run --mode=integration <test-file>`.
 - `pnpm build` may print Rolldown `INVALID_ANNOTATION` warnings from Lexical dependencies; check the exit status rather than treating those warnings as failures.
 
+## Documentation
+
+- Developer documents under `docs/` use YAML front matter with `title`, `path`, and a one-sentence `summary`, followed by one H1 and a `Companions:` list immediately below it.
+- The front matter `title` and first H1 text must match exactly. Document import and processing removes the first H1 and uses the front matter title in its place.
+- Write for developers evaluating or learning Byline. Introduce the main concept and vocabulary first, then move into APIs, limits, compatibility boundaries, implementation references, and tests.
+- Use clear, direct, complete sentences and concrete subjects such as “Byline’s admin user interface.” Avoid vague shorthand, metaphors, slogans, compressed fragments, repeated explanations, and unstated assumptions.
+- Preserve technical qualifications and verify claims against current code, manifests, and tests. Link to companion documents instead of duplicating their full explanations.
+- Run `pnpm docs:check` and `git diff --check` after creating or revising documentation. The `/document` command in `.claude/commands` and `.opencode/commands` contains the full workflow.
+
 ## Package Boundaries
 
 - `packages/core` owns framework-independent types, lifecycle/auth/query/patch logic, configuration, and the pure `@byline/core/codegen` emitter.
