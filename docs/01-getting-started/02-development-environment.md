@@ -4,7 +4,11 @@ path: "getting-started-development-environment"
 summary: "Clone the Byline CMS repo, provision PostgreSQL, seed the database, and run the example application (apps/webapp) in dev mode."
 ---
 
-This is the development environment and example application (this repo).
+# Development environment and example application
+
+By the end of this guide you will have the Byline reference application (`apps/webapp`) running locally against a seeded PostgreSQL database, viewable at `http://localhost:5173/`. It is the quickest way to see a working Byline installation.
+
+**Prerequisites:** Node `>=20.9.0`, pnpm, and Docker (for the bundled PostgreSQL container). If you'd rather add Byline to an existing TanStack Start app than run this repo, use the [CLI](./01-experimental-cli.md) instead.
 
 ## 1. Clone and install dependencies
 
@@ -101,3 +105,9 @@ If you've built the project (above) and have Postgres up and running, you
 should be able to view the app on http://localhost:5173/.
 
 The application is now ready for local development.
+
+## Next
+
+- Sign in with the super-admin credentials you set in `.env.local`, then explore the seeded collections in the admin.
+- [Collections](../04-collections/index.md) is the working reference for defining your own content types.
+- [Architecture](../03-architecture/index.md) maps the design decisions behind the storage and versioning model.

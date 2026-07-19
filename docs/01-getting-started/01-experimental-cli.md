@@ -4,6 +4,8 @@ path: "getting-started-cli"
 summary: "The Byline CLI: 'byline init' against an existing TanStack Start app, plus 'setup' and 'doctor' for adding Byline to a fresh project."
 ---
 
+# CLI
+
 :::note[Experimental]
 The CLI installs Byline into an existing TanStack Start application. It is
 currently tested against up-to-date TanStack Start sites using the Nitro
