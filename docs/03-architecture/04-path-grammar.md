@@ -1,7 +1,7 @@
 ---
 title: "Path Grammar"
 path: "path-grammar"
-summary: "How Byline addresses a field. Two categories — instance paths address an item, declaration paths address a schema node — one segment AST behind both, and the rule that a block type is required in one and redundant in the other."
+summary: "How Byline addresses a field, and why an EAV store needs it to. Two categories — instance paths address a value in a document, declaration paths address a node in the schema — one segment AST behind both, and the rule governing when a block type must be written down."
 ---
 
 # Path Grammar
@@ -12,8 +12,89 @@ Companions:
 - [Collections](../04-collections/index.md) — upload hook registry keys (`ServerConfig.hooks.uploads`) are declaration paths.
 - [Blocks](../04-collections/02-blocks.md) — why per-field admin overrides inside a block come from the `blockAdmin` registry rather than a path.
 
-Several subsystems address a field by dotted path, and they do not all mean the
-same thing by it. This document is the reference for what they do mean.
+## Why a field has an address at all
+
+Byline does not store a document as a JSON blob. Every value in a document is
+its own row in a typed store table — `store_text`, `store_numeric`,
+`store_file`, and the rest — picked by the field's type. That is what makes a
+document queryable, diffable and versionable one field at a time instead of one
+document at a time. [Document Storage](./01-document-storage.md) covers the
+reasoning; this document covers the consequence.
+
+Content is hierarchical by nature; a relational database is not, and it is
+extremely good at what it does instead — indexing, constraints, set-based
+queries, transactional integrity. Flattening and reconstruction is the bridge
+between the two. Decomposing a document into typed rows on the way in, and
+rebuilding the hierarchy on the way out, is what lets a tree-shaped document
+enjoy the strengths of an RDBMS rather than sitting opaquely inside a single
+column.
+
+The bridge only holds if it carries the structure across intact. Each row has
+to record precisely where in the hierarchy its value came from — enough to
+rebuild the document in the shape the editor handed over, down to the fourth
+item of an array nested inside the second block of a blocks field.
+
+That record is a field path. It is a string, it lives in the `field_path`
+column, and it is the reason a row knows it holds the alt text of the first
+image in the gallery of the photo block at position 1 — rather than just
+holding the string `"Sunrise over the bay"`.
+
+## The same question, four times over
+
+Storage is where paths start, but it is not where they stop. Four different
+parts of Byline need to point at a field, and it is worth seeing them together
+before the notations, because their differences are not arbitrary.
+
+**Taking a document apart, and putting it back.** The flattener emits one path
+per value on the way in; the reconstructor reads those paths back into nested
+shape on the way out. The round trip has to be lossless — a path that cannot
+express "inside this block variant" is a document that comes back wrong.
+
+**Editing one field without rewriting the document.** When you change a caption
+in the admin UI, the editor does not send the whole document back. It sends a
+patch that names what changed:
+
+```
+content[id=01924f…].gallery[id=01924g…].alt
+```
+
+Addressing items by stable id rather than position is what lets that patch stay
+correct even if someone reorders the gallery in the meantime. The same
+machinery is the foundation for collaborative editing later.
+
+**Saying how a field should behave.** This is the one you will meet while
+configuring your own installation. An FAQ answer is a `richText` field nested
+inside an array inside a block, and it should not offer the same editor as a
+full page body — no tables, no embeds, no layout, just prose with lists and
+links. You say so by addressing the field's *declaration*:
+
+```ts
+export const FAQBlockAdmin = defineBlockAdmin(FAQBlock, {
+  fields: {
+    'faq.answer': { editor: lexicalEditor(/* a smaller extension set */) },
+  },
+})
+```
+
+(The real thing is `apps/webapp/byline/blocks/faq-block.admin.ts`.) Note what
+that key does *not* have: no item index. It is not describing the answer of the
+third FAQ in one document — it is describing every answer field in every FAQ
+item of every document that uses this block. The same shape configures a
+compact editor for a photo caption, a custom widget for a field, or a slot in a
+layout.
+
+**Telling an author which field is wrong.** If two blocks in the same field
+both declare `alt`, a validation error saying `content.alt` has told the author
+almost nothing. It has to say which `alt`:
+
+```
+content.photoBlock.gallery.alt
+```
+
+The first two of those address a **value in a particular document**. The second
+two address a **declaration in the schema** — a rule about a field, held once,
+applying everywhere that field appears. That distinction turns out to explain
+every difference between the notations that follow.
 
 ## Two categories
 
@@ -21,8 +102,9 @@ Every field path in Byline falls into one of two categories, and the difference
 is what the path addresses.
 
 **Instance paths address a value in one item of one document.** Item selectors
-are required. A block type is redundant, because the addressed item carries its
-own `_type`.
+are required. A block type is redundant wherever the item itself is in reach,
+because it carries its own `_type` — with one exception, storage, for the
+reason given below.
 
 ```
 content[1].gallery[0].alt
@@ -36,12 +118,12 @@ declared in the same field cannot be told apart.
 content.photoBlock.gallery.alt
 ```
 
-That single rule explains every difference between the notations below. It also
-explains the defects that motivated consolidating them: an ambiguous
-declaration path (one that dropped the block type) could not say which of two
-`alt` declarations a validation error referred to, and an instance path
-resolved *without* consulting the item's `_type` picked the wrong block and
-silently dropped that field's `upload.context`.
+Both defects that motivated consolidating these notations were failures of that
+rule. An ambiguous declaration path — one that dropped the block type — could
+not say which of two `alt` declarations a validation error referred to. And an
+instance path resolved *without* consulting the item's `_type` picked the wrong
+block, silently dropping that field's `upload.context`. Neither was a parsing
+bug; both were a path being read as if it belonged to the other category.
 
 ### The two are one grammar
 
@@ -56,6 +138,27 @@ field. The two notations are the same grammar differing only in whether
 selectors are present — which is why one segment list can serialise as either.
 A test derives this from real flattener output rather than asserting it
 (`packages/db-postgres/src/modules/storage/storage-paths.test.node.ts`).
+
+### Storage carries both, and has to
+
+Storage `field_path` is the exception to "a block type is redundant in an
+instance path", and the exception is instructive. It carries selectors *and*
+the block type — `content.0.photoBlock.gallery.0.alt` — where a patch path for
+the same value carries only selectors.
+
+The difference is what else is in reach at the moment the path is read. In
+memory, resolving `content[0].alt` means the item is right there and can be
+asked its `_type`. In the database it cannot: `_type` lives in a **different
+row**, in `store_meta`. A row addressed `content.0.alt` would need a join
+against its siblings before anyone could say which block's `alt` it holds. The
+block type in the path is what makes a stored row self-describing — and what
+lets a query filter by block type without a join.
+
+It is also what makes the elision above work. Strip the selectors from
+`content.0.photoBlock.gallery.0.alt` and a valid declaration path falls out.
+Strip them from a hypothetical `content.0.gallery.0.alt` and you get
+`content.gallery.alt`, which resolves to nothing, because the discriminator was
+never written down. The elision test guards exactly this.
 
 ## The notations
 
