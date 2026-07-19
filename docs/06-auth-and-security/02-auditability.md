@@ -6,6 +6,12 @@ summary: "Present-state reference for the auditability subsystem: the version au
 
 # Auditability
 
+Companions:
+- [Transactions](../03-architecture/03-transactions.md) — the `withTransaction` boundary that commits each change and its audit row atomically.
+- [Architecture — document level vs version level](../03-architecture/index.md#3-document-level-vs-version-level) — the split this subsystem records across: versioned content vs the non-versioned document-level and status changes.
+- [Authentication & Authorization](./01-authn-authz.md) — the `admin.activity.read` ability gating the system activity area, and the `beforeRead` scoping the audit reads honour.
+- [Collection Versioning](../04-collections/08-collection-versioning.md) — the immutable version stream that is the record for content changes, which the audit log deliberately never double-writes.
+
 This is the reference for Byline's auditability subsystem: the per-version
 acting-user trail, the document-level audit log for changes that sit outside the
 version stream, and the history and activity views built on top of them. It

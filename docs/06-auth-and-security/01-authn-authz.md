@@ -16,7 +16,7 @@ Companions:
 
 Byline ships an end-to-end authentication and authorization subsystem with three load-bearing properties:
 
-1. **Admin identity is a built-in subsystem, not a collection.** `admin_users`, `admin_roles`, `admin_role_admin_user`, and `admin_permissions` are dedicated tables owned by `@byline/admin` (with the Postgres adapter in `@byline/db-postgres/admin`). Admin users are never localized, versioned, workflowed, or rendered by the collection runtime.
+1. **Admin identity is a built-in subsystem, not a collection.** `admin_users`, `admin_roles`, `admin_role_admin_user`, and `admin_permissions` (live names carry the `byline_` prefix — `byline_admin_users`, …) are dedicated tables owned by `@byline/admin` (with the Postgres adapter in `@byline/db-postgres/admin`). Admin users are never localized, versioned, workflowed, or rendered by the collection runtime.
 2. **Two auth realms from day one — `AdminAuth` and `UserAuth`.** `Actor = AdminAuth | UserAuth | null`. Today only `AdminAuth` and the `null` (anonymous public) case are used at runtime; `UserAuth` is reserved in the type union so the contract does not have to grow a discriminator later.
 3. **Service-layer enforcement, not transport-layer enforcement.** Every gate runs *inside* `@byline/core` / `@byline/admin` services, so the same gate is active no matter which transport (admin server fn, in-process client, future stable HTTP) invokes it. Transport edges only resolve and pass `RequestContext`.
 
@@ -60,7 +60,7 @@ export function registerMyPluginAbilities(registry: AbilityRegistry) {
 }
 ```
 
-Collection abilities (`collections.<path>.{read,create,update,delete,publish,changeStatus}`) are auto-registered by `initBylineCore()` — only plugins outside the collection runtime need to register manually.
+Collection abilities (`collections.<path>.{read,create,update,delete,publish,changeStatus,reindex}`) are auto-registered by `initBylineCore()` — only plugins outside the collection runtime need to register manually.
 
 → [Abilities](#abilities)
 
