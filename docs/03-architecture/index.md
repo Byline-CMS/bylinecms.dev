@@ -231,3 +231,15 @@ SQL machinery the public client uses.
 For the full story — including six worked `beforeRead` recipes (owner-only
 drafts, multi-tenant scoping, embargo, soft-delete hide, department visibility,
 self-only) — see [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md).
+
+## 7. Deployment topologies
+
+Byline runs today as a single host with the admin dashboard, the front-end, and
+an in-process Client SDK co-located over one database. The architecture is kept
+honest against three progressively split arrangements — an exposed HTTP API, a
+separate front-end host, and three dedicated hosts — each of which depends on
+the stable HTTP boundary that is deliberately deferred.
+
+See [Deployment Topologies](./05-deployment-topologies.md) for the four shapes,
+what stays constant across them, and why the SDK is never split from the runtime
+it calls.

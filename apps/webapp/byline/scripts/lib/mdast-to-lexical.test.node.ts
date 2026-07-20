@@ -156,11 +156,89 @@ describe('mdastToLexical', () => {
     expect(quote.children).toEqual([expect.objectContaining({ type: 'text', text: 'hello' })])
   })
 
-  test('image at block level is dropped with a warning', () => {
+  test('an image with no resolved media document is dropped with a warning', () => {
     const { warnings, state } = convert('![alt](https://example.com/x.png)')
     expect(warnings.some((w) => w.kind === 'dropped-image')).toBe(true)
     // Paragraph survives as empty (image was its only child)
     expect(state.root.children[0]).toMatchObject({ type: 'paragraph' })
+  })
+
+  describe('images', () => {
+    const resolved = {
+      targetDocumentId: 'doc-1',
+      targetCollectionId: 'col-1',
+      targetCollectionPath: 'media',
+      src: '/uploads/media/diagram.svg',
+      width: 900,
+      height: 600,
+    }
+    const images = new Map([['./images/diagram.svg', resolved]])
+
+    test('a standalone image becomes a full-width inline-image inside its paragraph', () => {
+      const { state, warnings } = mdastToLexical(
+        parseBodyToMdast('![a diagram](./images/diagram.svg)'),
+        {
+          images,
+        }
+      )
+      expect(warnings).toEqual([])
+      const paragraph = state.root.children[0] as unknown as {
+        type: string
+        children: Array<Record<string, unknown>>
+      }
+      // InlineImageNode is an inline decorator — it must be wrapped, never a root child.
+      expect(paragraph.type).toBe('paragraph')
+      expect(paragraph.children).toHaveLength(1)
+      expect(paragraph.children[0]).toMatchObject({
+        type: 'inline-image',
+        version: 1,
+        targetDocumentId: 'doc-1',
+        targetCollectionId: 'col-1',
+        targetCollectionPath: 'media',
+        src: '/uploads/media/diagram.svg',
+        altText: 'a diagram',
+        position: 'full',
+        width: 900,
+        height: 600,
+        showCaption: false,
+      })
+    })
+
+    test('the caption editor state is present and empty', () => {
+      const { state } = mdastToLexical(parseBodyToMdast('![x](./images/diagram.svg)'), { images })
+      const node = (state.root.children[0] as unknown as { children: Array<any> }).children[0]
+      expect(node.caption.editorState.root.children).toEqual([])
+    })
+
+    test('an image alongside text stays inline among its siblings', () => {
+      const { state } = mdastToLexical(
+        parseBodyToMdast('before ![x](./images/diagram.svg) after'),
+        { images }
+      )
+      const children = (state.root.children[0] as unknown as { children: Array<{ type: string }> })
+        .children
+      expect(children.map((c) => c.type)).toEqual(['text', 'inline-image', 'text'])
+    })
+
+    test('a missing alt attribute yields an empty altText rather than undefined', () => {
+      const { state } = mdastToLexical(parseBodyToMdast('![](./images/diagram.svg)'), { images })
+      const node = (state.root.children[0] as unknown as { children: Array<any> }).children[0]
+      expect(node.altText).toBe('')
+    })
+
+    test('only unresolved images are dropped when a document mixes both', () => {
+      const { state, warnings } = mdastToLexical(
+        parseBodyToMdast('![ok](./images/diagram.svg)\n\n![gone](./images/missing.png)'),
+        { images }
+      )
+      expect(warnings.filter((w) => w.kind === 'dropped-image')).toHaveLength(1)
+      const first = (state.root.children[0] as unknown as { children: Array<{ type: string }> })
+        .children
+      const second = (state.root.children[1] as unknown as { children: Array<{ type: string }> })
+        .children
+      expect(first[0]?.type).toBe('inline-image')
+      expect(second).toHaveLength(0)
+    })
   })
 
   test('GFM table maps to table/tablerow/tablecell with first-row headerState', () => {

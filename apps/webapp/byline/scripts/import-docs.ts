@@ -32,7 +32,10 @@
  *      tree-aware `/docs/<ancestor-path>/<imported-path>` URL using a
  *      sourcePath→publicPath map built from a frontmatter pre-pass.
  *      Targets outside the batch are stripped to plain text.
- *   4. Convert mdast → Lexical SerializedEditorState.
+ *   4. Ingest every referenced markdown image into the `media` collection
+ *      (downloading remote URLs first), deduped on a filename-derived media
+ *      path, then convert mdast → Lexical SerializedEditorState — images
+ *      become full-width `inline-image` nodes (see lib/media-ingest.ts).
  *   5. Resolve `featureImage` (a `media` path) to a relation envelope.
  *   6. `findByPath` to decide create vs update. On update, status and
  *      publishedOn are preserved — editorial state in Byline wins.
@@ -40,7 +43,9 @@
  * Flags:
  *   --dry-run     Parse + log, no DB writes.
  *   --verbose     Print warnings for dropped/unsupported nodes.
- *   --force       Overwrite a soft-deleted document occupying the target path.
+ *   --force       Overwrite a soft-deleted document occupying the target path,
+ *                 in the `docs` collection and in `media` (see lib/media-ingest.ts
+ *                 — a deleted media document reserves its path the same way).
  *                 A Byline delete is soft (`is_deleted = true` on every version)
  *                 but leaves the `byline_document_paths` row in place, so the
  *                 path stays reserved while `findByPath` (which reads the
@@ -72,7 +77,7 @@ import { readFileSync } from 'node:fs'
 import { glob } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
-import { createSuperAdminContext } from '@byline/auth'
+import { createSuperAdminContext, type RequestContext } from '@byline/auth'
 import { type CollectionHandle, createBylineClient } from '@byline/client'
 import {
   getBylineCore,
@@ -89,6 +94,7 @@ import { exitImportDocsWithFailure } from './lib/import-docs-cli.js'
 import { replaceDeletedDocumentAtPath } from './lib/import-docs-force.js'
 import { buildCanonicalSourcePathMap, placeTreeFromDirectories } from './lib/import-docs-tree.js'
 import { type MdastToLexicalWarning, mdastToLexical } from './lib/mdast-to-lexical.js'
+import { ingestImages, type MediaIngestWarning } from './lib/media-ingest.js'
 import { parseBodyToMdast } from './lib/parse-markdown.js'
 import { type DocLinkRewriteWarning, rewriteDocLinks } from './lib/rewrite-doc-links.js'
 import { stripLeadingH1IfMatches } from './lib/strip-leading-h1.js'
@@ -153,6 +159,14 @@ function logLinkWarnings(filePath: string, warnings: DocLinkRewriteWarning[]): v
     } else {
       console.warn(`      [empty]      '${w.href}'  (stripped to plain text)`)
     }
+  }
+}
+
+function logMediaWarnings(filePath: string, warnings: MediaIngestWarning[]): void {
+  if (warnings.length === 0) return
+  console.warn(`  - ${warnings.length} media warning(s) for ${filePath}:`)
+  for (const w of warnings) {
+    console.warn(`      [${w.kind}] ${w.detail}`)
   }
 }
 
@@ -261,7 +275,8 @@ async function processFile(
   handle: CollectionHandle,
   flags: Flags,
   pathMap: Map<string, string>,
-  adapter: PgAdapter
+  adapter: PgAdapter,
+  requestContext: RequestContext
 ): Promise<ProcessResult> {
   const source = readFileSync(filePath, 'utf8')
   const parsed = parseDocFile(source, filePath)
@@ -277,7 +292,30 @@ async function processFile(
     ? linkWarnings
     : linkWarnings.filter((warning) => warning.kind !== 'rewritten-doc-link')
   logLinkWarnings(filePath, visibleLinkWarnings)
-  const { state, warnings } = mdastToLexical(mdast)
+
+  // Pre-pass: every markdown image referenced by this document is ensured
+  // to exist in the `media` collection before conversion, because the
+  // converter is pure and synchronous while ingestion is neither. The
+  // resulting URL → relation-envelope map is what lets it emit inline-image
+  // nodes instead of dropping them.
+  const media = await ingestImages({
+    root: mdast,
+    sourceFilePath: filePath,
+    client,
+    requestContext,
+    dryRun: flags.dryRun,
+    force: flags.force,
+    pool: adapter.pool,
+  })
+  logMediaWarnings(filePath, media.warnings)
+  if (media.created > 0 || media.reused > 0 || media.revived > 0) {
+    console.log(
+      `  - media: ${media.created} ingested, ${media.reused} reused` +
+        `${media.revived > 0 ? `, ${media.revived} reclaimed` : ''} from '${MEDIA_COLLECTION}'`
+    )
+  }
+
+  const { state, warnings } = mdastToLexical(mdast, { images: media.images })
   if (flags.verbose) logWarnings(filePath, warnings)
 
   const featureImage = parsed.frontmatter.featureImage
@@ -416,7 +454,15 @@ async function run(): Promise<void> {
 
   for (const file of files) {
     try {
-      const result = await processFile(file, client, handle, flags, pathMap, adapter)
+      const result = await processFile(
+        file,
+        client,
+        handle,
+        flags,
+        pathMap,
+        adapter,
+        requestContext
+      )
       results.push(result)
       if (result.action === 'created') created += 1
       else if (result.action === 'updated') updated += 1

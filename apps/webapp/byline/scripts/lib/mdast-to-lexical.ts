@@ -44,6 +44,7 @@ import type {
   ThematicBreak,
 } from 'mdast'
 
+import type { ResolvedImage } from './media-ingest.js'
 import type { AdmonitionDirective } from './parse-markdown.js'
 
 // Lexical inline format bits — kept in sync with
@@ -81,15 +82,38 @@ export interface MdastToLexicalResult {
   warnings: MdastToLexicalWarning[]
 }
 
+export interface MdastToLexicalOptions {
+  /**
+   * Images already ingested into the `media` collection, keyed by the URL
+   * as written in the markdown source (see `lib/media-ingest.ts`). A URL
+   * absent from the map is dropped with a `dropped-image` warning, which is
+   * the behaviour for every image before ingestion existed.
+   */
+  images?: ReadonlyMap<string, ResolvedImage>
+}
+
+/**
+ * Walk state threaded through the conversion: the warning accumulator plus
+ * the resolved-image lookup. Bundled into one object so adding context
+ * doesn't mean re-threading every recursive call signature.
+ */
+interface ConvertContext {
+  warnings: MdastToLexicalWarning[]
+  images: ReadonlyMap<string, ResolvedImage>
+}
+
 /**
  * Convert an mdast tree to a Lexical SerializedEditorState. Returns the
  * state alongside a list of warnings (unsupported node types, dropped
  * HTML/image/table nodes) so callers can decide whether to fail the
  * import.
  */
-export function mdastToLexical(root: Root): MdastToLexicalResult {
-  const warnings: MdastToLexicalWarning[] = []
-  const children = walkBlocks(root.children, warnings)
+export function mdastToLexical(
+  root: Root,
+  options: MdastToLexicalOptions = {}
+): MdastToLexicalResult {
+  const ctx: ConvertContext = { warnings: [], images: options.images ?? new Map() }
+  const children = walkBlocks(root.children, ctx)
   return {
     state: {
       root: {
@@ -101,54 +125,66 @@ export function mdastToLexical(root: Root): MdastToLexicalResult {
         version: 1,
       },
     },
-    warnings,
+    warnings: ctx.warnings,
   }
 }
 
-function walkBlocks(nodes: Content[], warnings: MdastToLexicalWarning[]): LexicalNode[] {
+function walkBlocks(nodes: Content[], ctx: ConvertContext): LexicalNode[] {
   const out: LexicalNode[] = []
   for (const node of nodes) {
-    const converted = blockNode(node, warnings)
+    const converted = blockNode(node, ctx)
     if (converted) out.push(converted)
   }
   return out
 }
 
-function blockNode(node: Content, warnings: MdastToLexicalWarning[]): LexicalNode | null {
+function blockNode(node: Content, ctx: ConvertContext): LexicalNode | null {
   // Synthetic admonition container injected by `parse-markdown` — handled
   // ahead of the mdast switch since it isn't a real mdast node type.
   if ((node as { type: string }).type === 'admonitionDirective') {
-    return admonitionNode(node as unknown as AdmonitionDirective, warnings)
+    return admonitionNode(node as unknown as AdmonitionDirective, ctx)
   }
   switch (node.type) {
     case 'paragraph':
-      return paragraphNode(node, warnings)
+      return paragraphNode(node, ctx)
     case 'heading':
-      return headingNode(node, warnings)
+      return headingNode(node, ctx)
     case 'list':
-      return listNode(node, warnings)
+      return listNode(node, ctx)
     case 'blockquote':
-      return blockquoteNode(node, warnings)
+      return blockquoteNode(node, ctx)
     case 'code':
       return codeNode(node)
     case 'thematicBreak':
       return horizontalRuleNode(node)
     case 'html':
-      warnings.push({
+      ctx.warnings.push({
         kind: 'dropped-html',
         detail: `dropped HTML node: ${truncate((node as { value: string }).value)}`,
       })
       return null
-    case 'image':
-      warnings.push({
-        kind: 'dropped-image',
-        detail: `dropped image (alt=${(node as Image).alt ?? ''} url=${(node as Image).url})`,
-      })
-      return null
+    case 'image': {
+      // An image as a direct root child is rare — markdown normally wraps a
+      // standalone image in a paragraph. `InlineImageNode` is an inline
+      // decorator (`DecoratorNode.isInline()` is true), so it can never be a
+      // root child: wrap it the way the editor would.
+      const image = inlineImageNode(node as Image, ctx)
+      if (!image) return null
+      return {
+        type: 'paragraph',
+        version: 1,
+        direction: 'ltr',
+        format: '',
+        indent: 0,
+        textFormat: 0,
+        textStyle: '',
+        children: [image],
+      }
+    }
     case 'table':
-      return tableNode(node as Table, warnings)
+      return tableNode(node as Table, ctx)
     default:
-      warnings.push({
+      ctx.warnings.push({
         kind: 'unsupported-node',
         detail: `dropped block-level node of type '${(node as { type: string }).type}'`,
       })
@@ -156,7 +192,7 @@ function blockNode(node: Content, warnings: MdastToLexicalWarning[]): LexicalNod
   }
 }
 
-function paragraphNode(node: Paragraph, warnings: MdastToLexicalWarning[]): LexicalNode {
+function paragraphNode(node: Paragraph, ctx: ConvertContext): LexicalNode {
   return {
     type: 'paragraph',
     version: 1,
@@ -165,11 +201,11 @@ function paragraphNode(node: Paragraph, warnings: MdastToLexicalWarning[]): Lexi
     indent: 0,
     textFormat: 0,
     textStyle: '',
-    children: walkInlines(node.children, 0, warnings),
+    children: walkInlines(node.children, 0, ctx),
   }
 }
 
-function headingNode(node: Heading, warnings: MdastToLexicalWarning[]): LexicalNode {
+function headingNode(node: Heading, ctx: ConvertContext): LexicalNode {
   return {
     type: 'heading',
     version: 1,
@@ -177,11 +213,11 @@ function headingNode(node: Heading, warnings: MdastToLexicalWarning[]): LexicalN
     format: '',
     indent: 0,
     tag: `h${node.depth}`,
-    children: walkInlines(node.children, 0, warnings),
+    children: walkInlines(node.children, 0, ctx),
   }
 }
 
-function listNode(node: List, warnings: MdastToLexicalWarning[]): LexicalNode {
+function listNode(node: List, ctx: ConvertContext): LexicalNode {
   const ordered = node.ordered === true
   const start = ordered ? (node.start ?? 1) : 1
   return {
@@ -194,27 +230,23 @@ function listNode(node: List, warnings: MdastToLexicalWarning[]): LexicalNode {
     tag: ordered ? 'ol' : 'ul',
     start,
     children: node.children.map((item, index) =>
-      listItemNode(item, ordered ? start + index : index + 1, warnings)
+      listItemNode(item, ordered ? start + index : index + 1, ctx)
     ),
   }
 }
 
-function listItemNode(
-  node: ListItem,
-  value: number,
-  warnings: MdastToLexicalWarning[]
-): LexicalNode {
+function listItemNode(node: ListItem, value: number, ctx: ConvertContext): LexicalNode {
   // mdast wraps list-item content in implicit paragraph(s). Lexical
   // listitem expects inline children directly, so peel single-paragraph
   // wrappers. Nested lists are passed through as block children.
   const children: LexicalNode[] = []
   for (const child of node.children) {
     if (child.type === 'paragraph') {
-      children.push(...walkInlines(child.children, 0, warnings))
+      children.push(...walkInlines(child.children, 0, ctx))
     } else if (child.type === 'list') {
-      children.push(listNode(child, warnings))
+      children.push(listNode(child, ctx))
     } else {
-      const block = blockNode(child as Content, warnings)
+      const block = blockNode(child as Content, ctx)
       if (block) children.push(block)
     }
   }
@@ -229,7 +261,7 @@ function listItemNode(
   }
 }
 
-function blockquoteNode(node: Blockquote, warnings: MdastToLexicalWarning[]): LexicalNode {
+function blockquoteNode(node: Blockquote, ctx: ConvertContext): LexicalNode {
   // Lexical's quote node holds inline children, not blocks. mdast
   // blockquotes wrap paragraphs — flatten single-paragraph blockquotes,
   // and for multi-paragraph quotes inject a linebreak between them.
@@ -238,10 +270,10 @@ function blockquoteNode(node: Blockquote, warnings: MdastToLexicalWarning[]): Le
   for (const child of node.children) {
     if (child.type === 'paragraph') {
       if (!first) inline.push({ type: 'linebreak', version: 1 })
-      inline.push(...walkInlines(child.children, 0, warnings))
+      inline.push(...walkInlines(child.children, 0, ctx))
       first = false
     } else {
-      warnings.push({
+      ctx.warnings.push({
         kind: 'unsupported-node',
         detail: `blockquote contained non-paragraph child '${child.type}' — dropped`,
       })
@@ -260,8 +292,8 @@ function blockquoteNode(node: Blockquote, warnings: MdastToLexicalWarning[]): Le
 // Byline admonition (callout). An ElementNode whose body lives as real
 // block children — paragraphs + inline content — matching the editor's
 // `AdmonitionNode`. `admonitionType` / `title` ride the node, not the body.
-function admonitionNode(node: AdmonitionDirective, warnings: MdastToLexicalWarning[]): LexicalNode {
-  const children = walkBlocks(node.children as Content[], warnings)
+function admonitionNode(node: AdmonitionDirective, ctx: ConvertContext): LexicalNode {
+  const children = walkBlocks(node.children as Content[], ctx)
   // Never leave the body empty — mirrors the editor transformer, which
   // seeds an empty paragraph so the caret has somewhere to land.
   if (children.length === 0) children.push(emptyParagraph())
@@ -316,43 +348,35 @@ function normalizeCodeLang(lang: string | null | undefined): string {
 const HEADER_STATE_NONE = 0
 const HEADER_STATE_ROW = 1
 
-function tableNode(node: Table, warnings: MdastToLexicalWarning[]): LexicalNode {
+function tableNode(node: Table, ctx: ConvertContext): LexicalNode {
   return {
     type: 'table',
     version: 1,
     direction: 'ltr',
     format: '',
     indent: 0,
-    children: node.children.map((row, rowIndex) => tableRowNode(row, rowIndex === 0, warnings)),
+    children: node.children.map((row, rowIndex) => tableRowNode(row, rowIndex === 0, ctx)),
   }
 }
 
-function tableRowNode(
-  row: TableRow,
-  isHeaderRow: boolean,
-  warnings: MdastToLexicalWarning[]
-): LexicalNode {
+function tableRowNode(row: TableRow, isHeaderRow: boolean, ctx: ConvertContext): LexicalNode {
   return {
     type: 'tablerow',
     version: 1,
     direction: 'ltr',
     format: '',
     indent: 0,
-    children: row.children.map((cell) => tableCellNode(cell, isHeaderRow, warnings)),
+    children: row.children.map((cell) => tableCellNode(cell, isHeaderRow, ctx)),
   }
 }
 
-function tableCellNode(
-  cell: TableCell,
-  isHeaderRow: boolean,
-  warnings: MdastToLexicalWarning[]
-): LexicalNode {
+function tableCellNode(cell: TableCell, isHeaderRow: boolean, ctx: ConvertContext): LexicalNode {
   // Lexical's TableCellNode expects block-level children (the editor
   // typing flow inserts a paragraph and writes text into it), so wrap
   // mdast's inline cell content in a single paragraph. Empty cells
   // get an empty paragraph so the node still has structurally valid
   // children.
-  const inline = walkInlines(cell.children, 0, warnings)
+  const inline = walkInlines(cell.children, 0, ctx)
   return {
     type: 'tablecell',
     version: 1,
@@ -413,14 +437,10 @@ function horizontalRuleNode(_node: ThematicBreak): LexicalNode {
   return { type: 'horizontalrule', version: 1 }
 }
 
-function walkInlines(
-  nodes: PhrasingContent[],
-  format: number,
-  warnings: MdastToLexicalWarning[]
-): LexicalNode[] {
+function walkInlines(nodes: PhrasingContent[], format: number, ctx: ConvertContext): LexicalNode[] {
   const out: LexicalNode[] = []
   for (const node of nodes) {
-    const converted = inlineNode(node, format, warnings)
+    const converted = inlineNode(node, format, ctx)
     if (Array.isArray(converted)) out.push(...converted)
     else if (converted) out.push(converted)
   }
@@ -430,37 +450,33 @@ function walkInlines(
 function inlineNode(
   node: PhrasingContent,
   format: number,
-  warnings: MdastToLexicalWarning[]
+  ctx: ConvertContext
 ): LexicalNode | LexicalNode[] | null {
   switch (node.type) {
     case 'text':
       return textNode((node as Text).value, format)
     case 'strong':
-      return walkInlines((node as Strong).children, format | IS_BOLD, warnings)
+      return walkInlines((node as Strong).children, format | IS_BOLD, ctx)
     case 'emphasis':
-      return walkInlines((node as Emphasis).children, format | IS_ITALIC, warnings)
+      return walkInlines((node as Emphasis).children, format | IS_ITALIC, ctx)
     case 'delete':
-      return walkInlines((node as Delete).children, format | IS_STRIKETHROUGH, warnings)
+      return walkInlines((node as Delete).children, format | IS_STRIKETHROUGH, ctx)
     case 'inlineCode':
       return textNode((node as InlineCode).value, format | IS_CODE)
     case 'link':
-      return linkNode(node as Link, format, warnings)
+      return linkNode(node as Link, format, ctx)
     case 'break':
       return { type: 'linebreak', version: 1 }
     case 'image':
-      warnings.push({
-        kind: 'dropped-image',
-        detail: `dropped inline image (alt=${(node as Image).alt ?? ''} url=${(node as Image).url})`,
-      })
-      return null
+      return inlineImageNode(node as Image, ctx)
     case 'html':
-      warnings.push({
+      ctx.warnings.push({
         kind: 'dropped-html',
         detail: `dropped inline HTML: ${truncate((node as { value: string }).value)}`,
       })
       return null
     default:
-      warnings.push({
+      ctx.warnings.push({
         kind: 'unsupported-node',
         detail: `dropped inline node of type '${(node as { type: string }).type}'`,
       })
@@ -492,7 +508,57 @@ function collapseSoftNewlines(text: string): string {
   return text.replace(/[ \t]*\n[ \t]*/g, ' ')
 }
 
-function linkNode(node: Link, format: number, warnings: MdastToLexicalWarning[]): LexicalNode {
+/**
+ * Markdown image → the richtext package's `InlineImageNode`, at
+ * `position: 'full'`. Markdown carries no sizing or float intent, so every
+ * imported image is full-width; `width` / `height` come from the ingested
+ * media document and act as render-state fallback until the server-side
+ * populate visitor refreshes `document`.
+ *
+ * An unresolved URL (ingestion failed, or the pre-pass didn't run) keeps the
+ * pre-existing drop-with-a-warning behaviour rather than emitting a node
+ * pointing at nothing.
+ */
+function inlineImageNode(node: Image, ctx: ConvertContext): LexicalNode | null {
+  const resolved = ctx.images.get(node.url)
+  if (!resolved) {
+    ctx.warnings.push({
+      kind: 'dropped-image',
+      detail: `dropped image (alt=${node.alt ?? ''} url=${node.url}) — not in the media collection`,
+    })
+    return null
+  }
+  return {
+    type: 'inline-image',
+    version: 1,
+    targetDocumentId: resolved.targetDocumentId,
+    targetCollectionId: resolved.targetCollectionId,
+    targetCollectionPath: resolved.targetCollectionPath,
+    src: resolved.src,
+    altText: node.alt ?? '',
+    position: 'full',
+    width: resolved.width,
+    height: resolved.height,
+    showCaption: false,
+    // `InlineImageNode.importJSON` reads `caption.editorState` and only
+    // applies it when non-empty, so a childless root leaves the node's own
+    // fresh nested editor untouched.
+    caption: {
+      editorState: {
+        root: {
+          type: 'root',
+          children: [],
+          direction: null,
+          format: '',
+          indent: 0,
+          version: 1,
+        },
+      },
+    },
+  }
+}
+
+function linkNode(node: Link, format: number, ctx: ConvertContext): LexicalNode {
   const newTab = node.url.startsWith('http://') || node.url.startsWith('https://')
   return {
     type: 'link',
@@ -506,7 +572,7 @@ function linkNode(node: Link, format: number, warnings: MdastToLexicalWarning[])
       newTab,
       rel: newTab ? 'noopener' : null,
     },
-    children: walkInlines(node.children, format, warnings),
+    children: walkInlines(node.children, format, ctx),
   }
 }
 

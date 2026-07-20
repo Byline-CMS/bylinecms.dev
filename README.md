@@ -77,6 +77,9 @@ overview; the highlights below link straight to the per-topic references.
 - **[Path Grammar](docs/03-architecture/04-path-grammar.md)** — how fields are
   addressed across storage, schemas, patches, forms, and upload configuration:
   the two path notations, when each applies, and their limits.
+- **[Deployment Topologies](docs/03-architecture/05-deployment-topologies.md)** —
+  the integrated single host available today, and the three split admin / API /
+  front-end shapes the architecture is designed to reach.
 
 ### 4. [Collections](docs/04-collections/index.md)
 
@@ -166,42 +169,18 @@ Unit and integration suites, the `byline_test` database, and isolation strategy.
 
 ## Deployment Scenarios (Current and Future)
 
-Byline is designed to support a spectrum of deployment shapes, from a single
-all-in-one host today to fully split admin / API / front-end topologies in the
-future. The four diagrams below sketch the progression.
+Byline runs today as a single host: the admin dashboard and your front-end
+application share one process, and content is read through `@byline/client` as
+an in-process call rather than a network request. The architecture is designed
+to grow into progressively split topologies — an exposed HTTP API, a separate
+front-end host, and three dedicated hosts — each gated on the stable HTTP
+boundary that is deliberately deferred until a second, non-admin client exists.
 
-### 1. Integrated all-in-one host (current)
+<img width="900" alt="Byline CMS deployment scenario 1: integrated all-in-one host with admin, front-end and Client SDK co-located, connected to Postgres" src="docs/03-architecture/images/byline-deployment-1-integrated.svg" />
 
-A single host runs the admin dashboard and the front-end application together.
-The Client SDK runs in-process; the host talks directly to Postgres.
-
-<img width="900" alt="Byline CMS deployment scenario 1: integrated all-in-one host with admin, front-end and Client SDK co-located, connected to Postgres" src="apps/webapp/public/byline-deployment-1-integrated.svg" />
-
-### 2. Integrated host with an exposed HTTP API
-
-The same single host now also exposes a public HTTP API that maps 1:1 to the
-Client SDK. The front-end keeps using the SDK in-process; external clients
-reach Byline through the HTTP API.
-
-<img width="900" alt="Byline CMS deployment scenario 2: integrated host with admin, front-end and an exposed HTTP API mapping 1:1 to the Client SDK" src="apps/webapp/public/byline-deployment-2-integrated-with-api.svg" />
-
-### 3. Admin + HTTP API host with a separate front-end host
-
-Two hosts. The Byline host carries the admin dashboard and exposes the HTTP
-API; the front-end is deployed independently and consumes that API over the
-network.
-
-<img width="900" alt="Byline CMS deployment scenario 3: Byline admin and HTTP API on one host, with a separate front-end host consuming the API over the network" src="apps/webapp/public/byline-deployment-3-split-frontend.svg" />
-
-### 4. Three dedicated hosts
-
-A dedicated HTTP API server, a dedicated admin host (no exposed HTTP), and a
-dedicated front-end host. The front-end consumes the API host over the
-network; the admin and API hosts share the database.
-
-<img width="900" alt="Byline CMS deployment scenario 4: three dedicated hosts — admin, HTTP API, and front-end — with admin and API sharing a Postgres database" src="apps/webapp/public/byline-deployment-4-three-hosts.svg" />
-
-
+All four deployment scenarios, current and future, are described in
+[Deployment Topologies](docs/03-architecture/05-deployment-topologies.md),
+with a diagram of each.
 
 
 ## Quick start — add Byline to a TanStack Start application
@@ -242,9 +221,9 @@ complete.
 > `__root.tsx` moved into that layout's `route.tsx`. This prevents public
 > styles from affecting the Byline dashboard.
 
-The full walkthrough — prompts, flags, `setup`, and what the installer does
-under the hood — is in
-[docs/01-getting-started/01-cli.md](docs/01-getting-started/01-cli.md).
+The [CLI guide](docs/01-getting-started/01-cli.md) covers the full
+walkthrough: every prompt, the available flags, `byline setup`, and what the
+installer does under the hood.
 
 ## Quick start — development environment and example application (this repo)
 
@@ -295,9 +274,9 @@ pnpm dev
 
 Open http://localhost:5173/.
 
-Full notes — including the foot-gun protection on `db_init`, alternate
-database names, and what the seed does — are in
-[docs/01-getting-started/02-development-environment.md](docs/01-getting-started/02-development-environment.md).
+The [development environment guide](docs/01-getting-started/02-development-environment.md)
+has the full notes, including the foot-gun protection on `db_init`, alternate
+database names, and what the seed does.
 
 ## FAQ
 
