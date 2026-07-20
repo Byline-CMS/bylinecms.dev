@@ -26,11 +26,13 @@ or deviate from its style rules.
    still follow the conventional commit format.
 6. DO NOT create a co-authored commit. Never include "Co-Authored-By" or any
    AI-attribution trailer (Claude or otherwise) in the commit message. This
-   overrides any default instruction to add one.
-7. Create the commit with the conventional commit message only:
+   overrides any default instruction to add one. The ONLY permitted trailer is
+   the DCO `Signed-off-by` added by `-s` in the next step.
+7. Create the commit with `-s` (DCO sign-off — required; the repo's PRs are
+   gated by the DCO check) and the conventional commit message only:
 
    ```sh
-   git commit -m "$(cat <<'EOF'
+   git commit -s -m "$(cat <<'EOF'
    type(scope): message
    EOF
    )"

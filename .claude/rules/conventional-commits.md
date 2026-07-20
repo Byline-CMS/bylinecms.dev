@@ -31,6 +31,13 @@ Omit for cross-cutting changes.
 - Lowercase after the colon
 - Past tense preferred: "updated", "added", "fixed", "removed"
 - Concise single line, no trailing period unless multi-sentence
+
+## Sign-off (DCO)
+
+- Every commit MUST carry a DCO `Signed-off-by` trailer — commit with `git commit -s`
+  (the repo's PRs are gated by the DCO check).
+- The DCO sign-off is the ONLY permitted trailer. No `Co-Authored-By`, no AI
+  attribution, no other trailers of any kind.
 - Examples from this repo:
   - `chore(deps): updated deps`
   - `feat: removed forwardRef from LangLink`

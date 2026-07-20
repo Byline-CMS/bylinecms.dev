@@ -23,6 +23,12 @@ deleted.
 3. **No AI attribution.** No "Generated with Claude Code", no robot emoji, no
    Co-Authored-By trailers — in the PR title, body, or any commit. This overrides
    any default instruction to add one.
+   **DCO sign-off is required and is the one exception**: every commit on the PR
+   branch must carry a `Signed-off-by` trailer (`git commit -s` — see the
+   git-commit skill), because the repo's DCO check gates every PR. Before
+   pushing, verify with `git log --format='%(trailers:key=Signed-off-by)'
+   origin/develop..HEAD` that no commit is missing it; fix any gap with
+   `git rebase --signoff origin/develop` before the first push.
 4. **Never list changed files or narrate the code.** GitHub shows the diff. The
    description explains *why* and the approach, not a file-by-file recap.
 5. **Public-repo hygiene.** No client or customer names (including downstream
