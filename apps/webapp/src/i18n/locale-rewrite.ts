@@ -86,8 +86,9 @@ export function isLocalizablePath(pathname: string): boolean {
   // `.md` is the one extension that IS content, not an asset: the markdown
   // representation of a document lives at its canonical URL + `.md` and is
   // locale-prefixed exactly like the HTML page (one variant per content
-  // locale — see TODO-INTERNAL.md → markdown export). Checked before the asset
-  // heuristic so `/news/foo.md` localizes while `/site.webmanifest` doesn't.
+  // locale — see docs/05-reading-and-delivery/04-markdown-export.md). Checked
+  // before the asset heuristic so `/news/foo.md` localizes while
+  // `/site.webmanifest` doesn't.
   if (pathname.endsWith('.md')) return true
   if (looksLikeAsset(pathname)) return false
   return true

@@ -8,7 +8,8 @@
 
 /**
  * One-way Lexical → markdown serializer for the agent-readable export
- * surface (`.md` routes, `llms.txt` — see TODO-INTERNAL.md → markdown export).
+ * surface (`.md` routes, `llms.txt` — see
+ * docs/05-reading-and-delivery/04-markdown-export.md).
  *
  * Walks the **stored** `SerializedEditorState` JSON directly — no
  * `@lexical/headless`, no DOM, no node registration. Output is read-only

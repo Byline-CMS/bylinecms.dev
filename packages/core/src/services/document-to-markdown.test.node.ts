@@ -10,7 +10,8 @@
  * Contract tests for the document-grain markdown assembler. The expected
  * strings ARE the format contract — agents build on this shape, so a
  * change here is a consumer-visible format change and should be
- * deliberate (TODO-INTERNAL.md → "The output is a contract surface").
+ * deliberate (docs/05-reading-and-delivery/04-markdown-export.md →
+ * "The output is a contract surface").
  */
 
 import { describe, expect, it } from 'vitest'

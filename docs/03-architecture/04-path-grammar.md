@@ -259,6 +259,22 @@ Persisted and client/server path formats cannot be changed as internal refactors
 
 **Patch paths are a wire format.** They cross the client/server boundary, so a change must account for mismatched client and server versions, saved payloads, and every consumer. Treat patch syntax as a protocol.
 
+## Rejected design — block-qualified runtime paths
+
+Form and patch paths carry no block type; persisted storage paths do, because a stored value row has no `_type` column while an in-memory block item does. Carrying the block type through the runtime notations as well — so that one visually consistent notation appeared in logs, patch payloads, and storage rows — was implemented in full on 2026-07-19 and then abandoned rather than merged. This section records why, so the design is not proposed a second time.
+
+The added segment addresses nothing in the data. Block items are stored flat, as `{ _id, _type, ...fields }`, so every consumer had to recognise the segment and skip it. Three consumers did: the patch walkers, the admin form store, and upload resolution. Three defects followed.
+
+1. A reorder combined with a heterogeneous block wrote a phantom object into a stale item.
+2. The block type was carried but never enforced, so a mismatched segment silently edited the real field. The cost of an assertion was paid without gaining the integrity of one.
+3. `UploadConfig.context` regressed. `resolveContextPath` counts every dotted segment as one scope level, so `../` stopped inside the block instead of reaching the document root — a public API regression, confirmed by direct test.
+
+The general lesson is the third one. Each non-navigating segment creates another place that must know to erase it, and nothing enforces that obligation. Two of the three consumers were missed on the first implementation pass, and the third was found only in review. The cost kept growing while the value stayed fixed at visual consistency alone.
+
+Both of the real benefits — resolving the exact block declaration, and resolving an upload without form data — are obtainable from a schema-and-data-aware resolver that reads `_type`, with no change to any payload.
+
+Revisit this only for a genuinely cold consumer: a persisted operation log, peer synchronisation, or collaborative editing, where a path is read without the document in hand. At that point the block type becomes load-bearing rather than decorative, and it should be a validated assertion that is rejected on mismatch, parsed centrally, and explicitly ignored by relative-scope arithmetic — not a pseudo-navigation segment that every data walker strips. The regression in (3) is pinned by `packages/admin/src/forms/upload-executor.test.node.ts` ("climbs out of the block to the document root").
+
 ## Other path-like APIs
 
 These have narrower contracts and must not be passed to the shared resolvers:

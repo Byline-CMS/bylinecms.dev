@@ -58,7 +58,8 @@ describe('localeInputRewrite — the matcher always sees a locale segment', () =
 
   it('treats `.md` as content, not asset — localized like the HTML page', () => {
     // The markdown representation lives at canonical URL + `.md`, one
-    // variant per content locale (TODO-INTERNAL.md → markdown export).
+    // variant per content locale (see
+    // docs/05-reading-and-delivery/04-markdown-export.md).
     expect(input('/docs/getting-started.md')).toBe('/en/docs/getting-started.md')
     expect(input('/fr/docs/getting-started.md')).toBe('/fr/docs/getting-started.md')
     expect(input('/news/some-post.md')).toBe('/en/news/some-post.md')

@@ -10,8 +10,8 @@
  * Contract tests for the one-way Lexical → markdown export serializer.
  * The expected strings below ARE the format contract — agents build on
  * this shape, so a change here is a consumer-visible format change and
- * should be deliberate (see TODO-INTERNAL.md → "The output is a contract
- * surface").
+ * should be deliberate (see docs/05-reading-and-delivery/04-markdown-export.md →
+ * "The output is a contract surface").
  */
 
 import { describe, expect, it } from 'vitest'
