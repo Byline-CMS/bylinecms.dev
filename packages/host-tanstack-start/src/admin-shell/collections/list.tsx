@@ -275,9 +275,13 @@ export const ListView = ({
   // Same identity-stability rationale as `statusItems` above: this Select is
   // now controlled by `value`, so a fresh `items` array identity on every
   // render would trip Base UI's SelectRoot store-sync loop.
+  // 20 is the list server fn's default page size (see list-view-state.ts), so
+  // it must be a selectable option — a fresh user with no stored preference
+  // lands on 20 rows and the control shows that value.
   const pageSizeItems = useMemo(
     () => [
       { value: '15', label: '15' },
+      { value: '20', label: '20' },
       { value: '30', label: '30' },
       { value: '50', label: '50' },
       { value: '100', label: '100' },
@@ -627,7 +631,7 @@ export const ListView = ({
             id="page_size"
             name="page_size"
             size="sm"
-            value={String(searchParams.page_size ?? data?.meta.pageSize ?? 15)}
+            value={String(searchParams.page_size ?? data?.meta.pageSize ?? 20)}
             items={pageSizeItems}
             onValueChange={handleOnPageSizeChange}
           />
