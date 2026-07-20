@@ -175,6 +175,7 @@ Plainer than the README. The README is allowed marketing energy — slogans, "fo
 - Code-format every file path, table name, type, and symbol: `docs/04-collections/01-fields.md`, `store_text`, `ReadContext`.
 - British spelling is fine and used throughout the corpus ("materialises", "behaviour", "normalises"). Don't convert existing text either way.
 - Prefer a relative link to a companion document over restating its explanation.
+- **Admonitions are Docusaurus-style and always carry a title**: `:::note[Tested configuration]`, `:::warning[Foot-gun protection]`, `:::tip[…]`, closed by `:::` on its own line. A bare `:::note` is wrong — the title is what a reader scanning the page sees, so make it say something specific ("Keep public and admin layouts separate", "upload.storage is server-only"), not just restate the type. Use sentence case, and reach for an admonition only when the point genuinely interrupts the flow; a paragraph that could sit in the body should stay in the body.
 
 ## Anti-patterns — what "not first-class" looks like here
 
@@ -234,6 +235,7 @@ Run this against the draft. If any answer is "no", fix it before delivering.
 - [ ] Is the reader addressed as "you", with system actors still named concretely (not personified)?
 - [ ] Does the front matter carry `title`/`path`/`summary`, with no key outside the allowed set and `title` matching the first H1?
 - [ ] Do all relative links point at `.md` files inside `docs/`, and does every anchor fragment name a heading that exists?
+- [ ] Does every admonition carry a specific title (`:::note[…]`, `:::warning[…]`)?
 - [ ] Is the file in the right numbered section, with the next free `NN-` prefix and an entry in that section's `index.md`?
 - [ ] Are code symbols, paths, commands, limits, and behavioural claims verified against the current repo, not memory?
 - [ ] Would this doc, as written, actually let someone *do the thing* without opening the source?
