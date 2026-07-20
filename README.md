@@ -32,7 +32,7 @@ than features bolted on later.
   applies them against the reconstructed document. A foundation for
   collaborative editing later.
 - **Schema separated from presentation.** Collection definitions are
-  server-safe data; admin UI lives in a parallel `defineAdmin()` config 
+  server-safe data; admin UI lives in a parallel `defineAdmin()` config
   (think Django models vs ModelAdmin, applied to headless content).
 
 For the longer story, see [docs/02-why-byline/01-mission.md](docs/02-why-byline/01-mission.md) and
@@ -46,7 +46,7 @@ overview; the highlights below link straight to the per-topic references.
 
 ### 1. [Getting Started](docs/01-getting-started/index.md)
 
-- **[Experimental CLI](docs/01-getting-started/01-experimental-cli.md)** — add
+- **[CLI](docs/01-getting-started/01-cli.md)** — add
   Byline to an existing TanStack Start app with `byline init` / `setup`.
 - **[Development environment](docs/01-getting-started/02-development-environment.md)**
   — clone this repo, bring up Postgres, seed, and run the example app.
@@ -74,6 +74,9 @@ overview; the highlights below link straight to the per-topic references.
   on `BylineCore`, per-realm request-context builders, and `loadConfig()`.
 - **[Transactions](docs/03-architecture/03-transactions.md)** — the transaction
   model spanning storage writes, hooks, and uploads.
+- **[Path Grammar](docs/03-architecture/04-path-grammar.md)** — how fields are
+  addressed across storage, schemas, patches, forms, and upload configuration:
+  the two path notations, when each applies, and their limits.
 
 ### 4. [Collections](docs/04-collections/index.md)
 
@@ -81,6 +84,9 @@ Collection schema and admin (columns, layout, preview, custom list views) plus
 schema versioning.
 
 - **[Fields](docs/04-collections/01-fields.md)** — field schemas, admin and field helpers.
+- **[Blocks](docs/04-collections/02-blocks.md)** — `defineBlock()` schemas, the
+  blockType-keyed `defineBlockAdmin()` split, blocks in type generation and
+  storage, and inline uploads via `upload.location`.
 - **[Relationships](docs/04-collections/03-relationships.md)** — cross-collection
   relations, populate, the relation envelope, recursion safety via
   `ReadContext`, and `hasMany` as a future phase.
@@ -120,6 +126,9 @@ schema versioning.
 - **[Search](docs/05-reading-and-delivery/07-search.md)** — the pluggable
   `SearchProvider` seam, the built-in Postgres full-text driver, lifecycle-hook
   indexing, reindex, and the collection `search()` query surface.
+- **[Search & Document Extraction](docs/05-reading-and-delivery/08-search-extraction-strategy.md)**
+  — forward-looking research for attachment extraction and retrieval: provider
+  boundaries, persistence, chunking, and phased delivery.
 
 ### 6. [Auth & Security](docs/06-auth-and-security/index.md)
 
@@ -195,99 +204,49 @@ network; the admin and API hosts share the database.
 
 
 
-## Quick start - Experimental CLI
+## Quick start — add Byline to a TanStack Start application
 
-Note: We have an experimental CLI that will attempt to install Byline into an existing TanStack Start application. This has only been tested against up-to-date TanStack Start sites created with the Nitro (agnostic adapter). You can install TanStack Start with:
+Byline installs into an existing TanStack Start application. If you need one,
+create it first and select the **Nitro (agnostic)** adapter — the adapter the
+CLI is tested against:
 
 ```sh
 npx @tanstack/cli@latest create
+```
 
-#or
-
-pnpm dlx @tanstack/cli@latest create
-```
-Then be sure to select the Nitro (agnostic) adapter.
-```
-◆  Select deployment adapter:
-│  ○ None
-│  ○ Cloudflare
-│  ○ Netlify
-│  ● Nitro (agnostic)
-│  ○ Railway
-└
-```
-Once your TanStack Start application is ready you can initialize a Byline installation with:
+Then, from the application directory:
 
 ```sh
 npx @byline/cli@latest init
 
-#or
+# or
 
 pnpm dlx @byline/cli@latest init
 ```
-NOTE: If you use `pnpm` - installing dependencies may bail out asking you to `pnpm approve-builds`
-You can stop the `cli@latest init` - approve builds, and then re-run `pnpm dlx @byline/cli@latest init` and
-it will pick up where it left off. You may need to do this more than once.
-At a minimum - for `pnpm >= 11` - you'll need a `pnpm-workspace.yaml` file in the root of your project that looks something like this:
 
-```
-minimumReleaseAge: 1440
-allowBuilds:
-  "@google/genai": true
-  "@parcel/watcher": true
-  protobufjs: true
-  sharp: true
+`init` prompts for where to mount the admin UI and sign-in page, how to connect
+to PostgreSQL, and whether to include the example collections. It summarises
+those choices, along with a diff of every file it plans to write, before
+installing anything. When it finishes you have a working admin UI, a
+provisioned and migrated database, a seeded super-admin account, and a
+`byline/` configuration directory ready to edit.
 
-```
+Two companion commands: `byline setup` provisions and seeds an application you
+wired by hand, and `byline doctor` reports which installation phases are
+complete.
 
+> **Keep public and admin layouts separate.** Byline's routes are installed
+> under a pathless `routes/_byline` layout. Move your public application's
+> top-level layout into a separate pathless route — for example
+> `routes/_public` — with the styling, headers, and footers that were in
+> `__root.tsx` moved into that layout's `route.tsx`. This prevents public
+> styles from affecting the Byline dashboard.
 
-If there are any issues, you can follow the example application in this repo under `apps/webapp`.
+The full walkthrough — prompts, flags, `setup`, and what the installer does
+under the hood — is in
+[docs/01-getting-started/01-cli.md](docs/01-getting-started/01-cli.md).
 
-NOTE: For AI-assisted editing, you'll need to add your API keys as shown in `apps/webapp/.env.example`
-
-IMPORTANT: The core Byline routes will be placed under a pathless route at `routes/_byline`, with its own route.tsx template. To prevent your front-end TanStack Start application's styling from 'leaking' into the Byline dashboard, you'll need to create or move your top-most layout route into its own pathless layout route - for example, under `routes/_font-end` or `routes/_public` - with any styling, headers, footers etc., that might have been in __root.tsx - moved into the route.tsx layout file inside your front-end pathless layout route.
-
-See the TanStack Router docs for [File-Based Routing](https://tanstack.com/router/latest/docs/routing/file-based-routing) and [Virtual File Routes](https://tanstack.com/router/latest/docs/routing/virtual-file-routes) for more information.
-
-NOTE: If you have manually configured Byline by copying code from the example application here (byline directories, .env, start, server, __root.tsx, and vite.config.ts settings), and only want to provision the database and seed the super-admin and example docs in the new application, use `byline setup` instead of `byline init`:
-
-```sh
-npx @byline/cli@latest setup
-
-# or
-
-pnpm dlx @byline/cli@latest setup
-```
-
-`setup` runs only the database-provisioning and seed phases (`db` → `db-init` → `seed-admin` → `seed-docs`) — it does not touch project files. Useful flag examples:
-
-```sh
-# Provision the DB and seed both the super-admin and example docs (default)
-byline setup
-
-# Provision the DB and seed the super-admin only
-byline setup --no-seed-docs
-
-# Provision the DB and seed example docs only
-byline setup --no-seed-admin
-
-# Provision the DB without running either seed
-byline setup --no-seed-admin --no-seed-docs
-
-# Destructive: drop and recreate the database (requires both flags)
-byline setup --reset --i-mean-it
-
-# Re-run every phase even if recorded as complete (non-destructive on its own —
-# migrations re-apply as no-ops, seeds are idempotent)
-byline setup --force
-
-# Full nuke-and-pave: drop and recreate the database, then re-run every phase
-byline setup --force --reset --i-mean-it
-```
-
-Before running any phase, `setup` performs a quick pre-flight: it bails if the core `@byline/*` packages aren't installed in your app's `package.json`, bails if `.env` is missing, and warns-and-confirms if `.env` is present but missing keys Byline expects (some keys may legitimately be supplied via shell env). For new TanStack Start apps that need the full scaffold, use `byline init` instead.
-
-## Quick start - Development environment and example application (this repo)
+## Quick start — development environment and example application (this repo)
 
 ```sh
 git clone git@github.com:Byline-CMS/bylinecms.dev.git
@@ -303,22 +262,25 @@ cd postgres && mkdir data
 ./postgres.sh up -d
 ```
 
-Initialise the database, run migrations, and seed:
+Initialise the database and run migrations, from the repository root:
 
 ```sh
-cd packages/db-postgres && cp .env.example .env
-cd src/database && ./db_init.sh && cd ../..
+cp packages/db-postgres/.env.example packages/db-postgres/.env
+pnpm db:init
 pnpm drizzle:migrate
+```
 
-# .env configuration
-cd ../../apps/webapp && cp .env.local.example .env.local
+Configure the webapp and seed it:
 
-# generate JWT session key
-openssl rand -base64 48
-# paste the above output into your .env.local file for
+```sh
+cd apps/webapp
+cp .env.local.example .env.local
+
+# Generate a JWT session key, and paste the output into .env.local as
 # BYLINE_JWT_SECRET
+openssl rand -base64 48
 
-# Set the seed superadmin username email address and password
+# Then set the super-admin credentials the seed will create:
 # BYLINE_SUPERADMIN_EMAIL=admin@byline.local
 # BYLINE_SUPERADMIN_PASSWORD=change-me
 
@@ -346,7 +308,7 @@ We’re pretty much nobody — at least not within the usual spheres of influenc
 
 <details>
 <summary>2. Will this work?</summary>
-We hope so. Core is stable but there certainly still work to do.
+We hope so. Core is stable, but there's certainly still work to do.
 </details>
 
 <details>

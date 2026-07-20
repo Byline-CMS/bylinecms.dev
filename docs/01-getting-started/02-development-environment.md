@@ -8,7 +8,7 @@ summary: "Clone the Byline CMS repo, provision PostgreSQL, seed the database, an
 
 By the end of this guide you will have the Byline reference application (`apps/webapp`) running locally against a seeded PostgreSQL database, viewable at `http://localhost:5173/`. It is the quickest way to see a working Byline installation.
 
-**Prerequisites:** Node `>=20.9.0`, pnpm, and Docker (for the bundled PostgreSQL container). If you'd rather add Byline to an existing TanStack Start app than run this repo, use the [CLI](./01-experimental-cli.md) instead.
+**Prerequisites:** Node `>=20.9.0`, pnpm, and Docker (for the bundled PostgreSQL container). If you'd rather add Byline to an existing TanStack Start app than run this repo, use the [CLI](./01-cli.md) instead.
 
 ## 1. Clone and install dependencies
 
