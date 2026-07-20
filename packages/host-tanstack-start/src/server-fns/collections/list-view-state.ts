@@ -61,7 +61,7 @@ export function resolveListViewState(input: ResolveListViewStateInput): Resolved
     rawPrefPageSize <= 100
       ? rawPrefPageSize
       : undefined
-  const pageSize = params.page_size ?? prefPageSize ?? 20
+  const pageSize = params.page_size ?? prefPageSize ?? 15
 
   // Explicit URL params always win. Semantics preserved from the original
   // inline code: an omitted `desc` alongside an explicit `order` sorts

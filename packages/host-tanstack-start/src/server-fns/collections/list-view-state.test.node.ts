@@ -19,8 +19,8 @@ const base = {
 }
 
 describe('resolveListViewState', () => {
-  it('defaults to page size 20 and no sort when nothing is set', () => {
-    expect(resolveListViewState({ ...base })).toEqual({ pageSize: 20 })
+  it('defaults to page size 15 and no sort when nothing is set', () => {
+    expect(resolveListViewState({ ...base })).toEqual({ pageSize: 15 })
   })
 
   it('lets explicit URL params win over preference and configured sort', () => {
@@ -70,9 +70,9 @@ describe('resolveListViewState', () => {
   })
 
   it('ignores an out-of-range or non-integer preference page_size', () => {
-    expect(resolveListViewState({ ...base, preference: { page_size: 0 } }).pageSize).toBe(20)
-    expect(resolveListViewState({ ...base, preference: { page_size: 999 } }).pageSize).toBe(20)
-    expect(resolveListViewState({ ...base, preference: { page_size: 12.5 } }).pageSize).toBe(20)
+    expect(resolveListViewState({ ...base, preference: { page_size: 0 } }).pageSize).toBe(15)
+    expect(resolveListViewState({ ...base, preference: { page_size: 999 } }).pageSize).toBe(15)
+    expect(resolveListViewState({ ...base, preference: { page_size: 12.5 } }).pageSize).toBe(15)
   })
 
   it('applies page_size but never sort preferences on orderable collections', () => {
