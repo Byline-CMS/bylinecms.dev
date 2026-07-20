@@ -44,6 +44,7 @@ import {
 import cx from 'classnames'
 
 import { getAdminRoutePath } from '../../routes/admin-path.js'
+import { setListViewPreference } from '../../server-fns/collections/index.js'
 import { Link, useNavigate } from '../chrome/loose-router.js'
 import { RouterPager } from '../chrome/router-pager.js'
 import { SortAscendingIcon } from '../chrome/sort-icons.js'
@@ -199,6 +200,7 @@ export const ListView = ({
   // the stored order and "drop between A and B" maps onto the wrong
   // neighbour ids.
   const searchParams = location.search as {
+    page_size?: number
     order?: string
     desc?: boolean
     query?: string
@@ -269,6 +271,19 @@ export const ListView = ({
     [workflowStatuses, t]
   )
 
+  // Same identity-stability rationale as `statusItems` above: this Select is
+  // now controlled by `value`, so a fresh `items` array identity on every
+  // render would trip Base UI's SelectRoot store-sync loop.
+  const pageSizeItems = useMemo(
+    () => [
+      { value: '15', label: '15' },
+      { value: '30', label: '30' },
+      { value: '50', label: '50' },
+      { value: '100', label: '100' },
+    ],
+    []
+  )
+
   const handleOnSearch = (query: string): void => {
     if (query != null && query.length > 0) {
       const params = structuredClone(location.search)
@@ -309,6 +324,21 @@ export const ListView = ({
     })
   }
 
+  // Quietly persist sticky view keys as a per-user preference. Fire-and-
+  // forget: the navigation already happened, so a failed save must never
+  // toast, block, or roll anything back.
+  const persistListPreference = (value: {
+    page_size?: number
+    order?: string
+    desc?: boolean
+  }): void => {
+    setListViewPreference({
+      data: { collection: data.included.collection.path as string, value },
+    }).catch((err: unknown) => {
+      console.warn('list-view preference save failed:', err)
+    })
+  }
+
   function handleOnPageSizeChange(value: string | null): void {
     if (typeof value !== 'string' || value.length === 0) return
     const params = structuredClone(location.search)
@@ -319,6 +349,7 @@ export const ListView = ({
       params: { collection: data.included.collection.path },
       search: params,
     })
+    persistListPreference({ page_size: Number.parseInt(value, 10) })
   }
 
   return (
@@ -509,6 +540,7 @@ export const ListView = ({
                         className={column.className}
                         activeOrder={activeOrder}
                         activeDesc={activeDesc}
+                        onSort={(order, desc) => persistListPreference({ order, desc })}
                       />
                     )
                   })}
@@ -583,13 +615,8 @@ export const ListView = ({
             id="page_size"
             name="page_size"
             size="sm"
-            defaultValue="15"
-            items={[
-              { value: '15', label: '15' },
-              { value: '30', label: '30' },
-              { value: '50', label: '50' },
-              { value: '100', label: '100' },
-            ]}
+            value={String(searchParams.page_size ?? data?.meta.pageSize ?? 15)}
+            items={pageSizeItems}
             onValueChange={handleOnPageSizeChange}
           />
           <RouterPager
