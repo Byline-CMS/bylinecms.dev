@@ -28,12 +28,6 @@ Promoted now that the search query surface is complete: zone (cross-collection) 
 
 ## Next
 
-### Markdown export — remaining polish
-
-The agent-readable surface **shipped** (the full present-state reference is [MARKDOWN-EXPORT.md](./docs/05-reading-and-delivery/04-markdown-export.md)): `lexicalToMarkdown`, `documentToMarkdown`, the `fields.richText.toMarkdown` seam, `.md` routes per content locale for docs/news/pages, `llms.txt` over a shared published-URL index with the sitemap, and all three advertisement channels (`.md` URLs, head `rel=alternate` links, strict `Accept: text/markdown` 302 negotiation).
-
-Remaining, specified in [MARKDOWN-EXPORT.md → Future phases](./docs/05-reading-and-delivery/04-markdown-export.md#future-phases): the **docs-corpus round-trip test** (`import(export(import(md))) ≅ import(md)` over `docs/*.md`, comparing Lexical trees — tests the export serializer against production-shaped content; preferred companion: teach `parse-markdown.ts` to also accept GFM alerts, erasing the admonition dialect asymmetry documented there). Deferred with triggers: per-field markdown opt-out, host-package route factories, `llms-full.txt` / MCP consumption.
-
 ### Search — remaining phases (where/facets, exact paging under scoping)
 
 Phase 2 **shipped**: the `SearchProvider` seam, the `@byline/search-postgres` FTS driver, `ServerConfig.search` registration/validation, lifecycle-hook indexing + `reindex` (ability-gated, admin button), `client.collection(x).search()` with the docs frontend as the worked example, row-level authorization, and the cross-collection `client.search({ zone })` + `hydrate` (all 2026-07-07). Present-state reference: [docs/05-reading-and-delivery/07-search.md](./docs/05-reading-and-delivery/07-search.md). Attachment extraction (Phase 3) is promoted to **Now** (above).
