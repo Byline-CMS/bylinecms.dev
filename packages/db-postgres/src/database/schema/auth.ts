@@ -30,6 +30,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -84,6 +85,31 @@ export const adminUsers = pgTable(
     ...timestamps,
   },
   (table) => [index('idx_byline_admin_users_email').on(table.email)]
+)
+
+// ---------------------------------------------------------------------------
+// byline_admin_user_preferences
+// ---------------------------------------------------------------------------
+
+/**
+ * Scoped per-user key-value preferences (e.g. sticky list-view page
+ * size and sort). One row per (user, scope); `scope` is a dot-separated
+ * key like `collections.docs.list` and `value` is a JSONB object whose
+ * shape belongs to the scope's feature. Composite natural PK — writes
+ * are `INSERT … ON CONFLICT DO UPDATE` with a per-key JSONB merge.
+ * See `@byline/admin/admin-preferences`.
+ */
+export const adminUserPreferences = pgTable(
+  'byline_admin_user_preferences',
+  {
+    user_id: uuid('user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'cascade' }),
+    scope: varchar('scope', { length: 255 }).notNull(),
+    value: jsonb('value').notNull().$type<Record<string, unknown>>(),
+    ...timestamps,
+  },
+  (table) => [primaryKey({ columns: [table.user_id, table.scope] })]
 )
 
 // ---------------------------------------------------------------------------
