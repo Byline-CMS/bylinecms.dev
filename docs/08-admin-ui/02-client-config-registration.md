@@ -25,7 +25,7 @@ today, the root cause that blocks collapsing those to a single eager point,
 and — the load-bearing question — whether an eager single-point registration is
 even possible given that custom slot components legitimately need React context.
 
-:::note
+:::note[Summary]
 Byline registers the client config from two points today. Collapsing that to a
 single eager registration is *possible* but blocked from being worthwhile by the
 admin-presentation-barrel coupling described below — see the

@@ -23,11 +23,6 @@ If you are evaluating Byline rather than adding it to a project, the
 [development environment](./02-development-environment.md) runs a fully
 configured example application without touching your own code.
 
-:::note
-The CLI is currently tested against up-to-date TanStack Start sites using the
-Nitro (agnostic) adapter.
-:::
-
 ## Commands
 
 | Command | What it does |
@@ -42,8 +37,10 @@ example `npx @byline/cli@latest init` or `pnpm dlx @byline/cli@latest init`.
 ## Requirements
 
 - Node `>=20.9.0`.
-- A TanStack Start application, ideally under Git. The installer warns and asks
-  for confirmation outside a Git repository, because Git is how you roll an
+- A TanStack Start application using the Nitro (agnostic) adapter — the
+  configuration the CLI is currently tested against.
+- Ideally, an application already under Git. The installer warns and asks for
+  confirmation outside a Git repository, because Git is how you roll an
   installation back.
 - A running PostgreSQL server and superuser credentials for it. Choose the
   existing-server option when asked; the bundled-Docker option is not yet
