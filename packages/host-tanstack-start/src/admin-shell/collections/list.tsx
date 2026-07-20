@@ -44,6 +44,7 @@ import {
 import cx from 'classnames'
 
 import { getAdminRoutePath } from '../../routes/admin-path.js'
+import { encodeListReturnState } from '../../routes/list-return-state.js'
 import { setListViewPreference } from '../../server-fns/collections/index.js'
 import { Link, useNavigate } from '../chrome/loose-router.js'
 import { RouterPager } from '../chrome/router-pager.js'
@@ -370,6 +371,7 @@ export const ListView = ({
               <Link
                 to={getAdminRoutePath('collections', '$collection', 'create')}
                 params={{ collection: data.included.collection.path }}
+                search={{ from: encodeListReturnState(location.search as Record<string, unknown>) }}
               />
             }
           >
@@ -491,6 +493,11 @@ export const ListView = ({
                                   collection: data.included.collection.path,
                                   id: document.id,
                                 }}
+                                search={{
+                                  from: encodeListReturnState(
+                                    location.search as Record<string, unknown>
+                                  ),
+                                }}
                               >
                                 {column.formatter
                                   ? renderFormatted(
@@ -567,6 +574,11 @@ export const ListView = ({
                               params={{
                                 collection: data.included.collection.path,
                                 id: document.id,
+                              }}
+                              search={{
+                                from: encodeListReturnState(
+                                  location.search as Record<string, unknown>
+                                ),
                               }}
                             >
                               {column.formatter
