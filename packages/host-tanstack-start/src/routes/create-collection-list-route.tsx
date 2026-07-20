@@ -18,7 +18,7 @@ import {
 } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { useToastManager } from '@byline/ui/react'
-import { z } from 'zod'
+import type { z } from 'zod'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { useNavigate } from '../admin-shell/chrome/loose-router.js'
@@ -31,18 +31,8 @@ import {
   reorderCollectionDocument,
 } from '../server-fns/collections/index.js'
 import { getAdminRoutePath } from './admin-path.js'
+import { collectionListSearchSchema as searchSchema } from './list-return-state.js'
 import type { CollectionTreeRow } from '../server-fns/collections/tree.js'
-
-const searchSchema = z.object({
-  page: z.coerce.number().min(1).optional(),
-  page_size: z.coerce.number().max(100).optional(),
-  order: z.string().optional(),
-  desc: z.coerce.boolean().optional(),
-  query: z.string().optional(),
-  locale: z.string().optional(),
-  status: z.string().optional(),
-  action: z.enum(['created']).optional(),
-})
 
 export function createCollectionListRoute(path: string) {
   // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
