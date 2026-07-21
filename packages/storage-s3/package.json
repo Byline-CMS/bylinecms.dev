@@ -2,7 +2,7 @@
   "name": "@byline/storage-s3",
   "private": false,
   "license": "MPL-2.0",
-  "version": "4.6.0",
+  "version": "4.6.1",
   "engines": {
     "node": ">=20.9.0"
   },

@@ -1,5 +1,14 @@
 # @byline/client
 
+## 4.6.1
+
+### Patch Changes
+
+- squashed the drizzle migration series into a single baseline migration and synced the `@byline/cli` scaffold template so fresh installs provision the `byline_admin_user_preferences` table
+- Updated dependencies
+  - @byline/auth@4.6.1
+  - @byline/core@4.6.1
+
 ## 4.6.0
 
 ### Minor Changes
