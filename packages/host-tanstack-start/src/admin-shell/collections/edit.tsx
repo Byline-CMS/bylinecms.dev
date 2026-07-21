@@ -44,6 +44,7 @@ export const EditView = ({
   locale,
   contentLocales,
   defaultContentLocale,
+  returnSearch,
 }: {
   collectionDefinition: CollectionDefinition
   adminConfig?: CollectionAdminConfig
@@ -51,6 +52,8 @@ export const EditView = ({
   locale?: string
   contentLocales: ReadonlyArray<ContentLocaleOption>
   defaultContentLocale: string
+  /** URL-encoded list search state to return to on close — see list-return-state.ts. */
+  returnSearch?: Record<string, unknown>
 }) => {
   const toastManager = useToastManager()
   const { t } = useTranslation('byline-admin')
@@ -77,7 +80,7 @@ export const EditView = ({
     navigate({
       to: getAdminRoutePath('collections', '$collection', '$id'),
       params: { collection: path, id: String(initialData.id) },
-      search: { locale: newLocale },
+      search: (prev: Record<string, unknown>) => ({ ...prev, locale: newLocale }),
     })
   }
 
@@ -196,10 +199,13 @@ export const EditView = ({
         status: 'success',
         message: t('collections.edit.duplicatedSuccessMessage', { label: singular }),
       })
-      // Navigate to the new document's edit view.
+      // Navigate to the new document's edit view. Threads the current
+      // search (including `from`) forward so closing the duplicate
+      // returns to the originating list.
       navigate({
         to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection: path, id: result.documentId },
+        search: (prev: Record<string, unknown>) => ({ ...prev }),
       })
     } catch (err) {
       console.error('Duplicate error:', err)
@@ -274,7 +280,7 @@ export const EditView = ({
       navigate({
         to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection: path, id: String(initialData.id) },
-        search: { locale: targetLocale },
+        search: (prev: Record<string, unknown>) => ({ ...prev, locale: targetLocale }),
       })
     } catch (err) {
       console.error('Copy to locale error:', err)
@@ -326,7 +332,7 @@ export const EditView = ({
       navigate({
         to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection: path, id: String(initialData.id) },
-        search: { locale: defaultContentLocale },
+        search: (prev: Record<string, unknown>) => ({ ...prev, locale: defaultContentLocale }),
       })
     } catch (err) {
       console.error('Delete locale error:', err)
@@ -371,6 +377,7 @@ export const EditView = ({
       navigate({
         to: getAdminRoutePath('collections', '$collection'),
         params: { collection: path },
+        search: returnSearch,
       })
     } catch (err) {
       console.error('Delete error:', err)
@@ -533,6 +540,7 @@ export const EditView = ({
             navigate({
               to: getAdminRoutePath('collections', '$collection'),
               params: { collection: path },
+              search: returnSearch,
             })
           }
           collectionPath={path}

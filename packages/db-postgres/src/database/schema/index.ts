@@ -873,6 +873,7 @@ export {
   adminRoleAdminUserRelations,
   adminRoles,
   adminRolesRelations,
+  adminUserPreferences,
   adminUsers,
   adminUsersRelations,
 } from './auth.js'

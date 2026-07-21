@@ -81,6 +81,11 @@
       "import": "./dist/modules/admin-account/index.js",
       "require": "./dist/modules/admin-account/index.js"
     },
+    "./admin-preferences": {
+      "types": "./dist/modules/admin-preferences/index.d.ts",
+      "import": "./dist/modules/admin-preferences/index.js",
+      "require": "./dist/modules/admin-preferences/index.js"
+    },
     "./services": {
       "types": "./dist/services/admin-services-context.d.ts",
       "import": "./dist/services/admin-services-context.js",
@@ -243,6 +248,11 @@
         "types": "./dist/modules/admin-account/index.d.ts",
         "import": "./dist/modules/admin-account/index.js",
         "require": "./dist/modules/admin-account/index.js"
+      },
+      "./admin-preferences": {
+        "types": "./dist/modules/admin-preferences/index.d.ts",
+        "import": "./dist/modules/admin-preferences/index.js",
+        "require": "./dist/modules/admin-preferences/index.js"
       },
       "./services": {
         "types": "./dist/services/admin-services-context.d.ts",

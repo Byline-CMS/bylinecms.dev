@@ -14,6 +14,7 @@ import { useTranslation } from '@byline/i18n/react'
 import { Container, Section, useToastManager } from '@byline/ui/react'
 
 import { getAdminRoutePath } from '../../routes/admin-path.js'
+import { decodeListReturnState } from '../../routes/list-return-state.js'
 import { createCollectionDocument } from '../../server-fns/collections/index.js'
 import { useNavigate } from '../chrome/loose-router.js'
 import { useTanStackNavigationGuard } from './tanstack-navigation-guard.js'
@@ -27,11 +28,14 @@ export const CreateView = ({
   collectionDefinition,
   adminConfig,
   initialData,
+  from,
 }: {
   collectionDefinition: CollectionDefinition
   adminConfig?: CollectionAdminConfig
   // biome-ignore lint/suspicious/noExplicitAny: shape is collection-specific
   initialData?: Record<string, any>
+  /** URL-encoded list search state to return to on cancel — see list-return-state.ts. */
+  from?: string
 }) => {
   const toastManager = useToastManager()
   const { t } = useTranslation('byline-admin')
@@ -62,20 +66,22 @@ export const CreateView = ({
         },
       })
       // Create → edit: land the editor on the new document, where the rest
-      // of the work (content, status, relations) happens. The list-view
-      // fallback covers callers running against an older server fn that
-      // doesn't return the new document's id.
+      // of the work (content, status, relations) happens. `from` threads
+      // forward so closing the brand-new document also returns to the
+      // originating list. The list-view fallback covers callers running
+      // against an older server fn that doesn't return the new document's
+      // id — it restores the return state directly.
       if (result?.documentId) {
         navigate({
           to: getAdminRoutePath('collections', '$collection', '$id'),
           params: { collection: path, id: result.documentId } as never,
-          search: { action: 'created' },
+          search: { action: 'created', from },
         })
       } else {
         navigate({
           to: getAdminRoutePath('collections', '$collection'),
           params: { collection: path },
-          search: { action: 'created' },
+          search: { ...decodeListReturnState(from), action: 'created' },
         })
       }
     } catch (err) {
@@ -120,6 +126,7 @@ export const CreateView = ({
             navigate({
               to: getAdminRoutePath('collections', '$collection'),
               params: { collection: path },
+              search: decodeListReturnState(from),
             })
           }
           collectionPath={path}

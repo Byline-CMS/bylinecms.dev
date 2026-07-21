@@ -21,11 +21,14 @@ import { EditView } from '../admin-shell/collections/edit.js'
 import { getCollectionDocument } from '../server-fns/collections/index.js'
 import { getAdminRoutePath } from './admin-path.js'
 import { getContentLocaleRouteConfig } from './get-content-locale-route-config.js'
+import { decodeListReturnState } from './list-return-state.js'
 
 const searchSchema = z.object({
   locale: z.string().optional(),
   /** Set by the create view's create → edit redirect; fires the created toast. */
   action: z.enum(['created']).optional(),
+  /** URL-encoded list search state to return to on close — see list-return-state.ts. */
+  from: z.string().optional(),
 })
 
 export function createCollectionEditRoute(path: string) {
@@ -135,6 +138,7 @@ export function createCollectionEditRoute(path: string) {
             locale={locale}
             contentLocales={contentLocales}
             defaultContentLocale={defaultContentLocale}
+            returnSearch={decodeListReturnState(search.from)}
           />
         </>
       )

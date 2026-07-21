@@ -15,14 +15,21 @@ import {
   getCollectionDefinition,
 } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
+import { z } from 'zod'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { CreateView } from '../admin-shell/collections/create.js'
 import { getAdminRoutePath } from './admin-path.js'
 
+const searchSchema = z.object({
+  /** URL-encoded list search state to return to on cancel — see list-return-state.ts. */
+  from: z.string().optional(),
+})
+
 export function createCollectionCreateRoute(path: string) {
   // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
   const Route: any = createFileRoute(path as never)({
+    validateSearch: searchSchema,
     loader: async ({
       params,
     }: {
@@ -46,6 +53,7 @@ export function createCollectionCreateRoute(path: string) {
       const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
       const adminConfig = getCollectionAdminConfig(collection)
       const { t } = useTranslation('byline-admin')
+      const search = Route.useSearch() as z.infer<typeof searchSchema>
       return (
         <>
           <BreadcrumbsClient
@@ -65,6 +73,7 @@ export function createCollectionCreateRoute(path: string) {
             collectionDefinition={collectionDef}
             adminConfig={adminConfig ?? undefined}
             initialData={initialData}
+            from={search.from}
           />
         </>
       )

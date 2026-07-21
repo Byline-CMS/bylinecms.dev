@@ -37,6 +37,13 @@ export interface TableHeadingCellSortableProps extends TableHeadingCellProps {
    */
   activeOrder?: string
   activeDesc?: boolean
+  /**
+   * Fired after a sort click navigates, with the new order/direction.
+   * The collection list uses this to persist the choice as a sticky
+   * per-user preference; surfaces that omit it (admin-users) are
+   * unaffected.
+   */
+  onSort?: (order: string, desc: boolean) => void
 }
 
 export function TableHeadingCellSortable({
@@ -48,6 +55,7 @@ export function TableHeadingCellSortable({
   className,
   activeOrder,
   activeDesc,
+  onSort,
   ...rest
 }: TableHeadingCellSortableProps & {
   ref?: React.RefObject<HTMLTableCellElement>
@@ -68,6 +76,7 @@ export function TableHeadingCellSortable({
         to: location.pathname as never,
         search: params,
       })
+      onSort?.(fieldName, descending)
     }
   }
 

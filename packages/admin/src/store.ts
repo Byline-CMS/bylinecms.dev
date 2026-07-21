@@ -7,6 +7,7 @@
  */
 
 import type { AdminPermissionsRepository } from './modules/admin-permissions/repository.js'
+import type { AdminPreferencesRepository } from './modules/admin-preferences/repository.js'
 import type { AdminRolesRepository } from './modules/admin-roles/repository.js'
 import type { AdminUsersRepository } from './modules/admin-users/repository.js'
 import type { RefreshTokensRepository } from './modules/auth/refresh-tokens-repository.js'
@@ -20,7 +21,7 @@ import type { RefreshTokensRepository } from './modules/auth/refresh-tokens-repo
  * `JwtSessionProvider`, to `seedSuperAdmin`, and (later) to admin-user
  * and admin-role commands.
  *
- * Keeping the four repositories together as a single argument avoids
+ * Keeping the five repositories together as a single argument avoids
  * exploding constructor signatures and makes "needs admin DB access" a
  * single, recognisable type.
  */
@@ -29,4 +30,5 @@ export interface AdminStore {
   adminRoles: AdminRolesRepository
   adminPermissions: AdminPermissionsRepository
   refreshTokens: RefreshTokensRepository
+  adminPreferences: AdminPreferencesRepository
 }

@@ -8,7 +8,8 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { getAdminBylineClient } from '@byline/client/server'
+import { getPreferenceCommand } from '@byline/admin/admin-preferences'
+import { getAdminBylineClient, getAdminRequestContext } from '@byline/client/server'
 import {
   buildRelationSummaryPopulateMap,
   ERR_NOT_FOUND,
@@ -22,7 +23,10 @@ import {
 } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { bylineCore } from '../../integrations/byline-core.js'
+import { resolveListViewState, sortableFieldNames } from './list-view-state.js'
 import { serialise } from './utils'
+import type { ListViewPreferenceValue } from './list-view-state.js'
 
 // ---------------------------------------------------------------------------
 // Shared param types
@@ -57,7 +61,6 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
 
     const client = getAdminBylineClient()
     const handle = client.collection(path)
-    const pageSize = params.page_size ?? 20
 
     // Routes through CollectionHandle.find so the read pipeline (beforeRead
     // → findDocuments → afterRead) is identical to any non-admin client.
@@ -69,30 +72,51 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
     if (params.status) where.status = params.status
     if (params.query) where.query = params.query
 
-    // Sort precedence: the caller's explicit `params.order` always wins (a
-    // shared link opens exactly as sent) → `orderable: true` collections
-    // default to the fractional `order_key` ascending → the admin config's
-    // `defaultSort` (boot-validated; mutually exclusive with `orderable`) →
-    // the storage fallback (`created_at desc`). `configuredSort` is also
-    // echoed through `meta.order`/`meta.desc` below so the list header can
-    // render the effective sort indicator on a params-less landing.
+    // Sort/page-size precedence (see list-view-state.ts): the caller's
+    // explicit params always win (a shared link opens exactly as sent) →
+    // the actor's stored per-collection preference → the admin config's
+    // `defaultSort` → the storage fallback (`created_at desc`). The
+    // effective sort is echoed through `meta.order`/`meta.desc` below so
+    // the list header renders the right indicator on a params-less landing.
     const adminConfig = getCollectionAdminConfig(path)
     const configuredSort =
-      !params.order && config.definition.orderable !== true && adminConfig?.defaultSort != null
+      config.definition.orderable !== true && adminConfig?.defaultSort != null
         ? {
             order: String(adminConfig.defaultSort.field),
             desc: adminConfig.defaultSort.direction === 'desc',
           }
         : undefined
-    const defaultSort: Record<string, 'asc' | 'desc'> | undefined =
-      config.definition.orderable === true
-        ? { order_key: 'asc' }
-        : configuredSort != null
-          ? { [configuredSort.order]: configuredSort.desc ? 'desc' : 'asc' }
-          : undefined
-    const sortSpec: Record<string, 'asc' | 'desc'> | undefined = params.order
-      ? { [params.order]: params.desc === false ? 'asc' : 'desc' }
-      : defaultSort
+
+    // Per-user preference — read only when it could matter (some param
+    // absent). Failures (headless context, unauthenticated preview, DB
+    // hiccup) log and fall through: preferences can never break the list.
+    let preference: ListViewPreferenceValue | null = null
+    const adminStore = bylineCore().adminStore
+    if (adminStore != null && (params.page_size == null || params.order == null)) {
+      try {
+        const context = await getAdminRequestContext()
+        const res = await getPreferenceCommand(
+          context,
+          { scope: `collections.${path}.list` },
+          { store: adminStore }
+        )
+        preference = (res.value as ListViewPreferenceValue | null) ?? null
+      } catch (err) {
+        getLogger().warn(
+          { err, collection: path },
+          'list-view preference read failed — using defaults'
+        )
+      }
+    }
+
+    const viewState = resolveListViewState({
+      params: { page_size: params.page_size, order: params.order, desc: params.desc },
+      preference,
+      orderable: config.definition.orderable === true,
+      sortableFields: sortableFieldNames(config.definition.fields),
+      configuredSort,
+    })
+    const pageSize = viewState.pageSize
 
     // Auto-populate relation columns (depth 1) so the list renders each
     // target's title (via `relationColumnFormatter`) rather than a raw
@@ -109,7 +133,7 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
 
     const result = await handle.find({
       where: Object.keys(where).length > 0 ? where : undefined,
-      sort: sortSpec,
+      sort: viewState.sort,
       locale: params.locale ?? 'en',
       page: params.page,
       pageSize,
@@ -147,12 +171,13 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
       docs,
       meta: {
         ...result.meta,
-        // The *effective* sort: explicit params, or the configured
-        // `defaultSort` when it filled in. The list header renders its
-        // sort indicator from this, so a params-less landing still shows
-        // which column ordered the rows.
-        order: params.order ?? configuredSort?.order,
-        desc: params.desc ?? configuredSort?.desc,
+        // The *effective* sort/page-size: explicit params, or the
+        // resolved preference/configured `defaultSort` when they filled
+        // in. The list header renders its sort indicator from this, so a
+        // params-less landing still shows which column ordered the rows.
+        order: viewState.metaOrder,
+        desc: viewState.metaDesc,
+        pageSize,
       },
       included: {
         collection: {
