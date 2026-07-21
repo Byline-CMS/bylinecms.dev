@@ -130,6 +130,43 @@ CREATE VIEW "public"."byline_current_published_documents" AS (
   where "rn" = 1
 );
 
+-- ---------------------------------------------------------------------------
+-- byline:ownership-guard
+--
+-- If this script was run by a superuser (e.g. `postgres`) rather than the
+-- application's DB role, any object it created is owned by that superuser and
+-- the app role gets "permission denied". Reassign every table and sequence in
+-- `public` not already owned by the database owner — the app role, per
+-- CREATE DATABASE ... WITH OWNER <app_role> — back to it. Indexes inherit
+-- table ownership, so they follow automatically. No-op when the app role ran
+-- the script (current_user = db owner) or nothing is mis-owned.
+--
+-- Keep this block identical across every sql/ migration: the ownership-guard
+-- contract test asserts its presence in any script that creates a table. See
+-- src/database/ownership-guard.test.node.ts.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  db_owner text := (
+    SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database()
+  );
+  obj record;
+BEGIN
+  IF current_user = db_owner THEN
+    RETURN;
+  END IF;
+  FOR obj IN
+    SELECT c.relname
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relkind IN ('r', 'p', 'S')
+      AND c.relowner <> (SELECT oid FROM pg_roles WHERE rolname = db_owner)
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I OWNER TO %I', obj.relname, db_owner);
+  END LOOP;
+END $$;
+
 COMMIT;
 
 -- =============================================================================
