@@ -11,6 +11,10 @@
 --   psql "$DATABASE_URL" -f packages/db-postgres/sql/0005_add-admin-user-preferences.sql
 --
 -- Idempotent: guarded on the table's absence. Runs in one transaction.
+--
+-- Safe to run as either the application's DB role OR a superuser: the final step
+-- reassigns the table to the database owner (the app role), so the running
+-- server can always read/write it.
 -- =============================================================================
 
 BEGIN;
@@ -36,6 +40,27 @@ BEGIN
       ADD CONSTRAINT "byline_admin_user_preferences_user_id_byline_admin_users_id_fk"
       FOREIGN KEY ("user_id") REFERENCES "byline_admin_users"("id")
       ON DELETE CASCADE;
+  END IF;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- Ownership guard. If this script is run as a superuser (e.g. `postgres`), the
+-- created table would be owned by that superuser and the application's DB role
+-- would get "permission denied". Reassign it to the database owner — which is
+-- the app role (CREATE DATABASE ... WITH OWNER <app_role>) — so the table is
+-- accessible regardless of who runs the script. No-op when already correctly
+-- owned.
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_name = 'byline_admin_user_preferences'
+  ) THEN
+    EXECUTE format(
+      'ALTER TABLE "byline_admin_user_preferences" OWNER TO %I',
+      (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database())
+    );
   END IF;
 END $$;
 
