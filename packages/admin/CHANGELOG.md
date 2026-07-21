@@ -1,5 +1,17 @@
 # @byline/admin
 
+## 4.6.2
+
+### Patch Changes
+
+- fixed the collection editor losing its return-to-list page and filters across the preview round-trip (**`@byline/host-tanstack-start`**)
+  hardened the admin-preferences migration to reassign table ownership to the app role (**`@byline/db-postgres`**)
+- Updated dependencies
+  - @byline/auth@4.6.2
+  - @byline/core@4.6.2
+  - @byline/i18n@4.6.2
+  - @byline/ui@4.6.2
+
 ## 4.6.1
 
 ### Patch Changes
