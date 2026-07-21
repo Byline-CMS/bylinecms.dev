@@ -43,6 +43,15 @@ CREATE TABLE "byline_admin_roles" (
 	CONSTRAINT "byline_admin_roles_machine_name_unique" UNIQUE("machine_name")
 );
 --> statement-breakpoint
+CREATE TABLE "byline_admin_user_preferences" (
+	"user_id" uuid NOT NULL,
+	"scope" varchar(255) NOT NULL,
+	"value" jsonb NOT NULL,
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "byline_admin_user_preferences_user_id_scope_pk" PRIMARY KEY("user_id","scope")
+);
+--> statement-breakpoint
 CREATE TABLE "byline_admin_users" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"vid" integer DEFAULT 1 NOT NULL,
@@ -297,6 +306,7 @@ ALTER TABLE "byline_admin_permissions" ADD CONSTRAINT "byline_admin_permissions_
 ALTER TABLE "byline_admin_refresh_tokens" ADD CONSTRAINT "byline_admin_refresh_tokens_admin_user_id_byline_admin_users_id_fk" FOREIGN KEY ("admin_user_id") REFERENCES "public"."byline_admin_users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_admin_role_admin_user" ADD CONSTRAINT "byline_admin_role_admin_user_admin_role_id_byline_admin_roles_id_fk" FOREIGN KEY ("admin_role_id") REFERENCES "public"."byline_admin_roles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_admin_role_admin_user" ADD CONSTRAINT "byline_admin_role_admin_user_admin_user_id_byline_admin_users_id_fk" FOREIGN KEY ("admin_user_id") REFERENCES "public"."byline_admin_users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "byline_admin_user_preferences" ADD CONSTRAINT "byline_admin_user_preferences_user_id_byline_admin_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."byline_admin_users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_store_boolean" ADD CONSTRAINT "byline_store_boolean_document_version_id_byline_document_versions_id_fk" FOREIGN KEY ("document_version_id") REFERENCES "public"."byline_document_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_store_boolean" ADD CONSTRAINT "byline_store_boolean_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_store_datetime" ADD CONSTRAINT "byline_store_datetime_document_version_id_byline_document_versions_id_fk" FOREIGN KEY ("document_version_id") REFERENCES "public"."byline_document_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

@@ -1,5 +1,5 @@
 {
-  "id": "aebcb197-52c4-4601-a3b5-da89fe333c09",
+  "id": "114bdd2f-7e31-4172-9d72-7debf7801cfb",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -404,6 +404,73 @@
           ]
         }
       },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.byline_admin_user_preferences": {
+      "name": "byline_admin_user_preferences",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scope": {
+          "name": "scope",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp (6) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (6) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "byline_admin_user_preferences_user_id_byline_admin_users_id_fk": {
+          "name": "byline_admin_user_preferences_user_id_byline_admin_users_id_fk",
+          "tableFrom": "byline_admin_user_preferences",
+          "tableTo": "byline_admin_users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "byline_admin_user_preferences_user_id_scope_pk": {
+          "name": "byline_admin_user_preferences_user_id_scope_pk",
+          "columns": [
+            "user_id",
+            "scope"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
