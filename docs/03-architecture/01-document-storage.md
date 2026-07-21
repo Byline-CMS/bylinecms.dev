@@ -11,7 +11,7 @@ Companions:
 - [Relationships](../04-collections/03-relationships.md) — the first read consumer that spans collections.
 - [Document Paths](../04-collections/05-document-paths.md) — `path` was the first system attribute promoted out of the storage layer; it now lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`.
 - [Collection Versioning](../04-collections/08-collection-versioning.md) — schema versioning sits beside, but is independent of, document versioning.
-- [Storage benchmark sweep — 2026-04-18](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/benchmarks/storage/results/2026-04-18-storage-cold-summary.md) — the cold-path latency evidence cited below.
+- [Storage benchmark sweep — 2026-07-21](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/benchmarks/storage/results/2026-07-21-storage-cold-summary.md) — the cold-path latency evidence cited below; it carries the 2026-04-18 baseline it is compared against.
 
 ## Overview
 
@@ -269,7 +269,7 @@ That database and audit commit is the success boundary. Storage cleanup and post
 
 ## Indicative benchmarks
 
-These numbers are **development-machine, cold-path, indicative**. They are not a production performance gate. The sweep ran on 2026-04-18 against an Apple M1 Pro MacBook Pro with local Dockerised Postgres 17, default config, no tuning. Reproduction commands and per-scale `EXPLAIN ANALYZE` plans live in [`benchmarks/storage/results/`](https://github.com/Byline-CMS/bylinecms.dev/tree/develop/benchmarks/storage/results).
+These numbers are **development-machine, cold-path, indicative**. They are not a production performance gate. The figures below are from the 2026-07-21 sweep, run against an Apple M1 Pro MacBook Pro with local Dockerised Postgres 17, default config, no tuning; an earlier 2026-04-18 baseline on the same machine is carried alongside in the [sweep summary](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/benchmarks/storage/results/2026-07-21-storage-cold-summary.md) so you can see what moved between them. Reproduction commands and per-scale `EXPLAIN ANALYZE` plans live in [`benchmarks/storage/results/`](https://github.com/Byline-CMS/bylinecms.dev/tree/develop/benchmarks/storage/results).
 
 The fixture is a `bench-articles` collection with 9 fields spanning 5 store tables (text, json, numeric, datetime, boolean) plus a relation to `bench-media`. Every third article carries a hero relation. Each measurement is the median of 50 iterations after 10 warmup iterations.
 
@@ -277,12 +277,12 @@ The fixture is a `bench-articles` collection with 9 fields spanning 5 store tabl
 
 | Query | 1k | 10k | 50k | 100k |
 |---|---:|---:|---:|---:|
-| `getDocumentById` (full reconstruct) | 3.15 | 2.80 | 2.98 | 3.10 |
-| `getDocumentById` (select=`['title']`) | 1.51 | 1.67 | 1.51 | 1.63 |
-| `findDocuments` (page 1, size 20) | 6.44 | 16.72 | 69.52 | 128.68 |
-| `findDocuments` (`$contains` title + sort by views) | 17.79 | 147.09 | 282.17 | 351.59 |
-| `getDocumentsByDocumentIds` (batch of 50) | 7.43 | 7.10 | 6.85 | 7.09 |
-| `populateDocuments` (depth 2, 20 src × 1 rel) | 3.09 | 2.84 | 2.64 | 2.78 |
+| `getDocumentById` (full reconstruct) | 3.28 | 3.57 | 3.71 | 3.46 |
+| `getDocumentById` (select=`['title']`) | 1.57 | 1.71 | 1.62 | 1.60 |
+| `findDocuments` (page 1, size 20) | 8.59 | 32.18 | 134.91 | 275.62 |
+| `findDocuments` (`$contains` title + sort by views) | 24.75 | 162.99 | 455.08 | 530.34 |
+| `getDocumentsByDocumentIds` (batch of 50) | 7.44 | 7.07 | 7.10 | 6.99 |
+| `populateDocuments` (depth 2, 20 src × 1 rel) | 2.77 | 3.17 | 2.91 | 3.24 |
 
 ### What the data says
 
@@ -292,11 +292,11 @@ This is the main objection to EAV, and the data falsifies it here. At 100k docum
 
 **Batch fetches and populate scale flat.** `getDocumentsByDocumentIds` at batch-50 stays at ~7 ms across all scales; `populateDocuments` depth-2 stays at ~3 ms. Populate's batch-per-depth-per-target-collection strategy works as designed: a deeper graph adds one round trip per level, not an N×M fan-out. Future cross-collection consumers — richtext document-link hydration, multi-relation `hasMany` populate — inherit this property.
 
-**List views are the one query type that scales with N.** `findDocuments` (page, size 20) grows from 6 → 17 → 70 → 129 ms. The growth comes from the `current_documents` view: it materialises a `ROW_NUMBER() OVER (PARTITION BY document_id)` window across every non-deleted version in the collection, then filters to `rn = 1`. Postgres evaluates the full window on every query — no caching, no materialisation.
+**List views are the one query type that scales with N.** `findDocuments` (page, size 20) grows from 9 → 32 → 135 → 276 ms. Two costs stack here, both paid across every current version before the `ORDER BY … LIMIT 20` prunes the result to a page. First, the `current_documents` view materialises a `ROW_NUMBER() OVER (PARTITION BY document_id)` window over every non-deleted version and filters to `rn = 1`, evaluated in full on every query with no caching. Second, since `order_key` and `source_locale` moved out of the version stream onto the document-grain `documents` table, the view now joins `documents` back to each current version to reunite the two grains; at 100k that join is a nested loop of 100,000 index lookups — around 80% of the query's shared-buffer traffic — and is what roughly doubled this path over the 2026-04-18 baseline.
 
-This is the real inflection point, and it lands well above the scale most Byline deployments reach: 17 ms at 10k, 70 ms at 50k, 130 ms at 100k. For public consumers it is largely moot, because public list views key on filter, sort, and page combinations that cache well at the reverse-proxy tier. If a workload at 500k+ emerges, the answer is **materialising `current_documents` as a table** — trigger-maintained or periodically refreshed — not a per-row JSONB cache.
+This is the real inflection point, and it still lands above the scale most Byline deployments reach: 32 ms at 10k, 135 ms at 50k, 276 ms at 100k. For public consumers it is largely moot, because public list views key on filter, sort, and page combinations that cache well at the reverse-proxy tier; it bites on admin list pagination over large collections, where 276 ms at 100k is past instant. The cheap first move is to defer the `documents` join until after the `LIMIT`, joining only the ≤ 20 rows that survive pagination — tracked in [issue #40](https://github.com/Byline-CMS/bylinecms.dev/issues/40). If a collection climbs far enough that the `ROW_NUMBER()` window itself dominates, the endgame is **materialising `current_documents` as a table** — trigger-maintained or periodically refreshed — which folds the join into the stored row and erases the window recompute together, not a per-row JSONB cache.
 
-**Field filter plus sort is the most expensive cold path, and it is sub-linear.** `findDocuments` with `$contains` and a field sort rises 18 → 147 → 282 → 352 ms. Growth slows from 50k to 100k (25% for 2× the data), reflecting the GIN index on `store_text.value` and the fact that the LATERAL sort join is bounded by the filter's result size rather than total document count. 352 ms at 100k is acceptable for an admin search box; for public-facing search at large scale the specific optimisation is a full-text index (`pg_trgm` or `tsvector`), not a general cache layer.
+**Field filter plus sort is the most expensive cold path.** `findDocuments` with `$contains` and a field sort rises 25 → 163 → 455 → 530 ms; growth flattens sharply at the top (17% from 50k to 100k), because the top-N `LIMIT 20` heapsort and the LATERAL sort join are both bounded by the filter's result size rather than total document count. The absolute cost is dominated by the filter itself: `$contains` compiles to a leading-wildcard `ILIKE '%…%'`, and neither index on the column — the btree `idx_text_value` nor the full-text GIN over `to_tsvector('english', value)` — can serve a leading wildcard, so the plan runs a parallel sequential scan over `store_text`. The `documents` join described above sits on this path too. 530 ms at 100k is tolerable for an admin search box; the substring probe is what a `pg_trgm` GIN index on `store_text.value` would accelerate (a sub-item of [issue #40](https://github.com/Byline-CMS/bylinecms.dev/issues/40)), while public-facing search should go through the full-text `SearchProvider` rather than `$contains`.
 
 ### Why development-machine numbers still tell you something
 
@@ -322,9 +322,9 @@ Production numbers will differ — different hardware, tuned Postgres, real conc
 
 ### `current_documents` is the one place that scales with collection size
 
-This is the strategic risk worth tracking. The window function evaluates every non-deleted version on every list-view query. At the scales tested it stays well within acceptable, but the growth is real and roughly linear in non-deleted versions per collection.
+This is the strategic risk worth tracking. Two costs grow with the collection on every list-view query: the `ROW_NUMBER()` window evaluates every non-deleted version, and — since `order_key` and `source_locale` moved onto the document-grain `documents` table — the view's join back to `documents` runs one index lookup per current version. Both are roughly linear in non-deleted versions per collection. At the scales tested they stay within acceptable (276 ms page-list at 100k), but the growth is real; the join is the larger share today and roughly doubled the list path between the 2026-04-18 and 2026-07-21 sweeps.
 
-**The mitigation** is to materialise `current_documents` as a table — either trigger-maintained on every version insert and update, or refreshed on a cadence the workload tolerates. The view definition and its consumers do not change; the view is replaced by a table of the same shape, so the change stays contained until a workload demands it.
+**The cheap mitigation** is to defer the `documents` join until after the page's `ORDER BY … LIMIT`, so it runs against the ≤ 20 surviving rows rather than the whole collection — tracked in [issue #40](https://github.com/Byline-CMS/bylinecms.dev/issues/40). **The endgame**, if the window itself dominates, is to materialise `current_documents` as a table — trigger-maintained on every version insert and update, or refreshed on a cadence the workload tolerates — which folds the join into the stored row as well. The view definition and its consumers do not change; the view is replaced by a table of the same shape, so the change stays contained until a workload demands it.
 
 ### EAV write amplification at large fan-out
 
@@ -351,8 +351,8 @@ The `_id` UUIDv7 on blocks and array items is **synthetic metadata**, not a data
 | `IDocumentQueries` interface             | `packages/core/src/@types/db-types.ts`                                                  |
 | Postgres schema                          | `packages/db-postgres/src/database/schema/index.ts`                                     |
 | Migrations                               | `packages/db-postgres/src/database/migrations/`                                         |
-| Current-version views                    | both views (`byline_current_documents`, `byline_current_published_documents`) and the `byline_document_paths` table ship in the baseline migration `0000_ordinary_rhino.sql`; Drizzle definitions live in `packages/db-postgres/src/database/schema/index.ts` |
+| Current-version views                    | both views (`byline_current_documents`, `byline_current_published_documents`) and the `byline_document_paths` table ship in the baseline migration `0000_mushy_luckman.sql`; Drizzle definitions live in `packages/db-postgres/src/database/schema/index.ts` |
 | Reserved field names                     | `RESERVED_FIELD_NAMES` exported from `@byline/core`                                     |
 | Benchmark harness                        | `benchmarks/storage/harness/`                                                           |
-| Benchmark sweep results                  | `benchmarks/storage/results/2026-04-18-storage-cold-summary.md`                         |
+| Benchmark sweep results                  | `benchmarks/storage/results/2026-07-21-storage-cold-summary.md` (latest; links the 2026-04-18 baseline) |
 </content>
