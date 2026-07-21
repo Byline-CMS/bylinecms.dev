@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { resolveListViewState } from './list-view-state.js'
+import { resolveListViewState, sortableFieldNames } from './list-view-state.js'
 
 const base = {
   params: {},
@@ -105,5 +105,37 @@ describe('resolveListViewState', () => {
       metaOrder: 'created_at',
       metaDesc: true,
     })
+  })
+})
+
+describe('sortableFieldNames', () => {
+  it('keeps scalar-store fields plus system columns; drops structure, json, file, and relation fields', () => {
+    const fields = [
+      { name: 'title', type: 'text' },
+      { name: 'viewCount', type: 'integer' },
+      { name: 'publishedOn', type: 'datetime' },
+      { name: 'featured', type: 'checkbox' },
+      { name: 'content', type: 'blocks' },
+      { name: 'gallery', type: 'array' },
+      { name: 'body', type: 'richText' },
+      { name: 'featureImage', type: 'image' },
+      { name: 'category', type: 'relation' },
+      { name: 'meta', type: 'group' },
+    ]
+    expect(sortableFieldNames(fields)).toEqual([
+      'title',
+      'viewCount',
+      'publishedOn',
+      'featured',
+      'created_at',
+      'updated_at',
+    ])
+  })
+
+  it('returns only the system columns for a collection with no sortable fields', () => {
+    expect(sortableFieldNames([{ name: 'content', type: 'blocks' }])).toEqual([
+      'created_at',
+      'updated_at',
+    ])
   })
 })

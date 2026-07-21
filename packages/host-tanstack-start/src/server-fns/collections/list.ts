@@ -24,7 +24,7 @@ import {
 
 import { ensureCollection } from '../../integrations/api-utils.js'
 import { bylineCore } from '../../integrations/byline-core.js'
-import { resolveListViewState } from './list-view-state.js'
+import { resolveListViewState, sortableFieldNames } from './list-view-state.js'
 import { serialise } from './utils'
 import type { ListViewPreferenceValue } from './list-view-state.js'
 
@@ -113,7 +113,7 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
       params: { page_size: params.page_size, order: params.order, desc: params.desc },
       preference,
       orderable: config.definition.orderable === true,
-      sortableFields: [...config.definition.fields.map((f) => f.name), 'created_at', 'updated_at'],
+      sortableFields: sortableFieldNames(config.definition.fields),
       configuredSort,
     })
     const pageSize = viewState.pageSize

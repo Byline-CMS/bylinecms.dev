@@ -23,7 +23,9 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { setPreferenceCommand } from '@byline/admin/admin-preferences'
 import { getAdminRequestContext } from '@byline/client/server'
+import { ERR_NOT_FOUND, getLogger } from '@byline/core'
 
+import { ensureCollection } from '../../integrations/api-utils.js'
 import { bylineCore } from '../../integrations/byline-core.js'
 
 export interface SetListViewPreferenceInput {
@@ -38,6 +40,17 @@ export interface SetListViewPreferenceInput {
 export const setListViewPreference = createServerFn({ method: 'POST' })
   .validator((input: SetListViewPreferenceInput) => input)
   .handler(async ({ data }) => {
+    // Scopes are keyed by collection path — refuse to mint rows for
+    // collections that don't exist, so a scripted caller cannot persist
+    // junk scopes (even self-scoped ones).
+    const config = await ensureCollection(data.collection)
+    if (!config) {
+      throw ERR_NOT_FOUND({
+        message: 'Collection not found',
+        details: { collectionPath: data.collection },
+      }).log(getLogger())
+    }
+
     const adminStore = bylineCore().adminStore
     if (adminStore == null) {
       // Headless hosts without an admin store have no preference storage —

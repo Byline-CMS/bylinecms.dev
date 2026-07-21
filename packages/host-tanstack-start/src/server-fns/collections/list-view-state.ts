@@ -24,6 +24,36 @@
  * since the preference was written.
  */
 
+import { fieldTypeToStore } from '@byline/core'
+
+/**
+ * Store types whose value column supports ORDER BY. Structure fields
+ * (group/array/blocks) and json/file/relation fields are excluded — a
+ * preference naming one (hand-edited, or stale after a schema change)
+ * must be skipped rather than sent to the sort compiler.
+ */
+const SORTABLE_STORE_TYPES: ReadonlySet<string> = new Set([
+  'text',
+  'numeric',
+  'boolean',
+  'datetime',
+])
+
+/**
+ * The field names a stored sort preference may legitimately name: fields
+ * whose store type carries an orderable scalar column, plus the document
+ * system columns.
+ */
+export function sortableFieldNames(fields: Array<{ name: string; type: string }>): string[] {
+  return [
+    ...fields
+      .filter((f) => SORTABLE_STORE_TYPES.has(fieldTypeToStore[f.type]?.storeType ?? ''))
+      .map((f) => f.name),
+    'created_at',
+    'updated_at',
+  ]
+}
+
 export interface ListViewPreferenceValue {
   page_size?: number
   order?: string
