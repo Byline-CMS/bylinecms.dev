@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import type { CollectionDefinition } from '@byline/core'
@@ -22,6 +22,7 @@ import { getCollectionDocument } from '../server-fns/collections/index.js'
 import { getAdminRoutePath } from './admin-path.js'
 import { getContentLocaleRouteConfig } from './get-content-locale-route-config.js'
 import { decodeListReturnState } from './list-return-state.js'
+import { persistListReturnState, readListReturnState } from './list-return-storage.js'
 
 const searchSchema = z.object({
   locale: z.string().optional(),
@@ -83,6 +84,24 @@ export function createCollectionEditRoute(path: string) {
       const navigate = useNavigate()
       const { contentLocales, defaultContentLocale } = getContentLocaleRouteConfig()
 
+      // Return-to-list state. The URL `from` param is the primary carrier;
+      // when present we also mirror it into tab-scoped sessionStorage so the
+      // full-page preview round-trip (which discards the admin URL) can
+      // recover it. When the URL has no `from` — e.g. the editor was
+      // re-opened from the public preview bar's Edit link — we fall back to
+      // the stored value. See list-return-storage.ts.
+      const [returnSearch, setReturnSearch] = useState<Record<string, unknown> | undefined>(() =>
+        decodeListReturnState(search.from)
+      )
+      useEffect(() => {
+        if (search.from != null && search.from.length > 0) {
+          persistListReturnState(collection, id, search.from)
+          setReturnSearch(decodeListReturnState(search.from))
+        } else {
+          setReturnSearch(decodeListReturnState(readListReturnState(collection, id)))
+        }
+      }, [search.from, collection, id])
+
       // Post-create toast for the create → edit redirect (?action=created).
       // Ref-guarded for the same reason as the list route's created toast:
       // `toastManager` changes identity on every add, so the effect depends
@@ -138,7 +157,7 @@ export function createCollectionEditRoute(path: string) {
             locale={locale}
             contentLocales={contentLocales}
             defaultContentLocale={defaultContentLocale}
-            returnSearch={decodeListReturnState(search.from)}
+            returnSearch={returnSearch}
           />
         </>
       )

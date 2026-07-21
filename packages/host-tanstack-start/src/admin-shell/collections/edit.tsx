@@ -16,6 +16,7 @@ import { useTranslation } from '@byline/i18n/react'
 import { Container, Section, useToastManager } from '@byline/ui/react'
 
 import { getAdminRoutePath } from '../../routes/admin-path.js'
+import { clearListReturnState } from '../../routes/list-return-storage.js'
 import {
   copyDocumentToLocale,
   deleteDocument,
@@ -373,7 +374,10 @@ export const EditView = ({
         },
       })
       setEditState({ status: 'success', message: description })
-      // Navigate back to the collection list after deletion.
+      // Navigate back to the collection list after deletion. The return
+      // target has now been consumed — clear the stored fallback so a later
+      // visit doesn't resurrect a stale list position.
+      clearListReturnState(path, String(initialData.id))
       navigate({
         to: getAdminRoutePath('collections', '$collection'),
         params: { collection: path },
@@ -536,13 +540,17 @@ export const EditView = ({
           restoreWarnings={restoreWarnings}
           nextStatus={nextStatus}
           workflowStatuses={workflowStatuses}
-          onCancel={() =>
+          onCancel={() => {
+            // Close consumes the return target — clear the stored fallback so
+            // re-opening this document later degrades to the bare list unless
+            // a fresh `from` is supplied.
+            clearListReturnState(path, String(initialData.id))
             navigate({
               to: getAdminRoutePath('collections', '$collection'),
               params: { collection: path },
               search: returnSearch,
             })
-          }
+          }}
           collectionPath={path}
         />
       </Container>
