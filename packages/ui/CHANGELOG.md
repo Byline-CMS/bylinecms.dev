@@ -1,5 +1,11 @@
 # @byline/ui
 
+## 4.6.0
+
+### Minor Changes
+
+- added per-user list-view preferences (page-size + sort persistence) and return-to-list editor state, backed by a new `byline_admin_user_preferences` table and admin-preferences module
+
 ## 4.5.0
 
 ### Minor Changes

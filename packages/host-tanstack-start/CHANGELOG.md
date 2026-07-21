@@ -1,5 +1,22 @@
 # @byline/host-tanstack-start
 
+## 4.6.0
+
+### Minor Changes
+
+- added per-user list-view preferences (page-size + sort persistence) and return-to-list editor state, backed by a new `byline_admin_user_preferences` table and admin-preferences module
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@4.6.0
+  - @byline/ai@4.6.0
+  - @byline/auth@4.6.0
+  - @byline/client@4.6.0
+  - @byline/core@4.6.0
+  - @byline/i18n@4.6.0
+  - @byline/ui@4.6.0
+
 ## 4.5.0
 
 ### Minor Changes
