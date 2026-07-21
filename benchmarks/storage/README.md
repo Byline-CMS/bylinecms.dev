@@ -216,7 +216,8 @@ these as markdown so they render directly on GitHub.
 
 Current results:
 
-- **[2026-04-18 sweep summary](./results/2026-04-18-storage-cold-summary.md)** — 1k / 10k / 50k / 100k on M1 Pro. Single-doc reads and populate stay flat (≈3 ms, ≈7 ms batch) at all scales; list views are the only query type that scales with N. Per-scale raw output (with `EXPLAIN ANALYZE`) alongside.
+- **[2026-07-21 sweep summary](./results/2026-07-21-storage-cold-summary.md)** — rerun of the same 1k / 10k / 50k / 100k sweep on the same M1 Pro. Single-doc reads, batch, and populate are unchanged; list-view queries regressed ≈2× (128 → 276 ms page-list at 100k) after the document-grain / version split added a `byline_documents` join to the `current_documents` view. Root-cause plan analysis and the fix direction are in the summary.
+- **[2026-04-18 sweep summary](./results/2026-04-18-storage-cold-summary.md)** — original baseline. 1k / 10k / 50k / 100k on M1 Pro. Single-doc reads and populate stay flat (≈3 ms, ≈7 ms batch) at all scales; list views are the only query type that scales with N. Per-scale raw output (with `EXPLAIN ANALYZE`) alongside.
 
 ---
 
