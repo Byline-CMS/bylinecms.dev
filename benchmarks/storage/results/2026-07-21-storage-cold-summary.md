@@ -140,6 +140,17 @@ change the "fit for purpose" answer for a sub-10k deployment.
 
 ## What to do with this
 
+> **Decision (2026-07-21): accepted as-is for the target scale.** At
+> the sizes Byline actually manages (typical deployment well under
+> 10k documents, where page-list is ~32 ms), the regression is not
+> perceptible and the public cache-miss paths are untouched. The
+> deferred-join fix (finding #3) is understood and tracked, but is
+> not worth the added query complexity speculatively — it becomes
+> justified work only if a real large-collection deployment reports
+> sluggish admin list pagination. Tracked in
+> [#40](https://github.com/Byline-CMS/bylinecms.dev/issues/40)
+> (deferred `byline_documents` join in the list-view path).
+
 - **No immediate action required.** The regression is confined to
   list-view cold queries and does not affect the cache-miss paths
   that matter most in production.
