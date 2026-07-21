@@ -102,7 +102,11 @@ async function measure(name: string, fn: () => Promise<unknown>): Promise<Stats>
 // ---------------------------------------------------------------------------
 
 async function main() {
-  const db = pgAdapter({ connectionString: connectionString!, collections: benchCollections })
+  const db = pgAdapter({
+    connectionString: connectionString!,
+    collections: benchCollections,
+    defaultContentLocale: 'en',
+  })
 
   // Separate pool for raw EXPLAIN calls (avoid stepping on the adapter's
   // query pipeline).
@@ -115,7 +119,6 @@ async function main() {
     throw new Error('bench collections not found — run seed.ts --scale N first')
   }
   const articlesCollectionId = articlesCol.id as string
-  const mediaCollectionId = mediaCol.id as string
 
   // Sample a fixture document — pick the 5th from most-recent (arbitrary
   // but reproducible) so the timing target is a real document, not a
@@ -130,7 +133,6 @@ async function main() {
   const sampleDoc = sampleList.documents[4] ?? sampleList.documents[0]
   if (!sampleDoc) throw new Error('no seeded articles found')
   const sampleDocumentId = sampleDoc.document_id as string
-  const samplePath = sampleDoc.path as string
 
   // Sample batch: 50 known ids, pulled in one shot from find.
   const batchList = await db.queries.documents.findDocuments({
@@ -206,6 +208,7 @@ async function main() {
         pageSize: 20,
         filters: [
           {
+            kind: 'field',
             fieldName: 'title',
             storeType: 'text',
             valueColumn: 'value',
@@ -275,7 +278,7 @@ async function main() {
     'findDocuments list (page size 20)',
     `
     SELECT d.*
-    FROM current_documents d
+    FROM byline_current_documents d
     WHERE d.collection_id = $1
     ORDER BY d.created_at DESC, d.id DESC
     LIMIT 20 OFFSET 0
@@ -287,10 +290,10 @@ async function main() {
     'findDocuments with $contains + numeric sort',
     `
     SELECT d.*
-    FROM current_documents d
+    FROM byline_current_documents d
     LEFT JOIN LATERAL (
       SELECT value_integer AS _sort_value
-      FROM store_numeric
+      FROM byline_store_numeric
       WHERE document_version_id = d.id
         AND field_name = 'views'
         AND (locale = 'en' OR locale = 'all')
@@ -298,7 +301,7 @@ async function main() {
     ) _sort ON true
     WHERE d.collection_id = $1
       AND EXISTS (
-        SELECT 1 FROM store_text
+        SELECT 1 FROM byline_store_text
         WHERE document_version_id = d.id
           AND field_name = 'title'
           AND (locale = 'en' OR locale = 'all')
@@ -314,7 +317,7 @@ async function main() {
     'getDocumentsByDocumentIds (batch of 50)',
     `
     SELECT *
-    FROM current_documents
+    FROM byline_current_documents
     WHERE collection_id = $1
       AND document_id = ANY($2)
     `,

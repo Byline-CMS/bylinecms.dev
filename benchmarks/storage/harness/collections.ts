@@ -41,7 +41,7 @@ export const BenchMedia: CollectionDefinition = {
     published: { label: 'Published', verb: 'Publish' },
     archived: { label: 'Archived', verb: 'Archive' },
   }),
-  search: { fields: ['title'] },
+  listSearch: ['title'],
   useAsTitle: 'title',
   fields: [
     { name: 'title', type: 'text', label: 'Title' },
@@ -58,7 +58,7 @@ export const BenchArticles: CollectionDefinition = {
     published: { label: 'Published', verb: 'Publish' },
     archived: { label: 'Archived', verb: 'Archive' },
   }),
-  search: { fields: ['title', 'summary'] },
+  listSearch: ['title', 'summary'],
   useAsTitle: 'title',
   fields: [
     { name: 'title', type: 'text', label: 'Title' },

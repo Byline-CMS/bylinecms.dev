@@ -13,7 +13,7 @@
  *   tsx --env-file=packages/db-postgres/.env benchmarks/storage/harness/seed.ts --scale 10000
  *   tsx --env-file=packages/db-postgres/.env benchmarks/storage/harness/seed.ts --teardown
  *
- * Or via the helper scripts in `benchmarks/storage/harness/bench.sh`.
+ * Or via the package script: `pnpm --filter @byline/bench-storage seed -- --scale 10000`.
  *
  * Idempotent: on start, drops existing bench collections (cascade to all
  * documents and store rows via the FK graph) and recreates them before
@@ -194,7 +194,11 @@ function mediaContent(i: number) {
 // ---------------------------------------------------------------------------
 
 async function main() {
-  const db = pgAdapter({ connectionString: connectionString!, collections: benchCollections })
+  const db = pgAdapter({
+    connectionString: connectionString!,
+    collections: benchCollections,
+    defaultContentLocale: 'en',
+  })
 
   console.log(`connected to ${connectionString!.replace(/:[^:@]+@/, ':***@')}`)
 
@@ -215,8 +219,10 @@ async function main() {
   // --- Register fresh bench collections.
   const mediaCreated = await db.commands.collections.create(BENCH_MEDIA_PATH, BenchMedia)
   const mediaCollectionId = mediaCreated[0]!.id as string
+  const mediaCollectionVersion = (mediaCreated[0]!.version as number | undefined) ?? 1
   const articlesCreated = await db.commands.collections.create(BENCH_ARTICLES_PATH, BenchArticles)
   const articlesCollectionId = articlesCreated[0]!.id as string
+  const articlesCollectionVersion = (articlesCreated[0]!.version as number | undefined) ?? 1
 
   console.log(
     `created collections: ${BENCH_MEDIA_PATH}=${mediaCollectionId} ${BENCH_ARTICLES_PATH}=${articlesCollectionId}`
@@ -234,6 +240,7 @@ async function main() {
         const data = mediaContent(idx)
         return db.commands.documents.createDocumentVersion({
           collectionId: mediaCollectionId,
+          collectionVersion: mediaCollectionVersion,
           collectionConfig: BenchMedia,
           action: 'create',
           documentData: data,
@@ -265,10 +272,11 @@ async function main() {
         const data = articleContent(idx, mediaIds)
         return db.commands.documents.createDocumentVersion({
           collectionId: articlesCollectionId,
+          collectionVersion: articlesCollectionVersion,
           collectionConfig: BenchArticles,
           action: 'create',
           documentData: data,
-          path: data.path,
+          path: data.path as string,
           locale: 'en',
         })
       })
