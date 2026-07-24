@@ -260,6 +260,6 @@ Once a document row is known, reads compose a fallback chain `[requested, source
 | Form context `systemPath` slot                      | `packages/admin/src/forms/form-context.tsx`                               |
 | Path widget (sidebar)                               | `packages/admin/src/forms/path-widget.tsx`                                |
 | Form rendering integration                          | `packages/admin/src/forms/form-renderer.tsx`                              |
-| Integration tests (collision, upsert, fallback)     | `packages/db-postgres/src/modules/storage/tests/storage-document-paths.test.ts` |
+| Integration tests (collision, upsert, fallback)     | `packages/db-conformance/src/suites/document-paths.ts`, run against Postgres via `packages/db-postgres/tests/conformance.integration.test.ts` |
 | Lifecycle tests (warn, conflict translation)        | `packages/core/src/services/document-lifecycle.test.node.ts`              |
 | Reference collections using `useAsPath`             | `apps/webapp/byline/collections/{pages,news,docs,news-categories}/schema.ts` |
