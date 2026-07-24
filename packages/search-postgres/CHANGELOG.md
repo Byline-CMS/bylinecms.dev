@@ -1,5 +1,12 @@
 # @byline/search-postgres
 
+## 4.7.0
+
+### Patch Changes
+
+- Updated dependencies [f91732b]
+  - @byline/core@4.7.0
+
 ## 4.6.2
 
 ### Patch Changes

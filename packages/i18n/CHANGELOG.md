@@ -1,5 +1,11 @@
 # @byline/i18n
 
+## 4.7.0
+
+### Patch Changes
+
+- @byline/ui@4.7.0
+
 ## 4.6.2
 
 ### Patch Changes
