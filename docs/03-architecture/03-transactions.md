@@ -124,6 +124,6 @@ When `get()` already returns a transaction and a command opens its own `.transac
 | Manager construction + `withTransaction` wiring | `packages/db-postgres/src/index.ts` (`pgAdapter`) |
 | Delete outcome type | `packages/core/src/services/document-lifecycle/delete.ts` (`DeleteDocumentOutcome`) |
 | Atomicity / propagation test | `packages/db-postgres/src/modules/storage/tests/storage-transactions.test.ts` |
-| Tree mutation/delete atomicity tests | `packages/db-postgres/src/modules/storage/tests/storage-document-tree-audit.test.ts` |
+| Tree mutation/delete atomicity tests | `packages/db-conformance/src/suites/document-tree-audit.ts`, run against Postgres via `packages/db-postgres/tests/conformance.integration.test.ts` |
 | Prior-art ALS usage in-repo | `packages/core/src/lib/logger.ts` (`withLogContext`) |
 </content>

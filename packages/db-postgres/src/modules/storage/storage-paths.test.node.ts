@@ -6,18 +6,17 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { FieldSet } from '@byline/core'
+import { type FieldSet, flattenFieldSetData } from '@byline/core'
 import { describe, expect, it } from 'vitest'
-
-import { flattenFieldSetData } from './storage-flatten.js'
 
 // ---------------------------------------------------------------------------
 // Characterization tests for the STORAGE path dialect, and for the one
 // cross-dialect relationship the reconciliation design rests on.
 //
 // Companion to `packages/core/src/paths/path-dialects.test.node.ts`, which
-// pins the config-time dialects. This file lives here because the flattener
-// lives here and core cannot import it (wrong dependency direction).
+// pins the config-time dialects. `flattenFieldSetData` now lives in
+// `@byline/core` too (moved from this adapter's `storage-flatten.ts`); this
+// file stays here as the db-postgres-side half of the companion pair.
 //
 // The reverse direction is closed too: `prepareHookAttachment` is internal to
 // core's config module and not on any public entry point, so the "the registry

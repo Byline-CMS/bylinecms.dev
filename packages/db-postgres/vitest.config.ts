@@ -1,10 +1,15 @@
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig(({ mode }) => {
-  // Unit:        vitest run --mode=node          → *.test.node.ts (currently none)
+  // Unit:        vitest run --mode=node          → *.test.node.ts (2 files today)
   // Integration: vitest run --mode=integration   → **/*.test.ts under src/**/tests/
+  //              plus tests/**/*.test.ts — the conformance entry
+  //              (tests/conformance.integration.test.ts) that runs the
+  //              shared @byline/db-conformance storage suite.
   const isIntegration = mode === 'integration'
-  const testFiles = isIntegration ? ['src/**/tests/**/*.test.ts'] : ['**/*.test.node.ts']
+  const testFiles = isIntegration
+    ? ['src/**/tests/**/*.test.ts', 'tests/**/*.test.ts']
+    : ['**/*.test.node.ts']
 
   return {
     test: {

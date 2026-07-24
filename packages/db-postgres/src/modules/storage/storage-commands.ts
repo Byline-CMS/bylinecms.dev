@@ -18,6 +18,7 @@ import {
   ERR_CONFLICT,
   ERR_NOT_FOUND,
   ERR_VALIDATION,
+  flattenFieldSetData,
   generateKeyBetween,
   TREE_PLACEMENT_STALE_MARKER,
 } from '@byline/core'
@@ -43,7 +44,6 @@ import {
   relationStore,
   textStore,
 } from '../../database/schema/index.js'
-import { flattenFieldSetData } from './storage-flatten.js'
 import { prepareFieldInsertBuckets } from './storage-insert.js'
 import { getFirstOrThrow } from './storage-utils.js'
 import type * as schema from '../../database/schema/index.js'

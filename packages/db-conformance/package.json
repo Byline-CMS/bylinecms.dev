@@ -1,0 +1,29 @@
+{
+  "name": "@byline/db-conformance",
+  "private": true,
+  "license": "MPL-2.0",
+  "version": "0.0.0",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "description": "Byline CMS adapter conformance suite — a parameterised behavioural test suite any IDbAdapter implementation runs against its own test database",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "lint": "biome check --write --unsafe --diagnostic-level=error",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@byline/admin": "workspace:*",
+    "@byline/auth": "workspace:*",
+    "@byline/core": "workspace:*",
+    "uuid": "^14.0.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.4",
+    "@types/node": "^26.1.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

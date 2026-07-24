@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { FileStoreVariant } from '@byline/core'
+import type { FileStoreVariant } from '../@types/index.js'
 
 // Data structures for flattened field data -- these align closely with the
 // shapes of the field data tables (textStore, numericStore, etc.), but have a

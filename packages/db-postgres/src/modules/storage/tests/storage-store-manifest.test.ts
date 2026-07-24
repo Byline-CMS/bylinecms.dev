@@ -11,7 +11,6 @@ import { describe, expect, it } from 'vitest'
 import {
   allStoreTypes,
   buildSelectList,
-  columns,
   fieldTypeLiterals,
   UNIFIED_COLUMN_COUNT,
 } from '../storage-store-manifest.js'
@@ -43,11 +42,9 @@ function extractAlias(expr: string): string {
 
 describe('storage-store-manifest', () => {
   describe('column count', () => {
-    it('UNIFIED_COLUMN_COUNT matches manifest', () => {
-      // columns array has all columns except field_type, which is added during generation
-      expect(UNIFIED_COLUMN_COUNT).toBe(columns.length + 1)
-    })
-
+    // Manifest data-level pins (column count/order, per-store sources
+    // coverage) live in @byline/core's store-manifest.test.node.ts. This
+    // suite only exercises this adapter's SQL generation off that manifest.
     for (const storeType of allStoreTypes) {
       it(`${storeType} SELECT list has ${UNIFIED_COLUMN_COUNT} columns`, () => {
         const selectList = buildSelectList(storeType)

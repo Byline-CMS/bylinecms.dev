@@ -158,7 +158,7 @@ The full grammar — including the distinction between the instance paths stored
 ```
 write path:
   document data (tree)
-    → flattenFieldSetData(fields, data, locale)      ── storage-flatten.ts
+    → flattenFieldSetData(fields, data, locale)      ── storage-flatten.ts (packages/core/src/storage/)
     → FlattenedFieldValue[]
     → bucketed by store type
     → INSERT INTO store_<type> (...) VALUES (...)    ── one round trip per store
@@ -167,13 +167,13 @@ read path:
   document_version_id
     → SELECT FROM store_text UNION ALL ...           ── 7-way UNION ALL
     → FlattenedFieldValue[]
-    → restoreFieldSetData(fields, rows, locale)      ── storage-restore.ts
+    → restoreFieldSetData(fields, rows, locale)      ── storage-restore.ts (packages/core/src/storage/)
     → document data (tree)
 ```
 
 The reconstructor is **schema-aware**. It walks your `CollectionDefinition.fields`, looks up each row by path, extracts the value from the correct column of the seven candidates, resolves locale (unwrapping `{ en: value }` to `value` for single-locale reads), and reassembles the tree. Meta rows fold in inline — there is no second pass to attach `_id` and `_type`.
 
-The per-store SELECT lists come from a **declarative column manifest** (`storage-store-manifest.ts`). Adding a column to a store table is a one-line manifest change and every SELECT in the UNION ALL updates structurally, so positional mismatches between stores are impossible by construction.
+The per-store SELECT lists come from a **declarative column manifest**. The manifest data itself (`store-manifest.ts`) is dialect-independent and lives in `@byline/core`; each adapter generates its own SQL from it (the Postgres adapter's `storage-store-manifest.ts` builds the Drizzle `SQL` fragments and `pgNullCast()`). Adding a column to a store table is a one-line manifest change and every SELECT in the UNION ALL updates structurally, so positional mismatches between stores are impossible by construction.
 
 ## Why EAV, and what it costs
 
@@ -341,10 +341,11 @@ The `_id` UUIDv7 on blocks and array items is **synthetic metadata**, not a data
 | Concern                                  | Location                                                                                |
 |------------------------------------------|-----------------------------------------------------------------------------------------|
 | Field-type → store-table mapping         | `packages/core/src/storage/field-store-map.ts`                                          |
-| Flatten                                  | `packages/db-postgres/src/modules/storage/storage-flatten.ts`                           |
-| Reconstruct                              | `packages/db-postgres/src/modules/storage/storage-restore.ts`                            |
-| Per-store column manifest                | `packages/db-postgres/src/modules/storage/storage-store-manifest.ts`                    |
-| Selective field loading                  | `resolveStoreTypes()` in `storage-utils.ts`; partial UNION ALL in `storage-queries.ts`  |
+| Flatten                                  | `packages/core/src/storage/storage-flatten.ts`                                          |
+| Reconstruct                              | `packages/core/src/storage/storage-restore.ts`                                          |
+| Per-store column manifest (data)         | `packages/core/src/storage/store-manifest.ts`                                           |
+| Per-store column manifest (adapter SQL)  | `packages/db-postgres/src/modules/storage/storage-store-manifest.ts`                    |
+| Selective field loading                  | `resolveStoreTypes()` in `packages/core/src/storage/storage-utils.ts`; partial UNION ALL in `storage-queries.ts` |
 | Document write services                  | `packages/core/src/services/document-lifecycle/` (per-operation modules)                |
 | Document read services + `afterRead`     | `packages/core/src/services/document-read.ts`                                           |
 | Populate orchestration                   | `packages/core/src/services/populate.ts`                                                |

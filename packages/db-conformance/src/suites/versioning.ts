@@ -6,14 +6,10 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition } from '@byline/core'
+import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { setupTestDB, teardownTestDB } from '../../../lib/test-helper.js'
-
-// Test database setup
-let commandBuilders: ReturnType<typeof import('../storage-commands.js').createCommandBuilders>
-let queryBuilders: ReturnType<typeof import('../storage-queries.js').createQueryBuilders>
+import type { ConformanceHooks } from '../index.js'
 
 const timestamp = Date.now()
 
@@ -215,159 +211,150 @@ const complexProductDocument = {
   ],
 }
 
-// Global test variables
-let testCollection: { id: string; name: string } = {} as any
+/**
+ * Ported from `packages/db-postgres/src/modules/storage/tests/storage-versioning.test.ts`.
+ * Adapter construction now goes through `hooks` instead of `setupTestDB` —
+ * test bodies are otherwise verbatim.
+ */
+export function versioningSuite(hooks: ConformanceHooks): void {
+  let adapter: IDbAdapter
+  let testCollection: { id: string; name: string } = {} as any
 
-describe('03 Document Creation and Versioning', () => {
-  beforeAll(async () => {
-    // Connect to test database
-    const testDB = setupTestDB([VersionsCollectionConfig])
-    commandBuilders = testDB.commandBuilders
-    queryBuilders = testDB.queryBuilders
+  describe('03 Document Creation and Versioning', () => {
+    beforeAll(async () => {
+      await hooks.truncate()
+      adapter = await hooks.createAdapter([VersionsCollectionConfig])
 
-    // Create test collection — use config.path so it matches the definition
-    const result = await commandBuilders.collections.create(
-      VersionsCollectionConfig.path,
-      VersionsCollectionConfig
-    )
+      const result = await adapter.commands.collections.create(
+        VersionsCollectionConfig.path,
+        VersionsCollectionConfig
+      )
 
-    const collection = result[0]
+      const collection = result[0]
 
-    if (collection == null) {
-      throw new Error('Failed to create test collection')
-    }
+      if (collection == null) {
+        throw new Error('Failed to create test collection')
+      }
 
-    testCollection = { id: collection.id, name: collection.path }
-    console.log('Test collection created:', testCollection)
-  })
-
-  afterAll(async () => {
-    // Clean up test collection (cascades to documents)
-    try {
-      await commandBuilders.collections.delete(testCollection.id)
-      console.log('Test collection and documents cleaned up')
-    } catch (error) {
-      console.error('Failed to cleanup test collection:', error)
-    }
-
-    await teardownTestDB()
-  })
-
-  describe('Should create documents and document versions', () => {
-    it('should create a document', async () => {
-      const timestamp = Date.now()
-
-      const docData = structuredClone(complexProductDocument)
-      docData.sku = `PROD-${timestamp}`
-      docData.name.en = `Product ${timestamp}`
-
-      const result = await commandBuilders.documents.createDocumentVersion({
-        collectionId: testCollection.id,
-        collectionVersion: 1,
-        collectionConfig: VersionsCollectionConfig,
-        action: 'create',
-        documentData: docData,
-        path: docData.sku,
-        locale: 'all',
-        status: 'draft',
-      })
-
-      console.log('Document created:', result)
-
-      expect(result.document.document_id, 'Document creation failed').not.toBe(null)
+      testCollection = { id: collection.id, name: collection.path }
     })
 
-    it('should create a document and document version with the same path', async () => {
-      const timestamp = Date.now()
-
-      const docData = structuredClone(complexProductDocument)
-      docData.sku = `PROD-${timestamp}`
-      docData.name.en = `Product ${timestamp}`
-
-      const firstVersion = await commandBuilders.documents.createDocumentVersion({
-        collectionId: testCollection.id,
-        collectionVersion: 1,
-        collectionConfig: VersionsCollectionConfig,
-        action: 'create',
-        documentData: docData,
-        path: docData.sku,
-        locale: 'all',
-        status: 'draft',
-      })
-
-      console.log('firstVersion created:', firstVersion)
-
-      expect(firstVersion.document.document_id, 'Document creation failed').not.toBe(null)
-
-      const secondVersion = await commandBuilders.documents.createDocumentVersion({
-        documentId: firstVersion.document.document_id,
-        collectionId: testCollection.id,
-        collectionVersion: 1,
-        collectionConfig: VersionsCollectionConfig,
-        action: 'update',
-        documentData: docData,
-        path: docData.sku,
-        locale: 'all',
-        status: 'draft',
-      })
-
-      console.log('secondVersion created:', secondVersion)
+    afterAll(async () => {
+      try {
+        await adapter.commands.collections.delete(testCollection.id)
+      } catch (error) {
+        console.error('Failed to cleanup test collection:', error)
+      }
     })
 
-    it('should create multiple versions of a document and return a version history', async () => {
-      const timestamp = Date.now()
+    describe('Should create documents and document versions', () => {
+      it('should create a document', async () => {
+        const timestamp = Date.now()
 
-      const docData = structuredClone(complexProductDocument)
-      docData.sku = `PROD-${timestamp}`
-      docData.name.en = `Product ${timestamp}`
+        const docData = structuredClone(complexProductDocument)
+        docData.sku = `PROD-${timestamp}`
+        docData.name.en = `Product ${timestamp}`
 
-      const firstVersion = await commandBuilders.documents.createDocumentVersion({
-        collectionId: testCollection.id,
-        collectionVersion: 1,
-        collectionConfig: VersionsCollectionConfig,
-        action: 'create',
-        documentData: docData,
-        path: docData.sku,
-        locale: 'all',
-        status: 'draft',
+        const result = await adapter.commands.documents.createDocumentVersion({
+          collectionId: testCollection.id,
+          collectionVersion: 1,
+          collectionConfig: VersionsCollectionConfig,
+          action: 'create',
+          documentData: docData,
+          path: docData.sku,
+          locale: 'all',
+          status: 'draft',
+        })
+
+        expect(result.document.document_id, 'Document creation failed').not.toBe(null)
       })
 
-      expect(firstVersion.document.document_id, 'Document creation failed').not.toBe(null)
+      it('should create a document and document version with the same path', async () => {
+        const timestamp = Date.now()
 
-      const secondVersion = await commandBuilders.documents.createDocumentVersion({
-        documentId: firstVersion.document.document_id,
-        collectionId: testCollection.id,
-        collectionVersion: 1,
-        collectionConfig: VersionsCollectionConfig,
-        action: 'update',
-        documentData: docData,
-        path: docData.sku,
-        locale: 'all',
-        status: 'draft',
+        const docData = structuredClone(complexProductDocument)
+        docData.sku = `PROD-${timestamp}`
+        docData.name.en = `Product ${timestamp}`
+
+        const firstVersion = await adapter.commands.documents.createDocumentVersion({
+          collectionId: testCollection.id,
+          collectionVersion: 1,
+          collectionConfig: VersionsCollectionConfig,
+          action: 'create',
+          documentData: docData,
+          path: docData.sku,
+          locale: 'all',
+          status: 'draft',
+        })
+
+        expect(firstVersion.document.document_id, 'Document creation failed').not.toBe(null)
+
+        await adapter.commands.documents.createDocumentVersion({
+          documentId: firstVersion.document.document_id,
+          collectionId: testCollection.id,
+          collectionVersion: 1,
+          collectionConfig: VersionsCollectionConfig,
+          action: 'update',
+          documentData: docData,
+          path: docData.sku,
+          locale: 'all',
+          status: 'draft',
+        })
       })
 
-      expect(secondVersion.document.document_id, 'Document creation failed').not.toBe(null)
+      it('should create multiple versions of a document and return a version history', async () => {
+        const timestamp = Date.now()
 
-      const thirdVersion = await commandBuilders.documents.createDocumentVersion({
-        documentId: firstVersion.document.document_id,
-        collectionId: testCollection.id,
-        collectionVersion: 1,
-        collectionConfig: VersionsCollectionConfig,
-        action: 'update',
-        documentData: docData,
-        path: docData.sku,
-        locale: 'all',
-        status: 'draft',
+        const docData = structuredClone(complexProductDocument)
+        docData.sku = `PROD-${timestamp}`
+        docData.name.en = `Product ${timestamp}`
+
+        const firstVersion = await adapter.commands.documents.createDocumentVersion({
+          collectionId: testCollection.id,
+          collectionVersion: 1,
+          collectionConfig: VersionsCollectionConfig,
+          action: 'create',
+          documentData: docData,
+          path: docData.sku,
+          locale: 'all',
+          status: 'draft',
+        })
+
+        expect(firstVersion.document.document_id, 'Document creation failed').not.toBe(null)
+
+        const secondVersion = await adapter.commands.documents.createDocumentVersion({
+          documentId: firstVersion.document.document_id,
+          collectionId: testCollection.id,
+          collectionVersion: 1,
+          collectionConfig: VersionsCollectionConfig,
+          action: 'update',
+          documentData: docData,
+          path: docData.sku,
+          locale: 'all',
+          status: 'draft',
+        })
+
+        expect(secondVersion.document.document_id, 'Document creation failed').not.toBe(null)
+
+        const thirdVersion = await adapter.commands.documents.createDocumentVersion({
+          documentId: firstVersion.document.document_id,
+          collectionId: testCollection.id,
+          collectionVersion: 1,
+          collectionConfig: VersionsCollectionConfig,
+          action: 'update',
+          documentData: docData,
+          path: docData.sku,
+          locale: 'all',
+          status: 'draft',
+        })
+
+        expect(thirdVersion.document.document_id, 'Document creation failed').not.toBe(null)
+
+        await adapter.queries.documents.getDocumentHistory({
+          collection_id: testCollection.id,
+          document_id: firstVersion.document.document_id,
+        })
       })
-
-      expect(thirdVersion.document.document_id, 'Document creation failed').not.toBe(null)
-
-      const versionHistory = await queryBuilders.documents.getDocumentHistory({
-        collection_id: testCollection.id,
-        document_id: firstVersion.document.document_id,
-      })
-
-      console.log('Version history:', versionHistory)
     })
   })
-})
+}

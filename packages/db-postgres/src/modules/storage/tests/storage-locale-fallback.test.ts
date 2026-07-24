@@ -7,22 +7,24 @@
  */
 
 /**
- * Integration tests for content-locale resolution & the `onMissingLocale`
- * read switch (`'empty'` | `'fallback'` | `'omit'`).
+ * Postgres-specific residual of the content-locale resolution coverage.
  *
- * Exercises the storage adapter's read path directly. The default-content-locale
- * here is `'en'` (see test-helper), so a `'de'` read falls back to `'en'` only
- * under `onMissingLocale: 'fallback'`.
+ * The behavioural half of the original file — the `onMissingLocale` read
+ * switch (`'empty'` | `'fallback'` | `'omit'`) and the `_availableVersionLocales`
+ * / `_localeAgnostic` read metadata — ported verbatim to `@byline/db-conformance`'s
+ * `locale-fallback` suite (`packages/db-conformance/src/suites/locale-fallback.ts`),
+ * now run via `packages/db-postgres/tests/conformance.integration.test.ts`.
  *
- *   - `'fallback'` resolves a single *effective* locale per document via the
- *     chain `[requested, default]` and restores the whole document in it (never
- *     mixing). Availability is path-coverage against the default locale: a locale
- *     is "available" only when it covers every localized field path the default
- *     has, so a partial translation falls all the way back (no mixed output).
- *   - `'empty'` (and the adapter default) restores the requested locale exactly,
- *     leaving untranslated localized fields empty (the raw admin-edit view).
- *   - `'omit'` gates the document: detail → null, list → excluded.
- *   - `locale: 'all'` keeps the per-locale map shape (admin multi-locale read).
+ * These tests stay behind because they either:
+ *   - reach past the adapter into raw SQL against
+ *     `byline_document_version_locales` / `byline_documents` /
+ *     `byline_document_paths` to set up or verify internal invariants (the
+ *     completeness ledger, the `source_locale` column, a deliberately
+ *     desynced path/locale) that no `IDbAdapter` method exposes, or
+ *   - exercise `reAnchorDocument` / `reAnchorDocuments` / `backfillVersionLocales`,
+ *     Postgres-only maintenance operations documented as off the core
+ *     `IDbAdapter` contract (no `@byline/core` service depends on them), so
+ *     they aren't something a conforming adapter is required to implement.
  */
 
 import type { CollectionDefinition } from '@byline/core'
@@ -39,8 +41,8 @@ let db: ReturnType<typeof setupTestDB>['db']
 const timestamp = Date.now()
 
 const LocaleCollectionConfig: CollectionDefinition = {
-  path: `locale-fallback-${timestamp}`,
-  labels: { singular: 'LocaleTest', plural: 'LocaleTests' },
+  path: `locale-fallback-internals-${timestamp}`,
+  labels: { singular: 'LocaleInternalsTest', plural: 'LocaleInternalsTests' },
   fields: [
     { name: 'title', type: 'text', localized: true, optional: true },
     { name: 'body', type: 'textArea', localized: true, optional: true },
@@ -60,7 +62,7 @@ async function createDoc(documentData: Record<string, unknown>): Promise<string>
     collectionConfig: LocaleCollectionConfig,
     action: 'create',
     documentData,
-    path: `loc-${timestamp}-${seq}`,
+    path: `loc-internals-${timestamp}-${seq}`,
     locale: 'all',
     status: 'published',
   })
@@ -89,7 +91,7 @@ function readById(
   }) as Promise<ReconstructedRead | null>
 }
 
-describe('content-locale resolution & fallback', () => {
+describe('content-locale resolution — source_locale internals (Postgres)', () => {
   beforeAll(async () => {
     const testDB = setupTestDB([LocaleCollectionConfig])
     commandBuilders = testDB.commandBuilders
@@ -114,201 +116,6 @@ describe('content-locale resolution & fallback', () => {
       console.error('Failed to cleanup test collection:', error)
     }
     await teardownTestDB()
-  })
-
-  it('renders the requested locale when fully translated', async () => {
-    const id = await createDoc({
-      title: { en: 'Hello', de: 'Hallo' },
-      body: { en: 'World', de: 'Welt' },
-      sku: 'X1',
-    })
-
-    const doc = await readById(id, 'de')
-    expect(doc?.fields).toMatchObject({ title: 'Hallo', body: 'Welt', sku: 'X1' })
-  })
-
-  it("'fallback' renders the default for a partial translation — never mixes locales", async () => {
-    // `de` has a title but no body. Under path-coverage `de` is unavailable,
-    // so the whole document renders in `en` — NOT { title: 'Hallo', body: 'World' }.
-    const id = await createDoc({
-      title: { en: 'Hello', de: 'Hallo' },
-      body: { en: 'World' },
-      sku: 'X2',
-    })
-
-    const doc = await readById(id, 'de', 'fallback')
-    expect(doc?.fields).toMatchObject({ title: 'Hello', body: 'World', sku: 'X2' })
-    expect(doc?.fields.title, 'must not show the orphan German title').not.toBe('Hallo')
-  })
-
-  it("'fallback' renders the default when the locale is entirely absent", async () => {
-    const id = await createDoc({
-      title: { en: 'Hello' },
-      body: { en: 'World' },
-      sku: 'X3',
-    })
-
-    const doc = await readById(id, 'de', 'fallback')
-    expect(doc?.fields).toMatchObject({ title: 'Hello', body: 'World', sku: 'X3' })
-  })
-
-  it("default/'empty' restores the requested locale exactly — empty where untranslated (admin edit view)", async () => {
-    // Partial `de`: title translated, body not. The raw per-locale view shows
-    // the `de` title and leaves the `de` body empty — no fallback to `en`.
-    // Non-localized fields (`sku`, stored under 'all') are always present.
-    const id = await createDoc({
-      title: { en: 'Hello', de: 'Hallo' },
-      body: { en: 'World' },
-      sku: 'N1',
-    })
-
-    const omitted = await readById(id, 'de')
-    expect(omitted?.fields.title, 'de title shown as-is').toBe('Hallo')
-    expect(omitted?.fields.body, 'untranslated de body stays empty (no fallback)').toBeUndefined()
-    expect(omitted?.fields.sku, 'non-localized field always present').toBe('N1')
-
-    // Explicit 'empty' behaves identically to the omitted default.
-    const explicit = await readById(id, 'de', 'empty')
-    expect(explicit?.fields.title).toBe('Hallo')
-    expect(explicit?.fields.body).toBeUndefined()
-  })
-
-  it('returns non-localized values for a document with no localized content', async () => {
-    // Empty canonical set → any requested locale is trivially available.
-    const id = await createDoc({ sku: 'X4' })
-
-    const doc = await readById(id, 'de')
-    expect(doc?.fields.sku).toBe('X4')
-    expect(doc?.fields.title).toBeUndefined()
-    expect(doc?.fields.body).toBeUndefined()
-  })
-
-  it("preserves the per-locale map shape for an admin 'all' read", async () => {
-    const id = await createDoc({
-      title: { en: 'Hello', de: 'Hallo' },
-      body: { en: 'World', de: 'Welt' },
-      sku: 'X5',
-    })
-
-    const doc = await readById(id, 'all')
-    expect(doc?.fields.title).toEqual({ en: 'Hello', de: 'Hallo' })
-    expect(doc?.fields.body).toEqual({ en: 'World', de: 'Welt' })
-    expect(doc?.fields.sku).toBe('X5')
-  })
-
-  it("'fallback' resolves an effective locale per document across a list query", async () => {
-    const translated = await createDoc({
-      title: { en: 'Listed EN', de: 'Listed DE' },
-      body: { en: 'B', de: 'B-de' },
-      sku: 'L1',
-    })
-    const enOnly = await createDoc({
-      title: { en: 'EN Only' },
-      body: { en: 'B' },
-      sku: 'L2',
-    })
-
-    const { documents } = await queryBuilders.documents.findDocuments({
-      collection_id: testCollection.id,
-      locale: 'de',
-      onMissingLocale: 'fallback',
-      pageSize: 100,
-    })
-
-    const byId = new Map(documents.map((d) => [d.document_id, d]))
-    expect(byId.get(translated)?.fields.title).toBe('Listed DE')
-    expect(byId.get(enOnly)?.fields.title, 'untranslated row falls back to en').toBe('EN Only')
-  })
-
-  // --- onMissingLocale: 'omit' (version-locale ledger gate) ---------------
-
-  it('omit: returns the document for a detail read when the locale is available', async () => {
-    const id = await createDoc({
-      title: { en: 'Hello', de: 'Hallo' },
-      body: { en: 'World', de: 'Welt' },
-      sku: 'S1',
-    })
-
-    const doc = await queryBuilders.documents.getDocumentById({
-      collection_id: testCollection.id,
-      document_id: id,
-      locale: 'de',
-      onMissingLocale: 'omit',
-    })
-    expect(doc?.fields).toMatchObject({ title: 'Hallo', body: 'Welt' })
-  })
-
-  it('omit: returns null for a detail read when the locale is unavailable', async () => {
-    // Partial `de` (body missing) → not available in `de`.
-    const id = await createDoc({
-      title: { en: 'Hello', de: 'Hallo' },
-      body: { en: 'World' },
-      sku: 'S2',
-    })
-
-    const strict = await queryBuilders.documents.getDocumentById({
-      collection_id: testCollection.id,
-      document_id: id,
-      locale: 'de',
-      onMissingLocale: 'omit',
-    })
-    expect(strict, 'strict resolves to null → caller 404s').toBeNull()
-
-    // 'fallback' still returns it, rendered in the default locale.
-    const always = await queryBuilders.documents.getDocumentById({
-      collection_id: testCollection.id,
-      document_id: id,
-      locale: 'de',
-      onMissingLocale: 'fallback',
-    })
-    expect(always?.fields.title).toBe('Hello')
-  })
-
-  it('omit: includes a locale-agnostic document (no localized content)', async () => {
-    const id = await createDoc({ sku: 'S3' })
-
-    const doc = await queryBuilders.documents.getDocumentById({
-      collection_id: testCollection.id,
-      document_id: id,
-      locale: 'de',
-      onMissingLocale: 'omit',
-    })
-    expect(doc?.fields.sku, 'the "all" sentinel row makes it available everywhere').toBe('S3')
-  })
-
-  it('omit: excludes untranslated documents from a list query', async () => {
-    const translated = await createDoc({
-      title: { en: 'T-en', de: 'T-de' },
-      body: { en: 'b', de: 'b-de' },
-      sku: 'S4',
-    })
-    const untranslated = await createDoc({
-      title: { en: 'U-en' },
-      body: { en: 'b' },
-      sku: 'S5',
-    })
-
-    const strict = await queryBuilders.documents.findDocuments({
-      collection_id: testCollection.id,
-      locale: 'de',
-      onMissingLocale: 'omit',
-      pageSize: 200,
-    })
-    const strictIds = new Set(strict.documents.map((d) => d.document_id))
-    expect(strictIds.has(translated), 'translated doc kept').toBe(true)
-    expect(strictIds.has(untranslated), 'untranslated doc excluded').toBe(false)
-
-    // A non-'omit' read (here the default 'empty') includes the untranslated
-    // doc, and its total is strictly larger — proving 'omit' gates at the
-    // SQL layer (pagination-safe).
-    const unfiltered = await queryBuilders.documents.findDocuments({
-      collection_id: testCollection.id,
-      locale: 'de',
-      pageSize: 200,
-    })
-    const unfilteredIds = new Set(unfiltered.documents.map((d) => d.document_id))
-    expect(unfilteredIds.has(untranslated)).toBe(true)
-    expect(strict.total).toBeLessThan(unfiltered.total)
   })
 
   // --- backfill (pre-existing versions) ------------------------------------
@@ -574,50 +381,6 @@ describe('content-locale resolution & fallback', () => {
       pageSize: 200,
     })
     expect(documents.find((d) => d.document_id === id)?.fields.title).toBe('Hello')
-  })
-
-  // --- availability metadata (Phase 6: _availableVersionLocales) -----------
-
-  it('exposes _availableVersionLocales + _localeAgnostic on a detail read', async () => {
-    const id = await createDoc({
-      title: { en: 'Hello', de: 'Hallo' },
-      body: { en: 'World', de: 'Welt' },
-      sku: 'M1',
-    })
-
-    const doc = await readById(id, 'en')
-    expect(doc?._availableVersionLocales, 'sorted concrete locales').toEqual(['de', 'en'])
-    expect(doc?._localeAgnostic).toBe(false)
-  })
-
-  it('flags a locale-agnostic document (no localized content)', async () => {
-    const id = await createDoc({ sku: 'M2' })
-
-    const doc = await readById(id, 'en')
-    expect(doc?._availableVersionLocales).toEqual([])
-    expect(doc?._localeAgnostic, 'the "all" sentinel surfaces as _localeAgnostic').toBe(true)
-  })
-
-  it('exposes _availableVersionLocales per row on a list read', async () => {
-    const both = await createDoc({
-      title: { en: 'B-en', de: 'B-de' },
-      body: { en: 'x', de: 'y' },
-      sku: 'M3',
-    })
-    const enOnly = await createDoc({
-      title: { en: 'C-en' },
-      body: { en: 'x' },
-      sku: 'M4',
-    })
-
-    const { documents } = await queryBuilders.documents.findDocuments({
-      collection_id: testCollection.id,
-      locale: 'en',
-      pageSize: 200,
-    })
-    const byId = new Map(documents.map((d) => [d.document_id, d]))
-    expect(byId.get(both)?._availableVersionLocales).toEqual(['de', 'en'])
-    expect(byId.get(enOnly)?._availableVersionLocales).toEqual(['en'])
   })
 
   // --- re-anchor (Slice 5) -------------------------------------------------

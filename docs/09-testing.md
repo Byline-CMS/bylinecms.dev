@@ -98,10 +98,10 @@ Both packages use vitest, so the invocation is the same shape:
 cd packages/client && pnpm vitest run --mode=integration tests/integration/client-read.integration.test.ts
 
 # @byline/db-postgres
-cd packages/db-postgres && pnpm vitest run --mode=integration src/modules/storage/tests/storage-versioning.test.ts
+cd packages/db-postgres && pnpm vitest run --mode=integration tests/conformance.integration.test.ts
 ```
 
-Filter by test name with `-t`:
+The conformance entry point runs all eleven `@byline/db-conformance` suites (versioning, document paths, transactions, and so on) against the Postgres adapter in one file, so narrow to a single suite by name with `-t`:
 
 ```sh
 pnpm vitest run --mode=integration -t "tampered"

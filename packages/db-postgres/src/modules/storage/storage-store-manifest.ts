@@ -8,17 +8,24 @@
  * Generated UNION ALL column projections for the EAV store tables.
  *
  * Instead of maintaining 7 hand-synchronized SQL fragments with 41
- * positional columns each, we define a single column manifest and
- * generate the SELECT list for each store table from it. Adding a
- * column or a new store table is a one-line change in the manifest.
+ * positional columns each, we generate the SELECT list for each store
+ * table from a single column manifest. Adding a column or a new store
+ * table is a one-line change in the manifest.
+ *
+ * The manifest data (`storeColumnManifest`, `storeTableNames`) is dialect
+ * independent and lives in `@byline/core` so a future adapter (e.g. MySQL)
+ * can consume the same column list without duplicating it. This module
+ * owns everything Postgres-specific: the generated Drizzle `SQL` fragments,
+ * and `pgNullCast()`, which renders the manifest's abstract `nullCast` type
+ * names (`'uuid'`, `'boolean'`, …) as Postgres `NULL::<cast>` expressions.
  *
  * The adapter-agnostic pieces (`StoreType`, `ALL_STORE_TYPES`,
- * `fieldTypeToStore`, `fieldTypeToStoreType`) live in `@byline/core`
+ * `fieldTypeToStore`, `fieldTypeToStoreType`) also live in `@byline/core`
  * so `@byline/client` can consume the same mapping without taking a
  * dependency on this Postgres adapter.
  */
 
-import { ALL_STORE_TYPES, type StoreType } from '@byline/core'
+import { ALL_STORE_TYPES, type StoreType, storeColumnManifest } from '@byline/core'
 import { type SQL, sql } from 'drizzle-orm'
 
 // Re-export for adapter-internal consumers.
@@ -27,43 +34,15 @@ export {
   fieldTypeToStore,
   fieldTypeToStoreType,
   type StoreType,
+  storeTableNames,
 } from '@byline/core'
 
 /** Short-form alias used by adapter-internal call sites. */
 export const allStoreTypes = ALL_STORE_TYPES
 
 // ---------------------------------------------------------------------------
-// Column manifest
+// SQL generation
 // ---------------------------------------------------------------------------
-
-/**
- * Each entry describes one column in the unified UNION ALL output.
- *
- * - `name`:     The output column alias (matches UnionRowValue / UnifiedFieldValue).
- * - `nullCast`: The SQL cast applied when a store table does NOT provide this
- *               column (e.g. `'boolean'` → `NULL::boolean`). Only the first
- *               SELECT in a UNION ALL strictly needs casts, but including them
- *               everywhere is harmless and makes each fragment self-describing.
- * - `sources`:  A map from store type key → the SQL expression that produces
- *               this column's value from that table. If a store type is absent,
- *               the column is emitted as `NULL::nullCast`.
- */
-interface ColumnDef {
-  name: string
-  nullCast: string
-  sources?: Partial<Record<StoreType, string>>
-}
-
-/** Store table names in Postgres, keyed by StoreType. */
-export const storeTableNames: Record<StoreType, string> = {
-  text: 'byline_store_text',
-  numeric: 'byline_store_numeric',
-  boolean: 'byline_store_boolean',
-  datetime: 'byline_store_datetime',
-  json: 'byline_store_json',
-  relation: 'byline_store_relation',
-  file: 'byline_store_file',
-}
 
 /** The field_type literal emitted for each store table in the UNION ALL. */
 const fieldTypeLiterals: Record<StoreType, string> = {
@@ -77,206 +56,15 @@ const fieldTypeLiterals: Record<StoreType, string> = {
 }
 
 /**
- * Canonical column order for the unified UNION ALL output.
- *
- * The first 8 columns are shared across all store tables (base columns).
- * The remaining columns are type-specific — each one declares which store
- * table(s) provide it and what SQL expression to use.
+ * Map the manifest's abstract `nullCast` type name to its Postgres SQL cast
+ * expression (e.g. `'uuid'` → `'NULL::uuid'`).
  */
-const columns: ColumnDef[] = [
-  // -- Base columns (provided by every store table) -------------------------
-  { name: 'id', nullCast: 'uuid' },
-  { name: 'document_version_id', nullCast: 'uuid' },
-  { name: 'collection_id', nullCast: 'uuid' },
-  // field_type is handled specially — see buildSelectList()
-  { name: 'field_path', nullCast: 'varchar' },
-  { name: 'field_name', nullCast: 'varchar' },
-  { name: 'locale', nullCast: 'varchar' },
-  { name: 'parent_path', nullCast: 'varchar' },
-
-  // -- Text -----------------------------------------------------------------
-  {
-    name: 'text_value',
-    nullCast: 'text',
-    sources: { text: 'value' },
-  },
-
-  // -- Boolean --------------------------------------------------------------
-  {
-    name: 'boolean_value',
-    nullCast: 'boolean',
-    sources: { boolean: 'value' },
-  },
-
-  // -- JSON -----------------------------------------------------------------
-  {
-    name: 'json_value',
-    nullCast: 'jsonb',
-    sources: { json: 'value' },
-  },
-
-  // -- DateTime -------------------------------------------------------------
-  {
-    name: 'date_type',
-    nullCast: 'varchar',
-    sources: { datetime: 'date_type' },
-  },
-  {
-    name: 'value_date',
-    nullCast: 'date',
-    sources: { datetime: 'value_date' },
-  },
-  {
-    name: 'value_time',
-    nullCast: 'time',
-    sources: { datetime: 'value_time' },
-  },
-  {
-    name: 'value_timestamp_tz',
-    nullCast: 'timestamp',
-    sources: { datetime: 'value_timestamp_tz' },
-  },
-
-  // -- File -----------------------------------------------------------------
-  {
-    name: 'file_id',
-    nullCast: 'uuid',
-    sources: { file: 'file_id' },
-  },
-  {
-    name: 'filename',
-    nullCast: 'varchar',
-    sources: { file: 'filename' },
-  },
-  {
-    name: 'original_filename',
-    nullCast: 'varchar',
-    sources: { file: 'original_filename' },
-  },
-  {
-    name: 'mime_type',
-    nullCast: 'varchar',
-    sources: { file: 'mime_type' },
-  },
-  {
-    name: 'file_size',
-    nullCast: 'bigint',
-    sources: { file: 'file_size' },
-  },
-  {
-    name: 'storage_provider',
-    nullCast: 'varchar',
-    sources: { file: 'storage_provider' },
-  },
-  {
-    name: 'storage_path',
-    nullCast: 'text',
-    sources: { file: 'storage_path' },
-  },
-  {
-    name: 'storage_url',
-    nullCast: 'text',
-    sources: { file: 'storage_url' },
-  },
-  {
-    name: 'file_hash',
-    nullCast: 'varchar',
-    sources: { file: 'file_hash' },
-  },
-  {
-    name: 'image_width',
-    nullCast: 'integer',
-    sources: { file: 'image_width' },
-  },
-  {
-    name: 'image_height',
-    nullCast: 'integer',
-    sources: { file: 'image_height' },
-  },
-  {
-    name: 'image_format',
-    nullCast: 'varchar',
-    sources: { file: 'image_format' },
-  },
-  {
-    name: 'processing_status',
-    nullCast: 'varchar',
-    sources: { file: 'processing_status' },
-  },
-  {
-    name: 'thumbnail_generated',
-    nullCast: 'boolean',
-    sources: { file: 'thumbnail_generated' },
-  },
-  {
-    name: 'variants',
-    nullCast: 'jsonb',
-    sources: { file: 'variants' },
-  },
-
-  // -- Relation -------------------------------------------------------------
-  {
-    name: 'target_document_id',
-    nullCast: 'uuid',
-    sources: { relation: 'target_document_id' },
-  },
-  {
-    name: 'target_collection_id',
-    nullCast: 'uuid',
-    sources: { relation: 'target_collection_id' },
-  },
-  {
-    name: 'relationship_type',
-    nullCast: 'varchar',
-    sources: { relation: 'relationship_type' },
-  },
-  {
-    name: 'cascade_delete',
-    nullCast: 'boolean',
-    sources: { relation: 'cascade_delete' },
-  },
-
-  // -- JSON extras ----------------------------------------------------------
-  {
-    name: 'json_schema',
-    nullCast: 'varchar',
-    sources: { json: 'json_schema' },
-  },
-  {
-    name: 'object_keys',
-    nullCast: 'text[]',
-    sources: { json: 'object_keys' },
-  },
-
-  // -- Numeric --------------------------------------------------------------
-  {
-    name: 'number_type',
-    nullCast: 'varchar',
-    sources: { numeric: 'number_type' },
-  },
-  {
-    name: 'value_integer',
-    nullCast: 'integer',
-    sources: { numeric: 'value_integer' },
-  },
-  {
-    name: 'value_decimal',
-    nullCast: 'decimal',
-    sources: { numeric: 'value_decimal' },
-  },
-  {
-    name: 'value_float',
-    nullCast: 'real',
-    sources: { numeric: 'value_float' },
-  },
-]
-
-// ---------------------------------------------------------------------------
-// SQL generation
-// ---------------------------------------------------------------------------
+export function pgNullCast(nullCast: string): string {
+  return `NULL::${nullCast}`
+}
 
 /** Number of columns in the unified output (base + field_type + type-specific). */
-export const UNIFIED_COLUMN_COUNT = columns.length + 1 // +1 for field_type
+export const UNIFIED_COLUMN_COUNT = storeColumnManifest.length + 1 // +1 for field_type
 
 /**
  * Build the SELECT column list for a given store table type.
@@ -284,12 +72,12 @@ export const UNIFIED_COLUMN_COUNT = columns.length + 1 // +1 for field_type
  * Base columns (id, document_version_id, etc.) are passed through directly.
  * The `field_type` column is emitted as a string literal.
  * Type-specific columns are either mapped to the source expression or
- * emitted as `NULL::cast`.
+ * emitted as a typed NULL.
  */
 function buildSelectList(storeType: StoreType): string {
   const parts: string[] = []
 
-  for (const col of columns) {
+  for (const col of storeColumnManifest) {
     // Base columns (no sources) are always passed through from the table.
     if (!col.sources) {
       parts.push(col.name)
@@ -307,7 +95,7 @@ function buildSelectList(storeType: StoreType): string {
       }
     } else {
       // This store doesn't provide this column — emit typed NULL.
-      parts.push(`NULL::${col.nullCast} as "${col.name}"`)
+      parts.push(`${pgNullCast(col.nullCast)} as "${col.name}"`)
     }
   }
 
@@ -339,4 +127,4 @@ export function storeSelectList(storeType: StoreType): SQL {
 // ---------------------------------------------------------------------------
 // Exported for testing
 // ---------------------------------------------------------------------------
-export { buildSelectList, columns, fieldTypeLiterals }
+export { buildSelectList, fieldTypeLiterals }

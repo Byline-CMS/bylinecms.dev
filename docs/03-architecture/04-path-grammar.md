@@ -296,8 +296,8 @@ The counter allocator uses dotted keys to read previous values and stops at arra
 
 | Location | Responsibility |
 |---|---|
-| `db-postgres/…/storage-flatten.ts`, `storage-insert.ts` | Produces and serializes dotted storage paths |
-| `db-postgres/…/storage-restore.ts`, `storage-queries.ts` | Reads dotted storage paths |
+| `core/storage/storage-flatten.ts`, `db-postgres/…/storage-insert.ts` | Produces and serializes dotted storage paths |
+| `core/storage/storage-restore.ts`, `db-postgres/…/storage-queries.ts` | Reads dotted storage paths |
 | `core/config/attach-hooks.ts` | Produces upload registry keys |
 | `core/config/validate-collections.ts` | Produces collection validation paths |
 | `core/config/validate-admin-configs.ts` | Resolves admin `fields{}` keys |

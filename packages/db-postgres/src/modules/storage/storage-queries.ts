@@ -13,13 +13,14 @@ import type {
   DocumentFilter,
   FieldFilter,
   FieldSort,
+  FlattenedFieldValue,
   FlattenedStore,
   ICollectionQueries,
   IDocumentQueries,
   MissingLocalePolicy,
   ReadMode,
   RelationFilter,
-  UnionRowValue,
+  UnifiedFieldValue,
 } from '@byline/core'
 // TODO: getLogger() is used here as a global escape hatch because pgAdapter()
 // constructs query/command classes before initBylineCore() wires up the Pino
@@ -28,9 +29,12 @@ import type {
 import {
   ERR_DATABASE,
   ERR_NOT_FOUND,
+  extractFlattenedFieldValue,
   getLogger,
   orderByContentLocale,
   resolveIdentityField,
+  resolveStoreTypes,
+  restoreFieldSetData,
 } from '@byline/core'
 import { and, desc, eq, inArray, isNotNull, isNull, type SQL, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
@@ -62,15 +66,13 @@ type Document = Omit<typeof documentVersions.$inferSelect, 'doc'> & {
   source_locale: string | null
 }
 
-import { extractFlattenedFieldValue, restoreFieldSetData } from './storage-restore.js'
+import { normalizeRow } from './normalize-row.js'
 import {
   allStoreTypes,
   type StoreType,
   storeSelectList,
   storeTableNames,
 } from './storage-store-manifest.js'
-import { resolveStoreTypes } from './storage-utils.js'
-import type { FlattenedFieldValue, UnifiedFieldValue } from './@types.js'
 
 interface MetaRow {
   type: string
@@ -578,7 +580,7 @@ export class DocumentQueries implements IDocumentQueries {
    * "best-effort load" banner against an out-of-date document).
    */
   private reconstructFromUnifiedRows(
-    unifiedFieldValues: UnionRowValue[],
+    unifiedFieldValues: UnifiedFieldValue[],
     definition: CollectionDefinition,
     locale: string,
     metaRows?: MetaRow[],
@@ -587,7 +589,7 @@ export class DocumentQueries implements IDocumentQueries {
     sourceLocale?: string | null
   ): { fields: any; warnings: string[] } {
     const flattenedData: FlattenedFieldValue[] = unifiedFieldValues.map((row) =>
-      extractFlattenedFieldValue(row as unknown as UnifiedFieldValue)
+      extractFlattenedFieldValue(row)
     )
 
     if (metaRows) {
@@ -1720,7 +1722,7 @@ export class DocumentQueries implements IDocumentQueries {
     )
 
     // Group field values by document version
-    const fieldValuesByVersion = new Map<string, UnionRowValue[]>()
+    const fieldValuesByVersion = new Map<string, UnifiedFieldValue[]>()
     for (const fieldValue of allFieldValues) {
       if (!fieldValuesByVersion.has(fieldValue.document_version_id)) {
         fieldValuesByVersion.set(fieldValue.document_version_id, [])
@@ -1804,7 +1806,7 @@ export class DocumentQueries implements IDocumentQueries {
     documentVersionId: string,
     locale = 'all',
     sourceLocale?: string | null
-  ): Promise<UnionRowValue[]> {
+  ): Promise<UnifiedFieldValue[]> {
     return this.getAllFieldValuesForMultipleVersions(
       [documentVersionId],
       locale,
@@ -1825,7 +1827,7 @@ export class DocumentQueries implements IDocumentQueries {
     locale = 'all',
     storeTypes?: Set<StoreType>,
     floorLocales?: string[]
-  ): Promise<UnionRowValue[]> {
+  ): Promise<UnifiedFieldValue[]> {
     if (documentVersionIds.length === 0) return []
 
     // For a concrete locale, fetch the requested locale plus every fallback
@@ -1874,7 +1876,10 @@ export class DocumentQueries implements IDocumentQueries {
     const query = sql`${unionQuery} ORDER BY document_version_id, field_path, locale`
 
     const { rows }: { rows: Record<string, unknown>[] } = await this.db.execute(query)
-    return rows as unknown as UnionRowValue[]
+    // Canonicalise the raw UNION ALL driver rows at the ingestion boundary —
+    // see normalizeRow's docstring for what pg's driver leaves as-is
+    // (BIGINT/decimal-as-string, timestamptz-as-Date).
+    return rows.map(normalizeRow)
   }
 
   /**
@@ -2421,7 +2426,7 @@ export class DocumentQueries implements IDocumentQueries {
    * Converts a union field row - back into an array of FlattenedStore
    * that the reconstruction utilities expect
    */
-  private convertUnionRowToFlattenedStores(unionRowValues: UnionRowValue[]): FlattenedStore[] {
+  private convertUnionRowToFlattenedStores(unionRowValues: UnifiedFieldValue[]): FlattenedStore[] {
     return unionRowValues.map((row) => {
       const baseValue = {
         field_path: row.field_path,

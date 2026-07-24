@@ -337,7 +337,7 @@ store_relation
   cascade_delete        boolean             -- nullable; not yet acted on
 ```
 
-The flatten/reconstruct pipeline (`storage-flatten.ts` and `storage-restore.ts` in `packages/db-postgres/src/modules/storage/`) round-trips the reference shape: a `RelationField`'s value at write time is `{ target_document_id, target_collection_id, relationship_type?, cascade_delete? }`, and that is exactly what is reconstructed on read before populate runs.
+The flatten/reconstruct pipeline (`storage-flatten.ts` and `storage-restore.ts` in `packages/core/src/storage/`) round-trips the reference shape: a `RelationField`'s value at write time is `{ target_document_id, target_collection_id, relationship_type?, cascade_delete? }`, and that is exactly what is reconstructed on read before populate runs.
 
 ### The relation envelope — four states, one shape
 
