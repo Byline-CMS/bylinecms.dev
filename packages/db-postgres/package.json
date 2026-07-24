@@ -79,6 +79,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.4",
+    "@byline/db-conformance": "workspace:*",
     "@types/node": "^26.1.1",
     "@types/pg": "^8.20.0",
     "chokidar": "^5.0.0",
