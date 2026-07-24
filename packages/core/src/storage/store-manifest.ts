@@ -218,6 +218,10 @@ export const storeColumnManifest: ColumnDef[] = [
     nullCast: 'varchar',
     sources: { json: 'json_schema' },
   },
+  // nullCast 'text[]' is the one abstract null-cast type with no MySQL array
+  // equivalent; the MySQL adapter maps it to CAST(NULL AS JSON) in its UNION
+  // null casts (Postgres uses NULL::text[]). See
+  // specs/2026-07-24-db-error-classification-seam-design.md §6.
   {
     name: 'object_keys',
     nullCast: 'text[]',

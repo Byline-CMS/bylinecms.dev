@@ -33,11 +33,18 @@ import { versioningSuite } from './suites/versioning.js'
  * its own hooks.
  */
 export interface ConformanceHooks {
-  /** Construct the adapter under test against the test database. */
+  /**
+   * Construct the adapter under test against the test database. Called once
+   * per suite (~14× per run — see `runAdapterConformanceSuite` below), all of
+   * which share the single `teardown()` call at the end of the run.
+   * Implementations should memoise their connection pool across calls (open
+   * it once, reuse it) rather than opening a fresh pool per call, to avoid
+   * leaking pools until teardown.
+   */
   createAdapter(collections: readonly CollectionDefinition[]): Promise<IDbAdapter>
   /** Bring the test DB to current schema (idempotent). Called once per run. */
   migrate(): Promise<void>
-  /** Truncate all Byline tables. Called between test files. */
+  /** Truncate all Byline tables. Called once per suite, from each suite's `beforeAll`. */
   truncate(): Promise<void>
   /** Close pools/connections. */
   teardown(): Promise<void>
