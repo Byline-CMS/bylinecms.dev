@@ -6,6 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { UnifiedFieldValue } from '../storage/storage-row-types.js'
+
 export interface BaseStore {
   field_path: string
   field_name: string
@@ -126,58 +128,8 @@ export function isDateTimeStore(fieldValue: FlattenedStore): fieldValue is DateT
   return ['datetime', 'date', 'time'].includes(fieldValue.field_type)
 }
 
-// Standardized field value structure for unified processing
-export interface UnionRowValue {
-  id: string
-  document_version_id: string
-  collection_id: string
-  field_type: string
-  field_path: string
-  field_name: string
-  locale: string
-  parent_path: string | null
-
-  // Value fields - only one will be populated per row
-  text_value: string | null
-  boolean_value: boolean | null
-  json_value: any | null
-
-  // Specialized fields for complex types
-  date_type: string | null
-  value_date: Date | null
-  value_time: string | null
-  value_timestamp_tz: Date | null
-
-  // File or Image fields
-  file_id: string | null
-  filename: string | null
-  original_filename: string | null
-  mime_type: string | null
-  file_size: number | null
-  storage_provider: string | null
-  storage_path: string | null
-  storage_url: string | null
-  file_hash: string | null
-  image_width: number | null
-  image_height: number | null
-  image_format: string | null
-  processing_status: string | null
-  thumbnail_generated: boolean | null
-  variants: FileStoreVariant[] | null
-
-  // Relation fields
-  target_document_id: string | null
-  target_collection_id: string | null
-  relationship_type: string | null
-  cascade_delete: boolean | null
-
-  // JSON fields
-  json_schema: string | null
-  object_keys: string[] | null
-
-  // Numeric field type info
-  number_type: string | null
-  value_integer: number | null
-  value_decimal: string | null
-  value_float: number | null
-}
+/**
+ * @deprecated Use {@link UnifiedFieldValue} from '@byline/core' — same shape;
+ * this alias remains for source compatibility.
+ */
+export type UnionRowValue = UnifiedFieldValue

@@ -21,7 +21,6 @@ import type {
   ReadMode,
   RelationFilter,
   UnifiedFieldValue,
-  UnionRowValue,
 } from '@byline/core'
 // TODO: getLogger() is used here as a global escape hatch because pgAdapter()
 // constructs query/command classes before initBylineCore() wires up the Pino
@@ -581,7 +580,7 @@ export class DocumentQueries implements IDocumentQueries {
    * "best-effort load" banner against an out-of-date document).
    */
   private reconstructFromUnifiedRows(
-    unifiedFieldValues: UnionRowValue[],
+    unifiedFieldValues: UnifiedFieldValue[],
     definition: CollectionDefinition,
     locale: string,
     metaRows?: MetaRow[],
@@ -590,7 +589,7 @@ export class DocumentQueries implements IDocumentQueries {
     sourceLocale?: string | null
   ): { fields: any; warnings: string[] } {
     const flattenedData: FlattenedFieldValue[] = unifiedFieldValues.map((row) =>
-      extractFlattenedFieldValue(row as unknown as UnifiedFieldValue)
+      extractFlattenedFieldValue(row)
     )
 
     if (metaRows) {
@@ -1723,7 +1722,7 @@ export class DocumentQueries implements IDocumentQueries {
     )
 
     // Group field values by document version
-    const fieldValuesByVersion = new Map<string, UnionRowValue[]>()
+    const fieldValuesByVersion = new Map<string, UnifiedFieldValue[]>()
     for (const fieldValue of allFieldValues) {
       if (!fieldValuesByVersion.has(fieldValue.document_version_id)) {
         fieldValuesByVersion.set(fieldValue.document_version_id, [])
@@ -1807,7 +1806,7 @@ export class DocumentQueries implements IDocumentQueries {
     documentVersionId: string,
     locale = 'all',
     sourceLocale?: string | null
-  ): Promise<UnionRowValue[]> {
+  ): Promise<UnifiedFieldValue[]> {
     return this.getAllFieldValuesForMultipleVersions(
       [documentVersionId],
       locale,
@@ -1828,7 +1827,7 @@ export class DocumentQueries implements IDocumentQueries {
     locale = 'all',
     storeTypes?: Set<StoreType>,
     floorLocales?: string[]
-  ): Promise<UnionRowValue[]> {
+  ): Promise<UnifiedFieldValue[]> {
     if (documentVersionIds.length === 0) return []
 
     // For a concrete locale, fetch the requested locale plus every fallback
@@ -1880,7 +1879,7 @@ export class DocumentQueries implements IDocumentQueries {
     // Canonicalise the raw UNION ALL driver rows at the ingestion boundary —
     // see normalizeRow's docstring for what pg's driver leaves as-is
     // (BIGINT/decimal-as-string, timestamptz-as-Date).
-    return rows.map(normalizeRow) as unknown as UnionRowValue[]
+    return rows.map(normalizeRow)
   }
 
   /**
@@ -2427,7 +2426,7 @@ export class DocumentQueries implements IDocumentQueries {
    * Converts a union field row - back into an array of FlattenedStore
    * that the reconstruction utilities expect
    */
-  private convertUnionRowToFlattenedStores(unionRowValues: UnionRowValue[]): FlattenedStore[] {
+  private convertUnionRowToFlattenedStores(unionRowValues: UnifiedFieldValue[]): FlattenedStore[] {
     return unionRowValues.map((row) => {
       const baseValue = {
         field_path: row.field_path,
