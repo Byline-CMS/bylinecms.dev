@@ -644,6 +644,9 @@ importers:
 
   packages/db-conformance:
     dependencies:
+      '@byline/admin':
+        specifier: workspace:*
+        version: link:../admin
       '@byline/auth':
         specifier: workspace:*
         version: link:../auth

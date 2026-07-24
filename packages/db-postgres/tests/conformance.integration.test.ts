@@ -20,11 +20,13 @@
  * once in its own `beforeAll`.
  */
 
+import type { AdminStore } from '@byline/admin'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { runAdapterConformanceSuite } from '@byline/db-conformance'
 
 import { assertTestDatabase, migrateTestDatabase, resetTestDatabase } from '../src/lib/test-db.js'
 import { setupTestDB, teardownTestDB } from '../src/lib/test-helper.js'
+import { createAdminStore as createPgAdminStore } from '../src/modules/admin/admin-store.js'
 import { createAuditCommands } from '../src/modules/audit/audit-commands.js'
 import { createAuditQueries } from '../src/modules/audit/audit-queries.js'
 import { createCounterCommands } from '../src/modules/counters/counters-commands.js'
@@ -66,5 +68,10 @@ runAdapterConformanceSuite({
 
   async teardown(): Promise<void> {
     await teardownTestDB()
+  },
+
+  async createAdminStore(): Promise<AdminStore> {
+    const testDb = setupTestDB()
+    return createPgAdminStore(testDb.db)
   },
 })

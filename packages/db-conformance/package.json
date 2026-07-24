@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@byline/admin": "workspace:*",
     "@byline/auth": "workspace:*",
     "@byline/core": "workspace:*",
     "uuid": "^14.0.1"

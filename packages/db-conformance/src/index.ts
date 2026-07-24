@@ -6,9 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { AdminStore } from '@byline/admin'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { afterAll, beforeAll } from 'vitest'
 
+import { adminStoreSuite } from './suites/admin-store.js'
+import { auditSuite } from './suites/audit.js'
+import { countersSuite } from './suites/counters.js'
 import { deleteLocaleSuite } from './suites/delete-locale.js'
 import { documentAvailableLocalesSuite } from './suites/document-available-locales.js'
 import { documentPathsSuite } from './suites/document-paths.js'
@@ -37,6 +41,17 @@ export interface ConformanceHooks {
   truncate(): Promise<void>
   /** Close pools/connections. */
   teardown(): Promise<void>
+  /**
+   * Construct the `AdminStore` bundle (admin users/roles/permissions/
+   * preferences/refresh-tokens repositories, from `@byline/admin`) wired
+   * against the same test database `createAdapter` uses. Optional — an
+   * adapter without admin-store support simply omits this hook, and the
+   * admin-store conformance suites are not registered at all (no
+   * `describe`/`it` blocks exist for them, so they never show up as
+   * skipped). Adapters that do provide it run every admin-store suite with
+   * zero skips.
+   */
+  createAdminStore?(): Promise<AdminStore>
 }
 
 /**
@@ -75,4 +90,7 @@ export function runAdapterConformanceSuite(hooks: ConformanceHooks): void {
   systemFieldsDirectWriteSuite(hooks)
   restoreSuite(hooks)
   localeFallbackSuite(hooks)
+  auditSuite(hooks)
+  countersSuite(hooks)
+  adminStoreSuite(hooks)
 }
