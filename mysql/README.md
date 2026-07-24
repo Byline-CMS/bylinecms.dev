@@ -19,6 +19,17 @@ For initializing and seeding the database, generating/applying migrations, and
 the test database, see the root `CLAUDE.md` (Database section) and
 `docs/09-testing.md`.
 
+## Initializing the databases
+
+`packages/db-mysql/src/database/db_init.sh` (drop/recreate `byline_dev` from
+`packages/db-mysql/.env`) and `db_init_test.sh` (the same, against
+`byline_test` via `.env.test`) mirror the `packages/db-postgres` init scripts.
+From the repo root:
+
+```sh
+pnpm db:init:test:mysql
+```
+
 ## Adminer
 
 A web-based database UI is available under the `adminer` compose profile:

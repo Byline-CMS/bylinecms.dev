@@ -8,6 +8,7 @@
     "clean": "pnpm -r run clean && node scripts/clean node_modules .turbo",
     "db:init": "TURBO_UI=true turbo run db:init",
     "db:init:test": "cd packages/db-postgres/src/database && ./db_init_test.sh",
+    "db:init:test:mysql": "cd packages/db-mysql/src/database && ./db_init_test.sh",
     "byline:generate": "turbo run byline:generate",
     "byline:generate:check": "turbo run byline:generate:check",
     "docs:check": "pnpm --filter @byline/webapp docs:check",
