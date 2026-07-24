@@ -210,3 +210,36 @@ export const ERR_AUDIT_UNSUPPORTED = createErrorType(ErrorCodes.AUDIT_UNSUPPORTE
  * reconcile, while transports can distinguish it from a rolled-back mutation.
  */
 export const ERR_TREE_HOOK_COMMITTED = createErrorType(ErrorCodes.TREE_HOOK_COMMITTED, 'warn')
+
+// ---------------------------------------------------------------------------
+// Database error classification (adapter seam)
+// ---------------------------------------------------------------------------
+
+/**
+ * Code-based classification of a raw database driver error, produced by
+ * `IDbAdapter.classifyError`. The error-side analogue of the storage
+ * `normalizeRow` seam: the adapter canonicalises driver anatomy into these
+ * codes so `@byline/core` can map DB failures to domain errors (e.g.
+ * `ERR_PATH_CONFLICT`) without knowing any driver's error shape.
+ *
+ * Distinct from `ErrorCodes` above: those are thrown `BylineError` codes;
+ * these are returned classification values. Extend with new codes (e.g. a
+ * future `STALE_RECORD` for optimistic-concurrency failures) as consumers
+ * need them.
+ */
+export const DbErrorCodes = {
+  UNIQUE_VIOLATION: 'DB_UNIQUE_VIOLATION',
+  UNKNOWN: 'DB_UNKNOWN',
+} as const
+
+export type DbErrorCode = (typeof DbErrorCodes)[keyof typeof DbErrorCodes]
+
+export interface DbErrorClassification {
+  code: DbErrorCode
+  /**
+   * For `DB_UNIQUE_VIOLATION`: the violated constraint / index name when the
+   * driver exposes it (Postgres carries it structurally; MySQL parses it from
+   * the error message). Absent when the driver surfaces no name.
+   */
+  constraint?: string
+}

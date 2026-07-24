@@ -53,6 +53,9 @@ export {
 } from './host/host-request-bridge.js'
 export {
   BylineError,
+  type DbErrorClassification,
+  type DbErrorCode,
+  DbErrorCodes,
   ERR_AUDIT_UNSUPPORTED,
   ERR_CONFLICT,
   ERR_DATABASE,
