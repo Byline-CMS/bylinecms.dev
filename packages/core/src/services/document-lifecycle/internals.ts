@@ -16,12 +16,13 @@
 import {
   type CollectionDefinition,
   type CollectionHookSlot,
+  type IDbAdapter,
   normalizeCollectionHook,
   type RichTextEmbedFn,
   type RichTextPopulateFn,
 } from '../../@types/index.js'
 import { getCollectionDefinition, getServerConfig } from '../../config/config.js'
-import { ERR_PATH_CONFLICT, ErrorCodes } from '../../lib/errors.js'
+import { DbErrorCodes, ERR_PATH_CONFLICT, ErrorCodes } from '../../lib/errors.js'
 import { generateKeyBetween } from '../../lib/fractional-index.js'
 import { createReadContext } from '../populate.js'
 import { embedRichTextFields } from '../richtext-embed.js'
@@ -156,35 +157,32 @@ export function extractDocumentId(document: any): string {
 }
 
 /**
- * Detect a Postgres unique-constraint violation on
+ * Detect a unique-constraint violation on
  * `byline_document_paths(collection_id, locale, path)` and translate it
  * to `ERR_PATH_CONFLICT`. Any other error is rethrown unchanged.
  *
- * The Postgres SQLSTATE for unique violations is `23505`. Drivers carry
- * the constraint name on the error object (`constraint`); matching by
- * name keeps this targeted to the path constraint and avoids spuriously
- * rebranding unrelated unique violations as path conflicts.
- *
- * Drizzle wraps the underlying pg error in `DrizzleQueryError` with the
- * original attached as `cause`, so we walk a short cause chain to find
- * the carried `code` / `constraint`.
+ * Driver anatomy (SQLSTATE codes, `cause`-chain walking, constraint-name
+ * carriage) is delegated to `db.classifyError` — the adapter seam that
+ * canonicalises a raw driver error into a `DbErrorClassification`. This
+ * function only knows the classification codes and the path constraint's
+ * name substring; it stays targeted to the path constraint so unrelated
+ * unique violations aren't spuriously rebranded as path conflicts.
  */
-export function rethrowPathConflict(err: unknown, path: string, locale: string): never {
-  type PgLikeError = { code?: string; constraint?: string; cause?: unknown }
-  let e: PgLikeError | undefined = err as PgLikeError | undefined
-  // Walk at most a few `cause` hops — DrizzleQueryError → underlying pg error.
-  for (let i = 0; i < 3 && e; i++) {
-    if (
-      e.code === '23505' &&
-      typeof e.constraint === 'string' &&
-      e.constraint.includes('document_paths_collection_locale_path')
-    ) {
-      throw ERR_PATH_CONFLICT({
-        message: `path "${path}" is already in use in this collection (locale: ${locale})`,
-        details: { path, locale, constraint: e.constraint },
-      })
-    }
-    e = e.cause as PgLikeError | undefined
+export function rethrowPathConflict(
+  db: IDbAdapter,
+  err: unknown,
+  path: string,
+  locale: string
+): never {
+  const classification = db.classifyError?.(err)
+  if (
+    classification?.code === DbErrorCodes.UNIQUE_VIOLATION &&
+    classification.constraint?.includes('document_paths_collection_locale_path')
+  ) {
+    throw ERR_PATH_CONFLICT({
+      message: `path "${path}" is already in use in this collection (locale: ${locale})`,
+      details: { path, locale, constraint: classification.constraint },
+    })
   }
   throw err as Error
 }

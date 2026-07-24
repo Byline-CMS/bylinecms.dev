@@ -151,7 +151,7 @@ export async function updateDocumentSystemFields(
               locale: sourceLocale,
               path: pathForCommand,
             })
-            .catch((err: unknown) => rethrowPathConflict(err, pathForCommand, sourceLocale))
+            .catch((err: unknown) => rethrowPathConflict(db, err, pathForCommand, sourceLocale))
           await audit.append({
             documentId: params.documentId,
             collectionId,

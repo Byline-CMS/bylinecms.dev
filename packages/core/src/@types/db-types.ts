@@ -1,6 +1,7 @@
 import type { RequestContext } from '@byline/auth'
 import type { CollectionDefinition } from '@byline/core'
 
+import type { DbErrorClassification } from '../lib/errors.js'
 import type { QueryPredicate } from './query-predicate.js'
 
 /**
@@ -268,6 +269,16 @@ export interface IDbAdapter {
    * need not implement it. See docs/07-internationalization/index.md.
    */
   backfillSourceLocales?: () => Promise<{ rowsUpdated: number }>
+  /**
+   * Classify a raw driver error into an adapter-agnostic, code-based shape so
+   * core can map database failures to domain errors without knowing driver
+   * anatomy. The error-side analogue of the storage `normalizeRow` seam.
+   *
+   * Optional: when absent, core treats every error as `DB_UNKNOWN` and rethrows
+   * it unchanged — the current behaviour for adapters that do not implement it.
+   * Canonical adapters (db-postgres, db-mysql) implement it.
+   */
+  classifyError?(err: unknown): DbErrorClassification
 }
 
 // ---------------------------------------------------------------------------

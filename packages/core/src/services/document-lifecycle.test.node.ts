@@ -15,7 +15,7 @@ import {
 } from '@byline/auth'
 import { describe, expect, it, vi } from 'vitest'
 
-import { BylineError, ERR_PATH_CONFLICT, ErrorCodes } from '../lib/errors.js'
+import { BylineError, DbErrorCodes, ERR_PATH_CONFLICT, ErrorCodes } from '../lib/errors.js'
 import {
   changeDocumentStatus,
   copyToLocale,
@@ -77,7 +77,21 @@ function createMockDb() {
   const auditAppend = vi.fn().mockResolvedValue({ id: 'audit-1' })
   const withTransaction = vi.fn(async (fn: () => Promise<unknown>) => fn())
 
+  // Fake classifier mirroring db-postgres's real one closely enough for
+  // rethrowPathConflict's consumption of the seam: a pg-shaped 23505 with a
+  // constraint name classifies as a unique violation; anything else is
+  // unknown. Individual tests inject pg-shaped errors on `createDocumentVersion`
+  // (see `translates a Postgres unique-constraint violation...` below).
+  const classifyError = vi.fn((err: unknown) => {
+    const e = err as { code?: string; constraint?: string } | undefined
+    if (e?.code === '23505') {
+      return { code: DbErrorCodes.UNIQUE_VIOLATION, constraint: e.constraint }
+    }
+    return { code: DbErrorCodes.UNKNOWN }
+  })
+
   const db: IDbAdapter = {
+    classifyError,
     commands: {
       collections: {
         create: vi.fn(),

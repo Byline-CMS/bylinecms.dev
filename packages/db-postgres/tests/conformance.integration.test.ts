@@ -30,6 +30,7 @@ import { createAdminStore as createPgAdminStore } from '../src/modules/admin/adm
 import { createAuditCommands } from '../src/modules/audit/audit-commands.js'
 import { createAuditQueries } from '../src/modules/audit/audit-queries.js'
 import { createCounterCommands } from '../src/modules/counters/counters-commands.js'
+import { classifyError } from '../src/modules/storage/classify-error.js'
 
 function getConnectionString(): string {
   const connectionString = process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING
@@ -45,6 +46,7 @@ runAdapterConformanceSuite({
     const auditQueries = createAuditQueries(testDb.db)
 
     return {
+      classifyError,
       commands: {
         ...testDb.commandBuilders,
         counters: counterCommands,
