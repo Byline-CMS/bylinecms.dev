@@ -103,16 +103,15 @@ export function documentPathsSuite(hooks: ConformanceHooks): void {
       }
 
       expect(caught, 'expected unique-constraint violation on duplicate path').toBeTruthy()
-      // Drizzle wraps pg errors in DrizzleQueryError with the original error
-      // attached as `cause`. The lifecycle layer's rethrowPathConflict reads
-      // both the wrapper and the cause to detect 23505 + the path constraint
-      // name; mirror that here.
-      const original = caught.cause ?? caught
-      expect(original.code, `expected SQLSTATE 23505, got ${original?.code}`).toBe('23505')
-      expect(
-        String(original.constraint ?? ''),
-        `constraint name should reference the path index, got ${original?.constraint}`
-      ).toMatch(/document_paths_collection_locale_path/)
+      // Adapter-agnostic: the adapter classifies its own driver error; core maps
+      // this classification to ERR_PATH_CONFLICT. (The raw Postgres 23505/anatomy
+      // is pinned in db-postgres's own classify-error unit test.)
+      if (adapter.classifyError == null) {
+        throw new Error('expected adapter to implement classifyError for this suite')
+      }
+      const classification = adapter.classifyError(caught)
+      expect(classification.code).toBe('DB_UNIQUE_VIOLATION')
+      expect(classification.constraint ?? '').toContain('document_paths_collection_locale_path')
     })
 
     it('upserts in place when the same document re-saves the same path', async () => {
