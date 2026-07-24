@@ -13,11 +13,11 @@
  * Postgres needed.
  */
 
-import { defineCollection } from '@byline/core'
 import { describe, expect, it } from 'vitest'
 
-import { flattenFieldSetData } from '../storage-flatten.js'
-import { restoreFieldSetData } from '../storage-restore.js'
+import { defineCollection } from '../@types/index.js'
+import { flattenFieldSetData } from './storage-flatten.js'
+import { restoreFieldSetData } from './storage-restore.js'
 
 const Articles = defineCollection({
   path: 'articles',

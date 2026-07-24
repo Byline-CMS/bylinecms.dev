@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { ERR_DATABASE, getLogger } from '@byline/core'
+import { ERR_DATABASE, type FlattenedFieldValue, getLogger } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
 
 import type {
@@ -19,7 +19,6 @@ import type {
   relationStore,
   textStore,
 } from '@/database/schema/index.js'
-import type { FlattenedFieldValue } from './@types.js'
 
 // ------------------------------------------------------------------------------
 // Insert-bucket preparation: take flattened field values and bucket them by

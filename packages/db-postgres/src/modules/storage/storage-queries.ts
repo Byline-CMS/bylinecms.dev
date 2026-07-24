@@ -13,12 +13,14 @@ import type {
   DocumentFilter,
   FieldFilter,
   FieldSort,
+  FlattenedFieldValue,
   FlattenedStore,
   ICollectionQueries,
   IDocumentQueries,
   MissingLocalePolicy,
   ReadMode,
   RelationFilter,
+  UnifiedFieldValue,
   UnionRowValue,
 } from '@byline/core'
 // TODO: getLogger() is used here as a global escape hatch because pgAdapter()
@@ -28,9 +30,12 @@ import type {
 import {
   ERR_DATABASE,
   ERR_NOT_FOUND,
+  extractFlattenedFieldValue,
   getLogger,
   orderByContentLocale,
   resolveIdentityField,
+  resolveStoreTypes,
+  restoreFieldSetData,
 } from '@byline/core'
 import { and, desc, eq, inArray, isNotNull, isNull, type SQL, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
@@ -62,15 +67,12 @@ type Document = Omit<typeof documentVersions.$inferSelect, 'doc'> & {
   source_locale: string | null
 }
 
-import { extractFlattenedFieldValue, restoreFieldSetData } from './storage-restore.js'
 import {
   allStoreTypes,
   type StoreType,
   storeSelectList,
   storeTableNames,
 } from './storage-store-manifest.js'
-import { resolveStoreTypes } from './storage-utils.js'
-import type { FlattenedFieldValue, UnifiedFieldValue } from './@types.js'
 
 interface MetaRow {
   type: string

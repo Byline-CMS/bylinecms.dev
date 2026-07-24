@@ -6,10 +6,11 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { ArrayField, BlocksField, Field, FieldSet, GroupField } from '@byline/core'
-import { ERR_DATABASE, getLogger, RESERVED_FIELD_NAMES } from '@byline/core'
-
-import type { FlattenedFieldValue, UnifiedFieldValue } from './@types.js'
+import { RESERVED_FIELD_NAMES } from '../config/validate-collections.js'
+import { ERR_DATABASE } from '../lib/errors.js'
+import { getLogger } from '../lib/logger.js'
+import type { ArrayField, BlocksField, Field, FieldSet, GroupField } from '../@types/index.js'
+import type { FlattenedFieldValue, UnifiedFieldValue } from './storage-row-types.js'
 
 // ------------------------------------------------------------------------------
 // Restoration logic: take flattened field data and restore it to the original

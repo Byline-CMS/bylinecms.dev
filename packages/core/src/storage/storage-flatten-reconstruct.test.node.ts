@@ -6,13 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { type CollectionFieldDataAllLocales, defineCollection } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
 import { describe, expect, it } from 'vitest'
 
-import { flattenFieldSetData } from '../storage-flatten.js'
-import { restoreFieldSetData } from '../storage-restore.js'
-import { resolveStoreTypes } from '../storage-utils.js'
+import { type CollectionFieldDataAllLocales, defineCollection } from '../@types/index.js'
+import { flattenFieldSetData } from './storage-flatten.js'
+import { restoreFieldSetData } from './storage-restore.js'
+import { resolveStoreTypes } from './storage-utils.js'
 
 const DocsCollectionConfig = defineCollection({
   path: 'docs',

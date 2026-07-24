@@ -6,17 +6,19 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { v7 as uuidv7 } from 'uuid'
+
+import { ERR_DATABASE } from '../lib/errors.js'
+import { getLogger } from '../lib/logger.js'
+import { isCanonicalNumericValue } from '../services/normalize-numeric-fields.js'
 import type {
   Field,
   FieldSet,
   RelatedDocumentValue,
   StoredFileValue,
   ValueField,
-} from '@byline/core'
-import { ERR_DATABASE, getLogger, isCanonicalNumericValue } from '@byline/core'
-import { v7 as uuidv7 } from 'uuid'
-
-import type { FlattenedFieldValue } from './@types.js'
+} from '../@types/index.js'
+import type { FlattenedFieldValue } from './storage-row-types.js'
 
 // ------------------------------------------------------------------------------
 // Flattening logic: take a document's nested field data and flatten it into an
