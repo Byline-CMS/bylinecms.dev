@@ -1,0 +1,24 @@
+name: byline-dev-mysql
+
+services:
+  db:
+    image: mysql:latest
+    container_name: byline_dev_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: test
+      MYSQL_DATABASE: byline_dev
+      MYSQL_USER: byline
+      MYSQL_PASSWORD: byline
+    ports:
+      - 3306:3306
+    volumes:
+      - type: bind
+        source: ./data
+        target: /var/lib/mysql
+
+  adminer:
+    image: adminer
+    profiles:
+      - adminer
+    ports:
+      - 9000:8080

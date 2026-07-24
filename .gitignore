@@ -58,6 +58,10 @@ yarn-error.log*
 postgres/data
 postgres/backups
 
+# Ignore our local mysql data directory
+mysql/data
+mysql/backups
+
 # pnpm's project-local store fallback (created when the global store
 # isn't writable, e.g. sandboxed agent shells) — machine-local cache
 .pnpm-store/
