@@ -40,6 +40,10 @@ export interface ConformanceHooks {
    * Implementations should memoise their connection pool across calls (open
    * it once, reuse it) rather than opening a fresh pool per call, to avoid
    * leaking pools until teardown.
+   *
+   * The adapter returned here must implement `classifyError` (optional on
+   * `IDbAdapter`, but required to run this suite) — the `document-paths`
+   * suite asserts it directly.
    */
   createAdapter(collections: readonly CollectionDefinition[]): Promise<IDbAdapter>
   /** Bring the test DB to current schema (idempotent). Called once per run. */
