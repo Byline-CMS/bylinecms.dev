@@ -61,7 +61,26 @@ export class CounterCommands implements ICounterCommands {
     // The sequence is created first so that even if the INSERT loses a
     // race, the next caller's nextval() on the existing row's
     // sequence_name still works.
-    await this.db.execute(sql.raw(`CREATE SEQUENCE IF NOT EXISTS "${sequenceName}" AS BIGINT`))
+    //
+    // `CREATE SEQUENCE IF NOT EXISTS` is not atomic across concurrent
+    // sessions racing to create the *same brand-new* sequence for the
+    // first time: the existence check and the physical catalog insert
+    // are two separate steps, so two sessions can both pass the check
+    // and then both attempt the insert — the loser gets a Postgres
+    // unique-violation (23505) on `pg_class` despite the IF NOT EXISTS
+    // clause. That is exactly the outcome IF NOT EXISTS is meant to
+    // absorb, so treat it as success: the sequence exists either way.
+    // Any other error still propagates.
+    try {
+      await this.db.execute(sql.raw(`CREATE SEQUENCE IF NOT EXISTS "${sequenceName}" AS BIGINT`))
+    } catch (error) {
+      // Drizzle wraps the underlying `pg` driver error as `.cause`, which
+      // is where the Postgres error `code` actually lives — check both
+      // shapes so this is robust to either surfacing directly.
+      const err = error as { code?: string; cause?: { code?: string } } | undefined
+      const code = err?.code ?? err?.cause?.code
+      if (code !== '23505') throw error
+    }
 
     await this.db
       .insert(counterGroups)
