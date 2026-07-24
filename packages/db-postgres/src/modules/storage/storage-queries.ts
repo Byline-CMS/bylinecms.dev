@@ -67,6 +67,7 @@ type Document = Omit<typeof documentVersions.$inferSelect, 'doc'> & {
   source_locale: string | null
 }
 
+import { normalizeRow } from './normalize-row.js'
 import {
   allStoreTypes,
   type StoreType,
@@ -1876,7 +1877,10 @@ export class DocumentQueries implements IDocumentQueries {
     const query = sql`${unionQuery} ORDER BY document_version_id, field_path, locale`
 
     const { rows }: { rows: Record<string, unknown>[] } = await this.db.execute(query)
-    return rows as unknown as UnionRowValue[]
+    // Canonicalise the raw UNION ALL driver rows at the ingestion boundary —
+    // see normalizeRow's docstring for what pg's driver leaves as-is
+    // (BIGINT/decimal-as-string, timestamptz-as-Date).
+    return rows.map(normalizeRow) as unknown as UnionRowValue[]
   }
 
   /**

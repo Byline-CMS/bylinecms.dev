@@ -22,4 +22,5 @@ export {
   restoreFieldSetData,
 } from './storage-restore.js'
 export { resolveStoreTypes } from './storage-utils.js'
+export { type ColumnDef, storeColumnManifest, storeTableNames } from './store-manifest.js'
 export type { FlattenedFieldValue, UnifiedFieldValue } from './storage-row-types.js'
