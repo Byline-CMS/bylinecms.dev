@@ -26,6 +26,19 @@ Drizzle ORM remains the development-time schema-management, generation, and migr
 tool for both adapters (the decision to keep or replace it is analysed separately in
 the companion analysis document — it is explicitly not part of this design).
 
+> **Correction (post-implementation, 2026-07-25):** this section originally decided
+> `DATETIME(3)` (millisecond) timestamps. The shipped adapter uses `DATETIME(6)`
+> (microsecond) instead, matching the Postgres adapter's
+> `timestamp(name, { precision: 6, withTimezone: true })` convention exactly — millisecond
+> resolution let two statements issued back-to-back on a fast local connection collide on
+> an identical `CURRENT_TIMESTAMP(3)` value, which is a real correctness gap for anything
+> that orders or windows by these columns (see `packages/db-mysql/src/database/schema/common.ts`'s
+> `auditTimestamp`). Every `DATETIME(3)` mention below is corrected to `DATETIME(6)`
+> accordingly. Separately, the "mysql2 does this natively" claim about `DATETIME` → `Date`
+> conversion below (Section 1) also turned out to be wrong: mysql2 hands `DATETIME`/`DATE`
+> columns back as strings on this adapter's UNION ALL read path, not as `Date` objects, and
+> the adapter coerces them explicitly (`packages/db-mysql/src/modules/storage/normalize-row.ts`).
+
 ## Decisions made during brainstorming
 
 | Question | Decision |
@@ -38,7 +51,7 @@ the companion analysis document — it is explicitly not part of this design).
 | Transaction plumbing | `DBManagerImpl` / `TXManagerImpl` (~90 lines) are **duplicated** per adapter, not shared — they are small and driver-typed; genericising over two Drizzle dialect types buys nothing behavioural |
 | Isolation level | The MySQL adapter opens transactions at **READ COMMITTED** explicitly (MySQL's default is REPEATABLE READ), so locking behaviour matches the Postgres adapter's assumptions and avoids gap-lock surprises |
 | Counters | Table-emulated sequences via the `LAST_INSERT_ID(expr)` atomic-increment idiom (MySQL has no `CREATE SEQUENCE`) |
-| Timestamps | `DATETIME(3)`, UTC by convention (pool `timezone: 'Z'`). `TIMESTAMP` rejected (2038 range limit) |
+| Timestamps | `DATETIME(6)`, UTC by convention (pool `timezone: 'Z'`). `TIMESTAMP` rejected (2038 range limit) |
 | Drizzle-free analysis | Separate recommendation-grade document; not a committed phase |
 
 ## Section 1 — shared-code extraction (Phase 1, behaviour-preserving)
@@ -83,8 +96,9 @@ absorbed:
   arriving as a string — already tolerated by `UnifiedFieldValue`'s
   `number | string | null` type).
 - mysql2: `TINYINT(1)` → boolean, `DECIMAL` → string (matching pg's `numeric`
-  behaviour), `DATETIME(3)` → `Date` (mysql2 does this natively when `dateStrings`
-  is off), `JSON` → parsed object.
+  behaviour), `DATETIME(6)` → string, coerced to `Date` explicitly by the adapter's
+  `normalizeRow` (not, as originally assumed here, something mysql2 does natively —
+  see the correction note above), `JSON` → parsed object.
 
 The seam is a **normalisation contract, not an abstraction layer**: adapters still
 write their own SQL; they just promise that rows handed to shared restore code are
@@ -162,7 +176,7 @@ with a message naming the floor and the reason (LATERAL joins).
 |---|---|---|
 | `uuid` | `CHAR(36) CHARACTER SET ascii COLLATE ascii_bin` | Decided above. All ids app-generated UUIDv7 |
 | `jsonb` | `JSON` | mysql2 parses on read. The adapter uses no jsonb *operators* in SQL today (JSON values are opaque payloads), so parity is trivial |
-| `timestamptz` | `DATETIME(3)` | UTC by convention: pool `timezone: 'Z'`; all writes/reads UTC |
+| `timestamptz` | `DATETIME(6)` | UTC by convention: pool `timezone: 'Z'`; all writes/reads UTC |
 | `text` (unindexed) | `TEXT` | |
 | `text` / `varchar` (indexed) | `VARCHAR(n)` with explicit length | InnoDB unique-index key cap is 3072 bytes; utf8mb4 costs 4 bytes/char. `field_path` is pinned at `VARCHAR(512)` utf8mb4 — with `CHAR(36)` ascii id + `VARCHAR(10)` locale, the store tables' `(document_version_id, field_path, locale)` unique key totals ≈ 2,124 bytes < 3,072 |
 | `varchar(...) COLLATE "C"` (`order_key`) | `VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin` | Byte-wise ordering preserved — the fractional-index invariant (`generateKeyBetween` agrees with DB sort) holds |
