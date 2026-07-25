@@ -18,14 +18,25 @@
  * the repo root on every push — red for the whole of the port):
  *
  *   - Task 10A: `versioningSuite`, `fieldTypesSuite`.
- *   - Task 10B: `documentPathsSuite`, `documentTreeSuite`,
- *     `documentTreeAuditSuite`, `transactionsSuite`, `deleteLocaleSuite`,
- *     `documentAvailableLocalesSuite`, `systemFieldsDirectWriteSuite`,
- *     `restoreSuite`, `localeFallbackSuite` (this file) — the full storage
- *     surface, 11 of the 14 total suites.
+ *   - Task 10B: `documentPathsSuite`, `documentTreeSuite`, `transactionsSuite`,
+ *     `deleteLocaleSuite`, `documentAvailableLocalesSuite`,
+ *     `systemFieldsDirectWriteSuite`, `restoreSuite`, `localeFallbackSuite`
+ *     (this file) — the full storage surface minus tree-audit atomicity,
+ *     10 of the 14 total suites.
  *
  * `auditSuite`, `countersSuite`, and `adminStoreSuite` stay unregistered —
  * counters/audit are Task 11, the admin-store repositories are Task 12.
+ * `documentTreeAuditSuite` also stays unregistered here, for the same
+ * reason: every test in it calls a tree-mutation lifecycle function
+ * (`placeTreeNode`/`removeFromTree`/`promoteChildrenAndRemove`) that itself
+ * calls `commands.audit.append` inside the same transaction and then asserts
+ * against `queries.audit.getDocumentAuditLog` — it is a tree+audit
+ * atomicity suite, not a general storage suite, so it cannot pass against
+ * the `notImplemented` audit stubs below. Task 11 owns it: register
+ * `documentTreeAuditSuite(hooks)` once `commands.audit.append` and
+ * `queries.audit.*` are real — `testDb.queryBuilders.documents` already
+ * satisfies everything else the suite needs, so no other wiring change
+ * should be required.
  *
  * TODO(Task 13): once every suite passes, replace the list below with a
  * single `runAdapterConformanceSuite(hooks)` call — see db-postgres's
@@ -38,7 +49,6 @@ import {
   deleteLocaleSuite,
   documentAvailableLocalesSuite,
   documentPathsSuite,
-  documentTreeAuditSuite,
   documentTreeSuite,
   fieldTypesSuite,
   localeFallbackSuite,
@@ -112,9 +122,11 @@ const hooks: ConformanceHooks = {
 
 /**
  * Build a stub matching one not-yet-implemented `IDbAdapter` member's exact
- * call signature. None of the eleven suites registered below exercise
- * counters, audit, or the admin store — those are Tasks 11/12. Throwing
- * keeps that honest rather than silently no-op-ing.
+ * call signature. None of the ten suites registered below exercise
+ * counters, audit, or the admin store — those are Tasks 11/12 (and, for
+ * `documentTreeAuditSuite` specifically, the reason it isn't registered
+ * below yet — see the module docblock). Throwing keeps that honest rather
+ * than silently no-op-ing.
  */
 function notImplemented<T>(member: string): T {
   return (() => {
@@ -126,7 +138,8 @@ versioningSuite(hooks)
 fieldTypesSuite(hooks)
 documentPathsSuite(hooks)
 documentTreeSuite(hooks)
-documentTreeAuditSuite(hooks)
+// documentTreeAuditSuite(hooks) — Task 11: needs commands.audit.append /
+// queries.audit.* (see module docblock above).
 transactionsSuite(hooks)
 deleteLocaleSuite(hooks)
 documentAvailableLocalesSuite(hooks)
