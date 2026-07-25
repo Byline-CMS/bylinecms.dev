@@ -75,6 +75,27 @@ const OrderingPaginationCollectionConfig: CollectionDefinition = {
   fields: [{ name: 'title', type: 'text' }],
 }
 
+const AuthorsCollectionConfig: CollectionDefinition = {
+  path: `queries-test-authors-${timestamp}`,
+  labels: { singular: 'Author', plural: 'Authors' },
+  fields: [{ name: 'name', type: 'text' }],
+}
+
+const PostsCollectionConfig: CollectionDefinition = {
+  path: `queries-test-posts-${timestamp}`,
+  labels: { singular: 'Post', plural: 'Posts' },
+  fields: [
+    { name: 'title', type: 'text' },
+    { name: 'views', type: 'integer', optional: true },
+    {
+      name: 'author',
+      type: 'relation',
+      targetCollection: `queries-test-authors-${timestamp}`,
+      optional: true,
+    },
+  ],
+}
+
 describe('DocumentQueries.getDocumentById locale-chain path resolution (mysql, live database)', () => {
   let testDb: ReturnType<typeof setupTestDB>
   let collectionId: string
@@ -167,9 +188,8 @@ describe('findDocuments ordering and pagination (mysql, live database)', () => {
     testDb = setupTestDB([OrderKeyCollectionConfig, OrderingPaginationCollectionConfig])
   })
 
-  afterAll(async () => {
-    await teardownTestDB()
-  })
+  // `teardownTestDB()` is called once, at the very end of this file (see the
+  // last describe block below) — not here.
 
   async function createDoc(
     collectionId: string,
@@ -374,5 +394,254 @@ describe('findDocuments ordering and pagination (mysql, live database)', () => {
       expect(pageBeyond.total).toBe(total)
       expect(pageBeyond.documents).toEqual([])
     })
+  })
+})
+
+/**
+ * `findDocuments`' predicate compiler and the LATERAL field-sort join —
+ * none of the eleven registered `@byline/db-conformance` suites exercise
+ * the `$and`/`$or` combinators, a relation hop, `pathFilter`, `query`
+ * (LIKE search), or `sort` through `findDocuments` directly (the
+ * document-tree suite's `filters` only reach a plain field filter via
+ * `buildTreeVisibility`; `@byline/client`'s own combinator/relation-filter
+ * integration suite is pg-only — see `packages/client/tests/fixtures/
+ * setup.ts`). This describe block is this port's own live-database proof
+ * for that surface, mirroring the values-not-just-compiles standard the
+ * rest of this file already applies to `pathProjection`/`buildDocumentOrderClause`.
+ */
+describe('findDocuments filters, combinators, relation hops, search, and sort (mysql, live database)', () => {
+  let testDb: ReturnType<typeof setupTestDB>
+  let authorsCollectionId: string
+  let postsCollectionId: string
+  let adaId: string
+  let graceId: string
+  let post1: string // by Ada, views 10, title "First post"
+  let post2: string // by Grace, views 20, title "Second post"
+  let post3: string // by Ada, no views (NULL), title "Ünïcödé Post" (accents, mixed case)
+
+  beforeAll(async () => {
+    testDb = setupTestDB([AuthorsCollectionConfig, PostsCollectionConfig])
+    authorsCollectionId = first(
+      await testDb.commandBuilders.collections.create(
+        AuthorsCollectionConfig.path,
+        AuthorsCollectionConfig
+      )
+    ).id
+    postsCollectionId = first(
+      await testDb.commandBuilders.collections.create(
+        PostsCollectionConfig.path,
+        PostsCollectionConfig
+      )
+    ).id
+
+    async function createAuthor(name: string): Promise<string> {
+      const created = await testDb.commandBuilders.documents.createDocumentVersion({
+        collectionId: authorsCollectionId,
+        collectionVersion: 1,
+        collectionConfig: AuthorsCollectionConfig,
+        action: 'create',
+        documentData: { name },
+        path: `${name.toLowerCase()}-${timestamp}`,
+        locale: 'en',
+        status: 'published',
+      })
+      return created.document.document_id
+    }
+    async function createPost(
+      title: string,
+      views: number | undefined,
+      authorId: string,
+      path: string
+    ): Promise<string> {
+      const created = await testDb.commandBuilders.documents.createDocumentVersion({
+        collectionId: postsCollectionId,
+        collectionVersion: 1,
+        collectionConfig: PostsCollectionConfig,
+        action: 'create',
+        documentData: {
+          title,
+          ...(views !== undefined ? { views } : {}),
+          author: { targetDocumentId: authorId, targetCollectionId: authorsCollectionId },
+        },
+        path,
+        locale: 'en',
+        status: 'published',
+      })
+      return created.document.document_id
+    }
+
+    adaId = await createAuthor('Ada')
+    graceId = await createAuthor('Grace')
+    post1 = await createPost('First post', 10, adaId, `first-post-${timestamp}`)
+    await sleep(5)
+    post2 = await createPost('Second post', 20, graceId, `second-post-${timestamp}`)
+    await sleep(5)
+    post3 = await createPost('Ünïcödé Post', undefined, adaId, `unicode-post-${timestamp}`)
+  })
+
+  afterAll(async () => {
+    await teardownTestDB()
+  })
+
+  it('$or combinator: matches either field-filter branch', async () => {
+    const result = await testDb.queryBuilders.documents.findDocuments({
+      collection_id: postsCollectionId,
+      locale: 'en',
+      filters: [
+        {
+          kind: 'or',
+          children: [
+            {
+              kind: 'field',
+              fieldName: 'title',
+              storeType: 'text',
+              valueColumn: 'value',
+              operator: '$eq',
+              value: 'First post',
+            },
+            {
+              kind: 'field',
+              fieldName: 'title',
+              storeType: 'text',
+              valueColumn: 'value',
+              operator: '$eq',
+              value: 'Second post',
+            },
+          ],
+        },
+      ],
+    })
+    expect(new Set(result.documents.map((d) => d.document_id))).toEqual(new Set([post1, post2]))
+    expect(result.total).toBe(2)
+  })
+
+  it('$and combinator wrapping a docColumn(status) filter: intersects with a field filter', async () => {
+    const result = await testDb.queryBuilders.documents.findDocuments({
+      collection_id: postsCollectionId,
+      locale: 'en',
+      filters: [
+        {
+          kind: 'and',
+          children: [
+            { kind: 'docColumn', column: 'status', operator: '$eq', value: 'published' },
+            {
+              kind: 'field',
+              fieldName: 'title',
+              storeType: 'text',
+              valueColumn: 'value',
+              operator: '$eq',
+              value: 'First post',
+            },
+          ],
+        },
+      ],
+    })
+    expect(result.documents.map((d) => d.document_id)).toEqual([post1])
+  })
+
+  it('relation hop: finds posts whose author matches a nested field filter', async () => {
+    const result = await testDb.queryBuilders.documents.findDocuments({
+      collection_id: postsCollectionId,
+      locale: 'en',
+      filters: [
+        {
+          kind: 'relation',
+          fieldName: 'author',
+          targetCollectionId: authorsCollectionId,
+          nested: [
+            {
+              kind: 'field',
+              fieldName: 'name',
+              storeType: 'text',
+              valueColumn: 'value',
+              operator: '$eq',
+              value: 'Ada',
+            },
+          ],
+        },
+      ],
+    })
+    expect(new Set(result.documents.map((d) => d.document_id))).toEqual(new Set([post1, post3]))
+  })
+
+  it('relation hop with quantifier "none": finds posts NOT authored by Ada', async () => {
+    const result = await testDb.queryBuilders.documents.findDocuments({
+      collection_id: postsCollectionId,
+      locale: 'en',
+      filters: [
+        {
+          kind: 'relation',
+          fieldName: 'author',
+          targetCollectionId: authorsCollectionId,
+          quantifier: 'none',
+          nested: [
+            {
+              kind: 'field',
+              fieldName: 'name',
+              storeType: 'text',
+              valueColumn: 'value',
+              operator: '$eq',
+              value: 'Ada',
+            },
+          ],
+        },
+      ],
+    })
+    expect(result.documents.map((d) => d.document_id)).toEqual([post2])
+  })
+
+  it('pathFilter: matches an exact document path', async () => {
+    const result = await testDb.queryBuilders.documents.findDocuments({
+      collection_id: postsCollectionId,
+      locale: 'en',
+      pathFilter: { operator: '$eq', value: `first-post-${timestamp}` },
+    })
+    expect(result.documents.map((d) => d.document_id)).toEqual([post1])
+  })
+
+  it('query (LIKE admin search): matches case- and accent-insensitively — the elected ILIKE→LIKE divergence', async () => {
+    // "unicode post" (lowercase, unaccented) must still match "Ünïcödé Post"
+    // — utf8mb4_0900_ai_ci (the store `value` column's collation) folds both
+    // case and diacritics, a strictly wider match than pg's case-only ILIKE.
+    // This is the divergence documented at `findDocuments`' query-search site
+    // and `buildFilterCondition`'s `$contains` branch — pinned here against a
+    // real accented row rather than just asserted in a comment.
+    const result = await testDb.queryBuilders.documents.findDocuments({
+      collection_id: postsCollectionId,
+      locale: 'en',
+      query: 'unicode post',
+    })
+    expect(result.documents.map((d) => d.document_id)).toEqual([post3])
+  })
+
+  it('sort: LEFT JOIN LATERAL field sort on a numeric column, NULLS-last both directions', async () => {
+    // post1 views=10, post2 views=20, post3 views=NULL.
+    const asc = await testDb.queryBuilders.documents.findDocuments({
+      collection_id: postsCollectionId,
+      locale: 'en',
+      sort: {
+        fieldName: 'views',
+        storeType: 'numeric',
+        valueColumn: 'value_integer',
+        direction: 'asc',
+      },
+    })
+    // Ascending: real values first (10, 20), NULL last — the `(col IS NULL)
+    // ASC, col ASC` emulation this pins (MySQL's native ASC sorts NULL first).
+    expect(asc.documents.map((d) => d.document_id)).toEqual([post1, post2, post3])
+
+    const desc = await testDb.queryBuilders.documents.findDocuments({
+      collection_id: postsCollectionId,
+      locale: 'en',
+      sort: {
+        fieldName: 'views',
+        storeType: 'numeric',
+        valueColumn: 'value_integer',
+        direction: 'desc',
+      },
+    })
+    // Descending: MySQL's native DESC already sorts NULL last — no emulation
+    // needed, confirmed here rather than just asserted.
+    expect(desc.documents.map((d) => d.document_id)).toEqual([post2, post1, post3])
   })
 })
