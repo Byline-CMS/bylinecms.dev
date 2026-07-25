@@ -594,9 +594,14 @@ export const datetimeStore = mysqlTable(
     // hypothetical: a document with a fractional-second time value would
     // read back truncated after a write, MySQL-only.
     value_time: time('value_time', { fsp: 3 }),
-    // Postgres `timestamptz` → `datetime(3)` (spec §2). UTC by convention —
-    // see `common.ts`'s `auditTimestamp` doc comment.
-    value_timestamp_tz: datetime('value_timestamp_tz', { fsp: 3 }),
+    // Postgres `timestamptz` → `datetime(6)`. pg declares this column with
+    // no explicit `precision`, which defaults to TIMESTAMPTZ's full
+    // microsecond resolution — fsp 6 matches that exactly, and keeps this
+    // column on the same precision as every other `datetime(...)` in this
+    // schema (see `common.ts`'s `auditTimestamp` doc comment for why a
+    // mixed-precision schema is worse than a uniform one). UTC by
+    // convention — see `common.ts`'s `auditTimestamp` doc comment.
+    value_timestamp_tz: datetime('value_timestamp_tz', { fsp: 6 }),
   },
   (table) => [
     foreignKey({
@@ -1041,7 +1046,15 @@ export const auditLog = mysqlTable(
     field: varchar('field', { length: 128 }), // the changed field where meaningful (e.g. 'path'), else NULL
     before: json('before'),
     after: json('after'),
-    occurred_at: datetime('occurred_at', { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+    // fsp 6, matching pg's `timestamp('occurred_at', { precision: 6, withTimezone: true })`
+    // — see `common.ts`'s `auditTimestamp` doc comment for why every
+    // temporal column in this schema moved from fsp 3 to fsp 6. This is
+    // the column that surfaced the issue: at fsp 3, two audit rows (or an
+    // audit row and a version-stream row) appended in quick succession on a
+    // fast local connection could receive an identical or ambiguously
+    // ordered `occurred_at`, confirmed live via `packages/db-conformance`'s
+    // audit activity-feed fixture — see the Task 11 report.
+    occurred_at: datetime('occurred_at', { fsp: 6 }).notNull().default(sql`CURRENT_TIMESTAMP(6)`),
   },
   (table) => [
     // Per-document history, time-ordered (id is UUIDv7).

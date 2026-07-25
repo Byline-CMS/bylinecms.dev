@@ -86,18 +86,36 @@ export const varcharCaseSensitive = customType<{
 
 /**
  * Audit-timestamp column shape used across every Byline table.
- * `DATETIME(3)` — millisecond precision; stored and read as UTC by
- * convention (the mysql2 pool is opened with `timezone: 'Z'` so values
- * round-trip without local-timezone reinterpretation). MySQL's `DATETIME`
- * has no timezone-aware storage the way Postgres's `TIMESTAMPTZ` does, so
- * the UTC discipline is enforced entirely at the connection layer rather
- * than the column type.
+ * `DATETIME(6)` — microsecond precision, matching the Postgres adapter's
+ * `timestamp(name, { precision: 6, withTimezone: true })` exactly (see
+ * `packages/db-postgres/src/database/schema/common.ts`'s `auditTimestamp`).
+ * MySQL supports fractional seconds 0–6; picking 6 gives this adapter the
+ * same clock resolution as pg rather than a coarser one.
+ *
+ * This was `fsp: 3` (millisecond) originally, rejected only for
+ * `TIMESTAMP`'s 2038 range limit — with no stated rationale for choosing 3
+ * over 6. That turned out to matter: at millisecond resolution, two
+ * statements issued back-to-back on a fast local connection can land in the
+ * same tick and receive an *identical* `CURRENT_TIMESTAMP(3)` value, which
+ * is a real correctness gap for anything that orders or windows by these
+ * columns (found via `packages/db-conformance`'s audit activity-feed
+ * fixture — see docs/09-testing.md and the Task 11 report for the
+ * live-server evidence: four rapid statements produced 2 distinct values at
+ * fsp 3 versus 4 distinct values at fsp 6). Matching pg's precision closes
+ * that gap at the source instead of asking every fixture/consumer to work
+ * around a coarser clock.
+ *
+ * Stored and read as UTC by convention (the mysql2 pool is opened with
+ * `timezone: 'Z'` so values round-trip without local-timezone
+ * reinterpretation). MySQL's `DATETIME` has no timezone-aware storage the
+ * way Postgres's `TIMESTAMPTZ` does, so the UTC discipline is enforced
+ * entirely at the connection layer rather than the column type.
  *
  * Defined once here so adding a new column to every table — or changing
  * the precision across the schema — is a one-line edit.
  */
 const auditTimestamp = (name: string) =>
-  datetime(name, { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`)
+  datetime(name, { fsp: 6 }).notNull().default(sql`CURRENT_TIMESTAMP(6)`)
 
 /**
  * Both `created_at` and `updated_at` for tables whose rows are

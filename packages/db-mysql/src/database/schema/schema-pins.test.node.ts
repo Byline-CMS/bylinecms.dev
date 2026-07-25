@@ -20,10 +20,20 @@
  *      `ascii_bin` collation (byte-wise, case-sensitive comparison —
  *      what makes id equality case-sensitive and `order_key`'s DB sort
  *      match JS string sort on the `generateKeyBetween` alphabet).
- *   3. Every timestamp (instant) column is `datetime(3)` — millisecond
- *      precision — and every bare time-of-day column is `time(3)`, the
- *      same millisecond precision, so a fractional time value round-trips
- *      instead of silently truncating to whole seconds.
+ *   3. Every timestamp (instant) column is `datetime(6)` — microsecond
+ *      precision, matching the Postgres adapter's `timestamp(..., {
+ *      precision: 6, withTimezone: true })` exactly (see `common.ts`'s
+ *      `auditTimestamp` docblock: this was `datetime(3)` originally, and a
+ *      live `packages/db-conformance` run caught back-to-back statements on
+ *      a fast local connection landing in the same millisecond tick and
+ *      receiving an identical `CURRENT_TIMESTAMP(3)` value — a real
+ *      correctness gap for anything ordering or windowing by these
+ *      columns). Every bare time-of-day column is still `time(3)`,
+ *      millisecond precision, so a fractional time value round-trips
+ *      instead of silently truncating to whole seconds — `time` values are
+ *      user-authored field data, not statement-ordering timestamps, so the
+ *      race that motivated the instant-column bump upstream doesn't apply
+ *      to them.
  *   4. The `byline_document_paths` per-collection path-uniqueness index
  *      keeps the exact name `idx_document_paths_collection_locale_path`,
  *      because `packages/core/src/services/document-lifecycle/internals.ts`
@@ -75,8 +85,11 @@ function bytesPerChar(sqlType: string): number {
 /**
  * Bytes of fractional-seconds storage MySQL adds to a `TIME`/`DATETIME`/
  * `TIMESTAMP` base width for a given `fsp` (0-6): 0 for fsp 0, 1 byte for
- * fsp 1-2, 2 bytes for fsp 3-4, 3 bytes for fsp 5-6. Byline uses fsp 3
- * uniformly (see `common.ts`), which is 2 bytes.
+ * fsp 1-2, 2 bytes for fsp 3-4, 3 bytes for fsp 5-6. Every instant
+ * (`datetime`) column in this schema uses fsp 6 (see `common.ts`), which is
+ * 3 bytes; the one bare time-of-day column (`value_time`) stays at fsp 3
+ * (2 bytes) — see the timestamp-precision pin below for why the two are
+ * treated differently.
  */
 function fractionalSecondsBytes(fsp: number): number {
   if (fsp === 0) return 0
@@ -375,11 +388,12 @@ describe('schema pins — timestamp precision (spec §F.3)', () => {
   const timeColumns: { tableName: string; column: AnyMySqlColumn }[] = []
 
   // Any temporal type that represents an instant (date + time-of-day) must
-  // be `datetime(3)`. `MySqlDateTime` is what `datetime()` produces —
+  // be `datetime(6)`. `MySqlDateTime` is what `datetime()` produces —
   // every timestamp column in this schema uses it — but a future column
   // accidentally declared with mysql-core's `timestamp()` builder instead
-  // would produce `MySqlTimestamp` (rendered `timestamp(3)`, a distinct
-  // MySQL type this schema never intends to use). Filtering on
+  // would produce `MySqlTimestamp` (rendered `timestamp(N)`, a distinct
+  // MySQL type this schema never intends to use, so it would fail the
+  // `datetime(6)` assertion below regardless of its own fsp). Filtering on
   // `MySqlDateTime` alone would silently skip that column rather than
   // failing it, so both instant-shaped types are checked here.
   const INSTANT_COLUMN_TYPES = new Set(['MySqlDateTime', 'MySqlTimestamp'])
@@ -401,9 +415,9 @@ describe('schema pins — timestamp precision (spec §F.3)', () => {
   })
 
   it.each(instantColumns.map((c) => [`${c.tableName}.${c.column.name}`, c.column] as const))(
-    '%s is datetime(3) — millisecond precision',
+    '%s is datetime(6) — microsecond precision (pg parity)',
     (_label, column) => {
-      expect(column.getSQLType()).toBe('datetime(3)')
+      expect(column.getSQLType()).toBe('datetime(6)')
     }
   )
 
