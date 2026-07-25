@@ -278,6 +278,39 @@ The [development environment guide](docs/01-getting-started/02-development-envir
 has the full notes, including the foot-gun protection on `db_init`, alternate
 database names, and what the seed does.
 
+## Contributing
+
+Byline is built in the open and we would genuinely like to hear from you.
+Questions, ideas, feature proposals, and bug reports are all welcome:
+
+- **[Discussions](https://github.com/Byline-CMS/bylinecms.dev/discussions)** —
+  questions, ideas, feature proposals, and "is this a bug, or am I holding it
+  wrong?"
+- **[Issues](https://github.com/Byline-CMS/bylinecms.dev/issues)** —
+  reproducible bugs and concrete, well-scoped suggestions. The tracker doubles
+  as our public roadmap.
+
+**Pull request creation is currently restricted to repository collaborators.**
+Not in response to anything — we have had no unsolicited pull requests at all
+so far. We are a small team, large parts of the codebase still move week to
+week, and we would rather spend our review time on the design conversation
+behind a change than on a patch against code we are about to rewrite. We also
+want our guidance on AI-assisted contributions settled before patches start
+arriving rather than after. This is a stage, not a position, and we will say so
+here when it changes.
+
+So the most useful thing you can send us right now is a thoughtful issue: a bug
+report we can reproduce, or a suggestion with the reasoning behind it. We'll triage
+those ourselves and turn them into issues and pull requests on our side. If you
+have already written a fix, describe it in an issue and link a branch on your
+fork — if we agree it is the right change and want your commits, we would much
+rather arrange access than reimplement your work.
+
+[`CONTRIBUTING.md`](CONTRIBUTING.md) has the full detail, including the
+reasoning above at length, our position on AI-assisted contributions, and the
+commit, formatting, and DCO conventions. Please also read our
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## FAQ
 
 <details>

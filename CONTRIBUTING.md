@@ -1,8 +1,34 @@
 # Contributing Guide #
 
-Thank you for your interest in contributing to Byline CMS. This is a
-generic guide that details how to contribute to the project in a way that
-is efficient for everyone.
+Thank you for your interest in contributing to Byline CMS. This guide
+explains how to contribute in a way that works for everyone — including,
+right now, one significant limit.
+
+**Pull request creation is currently restricted to repository
+collaborators.** Issues and discussions are open to everyone, and they are
+where we would most like to hear from you. The [Pull
+Requests](#pull-requests) section explains the reasoning, and
+[AI-Assisted Contributions](#ai-assisted-contributions) covers what we can
+and cannot act on.
+
+## Ways to Contribute ##
+
+- **[Discussions](https://github.com/Byline-CMS/bylinecms.dev/discussions)**
+  — questions, ideas, feature proposals, and "is this a bug, or am I
+  holding it wrong?" Use **Q&A** when you are stuck, **Ideas** when you
+  want to propose something, and **Show and tell** if you have built
+  something on Byline. We read all of them.
+- **[Issues](https://github.com/Byline-CMS/bylinecms.dev/issues)** —
+  reproducible bugs, and concrete, well-scoped suggestions. The issue
+  tracker is also our public roadmap, so triaged issues are how work gets
+  queued.
+- **Documentation.** Corrections, gaps, and passages that did not make
+  sense to you on a first read are genuinely useful reports. Tell us which
+  document and which section.
+- **Evaluating Byline and telling us what broke.** We develop Byline
+  against our own production sites, which means our blind spots are
+  systematic ones. Someone using Byline for something we would never have
+  thought of is worth a great deal to us.
 
 ## Reporting Bugs ##
 
@@ -28,26 +54,107 @@ in the changelog.**
 
 ## Pull Requests ##
 
-If you want to propose a change or bug fix via a pull request (PR),
-you should first carefully read the section **Developer's Certificate of
-Origin**. You must also format your code and commits according to the
-instructions below.
+**Pull request creation is currently restricted to repository
+collaborators.** GitHub enforces this at the repository level, so if you
+are not a collaborator you will not be able to open one. Nothing else
+changes: the repository stays public and readable, you can clone and fork
+it and build on it under the terms of the MPL-2.0 licence, existing pull
+requests remain readable, and issues and discussions are open to everyone.
 
-If you intend to fix a bug, it's fine to submit a pull request right
-away, but we still recommend filing an issue detailing what you're
-fixing. This is helpful in case we don't accept that specific fix but
-want to keep track of the issue.
+We have not turned this on in response to anything. We have had no
+unsolicited pull requests at all so far. We are setting the expectation
+before it matters, for three reasons.
 
-If you want to implement or start working on a new feature, please
-open a **question*- / **discussion*- issue for it. No PR
-will be accepted without a prior discussion about the changes,
-whether it is a new feature, an already planned one, or a quick win.
+1. **We are a small team.** Review capacity is our scarcest resource. An
+   unreviewed pull request sitting open for months is a worse outcome for
+   its author than a clear "not right now" would have been.
 
-If it is your first PR, you can learn how to proceed from
-[this free video
-series](https://egghead.io/courses/how-to-contribute-to-an-open-source-project-on-github)
+2. **The codebase is moving quickly.** Byline is in active development, and
+   whole subsystems have been restructured within a single minor line. A
+   patch against an area we are about to rewrite cannot be merged however
+   good it is, and that is a discouraging thing to find out after you have
+   already done the work. Agreeing on the change first protects your time
+   more than ours.
 
-We use the `easy fix` tag to indicate issues that are appropriate for beginners.
+3. **We want our guidance on AI-assisted contributions settled first.** See
+   the next section. We would rather say what we can act on before patches
+   start arriving than retrofit a policy afterwards.
+
+We intend to open pull requests up as the
+architecture settles and our own rate of change slows, and we will say so
+clearly here when we do.
+
+### What to do instead ###
+
+Open an [issue](https://github.com/Byline-CMS/bylinecms.dev/issues) or a
+[discussion](https://github.com/Byline-CMS/bylinecms.dev/discussions). This
+is not a consolation prize — it is the contribution we most need right now.
+A bug report we can reproduce, or a proposal with the reasoning behind it,
+feeds directly into our roadmap: we triage it, verify it, and raise the
+issue and the pull request ourselves.
+
+If you have already written a fix, describe the change in an issue and link
+to a branch on your fork. We will read it. If we agree the change is right
+and want your commits, we would much rather arrange access for you than
+reimplement your work and take the credit for it.
+
+### For collaborators ###
+
+The rest of this guide applies. Read the **Developer's Certificate of
+Origin** section below, and follow the commit and formatting conventions.
+
+If you intend to fix a bug, it is fine to open a pull request right away,
+but we still recommend filing an issue describing what you are fixing. That
+way we can track the underlying problem even if we do not take that
+specific fix.
+
+If you want to implement or start working on a new feature, open a
+`question` or `enhancement` issue for it first. No pull request will be
+accepted without a prior discussion about the change, whether it is a new
+feature, an already-planned one, or a quick win.
+
+We use the `good first issue` and `help wanted` labels to mark work that is
+well scoped enough to pick up without deep familiarity with the codebase.
+
+## AI-Assisted Contributions ##
+
+We use AI assistance extensively in Byline's own development, and we have
+written about how and why in [A note on AI usage in the development of
+Byline](docs/02-why-byline/01-mission.md). So this section is not a
+prohibition on tools, and we are not going to ask you to declare which
+editor you used.
+
+What we cannot absorb is output that nobody has read. Three failure modes
+in particular cost us far more than they contribute:
+
+- A generated bug report that describes plausible behaviour the software
+  does not actually have. It takes longer to investigate and dismiss than a
+  real bug takes to fix.
+- A generated feature proposal assembled by reading the README and the
+  documentation. It tells us what a model inferred from our own words, not
+  what you need. We already know what we wrote.
+- A generated patch whose author cannot explain it. We cannot review it, we
+  cannot maintain it, and it is not something anyone can honestly sign off
+  under the Developer's Certificate of Origin below — which asks you to
+  certify that you wrote the contribution, or otherwise have the right to
+  submit it.
+
+So, whatever you used to help write it:
+
+- **Run it against the software before you file it.** Bug reports need real
+  reproduction steps from a real run, against a stated version.
+- **Say what you actually need, in your own words, and why.** A short,
+  specific paragraph from somebody using Byline is worth more to us than a
+  long, well-structured document.
+- **Be able to explain and defend every line you submit.** If you cannot
+  say why a change is written the way it is, it is not ready.
+- **Do not file at scale.** Batches of generated issues, and drive-by
+  refactor or dependency-bump pull requests, will be closed without
+  discussion.
+
+If an agent helped you track something down and that is worth mentioning,
+mention it — we are interested. We are not suspicious of the tooling. We
+just need a person on the other end of the conversation.
 
 ## Commit Guidelines ##
 
@@ -70,77 +177,102 @@ The commit message format is:
 ```
 
 - **type** – describes the category of the change (see table below).
-- **scope** *(optional)* – the area of the codebase affected
-  (e.g. `dashboard`, `db-postgres`, `core`, `i18n`).
-- **subject** – a concise description in the imperative mood.
+- **scope** *(optional)* – the area of the codebase affected, usually the
+  package name without its `@byline/` prefix (`core`, `db-postgres`,
+  `admin`, `i18n`, `webapp`). A change spanning two closely related
+  packages may list both: `fix(db-mysql,db-postgres): …`. Omit the scope
+  for cross-cutting changes.
+- **subject** – a concise description, lowercase, in the past tense (see
+  **Rules** below).
 - **body** *(optional)* – additional context, motivation, or details.
-- **footer** *(optional)* – references to issues, breaking-change
-  notices (`BREAKING CHANGE: …`), etc.
+- **footer** *(optional)* – the DCO sign-off, and an issue reference such
+  as `Closes #142`.
 
 ### Commit Types
 
-| Type | Emoji | Description |
-|------|-------|-------------|
-| `fix` | :bug: | A bug fix |
-| `feat` | :sparkles: | A new feature |
-| `perf` | :zap: | A performance improvement |
-| `docs` | :books: | Documentation-only changes |
-| `style` | :art: | Code style / formatting (no logic change) |
-| `refactor` | :recycle: | Code change that neither fixes a bug nor adds a feature |
-| `test` | :white_check_mark: | Adding or updating tests |
-| `build` | :wrench: | Changes to the build system or dependencies |
-| `ci` | :construction_worker: | CI/CD configuration changes |
-| `chore` | :broom: | Miscellaneous tasks (e.g. .gitignore, tooling) |
-| `hotfix` | :ambulance: | Critical bug fix requiring immediate release |
+| Type | Description |
+|------|-------------|
+| `feat` | A new feature or significant enhancement |
+| `fix` | A bug fix |
+| `docs` | Documentation-only changes |
+| `refactor` | Restructuring that neither fixes a bug nor adds a feature |
+| `perf` | A performance improvement |
+| `test` | Adding or updating tests |
+| `style` | Formatting and whitespace, with no logic change. Not CSS — visual changes are `feat` or `fix` |
+| `chore` | Maintenance with no runtime behaviour change (tooling, `.gitignore`, release commits) |
+| `chore(deps)` | Dependency updates |
+| `ci` | CI/CD configuration changes |
 
-> **Breaking changes**: append `!` after the type/scope
-> (e.g. `feat(api)!: remove legacy endpoint`) **and** include a
-> `BREAKING CHANGE:` line in the footer.
+We do not use emoji in commit subjects.
+
+> **Breaking changes**: append `!` after the type or scope
+> (e.g. `feat(client)!: removed the legacy find signature`) **and** include
+> a `BREAKING CHANGE:` line in the footer. This is rare here. Byline's
+> major-version bumps are driven by lockstep versioning across the
+> publishable `@byline/*` packages rather than by breaking redesigns, so a
+> major release is not on its own evidence that a breaking change landed.
 
 ### Rules
 
 Each commit should have:
 
-- A concise subject using the imperative mood.
-- The subject should capitalize the first letter, omit the period
-  at the end, and be no longer than 65 characters.
-- A blank line between the subject line and the body.
-- An entry in the CHANGES.md file if applicable, referencing the
-  GitHub or Taiga issue/user story using these same rules.
+- A subject that is **lowercase after the colon** and written in the **past
+  tense** — `added`, `fixed`, `removed`, `updated`. This is the one place
+  we diverge from the Conventional Commits examples, which use the
+  imperative. Match the repository.
+- No trailing period on the subject, unless it runs to more than one
+  sentence.
+- A subject short enough to scan in a `git log --oneline`. There is no
+  enforced character limit, but if you are much past 70 characters the
+  detail probably belongs in the body.
+- A blank line between the subject and the body.
+- A reference to the GitHub issue in the footer where one exists
+  (`Closes #142`).
+- A `Signed-off-by` trailer — see
+  [Developer's Certificate of Origin](#developers-certificate-of-origin-dco)
+  below. It is the **only** trailer we permit: no `Co-Authored-By`, no AI
+  attribution, no others.
+- A [changeset](https://github.com/changesets/changesets) (`pnpm changeset`)
+  for any change that affects a published `@byline/*` package. Changesets
+  drive the release notes and the lockstep version bump.
 
 ### Examples
 
 ```
-feat(admin): add modal for user profile editing
+feat(admin): added a modal for user profile editing
 
 Introduces a reusable profile modal component that supports
 avatar upload and field validation.
 
 Closes #142
+
+Signed-off-by: Burbury Brown <burbury@brown.in>
 ```
 
 ```
-fix(db-postgres): set proper error message on generic query error
+fix(db-postgres): set a proper error message on generic query errors
+
+Signed-off-by: Burbury Brown <burbury@brown.in>
 ```
 
 ```
-docs: add authentication process documentation
+docs: added the authentication process documentation
+
+Signed-off-by: Burbury Brown <burbury@brown.in>
 ```
 
 ```
-perf(admin): improve navigation rendering performance
+perf(admin): memoized route calculations in the navigation
 
-Memoize route calculations to avoid unnecessary re-renders
-on every navigation event.
+Avoids unnecessary re-renders on every navigation event.
+
+Signed-off-by: Burbury Brown <burbury@brown.in>
 ```
 
 ```
-feat(api)!: remove legacy /v1/auth endpoint
+chore(deps): updated deps
 
-BREAKING CHANGE: The /v1/auth endpoint has been removed.
-Clients must migrate to /v2/auth.
-
-Closes #287
+Signed-off-by: Burbury Brown <burbury@brown.in>
 ```
 
 ## Formatting and Linting ##
@@ -178,7 +310,7 @@ pnpm lint        # entire workspace (auto-fix + format)
 pnpm typecheck   # type-check across packages
 ```
 
-For the test suite, see [`docs/TESTING.md`](./docs/TESTING.md).
+For the test suite, see [`docs/09-testing.md`](./docs/09-testing.md).
 
 
 ## Code of Conduct ##
@@ -216,15 +348,26 @@ By submitting code you agree to and can certify the following:
         maintained indefinitely and may be redistributed consistent with
         this project or the open source license(s) involved.
 
-Then, all your code patches (**documentation is excluded**) should
-contain a sign-off at the end of the patch/commit description body. It
-can be automatically added by adding the `-s` parameter to `git commit`.
+**Every commit must carry a sign-off**, including documentation-only
+commits. Pull requests are gated by an automated DCO check, and a single
+unsigned commit anywhere in the branch will fail it. Add the sign-off by
+passing `-s` to `git commit`:
 
-This is an example of what the line should look like:
+```sh
+git commit -s -m "docs: corrected the storage reference"
+```
+
+This is what the resulting trailer looks like:
 
 ```
 Signed-off-by: Burbury Brown <burbury@brown.in>
 ```
 
-Please, use your real name (sorry, no pseudonyms or anonymous
-contributions are allowed).
+It must match the name and email address configured in your Git identity
+(`git config user.name` and `user.email`). Please use your real name —
+sorry, no pseudonyms or anonymous contributions.
+
+As noted under [Commit Guidelines](#commit-guidelines), `Signed-off-by` is
+the only trailer we permit. If you forgot the sign-off on commits you have
+already made, `git rebase --signoff <base>` will add it across a range
+before you push.
