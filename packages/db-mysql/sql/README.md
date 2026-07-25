@@ -20,11 +20,15 @@ mysql -u byline -p byline_dev < packages/db-mysql/sql/0001_example.sql
 
 - **Numbered.** Scripts apply in filename order (`0001_...`, `0002_...`),
   same as the Postgres stream.
-- **Idempotent.** Each script should be safe to run more than once — guard
-  `CREATE TABLE` / `ALTER TABLE ... ADD COLUMN` with `IF NOT EXISTS` (or an
-  `information_schema` check for the ALTER forms MySQL's `IF NOT EXISTS`
-  doesn't cover) so a re-run after a partial failure doesn't error out on
-  work that already landed.
+- **Idempotent.** Each script should be safe to run more than once.
+  `CREATE TABLE` and `CREATE INDEX` take `IF NOT EXISTS`; `DROP TABLE` /
+  `DROP INDEX` take `IF EXISTS`. `ALTER TABLE` (adding a column, changing a
+  type, adding a constraint, …) takes neither — MySQL has no
+  `IF NOT EXISTS` form for any `ALTER TABLE` variant — so every `ALTER
+  TABLE` guard needs an explicit `information_schema` check (e.g. query
+  `information_schema.COLUMNS` for the column before adding it) so a
+  re-run after a partial failure doesn't error out on work that already
+  landed.
 - **Transactional, with a MySQL-specific caveat.** Wrap the
   data-manipulation portions of a script in `START TRANSACTION` /
   `COMMIT` the same way the Postgres scripts do. But unlike Postgres,
