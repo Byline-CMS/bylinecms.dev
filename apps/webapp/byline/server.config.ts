@@ -20,6 +20,13 @@ import { getAdminBylineClient } from '@byline/client/server'
 import { type BylineCore, initBylineCore } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
 import { createAdminStore } from '@byline/db-postgres/admin'
+// ── MySQL adapter (end-to-end testing) ────────────────────────────────────────
+// Comment out the two `@byline/db-postgres` imports above and uncomment these
+// two, then follow the matching block in `buildBylineCore()` below. There are
+// FOUR coordinated edits in this file — the block below lists all of them.
+//
+// import { mysqlAdapter } from '@byline/db-mysql'
+// import { createAdminStore } from '@byline/db-mysql/admin'
 import { registerTanstackStartHostBridge } from '@byline/host-tanstack-start/integrations/host-bridge'
 import {
   lexicalEditorEmbedServer,
@@ -94,6 +101,72 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       : undefined,
   })
 
+  // ── MySQL adapter (end-to-end testing) ──────────────────────────────────────
+  //
+  // Swapping adapters takes FOUR edits in this file, all marked with this
+  // banner. Missing any one of them fails at boot or, worse, hands a mysql2
+  // pool to a Postgres-only driver:
+  //
+  //   1. the imports at the top of this file
+  //   2. this block — comment out the `pgAdapter({...})` call above, uncomment
+  //      the `mysqlAdapter({...})` call below
+  //   3. the `await migrate(db.pool, …)` call below — Postgres-only, must be
+  //      commented out
+  //   4. the `search:` entry in `initBylineCore()` — swap to the no-op provider
+  //      given at the end of this comment
+  //
+  // Prerequisites:
+  //
+  //   • `BYLINE_DB_MYSQL_CONNECTION_STRING` in `apps/webapp/.env.local` — see
+  //     `.env.local.example`. The MySQL container is `mysql/docker-compose.yml`
+  //     (`cd mysql && ./mysql.sh up -d`).
+  //   • a migrated database: `cd packages/db-mysql && pnpm drizzle:migrate`
+  //   • seed data if you want content to look at: `cd apps/webapp && pnpm tsx
+  //     byline/seed.ts` (it reads whichever adapter this file configures)
+  //
+  // const db = mysqlAdapter({
+  //   connectionString: process.env.BYLINE_DB_MYSQL_CONNECTION_STRING || '',
+  //   collections,
+  //   defaultContentLocale: i18n.content.defaultLocale,
+  //   // Pool tuning. Optional — `mysqlAdapter` ships the same defaults as
+  //   // `pgAdapter` (20 connections, 2s idle, 30s connect), so a managed provider
+  //   // that pauses idle databases gets the same cold-start headroom.
+  //   connectionLimit: process.env.BYLINE_DB_MYSQL_CONNECTION_LIMIT
+  //     ? Number(process.env.BYLINE_DB_MYSQL_CONNECTION_LIMIT)
+  //     : undefined,
+  //   idleTimeout: process.env.BYLINE_DB_MYSQL_IDLE_TIMEOUT_MILLIS
+  //     ? Number(process.env.BYLINE_DB_MYSQL_IDLE_TIMEOUT_MILLIS)
+  //     : undefined,
+  //   connectTimeout: process.env.BYLINE_DB_MYSQL_CONNECTION_TIMEOUT_MILLIS
+  //     ? Number(process.env.BYLINE_DB_MYSQL_CONNECTION_TIMEOUT_MILLIS)
+  //     : undefined,
+  // })
+  //
+  // Search is Postgres-only today (`@byline/search-postgres` has no MySQL
+  // counterpart — tracked as #52). Five collections opt into search via
+  // `CollectionDefinition.search`, and `validateSearchConfig` throws at boot if
+  // any collection opts in with no provider registered — so you cannot simply
+  // omit `search`. Register this no-op instead: it satisfies validation, and
+  // indexing / querying become silent no-ops rather than errors. The admin
+  // Reindex button and the docs search page will return nothing, which is the
+  // honest answer on MySQL.
+  //
+  // const noopSearch = {
+  //   capabilities: {
+  //     facets: false,
+  //     typoTolerance: false,
+  //     semantic: false,
+  //     bm25: false,
+  //     weighting: false,
+  //     highlights: false,
+  //   },
+  //   async upsert() {},
+  //   async remove() {},
+  //   async search() {
+  //     return { hits: [], total: 0 }
+  //   },
+  // }
+
   // Ensure the search-index schema before the provider serves any traffic.
   // The driver owns its schema (numbered SQL in `@byline/search-postgres`);
   // we apply it deliberately here rather than relying on `autoMigrate` so
@@ -102,6 +175,12 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   //
   // Wrapped defensively: a migration failure degrades search but must not take
   // down the whole app at boot — log loudly and continue.
+  //
+  // ── MySQL adapter (end-to-end testing), edit 3 of 4 ─────────────────────────
+  // Comment this whole `try/catch` out when running on MySQL. `migrate()` comes
+  // from `@byline/search-postgres` and expects a **pg** pool; on the MySQL
+  // adapter `db.pool` is a mysql2 pool, so leaving this in place fails inside
+  // the driver rather than anywhere informative.
   try {
     await migrate(db.pool, { log: (m) => console.log(m) })
   } catch (err) {
@@ -233,7 +312,12 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     // (no second connection); the search index lives in the same database.
     // Collections opt in via their `search` config; lifecycle
     // hooks maintain the index (see e.g. `collections/docs/hooks.ts`).
+    // ── MySQL adapter (end-to-end testing), edit 4 of 4 ───────────────────────
+    // On MySQL, comment the `postgresSearch(...)` line out and uncomment the
+    // `noopSearch` line — see the no-op provider defined in the adapter block
+    // above, and why omitting `search` entirely throws at boot.
     search: postgresSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
+    // search: noopSearch,
   })
 
   // Register admin-subsystem abilities (admin.users.*, admin.roles.*) on
