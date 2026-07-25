@@ -12,6 +12,7 @@ Companions:
 - [Document Paths](../04-collections/05-document-paths.md) — `path` was the first system attribute promoted out of the storage layer; it now lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`.
 - [Collection Versioning](../04-collections/08-collection-versioning.md) — schema versioning sits beside, but is independent of, document versioning.
 - [Storage benchmark sweep — 2026-07-21](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/benchmarks/storage/results/2026-07-21-storage-cold-summary.md) — the cold-path latency evidence cited below; it carries the 2026-04-18 baseline it is compared against.
+- [`@byline/db-mysql` README](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/packages/db-mysql/README.md) — the second adapter's install steps, engine floor, and its documented differences from the Postgres adapter described here.
 
 ## Overview
 
@@ -42,6 +43,26 @@ The architecture exists to deliver three properties at once:
 These compose only because the storage layer treats every field value as a row keyed by version, locale, and field path. Fold them into a per-collection table model and at least one of the three has to give.
 
 The cost of EAV is read-time reconstruction across several tables. That is the model's central risk, it is measured rather than asserted, and the [benchmarks](#indicative-benchmarks) below show where it stays flat and where it does not.
+
+### Adapters
+
+Everything above is a description of the model, not of one database. Byline ships two
+adapters that implement it: `@byline/db-postgres`, the original adapter, and
+`@byline/db-mysql`, added in v4.8.0 for MySQL 8.0.14 and later. Both implement the same
+`IDbAdapter` contract, and the dialect-independent parts of the model described in this
+document — flatten, reconstruct, the store manifest, field-path resolution, selective
+field loading — live once in `@byline/core` rather than in either adapter, so an
+improvement to the model benefits both databases at once. Each adapter still owns its
+own schema, SQL, and driver-specific row normalisation; where the two databases genuinely
+differ, they are free to differ, and each adapter documents its own divergences (the
+[`@byline/db-mysql` README](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/packages/db-mysql/README.md)
+covers that adapter's).
+
+The contract instrument that keeps the two in sync is `packages/db-conformance` — a
+private, unpublished workspace package holding one behavioural test suite, parameterised
+over an `IDbAdapter` factory. Both adapters run the same 14 suites against their own test
+database; a change to the shared model that breaks either adapter's behaviour fails a
+conformance suite before it fails anything a consumer would notice.
 
 ## What happens when you save a document
 

@@ -2154,8 +2154,8 @@ export class DocumentQueries implements IDocumentQueries {
       // mysql2 driver hands DATETIME columns back as strings here, not
       // `Date` (see `toDate`'s docstring, `storage-utils.ts`), confirmed
       // live: an un-coerced `as Date` cast was lying at the type level.
-      created_at: toDate(row.created_at as string) as Date,
-      updated_at: toDate(row.updated_at as string) as Date,
+      created_at: toDate(row.created_at as string, 'created_at') as Date,
+      updated_at: toDate(row.updated_at as string, 'updated_at') as Date,
       created_by: row.created_by as string,
       change_summary: row.change_summary as string,
       source_locale: (row.source_locale as string | null) ?? null,

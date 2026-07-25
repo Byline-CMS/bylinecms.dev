@@ -99,6 +99,20 @@ export class CollectionCommands implements ICollectionCommands {
     const version = opts?.version ?? 1
     const singular = config.labels.singular || path
     const plural = config.labels.plural || `${path}s`
+    // `created_at`/`updated_at` are written explicitly rather than left to
+    // the column's `DEFAULT CURRENT_TIMESTAMP(6)` — an earlier version of
+    // this method approximated them with a request-time `Date` instead
+    // (reasoning: "no caller in this adapter's current scope depends on
+    // the authoritative value"), which is the exact reasoning that held for
+    // `DocumentCommands.createDocumentVersion` right up until a
+    // `db-conformance` fixture started windowing on `created_at` and an
+    // intermittent few-millisecond gap between the app-side capture and the
+    // DB-side `CURRENT_TIMESTAMP(6)` evaluation turned into a real flake —
+    // see that method's `created_at`/`updated_at` comment below for the
+    // live-server evidence. Writing the same `Date` instance to the column
+    // that gets returned makes the two identical by construction instead of
+    // two independent clock reads that can drift under load.
+    const now = new Date()
     await this.db.insert(collections).values({
       id,
       path,
@@ -106,14 +120,14 @@ export class CollectionCommands implements ICollectionCommands {
       plural,
       config,
       version,
+      created_at: now,
+      updated_at: now,
       ...(opts?.schemaHash !== undefined ? { schema_hash: opts.schemaHash } : {}),
     })
     // `.returning()` has no MySQL equivalent — every value here is already
-    // known (app-generated id, caller-supplied config), so the row is
-    // constructed in JS rather than re-`SELECT`ed. `created_at`/`updated_at`
-    // are DB defaults (`CURRENT_TIMESTAMP(6)`); approximated with the
-    // request-time `Date` since no caller in this adapter's current scope
-    // depends on the authoritative DB-assigned value.
+    // known (app-generated id, caller-supplied config, and the `created_at`
+    // / `updated_at` just written above), so the row is constructed in JS
+    // rather than re-`SELECT`ed.
     return [
       {
         id,
@@ -123,8 +137,8 @@ export class CollectionCommands implements ICollectionCommands {
         config,
         version,
         schema_hash: opts?.schemaHash ?? null,
-        created_at: new Date(),
-        updated_at: new Date(),
+        created_at: now,
+        updated_at: now,
       },
     ]
   }
@@ -272,6 +286,26 @@ export class DocumentCommands implements IDocumentCommands {
       // 2. Create the document version. The id is minted here (app-side
       // UUIDv7), so the row is constructed in JS below rather than
       // re-`SELECT`ed — MySQL has no `RETURNING`.
+      //
+      // `created_at`/`updated_at` are passed explicitly rather than left to
+      // the column's `DEFAULT CURRENT_TIMESTAMP(6)` — the same explicit-write
+      // fix `CollectionCommands.create` above now also carries, for the same
+      // underlying reason it was found here first: `occurred_at` on this row
+      // is a value the shared `db-conformance` audit activity-feed fixture
+      // (and any other caller windowing on `created_at`) treats as
+      // authoritative to derive query boundaries from the very `Date` this
+      // method returns. Leaving the column to the DB default means the
+      // *returned* timestamp (captured here, before the INSERT is even sent)
+      // and the *persisted* timestamp (evaluated by the MySQL server when the
+      // statement executes) are two independent clock reads that can diverge
+      // under load — confirmed live: under CPU contention this measured a
+      // 1–6ms gap between the two, enough to push a boundary row outside an
+      // inclusive `<=` window derived from the approximated value and
+      // intermittently fail `filters by date range on occurred_at`
+      // (`packages/db-conformance/src/suites/audit.ts`). Writing the same
+      // `Date` instance to the column that gets returned makes the two
+      // identical by construction — there is no longer a second clock to
+      // drift against.
       const documentVersionId = uuidv7()
       const createdAt = new Date()
       await tx.insert(documentVersions).values({
@@ -282,6 +316,8 @@ export class DocumentCommands implements IDocumentCommands {
         event_type: params.action ?? 'create',
         status: params.status ?? 'draft',
         created_by: params.createdBy ?? null,
+        created_at: createdAt,
+        updated_at: createdAt,
       })
       const documentVersion = {
         id: documentVersionId,

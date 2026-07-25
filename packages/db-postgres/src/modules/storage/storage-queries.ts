@@ -1877,8 +1877,9 @@ export class DocumentQueries implements IDocumentQueries {
 
     const { rows }: { rows: Record<string, unknown>[] } = await this.db.execute(query)
     // Canonicalise the raw UNION ALL driver rows at the ingestion boundary —
-    // see normalizeRow's docstring for what pg's driver leaves as-is
-    // (BIGINT/decimal-as-string, timestamptz-as-Date).
+    // see normalizeRow's docstring for the full picture: BIGINT/decimal
+    // stay strings (identity), but `value_date` / `value_timestamp_tz` are
+    // coerced to `Date` there, not left as the driver's raw text.
     return rows.map(normalizeRow)
   }
 

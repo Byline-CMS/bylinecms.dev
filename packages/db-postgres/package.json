@@ -72,7 +72,6 @@
     "@byline/admin": "workspace:*",
     "@byline/core": "workspace:*",
     "drizzle-orm": "^0.45.2",
-    "npm-run-all": "^4.1.5",
     "pg": "^8.22.0",
     "uuid": "^14.0.1"
   },
@@ -85,6 +84,7 @@
     "chokidar-cli": "^3.0.0",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
+    "npm-run-all": "^4.1.5",
     "tsc-alias": "^1.9.1",
     "tsx": "^4.23.1",
     "typescript": "^7.0.2",

@@ -351,5 +351,34 @@ describe('DocumentCommands status/archive/soft-delete/order-key/delete-locale (m
       })
       expect(result).toBeNull()
     })
+
+    it('returns null when every version of the document has been soft-deleted', async () => {
+      // Distinct from the "wholly absent document" case above — this
+      // document genuinely exists and has version rows, but all of them
+      // carry `is_deleted = true`, so the `AND is_deleted = false` filter
+      // in `deleteDocumentLocale`'s current-version lookup excludes every
+      // one of them, the same guard it hits for an absent document.
+      const created = await testDb.commandBuilders.documents.createDocumentVersion({
+        collectionId,
+        collectionVersion: 1,
+        collectionConfig: PostsCollectionConfig,
+        action: 'create',
+        documentData: { title: { en: 'Soft-Deleted', es: 'Borrado', fr: 'Supprimé' } },
+        locale: 'all',
+        status: 'draft',
+      })
+      const documentId = created.document.document_id
+
+      const affected = await testDb.commandBuilders.documents.softDeleteDocument({
+        document_id: documentId,
+      })
+      expect(affected).toBe(1)
+
+      const result = await testDb.commandBuilders.documents.deleteDocumentLocale({
+        documentId,
+        locale: 'es',
+      })
+      expect(result).toBeNull()
+    })
   })
 })
