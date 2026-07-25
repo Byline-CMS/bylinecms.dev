@@ -63,9 +63,28 @@ export function normalizeRow(row: Record<string, unknown>): UnifiedFieldValue {
 
 /**
  * `'2026-01-15'` (MySQL `DATE` text, no time-of-day component) → a `Date`
- * at UTC midnight for that calendar date — matching node-postgres's own
- * default parser for a `date` column (pg's `normalize-row.ts` is an
- * identity cast precisely because that adapter's driver already does this).
+ * at **UTC** midnight for that calendar date.
+ *
+ * This is an elected divergence from node-postgres, not a parity claim — an
+ * earlier version of this docblock claimed UTC midnight matches
+ * node-postgres's own default parser for a `date` column. It doesn't.
+ * node-postgres's default `date` parser is `postgres-date` (see its
+ * `index.js:16-17`, whose own comment reads "Force YYYY-MM-DD dates to be
+ * parsed as local time"), so pg's `normalize-row.ts` being an identity cast
+ * means that adapter returns **local** midnight, not UTC midnight — on any
+ * host not running in UTC, the same stored `date` value materialises as a
+ * different `Date` (potentially a different calendar day once rendered)
+ * depending on which adapter served it.
+ *
+ * UTC midnight is defensible on its own terms — deterministic across hosts,
+ * where pg's local-midnight parse is host-timezone-dependent — but choosing
+ * between the two properly needs temporal fixtures in the shared
+ * `@byline/db-conformance` suite (today's `field-types.ts` only asserts
+ * `attachment.fileSize`, never a temporal value) and a non-UTC CI leg to
+ * prove either adapter's behaviour under a host offset — neither exists
+ * yet. So this stays exactly as it is: **elected, pending adjudication** —
+ * do not change this behaviour without that groundwork; see the PR 3
+ * tracking note.
  */
 function toDateOnly(value: string | Date | null | undefined): Date | null {
   if (value == null) return null
