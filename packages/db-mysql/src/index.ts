@@ -43,6 +43,9 @@ export const mysqlAdapter = ({
   collections,
   defaultContentLocale,
   connectionLimit = 20,
+  idleTimeout = 2000,
+  connectTimeout = 30000,
+  maxIdle,
 }: {
   connectionString: string
   collections: readonly CollectionDefinition[]
@@ -59,13 +62,48 @@ export const mysqlAdapter = ({
   defaultContentLocale: string
   /**
    * Maximum number of connections in the mysql2 pool. Defaults to 20. Tune
-   * via `BYLINE_DB_MYSQL_CONNECTION_LIMIT` in the host app.
+   * via `BYLINE_DB_MYSQL_CONNECTION_LIMIT` in the host app. Mirrors
+   * `pgAdapter`'s `max`.
    */
   connectionLimit?: number
+  /**
+   * Milliseconds an idle connection remains in the pool before being closed.
+   * Defaults to 2000, mirroring `pgAdapter`'s `idleTimeoutMillis`.
+   *
+   * mysql2's own default is 60000, which is why this is set explicitly rather
+   * than left to the driver: a long-lived idle sweep keeps a non-unref'd timer
+   * alive, so short-lived processes (seeds, migrations, one-shot scripts) appear
+   * to hang for a minute after their work commits instead of exiting. Matching
+   * the Postgres adapter's 2 seconds makes both adapters behave alike.
+   *
+   * Tune via `BYLINE_DB_MYSQL_IDLE_TIMEOUT_MILLIS`.
+   */
+  idleTimeout?: number
+  /**
+   * Milliseconds to wait for a new connection before erroring. Defaults to
+   * 30000, mirroring `pgAdapter`'s `connectionTimeoutMillis` — long enough to
+   * absorb the cold starts of managed providers that pause idle databases
+   * (Neon on the Postgres side; PlanetScale and Aiven behave similarly here),
+   * where the first connect after a sleep can take a second or more.
+   *
+   * Tune via `BYLINE_DB_MYSQL_CONNECTION_TIMEOUT_MILLIS`.
+   */
+  connectTimeout?: number
+  /**
+   * Maximum number of idle connections the pool retains. mysql2 defaults this
+   * to `connectionLimit`; left undefined here so that default stands. Exposed
+   * because it interacts with `idleTimeout` — mysql2 only sweeps connections
+   * beyond `maxIdle`, so raising the idle timeout without also lowering
+   * `maxIdle` keeps every connection warm. No `pgAdapter` equivalent.
+   */
+  maxIdle?: number
 }): MySqlAdapter => {
   const pool = mysql.createPool({
     uri: connectionString,
     connectionLimit,
+    idleTimeout,
+    connectTimeout,
+    ...(maxIdle != null ? { maxIdle } : {}),
     // Every DATETIME column is UTC by convention (spec §2). 'Z' stops
     // mysql2 from reinterpreting stored UTC values against the server's or
     // session's local timezone on the way in and out.
