@@ -68,9 +68,24 @@ check_conf_var() {
 # `printf %b`, which otherwise treats `\` as the start of its own escape
 # sequence and would mangle a password that legitimately contains one.
 #
+# Rejects a malformed percent-escape (a `%` not followed by exactly two
+# hex digits) instead of silently mis-decoding it — `printf %b` either
+# swallows a short/invalid escape into garbage bytes or prints its own
+# "missing hex digit" warning to stderr while still exiting 0, and either
+# way the caller would otherwise sail on with a corrupted value. A raw,
+# un-encoded `%` in a connection string violates RFC 3986, so this is
+# exactly the input mysql2 would independently reject with
+# `URIError: URI malformed` — failing here just fails at the same input
+# with a message that names the actual problem instead of a downstream
+# "Access denied."
+#
 ###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 urldecode() {
   local encoded="$1"
+  if [[ "${encoded}" =~ %([^0-9A-Fa-f]|[0-9A-Fa-f][^0-9A-Fa-f]|[0-9A-Fa-f]?$) ]]; then
+    echo "urldecode: malformed percent-escape in '${encoded}' -- every '%' must be followed by exactly two hex digits (e.g. '%40')" >&2
+    return 1
+  fi
   encoded="${encoded//\\/\\\\}"
   printf '%b' "${encoded//%/\\x}"
 }
@@ -123,8 +138,8 @@ parse_mysql_url() {
     return
   fi
 
-  MYSQL_USER="$(urldecode "${userinfo%%:*}")"
-  MYSQL_PASSWORD="$(urldecode "${userinfo#*:}")"
+  MYSQL_USER="$(urldecode "${userinfo%%:*}")" || { CONF_BAD=true; return; }
+  MYSQL_PASSWORD="$(urldecode "${userinfo#*:}")" || { CONF_BAD=true; return; }
 
   local hostport="${hostpart%%/*}"
   local dbpath="${hostpart#*/}"
@@ -197,3 +212,17 @@ MYSQL_PASSWORD_ESC=$(sed -e 's/\\/\\\\/g' -e "s/[']/\\\\&/g" <<< $MYSQL_PASSWORD
 # in the sql-escaped password from above.
 # https://stackoverflow.com/questions/407523/escape-a-string-for-a-sed-replace-pattern/2705678#2705678
 MYSQL_PASSWORD_ESC=$(sed -e 's/[\/&]/\\&/g' <<< $MYSQL_PASSWORD_ESC)
+
+# Escape the username for the same sed substitution in db_init.sh. Before
+# `urldecode` (above) existed, a raw `/`, `&`, or `\` in the username was
+# structurally impossible — it would have broken URL parsing before
+# `parse_mysql_url` ever ran. Now a percent-encoded username (`%2F`,
+# `%26`, `%5C`) decodes into exactly those sed-special characters and
+# reaches db_init.sh's `s/${db_user}/.../ ` substitution unescaped,
+# corrupting the generated SQL (or, for `&`, silently substituting the
+# whole matched text instead of the literal username). Unlike the
+# password, the username never appears through this script as a SQL
+# string literal that also needs quote/backslash escaping — it only ever
+# reaches sed as a replacement value — so it gets this one escaping stage
+# and not the SQL-literal stage above.
+MYSQL_USER_ESC=$(sed -e 's/[\/&]/\\&/g' <<< $MYSQL_USER)

@@ -50,6 +50,6 @@ fi
 
 echo "Initializing DB '${MYSQL_DATABASE}'"
 sed -e "s/\${db_name}/${MYSQL_DATABASE}/" \
-    -e "s/\${db_user}/${MYSQL_USER}/" \
+    -e "s/\${db_user}/${MYSQL_USER_ESC}/" \
     -e "s/\${db_pass}/${MYSQL_PASSWORD_ESC}/" db-reset.sql.template \
   | "${MYSQL_CLIENT[@]}"
