@@ -43,6 +43,41 @@ check_conf_var() {
 
 ###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 #
+# FUNCTION: urldecode
+# Percent-decode a single URL component (RFC 3986 %XX escapes).
+#
+# `parse_pg_url` below extracts the user/password substrings from the
+# connection string by plain string manipulation — it does not decode
+# percent-escapes. But the running application hands the same connection
+# string to node-postgres, which parses it as a real URL and DOES
+# percent-decode the userinfo (username/password) component. Left
+# undecoded here, a password containing a character that had to be
+# percent-encoded in the URL (`@`, `#`, `/`, `%`, `'`, a literal `\`, …)
+# would make `db_init.sh` create the Postgres role with the literal
+# percent-escaped string as its password, while the running application
+# connects with the decoded password — "password authentication failed,"
+# with nothing about the error pointing at the real cause. See
+# `packages/db-mysql/src/database/common.sh`'s identical helper — mysql2
+# decodes the same way.
+#
+# Deliberately does NOT decode `+` to space: that is HTML form encoding
+# (`application/x-www-form-urlencoded`), which is a different convention
+# from URL-userinfo percent-encoding and is not what node-postgres or
+# mysql2 do when parsing a connection string.
+#
+# Escapes literal backslashes in the input *before* handing it to
+# `printf %b`, which otherwise treats `\` as the start of its own escape
+# sequence and would mangle a password that legitimately contains one.
+#
+###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
+urldecode() {
+  local encoded="$1"
+  encoded="${encoded//\\/\\\\}"
+  printf '%b' "${encoded//%/\\x}"
+}
+
+###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
+#
 # FUNCTION: parse_pg_url
 # Parse a Postgres connection URL into POSTGRES_USER, POSTGRES_PASSWORD,
 # POSTGRES_HOSTNAME, POSTGRES_PORT, POSTGRES_DATABASE. The single env var
@@ -53,6 +88,9 @@ check_conf_var() {
 #   postgres://user:password@host:port/database
 #
 # Strips `?...` query string. Defaults POSTGRES_PORT to 5432 if absent.
+# POSTGRES_USER and POSTGRES_PASSWORD are percent-decoded (see
+# `urldecode` above) so a password with URL-reserved characters resolves
+# to the same literal value node-postgres resolves it to.
 #
 ###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 parse_pg_url() {
@@ -86,8 +124,8 @@ parse_pg_url() {
     return
   fi
 
-  POSTGRES_USER="${userinfo%%:*}"
-  POSTGRES_PASSWORD="${userinfo#*:}"
+  POSTGRES_USER="$(urldecode "${userinfo%%:*}")"
+  POSTGRES_PASSWORD="$(urldecode "${userinfo#*:}")"
 
   local hostport="${hostpart%%/*}"
   local dbpath="${hostpart#*/}"

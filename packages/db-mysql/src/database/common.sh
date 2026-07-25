@@ -43,6 +43,40 @@ check_conf_var() {
 
 ###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 #
+# FUNCTION: urldecode
+# Percent-decode a single URL component (RFC 3986 %XX escapes).
+#
+# `parse_mysql_url` below extracts the user/password substrings from the
+# connection string by plain string manipulation — it does not decode
+# percent-escapes. But `mysqlAdapter` hands the same connection string to
+# mysql2, which parses it as a real URL and DOES percent-decode the
+# userinfo (username/password) component. Left undecoded here, a password
+# containing a character that had to be percent-encoded in the URL (`@`,
+# `#`, `/`, `%`, `'`, a literal `\`, …) would make `db_init.sh` create the
+# MySQL user with the literal percent-escaped string as its password,
+# while the running application connects with the decoded password —
+# "Access denied," with nothing about the error pointing at the real
+# cause. See `packages/db-postgres/src/database/common.sh`'s identical
+# helper — node-postgres decodes the same way.
+#
+# Deliberately does NOT decode `+` to space: that is HTML form encoding
+# (`application/x-www-form-urlencoded`), which is a different convention
+# from URL-userinfo percent-encoding and is not what mysql2 or
+# node-postgres do when parsing a connection string.
+#
+# Escapes literal backslashes in the input *before* handing it to
+# `printf %b`, which otherwise treats `\` as the start of its own escape
+# sequence and would mangle a password that legitimately contains one.
+#
+###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
+urldecode() {
+  local encoded="$1"
+  encoded="${encoded//\\/\\\\}"
+  printf '%b' "${encoded//%/\\x}"
+}
+
+###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
+#
 # FUNCTION: parse_mysql_url
 # Parse a MySQL connection URL into MYSQL_USER, MYSQL_PASSWORD,
 # MYSQL_HOSTNAME, MYSQL_PORT, MYSQL_DATABASE. The single env var
@@ -53,6 +87,9 @@ check_conf_var() {
 #   mysql://user:password@host:port/database
 #
 # Strips `?...` query string. Defaults MYSQL_PORT to 3306 if absent.
+# MYSQL_USER and MYSQL_PASSWORD are percent-decoded (see `urldecode`
+# above) so a password with URL-reserved characters resolves to the same
+# literal value mysql2 resolves it to.
 #
 ###~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 parse_mysql_url() {
@@ -86,8 +123,8 @@ parse_mysql_url() {
     return
   fi
 
-  MYSQL_USER="${userinfo%%:*}"
-  MYSQL_PASSWORD="${userinfo#*:}"
+  MYSQL_USER="$(urldecode "${userinfo%%:*}")"
+  MYSQL_PASSWORD="$(urldecode "${userinfo#*:}")"
 
   local hostport="${hostpart%%/*}"
   local dbpath="${hostpart#*/}"
