@@ -140,7 +140,7 @@ export class DocumentQueries implements IDocumentQueries {
     db: DatabaseConnection,
     collections: readonly CollectionDefinition[],
     defaultContentLocale: string,
-    transactionDb: DBManager = { get: () => db }
+    transactionDb: DBManager
   ) {
     this.db = db
     this.transactionDb = transactionDb
@@ -2524,7 +2524,7 @@ export function createQueryBuilders(
   db: DatabaseConnection,
   collections: readonly CollectionDefinition[],
   defaultContentLocale: string,
-  transactionDb?: DBManager
+  transactionDb: DBManager
 ) {
   return {
     collections: new CollectionQueries(db),

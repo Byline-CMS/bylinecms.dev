@@ -37,6 +37,7 @@ import { createQueryBuilders } from '../storage-queries.js'
 let commandBuilders: ReturnType<typeof import('../storage-commands.js').createCommandBuilders>
 let queryBuilders: ReturnType<typeof import('../storage-queries.js').createQueryBuilders>
 let db: ReturnType<typeof setupTestDB>['db']
+let dbManager: ReturnType<typeof setupTestDB>['dbManager']
 
 const timestamp = Date.now()
 
@@ -97,6 +98,7 @@ describe('content-locale resolution — source_locale internals (Postgres)', () 
     commandBuilders = testDB.commandBuilders
     queryBuilders = testDB.queryBuilders
     db = testDB.db
+    dbManager = testDB.dbManager
 
     const result = await commandBuilders.collections.create(
       LocaleCollectionConfig.path,
@@ -348,8 +350,12 @@ describe('content-locale resolution — source_locale internals (Postgres)', () 
     const slug = (pathRow.rows[0] as { path: string }).path
 
     // Simulate the global default switched to fr: a fresh query layer built
-    // with defaultContentLocale = 'fr' over the very same rows.
-    const frQueries = createQueryBuilders(db, [LocaleCollectionConfig], 'fr')
+    // with defaultContentLocale = 'fr' over the very same rows. Reuses the
+    // suite's own `dbManager` — this read-only scenario never calls
+    // `getDocumentSystemFieldsForUpdate`, but `transactionDb` is a required
+    // constructor parameter as of the §H ruling (no more silent
+    // pool-connection default), so every caller must supply one.
+    const frQueries = createQueryBuilders(db, [LocaleCollectionConfig], 'fr', dbManager)
 
     // Detail read in fr (the NEW default) with fallback: the doc has no fr
     // content, but rides its own source_locale 'en' floor → returns the en
