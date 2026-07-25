@@ -164,7 +164,45 @@ const PagesConfig: CollectionDefinition = {
  * sequence, the resulting `occurred_at` ordering is exactly as deterministic
  * as the original fixed-date one — only the *mechanism* for asserting "these
  * rows precede those rows" changed, not the assertions themselves.
+ *
+ * **Clock-resolution requirement (binding on every canonical adapter):** the
+ * boundary between the version-stream writes and the audit-log appends must
+ * be unambiguous regardless of the DB column's own timestamp precision. A
+ * fixed epsilon pad around a captured timestamp is not sufficient to
+ * guarantee that on its own, for two independent reasons found live on this
+ * program (`@byline/db-mysql` Task 11):
+ *
+ *   1. Column precision: on a millisecond-granular clock (MySQL's
+ *      `DATETIME(3)`), two statements issued back-to-back on a fast local
+ *      connection can land in the same tick and receive an identical
+ *      timestamp, so a 1ms pad can be entirely consumed. Fixed by moving
+ *      every instant column in `@byline/db-mysql` to `DATETIME(6)`
+ *      (microsecond, matching pg's own precision) — see that adapter's
+ *      `common.ts`.
+ *   2. **Independent of column precision:** `IAuditQueries.findAuditLog`'s
+ *      `from`/`to` parameters are typed `Date` (`@byline/core`), and a JS
+ *      `Date` cannot represent sub-millisecond time no matter how precise
+ *      the column it was read from is. `versionsEnd`, derived from a `Date`,
+ *      is therefore always effectively millisecond-resolution once it
+ *      becomes a query parameter again — confirmed live: even after moving
+ *      to `DATETIME(6)`, this fixture still failed under real concurrent
+ *      load (`pnpm test:integration` run at the repo root, alongside many
+ *      other packages' tasks) with two different failure shapes across two
+ *      consecutive runs, because the real wall-clock gap between the last
+ *      version write and the first audit append can still land under 1ms.
+ *      Column precision closes reason 1; it cannot close reason 2.
+ *
+ * The fix for both is the same: a real, awaited delay (`sleep`, below)
+ * between the version-stream phase and the audit-append phase, long enough
+ * to dwarf a millisecond — not a larger epsilon pad, which only moves the
+ * same race to a different, still-finite window and does nothing about
+ * reason 2 regardless of size.
  */
+const AUDIT_PHASE_SEPARATION_MS = 20
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 function activityFeedSuite(hooks: ConformanceHooks): void {
   let adapter: IDbAdapter
   let colA: string
@@ -198,13 +236,19 @@ function activityFeedSuite(hooks: ConformanceHooks): void {
       // client-side `new Date()` read, which would race against the audit
       // appends below (the whole fixture can complete within a single
       // millisecond on a fast local connection, and JS's clock resolution is
-      // only 1ms). `created_at` is a TIMESTAMPTZ(6) (microsecond) column
-      // defaulted by Postgres itself (`common.ts`'s `auditTimestamp`); once
-      // it round-trips through `.returning()` into a JS `Date`, its
-      // microsecond component is truncated, so the row's own `created_at`
-      // can compare *earlier* than the true value stored for that same row.
-      // Padding by 1ms in each direction absorbs exactly that truncation
-      // without needing microsecond-safe (re-)serialization.
+      // only 1ms).
+      //
+      // The 1ms pad below is an **inclusion-only** tolerance, not an
+      // exclusion mechanism: `created_at` on Postgres is a TIMESTAMPTZ(6)
+      // (microsecond) column, and once it round-trips through `.returning()`
+      // into a JS `Date`, its microsecond component is truncated, so the
+      // row's own `created_at` can *read back* earlier than the true stored
+      // value. Without the pad, that truncation could wrongly exclude
+      // `updateA` itself from an inclusive `<=` bound. It does nothing to
+      // guarantee separation from the audit rows appended afterwards — see
+      // the module docblock's clock-resolution requirement, and the
+      // `AUDIT_PHASE_SEPARATION_MS` sleep below, which is what actually
+      // guarantees that separation on every dialect.
       const createA = await adapter.commands.documents.createDocumentVersion({
         collectionId: colA,
         collectionVersion: 1,
@@ -242,6 +286,14 @@ function activityFeedSuite(hooks: ConformanceHooks): void {
         createdBy: actor1,
       })
       versionsEnd = new Date(updateA.document.created_at.getTime() + 1)
+
+      // Guarantee real wall-clock separation between the version-stream
+      // phase and the audit-log phase before appending — see the module
+      // docblock's clock-resolution requirement. This is what makes "the
+      // audit rows land strictly after versionsEnd" actually true on every
+      // dialect and under real concurrent load, rather than a fixed epsilon
+      // pad that a fast (or merely lucky) round trip can consume entirely.
+      await sleep(AUDIT_PHASE_SEPARATION_MS)
 
       // Audit log: a status change on docA (actor1) and a system deletion of docB.
       await adapter.commands.audit.append({
