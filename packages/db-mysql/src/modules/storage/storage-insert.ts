@@ -122,7 +122,7 @@ export const prepareFieldInsertBuckets = (
           value_time: field.value_time,
           // `value_timestamp_tz` arrives as a `Date` from form widgets but
           // as a string from `getAllFieldValues` — the UNION ALL declares
-          // the column as MySQL `datetime(3)` (no TZ; UTC by connection-level
+          // the column as MySQL `DATETIME(6)` (no TZ; UTC by connection-level
           // convention, see `src/index.ts`'s `timezone: 'Z'` pool option),
           // and mysql2 maps a `datetime` column to a string on read.
           // Drizzle's own `mapToDriverValue` for the (default, non-'string')

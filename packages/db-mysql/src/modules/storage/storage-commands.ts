@@ -47,7 +47,7 @@ import {
 } from '../../database/schema/index.js'
 import { classifyError } from './classify-error.js'
 import { prepareFieldInsertBuckets } from './storage-insert.js'
-import { getFirstOrThrow } from './storage-utils.js'
+import { affectedRowCount, getFirstOrThrow } from './storage-utils.js'
 import type * as schema from '../../database/schema/index.js'
 import type { DBManager } from '../../lib/db-manager.js'
 
@@ -848,7 +848,10 @@ export class DocumentCommands implements IDocumentCommands {
    * Returns the number of rows updated. MySQL has no `RETURNING` and drizzle's
    * mysql2 `update()` resolves to a `[ResultSetHeader, FieldPacket[]]` tuple
    * rather than pg's driver result object — `affectedRows` lives on the first
-   * element (confirmed live against the test database), not `.rowCount`.
+   * element (confirmed live against the test database), not `.rowCount`. See
+   * `affectedRowCount()` in `storage-utils.ts`, shared by every guarded write
+   * in this adapter (this method, `softDeleteDocument` below, and the admin
+   * repositories) for that cast.
    */
   async archivePublishedVersions(params: {
     document_id: string
@@ -867,7 +870,7 @@ export class DocumentCommands implements IDocumentCommands {
       .update(documentVersions)
       .set({ status: 'archived', updated_at: new Date() })
       .where(and(...conditions))
-    return (result as unknown as [{ affectedRows: number }, unknown])[0]?.affectedRows ?? 0
+    return affectedRowCount(result)
   }
 
   /**
@@ -902,7 +905,7 @@ export class DocumentCommands implements IDocumentCommands {
           updated_at: new Date(),
         })
         .where(eq(documentVersions.document_id, params.document_id))
-      return (result as unknown as [{ affectedRows: number }, unknown])[0]?.affectedRows ?? 0
+      return affectedRowCount(result)
     })
   }
 
