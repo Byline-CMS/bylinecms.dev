@@ -834,14 +834,24 @@ export const jsonStore = mysqlTable(
 // Counter groups registry
 // ---------------------------------------------------------------------------
 //
-// One row per counter `group` discovered in collection field definitions.
-// On Postgres the actual ID allocator is a SEQUENCE object (named in
-// `sequence_name`), reconciled at boot by `IDbAdapter.ensureCounterGroup`.
-// MySQL has no native user-defined SEQUENCE object (unlike Postgres, or
-// MariaDB's own extension) — the concrete allocation mechanism this column
-// backs on MySQL is a Task 11 decision, not this schema-only task's. The
-// registry table itself only records that the group exists and which
-// allocator object backs it; it is not used in the hot allocation path.
+// One row per counter `group` discovered in collection field definitions,
+// plus one row per runtime-scoped counter self-registered by
+// `nextScopedCounterValue`. On Postgres the actual ID allocator is a
+// SEQUENCE object (named in `sequence_name`), reconciled at boot by
+// `IDbAdapter.ensureCounterGroup`. MySQL has no native user-defined SEQUENCE
+// object (unlike Postgres, or MariaDB's own extension), so this table IS the
+// allocator (Task 11 decision): `current_value` is the counter state itself,
+// advanced in place via `UPDATE ... SET current_value = LAST_INSERT_ID(current_value + 1)`
+// (`nextCounterValue`) or, for first-use self-registration, a single
+// `INSERT ... ON DUPLICATE KEY UPDATE current_value = LAST_INSERT_ID(current_value + 1)`
+// (`nextScopedCounterValue`) — both read the freshly-assigned value back via
+// `SELECT LAST_INSERT_ID()` on the same checked-out connection. Static and
+// scoped counters deliberately share this one table/row-per-name rather than
+// splitting scoped counters into a second table: `ICounterCommands` documents
+// that `nextCounterValue` on a name `nextScopedCounterValue` has already
+// registered must continue the very same count — a second table could not
+// honour that without every scoped call double-writing to keep both in sync.
+// See `packages/db-mysql/src/modules/counters/counters-commands.ts`.
 //
 // Why a separate table rather than reading allocator objects from
 // `information_schema`: the mapping from `group_name` → allocator identity
@@ -856,6 +866,9 @@ export const jsonStore = mysqlTable(
 export const counterGroups = mysqlTable('byline_counter_groups', {
   group_name: varchar('group_name', { length: 255 }).primaryKey(),
   sequence_name: text('sequence_name').notNull(),
+  // The counter's live state on this dialect (see comment block above).
+  // Postgres has no equivalent column — its allocator is a SEQUENCE object.
+  current_value: bigint('current_value', { mode: 'number' }).notNull().default(0),
   ...createdAt,
 })
 
