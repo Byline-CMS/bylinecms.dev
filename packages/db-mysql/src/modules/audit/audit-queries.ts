@@ -224,7 +224,7 @@ function toEntryFromActivityRow(row: ActivityRow): AuditLogEntry {
     // `occurred_at` is NOT NULL on both UNION legs (`documentVersions.created_at`,
     // `auditLog.occurred_at`), so the shared `toDate`'s `null` branch is
     // unreachable here — the cast reflects that, not an assumption.
-    occurredAt: toDate(row.occurred_at) as Date,
+    occurredAt: toDate(row.occurred_at, 'occurred_at') as Date,
   }
 }
 

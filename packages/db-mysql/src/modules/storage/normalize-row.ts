@@ -63,7 +63,10 @@ export function normalizeRow(row: Record<string, unknown>): UnifiedFieldValue {
     thumbnail_generated: normalizeTinyIntBoolean(row.thumbnail_generated),
     cascade_delete: normalizeTinyIntBoolean(row.cascade_delete),
     value_date: toDateOnly(row.value_date as string | null | undefined),
-    value_timestamp_tz: toDate(row.value_timestamp_tz as string | null | undefined),
+    value_timestamp_tz: toDate(
+      row.value_timestamp_tz as string | null | undefined,
+      'value_timestamp_tz'
+    ),
   } as unknown as UnifiedFieldValue
 }
 

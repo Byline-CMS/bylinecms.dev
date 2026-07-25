@@ -64,20 +64,26 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { type MySqlAdapter, mysqlAdapter } from '../src/index.js'
 import { assertTestDatabase } from '../src/lib/test-db.js'
 
-// `initBylineCore()` registers two process-global singletons
-// (`registerServerConfig`, `defineBylineCore` — see
-// `packages/core/src/config/config.ts`), keyed on `globalThis` symbols so
+// `initBylineCore()` registers three process-global singletons —
+// `registerServerConfig` and `defineBylineCore` (`packages/core/src/config/
+// config.ts`), plus `defineLogger` (`packages/core/src/lib/logger.ts`,
+// called at `core.ts:230`) — each keyed on its own `globalThis` symbol so
 // every copy of the module graph shares the same state. This suite closes
-// its pool in `afterAll`, so those globals must be reset afterward — this
-// file's mysql run is `isolate: false, maxWorkers: 1` and sorts before
+// its pool in `afterAll`, so all three globals must be reset afterward —
+// this file's mysql run is `isolate: false, maxWorkers: 1` and sorts before
 // `conformance.integration.test.ts`, so leaving them pointed at a dead pool
-// would poison whichever later file in this run resolves `getServerConfig()`
-// / `getBylineCore()`. There is no public reset API (nothing in this
-// codebase has needed one before this file), so this reaches into the same
-// two symbols `packages/core/src/config/config-hooks.test.node.ts` uses for
-// the identical purpose: snapshot before init, restore after teardown.
+// (or a logger closure holding one) would poison whichever later file in
+// this run resolves `getServerConfig()` / `getBylineCore()` / `getLogger()`.
+// The logger leak is inert today — nothing else in this package calls
+// `getLogger()` — but resetting all three keeps the claim here accurate
+// rather than describing two out of three. There is no public reset API
+// (nothing in this codebase has needed one before this file), so this
+// reaches into the same symbols `packages/core/src/config/
+// config-hooks.test.node.ts` uses for the identical purpose: snapshot
+// before init, restore after teardown.
 const SERVER_CONFIG_KEY = Symbol.for('__byline_server_config__')
 const BYLINE_CORE_KEY = Symbol.for('__byline_core__')
+const BYLINE_LOGGER_KEY = Symbol.for('__byline_logger__')
 
 function createBootSmokeCollection(suffix: string) {
   return defineCollection({
@@ -106,6 +112,7 @@ function createBootSmokeCollection(suffix: string) {
 describe('MySQL end-to-end boot smoke (initBylineCore composition, live database)', () => {
   let previousServerConfig: unknown
   let previousBylineCore: unknown
+  let previousLogger: unknown
   let db: MySqlAdapter
   let core: BylineCore
   let client: BylineClient
@@ -119,6 +126,7 @@ describe('MySQL end-to-end boot smoke (initBylineCore composition, live database
     const globals = globalThis as Record<PropertyKey, unknown>
     previousServerConfig = globals[SERVER_CONFIG_KEY]
     previousBylineCore = globals[BYLINE_CORE_KEY]
+    previousLogger = globals[BYLINE_LOGGER_KEY]
 
     definition = createBootSmokeCollection(`${Date.now()}`)
 
@@ -174,6 +182,8 @@ describe('MySQL end-to-end boot smoke (initBylineCore composition, live database
     else globals[SERVER_CONFIG_KEY] = previousServerConfig
     if (previousBylineCore === undefined) delete globals[BYLINE_CORE_KEY]
     else globals[BYLINE_CORE_KEY] = previousBylineCore
+    if (previousLogger === undefined) delete globals[BYLINE_LOGGER_KEY]
+    else globals[BYLINE_LOGGER_KEY] = previousLogger
   })
 
   it('survives create → read back → update → publish → read published → list → delete', async () => {

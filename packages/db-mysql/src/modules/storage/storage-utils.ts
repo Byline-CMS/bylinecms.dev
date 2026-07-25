@@ -42,11 +42,28 @@ export const getFirstOrThrow =
  * separator is the correct interpretation, not an assumed one. Tolerant of
  * `null`/`undefined` and of the value already being a `Date` (defensive —
  * not expected on this path, but cheap to allow and keeps callers simple).
+ *
+ * This is the sole gate between the raw driver row and three different
+ * public contract shapes (`normalizeRow`'s `value_timestamp_tz`,
+ * `findDocuments`'s `created_at`/`updated_at`, and the audit log's
+ * `occurredAt`), so a malformed value must not fall through as a silent
+ * `Invalid Date` — it throws instead (task 13b §M2; see
+ * `packages/db-postgres/src/modules/storage/normalize-row.ts`'s `toDate`
+ * for the pg-side equivalent of this guard). `context` is optional and
+ * purely cosmetic — it names which column the caller is coercing in the
+ * thrown message; omitted call sites still get a safe, if less specific,
+ * error instead of a silently wrong `Date`.
  */
-export function toDate(value: string | Date | null | undefined): Date | null {
+export function toDate(value: string | Date | null | undefined, context?: string): Date | null {
   if (value == null) return null
   if (value instanceof Date) return value
-  return new Date(`${value.replace(' ', 'T')}Z`)
+  const date = new Date(`${value.replace(' ', 'T')}Z`)
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(
+      `toDate: ${context ?? 'value'} is not a parseable timestamp — got ${JSON.stringify(value)}`
+    )
+  }
+  return date
 }
 
 /**
