@@ -65,7 +65,10 @@ export const adminUsers = mysqlTable(
     /** Full PHC string, e.g. `$argon2id$v=19$m=…$…$…`. */
     password: varchar('password', { length: 255 }).notNull(),
     remember_me: boolean('remember_me').notNull().default(false),
-    last_login: datetime('last_login', { fsp: 3 }),
+    // fsp 6, matching pg's `timestamp('last_login', { precision: 6, withTimezone: true })` —
+    // see `common.ts`'s `auditTimestamp` docblock for why every temporal column
+    // in this schema moved from fsp 3 to fsp 6.
+    last_login: datetime('last_login', { fsp: 6 }),
     last_login_ip: varchar('last_login_ip', { length: 45 }),
     failed_login_attempts: int('failed_login_attempts').notNull().default(0),
     /**
@@ -214,15 +217,18 @@ export const adminRefreshTokens = mysqlTable(
     admin_user_id: uuidChar('admin_user_id').notNull(),
     /** SHA-256 hex digest of the raw refresh-token string. 64 chars. */
     token_hash: varchar('token_hash', { length: 64 }).notNull().unique(),
-    issued_at: datetime('issued_at', { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
-    expires_at: datetime('expires_at', { fsp: 3 }).notNull(),
-    revoked_at: datetime('revoked_at', { fsp: 3 }),
+    // fsp 6 throughout this table, matching pg — see `common.ts`'s
+    // `auditTimestamp` docblock for why every temporal column in this
+    // schema moved from fsp 3 to fsp 6.
+    issued_at: datetime('issued_at', { fsp: 6 }).notNull().default(sql`CURRENT_TIMESTAMP(6)`),
+    expires_at: datetime('expires_at', { fsp: 6 }).notNull(),
+    revoked_at: datetime('revoked_at', { fsp: 6 }),
     /**
      * When this token was rotated, the id of the new token issued in its
      * place. Self-referential; set atomically alongside `revoked_at`.
      */
     rotated_to_id: uuidChar('rotated_to_id'),
-    last_used_at: datetime('last_used_at', { fsp: 3 }),
+    last_used_at: datetime('last_used_at', { fsp: 6 }),
     user_agent: varchar('user_agent', { length: 512 }),
     ip: varchar('ip', { length: 45 }),
     ...timestamps,

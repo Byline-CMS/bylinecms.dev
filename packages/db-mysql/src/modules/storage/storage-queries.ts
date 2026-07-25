@@ -4,6 +4,23 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  *
  * Copyright (c) Infonomic Company Limited
+ *
+ * The MySQL storage read path. Ported from
+ * `packages/db-postgres/src/modules/storage/storage-queries.ts`.
+ *
+ * Task 10A landed the UNION ALL reconstruction path (`getDocumentById`,
+ * `getDocumentByVersion`, `getDocumentHistory`) and a `findDocuments` scoped
+ * to what the `versioning` + `field-types` conformance suites needed.
+ *
+ * Task 10B (this port) completes the surface: the `DocumentFilter[]`
+ * predicate compiler (`$and`/`$or` combinators, relation hops,
+ * document-column filters), `findDocuments`' `pathFilter`/`query` (LIKE
+ * search)/`sort` (`LEFT JOIN LATERAL` field sort), `getDocumentByPath`,
+ * `getDocumentsByVersionIds`, `getDocumentsByDocumentIds`,
+ * `getPublishedVersion`, `getPublishedDocumentIds`,
+ * `getDocumentCountsByStatus`, order-key / tree reads, `getCurrentPath`, and
+ * `getDocumentSystemFieldsForUpdate`. `DocumentQueries` now declares
+ * `implements IDocumentQueries`.
  */
 
 import type {
@@ -12,6 +29,7 @@ import type {
   DocumentColumnFilter,
   DocumentFilter,
   FieldFilter,
+  FieldFilterOperator,
   FieldSort,
   FlattenedFieldValue,
   FlattenedStore,
@@ -22,10 +40,6 @@ import type {
   RelationFilter,
   UnifiedFieldValue,
 } from '@byline/core'
-// TODO: getLogger() is used here as a global escape hatch because pgAdapter()
-// constructs query/command classes before initBylineCore() wires up the Pino
-// logger. A future refactor could inject the logger at construction time by
-// either deferring adapter construction or accepting a lazy logger parameter.
 import {
   ERR_DATABASE,
   ERR_NOT_FOUND,
@@ -37,7 +51,7 @@ import {
   restoreFieldSetData,
 } from '@byline/core'
 import { and, desc, eq, inArray, isNotNull, isNull, type SQL, sql } from 'drizzle-orm'
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
+import type { MySql2Database } from 'drizzle-orm/mysql2'
 
 import {
   collections,
@@ -54,13 +68,14 @@ import {
 import type * as schema from '../../database/schema/index.js'
 import type { DBManager } from '../../lib/db-manager.js'
 
-type DatabaseConnection = NodePgDatabase<typeof schema>
+type DatabaseConnection = MySql2Database<typeof schema>
 // `path` was dropped from documentVersions in favour of byline_document_paths;
 // SELECT projections re-attach it via a locale-aware subquery (see
 // `pathProjection`), so the in-memory Document shape continues to carry it.
 // `source_locale` (the per-document content-locale anchor) rides alongside so
 // the locale-aware read paths re-base the fallback floor onto it rather than
 // the mutable global default. See docs/07-internationalization/index.md.
+// Mirrors `packages/db-postgres/src/modules/storage/storage-queries.ts`.
 type Document = Omit<typeof documentVersions.$inferSelect, 'doc'> & {
   path: string | null
   source_locale: string | null
@@ -73,6 +88,7 @@ import {
   storeSelectList,
   storeTableNames,
 } from './storage-store-manifest.js'
+import { toDate } from './storage-utils.js'
 
 interface MetaRow {
   type: string
@@ -90,7 +106,8 @@ interface MetaRow {
  *
  * Note: `documentId` is the *logical* document id (`document_id` on the
  * current-documents view), not `docVersionId` (the version row id) —
- * matches what callers writing `where: { id }` expect.
+ * matches what callers writing `where: { id }` expect. Ports unchanged from
+ * pg — dialect-agnostic shape.
  */
 interface OuterScope {
   docVersionId: SQL
@@ -109,6 +126,9 @@ function isSuperset<T>(a: Set<T>, b: Set<T>): boolean {
 
 /**
  * CollectionQueries
+ *
+ * Identical to pg's — a plain query-builder read against `byline_collections`,
+ * with no dialect-specific SQL anywhere.
  */
 export class CollectionQueries implements ICollectionQueries {
   constructor(private db: DatabaseConnection) {}
@@ -153,6 +173,14 @@ export class DocumentQueries implements IDocumentQueries {
    * fields. Every audited system-field writer takes this same parent-row lock,
    * so path and advertised-locale snapshots serialize without locking a
    * variable set of child rows.
+   *
+   * Runs on `this.transactionDb.get()` — the ambient `withTransaction`
+   * executor when one is open, else the pool — so `FOR UPDATE` (unchanged
+   * syntax from pg) actually takes its lock inside the caller's transaction.
+   * A lock taken on a bare pool connection would release at the end of its
+   * own implicit transaction and serialise nothing; see the §H ruling in the
+   * Task 10B report for why `transactionDb` is a required constructor
+   * parameter rather than a silently-defaulted one.
    */
   async getDocumentSystemFieldsForUpdate({
     collection_id,
@@ -276,7 +304,8 @@ export class DocumentQueries implements IDocumentQueries {
    * covers locale-agnostic documents (no localized content). Returns `null`
    * when the gate does not apply — a non-`'omit'` policy (`'empty'` /
    * `'fallback'` / unset), or the admin sentinel `'all'` read — so callers can
-   * conditionally push it into a WHERE.
+   * conditionally push it into a WHERE. No dialect-specific SQL — ports
+   * unchanged from pg.
    */
   private localeAvailabilityExists(
     versionId: SQL,
@@ -296,9 +325,9 @@ export class DocumentQueries implements IDocumentQueries {
    * `byline_document_version_locales` ledger. For each version returns the
    * concrete locales its content is complete in (`availableLocales`, in
    * configured content-locale order), or `localeAgnostic: true` when the
-   * version carries only the `'all'`
-   * sentinel (no localized content → renders identically in every locale).
-   * Drives the `_availableVersionLocales` read metadata. One indexed query per call.
+   * version carries only the `'all'` sentinel. Drives the
+   * `_availableVersionLocales` read metadata. One indexed query per call.
+   * Plain query-builder code — ports unchanged from pg.
    */
   private async getAvailableLocalesByVersion(
     versionIds: string[]
@@ -323,9 +352,6 @@ export class DocumentQueries implements IDocumentQueries {
       if (row.locale === 'all') entry.localeAgnostic = true
       else entry.availableLocales.push(row.locale)
     }
-    // Stable, config-driven order — `_availableVersionLocales` is a set
-    // consumed via membership, so this just keeps its array order canonical
-    // (matching `availableLocales`). Falls back to a–z when no config.
     for (const entry of result.values()) {
       entry.availableLocales = orderByContentLocale(entry.availableLocales)
     }
@@ -337,10 +363,8 @@ export class DocumentQueries implements IDocumentQueries {
    * `byline_document_available_locales` (document-grain). For each logical
    * document returns the set of locales the editor has elected to advertise,
    * in configured content-locale order. Surfaced on reads as
-   * `availableLocales` — the deliberate
-   * counterpart to the version-grain `_availableVersionLocales` ledger fact;
-   * the public advertised set is their intersection. One indexed query per
-   * call. See docs/07-internationalization/index.md.
+   * `availableLocales`. One indexed query per call. Plain query-builder
+   * code — ports unchanged from pg.
    */
   private async getAdvertisedLocalesByDocument(
     documentIds: string[]
@@ -364,10 +388,6 @@ export class DocumentQueries implements IDocumentQueries {
       }
       arr.push(row.locale)
     }
-    // Project `availableLocales` in configured content-locale order (the set
-    // is order-insensitive). Read-time only — nothing persisted changes, and
-    // unknown/removed codes sort last rather than throwing. Falls back to a–z
-    // when no server config is registered (e.g. isolated storage tests).
     for (const [did, arr] of result) result.set(did, orderByContentLocale(arr))
     return result
   }
@@ -377,38 +397,68 @@ export class DocumentQueries implements IDocumentQueries {
    * the locale priority chain. Used as a projected column expression
    * inside `SELECT` lists.
    *
+   * Postgres:
    * ```sql
    * (SELECT path FROM byline_document_paths
-   *  WHERE document_id = <docIdSql>
-   *    AND locale = ANY(<chain>)
-   *  ORDER BY array_position(<chain>, locale)
-   *  LIMIT 1)
+   *  WHERE document_id = <docIdSql> AND locale = ANY(<chain>)
+   *  ORDER BY array_position(<chain>, locale) LIMIT 1)
    * ```
+   * MySQL has no `ANY(ARRAY[...])` or `array_position` — the locale-chain
+   * conversion (design spec §2): `IN (…)` for the membership test, and
+   * `ORDER BY FIELD(locale, …)` for the priority order. `FIELD()` returns
+   * the 1-based position of the first argument within the remaining
+   * argument list (0 if absent); since the `WHERE … IN (chain)` clause
+   * already restricts every candidate row to a locale that's a member of
+   * the chain, `FIELD()` can never actually return 0 here — every row that
+   * reaches the `ORDER BY` has a genuine position, and ascending order
+   * therefore picks the earliest (highest-priority, i.e. most-requested)
+   * chain entry first, exactly matching `array_position`'s semantics.
+   * Verified live against MySQL 9.7.1 (see the Task 10A report) and pinned
+   * by `storage-queries.test.ts`'s locale-chain-ordering test.
    */
   private pathProjection(
     documentIdCol: SQL,
     requestedLocale?: string,
     sourceLocaleCol?: SQL
   ): SQL<string | null> {
-    // The fallback floor: the row's `source_locale` column when supplied
-    // (COALESCE-guarded for not-yet-anchored NULL rows), otherwise the
-    // configured global default. The chain is `[requested, floor]`; a runtime
-    // duplicate (requested === floor) is harmless — `array_position` picks the
-    // first match and `LIMIT 1` collapses it.
     const floorSql: SQL = sourceLocaleCol
       ? sql`COALESCE(${sourceLocaleCol}, ${this.defaultContentLocale})`
       : sql`${this.defaultContentLocale}`
     const requestedSql: SQL = requestedLocale != null ? sql`${requestedLocale}` : floorSql
-    // Build a `ARRAY[$1, $2]::text[]` literal so each locale is its own
-    // parameter. Passing a JS array as a single `${chain}` placeholder
-    // serialises as a scalar string (`'en'`), which Postgres rejects when
-    // cast to `text[]` ("malformed array literal").
     const chainSql = sql.join([requestedSql, floorSql], sql`, `)
     return sql<string | null>`(
       SELECT ${documentPaths.path} FROM ${documentPaths}
       WHERE ${documentPaths.document_id} = ${documentIdCol}
-        AND ${documentPaths.locale} = ANY(ARRAY[${chainSql}]::text[])
-      ORDER BY array_position(ARRAY[${chainSql}]::text[], ${documentPaths.locale})
+        AND ${documentPaths.locale} IN (${chainSql})
+      ORDER BY FIELD(${documentPaths.locale}, ${chainSql})
+      LIMIT 1
+    )`
+  }
+
+  /**
+   * Emit a SQL fragment that resolves a `(collection_id, path)` tuple to a
+   * `document_id` via the locale priority chain. Used inside `WHERE` clauses
+   * for findByPath-style lookups. Same `IN (…)` / `FIELD()` locale-chain
+   * conversion as `pathProjection` — see that method's docblock. Returns
+   * NULL when no row matches in any locale, which makes the outer `=`
+   * predicate fail cleanly (no document found).
+   */
+  private resolveDocumentIdByPath(
+    collection_id: string,
+    path: string,
+    requestedLocale?: string
+  ): SQL {
+    const chain = this.buildLocaleChain(requestedLocale)
+    const chainSql = sql.join(
+      chain.map((l) => sql`${l}`),
+      sql`, `
+    )
+    return sql`(
+      SELECT ${documentPaths.document_id} FROM ${documentPaths}
+      WHERE ${documentPaths.collection_id} = ${collection_id}
+        AND ${documentPaths.path} = ${path}
+        AND ${documentPaths.locale} IN (${chainSql})
+      ORDER BY FIELD(${documentPaths.locale}, ${chainSql})
       LIMIT 1
     )`
   }
@@ -418,8 +468,7 @@ export class DocumentQueries implements IDocumentQueries {
    * reads, with `path` resolved through the locale priority chain. Used
    * everywhere a read previously did `.select()` (which auto-pulls every
    * view column) — `path` is no longer projected by the views, so call
-   * sites must list the projection explicitly. This helper keeps the
-   * shape consistent and the call sites tidy.
+   * sites must list the projection explicitly.
    */
   private viewProjection(
     view: typeof currentDocumentsView | typeof currentPublishedDocumentsView,
@@ -453,10 +502,6 @@ export class DocumentQueries implements IDocumentQueries {
    * the locale priority chain, since it no longer lives on the version row.
    */
   private documentVersionsProjection(requestedLocale: string | undefined) {
-    // `source_locale` lives on `byline_documents` (document-grain), not the
-    // version row — resolve it via a correlated subquery so point-in-time
-    // history reads re-base their fallback floor onto the document's anchor,
-    // consistent with the current-documents views.
     const sourceLocaleSql = sql<
       string | null
     >`(SELECT source_locale FROM byline_documents WHERE id = ${documentVersions.document_id})`
@@ -482,66 +527,16 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * Emit a SQL fragment that resolves a `(collection_id, path)` tuple to
-   * a `document_id` via the locale priority chain. Used inside `WHERE`
-   * clauses for findByPath-style lookups:
-   *
-   * ```sql
-   * WHERE document_id = (
-   *   SELECT document_id FROM byline_document_paths
-   *   WHERE collection_id = ? AND path = ?
-   *     AND locale = ANY(<chain>)
-   *   ORDER BY array_position(<chain>, locale)
-   *   LIMIT 1
-   * )
-   * ```
-   *
-   * Returns NULL when no row matches in any locale, which makes the
-   * outer `=` predicate fail cleanly (no document found).
-   */
-  private resolveDocumentIdByPath(
-    collection_id: string,
-    path: string,
-    requestedLocale?: string
-  ): SQL {
-    const chain = this.buildLocaleChain(requestedLocale)
-    const chainSql = sql.join(
-      chain.map((l) => sql`${l}`),
-      sql`, `
-    )
-    return sql`(
-      SELECT ${documentPaths.document_id} FROM ${documentPaths}
-      WHERE ${documentPaths.collection_id} = ${collection_id}
-        AND ${documentPaths.path} = ${path}
-        AND ${documentPaths.locale} = ANY(ARRAY[${chainSql}]::text[])
-      ORDER BY array_position(ARRAY[${chainSql}]::text[], ${documentPaths.locale})
-      LIMIT 1
-    )`
-  }
-
-  /**
    * Resolve the single effective content locale a version should be restored
    * in, walking the fallback chain (`[requested, default]`) and returning the
-   * first locale the version is *available* in.
-   *
-   * Phase-1 availability rule — **path-coverage against the default locale**:
-   * the default (terminal) locale defines the canonical set of localized field
-   * paths; a candidate locale `L` is available iff it covers every one of them.
-   * This needs only the rows already in hand (no schema walk) and is correct
-   * because Byline shares document structure across locales (meta rows are
-   * `'all'`) — only leaf values vary per locale.
-   *
-   * Edge cases: an empty canonical set (the version has no localized content)
-   * means any requested locale is trivially available, so the requested locale
-   * is returned and the (non-localized, `'all'`) values render identically. The
-   * chain always terminates at the default locale, guaranteeing a return value.
+   * first locale the version is *available* in. Pure JS/data-structure code
+   * — no SQL — ports unchanged from pg. See pg's docblock for the full
+   * phase-1 availability rule.
    */
   private resolveEffectiveLocale(flattenedData: FlattenedFieldValue[], chain: string[]): string {
     // biome-ignore lint/style/noNonNullAssertion: chain is non-empty by construction
     const defaultLocale = chain[chain.length - 1]!
 
-    // Localized field paths present, grouped by locale. Skip `'all'` rows
-    // (non-localized values + meta) — they don't participate in coverage.
     const pathsByLocale = new Map<string, Set<string>>()
     for (const row of flattenedData) {
       if (row.locale === 'all' || row.field_type === 'meta') continue
@@ -556,8 +551,7 @@ export class DocumentQueries implements IDocumentQueries {
     const canonical = pathsByLocale.get(defaultLocale) ?? new Set<string>()
 
     for (const candidate of chain) {
-      if (candidate === defaultLocale) break // terminal — return default below
-      // No canonical localized content → any locale is trivially available.
+      if (candidate === defaultLocale) break
       if (canonical.size === 0) return candidate
       const covered = pathsByLocale.get(candidate)
       if (covered != null && isSuperset(covered, canonical)) return candidate
@@ -570,14 +564,8 @@ export class DocumentQueries implements IDocumentQueries {
    * Reconstruct document fields from unified row values using schema-aware
    * restoration. Meta rows (from store_meta) are converted to
    * FlattenedFieldValue entries so that restoreFieldSetData can inject
-   * _id and _type for blocks and array items inline.
-   *
-   * Returns `{ fields, warnings }`. When `lenient` is false (default), any
-   * non-empty `warnings` are promoted to a thrown `BylineError` — preserving
-   * the original strict behaviour. When `lenient` is true, the caller
-   * receives the partial reconstruction and the warnings list and decides
-   * how to surface them (the admin edit path uses this to render a
-   * "best-effort load" banner against an out-of-date document).
+   * _id and _type for blocks and array items inline. Pure JS/core-delegate
+   * code — ports unchanged from pg.
    */
   private reconstructFromUnifiedRows(
     unifiedFieldValues: UnifiedFieldValue[],
@@ -604,12 +592,6 @@ export class DocumentQueries implements IDocumentQueries {
       }
     }
 
-    // Concrete locale: with `onMissingLocale: 'fallback'`, restore the whole
-    // document in a single effective locale chosen from the fallback chain
-    // (never mixing locales across fields). Otherwise restore the requested
-    // locale exactly — empty where untranslated, the raw per-locale view the
-    // admin editor needs (`'empty'`/`'omit'`/unset). `'all'` keeps the
-    // per-locale map shape (admin multi-locale read).
     const resolveLocale =
       locale === 'all'
         ? undefined
@@ -745,7 +727,6 @@ export class DocumentQueries implements IDocumentQueries {
     onMissingLocale?: MissingLocalePolicy
   }) {
     const view = this.pickCurrentView(readMode)
-    // 1. Get current version (or current published version, per readMode)
     const baseConditions: SQL[] = [
       eq(view.collection_id, collection_id),
       eq(view.document_id, document_id),
@@ -761,8 +742,6 @@ export class DocumentQueries implements IDocumentQueries {
         baseConditions.push(this.buildFilterExists(f, locale, outerScope, readMode, 0))
       }
     }
-    // `onMissingLocale: 'omit'` — resolve to null when the document is not
-    // available in the requested locale (no version-locale ledger row).
     const strictGate = this.localeAvailabilityExists(sql`${view.id}`, locale, onMissingLocale)
     if (strictGate) {
       baseConditions.push(strictGate)
@@ -776,14 +755,12 @@ export class DocumentQueries implements IDocumentQueries {
       return null
     }
 
-    // 2. Get all field values for this document
     const unifiedFieldValues = await this.getAllFieldValues(
       document.id,
       locale,
       document.source_locale
     )
 
-    // 3. If reconstruct is true, reconstruct the fields and attach meta
     if (reconstruct === true) {
       const definition = await this.getDefinitionForCollection(collection_id)
 
@@ -829,7 +806,6 @@ export class DocumentQueries implements IDocumentQueries {
         ...(lenient && warnings.length > 0 ? { restoreWarnings: warnings } : {}),
       }
     }
-    // Non-reconstructed: return raw flattened values
     const fieldValues = this.convertUnionRowToFlattenedStores(unifiedFieldValues)
     return {
       document_version_id: document.id,
@@ -845,6 +821,12 @@ export class DocumentQueries implements IDocumentQueries {
     }
   }
 
+  /**
+   * getDocumentByPath — resolves `(collection_id, path)` through the locale
+   * priority chain to a document_id, then reads and reconstructs its
+   * current version. See `resolveDocumentIdByPath` for the locale-chain
+   * SQL.
+   */
   async getDocumentByPath({
     collection_id,
     path,
@@ -863,12 +845,6 @@ export class DocumentQueries implements IDocumentQueries {
     onMissingLocale?: MissingLocalePolicy
   }) {
     const view = this.pickCurrentView(readMode)
-    // 1. Get current version (or current published version, per readMode)
-    //
-    // findByPath: resolve `(collection_id, path, locale-chain)` to a
-    // document_id via the document_paths subquery, then look up the
-    // current version by that id. Returns NULL when no path matches in
-    // any locale, which makes the outer `=` predicate fail cleanly.
     const baseConditions: SQL[] = [
       eq(view.collection_id, collection_id),
       sql`${view.document_id} = ${this.resolveDocumentIdByPath(collection_id, path, locale)}`,
@@ -884,8 +860,6 @@ export class DocumentQueries implements IDocumentQueries {
         baseConditions.push(this.buildFilterExists(f, locale, outerScope, readMode, 0))
       }
     }
-    // `onMissingLocale: 'omit'` — resolve to null when the document is not
-    // available in the requested locale (no version-locale ledger row).
     const strictGate = this.localeAvailabilityExists(sql`${view.id}`, locale, onMissingLocale)
     if (strictGate) {
       baseConditions.push(strictGate)
@@ -899,14 +873,12 @@ export class DocumentQueries implements IDocumentQueries {
       return null
     }
 
-    // 2. Get all field values for this document
     const unifiedFieldValues = await this.getAllFieldValues(
       document.id,
       locale,
       document.source_locale
     )
 
-    // 3. If reconstruct is true, reconstruct the fields and attach meta
     if (reconstruct === true) {
       const definition = await this.getDefinitionForCollection(collection_id)
 
@@ -951,7 +923,6 @@ export class DocumentQueries implements IDocumentQueries {
         _localeAgnostic: availability?.localeAgnostic ?? false,
       }
     }
-    // Non-reconstructed: return raw flattened values
     const fieldValues = this.convertUnionRowToFlattenedStores(unifiedFieldValues)
     return {
       document_version_id: document.id,
@@ -1030,7 +1001,7 @@ export class DocumentQueries implements IDocumentQueries {
       document.source_locale
     )
 
-    const documentWithFields = {
+    return {
       document_version_id: document.id,
       document_id: document.document_id,
       path: document.path ?? '',
@@ -1040,8 +1011,6 @@ export class DocumentQueries implements IDocumentQueries {
       updated_at: document.updated_at,
       fields,
     }
-
-    return documentWithFields
   }
 
   /**
@@ -1149,7 +1118,7 @@ export class DocumentQueries implements IDocumentQueries {
     page = 1,
     page_size = 20,
     order = 'updated_at',
-    desc = true,
+    desc: descending = true,
     filters,
   }: {
     collection_id: string
@@ -1200,10 +1169,10 @@ export class DocumentQueries implements IDocumentQueries {
       }
     }
 
+    // `count(*)::int` (pg) → `CAST(COUNT(*) AS SIGNED)` (design spec §2),
+    // with the `Number()` normalisation at the result edge kept as a belt.
     const totalResult: { count: number }[] = await this.db
-      .select({
-        count: sql<number>`count(*)`,
-      })
+      .select({ count: sql<number>`CAST(COUNT(*) AS SIGNED)` })
       .from(documentVersions)
       .where(and(...conditions))
 
@@ -1214,7 +1183,7 @@ export class DocumentQueries implements IDocumentQueries {
     // same value. `order === 'path'` is degenerate and was removed when
     // path moved to byline_document_paths — fall back to created_at.
     const orderColumn = documentVersions.created_at
-    const orderFunc = desc === true ? sql`DESC` : sql`ASC`
+    const orderFunc = descending === true ? sql`DESC` : sql`ASC`
 
     const projectionLocale = locale === 'all' ? undefined : locale
     const result: Document[] = await this.db
@@ -1229,7 +1198,7 @@ export class DocumentQueries implements IDocumentQueries {
 
     return {
       documents: history,
-      meta: { total, page, page_size, total_pages, order, desc },
+      meta: { total, page, page_size, total_pages, order, desc: descending },
     }
   }
 
@@ -1383,6 +1352,11 @@ export class DocumentQueries implements IDocumentQueries {
    * Returns every document in the collection in its canonical list-view
    * order: `order_key ASC NULLS LAST, created_at DESC`. Used by the reorder
    * server fn for backfill and recovery from key corruption.
+   *
+   * Divergence from pg: MySQL has no `NULLS LAST`. MySQL's own `ASC`
+   * default sorts NULL *first* (the opposite of pg's `NULLS LAST`), so the
+   * `(col IS NULL) ASC, col ASC` emulation idiom — the same one
+   * `buildDocumentOrderClause` uses — is required here too.
    */
   async getCanonicalDocumentOrder({
     collection_id,
@@ -1393,7 +1367,10 @@ export class DocumentQueries implements IDocumentQueries {
       .select({ id: documents.id, order_key: documents.order_key })
       .from(documents)
       .where(eq(documents.collection_id, collection_id))
-      .orderBy(sql`${documents.order_key} ASC NULLS LAST`, desc(documents.created_at))
+      .orderBy(
+        sql`(${documents.order_key} IS NULL) ASC, ${documents.order_key} ASC`,
+        desc(documents.created_at)
+      )
     return rows
   }
 
@@ -1408,6 +1385,11 @@ export class DocumentQueries implements IDocumentQueries {
    * `byline_current_published_documents`, so the walk stops at the first
    * unpublished ancestor rather than skipping it (a truncated spine the splat
    * handler turns into a 404). `any` mode walks the raw edges unchanged.
+   *
+   * `WITH RECURSIVE` syntax is unchanged from pg (the 8.0.14 engine floor
+   * guarantees support); the `::uuid` cast on `document_id` is dropped —
+   * MySQL has no cast syntax for a UUID-shaped `CHAR(36)` column, and the
+   * driver already binds the plain string correctly.
    */
   async getTreeAncestors({
     document_id,
@@ -1444,11 +1426,11 @@ export class DocumentQueries implements IDocumentQueries {
       'pv1'
     )
 
-    const { rows } = await this.db.execute(sql`
+    const query = sql`
       WITH RECURSIVE ancestors AS (
         SELECT parent_document_id AS ancestor_id, child_document_id AS node_id, 1 AS depth
         FROM byline_document_relationships
-        WHERE child_document_id = ${document_id}::uuid AND parent_document_id IS NOT NULL
+        WHERE child_document_id = ${document_id} AND parent_document_id IS NOT NULL
           AND ${childGate}
           AND ${anchorParentGate}
         UNION ALL
@@ -1459,8 +1441,12 @@ export class DocumentQueries implements IDocumentQueries {
           AND ${recursiveParentGate}
       )
       SELECT ancestor_id AS document_id, depth FROM ancestors ORDER BY depth DESC
-    `)
-    return rows.map((r) => ({
+    `
+    const result = (await this.db.execute(query)) as unknown as [
+      Array<{ document_id: string; depth: number }>,
+      unknown,
+    ]
+    return result[0].map((r) => ({
       document_id: r.document_id as string,
       depth: Number(r.depth),
     }))
@@ -1472,7 +1458,7 @@ export class DocumentQueries implements IDocumentQueries {
    * Immediate children of a node ordered by the per-parent `order_key`.
    * `parentDocumentId: null` returns the collection's root nodes; the join to
    * `byline_documents` scopes roots to the collection (they have no parent to
-   * scope by).
+   * scope by). Plain query-builder code — ports unchanged from pg.
    */
   async getTreeChildren({
     collectionId,
@@ -1506,7 +1492,8 @@ export class DocumentQueries implements IDocumentQueries {
    * Single indexed lookup on the edge table by `child_document_id` (unique).
    * No row → *unplaced*; a row with a null parent → *root*; a row with a parent
    * → *child*. Distinguishes the unplaced/root states that `getTreeAncestors`
-   * (which returns `[]` for both) conflates.
+   * (which returns `[]` for both) conflates. `::uuid` cast dropped, same as
+   * `getTreeAncestors`.
    */
   async getTreeParent({
     document_id,
@@ -1533,32 +1520,85 @@ export class DocumentQueries implements IDocumentQueries {
       readMode,
       'pv0'
     )
-    const { rows } = await this.db.execute(sql`
+    const query = sql`
       SELECT r.parent_document_id,
              CASE WHEN r.parent_document_id IS NULL THEN TRUE ELSE ${parentGate} END AS parent_visible
       FROM byline_document_relationships r
-      WHERE r.child_document_id = ${document_id}::uuid
+      WHERE r.child_document_id = ${document_id}
         AND ${childGate}
       LIMIT 1
-    `)
-    const row = rows[0]
+    `
+    const result = (await this.db.execute(query)) as unknown as [
+      Array<{ parent_document_id: string | null; parent_visible: number | boolean }>,
+      unknown,
+    ]
+    const row = result[0][0]
     if (row == null) return { placed: false, parentDocumentId: null }
     if (!row.parent_visible) {
       return { placed: true, parentDocumentId: null, parentRedacted: true }
     }
-    return { placed: true, parentDocumentId: (row.parent_document_id as string | null) ?? null }
+    return { placed: true, parentDocumentId: row.parent_document_id ?? null }
   }
 
   /**
    * getTreeSubtree — see {@link IDocumentQueries.getTreeSubtree}.
    *
    * Recursive CTE descending from the requested root (or the collection's
-   * roots when `rootDocumentId` is null). Each row carries a `/`-joined path of
-   * ancestor `order_key`s; ordering by that path under `COLLATE "C"` yields a
-   * pre-order depth-first walk (a parent's path is a prefix of its children's,
-   * and `/` (0x2F) sorts below every key character). Status-at-edge: every node
-   * — anchor included — must exist in the chosen current-documents view, so an
-   * unpublished node and its whole subtree drop out in `published` mode.
+   * roots when `rootDocumentId` is null). Each row carries a `/`-joined path
+   * of ancestor `order_key`s; ordering by that path yields a pre-order
+   * depth-first walk (a parent's path is a prefix of its children's, and `/`
+   * (0x2F) sorts below every key character in an ascii_bin comparison).
+   * Status-at-edge: every node — anchor included — must exist in the chosen
+   * current-documents view, so an unpublished node and its whole subtree
+   * drop out in `published` mode.
+   *
+   * Three divergences from pg, all found (or, for the third, reproduced)
+   * live — not assumed from docs:
+   *
+   *   - `s.path || '/' || r.order_key` (pg's `||` string concat) is MySQL
+   *     boolean OR unless `PIPES_AS_CONCAT` is in `sql_mode` — confirmed
+   *     against this database's `@@sql_mode` (it isn't set), and confirmed
+   *     `SELECT 'a' || 'b'` returns `0`, not `'ab'`. `CONCAT(s.path, '/',
+   *     r.order_key)` is the portable form.
+   *   - `ORDER BY path COLLATE "C"` drops the explicit collation: `order_key`
+   *     (and therefore the CONCAT'd `path` column, once the width fix below
+   *     is in place) is already `ascii_bin` — byte-comparable — end to end
+   *     (`varcharByteSorted`, `database/schema/common.ts`), confirmed live
+   *     that `CONCAT()` over two `ascii_bin` operands plus a `'/'` literal
+   *     stays `ascii_bin` rather than falling back to the connection's
+   *     `utf8mb4_0900_ai_ci` default (which would reorder mixed-case keys
+   *     incorrectly, the same class of bug `varcharByteSorted` exists to
+   *     prevent on the base columns).
+   *   - pg's `r.order_key::text AS path` cast does **two** jobs, not one —
+   *     an earlier version of this docblock dropped the cast on collation
+   *     grounds alone and missed the second job. In Postgres, `::text`
+   *     also makes the anchor column **unbounded** (`text` has no length
+   *     cap), which an accumulating concatenation needs. MySQL infers a
+   *     recursive CTE's column types from the *non-recursive* (anchor) leg
+   *     only — a bare `r.order_key` reference in the anchor makes `path`
+   *     inherit `order_key`'s declared `varchar(128)` width
+   *     (`varcharByteSorted`, `database/schema/index.ts:299`), so every
+   *     recursive iteration's `CONCAT` is silently constrained to 128
+   *     bytes regardless of how the SELECT list is written. Reproduced
+   *     live against this server (`STRICT_TRANS_TABLES` is in `sql_mode`,
+   *     so it's a hard `ER_DATA_TOO_LONG`, not silent truncation):
+   *     `WITH RECURSIVE t AS (SELECT CAST('ab' AS CHAR(128) CHARACTER SET
+   *     ascii) AS p, 1 AS n UNION ALL SELECT CONCAT(p,'/','abc…xyz'), n+1
+   *     FROM t WHERE n<6) …` → `ERROR 1406 (22001): Data too long for
+   *     column 'p' at row 1`. The threshold — `Σ len(order_key) + depth − 1
+   *     > 128` — is far more reachable than the `cte_max_recursion_depth`
+   *     ceiling this method's own docblock elsewhere flags: roughly 11–40
+   *     tree levels for typical fractional-index keys, lower once keys
+   *     have grown through repeated same-position reordering. Fix: widen
+   *     the anchor's `path` column explicitly —
+   *     `CAST(r.order_key AS CHAR(4096) CHARACTER SET ascii) COLLATE
+   *     ascii_bin` — doing both jobs the pg cast did: width (4096 bytes,
+   *     generous headroom over the reachable-depth threshold above) *and*
+   *     collation (`CHARACTER SET ascii` alone resolves to
+   *     `ascii_general_ci`, not `ascii_bin` — confirmed live that a bare
+   *     `CAST(… AS CHAR(4096))` with no `CHARACTER SET`/`COLLATE` at all
+   *     reverts to the *connection's* default collation, not the source
+   *     column's, so both clauses are required, not just one).
    */
   async getTreeSubtree({
     collectionId,
@@ -1585,7 +1625,7 @@ export class DocumentQueries implements IDocumentQueries {
     const rootCondition =
       rootDocumentId == null
         ? sql`r.parent_document_id IS NULL`
-        : sql`r.child_document_id = ${rootDocumentId}::uuid`
+        : sql`r.child_document_id = ${rootDocumentId}`
     const anchorGate = this.buildTreeVisibility(
       sql`r.child_document_id`,
       filters,
@@ -1601,18 +1641,19 @@ export class DocumentQueries implements IDocumentQueries {
       'sv1'
     )
 
-    const { rows } = await this.db.execute(sql`
+    const query = sql`
       WITH RECURSIVE subtree AS (
         SELECT r.child_document_id, r.parent_document_id, r.order_key,
-               0 AS depth, r.order_key::text AS path
+               0 AS depth,
+               CAST(r.order_key AS CHAR(4096) CHARACTER SET ascii) COLLATE ascii_bin AS path
         FROM byline_document_relationships r
         JOIN byline_documents d ON d.id = r.child_document_id
-        WHERE d.collection_id = ${collectionId}::uuid
+        WHERE d.collection_id = ${collectionId}
           AND ${rootCondition}
           AND ${anchorGate}
         UNION ALL
         SELECT r.child_document_id, r.parent_document_id, r.order_key,
-               s.depth + 1, s.path || '/' || r.order_key
+               s.depth + 1, CONCAT(s.path, '/', r.order_key)
         FROM byline_document_relationships r
         JOIN subtree s ON r.parent_document_id = s.child_document_id
         WHERE s.depth + 1 <= ${maxDepth}
@@ -1622,9 +1663,18 @@ export class DocumentQueries implements IDocumentQueries {
              CASE WHEN depth = 0 THEN NULL ELSE parent_document_id END AS parent_document_id,
              depth, order_key
       FROM subtree
-      ORDER BY path COLLATE "C"
-    `)
-    return rows.map((r) => ({
+      ORDER BY path
+    `
+    const result = (await this.db.execute(query)) as unknown as [
+      Array<{
+        document_id: string
+        parent_document_id: string | null
+        depth: number
+        order_key: string
+      }>,
+      unknown,
+    ]
+    return result[0].map((r) => ({
       document_id: r.document_id as string,
       parent_document_id: (r.parent_document_id as string | null) ?? null,
       depth: Number(r.depth),
@@ -1666,7 +1716,7 @@ export class DocumentQueries implements IDocumentQueries {
     const rows = await this.db
       .select({
         status: currentDocumentsView.status,
-        count: sql<number>`count(*)::int`,
+        count: sql<number>`CAST(COUNT(*) AS SIGNED)`,
       })
       .from(currentDocumentsView)
       .where(and(...conditions))
@@ -1674,16 +1724,19 @@ export class DocumentQueries implements IDocumentQueries {
 
     return rows.map((r) => ({
       status: r.status ?? 'unknown',
-      count: r.count,
+      count: Number(r.count),
     }))
   }
 
   /**
    * reconstructDocuments — retrieve field values and reconstruct multiple documents.
-   * Supports selective field loading via the `fields` parameter.
+   * Supports selective field loading via the `fields` parameter. Pure
+   * JS/core-delegate orchestration — ports unchanged from pg (the
+   * dialect-specific work is one level down, in
+   * `getAllFieldValuesForMultipleVersions`).
    */
   private async reconstructDocuments({
-    documents,
+    documents: docs,
     locale = 'all',
     fields: requestedFields,
     onMissingLocale,
@@ -1693,11 +1746,11 @@ export class DocumentQueries implements IDocumentQueries {
     fields?: string[]
     onMissingLocale?: MissingLocalePolicy
   }): Promise<any[]> {
-    if (documents.length === 0) return []
-    const versionIds = documents.map((v) => v.id)
+    if (docs.length === 0) return []
+    const versionIds = docs.map((v) => v.id)
 
     // Resolve definition once for the batch (safe — early return above guarantees length > 0)
-    const firstDoc = documents[0]!
+    const firstDoc = docs[0]!
     const definition = await this.getDefinitionForCollection(firstDoc.collection_id)
 
     // When specific fields are requested, resolve which store tables we need
@@ -1710,7 +1763,7 @@ export class DocumentQueries implements IDocumentQueries {
     // `source_locale` anchor — so the field fetch pulls every locale a row in
     // this page might fall back to, not just the global default.
     const floorLocales = [
-      ...new Set(documents.map((d) => d.source_locale).filter((l): l is string => l != null)),
+      ...new Set(docs.map((d) => d.source_locale).filter((l): l is string => l != null)),
     ]
 
     // Get field values for all versions in one query
@@ -1758,7 +1811,7 @@ export class DocumentQueries implements IDocumentQueries {
 
     // Reconstruct each document with document data at root level
     const result: any[] = []
-    for (const doc of documents) {
+    for (const doc of docs) {
       const versionFieldValues = fieldValuesByVersion.get(doc.id) || []
       const docMetaRows = (metaByVersion.get(doc.id) ?? []) as MetaRow[]
       const { fields } = this.reconstructFromUnifiedRows(
@@ -1816,11 +1869,23 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * Gets field values for multiple versions in a single query.
+   * Gets field values for multiple versions in a single query — the UNION
+   * ALL that is the whole point of this task.
    *
    * When `storeTypes` is provided, only those store tables are included in
    * the UNION ALL — this is the selective field loading optimisation for
    * list views that only need a subset of fields.
+   *
+   * Locale-chain conversion (design spec §2, the store-row locale
+   * condition): pg's `locale = ANY(ARRAY[...]) ` → MySQL `locale IN (...)`.
+   * No `ORDER BY`/`FIELD()` needed here — this is a membership filter, not a
+   * priority pick (unlike `pathProjection`, every matching locale row is
+   * kept; `resolveEffectiveLocale`/`restoreFieldSetData` pick the effective
+   * one in JS afterwards).
+   *
+   * `db.execute()` on the mysql2 driver returns a `[rows, fields]` tuple
+   * (unlike pg's `{ rows }` result object) — see `storage-commands.ts` for
+   * the established pattern this mirrors.
    */
   private async getAllFieldValuesForMultipleVersions(
     documentVersionIds: string[],
@@ -1830,14 +1895,6 @@ export class DocumentQueries implements IDocumentQueries {
   ): Promise<UnifiedFieldValue[]> {
     if (documentVersionIds.length === 0) return []
 
-    // For a concrete locale, fetch the requested locale plus every fallback
-    // floor in the batch, plus non-localized `'all'` rows. The floors are the
-    // documents' own `source_locale` anchors (passed by the caller, which has
-    // them on the row) so a document authored in a non-default locale still
-    // has its fallback rows fetched; they default to the global default when
-    // unknown. Per-version effective-locale resolution (see
-    // `resolveEffectiveLocale`) then picks one locale to restore from. `'all'`
-    // skips the filter (admin multi-locale read).
     let localeCondition = sql``
     if (locale !== 'all') {
       const floors = floorLocales?.length ? floorLocales : [this.defaultContentLocale]
@@ -1846,17 +1903,16 @@ export class DocumentQueries implements IDocumentQueries {
         chain.map((l) => sql`${l}`),
         sql`, `
       )
-      localeCondition = sql`AND (locale = ANY(ARRAY[${chainSql}]::text[]) OR locale = 'all')`
+      localeCondition = sql`AND (locale IN (${chainSql}) OR locale = 'all')`
     }
 
-    const documentCondition = sql`document_version_id = ANY(ARRAY[${sql.join(
-      documentVersionIds.map((id) => sql`${id}::uuid`),
+    const documentCondition = sql`document_version_id IN (${sql.join(
+      documentVersionIds.map((id) => sql`${id}`),
       sql`, `
-    )}])`
+    )})`
 
     const typesToQuery = storeTypes ?? new Set(allStoreTypes)
 
-    // Build UNION ALL from only the required store tables.
     const fragments: SQL[] = []
     for (const st of allStoreTypes) {
       if (!typesToQuery.has(st)) continue
@@ -1867,7 +1923,6 @@ export class DocumentQueries implements IDocumentQueries {
 
     if (fragments.length === 0) return []
 
-    // Join with UNION ALL
     let unionQuery = fragments[0]!
     for (let i = 1; i < fragments.length; i++) {
       unionQuery = sql`${unionQuery} UNION ALL ${fragments[i]}`
@@ -1875,11 +1930,17 @@ export class DocumentQueries implements IDocumentQueries {
 
     const query = sql`${unionQuery} ORDER BY document_version_id, field_path, locale`
 
-    const { rows }: { rows: Record<string, unknown>[] } = await this.db.execute(query)
+    const result = (await this.db.execute(query)) as unknown as [
+      Array<Record<string, unknown>>,
+      unknown,
+    ]
     // Canonicalise the raw UNION ALL driver rows at the ingestion boundary —
-    // see normalizeRow's docstring for what pg's driver leaves as-is
-    // (BIGINT/decimal-as-string, timestamptz-as-Date).
-    return rows.map(normalizeRow)
+    // see normalizeRow's docstring for what the mysql2 driver leaves in a
+    // shape core's reconstruction can't consume as-is (TINYINT(1)-as-number,
+    // DECIMAL-as-string with decimalNumbers: false, and — the opposite of
+    // what an earlier version of this comment claimed — DATETIME/DATE-as-
+    // string, coerced to Date by normalizeRow, not already a Date).
+    return result[0].map(normalizeRow)
   }
 
   /**
@@ -1890,9 +1951,11 @@ export class DocumentQueries implements IDocumentQueries {
    * `store_relation` to the target collection's current-documents view
    * (selected by `readMode` so draft leaks can't happen through filter
    * predicates) and recurses into its own `nested` filters. A `FieldSort`
-   * becomes a LEFT JOIN LATERAL to pull the sort value into the outer query.
-   * Document-level conditions (status, path) are applied directly on the
-   * current_documents view.
+   * becomes a LEFT JOIN LATERAL to pull the sort value into the outer query
+   * — unchanged syntax from pg (the 8.0.14 engine floor guarantees LATERAL
+   * support), confirmed live against this container. Document-level
+   * conditions (status, path) are applied directly on the current_documents
+   * view.
    */
   async findDocuments({
     collection_id,
@@ -1913,7 +1976,7 @@ export class DocumentQueries implements IDocumentQueries {
     collection_id: string
     filters?: DocumentFilter[]
     status?: string
-    pathFilter?: { operator: string; value: string }
+    pathFilter?: { operator: FieldFilterOperator; value: string }
     query?: string
     sort?: FieldSort
     orderBy?: string
@@ -1955,20 +2018,21 @@ export class DocumentQueries implements IDocumentQueries {
       )
     }
 
-    // Admin list-view quick search via EXISTS on store_text.
+    // Admin list-view quick search via EXISTS on store_text. MySQL has no
+    // `ILIKE` — the elected divergence (design spec §2, not "fixed"): plain
+    // `LIKE` against `byline_store_text.value`, which keeps the schema's
+    // database-default `utf8mb4_0900_ai_ci` collation, so this search is
+    // already case- AND accent-insensitive (pg's `ILIKE` is case-insensitive
+    // only). See `buildFilterCondition`'s `$contains` branch for the same
+    // divergence on the field-filter path.
     if (query) {
       const definition = await this.getDefinitionForCollection(collection_id)
-      // The list-view box matches store_text rows by field name, from the
-      // schema-level `listSearch` declaration; fall back to the collection's
-      // identity field (`useAsTitle`, else its first text field).
-      // Deliberately independent of the `search` (provider / site-search
-      // indexing) config — see `CollectionDefinition.listSearch`.
       const searchFields =
         definition.listSearch != null && definition.listSearch.length > 0
           ? definition.listSearch
           : [resolveIdentityField(definition) ?? 'title']
       const searchConditions = searchFields.map(
-        (fieldName) => sql`(field_name = ${fieldName} AND value ILIKE ${`%${query}%`})`
+        (fieldName) => sql`(field_name = ${fieldName} AND value LIKE ${`%${query}%`})`
       )
       conditions.push(sql`EXISTS (
         SELECT 1 FROM byline_store_text
@@ -2016,10 +2080,15 @@ export class DocumentQueries implements IDocumentQueries {
             AND (locale = ${locale} OR locale = 'all')
           LIMIT 1
         ) _sort ON true`
+        // MySQL has no `NULLS LAST`. `DESC` already sorts NULL last by
+        // default (confirmed live), so `_sort_value DESC` needs no help;
+        // `ASC` sorts NULL first by default (the opposite of pg's `NULLS
+        // LAST`), so the `(col IS NULL) ASC, col ASC` emulation idiom is
+        // required — same idiom as `buildDocumentOrderClause`.
         orderClause =
           sort.direction === 'desc'
-            ? sql`_sort._sort_value DESC NULLS LAST`
-            : sql`_sort._sort_value ASC NULLS LAST`
+            ? sql`_sort._sort_value DESC`
+            : sql`(_sort._sort_value IS NULL) ASC, _sort._sort_value ASC`
       } else {
         // Unrecognised store type — fall back to document-level sort
         orderClause = this.buildDocumentOrderClause(orderBy, orderDirection)
@@ -2029,14 +2098,18 @@ export class DocumentQueries implements IDocumentQueries {
     }
 
     // -- Count query ----------------------------------------------------------
+    // `count(*)::int` → `CAST(COUNT(*) AS SIGNED)` (design spec §2).
     const countQuery = sql`
-      SELECT count(*)::int AS total
+      SELECT CAST(COUNT(*) AS SIGNED) AS total
       FROM ${sourceTable} d
       ${sortJoin}
       WHERE ${whereClause}
     `
-    const countResult: { rows: { total: number }[] } = await this.db.execute(countQuery)
-    const total = countResult.rows[0]?.total ?? 0
+    const countResult = (await this.db.execute(countQuery)) as unknown as [
+      Array<{ total: number }>,
+      unknown,
+    ]
+    const total = Number(countResult[0][0]?.total) || 0
 
     if (total === 0) {
       return { documents: [], total: 0 }
@@ -2058,9 +2131,12 @@ export class DocumentQueries implements IDocumentQueries {
       LIMIT ${pageSize}
       OFFSET ${offset}
     `
-    const { rows }: { rows: Record<string, unknown>[] } = await this.db.execute(mainQuery)
+    const mainResult = (await this.db.execute(mainQuery)) as unknown as [
+      Array<Record<string, unknown>>,
+      unknown,
+    ]
 
-    const currentDocuments: Document[] = rows.map((row) => ({
+    const currentDocuments: Document[] = mainResult[0].map((row) => ({
       id: row.id as string,
       document_id: row.document_id as string,
       collection_id: row.collection_id as string,
@@ -2068,9 +2144,18 @@ export class DocumentQueries implements IDocumentQueries {
       path: (row.path as string | null) ?? null,
       event_type: row.event_type as string,
       status: row.status as string,
-      is_deleted: row.is_deleted as boolean,
-      created_at: new Date(row.created_at as string | number),
-      updated_at: new Date(row.updated_at as string | number),
+      // Raw driver row (not the schema-typed query builder) — TINYINT(1)
+      // arrives as a JS number here, same as normalizeRow's boolean_value
+      // columns. `current_documents`'s own CTE already filters
+      // `is_deleted = false`, so this is always falsy in practice; coerced
+      // properly regardless.
+      is_deleted: Boolean(row.is_deleted),
+      // Raw driver row on this `db.execute(sql\`...\`)` path — drizzle's
+      // mysql2 driver hands DATETIME columns back as strings here, not
+      // `Date` (see `toDate`'s docstring, `storage-utils.ts`), confirmed
+      // live: an un-coerced `as Date` cast was lying at the type level.
+      created_at: toDate(row.created_at as string) as Date,
+      updated_at: toDate(row.updated_at as string) as Date,
       created_by: row.created_by as string,
       change_summary: row.change_summary as string,
       source_locale: (row.source_locale as string | null) ?? null,
@@ -2102,7 +2187,12 @@ export class DocumentQueries implements IDocumentQueries {
     return { documents, total }
   }
 
-  /** Compile status and `beforeRead` visibility for one tree edge endpoint. */
+  /**
+   * Compile status and `beforeRead` visibility for one tree edge endpoint.
+   * Ports unchanged from pg — the `EXISTS` shape has no dialect-specific
+   * SQL of its own (its nested `buildFilterExists` calls carry the
+   * dialect-specific bits).
+   */
   private buildTreeVisibility(
     documentId: SQL,
     filters: DocumentFilter[] | undefined,
@@ -2138,16 +2228,8 @@ export class DocumentQueries implements IDocumentQueries {
    * `store_relation` to the target collection's current-documents view
    * and recurses against the target's own stores; combinator filters
    * emit a parenthesised AND/OR group; document-column filters emit a
-   * direct comparison on the outer scope's status/path column.
-   *
-   * `outerScope` carries SQL references to the enclosing scope's
-   * `document_version_id`, `status`, and `path` — `d.id`/`d.status`/
-   * `d.path` at the top level, the equivalent column references on the
-   * Drizzle view for single-doc lookups, and `td${n}.…` inside relation
-   * hops. `depth` is the current relation-nesting level; each relation
-   * hop bumps it so aliases stay unique across nested EXISTS scopes
-   * (Postgres would otherwise resolve `td.id` to the innermost `td`,
-   * silently producing the wrong rows).
+   * direct comparison on the outer scope's status/path column. Ports
+   * unchanged from pg — the dispatch itself has no dialect-specific SQL.
    */
   private buildFilterExists(
     filter: DocumentFilter,
@@ -2172,11 +2254,7 @@ export class DocumentQueries implements IDocumentQueries {
   /**
    * Build a parenthesised AND/OR group from a CombinatorFilter. Each child
    * compiles through `buildFilterExists` recursively, so combinators nest
-   * freely and inherit the outer scope.
-   *
-   * An empty `children` array would emit `()` and produce a syntax error,
-   * so callers (the parser) skip empty groups; this method assumes at
-   * least one child by construction.
+   * freely and inherit the outer scope. Ports unchanged from pg.
    */
   private buildCombinatorGroup(
     filter: CombinatorFilter,
@@ -2196,7 +2274,7 @@ export class DocumentQueries implements IDocumentQueries {
    * Compile a `DocumentColumnFilter` against the outer scope's `status`,
    * `path`, or `id` column. Plain comparison — no EXISTS — because the
    * column lives directly on the outer relation (current-documents view),
-   * not in the EAV stores.
+   * not in the EAV stores. Ports unchanged from pg.
    */
   private buildDocColumnFilter(filter: DocumentColumnFilter, outerScope: OuterScope): SQL {
     const column =
@@ -2209,7 +2287,9 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * Build an EXISTS subquery for a single field-level filter.
+   * Build an EXISTS subquery for a single field-level filter. Ports
+   * unchanged from pg (aside from `buildFilterCondition`'s `ILIKE` → `LIKE`
+   * one level down).
    */
   private buildFieldExists(filter: FieldFilter, locale: string, outerDocVersionId: SQL): SQL {
     const storeTable = storeTableNames[filter.storeType as StoreType]
@@ -2243,24 +2323,11 @@ export class DocumentQueries implements IDocumentQueries {
    *
    * `hasMany` relations store one row per item at an indexed field name
    * (`<field>.0`, `<field>.1`, …), so the field match switches to a prefix
-   * `LIKE`; single relations match the exact name.
+   * match; single relations match the exact name.
    *
    * The `quantifier` selects the set semantics over the relation's
-   * (resolving) targets:
-   *
-   *   - `'some'` (default): `EXISTS (… AND nested…)` — at least one target
-   *     matches. With no nested filters this reduces to "has any resolving
-   *     target on this field".
-   *   - `'none'`: `NOT` of the `'some'` form — no target matches. With no
-   *     nested filters: "has no resolving targets at all".
-   *   - `'every'`: `NOT EXISTS (… AND NOT (nested…))` — no target *fails*
-   *     the nested predicate. Vacuously true for documents with no
-   *     resolving targets (Prisma-style). With no nested filters there is
-   *     nothing to fail: compile to TRUE.
-   *
-   * Rows whose target doesn't resolve in the selected view (deleted, or
-   * unpublished in published mode) drop out of the JOIN in all three
-   * forms — the same visibility rule populate applies.
+   * (resolving) targets — see pg's docblock for the full 'some'/'none'/
+   * 'every' semantics; this method ports the SQL shape unchanged.
    */
   private buildRelationExists(
     filter: RelationFilter,
@@ -2341,6 +2408,18 @@ export class DocumentQueries implements IDocumentQueries {
 
   /**
    * Build a comparison condition for a filter operator.
+   *
+   * `$contains` divergence (design spec §2, elected — not "fixed"): pg's
+   * `ILIKE` has no MySQL equivalent, so this compiles to plain `LIKE`. The
+   * store `value` columns keep the schema's default `utf8mb4_0900_ai_ci`
+   * collation, which is case- *and* accent-insensitive — a strictly wider
+   * match than pg's case-insensitive-only `ILIKE`. `byline_document_paths
+   * .path` is the one column this operator also reaches (via
+   * `buildDocColumnFilter`'s `path` branch) that is NOT `ai_ci` — it's
+   * `utf8mb4_bin` (`varcharCaseSensitive`, `database/schema/common.ts`), so
+   * a `$contains` against `path` stays byte-exact and matches pg exactly.
+   * Both behaviours fall out of the column's own collation; nothing here
+   * special-cases `path` vs a store value.
    */
   private buildFilterCondition(
     column: SQL,
@@ -2361,15 +2440,12 @@ export class DocumentQueries implements IDocumentQueries {
       case '$lte':
         return sql`${column} <= ${value}`
       case '$contains':
-        return sql`${column} ILIKE ${`%${String(value)}%`}`
+        return sql`${column} LIKE ${`%${String(value)}%`}`
       case '$in': {
         const arr = value as Array<string | number>
         // Empty `$in` matches nothing — explicit FALSE avoids generating
         // an invalid empty `IN ()` clause.
         if (arr.length === 0) return sql`FALSE`
-        // Bind each element as its own parameter. Drizzle's `${arr}` would
-        // serialise as a single row-constructor (`($1, $2)`), which Postgres
-        // rejects when compared to a scalar column with `= ANY(...)`.
         const items = sql.join(
           arr.map((v) => sql`${v}`),
           sql`, `
@@ -2394,25 +2470,22 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * Build an ORDER BY clause for a document-level column.
+   * Build an ORDER BY clause for a document-level column. `path` is
+   * intentionally not sortable here — see pg's docblock.
    *
-   * `path` is intentionally not sortable here: it lives in
-   * `byline_document_paths` (locale-resolved per request) rather than on
-   * the version row, so a literal `d.path` reference would refer to a
-   * non-existent column. Sorting documents by URL slug has no meaningful
-   * call site today; reintroduce via `pathProjection` if a real need
-   * arrives.
+   * Divergence from pg (found by reasoning, confirmed live against this
+   * container): MySQL has no `NULLS LAST`. For `DESC`, MySQL already sorts
+   * NULL last by default, so `d.order_key DESC` needs no help. For `ASC`,
+   * MySQL's default sorts NULL *first* — the opposite of pg's `NULLS LAST`
+   * — so the emulation idiom `ORDER BY (col IS NULL), col ASC` is required
+   * to match pg's behaviour (`(col IS NULL)` evaluates 0/1; ascending puts
+   * real values, which evaluate to 0, before NULLs, which evaluate to 1).
    */
   private buildDocumentOrderClause(orderBy: string, direction: 'asc' | 'desc'): SQL {
-    // `order_key` is the fractional-index column for `orderable: true`
-    // collections. Always sort NULLS LAST with a `created_at DESC` tiebreaker
-    // so unkeyed rows (existing rows in a newly-opted-in collection, or rows
-    // from before the column existed) fall to the bottom in a stable order
-    // until the editor drags them into position.
     if (orderBy === 'order_key') {
       return direction === 'desc'
-        ? sql`d.order_key DESC NULLS LAST, d.created_at DESC`
-        : sql`d.order_key ASC NULLS LAST, d.created_at DESC`
+        ? sql`d.order_key DESC, d.created_at DESC`
+        : sql`(d.order_key IS NULL) ASC, d.order_key ASC, d.created_at DESC`
     }
     const columnMap: Record<string, string> = {
       created_at: 'd.created_at',
@@ -2423,8 +2496,9 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * Converts a union field row - back into an array of FlattenedStore
-   * that the reconstruction utilities expect
+   * Converts a union field row back into an array of FlattenedStore that
+   * the reconstruction utilities expect. Pure JS mapping — ports unchanged
+   * from pg.
    */
   private convertUnionRowToFlattenedStores(unionRowValues: UnifiedFieldValue[]): FlattenedStore[] {
     return unionRowValues.map((row) => {

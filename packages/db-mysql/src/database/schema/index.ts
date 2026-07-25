@@ -594,9 +594,14 @@ export const datetimeStore = mysqlTable(
     // hypothetical: a document with a fractional-second time value would
     // read back truncated after a write, MySQL-only.
     value_time: time('value_time', { fsp: 3 }),
-    // Postgres `timestamptz` → `datetime(3)` (spec §2). UTC by convention —
-    // see `common.ts`'s `auditTimestamp` doc comment.
-    value_timestamp_tz: datetime('value_timestamp_tz', { fsp: 3 }),
+    // Postgres `timestamptz` → `datetime(6)`. pg declares this column with
+    // no explicit `precision`, which defaults to TIMESTAMPTZ's full
+    // microsecond resolution — fsp 6 matches that exactly, and keeps this
+    // column on the same precision as every other `datetime(...)` in this
+    // schema (see `common.ts`'s `auditTimestamp` doc comment for why a
+    // mixed-precision schema is worse than a uniform one). UTC by
+    // convention — see `common.ts`'s `auditTimestamp` doc comment.
+    value_timestamp_tz: datetime('value_timestamp_tz', { fsp: 6 }),
   },
   (table) => [
     foreignKey({
@@ -834,14 +839,24 @@ export const jsonStore = mysqlTable(
 // Counter groups registry
 // ---------------------------------------------------------------------------
 //
-// One row per counter `group` discovered in collection field definitions.
-// On Postgres the actual ID allocator is a SEQUENCE object (named in
-// `sequence_name`), reconciled at boot by `IDbAdapter.ensureCounterGroup`.
-// MySQL has no native user-defined SEQUENCE object (unlike Postgres, or
-// MariaDB's own extension) — the concrete allocation mechanism this column
-// backs on MySQL is a Task 11 decision, not this schema-only task's. The
-// registry table itself only records that the group exists and which
-// allocator object backs it; it is not used in the hot allocation path.
+// One row per counter `group` discovered in collection field definitions,
+// plus one row per runtime-scoped counter self-registered by
+// `nextScopedCounterValue`. On Postgres the actual ID allocator is a
+// SEQUENCE object (named in `sequence_name`), reconciled at boot by
+// `IDbAdapter.ensureCounterGroup`. MySQL has no native user-defined SEQUENCE
+// object (unlike Postgres, or MariaDB's own extension), so this table IS the
+// allocator (Task 11 decision): `current_value` is the counter state itself,
+// advanced in place via `UPDATE ... SET current_value = LAST_INSERT_ID(current_value + 1)`
+// (`nextCounterValue`) or, for first-use self-registration, a single
+// `INSERT ... ON DUPLICATE KEY UPDATE current_value = LAST_INSERT_ID(current_value + 1)`
+// (`nextScopedCounterValue`) — both read the freshly-assigned value back via
+// `SELECT LAST_INSERT_ID()` on the same checked-out connection. Static and
+// scoped counters deliberately share this one table/row-per-name rather than
+// splitting scoped counters into a second table: `ICounterCommands` documents
+// that `nextCounterValue` on a name `nextScopedCounterValue` has already
+// registered must continue the very same count — a second table could not
+// honour that without every scoped call double-writing to keep both in sync.
+// See `packages/db-mysql/src/modules/counters/counters-commands.ts`.
 //
 // Why a separate table rather than reading allocator objects from
 // `information_schema`: the mapping from `group_name` → allocator identity
@@ -856,6 +871,9 @@ export const jsonStore = mysqlTable(
 export const counterGroups = mysqlTable('byline_counter_groups', {
   group_name: varchar('group_name', { length: 255 }).primaryKey(),
   sequence_name: text('sequence_name').notNull(),
+  // The counter's live state on this dialect (see comment block above).
+  // Postgres has no equivalent column — its allocator is a SEQUENCE object.
+  current_value: bigint('current_value', { mode: 'number' }).notNull().default(0),
   ...createdAt,
 })
 
@@ -1028,7 +1046,15 @@ export const auditLog = mysqlTable(
     field: varchar('field', { length: 128 }), // the changed field where meaningful (e.g. 'path'), else NULL
     before: json('before'),
     after: json('after'),
-    occurred_at: datetime('occurred_at', { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+    // fsp 6, matching pg's `timestamp('occurred_at', { precision: 6, withTimezone: true })`
+    // — see `common.ts`'s `auditTimestamp` doc comment for why every
+    // temporal column in this schema moved from fsp 3 to fsp 6. This is
+    // the column that surfaced the issue: at fsp 3, two audit rows (or an
+    // audit row and a version-stream row) appended in quick succession on a
+    // fast local connection could receive an identical or ambiguously
+    // ordered `occurred_at`, confirmed live via `packages/db-conformance`'s
+    // audit activity-feed fixture — see the Task 11 report.
+    occurred_at: datetime('occurred_at', { fsp: 6 }).notNull().default(sql`CURRENT_TIMESTAMP(6)`),
   },
   (table) => [
     // Per-document history, time-ordered (id is UUIDv7).

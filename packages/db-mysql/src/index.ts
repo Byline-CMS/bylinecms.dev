@@ -14,6 +14,12 @@ import mysql from 'mysql2/promise'
 import * as schema from './database/schema/index.js'
 import { assertMySqlVersion } from './lib/boot-check.js'
 import { DBManagerImpl, TXManagerImpl } from './lib/db-manager.js'
+import { createAuditCommands } from './modules/audit/audit-commands.js'
+import { createAuditQueries } from './modules/audit/audit-queries.js'
+import { createCounterCommands } from './modules/counters/counters-commands.js'
+import { classifyError } from './modules/storage/classify-error.js'
+import { createCommandBuilders } from './modules/storage/storage-commands.js'
+import { createQueryBuilders } from './modules/storage/storage-queries.js'
 
 /**
  * Public return type of `mysqlAdapter`. Extends `IDbAdapter` with concrete
@@ -32,26 +38,9 @@ export interface MySqlAdapter extends IDbAdapter {
   pool: mysql.Pool
 }
 
-/**
- * Build a stub matching one `IDbAdapter` command/query member's exact call
- * signature. Every real implementation lands task by task (9: storage
- * commands, 10: storage queries, 11: counters/audit) — the adapter this
- * factory returns is deliberately non-functional until then. Throwing keeps
- * that honest at the call site: `MySqlAdapter` satisfies `IDbAdapter`
- * structurally today, but invoking any operation before its task lands
- * fails loudly instead of silently doing nothing.
- */
-function notImplemented<T>(member: string, task: number): T {
-  return (() => {
-    throw new Error(`@byline/db-mysql: ${member} is not implemented yet (Task ${task})`)
-  }) as unknown as T
-}
-
 export const mysqlAdapter = ({
   connectionString,
-  // biome-ignore lint/correctness/noUnusedFunctionParameters: threaded through the signature now for parity with pgAdapter; wired into the storage query builders in Task 10.
   collections,
-  // biome-ignore lint/correctness/noUnusedFunctionParameters: threaded through the signature now for parity with pgAdapter; wired into the storage command/query builders starting Task 9.
   defaultContentLocale,
   connectionLimit = 20,
 }: {
@@ -77,7 +66,7 @@ export const mysqlAdapter = ({
   const pool = mysql.createPool({
     uri: connectionString,
     connectionLimit,
-    // Every DATETIME(3) column is UTC by convention (spec §2). 'Z' stops
+    // Every DATETIME column is UTC by convention (spec §2). 'Z' stops
     // mysql2 from reinterpreting stored UTC values against the server's or
     // session's local timezone on the way in and out.
     timezone: 'Z',
@@ -86,6 +75,19 @@ export const mysqlAdapter = ({
     // (Task 9) treats decimal store values as strings end to end, matching
     // the pg adapter's `numeric` handling.
     decimalNumbers: false,
+    // Task 10A divergence, found live: mysql2 negotiates
+    // `utf8mb4_unicode_ci` as the connection's default collation unless told
+    // otherwise — it does NOT inherit the schema/database default
+    // (`utf8mb4_0900_ai_ci`, see `database/schema/common.ts`). A typed
+    // `CAST(NULL AS CHAR)` expression (the UNION ALL null-cast machinery in
+    // `storage-store-manifest.ts`) carries the *connection's* collation, so
+    // without this, `getAllFieldValuesForMultipleVersions`'s 7-way UNION ALL
+    // fails with `ER_CANT_AGGREGATE_NCOLLATIONS` ("Illegal mix of
+    // collations") the moment a CAST'd column and a real schema column with
+    // a different collation land in the same UNION output position.
+    // Pinning the connection's collation to match the schema fixes it at
+    // the source rather than adding a `COLLATE` clause to every cast.
+    charset: 'UTF8MB4_0900_AI_CI',
   })
 
   // `drizzle-orm/mysql2` requires `mode` whenever `schema` is supplied.
@@ -102,8 +104,33 @@ export const mysqlAdapter = ({
   // ambient transaction when a `withTransaction` boundary is open, else the
   // pool.
   const dbManager = new DBManagerImpl({ dbPool: db })
-  // biome-ignore lint/correctness/noUnusedVariables: constructed now so Tasks 9-12 wire withTransaction to it; unused until then (see the withTransaction stub below).
   const txManager = new TXManagerImpl({ db: dbManager })
+  const commandBuilders = createCommandBuilders(dbManager, defaultContentLocale)
+  // Most reads run on the raw `db` (not the DBManager) — they don't need to
+  // join an ambient `withTransaction`. `dbManager` is still threaded through
+  // as the 4th argument (matching pg's `storage-queries.ts`) because
+  // `DocumentQueries` accepts it as `transactionDb` for the one read that
+  // DOES need the ambient transaction: `getDocumentSystemFieldsForUpdate`
+  // (Task 10B) takes a `SELECT … FOR UPDATE` lock that must run inside the
+  // caller's transaction to serialise concurrent system-field writers —
+  // dropping `dbManager` here would silently run that lock outside the
+  // transaction and defeat the concurrency guard it exists to provide.
+  // `transactionDb` is a required parameter (no default) precisely so this
+  // can never be omitted by accident — see the §H ruling in the Task 10B
+  // report.
+  const queryBuilders = createQueryBuilders(db, collections, defaultContentLocale, dbManager)
+
+  // Counters run on the raw mysql2 `pool` — never `dbManager` — so they never
+  // join an ambient `withTransaction`: a long document-create transaction
+  // holding the counter row would serialise every other writer in that
+  // group (Task 11). Audit appends run on `dbManager` so they DO join the
+  // ambient transaction and commit atomically with the mutation they
+  // record; audit reads run on the plain `db` (the pool) since they never
+  // need to join that transaction. See ./modules/counters/counters-commands.js
+  // and ./modules/audit/{audit-commands,audit-queries}.js.
+  const counterCommands = createCounterCommands(pool)
+  const auditCommands = createAuditCommands(dbManager)
+  const auditQueries = createAuditQueries(db)
 
   // Boot check: run lazily on the pool's first physical connection rather
   // than eagerly here, because `mysqlAdapter` is synchronous (mirroring
@@ -139,88 +166,32 @@ export const mysqlAdapter = ({
 
   return {
     commands: {
-      collections: {
-        create: notImplemented('commands.collections.create', 9),
-        update: notImplemented('commands.collections.update', 9),
-        delete: notImplemented('commands.collections.delete', 9),
-      },
-      documents: {
-        createDocumentVersion: notImplemented('commands.documents.createDocumentVersion', 9),
-        updateDocumentPath: notImplemented('commands.documents.updateDocumentPath', 9),
-        setDocumentAvailableLocales: notImplemented(
-          'commands.documents.setDocumentAvailableLocales',
-          9
-        ),
-        setDocumentStatus: notImplemented('commands.documents.setDocumentStatus', 9),
-        archivePublishedVersions: notImplemented('commands.documents.archivePublishedVersions', 9),
-        softDeleteDocument: notImplemented('commands.documents.softDeleteDocument', 9),
-        deleteDocumentLocale: notImplemented('commands.documents.deleteDocumentLocale', 9),
-        setOrderKey: notImplemented('commands.documents.setOrderKey', 9),
-        placeTreeNode: notImplemented('commands.documents.placeTreeNode', 9),
-        removeFromTree: notImplemented('commands.documents.removeFromTree', 9),
-        promoteChildrenAndRemoveFromTree: notImplemented(
-          'commands.documents.promoteChildrenAndRemoveFromTree',
-          9
-        ),
-      },
-      counters: {
-        ensureCounterGroup: notImplemented('commands.counters.ensureCounterGroup', 11),
-        nextCounterValue: notImplemented('commands.counters.nextCounterValue', 11),
-        nextScopedCounterValue: notImplemented('commands.counters.nextScopedCounterValue', 11),
-      },
-      audit: {
-        append: notImplemented('commands.audit.append', 11),
-      },
+      // `commandBuilders.collections` fully implements `ICollectionCommands`
+      // (Task 9A) — see `./modules/storage/storage-commands.js`.
+      collections: commandBuilders.collections,
+      // `commandBuilders.documents` (`DocumentCommands`) fully implements
+      // `IDocumentCommands` as of Task 9B — see that class's docblock.
+      documents: commandBuilders.documents,
+      // `counterCommands` fully implements `ICounterCommands` as of Task 11
+      // — see `./modules/counters/counters-commands.js`.
+      counters: counterCommands,
+      // `auditCommands` fully implements `IAuditCommands` as of Task 11 —
+      // see `./modules/audit/audit-commands.js`.
+      audit: auditCommands,
     },
     queries: {
-      collections: {
-        getAllCollections: notImplemented('queries.collections.getAllCollections', 10),
-        getCollectionByPath: notImplemented('queries.collections.getCollectionByPath', 10),
-        getCollectionById: notImplemented('queries.collections.getCollectionById', 10),
-      },
-      documents: {
-        getDocumentSystemFieldsForUpdate: notImplemented(
-          'queries.documents.getDocumentSystemFieldsForUpdate',
-          10
-        ),
-        getDocumentById: notImplemented('queries.documents.getDocumentById', 10),
-        getCurrentVersionMetadata: notImplemented(
-          'queries.documents.getCurrentVersionMetadata',
-          10
-        ),
-        getCurrentPath: notImplemented('queries.documents.getCurrentPath', 10),
-        getDocumentByPath: notImplemented('queries.documents.getDocumentByPath', 10),
-        getDocumentByVersion: notImplemented('queries.documents.getDocumentByVersion', 10),
-        getDocumentsByVersionIds: notImplemented('queries.documents.getDocumentsByVersionIds', 10),
-        getDocumentsByDocumentIds: notImplemented(
-          'queries.documents.getDocumentsByDocumentIds',
-          10
-        ),
-        getDocumentHistory: notImplemented('queries.documents.getDocumentHistory', 10),
-        getPublishedVersion: notImplemented('queries.documents.getPublishedVersion', 10),
-        getPublishedDocumentIds: notImplemented('queries.documents.getPublishedDocumentIds', 10),
-        getDocumentCountsByStatus: notImplemented(
-          'queries.documents.getDocumentCountsByStatus',
-          10
-        ),
-        findDocuments: notImplemented('queries.documents.findDocuments', 10),
-        getLastOrderKey: notImplemented('queries.documents.getLastOrderKey', 10),
-        getNeighborOrderKeys: notImplemented('queries.documents.getNeighborOrderKeys', 10),
-        getCanonicalDocumentOrder: notImplemented(
-          'queries.documents.getCanonicalDocumentOrder',
-          10
-        ),
-        getTreeAncestors: notImplemented('queries.documents.getTreeAncestors', 10),
-        getTreeChildren: notImplemented('queries.documents.getTreeChildren', 10),
-        getTreeParent: notImplemented('queries.documents.getTreeParent', 10),
-        getTreeSubtree: notImplemented('queries.documents.getTreeSubtree', 10),
-      },
-      audit: {
-        getDocumentAuditLog: notImplemented('queries.audit.getDocumentAuditLog', 11),
-        findAuditLog: notImplemented('queries.audit.findAuditLog', 11),
-      },
+      // `queryBuilders.collections` fully implements `ICollectionQueries`
+      // (Task 10A) — see `./modules/storage/storage-queries.js`.
+      collections: queryBuilders.collections,
+      // `queryBuilders.documents` (`DocumentQueries`) fully implements
+      // `IDocumentQueries` as of Task 10B — see that class's docblock.
+      documents: queryBuilders.documents,
+      // `auditQueries` fully implements `IAuditQueries` as of Task 11 — see
+      // `./modules/audit/audit-queries.js`.
+      audit: auditQueries,
     },
-    withTransaction: notImplemented('withTransaction', 9),
+    withTransaction: (fn) => txManager.withTransaction(fn),
+    classifyError,
     drizzle: db,
     pool,
   }

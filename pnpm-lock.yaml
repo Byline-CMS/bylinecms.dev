@@ -672,6 +672,9 @@ importers:
 
   packages/db-mysql:
     dependencies:
+      '@byline/admin':
+        specifier: workspace:*
+        version: link:../admin
       '@byline/core':
         specifier: workspace:*
         version: link:../core
@@ -684,6 +687,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      uuid:
+        specifier: ^14.0.1
+        version: 14.0.1
     devDependencies:
       '@biomejs/biome':
         specifier: 2.5.4
