@@ -16,6 +16,7 @@ import { assertMySqlVersion } from './lib/boot-check.js'
 import { DBManagerImpl, TXManagerImpl } from './lib/db-manager.js'
 import { classifyError } from './modules/storage/classify-error.js'
 import { createCommandBuilders } from './modules/storage/storage-commands.js'
+import { createQueryBuilders } from './modules/storage/storage-queries.js'
 
 /**
  * Public return type of `mysqlAdapter`. Extends `IDbAdapter` with concrete
@@ -51,7 +52,6 @@ function notImplemented<T>(member: string, task: number): T {
 
 export const mysqlAdapter = ({
   connectionString,
-  // biome-ignore lint/correctness/noUnusedFunctionParameters: threaded through the signature now for parity with pgAdapter; wired into the storage query builders in Task 10.
   collections,
   defaultContentLocale,
   connectionLimit = 20,
@@ -87,6 +87,19 @@ export const mysqlAdapter = ({
     // (Task 9) treats decimal store values as strings end to end, matching
     // the pg adapter's `numeric` handling.
     decimalNumbers: false,
+    // Task 10A divergence, found live: mysql2 negotiates
+    // `utf8mb4_unicode_ci` as the connection's default collation unless told
+    // otherwise — it does NOT inherit the schema/database default
+    // (`utf8mb4_0900_ai_ci`, see `database/schema/common.ts`). A typed
+    // `CAST(NULL AS CHAR)` expression (the UNION ALL null-cast machinery in
+    // `storage-store-manifest.ts`) carries the *connection's* collation, so
+    // without this, `getAllFieldValuesForMultipleVersions`'s 7-way UNION ALL
+    // fails with `ER_CANT_AGGREGATE_NCOLLATIONS` ("Illegal mix of
+    // collations") the moment a CAST'd column and a real schema column with
+    // a different collation land in the same UNION output position.
+    // Pinning the connection's collation to match the schema fixes it at
+    // the source rather than adding a `COLLATE` clause to every cast.
+    charset: 'UTF8MB4_0900_AI_CI',
   })
 
   // `drizzle-orm/mysql2` requires `mode` whenever `schema` is supplied.
@@ -105,6 +118,9 @@ export const mysqlAdapter = ({
   const dbManager = new DBManagerImpl({ dbPool: db })
   const txManager = new TXManagerImpl({ db: dbManager })
   const commandBuilders = createCommandBuilders(dbManager, defaultContentLocale)
+  // Queries stay on the raw `db` (not the DBManager) — reads don't need to
+  // join an ambient `withTransaction`. Mirrors the pg adapter.
+  const queryBuilders = createQueryBuilders(db, collections, defaultContentLocale)
 
   // Boot check: run lazily on the pool's first physical connection rather
   // than eagerly here, because `mysqlAdapter` is synchronous (mirroring
@@ -156,37 +172,38 @@ export const mysqlAdapter = ({
       },
     },
     queries: {
-      collections: {
-        getAllCollections: notImplemented('queries.collections.getAllCollections', 10),
-        getCollectionByPath: notImplemented('queries.collections.getCollectionByPath', 10),
-        getCollectionById: notImplemented('queries.collections.getCollectionById', 10),
-      },
+      // `queryBuilders.collections` fully implements `ICollectionQueries`
+      // (Task 10A) — see `./modules/storage/storage-queries.js`.
+      collections: queryBuilders.collections,
       documents: {
         getDocumentSystemFieldsForUpdate: notImplemented(
           'queries.documents.getDocumentSystemFieldsForUpdate',
           10
         ),
-        getDocumentById: notImplemented('queries.documents.getDocumentById', 10),
+        // `queryBuilders.documents` (`DocumentQueries`) implements the
+        // reconstruction path as of Task 10A — see that class's docblock
+        // for exactly what's deferred to Task 10B.
+        getDocumentById: (params) => queryBuilders.documents.getDocumentById(params),
         getCurrentVersionMetadata: notImplemented(
           'queries.documents.getCurrentVersionMetadata',
           10
         ),
         getCurrentPath: notImplemented('queries.documents.getCurrentPath', 10),
         getDocumentByPath: notImplemented('queries.documents.getDocumentByPath', 10),
-        getDocumentByVersion: notImplemented('queries.documents.getDocumentByVersion', 10),
+        getDocumentByVersion: (params) => queryBuilders.documents.getDocumentByVersion(params),
         getDocumentsByVersionIds: notImplemented('queries.documents.getDocumentsByVersionIds', 10),
         getDocumentsByDocumentIds: notImplemented(
           'queries.documents.getDocumentsByDocumentIds',
           10
         ),
-        getDocumentHistory: notImplemented('queries.documents.getDocumentHistory', 10),
+        getDocumentHistory: (params) => queryBuilders.documents.getDocumentHistory(params),
         getPublishedVersion: notImplemented('queries.documents.getPublishedVersion', 10),
         getPublishedDocumentIds: notImplemented('queries.documents.getPublishedDocumentIds', 10),
         getDocumentCountsByStatus: notImplemented(
           'queries.documents.getDocumentCountsByStatus',
           10
         ),
-        findDocuments: notImplemented('queries.documents.findDocuments', 10),
+        findDocuments: (params) => queryBuilders.documents.findDocuments(params),
         getLastOrderKey: notImplemented('queries.documents.getLastOrderKey', 10),
         getNeighborOrderKeys: notImplemented('queries.documents.getNeighborOrderKeys', 10),
         getCanonicalDocumentOrder: notImplemented(

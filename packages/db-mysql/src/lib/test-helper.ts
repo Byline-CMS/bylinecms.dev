@@ -12,6 +12,7 @@ import mysql from 'mysql2/promise'
 
 import * as schema from '../database/schema/index.js'
 import { createCommandBuilders } from '../modules/storage/storage-commands.js'
+import { createQueryBuilders } from '../modules/storage/storage-queries.js'
 import { DBManagerImpl, TXManagerImpl } from './db-manager.js'
 import { assertTestDatabase } from './test-db.js'
 
@@ -20,15 +21,18 @@ let db: MySql2Database<typeof schema>
 let dbManager: DBManagerImpl
 let txManager: TXManagerImpl
 let commandBuilders: ReturnType<typeof createCommandBuilders>
+let queryBuilders: ReturnType<typeof createQueryBuilders>
 
 /**
  * Mirrors `packages/db-postgres/src/lib/test-helper.ts`. `queryBuilders` is
- * intentionally not wired here yet — `storage-queries.ts` is Task 10; the
- * conformance suites this package currently registers
- * (`tests/conformance.integration.test.ts`) only exercise the command/write
- * surface plus the narrow read slice Task 9A ported alongside it.
+ * wired as of Task 10A — `DocumentQueries` implements the reconstruction
+ * path (`getDocumentById`/`getDocumentByVersion`/`getDocumentHistory`) and
+ * a `findDocuments` scoped to what the `versioning`/`field-types`
+ * `@byline/db-conformance` suites exercise; see
+ * `src/modules/storage/storage-queries.ts`'s module docblock for exactly
+ * what's deferred to Task 10B.
  */
-export function setupTestDB(_collections: CollectionDefinition[] = []) {
+export function setupTestDB(collections: CollectionDefinition[] = []) {
   if (!pool) {
     assertTestDatabase(process.env.BYLINE_DB_MYSQL_CONNECTION_STRING)
     pool = mysql.createPool({
@@ -38,6 +42,10 @@ export function setupTestDB(_collections: CollectionDefinition[] = []) {
       connectionLimit: 4,
       timezone: 'Z',
       decimalNumbers: false,
+      // Match the schema's collation — see the identical option on the
+      // production pool in `src/index.ts` for why this is required (not
+      // just a nicety) once the storage-queries UNION ALL is in play.
+      charset: 'UTF8MB4_0900_AI_CI',
     })
   }
 
@@ -54,7 +62,11 @@ export function setupTestDB(_collections: CollectionDefinition[] = []) {
     commandBuilders = createCommandBuilders(dbManager, 'en')
   }
 
-  return { pool, db, dbManager, txManager, commandBuilders }
+  // Recreate queryBuilders when collections are provided so that
+  // DocumentQueries can resolve collection definitions by path.
+  queryBuilders = createQueryBuilders(db, collections, 'en', dbManager)
+
+  return { pool, db, dbManager, txManager, commandBuilders, queryBuilders }
 }
 
 export async function teardownTestDB() {
@@ -65,5 +77,6 @@ export async function teardownTestDB() {
     dbManager = undefined as any
     txManager = undefined as any
     commandBuilders = undefined as any
+    queryBuilders = undefined as any
   }
 }
