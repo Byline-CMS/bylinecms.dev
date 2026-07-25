@@ -21,11 +21,9 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 
 import type { MySql2Database } from 'drizzle-orm/mysql2'
 
-// TODO(Task 8): parameterize with `typeof schema` once
-// `src/database/schema/index.ts` lands, mirroring the pg adapter's
-// `MySql2Database<typeof schema>`. The schema module does not exist yet —
-// Task 7 is package skeleton only.
-export type DBExecutor = MySql2Database<Record<string, never>>
+import type * as schema from '../database/schema/index.js'
+
+export type DBExecutor = MySql2Database<typeof schema>
 
 const transactionALS = new AsyncLocalStorage<DBExecutor>()
 

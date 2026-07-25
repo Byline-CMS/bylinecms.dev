@@ -11,6 +11,7 @@ import { drizzle, type MySql2Database } from 'drizzle-orm/mysql2'
 import type { PoolConnection as CallbackPoolConnection } from 'mysql2'
 import mysql from 'mysql2/promise'
 
+import * as schema from './database/schema/index.js'
 import { assertMySqlVersion } from './lib/boot-check.js'
 import { DBManagerImpl, TXManagerImpl } from './lib/db-manager.js'
 
@@ -25,14 +26,8 @@ import { DBManagerImpl, TXManagerImpl } from './lib/db-manager.js'
  * (`packages/db-postgres/src/index.ts`).
  */
 export interface MySqlAdapter extends IDbAdapter {
-  /**
-   * The underlying Drizzle instance.
-   *
-   * TODO(Task 8): parameterize with `typeof schema` once
-   * `src/database/schema/index.ts` lands, mirroring `PgAdapter['drizzle']`
-   * (`NodePgDatabase<typeof schema>`).
-   */
-  drizzle: MySql2Database<Record<string, never>>
+  /** The underlying Drizzle instance, typed against the full schema. */
+  drizzle: MySql2Database<typeof schema>
   /** The mysql2 connection pool — exposed for housekeeping and teardown. */
   pool: mysql.Pool
 }
@@ -93,12 +88,11 @@ export const mysqlAdapter = ({
     decimalNumbers: false,
   })
 
-  // TODO(Task 8): pass the real schema once `src/database/schema/index.ts`
-  // lands. `drizzle-orm/mysql2` requires `mode` whenever `schema` is
-  // supplied — even an empty placeholder — so `'default'` stands in until
-  // then.
-  const db: MySql2Database<Record<string, never>> = drizzle(pool, {
-    schema: {},
+  // `drizzle-orm/mysql2` requires `mode` whenever `schema` is supplied.
+  // 'default' matches the pg adapter's un-prefixed-key mode (as opposed to
+  // 'planetscale', which changes how relational queries build).
+  const db: MySql2Database<typeof schema> = drizzle(pool, {
+    schema,
     mode: 'default',
   })
 
