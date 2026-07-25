@@ -1551,22 +1551,53 @@ export class DocumentQueries implements IDocumentQueries {
    * current-documents view, so an unpublished node and its whole subtree
    * drop out in `published` mode.
    *
-   * Two divergences from pg, both found live (not assumed from docs):
+   * Three divergences from pg, all found (or, for the third, reproduced)
+   * live — not assumed from docs:
    *
    *   - `s.path || '/' || r.order_key` (pg's `||` string concat) is MySQL
    *     boolean OR unless `PIPES_AS_CONCAT` is in `sql_mode` — confirmed
    *     against this database's `@@sql_mode` (it isn't set), and confirmed
    *     `SELECT 'a' || 'b'` returns `0`, not `'ab'`. `CONCAT(s.path, '/',
    *     r.order_key)` is the portable form.
-   *   - pg's `r.order_key::text AS path` cast and the closing `ORDER BY path
-   *     COLLATE "C"` both drop: `order_key` (and therefore the CONCAT'd
-   *     `path` column) is already `ascii_bin` — byte-comparable — end to
-   *     end (`varcharByteSorted`, `database/schema/common.ts`), confirmed
-   *     live that `CONCAT()` over two `ascii_bin` columns plus a `'/'`
-   *     literal stays `ascii_bin` rather than falling back to the
-   *     connection's `utf8mb4_0900_ai_ci` default (which would reorder
-   *     mixed-case keys incorrectly, the same class of bug `varcharByteSorted`
-   *     exists to prevent on the base columns).
+   *   - `ORDER BY path COLLATE "C"` drops the explicit collation: `order_key`
+   *     (and therefore the CONCAT'd `path` column, once the width fix below
+   *     is in place) is already `ascii_bin` — byte-comparable — end to end
+   *     (`varcharByteSorted`, `database/schema/common.ts`), confirmed live
+   *     that `CONCAT()` over two `ascii_bin` operands plus a `'/'` literal
+   *     stays `ascii_bin` rather than falling back to the connection's
+   *     `utf8mb4_0900_ai_ci` default (which would reorder mixed-case keys
+   *     incorrectly, the same class of bug `varcharByteSorted` exists to
+   *     prevent on the base columns).
+   *   - pg's `r.order_key::text AS path` cast does **two** jobs, not one —
+   *     an earlier version of this docblock dropped the cast on collation
+   *     grounds alone and missed the second job. In Postgres, `::text`
+   *     also makes the anchor column **unbounded** (`text` has no length
+   *     cap), which an accumulating concatenation needs. MySQL infers a
+   *     recursive CTE's column types from the *non-recursive* (anchor) leg
+   *     only — a bare `r.order_key` reference in the anchor makes `path`
+   *     inherit `order_key`'s declared `varchar(128)` width
+   *     (`varcharByteSorted`, `database/schema/index.ts:299`), so every
+   *     recursive iteration's `CONCAT` is silently constrained to 128
+   *     bytes regardless of how the SELECT list is written. Reproduced
+   *     live against this server (`STRICT_TRANS_TABLES` is in `sql_mode`,
+   *     so it's a hard `ER_DATA_TOO_LONG`, not silent truncation):
+   *     `WITH RECURSIVE t AS (SELECT CAST('ab' AS CHAR(128) CHARACTER SET
+   *     ascii) AS p, 1 AS n UNION ALL SELECT CONCAT(p,'/','abc…xyz'), n+1
+   *     FROM t WHERE n<6) …` → `ERROR 1406 (22001): Data too long for
+   *     column 'p' at row 1`. The threshold — `Σ len(order_key) + depth − 1
+   *     > 128` — is far more reachable than the `cte_max_recursion_depth`
+   *     ceiling this method's own docblock elsewhere flags: roughly 11–40
+   *     tree levels for typical fractional-index keys, lower once keys
+   *     have grown through repeated same-position reordering. Fix: widen
+   *     the anchor's `path` column explicitly —
+   *     `CAST(r.order_key AS CHAR(4096) CHARACTER SET ascii) COLLATE
+   *     ascii_bin` — doing both jobs the pg cast did: width (4096 bytes,
+   *     generous headroom over the reachable-depth threshold above) *and*
+   *     collation (`CHARACTER SET ascii` alone resolves to
+   *     `ascii_general_ci`, not `ascii_bin` — confirmed live that a bare
+   *     `CAST(… AS CHAR(4096))` with no `CHARACTER SET`/`COLLATE` at all
+   *     reverts to the *connection's* default collation, not the source
+   *     column's, so both clauses are required, not just one).
    */
   async getTreeSubtree({
     collectionId,
@@ -1612,7 +1643,8 @@ export class DocumentQueries implements IDocumentQueries {
     const query = sql`
       WITH RECURSIVE subtree AS (
         SELECT r.child_document_id, r.parent_document_id, r.order_key,
-               0 AS depth, r.order_key AS path
+               0 AS depth,
+               CAST(r.order_key AS CHAR(4096) CHARACTER SET ascii) COLLATE ascii_bin AS path
         FROM byline_document_relationships r
         JOIN byline_documents d ON d.id = r.child_document_id
         WHERE d.collection_id = ${collectionId}

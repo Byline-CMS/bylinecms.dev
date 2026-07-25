@@ -96,6 +96,13 @@ const PostsCollectionConfig: CollectionDefinition = {
   ],
 }
 
+const DeepTreeCollectionConfig: CollectionDefinition = {
+  path: `queries-test-deep-tree-${timestamp}`,
+  labels: { singular: 'Node', plural: 'Nodes' },
+  fields: [{ name: 'title', type: 'text' }],
+  tree: true,
+}
+
 describe('DocumentQueries.getDocumentById locale-chain path resolution (mysql, live database)', () => {
   let testDb: ReturnType<typeof setupTestDB>
   let collectionId: string
@@ -479,9 +486,8 @@ describe('findDocuments filters, combinators, relation hops, search, and sort (m
     post3 = await createPost('Ünïcödé Post', undefined, adaId, `unicode-post-${timestamp}`)
   })
 
-  afterAll(async () => {
-    await teardownTestDB()
-  })
+  // `teardownTestDB()` is called once, at the very end of this file (see the
+  // last describe block below) — not here.
 
   it('$or combinator: matches either field-filter branch', async () => {
     const result = await testDb.queryBuilders.documents.findDocuments({
@@ -643,5 +649,120 @@ describe('findDocuments filters, combinators, relation hops, search, and sort (m
     // Descending: MySQL's native DESC already sorts NULL last — no emulation
     // needed, confirmed here rather than just asserted.
     expect(desc.documents.map((d) => d.document_id)).toEqual([post2, post1, post3])
+  })
+})
+
+/**
+ * `getTreeSubtree`'s recursive CTE `path` column — a live-database
+ * regression pin for the fix reviewed in the Task 10B fix round.
+ *
+ * MySQL infers a recursive CTE's column types from the non-recursive
+ * (anchor) leg only. The anchor's `path` column started life as a bare
+ * `r.order_key` reference, which made it inherit `order_key`'s declared
+ * `varchar(128)` width — every recursive iteration's `CONCAT` was then
+ * silently constrained to 128 bytes, and this database's `sql_mode`
+ * (`STRICT_TRANS_TABLES`) turns that into a hard `ER_DATA_TOO_LONG` rather
+ * than silent truncation. `documentTreeSuite`'s 20 tests all build shallow
+ * trees (a handful of levels), so none of them reach the threshold —
+ * `Σ len(order_key) + depth − 1 > 128`, roughly 11–40 levels for typical
+ * fractional-index keys. This describe block builds a straight-line chain
+ * deep enough to guarantee crossing that threshold and asserts the subtree
+ * comes back correctly ordered, not merely that it doesn't throw.
+ *
+ * Not added to `@byline/db-conformance`'s shared `document-tree` suite —
+ * this is a MySQL-only regression (Postgres's `::text` cast has no width
+ * cap), and per the fix-round instruction, the shared suite stays
+ * untouched.
+ */
+describe('getTreeSubtree deep path width (mysql, live database)', () => {
+  let testDb: ReturnType<typeof setupTestDB>
+  let collectionId: string
+  // 60 single-child levels: each level's order_key is the fractional-index
+  // library's first-in-an-empty-group key ('a0', 2 bytes), so the
+  // accumulated path is `a0/a0/a0/…` — 60 * 3 - 1 = 179 bytes, comfortably
+  // past the 128-byte threshold that reproduced ER_DATA_TOO_LONG before the
+  // fix (and still comfortably under this fix's 4096-byte cast width).
+  const depth = 60
+  let chain: string[] = []
+
+  beforeAll(async () => {
+    testDb = setupTestDB([DeepTreeCollectionConfig])
+    collectionId = first(
+      await testDb.commandBuilders.collections.create(
+        DeepTreeCollectionConfig.path,
+        DeepTreeCollectionConfig
+      )
+    ).id
+
+    chain = []
+    for (let i = 0; i < depth; i++) {
+      const created = await testDb.commandBuilders.documents.createDocumentVersion({
+        collectionId,
+        collectionVersion: 1,
+        collectionConfig: DeepTreeCollectionConfig,
+        action: 'create',
+        documentData: { title: `node-${i}` },
+        path: `deep-tree-node-${i}-${timestamp}`,
+        locale: 'en',
+        status: 'published',
+      })
+      chain.push(created.document.document_id)
+    }
+
+    // Place as a single-child chain: chain[0] is root, chain[1] is its only
+    // child, chain[2] is chain[1]'s only child, and so on. Each placement
+    // targets a brand-new (empty) sibling group, so every level mints the
+    // same short 'a0' key via the fractional-index library's empty-group
+    // default — the worst case for path growth (no width saved by longer
+    // keys pushing the depth threshold down, but also none saved by very
+    // short keys pushing it up beyond what's realistic in practice).
+    for (let i = 0; i < depth; i++) {
+      await testDb.commandBuilders.documents.placeTreeNode({
+        collectionId,
+        documentId: chain[i] as string,
+        parentDocumentId: i === 0 ? null : (chain[i - 1] as string),
+      })
+    }
+  })
+
+  afterAll(async () => {
+    await testDb.commandBuilders.collections.delete(collectionId)
+    await teardownTestDB()
+  })
+
+  it('returns a 60-level single-child chain, correctly ordered, without ER_DATA_TOO_LONG', async () => {
+    const subtree = await testDb.queryBuilders.documents.getTreeSubtree({
+      collectionId,
+      rootDocumentId: null,
+    })
+    // Correctness, not just "didn't throw": exact count, exact document
+    // order (root-to-leaf, since it's a single-child chain), and exact
+    // depth per node.
+    expect(subtree.length).toBe(depth)
+    expect(subtree.map((n) => n.document_id)).toEqual(chain)
+    expect(subtree.map((n) => n.depth)).toEqual(Array.from({ length: depth }, (_, i) => i))
+    expect(subtree[0]?.parent_document_id).toBeNull()
+    for (let i = 1; i < depth; i++) {
+      expect(subtree[i]?.parent_document_id).toBe(chain[i - 1])
+    }
+  })
+
+  it('getTreeAncestors on the deepest leaf walks the full 59-ancestor chain root-first', async () => {
+    // The fixed-width uuidChar columns getTreeAncestors accumulates were
+    // never at risk (see the fix-round docblock), but this pins the deep
+    // case end to end alongside the subtree fix, using the same fixture.
+    const leaf = chain[depth - 1] as string
+    const ancestors = await testDb.queryBuilders.documents.getTreeAncestors({
+      document_id: leaf,
+    })
+    expect(ancestors.length).toBe(depth - 1)
+    // Root-first (`ORDER BY depth DESC`): chain[0] (the root) has the
+    // highest depth value (depth-1) and comes first; chain[depth-2] (the
+    // immediate parent) has depth 1 and comes last. `chain.slice(0,
+    // depth-1)` is already root-to-immediate-parent order, so no reverse.
+    expect(ancestors.map((a) => a.document_id)).toEqual(chain.slice(0, depth - 1))
+    expect(ancestors.map((a) => a.depth)).toEqual(
+      Array.from({ length: depth - 1 }, (_, i) => depth - 1 - i)
+    )
   })
 })
