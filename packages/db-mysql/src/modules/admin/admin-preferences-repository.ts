@@ -10,12 +10,13 @@ import type {
   AdminPreferencesRepository,
   AdminUserPreferenceRow,
 } from '@byline/admin/admin-preferences'
-import { DbErrorCodes } from '@byline/core'
+import { DbErrorCodes, ERR_DATABASE, getLogger } from '@byline/core'
 import { and, eq } from 'drizzle-orm'
 import type { MySql2Database } from 'drizzle-orm/mysql2'
 
 import { adminUserPreferences } from '../../database/schema/auth.js'
 import { classifyError } from '../storage/classify-error.js'
+import { affectedRowCount } from '../storage/storage-utils.js'
 import type * as schema from '../../database/schema/index.js'
 
 /**
@@ -54,6 +55,16 @@ import type * as schema from '../../database/schema/index.js'
  * '<table>.PRIMARY'`) — any other error (e.g. the `fk_admin_user_
  * preferences_user_id` foreign key rejecting an unknown `userId`) rethrows
  * unchanged rather than being misread as a pre-existing row.
+ *
+ * The conflict-fallback branch handles the row vanishing out from under it
+ * too: if a concurrent delete (e.g. cascading from the owning admin user)
+ * removes the row between the failed `INSERT` and the locked `SELECT`,
+ * `existing` comes back empty and this inserts fresh rather than merging
+ * onto — and reporting success for — a snapshot of a row that no longer
+ * exists. The subsequent `UPDATE`'s affected-row count is checked too,
+ * defensively, even though the `FOR UPDATE` lock held across the
+ * read-modify-write should make a mid-transaction disappearance there
+ * unreachable.
  *
  * `.returning()` has no MySQL equivalent; `created_at`/`updated_at` are
  * captured once as `now` and reused for both the write and the returned
@@ -109,26 +120,55 @@ export function createAdminPreferencesRepository(
           .for('update')
 
         const now = new Date()
+
+        if (!existing) {
+          // The row that made our INSERT fail is gone by the time we got
+          // here — a concurrent delete (e.g. cascading from the owning
+          // admin user) raced us between the failed INSERT and this locked
+          // read. There is truly no row now, so insert fresh rather than
+          // merging onto a snapshot that no longer exists.
+          await tx.insert(adminUserPreferences).values({
+            user_id: userId,
+            scope,
+            value: patch,
+            created_at: now,
+            updated_at: now,
+          })
+          return {
+            user_id: userId,
+            scope,
+            value: { ...patch },
+            created_at: now,
+            updated_at: now,
+          } satisfies AdminUserPreferenceRow
+        }
+
         const merged: Record<string, unknown> = {
-          ...(existing?.value as Record<string, unknown> | undefined),
+          ...(existing.value as Record<string, unknown>),
           ...patch,
         }
 
-        await tx
+        const result = await tx
           .update(adminUserPreferences)
           .set({ value: merged, updated_at: now })
           .where(
             and(eq(adminUserPreferences.user_id, userId), eq(adminUserPreferences.scope, scope))
           )
+        if (affectedRowCount(result) === 0) {
+          // Unreachable in practice — `existing` was read via `FOR UPDATE`
+          // inside this same transaction, so the row is locked and cannot
+          // vanish before the `UPDATE` above. Guarded anyway so a write
+          // that didn't happen is never reported as a success.
+          throw ERR_DATABASE({
+            message: 'admin preferences upsert: locked row vanished before UPDATE',
+          }).log(getLogger())
+        }
+
         return {
           user_id: userId,
           scope,
           value: merged,
-          // `existing` is expected present (the failed INSERT above proved a
-          // row exists) — the `?? now` fallback only guards the
-          // vanishingly unlikely window where it was deleted between the
-          // failed INSERT and this locked read.
-          created_at: existing?.created_at ?? now,
+          created_at: existing.created_at,
           updated_at: now,
         } satisfies AdminUserPreferenceRow
       })
