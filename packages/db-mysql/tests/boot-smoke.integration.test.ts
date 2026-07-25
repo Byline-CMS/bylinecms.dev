@@ -49,11 +49,16 @@
  *
  * What this does NOT exercise: the TanStack Start host adapter, the admin
  * UI, or auth/session wiring — those are framework-specific layers above
- * `@byline/client` this task's scope doesn't reach. What it DOES prove is
- * that `initBylineCore()`'s full boot sequence — collection reconciliation
- * and counter-group discovery included — completes against a MySQL adapter,
- * and that nothing in `@byline/client`'s lifecycle/hook/collection-resolution
- * layer assumes a Postgres-shaped adapter.
+ * `@byline/client` this task's scope doesn't reach. The boot-smoke
+ * collection carries a `beforeCreate` hook (below) that mutates `summary`,
+ * asserted on the create step, so the hook layer isn't pure no-op dispatch
+ * here — but only that one slot is exercised; `afterCreate`, `beforeUpdate`,
+ * `afterUpdate`, and the rest of `CollectionHooks` are not. What it DOES
+ * prove is that `initBylineCore()`'s full boot sequence — collection
+ * reconciliation and counter-group discovery included — completes against a
+ * MySQL adapter, and that nothing in `@byline/client`'s
+ * lifecycle/hook/collection-resolution layer assumes a Postgres-shaped
+ * adapter.
  */
 
 import { createSuperAdminContext } from '@byline/auth'
@@ -106,6 +111,15 @@ function createBootSmokeCollection(suffix: string) {
       // unverified even after switching to a real `initBylineCore()` call.
       { name: 'sequenceId', type: 'counter', group: `boot-smoke-counters-${suffix}` },
     ],
+    // Proves the hook layer actually dispatches through a MySQL-backed
+    // `initBylineCore()` composition, not just that it's wired and no-ops —
+    // see the module docblock's "What this does NOT exercise" note. Only
+    // `beforeCreate` is covered; asserted below on the create step.
+    hooks: {
+      beforeCreate: ({ data }) => {
+        data.summary = `${data.summary} (hook-mutated)`
+      },
+    },
   })
 }
 
@@ -204,7 +218,10 @@ describe('MySQL end-to-end boot smoke (initBylineCore composition, live database
     // same way an admin caller would.
     const afterCreate = await handle.findById(created.documentId, { status: 'any' })
     expect(afterCreate?.fields.title).toBe('Boot Smoke Doc')
-    expect(afterCreate?.fields.summary).toBe('first draft')
+    // '(hook-mutated)' only appears here if the collection's `beforeCreate`
+    // hook actually ran and its mutation reached persistence — proves the
+    // hook layer dispatches through this MySQL-backed composition.
+    expect(afterCreate?.fields.summary).toBe('first draft (hook-mutated)')
     expect(afterCreate?.status).toBe('draft')
     const sequenceId = (afterCreate?.fields as Record<string, unknown> | undefined)?.sequenceId
     expect(Number.isInteger(sequenceId)).toBe(true)
