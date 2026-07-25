@@ -293,5 +293,61 @@ export function documentPathsSuite(hooks: ConformanceHooks): void {
         expect(path).toBe(null)
       })
     })
+
+    // `byline_document_paths.path` is `ascii_bin`/`utf8mb4_bin`-equivalent
+    // (case- and accent-sensitive) on both adapters specifically so path
+    // uniqueness is byte-exact and agrees across dialects — see
+    // `varcharCaseSensitive` in `packages/db-mysql/src/database/schema/
+    // common.ts` and the plain `text`/default-collation `path` column on
+    // Postgres. Pins today's behaviour (`/About` and `/about` are two
+    // distinct documents) so that issue #48 (normalising manual path
+    // overrides through core's slugifier, which would make them the *same*
+    // document on both adapters) is a deliberate, knowing change rather
+    // than something that drifts in per-dialect.
+    it('treats case-variant paths as distinct documents', async () => {
+      const stem = `Case-Variant-${Date.now()}`
+      const upperPath = `/${stem}`
+      const lowerPath = `/${stem.toLowerCase()}`
+
+      const upper = await adapter.commands.documents.createDocumentVersion({
+        collectionId: testCollection.id,
+        collectionVersion: 1,
+        collectionConfig: PathsCollectionConfig,
+        action: 'create',
+        documentData: { title: 'Upper' },
+        path: upperPath,
+        locale: 'all',
+        status: 'draft',
+      })
+
+      const lower = await adapter.commands.documents.createDocumentVersion({
+        collectionId: testCollection.id,
+        collectionVersion: 1,
+        collectionConfig: PathsCollectionConfig,
+        action: 'create',
+        documentData: { title: 'Lower' },
+        path: lowerPath,
+        locale: 'all',
+        status: 'draft',
+      })
+
+      // Two distinct logical documents — the second create did not collide
+      // with the first, and did not upsert onto it.
+      expect(lower.document.document_id).not.toBe(upper.document.document_id)
+
+      const upperFound = await adapter.queries.documents.getDocumentByPath({
+        collection_id: testCollection.id,
+        path: upperPath,
+        reconstruct: false,
+      })
+      const lowerFound = await adapter.queries.documents.getDocumentByPath({
+        collection_id: testCollection.id,
+        path: lowerPath,
+        reconstruct: false,
+      })
+
+      expect(upperFound?.document_id).toBe(upper.document.document_id)
+      expect(lowerFound?.document_id).toBe(lower.document.document_id)
+    })
   })
 }
