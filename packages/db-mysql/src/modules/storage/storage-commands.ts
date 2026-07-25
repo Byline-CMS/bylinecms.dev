@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition } from '@byline/core'
+import type { CollectionDefinition, ICollectionCommands } from '@byline/core'
 import { DbErrorCodes, flattenFieldSetData } from '@byline/core'
 import { and, eq, notInArray, sql } from 'drizzle-orm'
 import type { AnyMySqlTable } from 'drizzle-orm/mysql-core'
@@ -48,7 +48,7 @@ type TxConnection = Parameters<Parameters<DatabaseConnection['transaction']>[0]>
  * without a round trip. `update` re-`SELECT`s because `patch` is partial
  * and the caller expects the merged row back.
  */
-export class CollectionCommands {
+export class CollectionCommands implements ICollectionCommands {
   constructor(private dbManager: DBManager) {}
 
   /**
@@ -129,18 +129,21 @@ export class CollectionCommands {
 }
 
 /**
- * DocumentCommands — Task 9A partial.
+ * DocumentCommands — Task 9B, in progress.
  *
- * Only `createDocumentVersion` (and the private helpers it calls) is
- * implemented here. The rest of `IDocumentCommands` —
- * `updateDocumentPath`, `setDocumentAvailableLocales`, `setDocumentStatus`,
+ * `createDocumentVersion` (Task 9A) plus `updateDocumentPath` and
+ * `setDocumentAvailableLocales` — the standalone, non-versioned system-field
+ * writes, both second callers into the private `writeDocumentPath` /
+ * `writeDocumentAvailableLocales` helpers `createDocumentVersion` already
+ * uses. The rest of `IDocumentCommands` — `setDocumentStatus`,
  * `archivePublishedVersions`, `softDeleteDocument`, `deleteDocumentLocale`,
  * `setOrderKey`, `placeTreeNode`, `removeFromTree`,
- * `promoteChildrenAndRemoveFromTree` — is Task 9B, ported alongside the rest
- * of `packages/db-postgres/src/modules/storage/storage-commands.ts`'s
- * `DocumentCommands`. This class deliberately does not `implements
+ * `promoteChildrenAndRemoveFromTree` — lands in the rest of this task, ported
+ * alongside the rest of
+ * `packages/db-postgres/src/modules/storage/storage-commands.ts`'s
+ * `DocumentCommands`. This class deliberately does not yet `implements
  * IDocumentCommands`; `src/index.ts` composes the full interface object by
- * picking `createDocumentVersion` off an instance of this class and leaving
+ * picking the implemented members off an instance of this class and leaving
  * every other member as the existing `notImplemented(...)` stub.
  */
 export class DocumentCommands {
@@ -577,6 +580,65 @@ export class DocumentCommands {
 
     await (tx.insert(table as any).values(values) as any).onDuplicateKeyUpdate({
       set: { id: sql`id` },
+    })
+  }
+  /**
+   * updateDocumentPath
+   *
+   * Standalone, non-versioned write of a document's URL path. Backs the admin
+   * path widget's direct-write Save path: it edits `byline_document_paths`
+   * in-place (document-grain, sticky) **without** minting a new document
+   * version or touching workflow status. The path's document-grain nature means
+   * the change is immediate and applies across every version of the document.
+   *
+   * Second caller into `writeDocumentPath` (the first is `createDocumentVersion`
+   * step 2a) — see that method's docblock for the insert-then-catch-and-
+   * conditionally-update targeting it does in place of pg's
+   * `onConflictDoUpdate({ target })`.
+   *
+   * Source-locale enforcement and `ERR_PATH_CONFLICT` mapping live in the
+   * lifecycle service that calls this; the command itself only performs the
+   * upsert (and surfaces the raw `ER_DUP_ENTRY` for the service to translate
+   * via `classifyError`).
+   */
+  async updateDocumentPath(params: {
+    documentId: string
+    collectionId: string
+    locale: string
+    path: string
+  }): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await this.writeDocumentPath(tx, {
+        documentId: params.documentId,
+        locale: params.locale,
+        collectionId: params.collectionId,
+        path: params.path,
+      })
+    })
+  }
+
+  /**
+   * setDocumentAvailableLocales
+   *
+   * Standalone, non-versioned write of a document's editorial advertised-locale
+   * set. Backs the admin available-locales widget's direct-write Save path: it
+   * replaces `byline_document_available_locales` wholesale (document-grain)
+   * **without** minting a new document version or touching workflow status. The
+   * change is immediate and applies across every version of the document; the
+   * public advertised set remains the intersection with the resolved version's
+   * completeness ledger. See docs/07-internationalization/index.md.
+   */
+  async setDocumentAvailableLocales(params: {
+    documentId: string
+    collectionId: string
+    availableLocales: string[]
+  }): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await this.writeDocumentAvailableLocales(tx, {
+        documentId: params.documentId,
+        collectionId: params.collectionId,
+        availableLocales: params.availableLocales,
+      })
     })
   }
 }

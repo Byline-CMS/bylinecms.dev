@@ -144,16 +144,17 @@ export const mysqlAdapter = ({
       // `ICollectionCommands` — see `./modules/storage/storage-commands.js`.
       collections: commandBuilders.collections,
       documents: {
-        // Task 9A. `commandBuilders.documents` (`DocumentCommands`) is a
-        // deliberate partial — only `createDocumentVersion` is implemented;
-        // see that class's docblock. Every other member below is Task 9B.
+        // `commandBuilders.documents` (`DocumentCommands`) is a partial —
+        // see that class's docblock for what's implemented so far. Every
+        // other member below is still the rest of Task 9B.
         createDocumentVersion: commandBuilders.documents.createDocumentVersion.bind(
           commandBuilders.documents
         ),
-        updateDocumentPath: notImplemented('commands.documents.updateDocumentPath', 9),
-        setDocumentAvailableLocales: notImplemented(
-          'commands.documents.setDocumentAvailableLocales',
-          9
+        updateDocumentPath: commandBuilders.documents.updateDocumentPath.bind(
+          commandBuilders.documents
+        ),
+        setDocumentAvailableLocales: commandBuilders.documents.setDocumentAvailableLocales.bind(
+          commandBuilders.documents
         ),
         setDocumentStatus: notImplemented('commands.documents.setDocumentStatus', 9),
         archivePublishedVersions: notImplemented('commands.documents.archivePublishedVersions', 9),
