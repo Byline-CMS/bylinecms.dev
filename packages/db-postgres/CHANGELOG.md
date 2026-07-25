@@ -1,5 +1,56 @@
 # @byline/db-postgres
 
+## 4.8.0
+
+### Minor Changes
+
+- 06ac2db: Added `@byline/db-mysql`, Byline's second database adapter — **published as preliminary,
+  not as fully supported MySQL support.** The storage layer is complete and proven: it
+  passes the entire shared `@byline/db-conformance` behavioural suite, the same suite
+  `@byline/db-postgres` passes, with identical results. What is missing is the surrounding
+  ecosystem, and one gap needs stating plainly because it fails at boot rather than
+  degrading quietly: **there is no MySQL search provider**, and `initBylineCore()` throws
+  when a collection declares a `search` block with no provider registered. Byline's own
+  reference application opts five collections into search, so a MySQL installation copying
+  it will not start until a no-op provider is registered — `packages/db-mysql/README.md`
+  gives the snippet. `byline init` also does not yet scaffold MySQL, and CI pins the 8.0
+  engine floor so nothing exercises 9.x automatically. Treat this release as suitable for
+  evaluation, prototypes, and installations that do not need search.
+
+  `mysqlAdapter()` implements
+  the same `IDbAdapter` contract as `@byline/db-postgres` over MySQL 8.0.14+ (InnoDB only;
+  the boot check rejects older servers and MariaDB) and passes the same shared
+  `@byline/db-conformance` suite the Postgres adapter runs, so document storage, versioning,
+  patches, workflow, populate, and admin auth behave identically regardless of which
+  database is configured. See `packages/db-mysql/README.md` for install steps, the engine
+  floor, and the documented differences from the Postgres adapter.
+
+  **BREAKING (`@byline/db-postgres`):** `date` and `datetime` field values now arrive as
+  `Date` objects instead of raw driver strings. `date` values are anchored to **UTC
+  midnight** for their calendar day; `datetime` values carry the full instant; `time`
+  values are unchanged and remain a string. This was previously undocumented raw driver
+  output — `packages/core/src/storage/storage-row-types.ts` already typed both columns as
+  `Date | string`, so code written to handle either shape is unaffected. Check any code
+  that reads a `date` or `datetime` field value and calls a string method on it (`.slice()`,
+  `.split()`, a regex) or hands it to a date-parsing library expecting a string — that code
+  now receives a `Date` and must be updated to use `Date` methods (or call `.toISOString()`
+  itself) instead. This is a `minor`, not a `major`, release: every publishable `@byline/*`
+  package is versioned in one lockstep group, and this change does not warrant taking all
+  sixteen packages to 5.0.0.
+
+### Patch Changes
+
+- 7211479: Added a code-based `classifyError` adapter seam (`IDbAdapter.classifyError`, `DbErrorCodes`, `DbErrorClassification`) so `@byline/core` maps database failures to domain errors without inspecting driver-specific error anatomy. `rethrowPathConflict` now delegates to it; `@byline/db-postgres` implements the classifier by moving its existing `23505` + cause-walk detection behind the seam (behaviour unchanged). This is the error-side analogue of the storage `normalizeRow` seam and unblocks a second database adapter.
+- 80b78be: `db_init.sh` now percent-decodes the user and password in `BYLINE_DB_POSTGRES_CONNECTION_STRING`, matching what node-postgres itself does when it parses the same string. Previously the script's URL parser split the connection string without decoding, so a password written `pa%40ss` created the database role with the literal `pa%40ss` while the adapter connected as `pa@ss` — an access-denied failure with nothing pointing at the cause.
+
+  The script now also rejects a malformed percent-escape (a `%` not followed by two hex digits) with a clear message rather than passing it through. This is stricter than before: a connection string whose password contains a raw, un-encoded `%` — which RFC 3986 requires be written `%25` — is refused by `db_init.sh` where it was previously accepted. Such a string was already failing on the adapter side, where node-postgres throws `URIError: URI malformed` on the same input.
+
+  Connection strings containing no percent-encoding are unaffected.
+
+- Updated dependencies [7211479]
+  - @byline/core@4.8.0
+  - @byline/admin@4.8.0
+
 ## 4.7.0
 
 ### Patch Changes

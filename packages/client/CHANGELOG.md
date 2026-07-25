@@ -1,5 +1,13 @@
 # @byline/client
 
+## 4.8.0
+
+### Patch Changes
+
+- Updated dependencies [7211479]
+  - @byline/core@4.8.0
+  - @byline/auth@4.8.0
+
 ## 4.7.0
 
 ### Patch Changes

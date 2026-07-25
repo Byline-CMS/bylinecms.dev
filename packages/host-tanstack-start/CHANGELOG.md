@@ -1,5 +1,18 @@
 # @byline/host-tanstack-start
 
+## 4.8.0
+
+### Patch Changes
+
+- Updated dependencies [7211479]
+  - @byline/core@4.8.0
+  - @byline/admin@4.8.0
+  - @byline/ai@4.8.0
+  - @byline/client@4.8.0
+  - @byline/auth@4.8.0
+  - @byline/i18n@4.8.0
+  - @byline/ui@4.8.0
+
 ## 4.7.0
 
 ### Patch Changes
