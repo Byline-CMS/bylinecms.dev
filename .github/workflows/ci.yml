@@ -56,8 +56,33 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+      # Pinned to 8.0 deliberately: the adapter's engine floor is MySQL
+      # 8.0.14 (the release that added LATERAL joins and lifted the
+      # no-subquery-in-a-view's-FROM restriction, both of which the storage
+      # layer relies on). Local development runs `mysql:latest` (9.x) via
+      # `mysql/docker-compose.yml`, so pinning 8.0 here is what actually
+      # exercises the floor rather than a version comfortably above it.
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test
+          MYSQL_DATABASE: byline_test
+          MYSQL_USER: byline
+          MYSQL_PASSWORD: byline
+        ports:
+          - 3306:3306
+        # `mysqladmin ping` with explicit root credentials: an unauthenticated
+        # ping can report success while the server is still initialising the
+        # data directory, which would let the migration step race startup.
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -ptest --silent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
     env:
       BYLINE_DB_POSTGRES_CONNECTION_STRING: postgres://byline:byline@127.0.0.1:5432/byline_test
+      BYLINE_DB_MYSQL_CONNECTION_STRING: mysql://byline:byline@127.0.0.1:3306/byline_test
 
     steps:
       - uses: actions/checkout@v6
@@ -74,9 +99,12 @@ jobs:
       # all packages ensures every import path resolves.
       - run: pnpm build:packages
 
-      # Both test runners read BYLINE_DB_POSTGRES_CONNECTION_STRING from
-      # `.env.test` files. CI writes them from the job-level env block; they're
-      # gitignored so committing them by accident isn't possible.
+      # Every integration runner reads its connection string from a `.env.test`
+      # file. CI writes them from the job-level env block; they're gitignored so
+      # committing them by accident isn't possible. Each adapter's
+      # `assertTestDatabase` also refuses any database whose name doesn't end in
+      # `_test`, so a misconfigured string fails loudly rather than pointing at
+      # something it shouldn't.
       - name: Write .env.test files
         run: |
           cat > packages/db-postgres/.env.test <<EOF
@@ -84,6 +112,9 @@ jobs:
           EOF
           cat > packages/client/.env.test <<EOF
           BYLINE_DB_POSTGRES_CONNECTION_STRING=$BYLINE_DB_POSTGRES_CONNECTION_STRING
+          EOF
+          cat > packages/db-mysql/.env.test <<EOF
+          BYLINE_DB_MYSQL_CONNECTION_STRING=$BYLINE_DB_MYSQL_CONNECTION_STRING
           EOF
 
       # Unit suites across every package (core/auth/admin/ai/host/client/...).
