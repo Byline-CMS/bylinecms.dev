@@ -672,6 +672,9 @@ importers:
 
   packages/db-mysql:
     dependencies:
+      '@byline/admin':
+        specifier: workspace:*
+        version: link:../admin
       '@byline/core':
         specifier: workspace:*
         version: link:../core
