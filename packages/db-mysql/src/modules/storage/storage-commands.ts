@@ -111,7 +111,7 @@ export class CollectionCommands implements ICollectionCommands {
     // `.returning()` has no MySQL equivalent — every value here is already
     // known (app-generated id, caller-supplied config), so the row is
     // constructed in JS rather than re-`SELECT`ed. `created_at`/`updated_at`
-    // are DB defaults (`CURRENT_TIMESTAMP(3)`); approximated with the
+    // are DB defaults (`CURRENT_TIMESTAMP(6)`); approximated with the
     // request-time `Date` since no caller in this adapter's current scope
     // depends on the authoritative DB-assigned value.
     return [
@@ -681,7 +681,7 @@ export class DocumentCommands implements IDocumentCommands {
    * `id`s are minted per row (MySQL has no per-row `gen_random_uuid()`
    * usable from an `INSERT … SELECT`, and ids must be app-generated UUIDv7 —
    * see `copyForwardStoreRows` above); `created_at`/`updated_at` are left off
-   * the inserted row so the column default (`CURRENT_TIMESTAMP(3)`) supplies
+   * the inserted row so the column default (`CURRENT_TIMESTAMP(6)`) supplies
    * a fresh timestamp, matching pg's explicit `NOW(), NOW()`.
    *
    * The target version is assumed fresh (no existing rows), so — unlike

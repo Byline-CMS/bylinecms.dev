@@ -66,7 +66,7 @@ export const mysqlAdapter = ({
   const pool = mysql.createPool({
     uri: connectionString,
     connectionLimit,
-    // Every DATETIME(3) column is UTC by convention (spec §2). 'Z' stops
+    // Every DATETIME column is UTC by convention (spec §2). 'Z' stops
     // mysql2 from reinterpreting stored UTC values against the server's or
     // session's local timezone on the way in and out.
     timezone: 'Z',

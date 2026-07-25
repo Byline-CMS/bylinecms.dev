@@ -47,11 +47,12 @@ function first<T>(rows: T[]): T {
 }
 
 /**
- * DATETIME(3) is millisecond-precision, and back-to-back inserts in a tight
- * loop can otherwise land in the same millisecond, making a `created_at`-
+ * `created_at` is `DATETIME(6)` (microsecond precision — see `common.ts`'s
+ * `auditTimestamp` docblock), but back-to-back inserts in a tight loop can
+ * still in principle land close enough together to make a `created_at`-
  * ordered (or `created_at`-tiebreaking) assertion flaky. A short delay
  * between creates keeps `created_at` strictly increasing and the expected
- * order deterministic.
+ * order deterministic, independent of how fine the column's own resolution is.
  */
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))

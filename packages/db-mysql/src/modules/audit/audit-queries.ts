@@ -22,6 +22,7 @@ import { desc, eq, type SQL, sql } from 'drizzle-orm'
 import type { MySql2Database } from 'drizzle-orm/mysql2'
 
 import { auditLog, documentVersions } from '../../database/schema/index.js'
+import { toDate } from '../storage/storage-utils.js'
 import type * as schema from '../../database/schema/index.js'
 
 type DatabaseConnection = MySql2Database<typeof schema>
@@ -47,11 +48,10 @@ function toEntry(row: AuditRow): AuditLogEntry {
  * mysql2 driver parses JSON columns already (confirmed live, matching
  * `normalize-row.ts`'s finding for the storage UNION ALL — an inserted JS
  * object round-trips as an object, not a JSON string), but `occurred_at`
- * comes back as a MySQL datetime **string**, not a `Date` — see
- * `toDate()`'s docstring for why, confirmed live against this exact query
- * shape (a divergence from `normalize-row.ts`'s DATETIME(3)→Date finding,
- * which was confirmed against a schema-typed `.select()`, not a bare
- * `db.execute(sql\`...\`)` call like this one).
+ * comes back as a MySQL datetime **string**, not a `Date` — the same
+ * raw-execute `typeCast` behaviour documented on the shared `toDate()`
+ * helper (`storage-utils.ts`), confirmed live against this exact query
+ * shape as one of that helper's independent call sites.
  */
 type ActivityRow = {
   id: string
@@ -64,29 +64,6 @@ type ActivityRow = {
   before: unknown
   after: unknown
   occurred_at: string
-}
-
-/**
- * Coerce a raw mysql2 `db.execute(sql\`...\`)` `DATETIME(3)` value to a real
- * `Date`. Confirmed live: drizzle-orm's mysql2 driver installs its own
- * `typeCast` on every `execute()`/`query()` call that is not backed by a
- * schema-typed `fields` mapper (`node_modules/drizzle-orm/mysql2/session.js`
- * — `MySql2PreparedQuery`'s `rawQuery.typeCast` unconditionally calls
- * `field.string()` for `TIMESTAMP`/`DATETIME`/`DATE` columns), overriding
- * whatever the underlying mysql2 pool's own `timezone`/date-parsing options
- * would otherwise do. `this.db.execute(sql\`...\`)` — the pattern this class
- * and `storage-queries.ts`'s raw UNION ALL reads both use — always takes
- * that no-`fields` path, so every hand-written SQL read through `db.execute`
- * gets datetime columns back as `'YYYY-MM-DD HH:MM:SS.mmm'` strings, never
- * `Date` objects, regardless of pool configuration. The string carries no
- * timezone marker, but every `DATETIME(3)` column in this schema is UTC by
- * convention (the pool's `timezone: 'Z'` option — see `src/index.ts` —
- * documents that discipline even though it does not apply here), so
- * appending `Z` after normalising the separator is the correct — not an
- * assumed — interpretation.
- */
-function toDate(value: string): Date {
-  return new Date(`${value.replace(' ', 'T')}Z`)
 }
 
 export class AuditQueries implements IAuditQueries {
@@ -232,7 +209,7 @@ export class AuditQueries implements IAuditQueries {
   }
 }
 
-/** Like `toEntry`, but for a raw `ActivityRow` off the UNION — see `toDate`. */
+/** Like `toEntry`, but for a raw `ActivityRow` off the UNION — see `toDate` (`storage-utils.ts`). */
 function toEntryFromActivityRow(row: ActivityRow): AuditLogEntry {
   return {
     id: row.id,
@@ -244,7 +221,10 @@ function toEntryFromActivityRow(row: ActivityRow): AuditLogEntry {
     field: row.field,
     before: row.before,
     after: row.after,
-    occurredAt: toDate(row.occurred_at),
+    // `occurred_at` is NOT NULL on both UNION legs (`documentVersions.created_at`,
+    // `auditLog.occurred_at`), so the shared `toDate`'s `null` branch is
+    // unreachable here — the cast reflects that, not an assumption.
+    occurredAt: toDate(row.occurred_at) as Date,
   }
 }
 

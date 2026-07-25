@@ -49,7 +49,7 @@ export class AuditCommands implements IAuditCommands {
       // before/after value is preserved.
       before: input.before ?? null,
       after: input.after ?? null,
-      // occurred_at defaults to CURRENT_TIMESTAMP(3) at the DB.
+      // occurred_at defaults to CURRENT_TIMESTAMP(6) at the DB.
     })
     return { id }
   }

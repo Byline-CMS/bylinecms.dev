@@ -68,12 +68,18 @@ const fieldTypeLiterals: Record<StoreType, string> = {
  * branch selecting a real, populated column of the corresponding store type
  * and confirming the driver returns the real value unmodified (no
  * truncation, no precision loss) — see the Task 10A report for the
- * transcript. Precision-bearing casts (`TIME(3)`, `DATETIME(3)`,
+ * transcript. Precision-bearing casts (`TIME(3)`, `DATETIME(6)`,
  * `DECIMAL(10,2)`) mirror the schema's own column precision
  * (`packages/db-mysql/src/database/schema/index.ts`) exactly, rather than
  * relying on MySQL's default (whole-second time, `DECIMAL(10,0)`), so a
  * NULL-cast branch can never be the one that silently narrows the unified
- * column's type.
+ * column's type. `DATETIME(6)` here specifically must track
+ * `value_timestamp_tz`'s own `fsp` (Task 11 moved it from 3 to 6, matching
+ * pg's microsecond precision — see `common.ts`'s `auditTimestamp` docblock)
+ * — re-verified live post-move via `storage-queries.test.ts`'s
+ * `datetime`-field round-trip test, which exercises exactly this branch
+ * (a text-typed sibling row's UNION leg lands on this `CAST`) and confirmed
+ * full microsecond fidelity survives.
  */
 export function mysqlNullCast(nullCast: string): string {
   switch (nullCast) {
@@ -83,9 +89,10 @@ export function mysqlNullCast(nullCast: string): string {
       return 'CAST(NULL AS SIGNED)'
     case 'timestamp':
       // The manifest's abstract name for the `timestamptz`-shaped column
-      // (`value_timestamp_tz`); MySQL's storage-side type is `DATETIME(3)`
-      // (spec §2 — UTC by convention), not a MySQL `TIMESTAMP` column.
-      return 'CAST(NULL AS DATETIME(3))'
+      // (`value_timestamp_tz`); MySQL's storage-side type is `DATETIME(6)`
+      // (matching pg's microsecond precision — see `common.ts`'s
+      // `auditTimestamp` docblock), not a MySQL `TIMESTAMP` column.
+      return 'CAST(NULL AS DATETIME(6))'
     case 'date':
       return 'CAST(NULL AS DATE)'
     case 'time':

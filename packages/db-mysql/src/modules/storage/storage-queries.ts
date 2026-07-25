@@ -1937,7 +1937,9 @@ export class DocumentQueries implements IDocumentQueries {
     // Canonicalise the raw UNION ALL driver rows at the ingestion boundary —
     // see normalizeRow's docstring for what the mysql2 driver leaves in a
     // shape core's reconstruction can't consume as-is (TINYINT(1)-as-number,
-    // DECIMAL-as-string with decimalNumbers: false, DATETIME(3)-as-Date).
+    // DECIMAL-as-string with decimalNumbers: false, and — the opposite of
+    // what an earlier version of this comment claimed — DATETIME/DATE-as-
+    // string, coerced to Date by normalizeRow, not already a Date).
     return result[0].map(normalizeRow)
   }
 

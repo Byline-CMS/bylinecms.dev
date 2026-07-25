@@ -263,8 +263,12 @@ describe('storage-commands (mysql, live database)', () => {
       )
       expect(featuredRow.value).toBe(1)
 
-      // byline_store_datetime — DATETIME(3) round-trips as a Date with the
-      // pool's `timezone: 'Z'` option, millisecond precision intact.
+      // byline_store_datetime — DATETIME(6) round-trips as a Date with the
+      // pool's `timezone: 'Z'` option (this query goes through the raw pool,
+      // not drizzle's typeCast-overridden `db.execute()` — see
+      // `storage-utils.ts`'s `toDate` docblock for why that distinction
+      // matters), millisecond precision intact for this millisecond-only
+      // source value.
       const publishedRow = await queryOne(
         rawPool,
         "SELECT value_timestamp_tz FROM byline_store_datetime WHERE document_version_id = ? AND field_name = 'publishedOn'",
