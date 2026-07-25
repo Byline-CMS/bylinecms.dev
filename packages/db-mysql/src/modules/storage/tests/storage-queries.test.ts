@@ -184,6 +184,95 @@ describe('DocumentQueries.getDocumentById locale-chain path resolution (mysql, l
   })
 })
 
+const DatesCollectionConfig: CollectionDefinition = {
+  path: `queries-test-dates-${timestamp}`,
+  labels: { singular: 'DatedThing', plural: 'DatedThings' },
+  fields: [
+    { name: 'title', type: 'text' },
+    { name: 'onDate', type: 'date' },
+    { name: 'atTime', type: 'datetime' },
+  ],
+}
+
+/**
+ * `date`/`datetime` field-type values round-trip as real `Date` objects
+ * through the ordinary `getDocumentById` read path — i.e. through
+ * `getAllFieldValuesForMultipleVersions`'s raw `db.execute(sql\`...\`)` UNION
+ * ALL and `normalizeRow`'s coercion. Task 11's audit-log fix
+ * (`audit-queries.ts`) found that drizzle-orm's mysql2 driver returns
+ * `DATE`/`DATETIME` columns as strings on that code path regardless of the
+ * pool's own `timezone` option; `normalizeRow` picked up the same defect for
+ * `value_date`/`value_timestamp_tz` — this is the live, end-to-end pin for
+ * that fix (`normalize-row.test.node.ts` pins the unit separately). No
+ * existing suite exercised a `date`/`datetime` field through this path, so
+ * nothing caught the un-coerced string before this test.
+ */
+describe('date/datetime field values are real Date objects on read (mysql, live database)', () => {
+  let testDb: ReturnType<typeof setupTestDB>
+  let collectionId: string
+
+  beforeAll(async () => {
+    testDb = setupTestDB([DatesCollectionConfig])
+    const created = first(
+      await testDb.commandBuilders.collections.create(
+        DatesCollectionConfig.path,
+        DatesCollectionConfig
+      )
+    )
+    collectionId = created.id
+  })
+
+  afterAll(async () => {
+    await testDb.commandBuilders.collections.delete(collectionId)
+  })
+
+  it('returns value_date as a Date (UTC midnight for the stored calendar date)', async () => {
+    const onDate = new Date('2026-01-15T00:00:00.000Z')
+    const created = await testDb.commandBuilders.documents.createDocumentVersion({
+      collectionId,
+      collectionVersion: 1,
+      collectionConfig: DatesCollectionConfig,
+      action: 'create',
+      documentData: { title: 'Dated', onDate },
+      locale: 'all',
+      status: 'draft',
+    })
+
+    const doc = await testDb.queryBuilders.documents.getDocumentById({
+      collection_id: collectionId,
+      document_id: created.document.document_id,
+      locale: 'all',
+    })
+
+    const onDateValue = doc?.fields?.onDate
+    expect(onDateValue).toBeInstanceOf(Date)
+    expect((onDateValue as Date).toISOString()).toBe('2026-01-15T00:00:00.000Z')
+  })
+
+  it('returns value_timestamp_tz as a Date with full instant fidelity', async () => {
+    const atTime = new Date('2026-01-15T10:30:00.123Z')
+    const created = await testDb.commandBuilders.documents.createDocumentVersion({
+      collectionId,
+      collectionVersion: 1,
+      collectionConfig: DatesCollectionConfig,
+      action: 'create',
+      documentData: { title: 'Timed', atTime },
+      locale: 'all',
+      status: 'draft',
+    })
+
+    const doc = await testDb.queryBuilders.documents.getDocumentById({
+      collection_id: collectionId,
+      document_id: created.document.document_id,
+      locale: 'all',
+    })
+
+    const atTimeValue = doc?.fields?.atTime
+    expect(atTimeValue).toBeInstanceOf(Date)
+    expect((atTimeValue as Date).toISOString()).toBe('2026-01-15T10:30:00.123Z')
+  })
+})
+
 describe('findDocuments ordering and pagination (mysql, live database)', () => {
   let testDb: ReturnType<typeof setupTestDB>
 

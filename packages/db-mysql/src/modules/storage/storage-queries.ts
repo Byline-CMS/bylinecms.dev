@@ -88,6 +88,7 @@ import {
   storeSelectList,
   storeTableNames,
 } from './storage-store-manifest.js'
+import { toDate } from './storage-utils.js'
 
 interface MetaRow {
   type: string
@@ -2147,8 +2148,12 @@ export class DocumentQueries implements IDocumentQueries {
       // `is_deleted = false`, so this is always falsy in practice; coerced
       // properly regardless.
       is_deleted: Boolean(row.is_deleted),
-      created_at: row.created_at as Date,
-      updated_at: row.updated_at as Date,
+      // Raw driver row on this `db.execute(sql\`...\`)` path — drizzle's
+      // mysql2 driver hands DATETIME columns back as strings here, not
+      // `Date` (see `toDate`'s docstring, `storage-utils.ts`), confirmed
+      // live: an un-coerced `as Date` cast was lying at the type level.
+      created_at: toDate(row.created_at as string) as Date,
+      updated_at: toDate(row.updated_at as string) as Date,
       created_by: row.created_by as string,
       change_summary: row.change_summary as string,
       source_locale: (row.source_locale as string | null) ?? null,

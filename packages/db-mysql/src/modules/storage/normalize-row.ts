@@ -8,6 +8,8 @@
 
 import type { UnifiedFieldValue } from '@byline/core'
 
+import { toDate } from './storage-utils.js'
+
 /**
  * Canonicalise a raw UNION ALL driver row to the shared `UnifiedFieldValue`
  * contract before it reaches `extractFlattenedFieldValue`. Mirrors
@@ -31,8 +33,22 @@ import type { UnifiedFieldValue } from '@byline/core'
  *   - `JSON` columns arrive already parsed by the driver — confirmed live
  *     (an inserted JS object round-trips as an object, not a JSON string) —
  *     so this function must not re-`JSON.parse` them.
- *   - `DATETIME(3)` → `Date`, confirmed live with the pool's `timezone: 'Z'`
- *     option, millisecond precision intact.
+ *   - `DATE`/`DATETIME` → **string**, not `Date` — the opposite of what an
+ *     earlier version of this comment claimed. `drizzle-orm`'s mysql2
+ *     driver installs its own `typeCast` on every raw `db.execute(sql\`...\`)`
+ *     call (this UNION ALL query has no schema-typed `fields` mapper, so it
+ *     always takes that path) that unconditionally calls `field.string()`
+ *     for `TIMESTAMP`/`DATETIME`/`DATE` columns, overriding whatever the
+ *     pool's own `timezone` option would otherwise do — confirmed live:
+ *     `value_date` (a `datetimeStore.date_type === 'date'` row) comes back
+ *     as `'2026-01-15'`; `value_timestamp_tz` (`date_type === 'datetime'`)
+ *     comes back as `'2026-01-15 10:30:00.123000'`. Both reach
+ *     `restoreFieldSetData` (`@byline/core`) and become the runtime value
+ *     of a document's `date`/`datetime` field, so an un-coerced string here
+ *     was a real, user-facing defect — not just an internal-tooling one —
+ *     caught by no existing test because none exercised a `date`/`datetime`
+ *     field type through this UNION ALL path. `toDate` (shared,
+ *     `storage-utils.js`) and `toDateOnly` below fix it.
  */
 export function normalizeRow(row: Record<string, unknown>): UnifiedFieldValue {
   return {
@@ -40,7 +56,21 @@ export function normalizeRow(row: Record<string, unknown>): UnifiedFieldValue {
     boolean_value: normalizeTinyIntBoolean(row.boolean_value),
     thumbnail_generated: normalizeTinyIntBoolean(row.thumbnail_generated),
     cascade_delete: normalizeTinyIntBoolean(row.cascade_delete),
+    value_date: toDateOnly(row.value_date as string | null | undefined),
+    value_timestamp_tz: toDate(row.value_timestamp_tz as string | null | undefined),
   } as unknown as UnifiedFieldValue
+}
+
+/**
+ * `'2026-01-15'` (MySQL `DATE` text, no time-of-day component) → a `Date`
+ * at UTC midnight for that calendar date — matching node-postgres's own
+ * default parser for a `date` column (pg's `normalize-row.ts` is an
+ * identity cast precisely because that adapter's driver already does this).
+ */
+function toDateOnly(value: string | Date | null | undefined): Date | null {
+  if (value == null) return null
+  if (value instanceof Date) return value
+  return new Date(`${value}T00:00:00.000Z`)
 }
 
 /**

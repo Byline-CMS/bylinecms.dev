@@ -50,10 +50,41 @@ describe('normalizeRow (mysql)', () => {
     expect(row.json_value).toBe(value)
   })
 
-  it('leaves a DATETIME(3) Date instance untouched', () => {
+  it('leaves an already-Date value_timestamp_tz untouched (defensive — not expected on the live driver path)', () => {
     const date = new Date('2024-01-15T10:30:00.123Z')
     const row = normalizeRow({ value_timestamp_tz: date })
     expect(row.value_timestamp_tz).toBe(date)
+  })
+
+  it('coerces value_timestamp_tz from the driver DATETIME string to a real Date', () => {
+    // The shape drizzle-orm's mysql2 driver actually hands back on the raw
+    // `db.execute()` path (its own typeCast forces DATETIME to a string) —
+    // confirmed live against `packages/db-mysql/scripts` probes for the
+    // Task 11 report. Space-separated, no timezone marker (UTC by schema
+    // convention).
+    const row = normalizeRow({ value_timestamp_tz: '2026-01-15 10:30:00.123456' })
+    expect(row.value_timestamp_tz).toBeInstanceOf(Date)
+    expect((row.value_timestamp_tz as Date).toISOString()).toBe('2026-01-15T10:30:00.123Z')
+  })
+
+  it('passes through null for an absent value_timestamp_tz column', () => {
+    expect(normalizeRow({ value_timestamp_tz: null }).value_timestamp_tz).toBeNull()
+  })
+
+  it('coerces value_date from the driver DATE string to a UTC-midnight Date', () => {
+    const row = normalizeRow({ value_date: '2026-01-15' })
+    expect(row.value_date).toBeInstanceOf(Date)
+    expect((row.value_date as Date).toISOString()).toBe('2026-01-15T00:00:00.000Z')
+  })
+
+  it('leaves an already-Date value_date untouched (defensive)', () => {
+    const date = new Date('2026-01-15T00:00:00.000Z')
+    const row = normalizeRow({ value_date: date })
+    expect(row.value_date).toBe(date)
+  })
+
+  it('passes through null for an absent value_date column', () => {
+    expect(normalizeRow({ value_date: null }).value_date).toBeNull()
   })
 
   it('passes through every other column unchanged', () => {
