@@ -118,9 +118,16 @@ export const mysqlAdapter = ({
   const dbManager = new DBManagerImpl({ dbPool: db })
   const txManager = new TXManagerImpl({ db: dbManager })
   const commandBuilders = createCommandBuilders(dbManager, defaultContentLocale)
-  // Queries stay on the raw `db` (not the DBManager) — reads don't need to
-  // join an ambient `withTransaction`. Mirrors the pg adapter.
-  const queryBuilders = createQueryBuilders(db, collections, defaultContentLocale)
+  // Most reads run on the raw `db` (not the DBManager) — they don't need to
+  // join an ambient `withTransaction`. `dbManager` is still threaded through
+  // as the 4th argument (matching pg's `storage-queries.ts:147`) because
+  // `DocumentQueries` accepts it as `transactionDb` for the one read that
+  // DOES need the ambient transaction: a future `getDocumentSystemFieldsForUpdate`
+  // (Task 10B) takes a `SELECT … FOR UPDATE` lock that must run inside the
+  // caller's transaction to serialise concurrent system-field writers —
+  // dropping `dbManager` here would silently run that lock outside the
+  // transaction and defeat the concurrency guard it exists to provide.
+  const queryBuilders = createQueryBuilders(db, collections, defaultContentLocale, dbManager)
 
   // Boot check: run lazily on the pool's first physical connection rather
   // than eagerly here, because `mysqlAdapter` is synchronous (mirroring
