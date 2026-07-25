@@ -140,42 +140,12 @@ export const mysqlAdapter = ({
 
   return {
     commands: {
-      // Task 9A. `commandBuilders.collections` fully implements
-      // `ICollectionCommands` — see `./modules/storage/storage-commands.js`.
+      // `commandBuilders.collections` fully implements `ICollectionCommands`
+      // (Task 9A) — see `./modules/storage/storage-commands.js`.
       collections: commandBuilders.collections,
-      documents: {
-        // `commandBuilders.documents` (`DocumentCommands`) is a partial —
-        // see that class's docblock for what's implemented so far. Every
-        // other member below is still the rest of Task 9B.
-        createDocumentVersion: commandBuilders.documents.createDocumentVersion.bind(
-          commandBuilders.documents
-        ),
-        updateDocumentPath: commandBuilders.documents.updateDocumentPath.bind(
-          commandBuilders.documents
-        ),
-        setDocumentAvailableLocales: commandBuilders.documents.setDocumentAvailableLocales.bind(
-          commandBuilders.documents
-        ),
-        setDocumentStatus: commandBuilders.documents.setDocumentStatus.bind(
-          commandBuilders.documents
-        ),
-        archivePublishedVersions: commandBuilders.documents.archivePublishedVersions.bind(
-          commandBuilders.documents
-        ),
-        softDeleteDocument: commandBuilders.documents.softDeleteDocument.bind(
-          commandBuilders.documents
-        ),
-        deleteDocumentLocale: commandBuilders.documents.deleteDocumentLocale.bind(
-          commandBuilders.documents
-        ),
-        setOrderKey: commandBuilders.documents.setOrderKey.bind(commandBuilders.documents),
-        placeTreeNode: notImplemented('commands.documents.placeTreeNode', 9),
-        removeFromTree: notImplemented('commands.documents.removeFromTree', 9),
-        promoteChildrenAndRemoveFromTree: notImplemented(
-          'commands.documents.promoteChildrenAndRemoveFromTree',
-          9
-        ),
-      },
+      // `commandBuilders.documents` (`DocumentCommands`) fully implements
+      // `IDocumentCommands` as of Task 9B — see that class's docblock.
+      documents: commandBuilders.documents,
       counters: {
         ensureCounterGroup: notImplemented('commands.counters.ensureCounterGroup', 11),
         nextCounterValue: notImplemented('commands.counters.nextCounterValue', 11),

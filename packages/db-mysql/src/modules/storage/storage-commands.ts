@@ -6,9 +6,24 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition, ICollectionCommands } from '@byline/core'
-import { DbErrorCodes, flattenFieldSetData } from '@byline/core'
-import { and, desc, eq, ne, notInArray, sql } from 'drizzle-orm'
+import type {
+  CollectionDefinition,
+  ICollectionCommands,
+  IDocumentCommands,
+  TreeDeleteMutationResult,
+  TreeMutationResult,
+  TreePlacementState,
+} from '@byline/core'
+import {
+  DbErrorCodes,
+  ERR_CONFLICT,
+  ERR_NOT_FOUND,
+  ERR_VALIDATION,
+  flattenFieldSetData,
+  generateKeyBetween,
+  TREE_PLACEMENT_STALE_MARKER,
+} from '@byline/core'
+import { and, desc, eq, inArray, ne, notInArray, sql } from 'drizzle-orm'
 import type { AnyMySqlTable } from 'drizzle-orm/mysql-core'
 import type { MySql2Database } from 'drizzle-orm/mysql2'
 import { v7 as uuidv7 } from 'uuid'
@@ -16,9 +31,11 @@ import { v7 as uuidv7 } from 'uuid'
 import {
   booleanStore,
   collections,
+  currentDocumentsView,
   datetimeStore,
   documentAvailableLocales,
   documentPaths,
+  documentRelationships,
   documents,
   documentVersions,
   fileStore,
@@ -37,6 +54,18 @@ import type { DBManager } from '../../lib/db-manager.js'
 type DatabaseConnection = MySql2Database<typeof schema>
 /** The transaction handle passed to `this.db.transaction(async (tx) => …)`. */
 type TxConnection = Parameters<Parameters<DatabaseConnection['transaction']>[0]>[0]
+
+/**
+ * Depth backstop for the document-tree recursive walks (cycle guard, ancestor
+ * walk). The write-path cycle guard prevents true cycles, so this only bounds
+ * recursion against pre-existing pathological state — far deeper than any real
+ * documentation hierarchy. Mirrors `packages/db-postgres/src/modules/storage/
+ * storage-commands.ts`. See docs/04-collections/04-document-trees.md.
+ */
+const TREE_MAX_DEPTH = 10_000
+
+const staleTreePlacementMessage = (message: string): string =>
+  `${TREE_PLACEMENT_STALE_MARKER} tree placement is stale: ${message}`
 
 /**
  * CollectionCommands
@@ -129,22 +158,23 @@ export class CollectionCommands implements ICollectionCommands {
 }
 
 /**
- * DocumentCommands — Task 9B, in progress.
+ * DocumentCommands
  *
- * `createDocumentVersion` (Task 9A) plus the standalone system-field writes
- * (`updateDocumentPath`, `setDocumentAvailableLocales`), the status /
- * archive / soft-delete / delete-locale surface (`setDocumentStatus`,
- * `archivePublishedVersions`, `softDeleteDocument`, `deleteDocumentLocale`),
- * and `setOrderKey`. The remaining `IDocumentCommands` members —
- * `placeTreeNode`, `removeFromTree`, `promoteChildrenAndRemoveFromTree` —
- * land next, ported alongside the rest of
- * `packages/db-postgres/src/modules/storage/storage-commands.ts`'s
- * `DocumentCommands`. This class deliberately does not yet `implements
- * IDocumentCommands`; `src/index.ts` composes the full interface object by
- * picking the implemented members off an instance of this class and leaving
- * every other member as the existing `notImplemented(...)` stub.
+ * Ported from `packages/db-postgres/src/modules/storage/storage-commands.ts`'s
+ * `DocumentCommands`. Task 9A landed `createDocumentVersion` and its private
+ * helpers; Task 9B (this task) ports the rest of the write surface —
+ * `updateDocumentPath`, `setDocumentAvailableLocales`, `setDocumentStatus`,
+ * `archivePublishedVersions`, `softDeleteDocument`, `deleteDocumentLocale`,
+ * `setOrderKey`, `placeTreeNode`, `removeFromTree`, and
+ * `promoteChildrenAndRemoveFromTree` — completing `IDocumentCommands`. The
+ * pg source's `reAnchorDocument` / `reAnchorDocuments` / `backfillVersionLocales`
+ * are deliberately NOT ported here: `@byline/db-conformance`'s own suites
+ * (`document-paths.ts`, `locale-fallback.ts`) document them as "Postgres-only
+ * maintenance operations documented as off the core `IDbAdapter` contract" —
+ * not something a conforming adapter is required to implement, and neither is
+ * a member of `IDocumentCommands`.
  */
-export class DocumentCommands {
+export class DocumentCommands implements IDocumentCommands {
   constructor(
     private dbManager: DBManager,
     private defaultContentLocale: string
@@ -580,6 +610,7 @@ export class DocumentCommands {
       set: { id: sql`id` },
     })
   }
+
   /**
    * updateDocumentPath
    *
@@ -639,6 +670,7 @@ export class DocumentCommands {
       })
     })
   }
+
   /**
    * copyAllVersionStoreRows
    *
@@ -875,6 +907,40 @@ export class DocumentCommands {
   }
 
   /**
+   * Write `order_key` on a single `byline_documents` row. Single-column
+   * metadata update — no new version row, no `documentVersions` touch.
+   * `updated_at` on the document row is bumped so list caches invalidate.
+   */
+  async setOrderKey(params: { document_id: string; order_key: string }): Promise<void> {
+    await this.db
+      .update(documents)
+      .set({
+        order_key: params.order_key,
+        updated_at: new Date(),
+      })
+      .where(eq(documents.id, params.document_id))
+  }
+
+  /**
+   * Serialize structural changes per collection and verify the collection
+   * exists. `FOR UPDATE` — no `FOR UPDATE OF` qualifier needed since this
+   * query selects from a single table (confirmed against a live MySQL 9.7.1
+   * server; MySQL 8.0.1+ supports `FOR UPDATE OF tbl_name` for the
+   * multi-table case used below in `lockDocumentCollection`).
+   */
+  private async lockTreeCollection(tx: TxConnection, collectionId: string): Promise<void> {
+    const locked = await tx.execute(sql`
+      SELECT id FROM byline_collections
+      WHERE id = ${collectionId}
+      FOR UPDATE
+    `)
+    const rows = (locked as unknown as [Array<{ id: string }>, unknown])[0]
+    if (rows.length === 0) {
+      throw ERR_NOT_FOUND({ message: 'collection not found', details: { collectionId } })
+    }
+  }
+
+  /**
    * Resolve a document's collection while locking only the collection row.
    * `FOR UPDATE OF c` — confirmed live against a MySQL 9.7.1 server (MySQL
    * 8.0.1+ supports the per-table lock qualifier; `::uuid` casts dropped).
@@ -893,19 +959,512 @@ export class DocumentCommands {
     const rows = (locked as unknown as [Array<{ collection_id: string }>, unknown])[0]
     return rows[0]?.collection_id ?? null
   }
-  /**
-   * Write `order_key` on a single `byline_documents` row. Single-column
-   * metadata update — no new version row, no `documentVersions` touch.
-   * `updated_at` on the document row is bumped so list caches invalidate.
-   */
-  async setOrderKey(params: { document_id: string; order_key: string }): Promise<void> {
-    await this.db
-      .update(documents)
-      .set({
-        order_key: params.order_key,
-        updated_at: new Date(),
+
+  /** Read one ordered sibling group on the already collection-locked transaction. */
+  private async treeGroup(
+    tx: TxConnection,
+    collectionId: string,
+    parentDocumentId: string | null
+  ): Promise<Array<{ documentId: string; orderKey: string }>> {
+    const rows = await tx
+      .select({
+        documentId: documentRelationships.child_document_id,
+        orderKey: documentRelationships.order_key,
       })
-      .where(eq(documents.id, params.document_id))
+      .from(documentRelationships)
+      .innerJoin(documents, eq(documents.id, documentRelationships.child_document_id))
+      .where(
+        and(
+          eq(documents.collection_id, collectionId),
+          parentDocumentId == null
+            ? sql`${documentRelationships.parent_document_id} IS NULL`
+            : eq(documentRelationships.parent_document_id, parentDocumentId)
+        )
+      )
+      .orderBy(documentRelationships.order_key)
+    return rows
+  }
+
+  /** Read a node's placement from the already collection-locked transaction. */
+  private async treePlacement(
+    tx: TxConnection,
+    collectionId: string,
+    documentId: string
+  ): Promise<{
+    state: TreePlacementState
+    siblings: Array<{ documentId: string; orderKey: string }>
+  }> {
+    const [edge] = await tx
+      .select({
+        parentDocumentId: documentRelationships.parent_document_id,
+        orderKey: documentRelationships.order_key,
+      })
+      .from(documentRelationships)
+      .where(eq(documentRelationships.child_document_id, documentId))
+      .limit(1)
+    if (edge == null) {
+      return {
+        state: { placed: false, parentDocumentId: null, orderKey: null, index: null },
+        siblings: [],
+      }
+    }
+    const siblings = await this.treeGroup(tx, collectionId, edge.parentDocumentId)
+    const index = siblings.findIndex((row) => row.documentId === documentId)
+    return {
+      state: {
+        placed: true,
+        parentDocumentId: edge.parentDocumentId,
+        orderKey: edge.orderKey,
+        index: index >= 0 ? index : null,
+      },
+      siblings,
+    }
+  }
+
+  /** Read a raw node-and-descendants set while the collection tree lock is held. */
+  private async treeSubtreeIds(
+    tx: TxConnection,
+    collectionId: string,
+    documentId: string
+  ): Promise<string[]> {
+    const result = await tx.execute(sql`
+      WITH RECURSIVE subtree AS (
+        SELECT d.id AS document_id, 0 AS depth
+        FROM byline_documents d
+        WHERE d.id = ${documentId}
+          AND d.collection_id = ${collectionId}
+        UNION ALL
+        SELECT r.child_document_id, s.depth + 1
+        FROM byline_document_relationships r
+        JOIN subtree s ON r.parent_document_id = s.document_id
+        JOIN byline_documents d ON d.id = r.child_document_id
+        WHERE d.collection_id = ${collectionId}
+          AND s.depth < ${TREE_MAX_DEPTH}
+      )
+      SELECT document_id FROM subtree ORDER BY depth
+    `)
+    const rows = (result as unknown as [Array<{ document_id: string }>, unknown])[0]
+    return rows.map((row) => row.document_id)
+  }
+
+  /**
+   * placeTreeNode — see {@link IDocumentCommands.placeTreeNode}.
+   *
+   * Single transaction: same-collection guard → cycle guard → resolve the
+   * target sibling group's neighbour keys → mint a fractional key → upsert the
+   * edge row. Unversioned; touches only `byline_document_relationships`.
+   *
+   * The edge upsert uses a plain `.onDuplicateKeyUpdate()` — unlike
+   * `writeDocumentPath`, `byline_document_relationships` carries exactly one
+   * unique constraint (`uq_document_relationships_child`, on
+   * `child_document_id`), so MySQL's lack of per-constraint targeting is not
+   * an issue here: any duplicate-key collision on this table can only be that
+   * one index, so there is no ambiguity to guard against.
+   */
+  async placeTreeNode(params: {
+    collectionId: string
+    documentId: string
+    parentDocumentId: string | null
+    beforeDocumentId?: string | null
+    afterDocumentId?: string | null
+    ifUnplaced?: boolean
+  }): Promise<TreeMutationResult> {
+    const { collectionId, documentId, parentDocumentId } = params
+    const beforeDocumentId = params.beforeDocumentId ?? null
+    const afterDocumentId = params.afterDocumentId ?? null
+
+    if (parentDocumentId === documentId) {
+      throw ERR_VALIDATION({
+        message: 'a document cannot be its own parent in the document tree',
+        details: { documentId },
+      })
+    }
+    if (beforeDocumentId === documentId || afterDocumentId === documentId) {
+      throw ERR_VALIDATION({
+        message: 'a document cannot be its own tree neighbour',
+        details: { documentId },
+      })
+    }
+    if (beforeDocumentId != null && beforeDocumentId === afterDocumentId) {
+      throw ERR_VALIDATION({
+        message: 'beforeDocumentId and afterDocumentId must identify different tree neighbours',
+        details: { documentId, beforeDocumentId, afterDocumentId },
+      })
+    }
+
+    return await this.db.transaction(async (tx) => {
+      // One collection-row lock serializes all edge and sibling-key changes in
+      // the tree, so the returned before state and no-op decision cannot race.
+      await this.lockTreeCollection(tx, collectionId)
+
+      // Same-collection guard — every supplied endpoint must live in `collectionId`.
+      const ids = [documentId, parentDocumentId, beforeDocumentId, afterDocumentId].filter(
+        (id): id is string => id != null
+      )
+      const docRows = await tx
+        .select({ id: documents.id, collection_id: documents.collection_id })
+        .from(documents)
+        .where(inArray(documents.id, ids))
+      const collectionById = new Map(docRows.map((r) => [r.id, r.collection_id]))
+
+      if (collectionById.get(documentId) == null) {
+        throw ERR_NOT_FOUND({ message: 'document not found', details: { documentId } })
+      }
+      if (collectionById.get(documentId) !== collectionId) {
+        throw ERR_VALIDATION({
+          message: 'document does not belong to the collection',
+          details: { documentId, collectionId },
+        })
+      }
+
+      if (parentDocumentId != null) {
+        if (collectionById.get(parentDocumentId) == null) {
+          throw ERR_NOT_FOUND({
+            message: 'parent document not found',
+            details: { parentDocumentId },
+          })
+        }
+        if (collectionById.get(parentDocumentId) !== collectionId) {
+          throw ERR_VALIDATION({
+            message: 'parent document is in a different collection',
+            details: { parentDocumentId, collectionId },
+          })
+        }
+      }
+
+      const neighbours = [
+        { role: 'beforeDocumentId', id: beforeDocumentId },
+        { role: 'afterDocumentId', id: afterDocumentId },
+      ] as const
+      for (const neighbour of neighbours) {
+        if (neighbour.id == null) continue
+        if (collectionById.get(neighbour.id) == null) {
+          throw ERR_NOT_FOUND({
+            message: 'tree neighbour document not found',
+            details: { documentId, [neighbour.role]: neighbour.id },
+          })
+        }
+        if (collectionById.get(neighbour.id) !== collectionId) {
+          throw ERR_VALIDATION({
+            message: 'tree neighbour is in a different collection',
+            details: { documentId, collectionId, [neighbour.role]: neighbour.id },
+          })
+        }
+      }
+
+      const liveRows = await tx
+        .select({ id: currentDocumentsView.document_id })
+        .from(currentDocumentsView)
+        .where(
+          and(
+            eq(currentDocumentsView.collection_id, collectionId),
+            inArray(currentDocumentsView.document_id, ids)
+          )
+        )
+      const liveIds = new Set(liveRows.map((row) => row.id))
+      if (!liveIds.has(documentId)) {
+        throw ERR_CONFLICT({
+          message: staleTreePlacementMessage('document no longer has a current version'),
+          details: { documentId, collectionId },
+        })
+      }
+      if (parentDocumentId != null && !liveIds.has(parentDocumentId)) {
+        throw ERR_CONFLICT({
+          message: staleTreePlacementMessage('parent no longer has a current version'),
+          details: { documentId, parentDocumentId, collectionId },
+        })
+      }
+      for (const neighbour of neighbours) {
+        if (neighbour.id != null && !liveIds.has(neighbour.id)) {
+          throw ERR_CONFLICT({
+            message: staleTreePlacementMessage(`${neighbour.role} no longer has a current version`),
+            details: { documentId, collectionId, [neighbour.role]: neighbour.id },
+          })
+        }
+      }
+
+      if (parentDocumentId != null) {
+        // Cycle guard — reject when `documentId` is the new parent itself or
+        // any of its ancestors (which would put the node below its own
+        // subtree). Walk upward from `parentDocumentId`; depth-bounded.
+        const cycle = await tx.execute(sql`
+          WITH RECURSIVE chain AS (
+            SELECT ${parentDocumentId} AS node_id, 0 AS depth
+            UNION ALL
+            SELECT r.parent_document_id, c.depth + 1
+            FROM byline_document_relationships r
+            JOIN chain c ON r.child_document_id = c.node_id
+            WHERE r.parent_document_id IS NOT NULL AND c.depth < ${TREE_MAX_DEPTH}
+          )
+          SELECT 1 FROM chain WHERE node_id = ${documentId} LIMIT 1
+        `)
+        const cycleRows = (cycle as unknown as [Array<{ 1: number }>, unknown])[0]
+        if (cycleRows.length > 0) {
+          throw ERR_VALIDATION({
+            message: 'move would create a cycle in the document tree',
+            details: { documentId, parentDocumentId },
+          })
+        }
+      }
+
+      const before = await this.treePlacement(tx, collectionId, documentId)
+      if (params.ifUnplaced === true && before.state.placed) {
+        return {
+          changed: false,
+          before: before.state,
+          after: before.state,
+          beforeSiblingDocumentIds: before.siblings.map((row) => row.documentId),
+          beforeSubtreeDocumentIds: [],
+        }
+      }
+      const targetGroup = (
+        before.state.placed && before.state.parentDocumentId === parentDocumentId
+          ? before.siblings
+          : await this.treeGroup(tx, collectionId, parentDocumentId)
+      ).filter((row) => row.documentId !== documentId)
+
+      const leftIndex = beforeDocumentId
+        ? targetGroup.findIndex((row) => row.documentId === beforeDocumentId)
+        : -1
+      const rightIndex = afterDocumentId
+        ? targetGroup.findIndex((row) => row.documentId === afterDocumentId)
+        : -1
+      if (beforeDocumentId && leftIndex < 0) {
+        throw ERR_CONFLICT({
+          message: staleTreePlacementMessage(
+            'beforeDocumentId is no longer in the target sibling group'
+          ),
+          details: { documentId, parentDocumentId, beforeDocumentId },
+        })
+      }
+      if (afterDocumentId && rightIndex < 0) {
+        throw ERR_CONFLICT({
+          message: staleTreePlacementMessage(
+            'afterDocumentId is no longer in the target sibling group'
+          ),
+          details: { documentId, parentDocumentId, afterDocumentId },
+        })
+      }
+      if (afterDocumentId && beforeDocumentId == null && rightIndex !== 0) {
+        throw ERR_CONFLICT({
+          message: staleTreePlacementMessage('right neighbour is no longer first'),
+          details: { documentId, parentDocumentId, afterDocumentId },
+        })
+      }
+      if (beforeDocumentId && afterDocumentId == null && leftIndex !== targetGroup.length - 1) {
+        throw ERR_CONFLICT({
+          message: staleTreePlacementMessage('left neighbour is no longer last'),
+          details: { documentId, parentDocumentId, beforeDocumentId },
+        })
+      }
+
+      let insertionIndex: number
+      if (beforeDocumentId && afterDocumentId) {
+        if (leftIndex + 1 !== rightIndex) {
+          throw ERR_CONFLICT({
+            message: staleTreePlacementMessage('target neighbours are no longer adjacent'),
+            details: { documentId, parentDocumentId, beforeDocumentId, afterDocumentId },
+          })
+        }
+        insertionIndex = rightIndex
+      } else if (beforeDocumentId) {
+        insertionIndex = leftIndex + 1
+      } else if (afterDocumentId) {
+        insertionIndex = rightIndex
+      } else {
+        insertionIndex = targetGroup.length
+      }
+
+      if (
+        before.state.placed &&
+        before.state.parentDocumentId === parentDocumentId &&
+        before.state.index === insertionIndex
+      ) {
+        return {
+          changed: false,
+          before: before.state,
+          after: before.state,
+          beforeSiblingDocumentIds: before.siblings.map((row) => row.documentId),
+          beforeSubtreeDocumentIds: [],
+        }
+      }
+
+      const left = targetGroup[insertionIndex - 1]?.orderKey ?? null
+      const right = targetGroup[insertionIndex]?.orderKey ?? null
+
+      let orderKey: string
+      try {
+        orderKey = generateKeyBetween(left, right)
+      } catch (err) {
+        throw ERR_VALIDATION({
+          message: 'cannot generate order_key between the supplied tree neighbours',
+          details: {
+            documentId,
+            parentDocumentId,
+            left,
+            right,
+            cause: err instanceof Error ? err.message : String(err),
+          },
+        })
+      }
+
+      await tx
+        .insert(documentRelationships)
+        .values({
+          child_document_id: documentId,
+          parent_document_id: parentDocumentId,
+          order_key: orderKey,
+        })
+        .onDuplicateKeyUpdate({
+          set: {
+            parent_document_id: parentDocumentId,
+            order_key: orderKey,
+            updated_at: new Date(),
+          },
+        })
+
+      return {
+        changed: true,
+        before: before.state,
+        after: {
+          placed: true,
+          parentDocumentId,
+          orderKey,
+          index: insertionIndex,
+        },
+        beforeSiblingDocumentIds: before.siblings.map((row) => row.documentId),
+        beforeSubtreeDocumentIds: [],
+      }
+    })
+  }
+
+  /**
+   * removeFromTree — see {@link IDocumentCommands.removeFromTree}.
+   * Single-row delete; no-op when the node is already unplaced.
+   */
+  async removeFromTree(params: {
+    collectionId: string
+    documentId: string
+    includeSubtree?: boolean
+  }): Promise<TreeMutationResult> {
+    return this.db.transaction(async (tx) => {
+      await this.lockTreeCollection(tx, params.collectionId)
+      const [document] = await tx
+        .select({ collectionId: documents.collection_id })
+        .from(documents)
+        .where(eq(documents.id, params.documentId))
+        .limit(1)
+      if (document == null) {
+        throw ERR_NOT_FOUND({
+          message: 'document not found',
+          details: { documentId: params.documentId },
+        })
+      }
+      if (document.collectionId !== params.collectionId) {
+        throw ERR_VALIDATION({
+          message: 'document does not belong to the collection',
+          details: params,
+        })
+      }
+      const before = await this.treePlacement(tx, params.collectionId, params.documentId)
+      const beforeSubtreeDocumentIds = params.includeSubtree
+        ? await this.treeSubtreeIds(tx, params.collectionId, params.documentId)
+        : []
+      if (!before.state.placed) {
+        return {
+          changed: false,
+          before: before.state,
+          after: before.state,
+          beforeSiblingDocumentIds: [],
+          beforeSubtreeDocumentIds,
+        }
+      }
+      await tx
+        .delete(documentRelationships)
+        .where(eq(documentRelationships.child_document_id, params.documentId))
+      return {
+        changed: true,
+        before: before.state,
+        after: { placed: false, parentDocumentId: null, orderKey: null, index: null },
+        beforeSiblingDocumentIds: before.siblings.map((row) => row.documentId),
+        beforeSubtreeDocumentIds,
+      }
+    })
+  }
+
+  /** Promote direct children to roots and remove the parent edge under one lock. */
+  async promoteChildrenAndRemoveFromTree(params: {
+    collectionId: string
+    documentId: string
+  }): Promise<TreeDeleteMutationResult> {
+    return this.db.transaction(async (tx) => {
+      await this.lockTreeCollection(tx, params.collectionId)
+      const [document] = await tx
+        .select({ id: documents.id, collectionId: documents.collection_id })
+        .from(documents)
+        .where(eq(documents.id, params.documentId))
+        .limit(1)
+      if (document == null) {
+        throw ERR_NOT_FOUND({
+          message: 'document not found',
+          details: { documentId: params.documentId },
+        })
+      }
+      if (document.collectionId !== params.collectionId) {
+        throw ERR_VALIDATION({
+          message: 'document does not belong to the collection',
+          details: params,
+        })
+      }
+
+      const parent = await this.treePlacement(tx, params.collectionId, params.documentId)
+      const children = await this.treeGroup(tx, params.collectionId, params.documentId)
+      const roots = (await this.treeGroup(tx, params.collectionId, null)).filter(
+        (row) => row.documentId !== params.documentId
+      )
+      const promoted: TreeDeleteMutationResult['promoted'] = []
+
+      for (const [index, child] of children.entries()) {
+        const orderKey = generateKeyBetween(roots.at(-1)?.orderKey ?? null, null)
+        const after: TreePlacementState = {
+          placed: true,
+          parentDocumentId: null,
+          orderKey,
+          index: roots.length,
+        }
+        await tx
+          .update(documentRelationships)
+          .set({ parent_document_id: null, order_key: orderKey, updated_at: new Date() })
+          .where(eq(documentRelationships.child_document_id, child.documentId))
+        promoted.push({
+          documentId: child.documentId,
+          before: {
+            placed: true,
+            parentDocumentId: params.documentId,
+            orderKey: child.orderKey,
+            index,
+          },
+          after,
+        })
+        roots.push({ documentId: child.documentId, orderKey })
+      }
+
+      if (parent.state.placed) {
+        await tx
+          .delete(documentRelationships)
+          .where(eq(documentRelationships.child_document_id, params.documentId))
+      }
+      return {
+        removed: {
+          changed: parent.state.placed,
+          before: parent.state,
+          after: { placed: false, parentDocumentId: null, orderKey: null, index: null },
+          beforeSiblingDocumentIds: parent.siblings.map((row) => row.documentId),
+          beforeSubtreeDocumentIds: [],
+        },
+        promoted,
+      }
+    })
   }
 }
 
