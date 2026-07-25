@@ -21,22 +21,18 @@
  *   - Task 10B: `documentPathsSuite`, `documentTreeSuite`, `transactionsSuite`,
  *     `deleteLocaleSuite`, `documentAvailableLocalesSuite`,
  *     `systemFieldsDirectWriteSuite`, `restoreSuite`, `localeFallbackSuite`
- *     (this file) — the full storage surface minus tree-audit atomicity,
- *     10 of the 14 total suites.
+ *     — the full storage surface minus tree-audit atomicity, 10 of the 14
+ *     total suites.
+ *   - Task 11 (this file): `countersSuite`, `auditSuite`, and
+ *     `documentTreeAuditSuite` — `commands.counters.*` and
+ *     `commands.audit.*` / `queries.audit.*` are real as of this task, so
+ *     the tree-mutation lifecycle functions
+ *     (`placeTreeNode`/`removeFromTree`/`promoteChildrenAndRemove`) that
+ *     `documentTreeAuditSuite` exercises can now append to and read back
+ *     from a working audit log. 13 of the 14 suites.
  *
- * `auditSuite`, `countersSuite`, and `adminStoreSuite` stay unregistered —
- * counters/audit are Task 11, the admin-store repositories are Task 12.
- * `documentTreeAuditSuite` also stays unregistered here, for the same
- * reason: every test in it calls a tree-mutation lifecycle function
- * (`placeTreeNode`/`removeFromTree`/`promoteChildrenAndRemove`) that itself
- * calls `commands.audit.append` inside the same transaction and then asserts
- * against `queries.audit.getDocumentAuditLog` — it is a tree+audit
- * atomicity suite, not a general storage suite, so it cannot pass against
- * the `notImplemented` audit stubs below. Task 11 owns it: register
- * `documentTreeAuditSuite(hooks)` once `commands.audit.append` and
- * `queries.audit.*` are real — `testDb.queryBuilders.documents` already
- * satisfies everything else the suite needs, so no other wiring change
- * should be required.
+ * `adminStoreSuite` stays unregistered — the admin-store repositories are
+ * Task 12.
  *
  * TODO(Task 13): once every suite passes, replace the list below with a
  * single `runAdapterConformanceSuite(hooks)` call — see db-postgres's
@@ -45,10 +41,13 @@
 
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import {
+  auditSuite,
   type ConformanceHooks,
+  countersSuite,
   deleteLocaleSuite,
   documentAvailableLocalesSuite,
   documentPathsSuite,
+  documentTreeAuditSuite,
   documentTreeSuite,
   fieldTypesSuite,
   localeFallbackSuite,
@@ -60,6 +59,9 @@ import {
 
 import { assertTestDatabase, migrateTestDatabase, resetTestDatabase } from '../src/lib/test-db.js'
 import { setupTestDB, teardownTestDB } from '../src/lib/test-helper.js'
+import { createAuditCommands } from '../src/modules/audit/audit-commands.js'
+import { createAuditQueries } from '../src/modules/audit/audit-queries.js'
+import { createCounterCommands } from '../src/modules/counters/counters-commands.js'
 import { classifyError } from '../src/modules/storage/classify-error.js'
 
 function getConnectionString(): string {
@@ -71,19 +73,20 @@ function getConnectionString(): string {
 const hooks: ConformanceHooks = {
   async createAdapter(collections: readonly CollectionDefinition[]): Promise<IDbAdapter> {
     const testDb = setupTestDB(collections as CollectionDefinition[])
+    // Counters take the raw mysql2 pool (`testDb.pool`), never `dbManager` —
+    // see the class docblock on `CounterCommands` for why. Audit appends
+    // take `dbManager` (join the ambient transaction); audit reads take the
+    // plain `db` (the pool).
+    const counterCommands = createCounterCommands(testDb.pool)
+    const auditCommands = createAuditCommands(testDb.dbManager)
+    const auditQueries = createAuditQueries(testDb.db)
 
     return {
       classifyError,
       commands: {
         ...testDb.commandBuilders,
-        counters: {
-          ensureCounterGroup: notImplemented('commands.counters.ensureCounterGroup'),
-          nextCounterValue: notImplemented('commands.counters.nextCounterValue'),
-          nextScopedCounterValue: notImplemented('commands.counters.nextScopedCounterValue'),
-        },
-        audit: {
-          append: notImplemented('commands.audit.append'),
-        },
+        counters: counterCommands,
+        audit: auditCommands,
       },
       queries: {
         // `testDb.queryBuilders.collections` fully implements
@@ -93,10 +96,7 @@ const hooks: ConformanceHooks = {
         // implements `IDocumentQueries` as of Task 10B — spread directly,
         // unlike the Task 10A per-member composition this replaces.
         documents: testDb.queryBuilders.documents,
-        audit: {
-          getDocumentAuditLog: notImplemented('queries.audit.getDocumentAuditLog'),
-          findAuditLog: notImplemented('queries.audit.findAuditLog'),
-        },
+        audit: auditQueries,
       },
       withTransaction: (fn) => testDb.txManager.withTransaction(fn),
     }
@@ -120,29 +120,16 @@ const hooks: ConformanceHooks = {
   // `it` blocks exist for them, so they never show up as skipped.
 }
 
-/**
- * Build a stub matching one not-yet-implemented `IDbAdapter` member's exact
- * call signature. None of the ten suites registered below exercise
- * counters, audit, or the admin store — those are Tasks 11/12 (and, for
- * `documentTreeAuditSuite` specifically, the reason it isn't registered
- * below yet — see the module docblock). Throwing keeps that honest rather
- * than silently no-op-ing.
- */
-function notImplemented<T>(member: string): T {
-  return (() => {
-    throw new Error(`@byline/db-mysql: ${member} is not implemented yet`)
-  }) as unknown as T
-}
-
 versioningSuite(hooks)
 fieldTypesSuite(hooks)
 documentPathsSuite(hooks)
 documentTreeSuite(hooks)
-// documentTreeAuditSuite(hooks) — Task 11: needs commands.audit.append /
-// queries.audit.* (see module docblock above).
+documentTreeAuditSuite(hooks)
 transactionsSuite(hooks)
 deleteLocaleSuite(hooks)
 documentAvailableLocalesSuite(hooks)
 systemFieldsDirectWriteSuite(hooks)
 restoreSuite(hooks)
 localeFallbackSuite(hooks)
+countersSuite(hooks)
+auditSuite(hooks)
