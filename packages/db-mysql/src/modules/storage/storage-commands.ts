@@ -99,6 +99,20 @@ export class CollectionCommands implements ICollectionCommands {
     const version = opts?.version ?? 1
     const singular = config.labels.singular || path
     const plural = config.labels.plural || `${path}s`
+    // `created_at`/`updated_at` are written explicitly rather than left to
+    // the column's `DEFAULT CURRENT_TIMESTAMP(6)` — an earlier version of
+    // this method approximated them with a request-time `Date` instead
+    // (reasoning: "no caller in this adapter's current scope depends on
+    // the authoritative value"), which is the exact reasoning that held for
+    // `DocumentCommands.createDocumentVersion` right up until a
+    // `db-conformance` fixture started windowing on `created_at` and an
+    // intermittent few-millisecond gap between the app-side capture and the
+    // DB-side `CURRENT_TIMESTAMP(6)` evaluation turned into a real flake —
+    // see that method's `created_at`/`updated_at` comment below for the
+    // live-server evidence. Writing the same `Date` instance to the column
+    // that gets returned makes the two identical by construction instead of
+    // two independent clock reads that can drift under load.
+    const now = new Date()
     await this.db.insert(collections).values({
       id,
       path,
@@ -106,14 +120,14 @@ export class CollectionCommands implements ICollectionCommands {
       plural,
       config,
       version,
+      created_at: now,
+      updated_at: now,
       ...(opts?.schemaHash !== undefined ? { schema_hash: opts.schemaHash } : {}),
     })
     // `.returning()` has no MySQL equivalent — every value here is already
-    // known (app-generated id, caller-supplied config), so the row is
-    // constructed in JS rather than re-`SELECT`ed. `created_at`/`updated_at`
-    // are DB defaults (`CURRENT_TIMESTAMP(6)`); approximated with the
-    // request-time `Date` since no caller in this adapter's current scope
-    // depends on the authoritative DB-assigned value.
+    // known (app-generated id, caller-supplied config, and the `created_at`
+    // / `updated_at` just written above), so the row is constructed in JS
+    // rather than re-`SELECT`ed.
     return [
       {
         id,
@@ -123,8 +137,8 @@ export class CollectionCommands implements ICollectionCommands {
         config,
         version,
         schema_hash: opts?.schemaHash ?? null,
-        created_at: new Date(),
-        updated_at: new Date(),
+        created_at: now,
+        updated_at: now,
       },
     ]
   }
