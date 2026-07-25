@@ -25,6 +25,36 @@ import { systemFieldsDirectWriteSuite } from './suites/system-fields-direct-writ
 import { transactionsSuite } from './suites/transactions.js'
 import { versioningSuite } from './suites/versioning.js'
 
+export {
+  type ClassifyErrorContractCase,
+  runClassifyErrorContract,
+} from './classify-error-contract.js'
+/**
+ * Named per-suite exports, additive alongside `runAdapterConformanceSuite`
+ * below. An adapter mid-port (see `packages/db-mysql/tests/conformance.integration.test.ts`)
+ * registers only the suites its current task has turned green, one `import`
+ * per suite, instead of the full `runAdapterConformanceSuite` — which would
+ * otherwise pull in every suite (including ones the adapter can't pass yet)
+ * and turn `pnpm test:integration` red for the whole of the port. Once an
+ * adapter passes every suite, its entry file switches to
+ * `runAdapterConformanceSuite(hooks)` and drops these individual imports —
+ * see the `db-postgres` conformance entry for the target shape.
+ */
+export { adminStoreSuite } from './suites/admin-store.js'
+export { auditSuite } from './suites/audit.js'
+export { countersSuite } from './suites/counters.js'
+export { deleteLocaleSuite } from './suites/delete-locale.js'
+export { documentAvailableLocalesSuite } from './suites/document-available-locales.js'
+export { documentPathsSuite } from './suites/document-paths.js'
+export { documentTreeSuite } from './suites/document-tree.js'
+export { documentTreeAuditSuite } from './suites/document-tree-audit.js'
+export { fieldTypesSuite } from './suites/field-types.js'
+export { localeFallbackSuite } from './suites/locale-fallback.js'
+export { restoreSuite } from './suites/restore.js'
+export { systemFieldsDirectWriteSuite } from './suites/system-fields-direct-write.js'
+export { transactionsSuite } from './suites/transactions.js'
+export { versioningSuite } from './suites/versioning.js'
+
 /**
  * The seam a database adapter implements to run the shared behavioural
  * conformance suite against its own test database. `@byline/db-postgres`
