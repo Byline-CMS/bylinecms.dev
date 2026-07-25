@@ -14,6 +14,9 @@ import mysql from 'mysql2/promise'
 import * as schema from './database/schema/index.js'
 import { assertMySqlVersion } from './lib/boot-check.js'
 import { DBManagerImpl, TXManagerImpl } from './lib/db-manager.js'
+import { createAuditCommands } from './modules/audit/audit-commands.js'
+import { createAuditQueries } from './modules/audit/audit-queries.js'
+import { createCounterCommands } from './modules/counters/counters-commands.js'
 import { classifyError } from './modules/storage/classify-error.js'
 import { createCommandBuilders } from './modules/storage/storage-commands.js'
 import { createQueryBuilders } from './modules/storage/storage-queries.js'
@@ -33,21 +36,6 @@ export interface MySqlAdapter extends IDbAdapter {
   drizzle: MySql2Database<typeof schema>
   /** The mysql2 connection pool — exposed for housekeeping and teardown. */
   pool: mysql.Pool
-}
-
-/**
- * Build a stub matching one `IDbAdapter` command/query member's exact call
- * signature. Every real implementation lands task by task (9: storage
- * commands, 10: storage queries, 11: counters/audit) — the adapter this
- * factory returns is deliberately non-functional until then. Throwing keeps
- * that honest at the call site: `MySqlAdapter` satisfies `IDbAdapter`
- * structurally today, but invoking any operation before its task lands
- * fails loudly instead of silently doing nothing.
- */
-function notImplemented<T>(member: string, task: number): T {
-  return (() => {
-    throw new Error(`@byline/db-mysql: ${member} is not implemented yet (Task ${task})`)
-  }) as unknown as T
 }
 
 export const mysqlAdapter = ({
@@ -132,6 +120,18 @@ export const mysqlAdapter = ({
   // report.
   const queryBuilders = createQueryBuilders(db, collections, defaultContentLocale, dbManager)
 
+  // Counters run on the raw mysql2 `pool` — never `dbManager` — so they never
+  // join an ambient `withTransaction`: a long document-create transaction
+  // holding the counter row would serialise every other writer in that
+  // group (Task 11). Audit appends run on `dbManager` so they DO join the
+  // ambient transaction and commit atomically with the mutation they
+  // record; audit reads run on the plain `db` (the pool) since they never
+  // need to join that transaction. See ./modules/counters/counters-commands.js
+  // and ./modules/audit/{audit-commands,audit-queries}.js.
+  const counterCommands = createCounterCommands(pool)
+  const auditCommands = createAuditCommands(dbManager)
+  const auditQueries = createAuditQueries(db)
+
   // Boot check: run lazily on the pool's first physical connection rather
   // than eagerly here, because `mysqlAdapter` is synchronous (mirroring
   // `pgAdapter`) and cannot await a round trip before returning. mysql2
@@ -172,14 +172,12 @@ export const mysqlAdapter = ({
       // `commandBuilders.documents` (`DocumentCommands`) fully implements
       // `IDocumentCommands` as of Task 9B — see that class's docblock.
       documents: commandBuilders.documents,
-      counters: {
-        ensureCounterGroup: notImplemented('commands.counters.ensureCounterGroup', 11),
-        nextCounterValue: notImplemented('commands.counters.nextCounterValue', 11),
-        nextScopedCounterValue: notImplemented('commands.counters.nextScopedCounterValue', 11),
-      },
-      audit: {
-        append: notImplemented('commands.audit.append', 11),
-      },
+      // `counterCommands` fully implements `ICounterCommands` as of Task 11
+      // — see `./modules/counters/counters-commands.js`.
+      counters: counterCommands,
+      // `auditCommands` fully implements `IAuditCommands` as of Task 11 —
+      // see `./modules/audit/audit-commands.js`.
+      audit: auditCommands,
     },
     queries: {
       // `queryBuilders.collections` fully implements `ICollectionQueries`
@@ -188,10 +186,9 @@ export const mysqlAdapter = ({
       // `queryBuilders.documents` (`DocumentQueries`) fully implements
       // `IDocumentQueries` as of Task 10B — see that class's docblock.
       documents: queryBuilders.documents,
-      audit: {
-        getDocumentAuditLog: notImplemented('queries.audit.getDocumentAuditLog', 11),
-        findAuditLog: notImplemented('queries.audit.findAuditLog', 11),
-      },
+      // `auditQueries` fully implements `IAuditQueries` as of Task 11 — see
+      // `./modules/audit/audit-queries.js`.
+      audit: auditQueries,
     },
     withTransaction: (fn) => txManager.withTransaction(fn),
     classifyError,
