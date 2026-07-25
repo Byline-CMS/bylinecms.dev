@@ -70,21 +70,20 @@ export function normalizeRow(row: Record<string, unknown>): UnifiedFieldValue {
  * node-postgres's own default parser for a `date` column. It doesn't.
  * node-postgres's default `date` parser is `postgres-date` (see its
  * `index.js:16-17`, whose own comment reads "Force YYYY-MM-DD dates to be
- * parsed as local time"), so pg's `normalize-row.ts` being an identity cast
- * means that adapter returns **local** midnight, not UTC midnight — on any
- * host not running in UTC, the same stored `date` value materialises as a
- * different `Date` (potentially a different calendar day once rendered)
- * depending on which adapter served it.
+ * parsed as local time") — that mismatch is the reason the UTC-vs-local
+ * question was raised in the first place. It's moot in practice, though:
+ * pg's `normalize-row.ts` bypasses `postgres-date` entirely (drizzle-orm's
+ * node-postgres session installs an identity `getTypeParser` for `DATE`, so
+ * that default parser never runs on this read path), and as of task 13b
+ * pg's own `toDateOnly` anchors at UTC midnight too, for the same
+ * determinism reason: host-local midnight would make the same stored `date`
+ * value materialise as a different calendar day depending on which host
+ * served it.
  *
- * UTC midnight is defensible on its own terms — deterministic across hosts,
- * where pg's local-midnight parse is host-timezone-dependent — but choosing
- * between the two properly needs temporal fixtures in the shared
- * `@byline/db-conformance` suite (today's `field-types.ts` only asserts
- * `attachment.fileSize`, never a temporal value) and a non-UTC CI leg to
- * prove either adapter's behaviour under a host offset — neither exists
- * yet. So this stays exactly as it is: **elected, pending adjudication** —
- * do not change this behaviour without that groundwork; see the PR 3
- * tracking note.
+ * **Ruling (project owner, task 13b): settled.** Both adapters return a
+ * `Date` at UTC midnight for `date` fields — verified together, via the
+ * shared `@byline/db-conformance` `field-types.ts` fixtures, under both
+ * `TZ=UTC` and `TZ=Asia/Bangkok`. This is no longer provisional.
  */
 function toDateOnly(value: string | Date | null | undefined): Date | null {
   if (value == null) return null

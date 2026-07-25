@@ -38,13 +38,16 @@ interface FlattenedDateTimeFieldValue extends BaseFlattenedFieldData {
   field_type: 'datetime'
   date_type: 'datetime' | 'date' | 'time'
   value_time?: string
-  // `value_date` is a Date when flattened from form input, or a 'YYYY-MM-DD'
-  // string when re-flattened from previously-read storage content (drizzle's
-  // `date()` column returns strings by default). `value_timestamp_tz` is a
-  // Date from form widgets but a string from the EAV UNION ALL read path
-  // (the manifest's nullCast collapses the column to `timestamp` without
-  // TZ, which node-postgres returns as a string). The insert path accepts
-  // both shapes for both columns.
+  // Both adapters' ordinary read path (`normalize-row.ts`, mysql and pg
+  // alike, as of task 13b) and the Zod schema builder's `z.coerce.date()`
+  // for form/API input hand this a `Date`, so `Date` covers every value
+  // that reaches `flattenFieldSetData` through the validated API surface.
+  // The `string` arm stays for the documented direct-`db.commands.*`
+  // escape hatch (seeds, migrations, internal tooling — see CLAUDE.md's
+  // "Auth" section) that can call `createDocumentVersion` with
+  // hand-built field-set data bypassing Zod entirely, e.g. a raw
+  // `'YYYY-MM-DD'` or ISO string. `storage-insert.ts`'s `toDateOnlyString`
+  // / `toDate` (pg) and `toDate` (mysql) tolerate both shapes on purpose.
   value_date?: Date | string
   value_timestamp_tz?: Date | string
 }
