@@ -22,4 +22,13 @@ async function run() {
   await seedFaqFixture()
 }
 
+// Exit explicitly — the adapter's pool holds a live timer, so the process does
+// not terminate on its own once the seed commits. See the fuller note in
+// `seed-admin.ts`; the short version is that `pgAdapter`'s 2-second idle
+// timeout masked this and mysql2's 60-second, non-unref'd idle sweep does not.
 run()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })
