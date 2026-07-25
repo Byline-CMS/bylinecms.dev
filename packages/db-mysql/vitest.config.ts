@@ -33,6 +33,17 @@ export default defineConfig(({ mode }) => {
             fileParallelism: false,
             maxWorkers: 1,
             isolate: false,
+            // TODO(Task 13): remove once the conformance entry lands.
+            // There is no `tests/` directory yet (`globalSetup` /
+            // `setupFiles` above point at files that don't exist until
+            // Task 13 lands the shared @byline/db-conformance suite
+            // entry), so `vitest run --mode=integration` currently
+            // matches zero test files and exits 1 with "No test files
+            // found" — which turns `pnpm test:integration` (and CI, which
+            // runs it at the repo root) red for a condition that isn't a
+            // failure, just "nothing to run yet." `passWithNoTests`
+            // makes an empty run exit 0 instead.
+            passWithNoTests: true,
           }
         : {}),
     },
