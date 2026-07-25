@@ -63,65 +63,6 @@ const sampleDocument = {
 }
 
 /**
- * Recover the instant (epoch milliseconds) a `datetime` field value
- * represents, whether the adapter returned a real `Date` (mysql, via its
- * `normalize-row.ts` coercion) or the raw driver string (postgres — the EAV
- * UNION ALL collapses `value_timestamp_tz` to a TZ-less `timestamp` for
- * cross-store-table type alignment, which node-postgres returns as text;
- * see `packages/core/src/storage/storage-row-types.ts`'s
- * `FlattenedDateTimeFieldValue` doc comment). Returns `null` when the value
- * can't be parsed as either.
- */
-function toInstantMs(value: unknown): number | null {
-  if (value instanceof Date) return value.getTime()
-  if (typeof value === 'string') {
-    const parsed = new Date(value)
-    return Number.isNaN(parsed.getTime()) ? null : parsed.getTime()
-  }
-  return null
-}
-
-/**
- * Recover the calendar date(s) a `date` field value could represent as
- * 'YYYY-MM-DD' strings, tolerant of every representation an adapter might
- * currently return:
- *
- *   - a raw driver string (postgres, today) — the literal stored text, no
- *     midnight or timezone interpretation involved at all.
- *   - a `Date` (mysql, today) — two candidates, the calendar date read via
- *     the process's *local* getters and via its *UTC* getters. Exactly one
- *     of these is guaranteed to reproduce the stored calendar date no
- *     matter the adapter's midnight convention or the host's timezone
- *     offset: a `Date` built at UTC midnight (mysql's `toDateOnly`)
- *     recovers correctly via UTC getters always, and via local getters
- *     whenever the host is at or east of UTC; a `Date` built at local
- *     midnight (what node-postgres's own default type parser would
- *     produce, were it in play here) recovers correctly via local getters
- *     always. Returning both candidates and asking the caller to check
- *     "is the expected date among them" is what makes the assertion below
- *     agnostic to which convention is in play — see the `date` fixture's
- *     comment and the task-13 report's §B.1 evidence table for the full
- *     story, including the one case (a Date anchored at UTC midnight, read
- *     via local getters, on a host west of UTC) where the *local* candidate
- *     alone would be wrong — which is exactly why both candidates are
- *     offered rather than just one.
- */
-function calendarDateCandidates(value: unknown): string[] {
-  if (typeof value === 'string') {
-    const match = value.match(/^\d{4}-\d{2}-\d{2}/)
-    return match ? [match[0]] : []
-  }
-  if (value instanceof Date) {
-    const pad = (n: number) => String(n).padStart(2, '0')
-    return [
-      `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`,
-      `${value.getUTCFullYear()}-${pad(value.getUTCMonth() + 1)}-${pad(value.getUTCDate())}`,
-    ]
-  }
-  return []
-}
-
-/**
  * Ported from `packages/db-postgres/src/modules/storage/tests/storage-field-types.test.ts`.
  */
 export function fieldTypesSuite(hooks: ConformanceHooks): void {
@@ -230,17 +171,20 @@ export function fieldTypesSuite(hooks: ConformanceHooks): void {
     // returning strings instead of `Date`s through the ordinary read
     // path, a `value_time` column generated as `TIME(0)` (truncating
     // fractional seconds against a spec saying `TIME(3)`), and an
-    // unresolved UTC-vs-local divergence in `date` handling. See the
-    // task-13 report for the full evidence, including the discovery
-    // (while writing these fixtures) that postgres's `date` **and**
-    // `datetime` fields both currently return the raw driver string
-    // through this same read path — already documented, if easy to miss,
-    // at `packages/core/src/storage/storage-row-types.ts`'s
-    // `FlattenedDateTimeFieldValue` — so mysql and postgres disagree on
-    // representation (`Date` vs. string) as well as, for `date`, on
-    // midnight anchor. None of that is this suite's to resolve; see the
-    // `toInstantMs` / `calendarDateCandidates` helpers above for how these
-    // fixtures stay representation-agnostic instead of picking a side.
+    // unresolved UTC-vs-local divergence in `date` handling. Task 13
+    // found that mysql and postgres disagreed here — mysql returned a
+    // `Date`, postgres a raw driver string — and wrote these fixtures
+    // representation-tolerant because resolving the divergence was not
+    // the implementer's call to make.
+    //
+    // Task 13b carries the project owner's ruling: both adapters return a
+    // real `Date` for `date` and `datetime`, and `date` anchors at UTC
+    // midnight on both (mysql already did; postgres's
+    // `normalize-row.ts` now matches — see that file's docblock for the
+    // evidence that the fix belongs there rather than in the store
+    // manifest). `time` is explicitly out of scope and stays a string on
+    // both adapters — see the dedicated fixture below. These fixtures now
+    // pin the resolved contract instead of tolerating either answer.
     // ------------------------------------------------------------------
 
     it('round-trips a datetime value with its sub-second precision intact', async () => {
@@ -264,9 +208,10 @@ export function fieldTypesSuite(hooks: ConformanceHooks): void {
         document_version_id: result.document.id,
       })
 
-      const instant = toInstantMs(document?.fields.publishedOn)
-      expect(instant, 'expected a Date or a parseable timestamp string').not.toBeNull()
-      expect(instant).toBe(expected.getTime())
+      // Ruling (task 13b): `datetime` is a real `Date` on both adapters.
+      const publishedOn = document?.fields.publishedOn
+      expect(publishedOn).toBeInstanceOf(Date)
+      expect((publishedOn as Date).getTime()).toBe(expected.getTime())
     })
 
     it('round-trips a bare time value at its declared precision', async () => {
@@ -286,14 +231,17 @@ export function fieldTypesSuite(hooks: ConformanceHooks): void {
       })
 
       // `time` is a plain string on both adapters — never a `Date` — per
-      // `TimeField` (`packages/core/src/@types/field-types.ts`). This is
-      // the fixture whose absence let a `TIME(0)` column ship on mysql,
-      // silently truncating this same fractional-second value to
-      // '14:30:00'.
+      // `TimeField` (`packages/core/src/@types/field-types.ts`). A
+      // time-of-day is not an instant (no calendar date, no UTC/local
+      // question applies), so the task-13b "converge on Date" ruling
+      // deliberately excludes it — this is the fixture pinning that as
+      // intentional, not an oversight. It's also the fixture whose
+      // absence let a `TIME(0)` column ship on mysql, silently truncating
+      // this same fractional-second value to '14:30:00'.
       expect(document?.fields.onTime).toBe('14:30:00.123')
     })
 
-    it('round-trips a calendar date, preserved regardless of which midnight the adapter anchors to', async () => {
+    it('round-trips a calendar date at UTC midnight on both adapters', async () => {
       const path = `date-precision-${Date.now()}`
 
       const result = await adapter.commands.documents.createDocumentVersion({
@@ -312,19 +260,21 @@ export function fieldTypesSuite(hooks: ConformanceHooks): void {
         document_version_id: result.document.id,
       })
 
-      // Deliberately NOT asserting `instanceof Date` here, and deliberately
-      // not deciding which midnight a `Date` return would anchor to — both
-      // are an open, project-owner-only decision (see the task-13 report's
-      // §B.1 evidence table). What both adapters agree on today, and all
-      // this asserts, is that the calendar date itself survives the
-      // round-trip.
+      // Ruling (task 13b): `date` is a real `Date` anchored at **UTC**
+      // midnight on both adapters — deterministic across host timezones,
+      // unlike host-local midnight, which would make the same stored row
+      // render as a different calendar day depending on where the process
+      // runs. Assert via the UTC getters, not local ones, so this fixture
+      // itself doesn't become host-timezone-dependent.
       const value = document?.fields.onDate
-      const candidates = calendarDateCandidates(value)
-      expect(
-        candidates.length,
-        `expected a Date or a date string, got ${typeof value}`
-      ).toBeGreaterThan(0)
-      expect(candidates).toContain('2026-03-10')
+      expect(value).toBeInstanceOf(Date)
+      const date = value as Date
+      expect(date.getUTCFullYear()).toBe(2026)
+      expect(date.getUTCMonth()).toBe(2) // 0-indexed: March
+      expect(date.getUTCDate()).toBe(10)
+      expect(date.getUTCHours()).toBe(0)
+      expect(date.getUTCMinutes()).toBe(0)
+      expect(date.getUTCSeconds()).toBe(0)
     })
   })
 }
