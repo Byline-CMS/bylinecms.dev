@@ -11,6 +11,7 @@ import { and, eq, isNull, lt } from 'drizzle-orm'
 import type { MySql2Database } from 'drizzle-orm/mysql2'
 
 import { adminRefreshTokens } from '../../database/schema/auth.js'
+import { affectedRowCount } from '../storage/storage-utils.js'
 import type * as schema from '../../database/schema/index.js'
 
 /**
@@ -140,14 +141,14 @@ export function createRefreshTokensRepository(
             isNull(adminRefreshTokens.revoked_at)
           )
         )
-      return (result as unknown as [{ affectedRows: number }, unknown])[0]?.affectedRows ?? 0
+      return affectedRowCount(result)
     },
 
     async purgeExpired(now = new Date()) {
       const result = await db
         .delete(adminRefreshTokens)
         .where(lt(adminRefreshTokens.expires_at, now))
-      return (result as unknown as [{ affectedRows: number }, unknown])[0]?.affectedRows ?? 0
+      return affectedRowCount(result)
     },
 
     async listActiveForUser(adminUserId) {

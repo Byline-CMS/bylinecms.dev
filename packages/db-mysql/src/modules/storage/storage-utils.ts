@@ -48,3 +48,19 @@ export function toDate(value: string | Date | null | undefined): Date | null {
   if (value instanceof Date) return value
   return new Date(`${value.replace(' ', 'T')}Z`)
 }
+
+/**
+ * Read the affected-row count off a drizzle mysql2 `update()`/`delete()`
+ * result. MySQL has no `RETURNING`, so every guarded write in this adapter
+ * (optimistic-concurrency `UPDATE`/`DELETE` gates, bulk-mutation counts)
+ * uses this as its accept/reject or count signal instead. mysql2 resolves
+ * these to a `[ResultSetHeader, FieldPacket[]]` tuple — `affectedRows`
+ * lives on the first element, not `.rowCount` the way pg's driver shapes
+ * it (confirmed live against the test database; see
+ * `storage-commands.ts`'s `archivePublishedVersions` docblock for the
+ * original finding). Centralised here so the admin repositories (`../admin/
+ * *.ts`) share one cast instead of repeating it inline at every call site.
+ */
+export function affectedRowCount(result: unknown): number {
+  return (result as [{ affectedRows: number }, unknown])[0]?.affectedRows ?? 0
+}

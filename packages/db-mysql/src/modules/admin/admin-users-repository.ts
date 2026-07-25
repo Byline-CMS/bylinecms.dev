@@ -16,6 +16,7 @@ import type { MySql2Database } from 'drizzle-orm/mysql2'
 import { v7 as uuidv7 } from 'uuid'
 
 import { adminUsers } from '../../database/schema/auth.js'
+import { affectedRowCount } from '../storage/storage-utils.js'
 import type * as schema from '../../database/schema/index.js'
 
 /**
@@ -50,17 +51,21 @@ import type * as schema from '../../database/schema/index.js'
  *     `INSERT` values and the returned row, so there is no drift between
  *     what is persisted and what is returned (the failure mode the Task 9
  *     deferred-minor note warns about: two independent `new Date()` calls
- *     that can disagree). `update` and `setPasswordHash` return the full
- *     public row, including columns the patch didn't touch — those values
- *     aren't knowable from the patch alone, so both read the current row
- *     first and merge the patch onto it in JS. This pre-read does not
- *     weaken the optimistic-concurrency guarantee: the accept/reject
- *     decision is still made entirely by the vid-guarded `UPDATE`'s
- *     affected-row count, exactly as pg's guarded `UPDATE … RETURNING`
- *     does — a stale pre-read can only cause the guarded `UPDATE` to affect
- *     zero rows (correctly rejected), never a false accept. `delete` needs
- *     no pre-read at all — it returns `void`, so the affected-row count is
- *     the entire contract.
+ *     that can disagree). `update` and `setPasswordHash` re-`SELECT` the
+ *     row after a successful guarded `UPDATE` rather than merging the patch
+ *     onto a pre-read snapshot — an earlier version of this file did the
+ *     latter and was correct on accept/reject (the vid-guarded `UPDATE`'s
+ *     affected-row count is still the sole accept/reject authority, exactly
+ *     as pg's guarded `UPDATE … RETURNING` is) but not on return-value
+ *     freshness: `recordLoginSuccess`/`recordLoginFailure` mutate
+ *     `last_login`/`last_login_ip`/`failed_login_attempts` *without*
+ *     bumping `vid` (by design, matching pg), so either racing between the
+ *     pre-read and the guarded `UPDATE` left the returned object reporting
+ *     stale values for those columns — self-heals on the next read, but a
+ *     real divergence from pg, where `UPDATE … RETURNING` always reflects
+ *     the row's true post-statement state. The re-`SELECT` closes that gap
+ *     entirely. `delete` needs no read at all — it returns `void`, so the
+ *     affected-row count is the entire contract.
  */
 
 const PUBLIC_COLUMNS = {
@@ -90,10 +95,6 @@ const ORDER_COLUMN = {
   created_at: adminUsers.created_at,
   updated_at: adminUsers.updated_at,
 } as const
-
-function affectedRowCount(result: unknown): number {
-  return (result as [{ affectedRows: number }, unknown])[0]?.affectedRows ?? 0
-}
 
 export function createAdminUsersRepository(
   db: MySql2Database<typeof schema>
@@ -218,11 +219,6 @@ export function createAdminUsersRepository(
     },
 
     async update(id, expectedVid, patch): Promise<AdminUserRow> {
-      const [current] = await db
-        .select(PUBLIC_COLUMNS)
-        .from(adminUsers)
-        .where(eq(adminUsers.id, id))
-
       const now = new Date()
       const updateSet: Record<string, unknown> = {
         updated_at: now,
@@ -243,35 +239,19 @@ export function createAdminUsersRepository(
         .update(adminUsers)
         .set(updateSet)
         .where(and(eq(adminUsers.id, id), eq(adminUsers.vid, expectedVid)))
-      if (affectedRowCount(result) === 0 || !current) throw ERR_ADMIN_USER_VERSION_CONFLICT()
+      if (affectedRowCount(result) === 0) throw ERR_ADMIN_USER_VERSION_CONFLICT()
 
-      return {
-        ...current,
-        given_name: patch.given_name !== undefined ? patch.given_name : current.given_name,
-        family_name: patch.family_name !== undefined ? patch.family_name : current.family_name,
-        username: patch.username !== undefined ? patch.username : current.username,
-        email: patch.email !== undefined ? patch.email.toLowerCase() : current.email,
-        is_super_admin:
-          patch.is_super_admin !== undefined ? patch.is_super_admin : current.is_super_admin,
-        is_enabled: patch.is_enabled !== undefined ? patch.is_enabled : current.is_enabled,
-        is_email_verified:
-          patch.is_email_verified !== undefined
-            ? patch.is_email_verified
-            : current.is_email_verified,
-        remember_me: patch.remember_me !== undefined ? patch.remember_me : current.remember_me,
-        preferred_locale:
-          patch.preferred_locale !== undefined ? patch.preferred_locale : current.preferred_locale,
-        vid: expectedVid + 1,
-        updated_at: now,
-      }
+      // Re-`SELECT` rather than merge the patch onto a pre-read snapshot —
+      // `recordLoginSuccess`/`recordLoginFailure` can touch this row without
+      // bumping `vid`, so a pre-read snapshot can be stale on those columns
+      // even though the guarded `UPDATE` above legitimately succeeded. See
+      // this file's docblock.
+      const [fresh] = await db.select(PUBLIC_COLUMNS).from(adminUsers).where(eq(adminUsers.id, id))
+      if (!fresh) throw ERR_ADMIN_USER_VERSION_CONFLICT()
+      return fresh
     },
 
     async setPasswordHash(id, expectedVid, passwordHash): Promise<AdminUserRow> {
-      const [current] = await db
-        .select(PUBLIC_COLUMNS)
-        .from(adminUsers)
-        .where(eq(adminUsers.id, id))
-
       const now = new Date()
       const result = await db
         .update(adminUsers)
@@ -281,13 +261,13 @@ export function createAdminUsersRepository(
           vid: sql`${adminUsers.vid} + 1`,
         })
         .where(and(eq(adminUsers.id, id), eq(adminUsers.vid, expectedVid)))
-      if (affectedRowCount(result) === 0 || !current) throw ERR_ADMIN_USER_VERSION_CONFLICT()
+      if (affectedRowCount(result) === 0) throw ERR_ADMIN_USER_VERSION_CONFLICT()
 
-      return {
-        ...current,
-        vid: expectedVid + 1,
-        updated_at: now,
-      }
+      // Re-`SELECT` — see `update()` above for why a pre-read snapshot isn't
+      // safe to return here.
+      const [fresh] = await db.select(PUBLIC_COLUMNS).from(adminUsers).where(eq(adminUsers.id, id))
+      if (!fresh) throw ERR_ADMIN_USER_VERSION_CONFLICT()
+      return fresh
     },
 
     async setEnabled(id, enabled) {

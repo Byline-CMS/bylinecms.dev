@@ -16,6 +16,7 @@ import type { MySql2Database } from 'drizzle-orm/mysql2'
 import { v7 as uuidv7 } from 'uuid'
 
 import { adminRoleAdminUser, adminRoles } from '../../database/schema/auth.js'
+import { affectedRowCount } from '../storage/storage-utils.js'
 import type * as schema from '../../database/schema/index.js'
 
 /**
@@ -31,6 +32,15 @@ import type * as schema from '../../database/schema/index.js'
  * the current row first (values the patch didn't touch aren't otherwise
  * knowable) and merges the patch onto it in JS, with the vid-guarded
  * `UPDATE`'s affected-row count as the sole accept/reject authority.
+ *
+ * Unlike `admin-users-repository.ts`'s `update`/`setPasswordHash` (which
+ * re-`SELECT` post-`UPDATE` — see that file's docblock for why), `update`
+ * here safely returns the pre-read-merged row: every mutator of
+ * `byline_admin_roles` — `update` itself and `reorder` — bumps `vid`, so
+ * there is no vid-less mutator on this table analogous to admin-users'
+ * `recordLoginSuccess`/`recordLoginFailure` that could leave a pre-read
+ * snapshot stale while the guarded `UPDATE` still succeeds. If a future
+ * change adds a vid-less mutator to this table, revisit this.
  *
  * `assignToUser`'s upsert uses a plain `.onDuplicateKeyUpdate()` no-op
  * idiom (`admin_role_id = admin_role_id`) rather than the insert-then-catch
@@ -127,9 +137,7 @@ export function createAdminRolesRepository(
         .update(adminRoles)
         .set(updateSet)
         .where(and(eq(adminRoles.id, id), eq(adminRoles.vid, expectedVid)))
-      const affectedRows = (result as unknown as [{ affectedRows: number }, unknown])[0]
-        ?.affectedRows
-      if (!affectedRows || !current) throw ERR_ADMIN_ROLE_VERSION_CONFLICT()
+      if (affectedRowCount(result) === 0 || !current) throw ERR_ADMIN_ROLE_VERSION_CONFLICT()
 
       return {
         ...current,
@@ -147,9 +155,7 @@ export function createAdminRolesRepository(
       const result = await db
         .delete(adminRoles)
         .where(and(eq(adminRoles.id, id), eq(adminRoles.vid, expectedVid)))
-      const affectedRows = (result as unknown as [{ affectedRows: number }, unknown])[0]
-        ?.affectedRows
-      if (!affectedRows) throw ERR_ADMIN_ROLE_VERSION_CONFLICT()
+      if (affectedRowCount(result) === 0) throw ERR_ADMIN_ROLE_VERSION_CONFLICT()
     },
 
     async reorder(ids) {
