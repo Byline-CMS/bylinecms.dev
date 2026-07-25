@@ -1,0 +1,17 @@
+/*
+  MYSQL script to drop and recreate the development database.
+  NOTE: Only do this if you are sure you have exported the latest configuration,
+  and know how to use the config_installer installation profile.
+*/
+
+CREATE USER IF NOT EXISTS '${db_user}'@'%' IDENTIFIED BY '${db_pass}';
+
+ALTER USER '${db_user}'@'%' IDENTIFIED BY '${db_pass}';
+
+DROP DATABASE IF EXISTS ${db_name};
+
+CREATE DATABASE ${db_name} CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+
+GRANT ALL PRIVILEGES ON ${db_name}.* TO '${db_user}'@'%';
+
+FLUSH PRIVILEGES;

@@ -1,0 +1,227 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
+import type { CollectionDefinition, IDbAdapter } from '@byline/core'
+import { drizzle, type MySql2Database } from 'drizzle-orm/mysql2'
+import type { PoolConnection as CallbackPoolConnection } from 'mysql2'
+import mysql from 'mysql2/promise'
+
+import * as schema from './database/schema/index.js'
+import { assertMySqlVersion } from './lib/boot-check.js'
+import { DBManagerImpl, TXManagerImpl } from './lib/db-manager.js'
+
+/**
+ * Public return type of `mysqlAdapter`. Extends `IDbAdapter` with concrete
+ * Drizzle + mysql2 handles so integrations that need the raw database (the
+ * session provider, housekeeping scripts, migration tooling) don't have
+ * to construct a second connection pool.
+ *
+ * Consumers that only need the adapter contract can still annotate as
+ * `IDbAdapter` and ignore the extra properties. Mirrors `PgAdapter`
+ * (`packages/db-postgres/src/index.ts`).
+ */
+export interface MySqlAdapter extends IDbAdapter {
+  /** The underlying Drizzle instance, typed against the full schema. */
+  drizzle: MySql2Database<typeof schema>
+  /** The mysql2 connection pool — exposed for housekeeping and teardown. */
+  pool: mysql.Pool
+}
+
+/**
+ * Build a stub matching one `IDbAdapter` command/query member's exact call
+ * signature. Every real implementation lands task by task (9: storage
+ * commands, 10: storage queries, 11: counters/audit) — the adapter this
+ * factory returns is deliberately non-functional until then. Throwing keeps
+ * that honest at the call site: `MySqlAdapter` satisfies `IDbAdapter`
+ * structurally today, but invoking any operation before its task lands
+ * fails loudly instead of silently doing nothing.
+ */
+function notImplemented<T>(member: string, task: number): T {
+  return (() => {
+    throw new Error(`@byline/db-mysql: ${member} is not implemented yet (Task ${task})`)
+  }) as unknown as T
+}
+
+export const mysqlAdapter = ({
+  connectionString,
+  // biome-ignore lint/correctness/noUnusedFunctionParameters: threaded through the signature now for parity with pgAdapter; wired into the storage query builders in Task 10.
+  collections,
+  // biome-ignore lint/correctness/noUnusedFunctionParameters: threaded through the signature now for parity with pgAdapter; wired into the storage command/query builders starting Task 9.
+  defaultContentLocale,
+  connectionLimit = 20,
+}: {
+  connectionString: string
+  collections: readonly CollectionDefinition[]
+  /**
+   * The installation's default content locale, sourced from
+   * `ServerConfig.i18n.content.defaultLocale`. Used by the storage layer as
+   * the **fallback** anchor only: new documents are stamped with it as their
+   * `source_locale`, and it is the floor for row-less lookups (findByPath) and
+   * for documents whose `source_locale` is not yet backfilled. Per-document
+   * reads and writes otherwise re-base onto each document's own `source_locale`
+   * (carried on the current-documents views), so changing this value does not
+   * re-interpret existing data. See docs/07-internationalization/index.md.
+   */
+  defaultContentLocale: string
+  /**
+   * Maximum number of connections in the mysql2 pool. Defaults to 20. Tune
+   * via `BYLINE_DB_MYSQL_CONNECTION_LIMIT` in the host app.
+   */
+  connectionLimit?: number
+}): MySqlAdapter => {
+  const pool = mysql.createPool({
+    uri: connectionString,
+    connectionLimit,
+    // Every DATETIME(3) column is UTC by convention (spec §2). 'Z' stops
+    // mysql2 from reinterpreting stored UTC values against the server's or
+    // session's local timezone on the way in and out.
+    timezone: 'Z',
+    // Keep DECIMAL columns as strings instead of coercing to JS `number`,
+    // which loses precision on money/decimal values. The storage layer
+    // (Task 9) treats decimal store values as strings end to end, matching
+    // the pg adapter's `numeric` handling.
+    decimalNumbers: false,
+  })
+
+  // `drizzle-orm/mysql2` requires `mode` whenever `schema` is supplied.
+  // 'default' matches the pg adapter's un-prefixed-key mode (as opposed to
+  // 'planetscale', which changes how relational queries build).
+  const db: MySql2Database<typeof schema> = drizzle(pool, {
+    schema,
+    mode: 'default',
+  })
+
+  // Request-scoped transaction propagation (docs/03-architecture/03-transactions.md), mirroring
+  // the pg adapter. Exported via ./lib/db-manager.js for Tasks 9-12: command
+  // builders land on the DBManager so each `this.db` access resolves to the
+  // ambient transaction when a `withTransaction` boundary is open, else the
+  // pool.
+  const dbManager = new DBManagerImpl({ dbPool: db })
+  // biome-ignore lint/correctness/noUnusedVariables: constructed now so Tasks 9-12 wire withTransaction to it; unused until then (see the withTransaction stub below).
+  const txManager = new TXManagerImpl({ db: dbManager })
+
+  // Boot check: run lazily on the pool's first physical connection rather
+  // than eagerly here, because `mysqlAdapter` is synchronous (mirroring
+  // `pgAdapter`) and cannot await a round trip before returning. mysql2
+  // pools open no connections at construction time — the `'connection'`
+  // event fires the first time a query actually needs one, which in
+  // practice is during `initBylineCore()`'s own boot sequence. A too-old
+  // server or MariaDB is a configuration error, not a recoverable runtime
+  // condition, so a failed check is rethrown on the next tick to surface as
+  // a loud, fail-fast crash instead of a silently swallowed rejection.
+  //
+  // The `mysql2/promise` typings claim this event hands back a
+  // promise-wrapped `PoolConnection`, but at runtime it is the underlying
+  // callback-style connection (confirmed against a live server) — calling
+  // `.query()` on it directly returns an `EventEmitter`, not a `Promise`.
+  // `.promise()` is the callback API's own escape hatch back to the
+  // promise wrapper; see https://sidorares.github.io/node-mysql2/docs/documentation/promise-wrapper.
+  let versionCheckStarted = false
+  pool.on('connection', (connection) => {
+    if (versionCheckStarted) return
+    versionCheckStarted = true
+    const rawConnection = connection as unknown as CallbackPoolConnection
+    const promiseConnection = rawConnection.promise()
+    assertMySqlVersion(async (sql) => {
+      const [rows] = await promiseConnection.query(sql)
+      return rows as Array<{ v: string }>
+    }).catch((err) => {
+      process.nextTick(() => {
+        throw err
+      })
+    })
+  })
+
+  return {
+    commands: {
+      collections: {
+        create: notImplemented('commands.collections.create', 9),
+        update: notImplemented('commands.collections.update', 9),
+        delete: notImplemented('commands.collections.delete', 9),
+      },
+      documents: {
+        createDocumentVersion: notImplemented('commands.documents.createDocumentVersion', 9),
+        updateDocumentPath: notImplemented('commands.documents.updateDocumentPath', 9),
+        setDocumentAvailableLocales: notImplemented(
+          'commands.documents.setDocumentAvailableLocales',
+          9
+        ),
+        setDocumentStatus: notImplemented('commands.documents.setDocumentStatus', 9),
+        archivePublishedVersions: notImplemented('commands.documents.archivePublishedVersions', 9),
+        softDeleteDocument: notImplemented('commands.documents.softDeleteDocument', 9),
+        deleteDocumentLocale: notImplemented('commands.documents.deleteDocumentLocale', 9),
+        setOrderKey: notImplemented('commands.documents.setOrderKey', 9),
+        placeTreeNode: notImplemented('commands.documents.placeTreeNode', 9),
+        removeFromTree: notImplemented('commands.documents.removeFromTree', 9),
+        promoteChildrenAndRemoveFromTree: notImplemented(
+          'commands.documents.promoteChildrenAndRemoveFromTree',
+          9
+        ),
+      },
+      counters: {
+        ensureCounterGroup: notImplemented('commands.counters.ensureCounterGroup', 11),
+        nextCounterValue: notImplemented('commands.counters.nextCounterValue', 11),
+        nextScopedCounterValue: notImplemented('commands.counters.nextScopedCounterValue', 11),
+      },
+      audit: {
+        append: notImplemented('commands.audit.append', 11),
+      },
+    },
+    queries: {
+      collections: {
+        getAllCollections: notImplemented('queries.collections.getAllCollections', 10),
+        getCollectionByPath: notImplemented('queries.collections.getCollectionByPath', 10),
+        getCollectionById: notImplemented('queries.collections.getCollectionById', 10),
+      },
+      documents: {
+        getDocumentSystemFieldsForUpdate: notImplemented(
+          'queries.documents.getDocumentSystemFieldsForUpdate',
+          10
+        ),
+        getDocumentById: notImplemented('queries.documents.getDocumentById', 10),
+        getCurrentVersionMetadata: notImplemented(
+          'queries.documents.getCurrentVersionMetadata',
+          10
+        ),
+        getCurrentPath: notImplemented('queries.documents.getCurrentPath', 10),
+        getDocumentByPath: notImplemented('queries.documents.getDocumentByPath', 10),
+        getDocumentByVersion: notImplemented('queries.documents.getDocumentByVersion', 10),
+        getDocumentsByVersionIds: notImplemented('queries.documents.getDocumentsByVersionIds', 10),
+        getDocumentsByDocumentIds: notImplemented(
+          'queries.documents.getDocumentsByDocumentIds',
+          10
+        ),
+        getDocumentHistory: notImplemented('queries.documents.getDocumentHistory', 10),
+        getPublishedVersion: notImplemented('queries.documents.getPublishedVersion', 10),
+        getPublishedDocumentIds: notImplemented('queries.documents.getPublishedDocumentIds', 10),
+        getDocumentCountsByStatus: notImplemented(
+          'queries.documents.getDocumentCountsByStatus',
+          10
+        ),
+        findDocuments: notImplemented('queries.documents.findDocuments', 10),
+        getLastOrderKey: notImplemented('queries.documents.getLastOrderKey', 10),
+        getNeighborOrderKeys: notImplemented('queries.documents.getNeighborOrderKeys', 10),
+        getCanonicalDocumentOrder: notImplemented(
+          'queries.documents.getCanonicalDocumentOrder',
+          10
+        ),
+        getTreeAncestors: notImplemented('queries.documents.getTreeAncestors', 10),
+        getTreeChildren: notImplemented('queries.documents.getTreeChildren', 10),
+        getTreeParent: notImplemented('queries.documents.getTreeParent', 10),
+        getTreeSubtree: notImplemented('queries.documents.getTreeSubtree', 10),
+      },
+      audit: {
+        getDocumentAuditLog: notImplemented('queries.audit.getDocumentAuditLog', 11),
+        findAuditLog: notImplemented('queries.audit.findAuditLog', 11),
+      },
+    },
+    withTransaction: notImplemented('withTransaction', 9),
+    drizzle: db,
+    pool,
+  }
+}

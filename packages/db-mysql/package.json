@@ -1,0 +1,87 @@
+{
+  "name": "@byline/db-mysql",
+  "private": false,
+  "license": "MPL-2.0",
+  "version": "4.7.0",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "description": "Byline CMS db mysql package",
+  "keywords": [
+    "cms",
+    "headless cms",
+    "content management"
+  ],
+  "homepage": "https://github.com/Byline-CMS/bylinecms.dev",
+  "bugs": {
+    "url": "https://github.com/Byline-CMS/bylinecms.dev/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Byline-CMS/bylinecms.dev.git",
+    "directory": "packages/db-mysql"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "index": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "chokidar 'src/**/*' -c 'npm-run-all build'",
+    "build": "tsc -p tsconfig.json && tsc-alias",
+    "clean": "node scripts/clean.js node_modules dist build .turbo",
+    "lint": "biome check --write --unsafe --diagnostic-level=error",
+    "db:init": "cd src/database && ./db_init.sh",
+    "drizzle:generate": "tsc -p tsconfig.json && drizzle-kit generate --config=drizzle.config.ts",
+    "drizzle:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
+    "drizzle:push": "tsc -p tsconfig.json && drizzle-kit push --config=drizzle.config.ts",
+    "drizzle:drop": "drizzle-kit drop --config=drizzle.config.ts",
+    "test": "vitest run --mode=node",
+    "test:integration": "LOG_LEVEL=off vitest run --mode=integration",
+    "test:watch": "LOG_LEVEL=off vitest --mode=integration",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./admin": {
+      "types": "./dist/modules/admin/index.d.ts",
+      "import": "./dist/modules/admin/index.js",
+      "require": "./dist/modules/admin/index.js"
+    },
+    "./schema": {
+      "types": "./dist/database/schema/index.d.ts",
+      "import": "./dist/database/schema/index.js",
+      "require": "./dist/database/schema/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@byline/core": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "mysql2": "^3.23.1",
+    "npm-run-all": "^4.1.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.4",
+    "@byline/db-conformance": "workspace:*",
+    "@types/node": "^26.1.1",
+    "chokidar": "^5.0.0",
+    "chokidar-cli": "^3.0.0",
+    "dotenv": "^17.4.2",
+    "drizzle-kit": "^0.31.10",
+    "tsc-alias": "^1.9.1",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}
