@@ -3,7 +3,20 @@
 "@byline/db-postgres": minor
 ---
 
-Added `@byline/db-mysql`, Byline's second database adapter. `mysqlAdapter()` implements
+Added `@byline/db-mysql`, Byline's second database adapter — **published as preliminary,
+not as fully supported MySQL support.** The storage layer is complete and proven: it
+passes the entire shared `@byline/db-conformance` behavioural suite, the same suite
+`@byline/db-postgres` passes, with identical results. What is missing is the surrounding
+ecosystem, and one gap needs stating plainly because it fails at boot rather than
+degrading quietly: **there is no MySQL search provider**, and `initBylineCore()` throws
+when a collection declares a `search` block with no provider registered. Byline's own
+reference application opts five collections into search, so a MySQL installation copying
+it will not start until a no-op provider is registered — `packages/db-mysql/README.md`
+gives the snippet. `byline init` also does not yet scaffold MySQL, and CI pins the 8.0
+engine floor so nothing exercises 9.x automatically. Treat this release as suitable for
+evaluation, prototypes, and installations that do not need search.
+
+`mysqlAdapter()` implements
 the same `IDbAdapter` contract as `@byline/db-postgres` over MySQL 8.0.14+ (InnoDB only;
 the boot check rejects older servers and MariaDB) and passes the same shared
 `@byline/db-conformance` suite the Postgres adapter runs, so document storage, versioning,
