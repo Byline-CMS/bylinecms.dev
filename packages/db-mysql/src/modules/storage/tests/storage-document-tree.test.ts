@@ -318,7 +318,7 @@ describe('DocumentCommands tree mutations (mysql, live database)', () => {
         documentId: a,
         parentDocumentId: a,
       })
-    ).rejects.toThrow()
+    ).rejects.toMatchObject({ code: ErrorCodes.VALIDATION })
 
     // A is C's ancestor, so making A a child of C is a cycle — exercises the
     // `WITH RECURSIVE chain AS (...)` cycle guard.
@@ -328,7 +328,7 @@ describe('DocumentCommands tree mutations (mysql, live database)', () => {
         documentId: a,
         parentDocumentId: c,
       })
-    ).rejects.toThrow()
+    ).rejects.toMatchObject({ code: ErrorCodes.VALIDATION })
   })
 
   it('re-parents atomically — one edge row, updated in place', async () => {
