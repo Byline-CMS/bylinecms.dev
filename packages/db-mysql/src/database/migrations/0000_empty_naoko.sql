@@ -140,7 +140,7 @@ CREATE TABLE `byline_store_datetime` (
 	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 	`date_type` varchar(20) NOT NULL,
 	`value_date` date,
-	`value_time` time,
+	`value_time` time(3),
 	`value_timestamp_tz` datetime(3),
 	CONSTRAINT `byline_store_datetime_id` PRIMARY KEY(`id`),
 	CONSTRAINT `unique_datetime_field` UNIQUE(`document_version_id`,`field_path`,`locale`)
@@ -159,7 +159,7 @@ CREATE TABLE `byline_document_paths` (
 	`document_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	`locale` varchar(10) NOT NULL,
 	`collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-	`path` varchar(255) NOT NULL,
+	`path` varchar(255) COLLATE utf8mb4_bin NOT NULL,
 	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 	CONSTRAINT `unique_document_paths_document_locale` UNIQUE(`document_id`,`locale`),

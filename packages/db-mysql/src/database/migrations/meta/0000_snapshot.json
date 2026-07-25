@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "89d616bc-62da-4e2d-85e6-61a0d297bec8",
+  "id": "54b6ad03-c719-4832-a3f2-32cc0fd2794d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "byline_admin_permissions": {
@@ -1115,7 +1115,7 @@
         },
         "value_time": {
           "name": "value_time",
-          "type": "time",
+          "type": "time(3)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -1324,7 +1324,7 @@
         },
         "path": {
           "name": "path",
-          "type": "varchar(255)",
+          "type": "varchar(255) COLLATE utf8mb4_bin",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false

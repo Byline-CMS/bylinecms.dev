@@ -49,6 +49,42 @@ export const varcharByteSorted = customType<{
 })
 
 /**
+ * `varchar(...)` with the `utf8mb4_bin` collation — full `utf8mb4` charset
+ * (unlike `uuidChar/varcharByteSorted`'s ascii-only columns, this one must
+ * carry arbitrary Unicode), but byte-wise, case- and accent-sensitive
+ * comparison instead of the database's default `utf8mb4_0900_ai_ci`.
+ *
+ * Used for `byline_document_paths.path`. MySQL's default collation is
+ * accent- *and* case-insensitive, so `/About` and `/about` collide as the
+ * same path on MySQL while remaining two distinct paths on Postgres (whose
+ * default collation carries no such folding). The project owner's initial
+ * instinct was that MySQL's default might be the *better* semantic for
+ * URLs — until testing against a live server showed `ai_ci` also collapses
+ * combining marks Byline's slugifier deliberately preserves for non-Latin
+ * scripts: `กา` = `ก่า` (a Thai tone mark), `कान` = `कानं` (a Devanagari
+ * anusvara), `שלום` = `שָׁלוֹם` (Hebrew niqqud) — see
+ * `packages/core/src/utils/slugify.ts`, which folds Latin diacritics but
+ * explicitly keeps non-Latin combining marks, because those marks are
+ * meaning-bearing in a way a Latin accent mark on a URL slug typically
+ * isn't. Two Thai (or Devanagari, or Hebrew) slugs Byline intended as
+ * distinct documents would silently collide as one path on MySQL only.
+ * Ruling: pin `utf8mb4_bin` so the two adapters agree exactly. This is
+ * `path` only — the store *value* columns keep the database's default
+ * `ai_ci` collation; the resulting accent-insensitive `LIKE` divergence
+ * there was elected deliberately by the plan and stands.
+ */
+export const varcharCaseSensitive = customType<{
+  data: string
+  driverData: string
+  config: { length: number }
+}>({
+  dataType: (config) => {
+    const len = config?.length ?? 255
+    return `varchar(${len}) COLLATE utf8mb4_bin`
+  },
+})
+
+/**
  * Audit-timestamp column shape used across every Byline table.
  * `DATETIME(3)` — millisecond precision; stored and read as UTC by
  * convention (the mysql2 pool is opened with `timezone: 'Z'` so values

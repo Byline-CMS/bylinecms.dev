@@ -27,7 +27,13 @@ import {
   varchar,
 } from 'drizzle-orm/mysql-core'
 
-import { createdAt, timestamps, uuidChar, varcharByteSorted } from './common.js'
+import {
+  createdAt,
+  timestamps,
+  uuidChar,
+  varcharByteSorted,
+  varcharCaseSensitive,
+} from './common.js'
 
 // Every foreign key below is declared with the table-level `foreignKey()`
 // builder and an explicit, short `fk_<table>_<column>` name, rather than
@@ -179,7 +185,10 @@ export const documentPaths = mysqlTable(
     document_id: uuidChar('document_id').notNull(),
     locale: varchar('locale', { length: 10 }).notNull(),
     collection_id: uuidChar('collection_id').notNull(),
-    path: varchar('path', { length: 255 }).notNull(),
+    // `utf8mb4_bin`, not the database default — see `varcharCaseSensitive`
+    // in `./common.ts` for why (case AND accent sensitivity, verified
+    // against live Thai/Devanagari/Hebrew slugs, not just Latin parity).
+    path: varcharCaseSensitive('path', { length: 255 }).notNull(),
     ...timestamps,
   },
   (table) => [
@@ -575,7 +584,16 @@ export const datetimeStore = mysqlTable(
     date_type: varchar('date_type', { length: 20 }).notNull(), // 'date', 'time', 'timestamptz'
 
     value_date: date('value_date'),
-    value_time: time('value_time'),
+    // fsp 3, matching the fsp discipline used everywhere else in this
+    // schema (spec §2). Without an explicit fsp, MySQL's `TIME` defaults
+    // to whole-second precision, silently truncating a fractional time
+    // value that round-trips fine on Postgres — whose `time` column (also
+    // declared with no explicit precision) defaults to microsecond
+    // precision instead. `time` is a real Byline field type
+    // (`packages/core/src/storage/field-store-map.ts`), so this isn't a
+    // hypothetical: a document with a fractional-second time value would
+    // read back truncated after a write, MySQL-only.
+    value_time: time('value_time', { fsp: 3 }),
     // Postgres `timestamptz` → `datetime(3)` (spec §2). UTC by convention —
     // see `common.ts`'s `auditTimestamp` doc comment.
     value_timestamp_tz: datetime('value_timestamp_tz', { fsp: 3 }),

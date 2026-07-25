@@ -20,12 +20,20 @@
  *      `ascii_bin` collation (byte-wise, case-sensitive comparison —
  *      what makes id equality case-sensitive and `order_key`'s DB sort
  *      match JS string sort on the `generateKeyBetween` alphabet).
- *   3. Every timestamp column is `datetime(3)` — millisecond precision.
+ *   3. Every timestamp (instant) column is `datetime(3)` — millisecond
+ *      precision — and every bare time-of-day column is `time(3)`, the
+ *      same millisecond precision, so a fractional time value round-trips
+ *      instead of silently truncating to whole seconds.
  *   4. The `byline_document_paths` per-collection path-uniqueness index
  *      keeps the exact name `idx_document_paths_collection_locale_path`,
  *      because `packages/core/src/services/document-lifecycle/internals.ts`
  *      substring-matches this name against the adapter's `classifyError`
  *      constraint report to detect path collisions.
+ *   5. `byline_document_paths.path` carries the `utf8mb4_bin` collation
+ *      (project-owner ruling) so path uniqueness is case- and
+ *      accent-sensitive on MySQL exactly like it already is on Postgres —
+ *      see `varcharCaseSensitive` in `./common.ts` for the Thai /
+ *      Devanagari / Hebrew combining-mark evidence behind the ruling.
  *
  * Computed generically over the schema so a future column widening (or a
  * new `_id` column that forgets `uuidChar`) trips this test rather than
@@ -43,15 +51,6 @@ import * as coreSchema from './index.js'
 // innodb_large_prefix on, which is the default from 8.0 on) caps a single
 // index key at 3072 bytes.
 const INNODB_INDEX_KEY_BYTE_CAP = 3072
-
-// Column names that end in `_id` (or are literally `id`) but are NOT
-// uuid-shaped FK/PK columns, so they are exempt from the `uuidChar`
-// (ascii_bin, char(36)) pin. Kept as an explicit, reviewable allowlist —
-// mirrors the pg schema's `metaStore.item_id`, which is deliberately a
-// generic `varchar(255)` identifier, not a `uuid` column, because it is
-// merely "exposed to the dashboard/API" rather than referencing another
-// table's primary key.
-const ID_COLUMN_UUID_EXEMPTIONS = new Set(['item_id'])
 
 function allTables(): MySqlTable[] {
   const tables: MySqlTable[] = []
@@ -324,7 +323,7 @@ describe('schema pins — index byte budget (spec §F.1)', () => {
 })
 
 describe('schema pins — ascii_bin collation (spec §F.2)', () => {
-  const idColumns: { tableName: string; column: AnyMySqlColumn }[] = []
+  const char36Columns: { tableName: string; column: AnyMySqlColumn }[] = []
   const orderKeyColumns: { tableName: string; column: AnyMySqlColumn }[] = []
 
   for (const table of allTables()) {
@@ -334,22 +333,29 @@ describe('schema pins — ascii_bin collation (spec §F.2)', () => {
         orderKeyColumns.push({ tableName: cfg.name, column: col })
         continue
       }
-      const looksLikeIdColumn = col.name === 'id' || col.name.endsWith('_id')
-      if (looksLikeIdColumn && !ID_COLUMN_UUID_EXEMPTIONS.has(col.name)) {
-        idColumns.push({ tableName: cfg.name, column: col })
+      // Asserted on the rendered *type* (any `char(36)` column) rather
+      // than the column *name* (`id` / `*_id`) — a name-pattern rule
+      // missed `documentVersions.created_by`, which is a `uuidChar`
+      // column that doesn't end in `_id`. Matching on type instead means
+      // every 36-char fixed-width column in the schema is held to this
+      // pin regardless of what it's called, and a column that renders as
+      // `char(36)` but isn't the `uuidChar` (ascii_bin) flavor fails the
+      // assertion below rather than escaping the check entirely.
+      if (/^char\(36\)/i.test(col.getSQLType())) {
+        char36Columns.push({ tableName: cfg.name, column: col })
       }
     }
   }
 
-  it('finds id columns to check (schema is not empty)', () => {
-    expect(idColumns.length).toBeGreaterThan(0)
+  it('finds char(36) columns to check (schema is not empty)', () => {
+    expect(char36Columns.length).toBeGreaterThan(0)
   })
 
   it('finds order_key columns to check (schema is not empty)', () => {
     expect(orderKeyColumns.length).toBeGreaterThan(0)
   })
 
-  it.each(idColumns.map((c) => [`${c.tableName}.${c.column.name}`, c.column] as const))(
+  it.each(char36Columns.map((c) => [`${c.tableName}.${c.column.name}`, c.column] as const))(
     '%s is char(36) CHARACTER SET ascii COLLATE ascii_bin (uuidChar)',
     (_label, column) => {
       expect(column.getSQLType()).toBe('char(36) CHARACTER SET ascii COLLATE ascii_bin')
@@ -365,7 +371,8 @@ describe('schema pins — ascii_bin collation (spec §F.2)', () => {
 })
 
 describe('schema pins — timestamp precision (spec §F.3)', () => {
-  const datetimeColumns: { tableName: string; column: AnyMySqlColumn }[] = []
+  const instantColumns: { tableName: string; column: AnyMySqlColumn }[] = []
+  const timeColumns: { tableName: string; column: AnyMySqlColumn }[] = []
 
   // Any temporal type that represents an instant (date + time-of-day) must
   // be `datetime(3)`. `MySqlDateTime` is what `datetime()` produces —
@@ -375,29 +382,53 @@ describe('schema pins — timestamp precision (spec §F.3)', () => {
   // MySQL type this schema never intends to use). Filtering on
   // `MySqlDateTime` alone would silently skip that column rather than
   // failing it, so both instant-shaped types are checked here.
-  // `MySqlDate` / `MySqlTime` (the `date()` / `time()` builders used by
-  // `datetimeStore.value_date` / `value_time`) are deliberately excluded —
-  // those store a calendar date or a time-of-day alone, a different
-  // concept from a timestamped instant, and are not held to this pin.
   const INSTANT_COLUMN_TYPES = new Set(['MySqlDateTime', 'MySqlTimestamp'])
 
   for (const table of allTables()) {
     const cfg = getTableConfig(table)
     for (const col of cfg.columns) {
       if (INSTANT_COLUMN_TYPES.has(col.columnType)) {
-        datetimeColumns.push({ tableName: cfg.name, column: col })
+        instantColumns.push({ tableName: cfg.name, column: col })
+      }
+      if (col.columnType === 'MySqlTime') {
+        timeColumns.push({ tableName: cfg.name, column: col })
       }
     }
   }
 
   it('finds datetime columns to check (schema is not empty)', () => {
-    expect(datetimeColumns.length).toBeGreaterThan(0)
+    expect(instantColumns.length).toBeGreaterThan(0)
   })
 
-  it.each(datetimeColumns.map((c) => [`${c.tableName}.${c.column.name}`, c.column] as const))(
+  it.each(instantColumns.map((c) => [`${c.tableName}.${c.column.name}`, c.column] as const))(
     '%s is datetime(3) — millisecond precision',
     (_label, column) => {
       expect(column.getSQLType()).toBe('datetime(3)')
+    }
+  )
+
+  // `MySqlDate` (the `date()` builder, used by `datetimeStore.value_date`)
+  // is the one temporal type genuinely outside this pin's scope — a
+  // calendar date has no time-of-day component to lose precision on, so
+  // there is nothing for an fsp pin to assert.
+  //
+  // `MySqlTime` used to get the same pass, on the theory that a bare
+  // time-of-day was a different concept from a timestamped instant. That
+  // reasoning was wrong: `time` is a real Byline field type
+  // (`packages/core/src/storage/field-store-map.ts`), and an unspecified
+  // `fsp` defaults to whole-second precision on MySQL — silently
+  // truncating a fractional time value that round-trips fine on Postgres,
+  // whose `time` column (also declared with no explicit precision on that
+  // side) defaults to microsecond precision. The exclusion is now a
+  // positive assertion instead.
+  it('finds time columns to check (schema is not empty)', () => {
+    expect(timeColumns.length).toBeGreaterThan(0)
+  })
+
+  it.each(timeColumns.map((c) => [`${c.tableName}.${c.column.name}`, c.column] as const))(
+    '%s is time(3) — millisecond precision',
+    (_label, column) => {
+      expect(column.getSQLType()).toBe('time(3)')
     }
   )
 })
@@ -410,5 +441,24 @@ describe('schema pins — document-paths unique index name (spec §E)', () => {
     )
     expect(pathKey).toBeDefined()
     expect(pathKey?.columns.map((c) => c.name)).toEqual(['collection_id', 'locale', 'path'])
+  })
+})
+
+describe('schema pins — document-paths case-sensitive collation (project-owner ruling)', () => {
+  // `path` must resolve to `utf8mb4_bin` — not the database's default
+  // `utf8mb4_0900_ai_ci` — so path uniqueness is case- AND
+  // accent-sensitive on MySQL exactly like it already is on Postgres
+  // (whose default collation folds neither). Verified against a live
+  // server: MySQL's default collation also collapses non-Latin combining
+  // marks Byline's slugifier deliberately preserves (Thai tone marks,
+  // Devanagari anusvara, Hebrew niqqud — see
+  // `packages/core/src/utils/slugify.ts`), so two documents intended as
+  // distinct would silently collide as one path on MySQL only. See
+  // `varcharCaseSensitive` in `./common.ts` for the full ruling.
+  it('byline_document_paths.path is varchar(255) COLLATE utf8mb4_bin', () => {
+    const cfg = getTableConfig(coreSchema.documentPaths)
+    const pathColumn = cfg.columns.find((c) => c.name === 'path')
+    expect(pathColumn).toBeDefined()
+    expect(pathColumn?.getSQLType()).toBe('varchar(255) COLLATE utf8mb4_bin')
   })
 })
