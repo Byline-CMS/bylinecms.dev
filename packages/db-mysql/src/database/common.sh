@@ -213,16 +213,28 @@ MYSQL_PASSWORD_ESC=$(sed -e 's/\\/\\\\/g' -e "s/[']/\\\\&/g" <<< $MYSQL_PASSWORD
 # https://stackoverflow.com/questions/407523/escape-a-string-for-a-sed-replace-pattern/2705678#2705678
 MYSQL_PASSWORD_ESC=$(sed -e 's/[\/&]/\\&/g' <<< $MYSQL_PASSWORD_ESC)
 
-# Escape the username for the same sed substitution in db_init.sh. Before
-# `urldecode` (above) existed, a raw `/`, `&`, or `\` in the username was
-# structurally impossible — it would have broken URL parsing before
-# `parse_mysql_url` ever ran. Now a percent-encoded username (`%2F`,
-# `%26`, `%5C`) decodes into exactly those sed-special characters and
-# reaches db_init.sh's `s/${db_user}/.../ ` substitution unescaped,
-# corrupting the generated SQL (or, for `&`, silently substituting the
-# whole matched text instead of the literal username). Unlike the
-# password, the username never appears through this script as a SQL
-# string literal that also needs quote/backslash escaping — it only ever
-# reaches sed as a replacement value — so it gets this one escaping stage
-# and not the SQL-literal stage above.
-MYSQL_USER_ESC=$(sed -e 's/[\/&]/\\&/g' <<< $MYSQL_USER)
+# Escape the username for db_init.sh, which needs BOTH stages the
+# password gets above — not just the sed-replacement stage. Before
+# `urldecode` (above) existed, a raw `'`, `\`, `/`, or `&` in the username
+# was structurally impossible — it would have broken URL parsing before
+# `parse_mysql_url` ever ran. Now a percent-encoded username (`%27`,
+# `%5C`, `%2F`, `%26`) decodes into exactly those characters and reaches
+# db_init.sh unescaped.
+#
+# `db-reset.sql.template` renders the username as
+# `'${db_user}'@'%'` — inside single quotes, exactly like the password —
+# so it IS a MySQL SQL string literal here, not a bare identifier the way
+# Postgres's unquoted `CREATE ROLE ${db_user}` is. Skipping the SQL-literal
+# stage is exactly the failure this whole line of work exists to
+# eliminate: a `%5C` in the username decodes to a literal `\`, which
+# MySQL's string parser then treats as an escape-introducer and silently
+# swallows (`'byl\ine'` reads as `byline`) rather than raising a syntax
+# error — so `db_init.sh` would create the user under a different literal
+# name than mysql2 connects with, and the resulting "Access denied"
+# wouldn't point anywhere near the real cause. (`%27` — a literal `'` —
+# gives a loud syntax error instead of a silent mismatch, but still needs
+# escaping to not break the template.) Postgres's `common.sh` stays
+# single-stage: that dialect's template never quotes `${db_user}`, so a
+# username there is never a SQL string literal to begin with.
+MYSQL_USER_ESC=$(sed -e 's/\\/\\\\/g' -e "s/[']/\\\\&/g" <<< $MYSQL_USER)
+MYSQL_USER_ESC=$(sed -e 's/[\/&]/\\&/g' <<< $MYSQL_USER_ESC)

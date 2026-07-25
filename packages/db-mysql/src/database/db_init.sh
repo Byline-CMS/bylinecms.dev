@@ -8,6 +8,13 @@
 #
 #  NOTE: Only do this if you are sure you know what you're doing.
 
+# Without this, a failure in the `sed` stage of the pipeline below is
+# invisible: bash reports a pipeline's exit status as its LAST command's
+# status by default, and the `mysql` client exits 0 on empty stdin (sed
+# having produced nothing) — a silent, successful-looking no-op instead
+# of the actual failure.
+set -o pipefail
+
 # Parse args: --env-file <path>
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -43,7 +50,7 @@ source common.sh
 export MYSQL_PWD="${MYSQL_ROOT_PASSWORD}"
 
 if command -v mysql >/dev/null 2>&1; then
-  MYSQL_CLIENT=(mysql -h 127.0.0.1 -u root)
+  MYSQL_CLIENT=(mysql -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u root)
 else
   MYSQL_CLIENT=(docker exec -i -e MYSQL_PWD byline_dev_mysql mysql -u root)
 fi
