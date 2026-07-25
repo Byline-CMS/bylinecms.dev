@@ -274,10 +274,46 @@ describe('MySQL dialect pins (live database)', () => {
     // a binary collation. See `findDocuments`' query-search site and
     // `packages/db-mysql/src/modules/storage/tests/storage-queries.test.ts`'s
     // "query (LIKE admin search)" test for the full end-to-end behavioural
-    // pin through `findDocuments`; this is the tight, direct-SQL smoke.
-    it('LIKE matches a stored value across case and accent variants', async () => {
-      const rows = await queryRows(rawPool, "SELECT ('Ünïcödé' LIKE ?) as matched", ['unicode'])
-      expect(Number(first(rows).matched)).toBe(1)
+    // pin through `findDocuments`.
+    //
+    // This test reads a real row through `byline_store_text.value` rather
+    // than comparing two SQL string literals — an earlier version of this
+    // test ran `SELECT ('Ünïcödé' LIKE ?) as matched`, which pins the
+    // *connection's* default collation (`collation_connection`, derived
+    // from the pool's `charset`), not the column's. Re-collating `value`
+    // to a binary collation would leave that version green while breaking
+    // the exact behaviour it claimed to pin — this version would catch it,
+    // because the comparison now happens against the actual indexed
+    // column.
+    it('LIKE matches a stored value in byline_store_text across case and accent variants', async () => {
+      const testCollection: CollectionDefinition = {
+        path: `like-collation-pin-${timestamp}`,
+        labels: { singular: 'LikeCollationThing', plural: 'LikeCollationThings' },
+        fields: [{ name: 'title', type: 'text' }],
+      }
+      testDb = setupTestDB([testCollection])
+      const collectionId = first(
+        await testDb.commandBuilders.collections.create(testCollection.path, testCollection)
+      ).id
+      await testDb.commandBuilders.documents.createDocumentVersion({
+        collectionId,
+        collectionVersion: 1,
+        collectionConfig: testCollection,
+        action: 'create',
+        documentData: { title: 'Ünïcödé Sample' },
+        locale: 'all',
+        status: 'draft',
+      })
+
+      const rows = await queryRows(
+        rawPool,
+        'SELECT value FROM byline_store_text WHERE field_name = ? AND value LIKE ?',
+        ['title', '%unicode sample%']
+      )
+      expect(rows).toHaveLength(1)
+      expect(first(rows).value).toBe('Ünïcödé Sample')
+
+      await testDb.commandBuilders.collections.delete(collectionId)
     })
   })
 })
