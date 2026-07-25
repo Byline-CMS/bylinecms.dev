@@ -272,6 +272,27 @@ export class DocumentCommands implements IDocumentCommands {
       // 2. Create the document version. The id is minted here (app-side
       // UUIDv7), so the row is constructed in JS below rather than
       // re-`SELECT`ed — MySQL has no `RETURNING`.
+      //
+      // `created_at`/`updated_at` are passed explicitly rather than left to
+      // the column's `DEFAULT CURRENT_TIMESTAMP(6)` — unlike, say,
+      // `CollectionCommands.create`'s approximated timestamps above, where
+      // the small gap between app-side capture and DB-side evaluation is
+      // genuinely inconsequential. Here it is not: `occurred_at` on this row
+      // is a value the shared `db-conformance` audit activity-feed fixture
+      // (and any other caller windowing on `created_at`) treats as
+      // authoritative to derive query boundaries from the very `Date` this
+      // method returns. Leaving the column to the DB default means the
+      // *returned* timestamp (captured here, before the INSERT is even sent)
+      // and the *persisted* timestamp (evaluated by the MySQL server when the
+      // statement executes) are two independent clock reads that can diverge
+      // under load — confirmed live: under CPU contention this measured a
+      // 1–6ms gap between the two, enough to push a boundary row outside an
+      // inclusive `<=` window derived from the approximated value and
+      // intermittently fail `filters by date range on occurred_at`
+      // (`packages/db-conformance/src/suites/audit.ts`). Writing the same
+      // `Date` instance to the column that gets returned makes the two
+      // identical by construction — there is no longer a second clock to
+      // drift against.
       const documentVersionId = uuidv7()
       const createdAt = new Date()
       await tx.insert(documentVersions).values({
@@ -282,6 +303,8 @@ export class DocumentCommands implements IDocumentCommands {
         event_type: params.action ?? 'create',
         status: params.status ?? 'draft',
         created_by: params.createdBy ?? null,
+        created_at: createdAt,
+        updated_at: createdAt,
       })
       const documentVersion = {
         id: documentVersionId,
