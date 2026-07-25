@@ -15,7 +15,10 @@ import type { UnifiedFieldValue } from '@byline/core'
  * one deliberate coercion: `value_date` and `value_timestamp_tz` are turned
  * into real `Date` instances (see `toDateOnly` / `toDate` below) so this
  * adapter matches `@byline/db-mysql`'s temporal shape — see the "converge on
- * Date" ruling this module implements. Mirrors
+ * Date" ruling this module implements. `value_time` is left untouched on
+ * purpose — a bare time-of-day has no calendar date or time zone to
+ * normalise, and the task-13b ruling explicitly excludes it (see the `time`
+ * fixture in `packages/db-conformance/src/suites/field-types.ts`). Mirrors
  * `packages/db-mysql/src/modules/storage/normalize-row.ts`, whose mysql
  * counterpart has to canonicalise far more (tinyint booleans, JSON columns,
  * DATE/DATETIME arriving as strings for a different reason — see that
@@ -40,11 +43,36 @@ export function normalizeRow(row: Record<string, unknown>): UnifiedFieldValue {
  * (host-local midnight would make the same stored row shift calendar day
  * across deployments). Mirrors `@byline/db-mysql`'s `toDateOnly`, which
  * carries the full ruling history — see that file. Both adapters now agree.
+ *
+ * This is the sole gate between the raw driver row and `ClientDocument`'s
+ * public `value_date` shape, so a malformed input (a non-ISO `DateStyle`
+ * on the session, a BC-era date, a year past 9999) must not fall through
+ * as a silent `Invalid Date` — it throws instead, naming the raw value.
+ *
+ * The `value instanceof Date` branch is a defensive passthrough for a row
+ * assembled in-process rather than round-tripped through the driver — not
+ * exercised through the live UNION ALL read path today (Postgres always
+ * hands this column back as text there; see the module docblock). If a
+ * future driver/session change ever made this column arrive as a `Date`
+ * already, this function would trust it unchanged rather than
+ * re-normalising it to UTC midnight — and there's no safe way to
+ * re-normalise after the fact, because a bare `Date` carries no record of
+ * which midnight convention (UTC or host-local) produced it, so
+ * re-deriving the calendar day from either its UTC or local getters could
+ * silently pick the wrong one depending on the host's offset. Flagging
+ * this explicitly rather than adding a "normalisation" that would only be
+ * correct for some host timezones.
  */
 function toDateOnly(value: string | Date | null | undefined): Date | null {
   if (value == null) return null
   if (value instanceof Date) return value
-  return new Date(`${value}T00:00:00.000Z`)
+  const date = new Date(`${value}T00:00:00.000Z`)
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(
+      `normalizeRow: value_date is not a parseable date — got ${JSON.stringify(value)}`
+    )
+  }
+  return date
 }
 
 /**
@@ -79,9 +107,32 @@ function toDateOnly(value: string | Date | null | undefined): Date | null {
  * (microseconds) but a JS `Date` only holds milliseconds, so coercion
  * truncates sub-millisecond precision. That loss is unavoidable through this
  * API, not a bug in this function.
+ *
+ * This is the sole gate between the raw driver row and `ClientDocument`'s
+ * public `value_timestamp_tz` shape — the §C evidence above only shows the
+ * *offset* is always present, not that every string this function will
+ * ever see is parseable. A non-ISO `DateStyle` on the session, a BC-era
+ * timestamp, or a year past 9999 would otherwise fall through as a silent
+ * `Invalid Date`, so this throws instead, naming the raw value.
+ *
+ * The `value instanceof Date` branch is a defensive passthrough for a row
+ * assembled in-process rather than round-tripped through the driver — not
+ * exercised through the live UNION ALL read path today (confirmed above:
+ * the identity type parser always hands this function text). Unlike
+ * `toDateOnly`'s UTC-midnight anchor, there's no analogous "which
+ * convention" ambiguity here — a `Date` already denotes one absolute
+ * instant regardless of how it was constructed — so passing it through
+ * unchanged is safe as written; noted for the same reason as
+ * `toDateOnly`'s hazard comment, so both sites read the same way.
  */
 function toDate(value: string | Date | null | undefined): Date | null {
   if (value == null) return null
   if (value instanceof Date) return value
-  return new Date(value)
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(
+      `normalizeRow: value_timestamp_tz is not a parseable timestamp — got ${JSON.stringify(value)}`
+    )
+  }
+  return date
 }
