@@ -288,10 +288,9 @@ export class DocumentCommands implements IDocumentCommands {
       // re-`SELECT`ed — MySQL has no `RETURNING`.
       //
       // `created_at`/`updated_at` are passed explicitly rather than left to
-      // the column's `DEFAULT CURRENT_TIMESTAMP(6)` — unlike, say,
-      // `CollectionCommands.create`'s approximated timestamps above, where
-      // the small gap between app-side capture and DB-side evaluation is
-      // genuinely inconsequential. Here it is not: `occurred_at` on this row
+      // the column's `DEFAULT CURRENT_TIMESTAMP(6)` — the same explicit-write
+      // fix `CollectionCommands.create` above now also carries, for the same
+      // underlying reason it was found here first: `occurred_at` on this row
       // is a value the shared `db-conformance` audit activity-feed fixture
       // (and any other caller windowing on `created_at`) treats as
       // authoritative to derive query boundaries from the very `Date` this
