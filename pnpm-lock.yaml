@@ -694,6 +694,12 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.4
         version: 2.5.4
+      '@byline/auth':
+        specifier: workspace:*
+        version: link:../auth
+      '@byline/client':
+        specifier: workspace:*
+        version: link:../client
       '@byline/db-conformance':
         specifier: workspace:*
         version: link:../db-conformance
