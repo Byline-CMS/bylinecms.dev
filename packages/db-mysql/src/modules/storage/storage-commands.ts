@@ -8,7 +8,7 @@
 
 import type { CollectionDefinition, ICollectionCommands } from '@byline/core'
 import { DbErrorCodes, flattenFieldSetData } from '@byline/core'
-import { and, eq, notInArray, sql } from 'drizzle-orm'
+import { and, desc, eq, ne, notInArray, sql } from 'drizzle-orm'
 import type { AnyMySqlTable } from 'drizzle-orm/mysql-core'
 import type { MySql2Database } from 'drizzle-orm/mysql2'
 import { v7 as uuidv7 } from 'uuid'
@@ -131,15 +131,13 @@ export class CollectionCommands implements ICollectionCommands {
 /**
  * DocumentCommands — Task 9B, in progress.
  *
- * `createDocumentVersion` (Task 9A) plus `updateDocumentPath` and
- * `setDocumentAvailableLocales` — the standalone, non-versioned system-field
- * writes, both second callers into the private `writeDocumentPath` /
- * `writeDocumentAvailableLocales` helpers `createDocumentVersion` already
- * uses. The rest of `IDocumentCommands` — `setDocumentStatus`,
- * `archivePublishedVersions`, `softDeleteDocument`, `deleteDocumentLocale`,
- * `setOrderKey`, `placeTreeNode`, `removeFromTree`,
- * `promoteChildrenAndRemoveFromTree` — lands in the rest of this task, ported
- * alongside the rest of
+ * `createDocumentVersion` (Task 9A) plus the standalone system-field writes
+ * (`updateDocumentPath`, `setDocumentAvailableLocales`), the status /
+ * archive / soft-delete / delete-locale surface (`setDocumentStatus`,
+ * `archivePublishedVersions`, `softDeleteDocument`, `deleteDocumentLocale`),
+ * and `setOrderKey`. The remaining `IDocumentCommands` members —
+ * `placeTreeNode`, `removeFromTree`, `promoteChildrenAndRemoveFromTree` —
+ * land next, ported alongside the rest of
  * `packages/db-postgres/src/modules/storage/storage-commands.ts`'s
  * `DocumentCommands`. This class deliberately does not yet `implements
  * IDocumentCommands`; `src/index.ts` composes the full interface object by
@@ -640,6 +638,274 @@ export class DocumentCommands {
         availableLocales: params.availableLocales,
       })
     })
+  }
+  /**
+   * copyAllVersionStoreRows
+   *
+   * Copy every store row — all seven value-store tables (optionally excluding
+   * one locale) plus the locale-agnostic `byline_store_meta` identity rows
+   * (always copied wholesale, unfiltered — a block's identity is shared
+   * across locales) — from one document version to another, verbatim. New
+   * `id`s are minted per row (MySQL has no per-row `gen_random_uuid()`
+   * usable from an `INSERT … SELECT`, and ids must be app-generated UUIDv7 —
+   * see `copyForwardStoreRows` above); `created_at`/`updated_at` are left off
+   * the inserted row so the column default (`CURRENT_TIMESTAMP(3)`) supplies
+   * a fresh timestamp, matching pg's explicit `NOW(), NOW()`.
+   *
+   * The target version is assumed fresh (no existing rows), so — unlike
+   * `copyForwardStoreRows`, which may collide with rows `createDocumentVersion`
+   * already wrote in the same transaction — this performs a plain `INSERT`
+   * with no conflict handling. A collision here would mean the caller reused
+   * a non-fresh version id, which should fail loudly rather than being
+   * silently absorbed. Used by `deleteDocumentLocale` to snapshot the current
+   * version into the new one with the target locale's rows dropped.
+   */
+  private async copyAllVersionStoreRows(
+    tx: TxConnection,
+    fromVersionId: string,
+    toVersionId: string,
+    excludeLocale?: string
+  ): Promise<void> {
+    await this.copyVersionStoreRows(tx, textStore, fromVersionId, toVersionId, excludeLocale)
+    await this.copyVersionStoreRows(tx, numericStore, fromVersionId, toVersionId, excludeLocale)
+    await this.copyVersionStoreRows(tx, booleanStore, fromVersionId, toVersionId, excludeLocale)
+    await this.copyVersionStoreRows(tx, datetimeStore, fromVersionId, toVersionId, excludeLocale)
+    await this.copyVersionStoreRows(tx, jsonStore, fromVersionId, toVersionId, excludeLocale)
+    await this.copyVersionStoreRows(tx, relationStore, fromVersionId, toVersionId, excludeLocale)
+    await this.copyVersionStoreRows(tx, fileStore, fromVersionId, toVersionId, excludeLocale)
+
+    const metaRows = (await tx
+      .select()
+      .from(metaStore)
+      .where(eq(metaStore.document_version_id, fromVersionId))) as unknown as Record<
+      string,
+      unknown
+    >[]
+    if (metaRows.length > 0) {
+      const values = metaRows.map((row) => {
+        const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...rest } = row
+        return { ...rest, id: uuidv7(), document_version_id: toVersionId }
+      })
+      await tx.insert(metaStore).values(values as any)
+    }
+  }
+
+  /** One value-store table's share of `copyAllVersionStoreRows`. */
+  private async copyVersionStoreRows(
+    tx: TxConnection,
+    table: AnyMySqlTable,
+    fromVersionId: string,
+    toVersionId: string,
+    excludeLocale?: string
+  ): Promise<void> {
+    const t = table as unknown as { document_version_id: any; locale: any }
+    const conditions = [eq(t.document_version_id, fromVersionId)]
+    if (excludeLocale) conditions.push(ne(t.locale, excludeLocale))
+    const rows = (await tx
+      .select()
+      .from(table as any)
+      .where(and(...conditions))) as unknown as Record<string, unknown>[]
+
+    if (rows.length === 0) return
+
+    const values = rows.map((row) => {
+      const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...rest } = row
+      return { ...rest, id: uuidv7(), document_version_id: toVersionId }
+    })
+
+    await tx.insert(table as any).values(values)
+  }
+
+  /**
+   * deleteDocumentLocale
+   *
+   * Remove one content locale's data from a document by writing a **new
+   * immutable version** that carries forward every store row except the
+   * target locale's (the `'all'` rows and all other locales are kept). The
+   * prior version still holds the deleted locale, so the operation is
+   * recoverable via version restore, and a previously-published version keeps
+   * serving until the new version is published.
+   *
+   * The new version's status is supplied by the caller (the lifecycle service
+   * passes the workflow's default — a fresh draft, matching `copyToLocale`).
+   * The derived availability ledger is recomputed from the carried-forward
+   * rows, so the deleted locale drops out automatically. The default content
+   * locale (the document's anchor) must never be passed here — the lifecycle
+   * service enforces that.
+   *
+   * Defensively returns `null` when the document has no current version (the
+   * service validates existence first, so this is a guard).
+   */
+  async deleteDocumentLocale(params: {
+    documentId: string
+    locale: string
+    status?: string
+    createdBy?: string
+  }): Promise<{ newVersionId: string; previousVersionId: string } | null> {
+    const { documentId, locale, status, createdBy } = params
+    return this.db.transaction(async (tx) => {
+      // 1. Current (latest, non-deleted) version + the document's anchor.
+      const current = await tx
+        .select({
+          versionId: documentVersions.id,
+          collectionId: documentVersions.collection_id,
+          collectionVersion: documentVersions.collection_version,
+          sourceLocale: documents.source_locale,
+        })
+        .from(documentVersions)
+        .innerJoin(documents, eq(documents.id, documentVersions.document_id))
+        .where(
+          and(eq(documentVersions.document_id, documentId), eq(documentVersions.is_deleted, false))
+        )
+        .orderBy(desc(documentVersions.id))
+        .limit(1)
+        .then((rows) => rows[0])
+
+      if (current == null) return null
+
+      const sourceLocale = current.sourceLocale ?? this.defaultContentLocale
+
+      // 2. New immutable version: a snapshot of the current version with the
+      //    target locale's value rows dropped (meta + 'all' + other locales
+      //    carried forward).
+      const newVersionId = uuidv7()
+      await tx.insert(documentVersions).values({
+        id: newVersionId,
+        document_id: documentId,
+        collection_id: current.collectionId,
+        collection_version: current.collectionVersion,
+        event_type: 'delete_locale',
+        status: status ?? 'draft',
+        change_summary: `deleted content locale ${locale}`,
+        created_by: createdBy ?? null,
+      })
+      await this.copyAllVersionStoreRows(tx, current.versionId, newVersionId, locale)
+
+      // 3. Recompute the new version's availability ledger against the source
+      //    locale — the dropped locale no longer covers it, so it falls out.
+      await this.writeVersionLocaleLedger(tx, newVersionId, sourceLocale)
+
+      return { newVersionId, previousVersionId: current.versionId }
+    })
+  }
+
+  /**
+   * setDocumentStatus
+   *
+   * Mutate the status field on an existing document version row.
+   * This is the one case where we UPDATE a version in-place — status is
+   * lifecycle metadata, not content.
+   */
+  async setDocumentStatus(params: { document_version_id: string; status: string }): Promise<void> {
+    await this.db
+      .update(documentVersions)
+      .set({
+        status: params.status,
+        updated_at: new Date(),
+      })
+      .where(eq(documentVersions.id, params.document_version_id))
+  }
+
+  /**
+   * archivePublishedVersions
+   *
+   * Set ALL versions of a document that currently have `currentStatus`
+   * (defaults to 'published') to 'archived'. Optionally exclude a specific
+   * version so the caller can protect the version it is about to publish.
+   *
+   * Returns the number of rows updated. MySQL has no `RETURNING` and drizzle's
+   * mysql2 `update()` resolves to a `[ResultSetHeader, FieldPacket[]]` tuple
+   * rather than pg's driver result object — `affectedRows` lives on the first
+   * element (confirmed live against the test database), not `.rowCount`.
+   */
+  async archivePublishedVersions(params: {
+    document_id: string
+    currentStatus?: string
+    excludeVersionId?: string
+  }): Promise<number> {
+    const targetStatus = params.currentStatus ?? 'published'
+    const conditions = [
+      eq(documentVersions.document_id, params.document_id),
+      eq(documentVersions.status, targetStatus),
+    ]
+    if (params.excludeVersionId) {
+      conditions.push(ne(documentVersions.id, params.excludeVersionId))
+    }
+    const result = await this.db
+      .update(documentVersions)
+      .set({ status: 'archived', updated_at: new Date() })
+      .where(and(...conditions))
+    return (result as unknown as [{ affectedRows: number }, unknown])[0]?.affectedRows ?? 0
+  }
+
+  /**
+   * softDeleteDocument
+   *
+   * Mark ALL versions of a document as deleted by setting `is_deleted = true`.
+   * The `current_documents` view filters these out, so the document disappears
+   * from listings without physically removing data.
+   *
+   * Returns the number of version rows marked as deleted.
+   */
+  async softDeleteDocument(params: { document_id: string }): Promise<number> {
+    return this.db.transaction(async (tx) => {
+      // Tree placement takes this same collection lock before inspecting any
+      // endpoint state. Taking it before document/version locks makes direct
+      // soft deletion serialize with placement without reversing the normal
+      // lifecycle delete's lock order.
+      const collectionId = await this.lockDocumentCollection(tx, params.document_id)
+      if (collectionId == null) return 0
+
+      const [document] = await tx
+        .select({ id: documents.id })
+        .from(documents)
+        .where(eq(documents.id, params.document_id))
+        .for('update')
+      if (document == null) return 0
+
+      const result = await tx
+        .update(documentVersions)
+        .set({
+          is_deleted: true,
+          updated_at: new Date(),
+        })
+        .where(eq(documentVersions.document_id, params.document_id))
+      return (result as unknown as [{ affectedRows: number }, unknown])[0]?.affectedRows ?? 0
+    })
+  }
+
+  /**
+   * Resolve a document's collection while locking only the collection row.
+   * `FOR UPDATE OF c` — confirmed live against a MySQL 9.7.1 server (MySQL
+   * 8.0.1+ supports the per-table lock qualifier; `::uuid` casts dropped).
+   */
+  private async lockDocumentCollection(
+    tx: TxConnection,
+    documentId: string
+  ): Promise<string | null> {
+    const locked = await tx.execute(sql`
+      SELECT c.id AS collection_id
+      FROM byline_collections c
+      JOIN byline_documents d ON d.collection_id = c.id
+      WHERE d.id = ${documentId}
+      FOR UPDATE OF c
+    `)
+    const rows = (locked as unknown as [Array<{ collection_id: string }>, unknown])[0]
+    return rows[0]?.collection_id ?? null
+  }
+  /**
+   * Write `order_key` on a single `byline_documents` row. Single-column
+   * metadata update — no new version row, no `documentVersions` touch.
+   * `updated_at` on the document row is bumped so list caches invalidate.
+   */
+  async setOrderKey(params: { document_id: string; order_key: string }): Promise<void> {
+    await this.db
+      .update(documents)
+      .set({
+        order_key: params.order_key,
+        updated_at: new Date(),
+      })
+      .where(eq(documents.id, params.document_id))
   }
 }
 

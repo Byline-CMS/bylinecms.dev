@@ -156,11 +156,19 @@ export const mysqlAdapter = ({
         setDocumentAvailableLocales: commandBuilders.documents.setDocumentAvailableLocales.bind(
           commandBuilders.documents
         ),
-        setDocumentStatus: notImplemented('commands.documents.setDocumentStatus', 9),
-        archivePublishedVersions: notImplemented('commands.documents.archivePublishedVersions', 9),
-        softDeleteDocument: notImplemented('commands.documents.softDeleteDocument', 9),
-        deleteDocumentLocale: notImplemented('commands.documents.deleteDocumentLocale', 9),
-        setOrderKey: notImplemented('commands.documents.setOrderKey', 9),
+        setDocumentStatus: commandBuilders.documents.setDocumentStatus.bind(
+          commandBuilders.documents
+        ),
+        archivePublishedVersions: commandBuilders.documents.archivePublishedVersions.bind(
+          commandBuilders.documents
+        ),
+        softDeleteDocument: commandBuilders.documents.softDeleteDocument.bind(
+          commandBuilders.documents
+        ),
+        deleteDocumentLocale: commandBuilders.documents.deleteDocumentLocale.bind(
+          commandBuilders.documents
+        ),
+        setOrderKey: commandBuilders.documents.setOrderKey.bind(commandBuilders.documents),
         placeTreeNode: notImplemented('commands.documents.placeTreeNode', 9),
         removeFromTree: notImplemented('commands.documents.removeFromTree', 9),
         promoteChildrenAndRemoveFromTree: notImplemented(
