@@ -52,20 +52,32 @@ import type * as schema from '../../database/schema/index.js'
  *     what is persisted and what is returned (the failure mode the Task 9
  *     deferred-minor note warns about: two independent `new Date()` calls
  *     that can disagree). `update` and `setPasswordHash` re-`SELECT` the
- *     row after a successful guarded `UPDATE` rather than merging the patch
- *     onto a pre-read snapshot — an earlier version of this file did the
- *     latter and was correct on accept/reject (the vid-guarded `UPDATE`'s
- *     affected-row count is still the sole accept/reject authority, exactly
- *     as pg's guarded `UPDATE … RETURNING` is) but not on return-value
- *     freshness: `recordLoginSuccess`/`recordLoginFailure` mutate
- *     `last_login`/`last_login_ip`/`failed_login_attempts` *without*
- *     bumping `vid` (by design, matching pg), so either racing between the
- *     pre-read and the guarded `UPDATE` left the returned object reporting
- *     stale values for those columns — self-heals on the next read, but a
- *     real divergence from pg, where `UPDATE … RETURNING` always reflects
- *     the row's true post-statement state. The re-`SELECT` closes that gap
- *     entirely. `delete` needs no read at all — it returns `void`, so the
- *     affected-row count is the entire contract.
+ *     row after a successful guarded `UPDATE`, both statements sharing one
+ *     `db.transaction()`, rather than merging the patch onto a pre-read
+ *     snapshot — an earlier version of this file did the latter and was
+ *     correct on accept/reject (the vid-guarded `UPDATE`'s affected-row
+ *     count is still the sole accept/reject authority, exactly as pg's
+ *     guarded `UPDATE … RETURNING` is) but not on return-value freshness:
+ *     `recordLoginSuccess`/`recordLoginFailure` mutate `last_login`/
+ *     `last_login_ip`/`failed_login_attempts` *without* bumping `vid` (by
+ *     design, matching pg), so either racing against the pre-read left the
+ *     returned object reporting stale values for those columns.
+ *
+ *     A second version of this fix re-`SELECT`ed but as two separate
+ *     statements outside a transaction — better, but still left a window: a
+ *     `recordLoginSuccess`/`recordLoginFailure` committing *between* the
+ *     guarded `UPDATE` and the re-`SELECT` would leak into the returned
+ *     object. The transaction closes that too, and the mechanism is not a
+ *     REPEATABLE-READ-snapshot argument (a snapshot would just as easily
+ *     read the *pre*-mutation state) — it's that the guarded `UPDATE`
+ *     acquires an exclusive lock on this row that InnoDB holds until the
+ *     transaction commits, so `recordLoginSuccess`/`recordLoginFailure`
+ *     issued against the same row block until after the re-`SELECT` has run
+ *     and the transaction has committed. That is what makes "the re-`SELECT`
+ *     closes the freshness gap entirely" actually true, rather than true
+ *     modulo the specific window between the two statements. `delete` needs
+ *     no read at all — it returns `void`, so the affected-row count is the
+ *     entire contract.
  */
 
 const PUBLIC_COLUMNS = {
@@ -235,39 +247,47 @@ export function createAdminUsersRepository(
       if (patch.remember_me !== undefined) updateSet.remember_me = patch.remember_me
       if (patch.preferred_locale !== undefined) updateSet.preferred_locale = patch.preferred_locale
 
-      const result = await db
-        .update(adminUsers)
-        .set(updateSet)
-        .where(and(eq(adminUsers.id, id), eq(adminUsers.vid, expectedVid)))
-      if (affectedRowCount(result) === 0) throw ERR_ADMIN_USER_VERSION_CONFLICT()
+      // Guarded `UPDATE` + re-`SELECT` share one transaction — see this
+      // file's docblock for why the transaction boundary (not just the
+      // re-`SELECT`) is what actually closes the freshness gap.
+      return db.transaction(async (tx) => {
+        const result = await tx
+          .update(adminUsers)
+          .set(updateSet)
+          .where(and(eq(adminUsers.id, id), eq(adminUsers.vid, expectedVid)))
+        if (affectedRowCount(result) === 0) throw ERR_ADMIN_USER_VERSION_CONFLICT()
 
-      // Re-`SELECT` rather than merge the patch onto a pre-read snapshot —
-      // `recordLoginSuccess`/`recordLoginFailure` can touch this row without
-      // bumping `vid`, so a pre-read snapshot can be stale on those columns
-      // even though the guarded `UPDATE` above legitimately succeeded. See
-      // this file's docblock.
-      const [fresh] = await db.select(PUBLIC_COLUMNS).from(adminUsers).where(eq(adminUsers.id, id))
-      if (!fresh) throw ERR_ADMIN_USER_VERSION_CONFLICT()
-      return fresh
+        const [fresh] = await tx
+          .select(PUBLIC_COLUMNS)
+          .from(adminUsers)
+          .where(eq(adminUsers.id, id))
+        if (!fresh) throw ERR_ADMIN_USER_VERSION_CONFLICT()
+        return fresh
+      })
     },
 
     async setPasswordHash(id, expectedVid, passwordHash): Promise<AdminUserRow> {
       const now = new Date()
-      const result = await db
-        .update(adminUsers)
-        .set({
-          password: passwordHash,
-          updated_at: now,
-          vid: sql`${adminUsers.vid} + 1`,
-        })
-        .where(and(eq(adminUsers.id, id), eq(adminUsers.vid, expectedVid)))
-      if (affectedRowCount(result) === 0) throw ERR_ADMIN_USER_VERSION_CONFLICT()
+      // Guarded `UPDATE` + re-`SELECT` share one transaction — see `update()`
+      // above and this file's docblock.
+      return db.transaction(async (tx) => {
+        const result = await tx
+          .update(adminUsers)
+          .set({
+            password: passwordHash,
+            updated_at: now,
+            vid: sql`${adminUsers.vid} + 1`,
+          })
+          .where(and(eq(adminUsers.id, id), eq(adminUsers.vid, expectedVid)))
+        if (affectedRowCount(result) === 0) throw ERR_ADMIN_USER_VERSION_CONFLICT()
 
-      // Re-`SELECT` — see `update()` above for why a pre-read snapshot isn't
-      // safe to return here.
-      const [fresh] = await db.select(PUBLIC_COLUMNS).from(adminUsers).where(eq(adminUsers.id, id))
-      if (!fresh) throw ERR_ADMIN_USER_VERSION_CONFLICT()
-      return fresh
+        const [fresh] = await tx
+          .select(PUBLIC_COLUMNS)
+          .from(adminUsers)
+          .where(eq(adminUsers.id, id))
+        if (!fresh) throw ERR_ADMIN_USER_VERSION_CONFLICT()
+        return fresh
+      })
     },
 
     async setEnabled(id, enabled) {
