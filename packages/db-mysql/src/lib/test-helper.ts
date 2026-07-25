@@ -25,12 +25,9 @@ let queryBuilders: ReturnType<typeof createQueryBuilders>
 
 /**
  * Mirrors `packages/db-postgres/src/lib/test-helper.ts`. `queryBuilders` is
- * wired as of Task 10A — `DocumentQueries` implements the reconstruction
- * path (`getDocumentById`/`getDocumentByVersion`/`getDocumentHistory`) and
- * a `findDocuments` scoped to what the `versioning`/`field-types`
- * `@byline/db-conformance` suites exercise; see
- * `src/modules/storage/storage-queries.ts`'s module docblock for exactly
- * what's deferred to Task 10B.
+ * wired as of Task 10A (the UNION ALL reconstruction path) and fully
+ * implements `IDocumentQueries` as of Task 10B (the predicate compiler,
+ * `findDocuments`' full surface, tree reads, and `getDocumentSystemFieldsForUpdate`).
  */
 export function setupTestDB(collections: CollectionDefinition[] = []) {
   if (!pool) {

@@ -120,13 +120,16 @@ export const mysqlAdapter = ({
   const commandBuilders = createCommandBuilders(dbManager, defaultContentLocale)
   // Most reads run on the raw `db` (not the DBManager) — they don't need to
   // join an ambient `withTransaction`. `dbManager` is still threaded through
-  // as the 4th argument (matching pg's `storage-queries.ts:147`) because
+  // as the 4th argument (matching pg's `storage-queries.ts`) because
   // `DocumentQueries` accepts it as `transactionDb` for the one read that
-  // DOES need the ambient transaction: a future `getDocumentSystemFieldsForUpdate`
+  // DOES need the ambient transaction: `getDocumentSystemFieldsForUpdate`
   // (Task 10B) takes a `SELECT … FOR UPDATE` lock that must run inside the
   // caller's transaction to serialise concurrent system-field writers —
   // dropping `dbManager` here would silently run that lock outside the
   // transaction and defeat the concurrency guard it exists to provide.
+  // `transactionDb` is a required parameter (no default) precisely so this
+  // can never be omitted by accident — see the §H ruling in the Task 10B
+  // report.
   const queryBuilders = createQueryBuilders(db, collections, defaultContentLocale, dbManager)
 
   // Boot check: run lazily on the pool's first physical connection rather
@@ -182,46 +185,9 @@ export const mysqlAdapter = ({
       // `queryBuilders.collections` fully implements `ICollectionQueries`
       // (Task 10A) — see `./modules/storage/storage-queries.js`.
       collections: queryBuilders.collections,
-      documents: {
-        getDocumentSystemFieldsForUpdate: notImplemented(
-          'queries.documents.getDocumentSystemFieldsForUpdate',
-          10
-        ),
-        // `queryBuilders.documents` (`DocumentQueries`) implements the
-        // reconstruction path as of Task 10A — see that class's docblock
-        // for exactly what's deferred to Task 10B.
-        getDocumentById: (params) => queryBuilders.documents.getDocumentById(params),
-        getCurrentVersionMetadata: notImplemented(
-          'queries.documents.getCurrentVersionMetadata',
-          10
-        ),
-        getCurrentPath: notImplemented('queries.documents.getCurrentPath', 10),
-        getDocumentByPath: notImplemented('queries.documents.getDocumentByPath', 10),
-        getDocumentByVersion: (params) => queryBuilders.documents.getDocumentByVersion(params),
-        getDocumentsByVersionIds: notImplemented('queries.documents.getDocumentsByVersionIds', 10),
-        getDocumentsByDocumentIds: notImplemented(
-          'queries.documents.getDocumentsByDocumentIds',
-          10
-        ),
-        getDocumentHistory: (params) => queryBuilders.documents.getDocumentHistory(params),
-        getPublishedVersion: notImplemented('queries.documents.getPublishedVersion', 10),
-        getPublishedDocumentIds: notImplemented('queries.documents.getPublishedDocumentIds', 10),
-        getDocumentCountsByStatus: notImplemented(
-          'queries.documents.getDocumentCountsByStatus',
-          10
-        ),
-        findDocuments: (params) => queryBuilders.documents.findDocuments(params),
-        getLastOrderKey: notImplemented('queries.documents.getLastOrderKey', 10),
-        getNeighborOrderKeys: notImplemented('queries.documents.getNeighborOrderKeys', 10),
-        getCanonicalDocumentOrder: notImplemented(
-          'queries.documents.getCanonicalDocumentOrder',
-          10
-        ),
-        getTreeAncestors: notImplemented('queries.documents.getTreeAncestors', 10),
-        getTreeChildren: notImplemented('queries.documents.getTreeChildren', 10),
-        getTreeParent: notImplemented('queries.documents.getTreeParent', 10),
-        getTreeSubtree: notImplemented('queries.documents.getTreeSubtree', 10),
-      },
+      // `queryBuilders.documents` (`DocumentQueries`) fully implements
+      // `IDocumentQueries` as of Task 10B — see that class's docblock.
+      documents: queryBuilders.documents,
       audit: {
         getDocumentAuditLog: notImplemented('queries.audit.getDocumentAuditLog', 11),
         findAuditLog: notImplemented('queries.audit.findAuditLog', 11),
