@@ -11,54 +11,22 @@
  * adapter — the same behavioural gate `packages/db-postgres/tests/
  * conformance.integration.test.ts` runs for the Postgres adapter.
  *
- * Suites are registered here one at a time, as each lands its own task
- * (`@byline/db-conformance`'s index exports every suite by name so an
- * adapter mid-port can register only the ones it currently passes without
- * turning the rest of `pnpm test:integration` — and CI, which runs it at
- * the repo root on every push — red for the whole of the port):
- *
- *   - Task 10A: `versioningSuite`, `fieldTypesSuite`.
- *   - Task 10B: `documentPathsSuite`, `documentTreeSuite`, `transactionsSuite`,
- *     `deleteLocaleSuite`, `documentAvailableLocalesSuite`,
- *     `systemFieldsDirectWriteSuite`, `restoreSuite`, `localeFallbackSuite`
- *     — the full storage surface minus tree-audit atomicity, 10 of the 14
- *     total suites.
- *   - Task 11 (this file): `countersSuite`, `auditSuite`, and
- *     `documentTreeAuditSuite` — `commands.counters.*` and
- *     `commands.audit.*` / `queries.audit.*` are real as of this task, so
- *     the tree-mutation lifecycle functions
- *     (`placeTreeNode`/`removeFromTree`/`promoteChildrenAndRemove`) that
- *     `documentTreeAuditSuite` exercises can now append to and read back
- *     from a working audit log. 13 of the 14 suites.
- *
- * `adminStoreSuite` stays unregistered — the admin-store repositories are
- * Task 12.
- *
- * TODO(Task 13): once every suite passes, replace the list below with a
- * single `runAdapterConformanceSuite(hooks)` call — see db-postgres's
- * conformance entry for the target shape.
+ * All 14 suites are registered as of Task 12 (the admin-store repositories
+ * and `createAdminStore` hook). The staged, one-suite-per-task registration
+ * that preceded this — kept CI green while the write surface (Task 9), read
+ * surface (Task 10), and counters/audit (Task 11) landed incrementally — is
+ * no longer needed now that every suite passes, so this collapses to a
+ * single `runAdapterConformanceSuite(hooks)` call, matching db-postgres's
+ * conformance entry.
  */
 
+import type { AdminStore } from '@byline/admin'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
-import {
-  auditSuite,
-  type ConformanceHooks,
-  countersSuite,
-  deleteLocaleSuite,
-  documentAvailableLocalesSuite,
-  documentPathsSuite,
-  documentTreeAuditSuite,
-  documentTreeSuite,
-  fieldTypesSuite,
-  localeFallbackSuite,
-  restoreSuite,
-  systemFieldsDirectWriteSuite,
-  transactionsSuite,
-  versioningSuite,
-} from '@byline/db-conformance'
+import { runAdapterConformanceSuite } from '@byline/db-conformance'
 
 import { assertTestDatabase, migrateTestDatabase, resetTestDatabase } from '../src/lib/test-db.js'
 import { setupTestDB, teardownTestDB } from '../src/lib/test-helper.js'
+import { createAdminStore as createMysqlAdminStore } from '../src/modules/admin/admin-store.js'
 import { createAuditCommands } from '../src/modules/audit/audit-commands.js'
 import { createAuditQueries } from '../src/modules/audit/audit-queries.js'
 import { createCounterCommands } from '../src/modules/counters/counters-commands.js'
@@ -70,7 +38,7 @@ function getConnectionString(): string {
   return connectionString as string
 }
 
-const hooks: ConformanceHooks = {
+runAdapterConformanceSuite({
   async createAdapter(collections: readonly CollectionDefinition[]): Promise<IDbAdapter> {
     const testDb = setupTestDB(collections as CollectionDefinition[])
     // Counters take the raw mysql2 pool (`testDb.pool`), never `dbManager` —
@@ -114,22 +82,8 @@ const hooks: ConformanceHooks = {
     await teardownTestDB()
   },
 
-  // `createAdminStore` intentionally omitted — the admin-store repositories
-  // are Task 12. The admin-store conformance suites are not registered
-  // below, so this is a correct omission rather than a gap: no `describe`/
-  // `it` blocks exist for them, so they never show up as skipped.
-}
-
-versioningSuite(hooks)
-fieldTypesSuite(hooks)
-documentPathsSuite(hooks)
-documentTreeSuite(hooks)
-documentTreeAuditSuite(hooks)
-transactionsSuite(hooks)
-deleteLocaleSuite(hooks)
-documentAvailableLocalesSuite(hooks)
-systemFieldsDirectWriteSuite(hooks)
-restoreSuite(hooks)
-localeFallbackSuite(hooks)
-countersSuite(hooks)
-auditSuite(hooks)
+  async createAdminStore(): Promise<AdminStore> {
+    const testDb = setupTestDB()
+    return createMysqlAdminStore(testDb.db)
+  },
+})
