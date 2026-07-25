@@ -1,0 +1,212 @@
+# @byline/db-mysql
+
+MySQL adapter for Byline CMS — Drizzle schema, migrations, and the storage /
+queries / commands implementation behind `IDbAdapter`. It is Byline's second
+database adapter, alongside `@byline/db-postgres`. The subpath
+`@byline/db-mysql/admin` ships the MySQL-backed admin-store repositories that
+plug into `@byline/admin`, the same way `@byline/db-postgres/admin` does.
+
+Both adapters implement the same `IDbAdapter` contract and pass the same
+shared `@byline/db-conformance` behavioural suite, so document storage,
+versioning, patches, workflow, populate, and admin auth behave identically
+regardless of which database backs an installation. See
+[Core Document Storage](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/docs/03-architecture/01-document-storage.md)
+for the storage model both adapters implement.
+
+This package is part of [Byline CMS](https://github.com/Byline-CMS/bylinecms.dev)
+— a developer-friendly, open-source headless CMS with versioning, editorial
+workflow, and content translation as first-class concerns.
+
+## Install
+
+```sh
+pnpm add @byline/db-mysql
+```
+
+`mysql2` is a direct dependency, so no separate driver install is required.
+
+## Usage
+
+`mysqlAdapter()` takes a connection string, your `CollectionDefinition[]`, and
+the installation's default content locale, and returns an `IDbAdapter` (plus
+the underlying `drizzle` handle and `pool`, exposed for housekeeping and
+migration tooling):
+
+```ts
+import { initBylineCore } from '@byline/core'
+import { mysqlAdapter } from '@byline/db-mysql'
+import { createAdminStore } from '@byline/db-mysql/admin'
+
+import { collections } from './byline/collections/index.js'
+import { i18n } from './byline/i18n.js'
+import { routes } from './byline/routes.js'
+
+const db = mysqlAdapter({
+  connectionString: process.env.BYLINE_DB_MYSQL_CONNECTION_STRING!,
+  collections,
+  defaultContentLocale: i18n.content.defaultLocale,
+  connectionLimit: 20, // optional — mysql2 pool size, defaults to 20
+})
+
+const core = await initBylineCore({
+  serverURL: process.env.VITE_SERVER_URL!,
+  i18n,
+  routes,
+  collections,
+  db,
+  adminStore: createAdminStore(db.drizzle),
+  // storage, search, hooks, … — see @byline/core's ServerConfig type
+})
+```
+
+This mirrors how `apps/webapp/byline/server.config.ts` wires `@byline/db-postgres` today —
+swap `pgAdapter` / `@byline/db-postgres/admin` for `mysqlAdapter` /
+`@byline/db-mysql/admin` and the rest of an existing Byline server config is unchanged,
+because both adapters implement the same `IDbAdapter` and `AdminStore` contracts.
+
+`connectionString` is the **only** connection input `mysqlAdapter` takes, and
+it must be a `mysql://` URL — mysql2 parses connection URLs natively (`uri`
+is a first-class `createPool` option), so there is no separate host / port /
+user / password / database set of fields to keep in sync with it. An earlier
+version of this package's `.env.example` implied the URL existed only to
+serve the `db_init.sh` / `db_init_test.sh` shell scripts, which had the
+relationship backwards: the connection string is the adapter's own input
+first, and the shell scripts parse the same string only because the `mysql`
+CLI takes discrete flags rather than a URL.
+
+Special characters in the connection string's user or password must be
+percent-encoded (`@` as `%40`, `#` as `%23`, `/` as `%2F`, …) — mysql2 and
+the init scripts' shell-side URL parsing both percent-decode the userinfo the
+same way, so an unencoded reserved character parses differently, or fails to
+parse, on one side or the other.
+
+## Engine floor: MySQL 8.0.14+
+
+`mysqlAdapter` runs a boot-time `SELECT VERSION()` check against the pool's
+first connection and throws if the server is older than 8.0.14 or is
+MariaDB (MariaDB reports version strings that would otherwise satisfy the
+numeric floor, so it is rejected explicitly by name — see
+`src/lib/boot-check.ts`). A too-old server or MariaDB is a configuration
+error, so the check fails fast at `initBylineCore()` boot rather than
+surfacing later as an obscure SQL error the first time a query needs a
+feature the server doesn't have.
+
+8.0.14 is not an arbitrary floor — it is the first MySQL release with two
+features this adapter's storage layer depends on:
+
+- **`LEFT JOIN LATERAL`**, used for the field-level sort path in
+  `findDocuments`.
+- **Subqueries in a view's `FROM` clause**, which MySQL forbade before
+  8.0.14. Both current-version views
+  (`byline_current_documents`, `byline_current_published_documents`) resolve
+  the current version per document via a `ROW_NUMBER() OVER (PARTITION BY
+  document_id)` window inside a derived table in their `FROM` clause — the
+  same shape as the Postgres adapter's views — so this restriction, not the
+  `LATERAL` requirement, is the adapter's real engine floor.
+
+MariaDB is out of scope for this release: it lacks `LATERAL` joins, so
+supporting it would need a correlated-subquery rewrite of the field-sort
+path. Tracked as
+[on-demand follow-up work](https://github.com/Byline-CMS/bylinecms.dev/issues/54)
+if you need it sooner than "on demand."
+
+## UUID and timestamp conventions
+
+- **Ids are `CHAR(36) CHARACTER SET ascii COLLATE ascii_bin`** — canonical
+  UUID text, compared byte-wise rather than under an accent- or
+  case-folding collation. Every id and foreign-key column in the schema
+  uses this type. Ids are always app-generated UUIDv7 (the `uuid` package's
+  `v7()`), never database-generated — UUIDv7's canonical text form is
+  time-ordered, so `ORDER BY id DESC` version resolution works the same way
+  it does on the numeric-friendly ids some other schemas use.
+- **Audit timestamps are `DATETIME(6)`** (microsecond precision), matching
+  the Postgres adapter's `timestamp(name, { precision: 6, withTimezone: true })`
+  convention exactly. Every table's `created_at` / `updated_at` uses this
+  shape. `TIMESTAMP` (MySQL's other temporal type) is not used anywhere in
+  this schema — its year-2038 range limit makes it unsuitable for an
+  audit trail with no defined retention horizon.
+- **Every `DATETIME` column is UTC by convention.** MySQL's `DATETIME` type
+  carries no time zone identity the way Postgres's `TIMESTAMPTZ` does, so
+  UTC discipline is enforced entirely at the connection layer: the mysql2
+  pool is opened with `timezone: 'Z'`, which stops the driver from
+  reinterpreting stored UTC values against the server's or session's local
+  time zone on the way in or out.
+- **`document_paths.path` is pinned `utf8mb4_bin`** rather than the
+  database's default collation, so path lookups compare bytes exactly and
+  agree with the Postgres adapter's default (accent- and case-sensitive)
+  comparison — see "Differences from the Postgres adapter" below for why
+  this column needed a deliberate override.
+
+## Counters emulation
+
+MySQL has no `CREATE SEQUENCE`. Byline's counter groups (used for
+per-installation and per-scope sequential numbering) are emulated with a
+registry table, `byline_counter_groups`, that **is** the allocator rather
+than a wrapper around a database sequence object: `current_value` holds the
+counter's live state, and each allocation issues an atomic
+`UPDATE`/`INSERT ... ON DUPLICATE KEY UPDATE` followed by a same-connection
+`SELECT LAST_INSERT_ID()` to read back the value it just set — the classic
+`LAST_INSERT_ID(expr)` idiom, requiring no separate `SELECT ... FOR UPDATE`
+round trip. Because `LAST_INSERT_ID()` is per-connection session state, the
+two-statement sequence is issued over a single checked-out pool connection
+rather than through `pool.query()` directly, which could otherwise hand the
+two statements to two different physical connections and return the wrong
+session's value. See `src/modules/counters/counters-commands.ts` for the
+full implementation.
+
+## Differences from the Postgres adapter
+
+Both adapters implement the same storage model and pass the same
+`@byline/db-conformance` suite, but MySQL and Postgres are different
+databases, and a few divergences are real rather than papered over.
+
+- **`LIKE` is case- *and* accent-insensitive**, unlike Postgres's `ILIKE`,
+  which is case-insensitive only. Store *value* columns keep the database's
+  default collation, `utf8mb4_0900_ai_ci` (`ai` = accent-insensitive, `ci` =
+  case-insensitive), so a `query` search against `store_text` values will
+  match `café` when searching `cafe`, and `Café` when searching `cafe`,
+  where the same search against the Postgres adapter would match neither.
+  This is a deliberate, spec-elected divergence, not an oversight — see
+  `packages/db-mysql/src/database/schema/common.ts`'s `varcharCaseSensitive`
+  docblock for the evidence that ruled it in. The one place this divergence
+  is *not* allowed to stand is `byline_document_paths.path`: that column is
+  pinned to `utf8mb4_bin` (byte-exact) instead, so `/About` and `/about`
+  remain two distinct paths on both adapters, and so combining marks that
+  are meaning-bearing in some scripts (a Thai tone mark, a Devanagari
+  anusvara, Hebrew niqqud) are never silently folded together the way
+  `ai_ci` would fold them.
+- **No search provider yet.** `@byline/search-postgres` has no MySQL
+  counterpart today — a collection's `search` config
+  (`CollectionDefinition.search`) requires a registered `SearchProvider`,
+  and none ships for MySQL yet. Track
+  [the `@byline/search-mysql` follow-up issue](https://github.com/Byline-CMS/bylinecms.dev/issues/52)
+  for status.
+- **The connection string is the only connection input.** See "Usage"
+  above — this is called out here too because it is the most common way
+  this adapter is misconfigured by a reader coming from the Postgres
+  adapter's `.env.example`, which historically documented the same shape
+  for a different reason.
+- **Temporal field values.** As of this release both adapters return `date`
+  and `datetime` field values as `Date` objects (`date` anchored to UTC
+  midnight for its calendar day; `time` remains a string on both adapters).
+  This adapter always returned `Date` here; the Postgres adapter converged
+  onto the same shape in this release. See the changeset for what a
+  consumer upgrading `@byline/db-postgres` needs to check.
+
+## Not yet shipped
+
+- **`@byline/search-mysql`** — see "No search provider yet" above. Tracked in
+  [issue #52](https://github.com/Byline-CMS/bylinecms.dev/issues/52).
+- **A MySQL storage-benchmark target.** The design spec flags view
+  materialisation (the `ROW_NUMBER()` window inside a derived table, used
+  by both current-version views) as a question to answer before this
+  adapter's GA — Postgres's own benchmark sweep
+  ([`docs/03-architecture/01-document-storage.md`](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/docs/03-architecture/01-document-storage.md#indicative-benchmarks))
+  has no MySQL counterpart yet. Tracked in
+  [issue #53](https://github.com/Byline-CMS/bylinecms.dev/issues/53).
+- **MariaDB support** — see "Engine floor" above. Tracked in
+  [issue #54](https://github.com/Byline-CMS/bylinecms.dev/issues/54).
+
+## License
+
+MPL-2.0
