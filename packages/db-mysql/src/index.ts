@@ -14,6 +14,8 @@ import mysql from 'mysql2/promise'
 import * as schema from './database/schema/index.js'
 import { assertMySqlVersion } from './lib/boot-check.js'
 import { DBManagerImpl, TXManagerImpl } from './lib/db-manager.js'
+import { classifyError } from './modules/storage/classify-error.js'
+import { createCommandBuilders } from './modules/storage/storage-commands.js'
 
 /**
  * Public return type of `mysqlAdapter`. Extends `IDbAdapter` with concrete
@@ -51,7 +53,6 @@ export const mysqlAdapter = ({
   connectionString,
   // biome-ignore lint/correctness/noUnusedFunctionParameters: threaded through the signature now for parity with pgAdapter; wired into the storage query builders in Task 10.
   collections,
-  // biome-ignore lint/correctness/noUnusedFunctionParameters: threaded through the signature now for parity with pgAdapter; wired into the storage command/query builders starting Task 9.
   defaultContentLocale,
   connectionLimit = 20,
 }: {
@@ -102,8 +103,8 @@ export const mysqlAdapter = ({
   // ambient transaction when a `withTransaction` boundary is open, else the
   // pool.
   const dbManager = new DBManagerImpl({ dbPool: db })
-  // biome-ignore lint/correctness/noUnusedVariables: constructed now so Tasks 9-12 wire withTransaction to it; unused until then (see the withTransaction stub below).
   const txManager = new TXManagerImpl({ db: dbManager })
+  const commandBuilders = createCommandBuilders(dbManager, defaultContentLocale)
 
   // Boot check: run lazily on the pool's first physical connection rather
   // than eagerly here, because `mysqlAdapter` is synchronous (mirroring
@@ -139,13 +140,16 @@ export const mysqlAdapter = ({
 
   return {
     commands: {
-      collections: {
-        create: notImplemented('commands.collections.create', 9),
-        update: notImplemented('commands.collections.update', 9),
-        delete: notImplemented('commands.collections.delete', 9),
-      },
+      // Task 9A. `commandBuilders.collections` fully implements
+      // `ICollectionCommands` — see `./modules/storage/storage-commands.js`.
+      collections: commandBuilders.collections,
       documents: {
-        createDocumentVersion: notImplemented('commands.documents.createDocumentVersion', 9),
+        // Task 9A. `commandBuilders.documents` (`DocumentCommands`) is a
+        // deliberate partial — only `createDocumentVersion` is implemented;
+        // see that class's docblock. Every other member below is Task 9B.
+        createDocumentVersion: commandBuilders.documents.createDocumentVersion.bind(
+          commandBuilders.documents
+        ),
         updateDocumentPath: notImplemented('commands.documents.updateDocumentPath', 9),
         setDocumentAvailableLocales: notImplemented(
           'commands.documents.setDocumentAvailableLocales',
@@ -220,7 +224,8 @@ export const mysqlAdapter = ({
         findAuditLog: notImplemented('queries.audit.findAuditLog', 11),
       },
     },
-    withTransaction: notImplemented('withTransaction', 9),
+    withTransaction: (fn) => txManager.withTransaction(fn),
+    classifyError,
     drizzle: db,
     pool,
   }
