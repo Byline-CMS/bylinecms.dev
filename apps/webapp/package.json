@@ -75,6 +75,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.4",
+    "@byline/db-mysql": "workspace:*",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "4.3.3",
     "@tanstack/devtools-vite": "^0.8.1",

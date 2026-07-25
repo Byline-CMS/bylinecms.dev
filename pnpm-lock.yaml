@@ -142,6 +142,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.4
         version: 2.5.4
+      '@byline/db-mysql':
+        specifier: workspace:*
+        version: link:../../packages/db-mysql
       '@playwright/test':
         specifier: ^1.61.1
         version: 1.61.1

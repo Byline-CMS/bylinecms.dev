@@ -64,6 +64,16 @@ over an `IDbAdapter` factory. Both adapters run the same 14 suites against their
 database; a change to the shared model that breaks either adapter's behaviour fails a
 conformance suite before it fails anything a consumer would notice.
 
+The Postgres adapter is the supported default. The MySQL adapter is **preliminary**: its
+storage layer passes the full conformance suite, but MySQL is not yet a fully supported
+Byline backend. There is no MySQL search provider, and because `initBylineCore()` refuses
+to start when a collection declares a `search` block with no provider registered, a MySQL
+installation needs the no-op provider the
+[`@byline/db-mysql` README](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/packages/db-mysql/README.md#search-on-mysql)
+documents. `byline init` also scaffolds Postgres only. Choose MySQL for evaluation,
+prototypes, or installations that do not need search; choose Postgres for everything else
+until those gaps close.
+
 ## What happens when you save a document
 
 Before the reference sections, here is one document making the full round trip. Take a `news` collection with a localized `title`, a `category` relation, and a `content` blocks field, and suppose an editor saves the English version.
