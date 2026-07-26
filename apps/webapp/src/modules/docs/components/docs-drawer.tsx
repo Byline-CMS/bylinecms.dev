@@ -69,10 +69,17 @@ function NavItem({ node, depth, activeKey, expanded, onToggle, lng, onNavigate }
   const hasChildren = node.children.length > 0
   const isActive = activeKey === key
   const isOpen = expanded.has(node.id)
+  // An open parent exposes its own document as the faux "Overview" child
+  // below, so only that visible row should carry the active treatment.
+  const isParentRowActive = isActive && (!hasChildren || !isOpen)
 
   return (
     <li
-      className={cx('menu-item', { active: isActive, 'has-children': hasChildren, open: isOpen })}
+      className={cx('menu-item', {
+        active: isParentRowActive,
+        'has-children': hasChildren,
+        open: isOpen,
+      })}
     >
       <div className="row" style={{ paddingLeft: `${depth * 14 + 5}px` }}>
         <Link
@@ -101,6 +108,21 @@ function NavItem({ node, depth, activeKey, expanded, onToggle, lng, onNavigate }
       {hasChildren && (
         <div className={cx('subtree', { open: isOpen })}>
           <ul className="subtree-inner">
+            {/* Keep this render-only: adding a synthetic node to DocNavNode
+                would duplicate section indexes in prev/next navigation and
+                the docs index card grid, both of which flatten the real tree. */}
+            <li className={cx('menu-item', { active: isActive && isOpen })}>
+              <div className="row" style={{ paddingLeft: `${(depth + 1) * 14 + 5}px` }}>
+                <Link
+                  className="link"
+                  to="/$lng/docs/$"
+                  params={{ ...lngParam(lng), _splat: key }}
+                  onClick={onNavigate}
+                >
+                  <span className="label">Overview</span>
+                </Link>
+              </div>
+            </li>
             {node.children.map((child) => (
               <NavItem
                 key={child.id}
