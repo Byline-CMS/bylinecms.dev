@@ -96,7 +96,7 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
    * rebuilds this collection's search index; it self-gates on the
    * `collections.docs.reindex` ability, so it only appears for actors who
    * hold it. Drop this (and the `search` config in schema.ts) if you don't
-   * want search on this collection. See docs/05-reading-and-delivery/07-search.md.
+   * want search on this collection. See docs/06-search/index.md.
    */
   listActions: [ReindexButton],
 

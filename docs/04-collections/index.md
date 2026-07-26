@@ -10,7 +10,7 @@ Companions:
 - [Fields](./01-fields.md) — field-level schema and admin (slot components, helper factories, the per-field richtext editor swap).
 - [Blocks](./02-blocks.md) — `defineBlock` / `defineBlockAdmin`, the per-block schema/admin split, and block-tailored editors.
 - [Rich Text](./07-rich-text.md) — the Lexical adapter, its `EditorConfig`, and per-field overrides.
-- [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — auth + access-control subsystem, including six worked `beforeRead` row-scoping recipes (owner-only drafts, multi-tenant, soft-delete, …).
+- [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md) — auth + access-control subsystem, including six worked `beforeRead` row-scoping recipes (owner-only drafts, multi-tenant, soft-delete, …).
 - [Document Storage](../03-architecture/01-document-storage.md) — *document* versioning (the sibling pillar — this doc covers *schema* versioning).
 - [Document Paths](./05-document-paths.md) — how `useAsPath` lands in `byline_document_paths`.
 
@@ -336,7 +336,7 @@ export interface CollectionDefinition {
 | `useAsPath` | The field whose value initialises a document's `path` row in `byline_document_paths`. Slugified once; sticky after creation. Collections without `useAsPath` receive a UUID path. See [Document Paths](./05-document-paths.md). |
 | `workflow` | Sequential workflow config — see [Workflow](#workflow). Defaults to a standard `draft` → `published` → `archived` triple. |
 | `hooks` | Lifecycle hooks (server-side). See [Lifecycle hooks](#lifecycle-hooks). |
-| `search` | Role-based **provider indexing** config for site search (`body` / `facets` / `filters` / `zones`) — see [Search](../05-reading-and-delivery/07-search.md). Does not affect the admin list view's search box. |
+| `search` | Role-based **provider indexing** config for site search (`body` / `facets` / `filters` / `zones`) — see [Configure Search](../06-search/01-configuration.md). Does not affect the admin list view's search box. |
 | `listSearch` | Field names the admin list view's search box matches (`ILIKE` over `store_text`, so `text` / `textArea` / `select` fields only). Independent of `search`. Falls back to the identity field (`useAsTitle`, else the first text field) when omitted. |
 | `linksInEditor` | When `true`, this collection's documents appear as linkable options inside the richtext editor's link plugin. Requires `useAsTitle`. |
 | `showStats` | When `true`, the admin landing page renders per-status counts inside this collection's card. Costs one DB round-trip per landing render — opt in deliberately. |
@@ -569,14 +569,14 @@ Status changes mutate the existing version row in-place — they are lifecycle m
 | Document tree | `afterTreeChange` |
 | Read | `beforeRead` (row-scoping predicate), `afterRead` (per-materialization mutation) |
 
-The two read hooks carry the security-sensitive behaviour, so they are worth reading closely. The full reference and worked recipes live in [Authentication & Authorization — Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping-the-beforeread-hook); the summary is here.
+The two read hooks carry the security-sensitive behaviour, so they are worth reading closely. The full reference and worked recipes live in [Authentication & Authorization — Read-side scoping](../07-auth-and-security/01-authn-authz.md#read-side-scoping-the-beforeread-hook); the summary is here.
 
 **`beforeRead`** is the row-scoping hook. You return a `QueryPredicate`, and Byline ANDs it with the caller's filters — but the two compile through different paths, and the difference is the point:
 
 - Your caller's `where` goes through the ordinary query parser. Your hook predicate goes through the **strict security compiler**: an unsupported field or operator, or a malformed value, **throws** rather than being weakened or dropped. A scoping rule that cannot be honoured fails the read; it never silently widens it.
 - The strict result compiles once per logical read — keyed on `ReadContext`, collection, and effective read mode — in private, authority-bound state that concurrent populate branches share. Reusing a logical read across authorities fails closed, and the deprecated caller-owned `ReadContext.beforeReadCache` is ignored.
 - Top-level `status` and `path` operators become document-column filters, applied consistently across list, detail, populate, count, history, and tree reads.
-- Coverage is end-to-end. Ordinary reads and counts, every immutable row in `history()` and `findByVersion()`, tree edges and hydration, search authorization, populated relations, and rich-text document and image targets all apply the target collection's ability and predicate. The one deliberate exception is `auditLog()`, which gates the document-grain log through the current document rather than applying a predicate to each audit row — see [Auditability](../06-auth-and-security/02-auditability.md).
+- Coverage is end-to-end. Ordinary reads and counts, every immutable row in `history()` and `findByVersion()`, tree edges and hydration, search authorization, populated relations, and rich-text document and image targets all apply the target collection's ability and predicate. The one deliberate exception is `auditLog()`, which gates the document-grain log through the current document rather than applying a predicate to each audit row — see [Auditability](../07-auth-and-security/02-auditability.md).
 
 **`afterRead`** runs after populate, once per freshly materialized raw document, and lets you mutate what the read returns:
 

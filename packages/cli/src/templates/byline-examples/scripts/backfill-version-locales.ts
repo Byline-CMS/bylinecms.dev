@@ -18,7 +18,7 @@
  *
  *   pnpm tsx byline/scripts/backfill-version-locales.ts
  *
- * See docs/07-internationalization/index.md.
+ * See docs/08-internationalization/index.md.
  */
 
 import '../load-env.js'

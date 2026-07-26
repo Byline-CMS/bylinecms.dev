@@ -8,7 +8,7 @@
 
 /**
  * `@byline/admin/admin-activity` — the system-wide activity area
- * (docs/06-auth-and-security/02-auditability.md — Workstream 4).
+ * (docs/07-auth-and-security/02-auditability.md — Workstream 4).
  *
  * Unlike the other admin modules this one owns no table and no AdminStore
  * repository: the activity feed is a read over the document db adapter's

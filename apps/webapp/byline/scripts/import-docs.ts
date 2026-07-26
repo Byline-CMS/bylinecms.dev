@@ -367,7 +367,7 @@ async function processFile(
       // Advertise the imported locale (editorial available-locales set), merged
       // with whatever is already advertised so a later-locale re-import doesn't
       // clobber an earlier one. The public set is still gated by the version
-      // completeness ledger (intersection). See docs/07-internationalization/index.md.
+      // completeness ledger (intersection). See docs/08-internationalization/index.md.
       availableLocales: [...new Set([...(document.availableLocales ?? []), locale])],
     })
     await walkToStatus(handle, result.documentId, workflowStatuses, defaultStatus, desiredStatus)

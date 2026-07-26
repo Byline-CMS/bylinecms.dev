@@ -13,8 +13,8 @@ Four physical indexes retain the A–D field-weight classes used by the built-in
 PostgreSQL provider.
 
 See
-[`docs/05-reading-and-delivery/07-search.md`](../../docs/05-reading-and-delivery/07-search.md)
-for the full subsystem design.
+[`docs/06-search/06-postgres-and-mysql.md`](../../docs/06-search/06-postgres-and-mysql.md)
+for the built-in provider comparison and operational reference.
 
 ## Install
 

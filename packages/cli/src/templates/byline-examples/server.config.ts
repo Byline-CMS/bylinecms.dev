@@ -103,7 +103,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   // host's Drizzle migration stream. We run it deliberately here, rather
   // than relying on the driver's `autoMigrate` option, so startup DDL is an
   // explicit, awaited step. Reuses the adapter's pool — no second
-  // connection. See docs/05-reading-and-delivery/07-search.md.
+  // connection. See docs/06-search/index.md.
   //
   // Wrapped defensively: a migration failure degrades search but must not
   // take down the whole app at boot. We log loudly and continue. (For
@@ -233,7 +233,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
         // `body` fields to indexable text for `buildSearchDocument`. Pure
         // JSON walk, no client. Required by any collection that lists a
         // richText field in its `search.body`. See
-        // docs/05-reading-and-delivery/07-search.md.
+        // docs/06-search/index.md.
         toText: lexicalEditorToTextServer(),
       },
     },

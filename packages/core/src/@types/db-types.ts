@@ -43,7 +43,7 @@ export type ReadMode = 'any' | 'published'
  * safe default for internal/direct reads); `@byline/client` defaults it to
  * `'fallback'` for application reads. Availability follows path-coverage against
  * the default content locale; a document with no localized content is available
- * in every locale. See `docs/07-internationalization/index.md`.
+ * in every locale. See `docs/08-internationalization/index.md`.
  */
 export type MissingLocalePolicy = 'empty' | 'fallback' | 'omit'
 
@@ -266,7 +266,7 @@ export interface IDbAdapter {
    * boot by `initBylineCore` so in-place upgrades self-heal without a manual
    * step or a migrate-ordering constraint — a no-op (zero rows) once every
    * document is stamped. Optional so adapters that don't model `source_locale`
-   * need not implement it. See docs/07-internationalization/index.md.
+   * need not implement it. See docs/08-internationalization/index.md.
    */
   backfillSourceLocales?: () => Promise<{ rowsUpdated: number }>
   /**
@@ -282,13 +282,13 @@ export interface IDbAdapter {
 }
 
 // ---------------------------------------------------------------------------
-// Audit log (docs/06-auth-and-security/02-auditability.md — Workstream 2)
+// Audit log (docs/07-auth-and-security/02-auditability.md — Workstream 2)
 // ---------------------------------------------------------------------------
 
 /**
  * The realm of the actor that performed an audited change. `'admin'` for
  * admin-user actions, `'user'` reserved for the end-user realm, `'system'`
- * for deliberate internal-tooling writes. See docs/06-auth-and-security/02-auditability.md.
+ * for deliberate internal-tooling writes. See docs/07-auth-and-security/02-auditability.md.
  */
 export type AuditActorRealm = 'admin' | 'user' | 'system'
 
@@ -332,7 +332,7 @@ export interface AuditLogPage {
 
 /**
  * Append-only audit-log writes. The companion read interface is
- * `IAuditQueries`. See docs/06-auth-and-security/02-auditability.md — Workstream 2.
+ * `IAuditQueries`. See docs/07-auth-and-security/02-auditability.md — Workstream 2.
  */
 export interface IAuditCommands {
   /**
@@ -344,7 +344,7 @@ export interface IAuditCommands {
   append(input: AuditLogAppendInput): Promise<{ id: string }>
 }
 
-/** Audit-log reads. See docs/06-auth-and-security/02-auditability.md — Workstreams 3 & 4. */
+/** Audit-log reads. See docs/07-auth-and-security/02-auditability.md — Workstreams 3 & 4. */
 export interface IAuditQueries {
   /**
    * The audit history for one document, newest first, paged. Backs the
@@ -359,7 +359,7 @@ export interface IAuditQueries {
   }): Promise<AuditLogPage>
 
   /**
-   * The system-wide activity feed (docs/06-auth-and-security/02-auditability.md — Workstream 4), newest
+   * The system-wide activity feed (docs/07-auth-and-security/02-auditability.md — Workstream 4), newest
    * first, paged and filterable. A read-time **union** of two disjoint event
    * sources, normalised onto the `AuditLogEntry` shape:
    *
@@ -554,7 +554,7 @@ export interface IDocumentCommands {
      * editorial advertised-locale set. `undefined` leaves the existing set
      * untouched (sticky across versions, like `path`); `[]` clears it. The
      * locale values are the advertised content locales themselves, not the
-     * write locale. See `docs/07-internationalization/index.md`.
+     * write locale. See `docs/08-internationalization/index.md`.
      */
     availableLocales?: string[]
     locale?: string
@@ -584,7 +584,7 @@ export interface IDocumentCommands {
    * the change is immediate and applies across every version. Backs the admin
    * path widget's direct-write Save. The unique constraint on
    * `(collection_id, locale, path)` may surface as `ERR_PATH_CONFLICT` from the
-   * lifecycle layer. See `docs/07-internationalization/index.md`.
+   * lifecycle layer. See `docs/08-internationalization/index.md`.
    */
   updateDocumentPath(params: {
     documentId: string
@@ -599,7 +599,7 @@ export interface IDocumentCommands {
    * wholesale **without** minting a new version or touching workflow status —
    * the change is immediate and applies across every version. `[]` clears it.
    * Backs the admin available-locales widget's direct-write Save. See
-   * `docs/07-internationalization/index.md`.
+   * `docs/08-internationalization/index.md`.
    */
   setDocumentAvailableLocales(params: {
     documentId: string
@@ -652,7 +652,7 @@ export interface IDocumentCommands {
     documentId: string
     locale: string
     status?: string
-    /** Acting user id for the version audit trail (`created_by`). See docs/06-auth-and-security/02-auditability.md. */
+    /** Acting user id for the version audit trail (`created_by`). See docs/07-auth-and-security/02-auditability.md. */
     createdBy?: string
   }): Promise<{ newVersionId: string; previousVersionId: string } | null>
 
@@ -767,7 +767,7 @@ export interface IDocumentQueries {
     /**
      * Request-scoped auth context. Adapters thread it through to
      * `assertActorCanPerform` for ability assertion and to `beforeRead`
-     * hooks for query scoping. See docs/06-auth-and-security/01-authn-authz.md.
+     * hooks for query scoping. See docs/07-auth-and-security/01-authn-authz.md.
      */
     requestContext?: RequestContext
     /**

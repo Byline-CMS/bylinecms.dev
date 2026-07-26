@@ -123,13 +123,13 @@ export const HistoryView = ({
   data: AnyCollectionSchemaTypes['HistoryType'] & {
     /**
      * Audit display labels (the acting user per version), resolved admin-side from each
-     * version's `createdBy` id (see docs/06-auth-and-security/02-auditability.md — Workstream 1). Ids
+     * version's `createdBy` id (see docs/07-auth-and-security/02-auditability.md — Workstream 1). Ids
      * absent from the map belong to deleted users.
      */
     actors?: Record<string, { label: string }>
   }
   /**
-   * Document-grain audit log for the "Document history" tab (docs/06-auth-and-security/02-auditability.md —
+   * Document-grain audit log for the "Document history" tab (docs/07-auth-and-security/02-auditability.md —
    * Workstream 3): the non-versioned path / available-locales / status
    * changes and the deletion event, with admin-resolved actor labels.
    */
@@ -153,7 +153,7 @@ export const HistoryView = ({
   const titleFieldName = collectionDefinition.useAsTitle
   const location = useRouterState({ select: (s) => s.location })
   const locale = (location.search as { locale?: string }).locale
-  // Which sub-view is active (docs/06-auth-and-security/02-auditability.md — W3). Absent / anything but
+  // Which sub-view is active (docs/07-auth-and-security/02-auditability.md — W3). Absent / anything but
   // 'document' → the content version stream.
   const activeTab =
     (location.search as { tab?: string }).tab === 'document' ? 'document' : 'versions'
@@ -294,7 +294,7 @@ export const HistoryView = ({
                     const versionNumber = desc
                       ? total - (page - 1) * pageSize - rowIndex
                       : (page - 1) * pageSize + rowIndex + 1
-                    // Audit strip (docs/06-auth-and-security/02-auditability.md — W1): who created this
+                    // Audit strip (docs/07-auth-and-security/02-auditability.md — W1): who created this
                     // version, via which action. A present-but-unresolved id
                     // is a deleted user; an absent id is a row written before
                     // audit wiring or an internal-tooling write.

@@ -13,8 +13,9 @@ with facet **ids** and filterable scalars kept as `jsonb` for future
 aggregation and filtering. A collection's title remains display-only unless
 its identity field is also declared in `search.body`.
 
-See [`docs/05-reading-and-delivery/07-search.md`](../../docs/05-reading-and-delivery/07-search.md)
-for the full subsystem design.
+See
+[`docs/06-search/06-postgres-and-mysql.md`](../../docs/06-search/06-postgres-and-mysql.md)
+for the built-in provider comparison and operational reference.
 
 ## Install
 

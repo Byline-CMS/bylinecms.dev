@@ -68,7 +68,7 @@ export async function updateDocument(
      * The editorial advertised-locale set. `undefined` leaves the existing
      * set untouched (sticky — document-grain, like `path`); an explicit array
      * (empty included) replaces it wholesale. Driven by the admin
-     * available-locales sidebar widget. See docs/07-internationalization/index.md.
+     * available-locales sidebar widget. See docs/08-internationalization/index.md.
      */
     availableLocales?: string[]
   }
@@ -202,7 +202,7 @@ export async function updateDocumentWithPatches(
      * The editorial advertised-locale set (typically supplied alongside
      * patches when the admin available-locales widget has been edited).
      * `undefined` leaves the existing set untouched (sticky); an explicit
-     * array replaces it wholesale. See docs/07-internationalization/index.md.
+     * array replaces it wholesale. See docs/08-internationalization/index.md.
      */
     availableLocales?: string[]
   }

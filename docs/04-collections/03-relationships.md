@@ -11,7 +11,7 @@ Companions:
 - [Client SDK](../05-reading-and-delivery/01-client-sdk.md) — `@byline/client` is where most relation reads land; the populate / `WithPopulated` patterns are documented there too.
 - [Collections](./index.md) — `itemView` column definitions for relation-picker rows, and the `useAsTitle` field used by populate's default projection.
 - [Document Paths](./05-document-paths.md) — `path` lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)`. Used by relation filters (`where: { category: { path: 'news' } }`) and locale-resolved per request.
-- [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — populate threads `RequestContext` so `beforeRead` / `afterRead` apply to populated targets.
+- [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md) — populate threads `RequestContext` so `beforeRead` / `afterRead` apply to populated targets.
 - [File / Media Uploads](./06-file-media-uploads.md) — the `Media` collection plus a relation pointing at it is the canonical "shared media library" pattern.
 - [Rich Text](./07-rich-text.md) — document links inside richtext field values are a second consumer of the relation envelope.
 

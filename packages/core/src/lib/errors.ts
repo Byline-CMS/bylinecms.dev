@@ -201,7 +201,7 @@ export const ERR_PATH_CONFLICT = createErrorType(ErrorCodes.PATH_CONFLICT, 'warn
  * `commands.audit` / `queries.audit` surfaces. A misconfiguration, not a
  * user error: an auditability guarantee cannot be honoured non-atomically, so
  * the write is refused loudly rather than recorded with a gap. See
- * docs/03-architecture/03-transactions.md and docs/06-auth-and-security/02-auditability.md.
+ * docs/03-architecture/03-transactions.md and docs/07-auth-and-security/02-auditability.md.
  */
 export const ERR_AUDIT_UNSUPPORTED = createErrorType(ErrorCodes.AUDIT_UNSUPPORTED)
 /**

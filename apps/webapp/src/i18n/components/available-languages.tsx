@@ -18,7 +18,7 @@ import { type ContentLocale, contentLocaleLabels, isContentLocale } from '../i18
  *
  * Renders nothing unless the document advertises more than one locale — a
  * single advertised locale needs no switcher, and a locale-agnostic document
- * (empty advertised set) shows no affordance at all. See docs/07-internationalization/index.md.
+ * (empty advertised set) shows no affordance at all. See docs/08-internationalization/index.md.
  */
 export function AvailableLanguages({
   advertisedLocales,

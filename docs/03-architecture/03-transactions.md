@@ -7,7 +7,7 @@ summary: "What Byline guarantees to write atomically and what it does not, the t
 # Transactions
 
 Companions:
-- [Auditability](../06-auth-and-security/02-auditability.md) — the first consumer of this capability; every audited write commits its change and its audit row together.
+- [Auditability](../07-auth-and-security/02-auditability.md) — the first consumer of this capability; every audited write commits its change and its audit row together.
 - [Core Composition](./02-core-composition.md) — where `withTransaction` sits in the adapter contract, and the guard rail that keeps transaction machinery out of `@byline/core`.
 - [File / Media Uploads](../04-collections/06-file-media-uploads.md) — the compensation path for the one boundary transactions cannot cover.
 - [Document Trees](../04-collections/04-document-trees.md) — tree mutations are the most composed write in the system, and the clearest example of the guarantee.

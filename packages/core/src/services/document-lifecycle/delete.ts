@@ -175,7 +175,7 @@ export async function deleteDocument(
       //    back, so soft-deleted documents cannot leak live edges.
       //    whole-document delete mints no new version, so the version stream
       //    never records it — the audit log is the only place a deletion is
-      //    accountable (docs/06-auth-and-security/02-auditability.md). Storage-file cleanup (step 4) is a
+      //    accountable (docs/07-auth-and-security/02-auditability.md). Storage-file cleanup (step 4) is a
       //    DB↔external side-effect and stays OUTSIDE the transaction — it is
       //    post-commit, best-effort compensation (docs/03-architecture/03-transactions.md).
       const treeAudit = definition.tree === true ? requireTreeAuditCapability(db) : undefined

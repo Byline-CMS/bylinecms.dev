@@ -10,7 +10,7 @@ Companions:
 - [Routing & API](./02-routing-and-api.md) — broader transport-phase context: admin UI is the only client today, stable HTTP is deferred. The SDK is what fills the gap.
 - [Document Storage](../03-architecture/01-document-storage.md) — storage primitives the SDK sits above.
 - [Relationships](../04-collections/03-relationships.md) — `populate` / `depth` machinery the SDK exposes.
-- [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — `RequestContext` threading and `beforeRead` / `afterRead` enforcement.
+- [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md) — `RequestContext` threading and `beforeRead` / `afterRead` enforcement.
 - [Collections](../04-collections/index.md) — `CollectionAdminConfig.preview.url` builder used by the admin preview affordance.
 - [`packages/client/DESIGN.md`](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/packages/client/DESIGN.md) — implementation-detail design doc; phase-by-phase status snapshot.
 
@@ -329,7 +329,7 @@ const results = await client.search({ zone: 'site', query: 'launch', hydrate: tr
 
 Both assert the collection `read` ability (zone search excludes collections the actor can't read), honour `beforeRead` row scoping by re-resolving candidate ids through the normal read path, and default to `status: 'published'`. `hydrate: true` batch-reads hits into shaped documents (projected to `admin.itemView` columns when registered) and drops stale index entries. When authorization removes collections or rows, `total` is conservatively the authorized hit count on the returned page and facets are omitted rather than leaking provider-wide aggregates.
 
-→ [Search](./07-search.md) for the full surface (indexing, reindex, zones, the provider seam).
+→ [Search API](../06-search/03-search-api.md) for collection and zone queries, matching, highlights, hydration, and authorization.
 
 ### 11. A standalone script
 
@@ -689,13 +689,13 @@ Policy:
 - **`actor: null`** → permitted only on `read` with `readMode: 'published'`. Any write or non-published read with a null actor throws.
 - **Otherwise** → `actor.assertAbility('collections.<path>.<verb>')`. Super-admin (`actor.isSuperAdmin === true`) short-circuits.
 
-The same `_bypassBeforeRead: true` escape hatch on read options is available for admin tooling that needs to see everything regardless of `beforeRead` scoping. Use sparingly; it's a deliberate exit from access control. See [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) for the full auth subsystem.
+The same `_bypassBeforeRead: true` escape hatch on read options is available for admin tooling that needs to see everything regardless of `beforeRead` scoping. Use sparingly; it's a deliberate exit from access control. See [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md) for the full auth subsystem.
 
 ### Read-time hooks
 
 Two collection-level hooks fire automatically through the SDK:
 
-- **`beforeRead`** — contributes a `QueryPredicate` whose strict adapter filters are ANDed with, but compiled separately from, caller `where`. It applies to ordinary reads, search candidates, editorial metadata, tree structure, relation targets, and richtext targets. The strict result compiles once per logical `ReadContext` + client security domain + collection definition + effective mode in private authority-bound state; invalid or unsupported clauses fail closed instead of disappearing. The deprecated caller-owned `beforeReadCache` property is ignored, reuse under another request id, locale, or actor authority rejects, and cyclic hook reads fail with `ERR_READ_RECURSION`. See [Authentication & Authorization § Read-side scoping](../06-auth-and-security/01-authn-authz.md#read-side-scoping-the-beforeread-hook) (the Quick Reference there carries six worked recipes).
+- **`beforeRead`** — contributes a `QueryPredicate` whose strict adapter filters are ANDed with, but compiled separately from, caller `where`. It applies to ordinary reads, search candidates, editorial metadata, tree structure, relation targets, and richtext targets. The strict result compiles once per logical `ReadContext` + client security domain + collection definition + effective mode in private authority-bound state; invalid or unsupported clauses fail closed instead of disappearing. The deprecated caller-owned `beforeReadCache` property is ignored, reuse under another request id, locale, or actor authority rejects, and cyclic hook reads fail with `ERR_READ_RECURSION`. See [Authentication & Authorization § Read-side scoping](../07-auth-and-security/01-authn-authz.md#read-side-scoping-the-beforeread-hook) (the Quick Reference there carries six worked recipes).
 - **`afterRead`** — runs on every returned materialisation, including historical versions, tree nodes, relation targets, and richtext targets, with the authenticated `RequestContext`. Mutations to `doc.fields` propagate into the shaped response; recursive access to a version still being processed fails closed.
 
 Hooks share the operation's `ReadContext` with relation and richtext population. Custom hooks must thread `_readContext` through nested SDK reads; richtext adapters must use the framework-provided secure target reader rather than direct adapter access.

@@ -35,7 +35,7 @@ import type { CollectionDefinition } from '../@types/index.js'
  * predictable and avoids hidden conditional logic downstream.
  *
  * Called from `initBylineCore()` for each declared collection. See
- * docs/06-auth-and-security/01-authn-authz.md.
+ * docs/07-auth-and-security/01-authn-authz.md.
  */
 export function registerCollectionAbilities(
   registry: AbilityRegistry,

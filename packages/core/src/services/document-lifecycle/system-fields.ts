@@ -40,7 +40,7 @@ export interface UpdateDocumentSystemFieldsResult {
  * version. This service backs the admin path / available-locales widgets'
  * direct-write Save (the `direct-write` and `both` dirty-reason cases). The
  * public *advertised* set remains the intersection of `availableLocales` with
- * the resolved version's completeness ledger. See docs/07-internationalization/index.md.
+ * the resolved version's completeness ledger. See docs/08-internationalization/index.md.
  *
  * Flow:
  *   1. `assertActorCanPerform('update')` — same auth gate as content writes.

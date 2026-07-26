@@ -235,7 +235,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
         toMarkdown: lexicalEditorToMarkdownServer(),
         // Plain-text extractor for search indexing — flattens rich-text to
         // indexable text for `buildSearchDocument`'s `body` feed. Pure JSON
-        // walk, no client. See docs/05-reading-and-delivery/07-search.md.
+        // walk, no client. See docs/06-search/index.md.
         toText: lexicalEditorToTextServer(),
       },
     },

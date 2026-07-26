@@ -65,7 +65,7 @@ export async function createDocument(
      * sidebar widget). Document-grain and sticky like `path`: passed straight
      * to the storage primitive, which replaces the document's rows wholesale.
      * `undefined` writes nothing (a new document starts with an empty set —
-     * the safe opt-in default); `[]` clears it. See docs/07-internationalization/index.md.
+     * the safe opt-in default); `[]` clears it. See docs/08-internationalization/index.md.
      */
     availableLocales?: string[]
   }

@@ -58,7 +58,7 @@ export interface PublishedVersionInfo {
  * patches) alongside the document-grain system fields (path / advertised
  * locales) and per-bucket dirty flags so the host can route each piece to the
  * right write path — versioned for content, immediate/non-versioned for the
- * system fields. See docs/07-internationalization/index.md.
+ * system fields. See docs/08-internationalization/index.md.
  */
 export interface SystemFieldsSubmitPayload {
   // biome-ignore lint/suspicious/noExplicitAny: data is collection-specific
@@ -237,7 +237,7 @@ const FormContent = ({
   const [showUnsavedModal, setShowUnsavedModal] = useState(false)
   // Holds the pending Save payload while the editor confirms an immediate,
   // non-versioned system-field write (path / advertised locales). Non-null
-  // means the confirmation modal is open. See docs/07-internationalization/index.md.
+  // means the confirmation modal is open. See docs/08-internationalization/index.md.
   const [pendingSystemFieldsSubmit, setPendingSystemFieldsSubmit] =
     useState<SystemFieldsSubmitPayload | null>(null)
   const [contentLocale, setContentLocale] = useState(initialLocale ?? defaultLocale)
@@ -559,7 +559,7 @@ const FormContent = ({
         {/* Source-locale anchor indicator removed pending heading-layout work.
             To re-enable: render `<SourceLocaleBadge locale={sourceLocale} />`
             here from `initialData.sourceLocale` (mismatch-only is the intended
-            end state). See docs/07-internationalization/index.md. */}
+            end state). See docs/08-internationalization/index.md. */}
         {headerSlot}
       </div>
       <div className={cx('byline-form-status-bar', styles['status-bar'])}>

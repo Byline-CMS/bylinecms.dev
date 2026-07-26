@@ -16,7 +16,7 @@ Most weak Byline docs fail because they try to be a tutorial, a reference, and a
 | Type | Job | Byline examples |
 |------|-----|-----------------|
 | **Tutorial** | Teach a newcomer by walking them through a guaranteed-to-work path. Learning-oriented. | `docs/01-getting-started/index.md`, `docs/01-getting-started/02-development-environment.md` |
-| **How-to / recipe** | Get a competent user to an outcome for a specific task. Assumes background. | the Quick Reference recipes in `docs/06-auth-and-security/01-authn-authz.md`, the per-task entries in `docs/04-collections/05-document-paths.md` |
+| **How-to / recipe** | Get a competent user to an outcome for a specific task. Assumes background. | the Quick Reference recipes in `docs/07-auth-and-security/01-authn-authz.md`, the per-task entries in `docs/04-collections/05-document-paths.md` |
 | **Reference** | Let a working developer look up exact facts fast. No narrative. | the surface sections of `docs/04-collections/01-fields.md`, `docs/05-reading-and-delivery/01-client-sdk.md`, the `store_*` table listings |
 | **Explanation** | Build understanding — the "why", the tradeoffs, the rejected alternatives. | `docs/02-why-byline/01-mission.md`, `docs/03-architecture/index.md`, `packages/client/DESIGN.md` |
 
@@ -58,8 +58,8 @@ In the skeletons below, the `# <Title>` line is this same H1, sitting under the 
 
 ```text
 docs/01-getting-started/   02-why-byline/   03-architecture/   04-collections/
-docs/05-reading-and-delivery/   06-auth-and-security/   07-internationalization/   08-admin-ui/
-docs/09-testing.md
+docs/05-reading-and-delivery/   06-search/   07-auth-and-security/
+docs/08-internationalization/   09-admin-ui/   10-testing.md
 ```
 
 Place a new doc in the section whose subject it belongs to and give it the next free `NN-` prefix. The `index.md` of that section is its overview and table of contents — add the new document to it. If nothing fits, say so and ask rather than inventing a section.

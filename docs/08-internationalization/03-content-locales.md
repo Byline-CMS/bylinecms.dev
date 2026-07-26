@@ -221,7 +221,7 @@ failure can stop the content request even though the path/locale write and audit
 already committed; retrying the admin save opts into no-op reconciliation before
 continuing. Because these writes are immediate rather than gated, accountability
 for them is the job of the document-level
-[audit log](../06-auth-and-security/02-auditability.md) rather than the version
+[audit log](../07-auth-and-security/02-auditability.md) rather than the version
 history.
 
 > **Why not gate it behind publish?** A document-level field can't honestly be
