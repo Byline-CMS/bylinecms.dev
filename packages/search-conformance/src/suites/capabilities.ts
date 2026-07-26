@@ -32,6 +32,11 @@ export function capabilitiesSuite(hooks: SearchConformanceHooks): void {
       })
     })
 
+    it('declares the adapter capabilities expected by its conformance harness', () => {
+      if (hooks.expectedCapabilities == null) return
+      expect(provider.capabilities).toMatchObject(hooks.expectedCapabilities)
+    })
+
     it('declares portable analysis when a portable-provider factory is supplied', async () => {
       if (hooks.createPortableProvider == null) return
       const portableProvider = await hooks.createPortableProvider(createPortableSearchAnalyzer())

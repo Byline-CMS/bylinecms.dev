@@ -1,7 +1,7 @@
 ---
 title: "Portable Multilingual Search Analysis"
 path: "multilingual-search-analysis"
-summary: "The backend-neutral full-text matching, token analysis, query-plan, physical encoding, and analyzer-fingerprint contracts shared by Byline search providers."
+summary: "The backend-neutral full-text matching, token analysis, query-plan, highlighting, physical encoding, and analyzer-fingerprint contracts shared by Byline search providers."
 ---
 
 # Portable Multilingual Search Analysis
@@ -35,8 +35,8 @@ The ownership boundaries are:
 |---|---|
 | `@byline/core` | Public matching intent and provider capability declarations |
 | `@byline/client` | Pass matching intent from collection and zone calls without interpretation |
-| `@byline/search-analysis` | Normalization, locale resolution, token classes, grouped query plans, fingerprints, and SQL-safe token encoding |
-| Search adapter | Physical schema, persistence, query translation, ranking, highlights, and analyzer-consistency checks |
+| `@byline/search-analysis` | Normalization, locale resolution, token classes, grouped query plans, portable highlighting, fingerprints, and SQL-safe token encoding |
+| Search adapter | Physical schema, persistence, query translation, ranking, invoking highlights for ranked rows, and analyzer-consistency checks |
 
 This split keeps the portable behavior independently testable. It also avoids
 forcing Solr, OpenSearch, or another engine with a strong native analyzer to
@@ -63,7 +63,7 @@ quoted phrase constraints.
 
 These options describe product behavior rather than backend syntax. An adapter
 must translate them faithfully or advertise the missing feature through
-`SearchCapabilities.lexical`.
+`SearchCapabilities.fullText`.
 
 ## Analysis pipeline
 
@@ -123,6 +123,22 @@ The codec is an adapter building block, not the public search vocabulary.
 Adapters store original text for display and highlights and use encoded terms
 only in their portable index projection.
 
+## Portable highlighting
+
+`highlightPortableText()` re-analyzes the stored original text with the same
+analyzer and compares its logical terms with a `PortableQueryPlan`. Matching is
+based on the same kind-aware physical token identity used by the SQL adapters,
+so a snippet can mark the original source range for an exact, normalized,
+stemmed, lemmatized, identifier, or Han-gram match without asking a database to
+analyze the source text differently.
+
+The highlighter merges overlapping source ranges and selects at most two
+24-term fragments by default. It runs only for the ranked rows on the requested
+page, not while scanning the corpus. Both built-in SQL providers return the
+result as `highlights.body[0]`, with `<mark>…</mark>` delimiters. Consumers must
+parse the delimiters and render the remaining source as text; the complete
+snippet is not trusted HTML.
+
 ## Fingerprints and reindexing
 
 Every analyzer exposes an `analyzerFingerprint`. It includes the portable
@@ -152,7 +168,9 @@ The implementation sequence keeps each phase reviewable:
    adapter.**
 4. Complete `@byline/search-mysql` against the same query plans and conformance
    suite, with MySQL-specific schema and full-text translation. **Shipped.**
-5. Adapt the existing Solr implementation, normally using Solr's native
+5. Restore PostgreSQL highlighting through portable source offsets and apply
+   the same implementation to MySQL. **Shipped.**
+6. Adapt the existing Solr implementation, normally using Solr's native
    analyzers while mapping the public matching contract and capability report.
 
 PostgreSQL and MySQL migrations remain independent streams owned by their

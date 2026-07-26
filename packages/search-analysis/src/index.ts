@@ -8,6 +8,11 @@
 
 export { createPortableSearchAnalyzer, resolveMatching } from './analyzer.js'
 export {
+  type HighlightPortableTextInput,
+  highlightPortableText,
+  type PortableHighlightOptions,
+} from './highlight.js'
+export {
   canonicalSegmenterLocale,
   detectSearchLocale,
   resolveSearchLocale,

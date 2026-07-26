@@ -8,6 +8,7 @@ connections itself. Each adapter supplies hooks for its real test backend:
 runSearchProviderConformanceSuite({
   createProvider,
   createPortableProvider,
+  expectedCapabilities: { highlights: true },
   migrate,
   reset,
   teardown,
@@ -19,7 +20,7 @@ The aggregate runner covers:
 - capability declarations;
 - idempotent upsert, removal, collection/global rebuilds, and query scoping;
 - pagination and published-status filtering;
-- all/any, minimum-should-match, and phrase behavior; and
+- all/any, minimum-should-match, phrase behavior, and highlighted snippets; and
 - portable normalization, SQL stopwords, identifiers, language expansions,
   Han-bigram fallback, relative weighting, and analyzer fingerprints.
 

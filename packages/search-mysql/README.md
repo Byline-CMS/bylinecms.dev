@@ -84,14 +84,15 @@ DROP TABLE IF EXISTS byline_search_migrations;
 ## Capabilities
 
 The adapter supports portable analysis, `all` and `any` matching,
-minimum-should-match, phrase constraints, and field weighting. Facet data and
-typed filters are retained in JSON for future query features.
+minimum-should-match, phrase constraints, field weighting, and highlighted
+snippets built from stored original body text with the shared portable token
+offsets. Facet data and typed filters are retained in JSON for future query
+features.
 
-Highlighting, facet aggregation, structured filtering, typo tolerance,
-semantic retrieval, and BM25 are currently reported as unsupported. MySQL's
-native relevance score contributes term frequency and inverse document
-frequency, but the provider does not claim BM25 because MySQL does not expose a
-stable BM25 contract.
+Facet aggregation, structured filtering, typo tolerance, semantic retrieval,
+and BM25 are currently reported as unsupported. MySQL's native relevance score
+contributes term frequency and inverse document frequency, but the provider
+does not claim BM25 because MySQL does not expose a stable BM25 contract.
 
 ## Language and locale
 

@@ -24,6 +24,7 @@ const pool = mysql.createPool({
 runSearchProviderConformanceSuite({
   createProvider: () => mysqlSearch({ pool, defaultLocale: 'en' }),
   createPortableProvider: (analyzer: PortableSearchAnalyzer) => mysqlSearch({ pool, analyzer }),
+  expectedCapabilities: { highlights: true },
 
   async migrate(): Promise<void> {
     await migrate(pool)

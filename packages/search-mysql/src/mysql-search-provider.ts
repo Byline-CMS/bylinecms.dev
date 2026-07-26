@@ -14,7 +14,7 @@ import type {
   SearchQuery,
   SearchResults,
 } from '@byline/core'
-import type { PortableSearchAnalyzer } from '@byline/search-analysis'
+import { highlightPortableText, type PortableSearchAnalyzer } from '@byline/search-analysis'
 import type { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise'
 
 import { buildIndexRow, type IndexRow } from './build-index-row.js'
@@ -28,7 +28,7 @@ const CAPABILITIES: SearchCapabilities = {
   semantic: false,
   bm25: false,
   weighting: true,
-  highlights: false,
+  highlights: true,
   fullText: {
     nativeAnalysis: false,
     portableAnalysis: true,
@@ -167,7 +167,7 @@ export class MySqlSearchProvider implements SearchProvider {
     const limit = query.limit ?? 20
     const offset = query.offset ?? 0
     const [hitRows] = await this.pool.query<HitRow[]>(
-      `SELECT d.collection_path, d.document_id, d.locale, d.title, d.path,
+      `SELECT d.collection_path, d.document_id, d.locale, d.title, d.path, d.body,
               (${scoreSql}) AS score
        FROM byline_search_documents d
        WHERE ${whereSql}
@@ -185,14 +185,22 @@ export class MySqlSearchProvider implements SearchProvider {
       ]
     )
 
-    const hits: SearchHit[] = hitRows.map((row) => ({
-      collectionPath: row.collection_path,
-      documentId: row.document_id,
-      locale: row.locale,
-      title: row.title,
-      path: row.path,
-      score: Number(row.score),
-    }))
+    const hits: SearchHit[] = hitRows.map((row) => {
+      const highlight = highlightPortableText({
+        text: row.body,
+        plan,
+        analyzer: this.analyzer,
+      })
+      return {
+        collectionPath: row.collection_path,
+        documentId: row.document_id,
+        locale: row.locale,
+        title: row.title,
+        path: row.path,
+        score: Number(row.score),
+        ...(highlight == null ? {} : { highlights: { body: [highlight] } }),
+      }
+    })
     return { hits, total }
   }
 
@@ -237,6 +245,7 @@ interface HitRow extends RowDataPacket {
   locale: string
   title: string
   path: string | null
+  body: string
   score: number | string
 }
 
