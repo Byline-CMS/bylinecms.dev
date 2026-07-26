@@ -7,17 +7,18 @@ summary: "The backend-neutral lexical matching, token analysis, query-plan, phys
 # Portable Multilingual Search Analysis
 
 Companions:
-- [Search & Retrieval](./07-search.md) — the provider seam, index lifecycle, query surfaces, authorization, and current PostgreSQL implementation.
+- [Search & Retrieval](./07-search.md) — the provider seam, index lifecycle, query surfaces, authorization, and built-in PostgreSQL and MySQL implementations.
 - [Search & Document Extraction](./08-search-extraction-strategy.md) — the separate attachment-extraction pipeline whose text will feed the same search projection.
 - [Client SDK](./01-client-sdk.md) — the collection and zone search APIs that accept the matching policy.
 
-:::note[PostgreSQL adapter shipped]
+:::note[Built-in SQL adapters shipped]
 `@byline/search-analysis`, the additive `SearchQuery.matching` contract, and
-the portable `@byline/search-postgres` index/query translator are available.
+the portable PostgreSQL and MySQL index/query translators are available.
 The PostgreSQL cutover intentionally replaces its old native-analysis index:
 installations drop the driver-owned search tables, apply the rewritten
 `0001_init.sql`, and rebuild the published index. There is no dual-mode or
-in-place compatibility path.
+in-place compatibility path. The new MySQL adapter likewise starts from a
+disposable `0001_init.sql` projection.
 :::
 
 ## Why this is a separate package
@@ -40,7 +41,7 @@ The ownership boundaries are:
 This split keeps the portable behavior independently testable. It also avoids
 forcing Solr, OpenSearch, or another engine with a strong native analyzer to
 store application-produced tokens. Providers declare whether they use native
-or portable analysis. The PostgreSQL provider uses portable analysis only.
+or portable analysis. Both built-in SQL providers use portable analysis only.
 
 ## Matching intent
 
@@ -103,7 +104,7 @@ can express:
 without accidentally flattening all expansions into one broad OR query.
 Quoted and required phrases refer to ordered concept indexes. Han grams remain
 ordered sequences rather than independent alternatives. This structure is the
-portable contract that PostgreSQL and MySQL translators will share.
+portable contract shared by the PostgreSQL and MySQL translators.
 
 ## Physical SQL tokens
 
@@ -150,7 +151,7 @@ The implementation sequence keeps each phase reviewable:
    `@byline/search-conformance`, with PostgreSQL as the first passing
    adapter.**
 4. Complete `@byline/search-mysql` against the same query plans and conformance
-   suite, with MySQL-specific schema and full-text translation.
+   suite, with MySQL-specific schema and full-text translation. **Shipped.**
 5. Adapt the existing Solr implementation, normally using Solr's native
    analyzers while mapping the public matching contract and capability report.
 

@@ -127,8 +127,8 @@ schema versioning.
   the reference `publicCacheMiddleware`, cookie-aware CDN bypass for editors,
   invalidation strategies, and clustering trade-offs.
 - **[Search](docs/05-reading-and-delivery/07-search.md)** — the pluggable
-  `SearchProvider` seam, the built-in Postgres full-text driver, lifecycle-hook
-  indexing, reindex, and the collection `search()` query surface.
+  `SearchProvider` seam, the built-in PostgreSQL and MySQL full-text drivers,
+  lifecycle-hook indexing, reindex, and the collection `search()` query surface.
 - **[Search & Document Extraction](docs/05-reading-and-delivery/08-search-extraction-strategy.md)**
   — forward-looking research for attachment extraction and retrieval: provider
   boundaries, persistence, chunking, and phased delivery.

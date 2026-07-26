@@ -39,6 +39,10 @@
       "entry": ["src/*.ts", "src/**/*.test.node.ts", "tests/**/*.ts"],
       "project": ["src/**", "tests/**"]
     },
+    "packages/search-mysql": {
+      "entry": ["src/*.ts", "src/**/*.test.node.ts", "tests/**/*.ts"],
+      "project": ["src/**", "tests/**"]
+    },
     "packages/*": {
       "entry": ["src/*.{ts,tsx}", "src/**/*.test.*.{ts,tsx}", "src/**/*.test.{ts,tsx}"],
       "project": ["src/**"]

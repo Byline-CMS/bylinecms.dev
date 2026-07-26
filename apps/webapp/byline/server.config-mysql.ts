@@ -27,6 +27,7 @@ import {
   lexicalEditorToMarkdownServer,
   lexicalEditorToTextServer,
 } from '@byline/richtext-lexical/server'
+import { migrate, mysqlSearch } from '@byline/search-mysql'
 import { localStorageProvider } from '@byline/storage-local'
 
 import { collections } from './collections/index.js'
@@ -38,12 +39,11 @@ const serverURL = process.env.VITE_SERVER_URL || DEFAULT_SERVER_URL
 
 // HMR-safe singleton. Vite's program reload re-evaluates this module
 // without disposing the previous module's resources — every reload
-// would otherwise allocate a fresh pg `Pool` (max: 20) inside
-// `pgAdapter`, the previous pool would orphan but stay alive, and
-// after a handful of HMR cycles Postgres' `max_connections` is
-// exhausted and every query fails with `53300 sorry, too many clients
-// already`. Stashing the resolving `Promise` (so concurrent reloads
-// converge on one build) lets module reloads reuse the same pool.
+// would otherwise allocate a fresh MySQL pool inside `mysqlAdapter`.
+// The previous pool would remain alive, and enough HMR cycles would
+// exhaust the server's connections. Stashing the resolving `Promise`
+// (so concurrent reloads converge on one build) lets module reloads
+// reuse the same pool.
 // Production has no HMR so this guard is a no-op there.
 declare global {
   // biome-ignore lint: globalThis augmentation requires `var` rather than `let`
@@ -103,43 +103,8 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       ? Number(process.env.BYLINE_DB_MYSQL_CONNECTION_TIMEOUT_MILLIS)
       : undefined,
   })
-  //
-  // Search is Postgres-only today (`@byline/search-postgres` has no MySQL
-  // counterpart — tracked as #52). Five collections opt into search via
-  // `CollectionDefinition.search`, and `validateSearchConfig` throws at boot if
-  // any collection opts in with no provider registered — so you cannot simply
-  // omit `search`. Register this no-op instead: it satisfies validation, and
-  // indexing / querying become silent no-ops rather than errors. The admin
-  // Reindex button and the docs search page will return nothing, which is the
-  // honest answer on MySQL.
-  //
-  const noopSearch = {
-    capabilities: {
-      facets: false,
-      typoTolerance: false,
-      semantic: false,
-      bm25: false,
-      weighting: false,
-      highlights: false,
-      lexical: {
-        nativeAnalysis: false,
-        portableAnalysis: false,
-        allTerms: false,
-        anyTerms: false,
-        minimumShouldMatch: false,
-        phrase: false,
-      },
-    },
-    async upsert() {},
-    async remove() {},
-    async reindex() {},
-    async search() {
-      return { hits: [], total: 0 }
-    },
-  }
-
   // Ensure the search-index schema before the provider serves any traffic.
-  // The driver owns its schema (numbered SQL in `@byline/search-postgres`);
+  // The driver owns its schema (numbered SQL in `@byline/search-mysql`);
   // we apply it deliberately here rather than relying on `autoMigrate` so
   // startup is deterministic and DDL is an explicit, awaited step. Reuses the
   // adapter's pool — no second connection. See the package README.
@@ -147,17 +112,11 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   // Wrapped defensively: a migration failure degrades search but must not take
   // down the whole app at boot — log loudly and continue.
   //
-  // ── MySQL adapter (end-to-end testing), edit 3 of 4 ─────────────────────────
-  // Comment this whole `try/catch` out when running on MySQL. `migrate()` comes
-  // from `@byline/search-postgres` and expects a **pg** pool; on the MySQL
-  // adapter `db.pool` is a mysql2 pool, so leaving this in place fails inside
-  // the driver rather than anywhere informative.
-
-  // try {
-  //   await migrate(db.pool, { log: (m) => console.log(m) })
-  // } catch (err) {
-  //   console.error('[search-mysql] migrate failed — search may be unavailable:', err)
-  // }
+  try {
+    await migrate(db.pool, { log: (message) => console.log(message) })
+  } catch (error) {
+    console.error('[search-mysql] migrate failed — search may be unavailable:', error)
+  }
 
   const adminStore = createAdminStore(db.drizzle)
 
@@ -280,16 +239,11 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
         toText: lexicalEditorToTextServer(),
       },
     },
-    // Built-in Postgres full-text search provider. Reuses the adapter's pool
+    // Built-in MySQL full-text search provider. Reuses the adapter's pool
     // (no second connection); the search index lives in the same database.
     // Collections opt in via their `search` config; lifecycle
     // hooks maintain the index (see e.g. `collections/docs/hooks.ts`).
-    // ── MySQL adapter (end-to-end testing), edit 4 of 4 ───────────────────────
-    // On MySQL, comment the `postgresSearch(...)` line out and uncomment the
-    // `noopSearch` line — see the no-op provider defined in the adapter block
-    // above, and why omitting `search` entirely throws at boot.
-    // search: postgresSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
-    search: noopSearch,
+    search: mysqlSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
   })
 
   // Register admin-subsystem abilities (admin.users.*, admin.roles.*) on

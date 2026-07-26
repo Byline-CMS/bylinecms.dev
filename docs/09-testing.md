@@ -1,21 +1,22 @@
 ---
 title: "Testing"
 path: "testing"
-summary: "Two suites, two commands: pnpm test (unit, no Postgres) and pnpm test:integration (real db). Isolation, safety guards, and how to run a single test file."
+summary: "Two suites, two commands: pnpm test (unit, no database) and pnpm test:integration (real PostgreSQL and MySQL). Isolation, safety guards, and how to run a single test file."
 ---
 
 # Testing
 
 Companions:
-- [Development environment and example application](./01-getting-started/02-development-environment.md) — the Postgres container and database setup the integration suite builds on.
+- [Development environment and example application](./01-getting-started/02-development-environment.md) — the local database and application setup the integration suite builds on.
 - [Markdown Export](./05-reading-and-delivery/04-markdown-export.md) — the agent-facing routes the agent-surface specs pin the served output of.
 
 Two test suites, two commands:
 
-- **`pnpm test`** — unit tests across every package. Pure CPU, no Postgres needed.
-- **`pnpm test:integration`** — DB-backed tests for `@byline/client` and `@byline/db-postgres`. Runs against a dedicated `byline_test` Postgres database — never `byline_dev`.
+- **`pnpm test`** — unit tests across every package. Pure CPU, no database needed.
+- **`pnpm test:integration`** — DB-backed storage, client, and search-provider
+  tests. Runs against dedicated `byline_test` PostgreSQL and MySQL databases.
 
-CI runs both, in the same job, against a Postgres service container.
+CI runs both in the same job against PostgreSQL and MySQL service containers.
 
 ## TL;DR
 
@@ -24,9 +25,16 @@ CI runs both, in the same job, against a Postgres service container.
 cp packages/db-postgres/.env.example      packages/db-postgres/.env       # dev DB
 cp packages/db-postgres/.env.test.example packages/db-postgres/.env.test  # test DB
 cp packages/client/.env.test.example      packages/client/.env.test       # client integration tests
+cp packages/search-postgres/.env.test.example packages/search-postgres/.env.test
+cp packages/db-mysql/.env.example         packages/db-mysql/.env          # MySQL dev DB
+cp packages/db-mysql/.env.test.example    packages/db-mysql/.env.test     # MySQL test DB
+cp packages/search-mysql/.env.test.example packages/search-mysql/.env.test
 cd postgres && ./postgres.sh up -d  # start the container
+cd ../mysql && ./mysql.sh up -d      # start MySQL
+cd ..
 pnpm db:init       # create byline_dev (one-time)
 pnpm db:init:test  # create byline_test (one-time)
+pnpm db:init:test:mysql
 
 # Every test run
 pnpm test              # unit suites — no DB
@@ -47,26 +55,36 @@ The integration runner auto-migrates `byline_test` on startup (Drizzle's migrato
 | `@byline/host-tanstack-start` | ✅ vitest `--mode=node` | — |
 | `@byline/client` | ✅ vitest `--mode=node` (`*.test.node.ts`) | ✅ vitest `--mode=integration` (`*.integration.test.ts`) |
 | `@byline/db-postgres` | ❌ no-op (every test needs a DB) | ✅ vitest `--mode=integration` (`src/**/tests/**/*.test.ts`) |
+| `@byline/db-mysql` | ❌ no-op (every test needs a DB) | ✅ shared storage conformance against MySQL |
+| `@byline/search-postgres` | ✅ vitest `--mode=node` | ✅ shared search conformance against PostgreSQL |
+| `@byline/search-mysql` | ✅ vitest `--mode=node` | ✅ shared search conformance against MySQL |
 
-Only `@byline/client` and `@byline/db-postgres` write to `byline_test`. Everything else is pure in-memory.
+Only integration-mode suites write to the dedicated test databases. Unit suites
+remain in-memory.
 
-`pnpm test` (root) runs `turbo run test`. `pnpm test:integration` (root) runs `turbo run test:integration --concurrency=1` — the concurrency flag serialises the two DB-backed suites so each one's per-file `TRUNCATE` doesn't wipe the other's seeded fixtures mid-run.
+`pnpm test` (root) runs `turbo run test`. `pnpm test:integration` (root) runs
+`turbo run test:integration --concurrency=1`. The concurrency flag serialises
+suites that share a database so their cleanup cannot erase another suite's
+fixtures mid-run.
 
-## Two databases, two purposes
+## Development and test databases
 
-| Database | Used by | Lifecycle |
+| Database name | Used by | Lifecycle |
 |---|---|---|
 | `byline_dev` | `pnpm dev` (webapp, admin UI) | Created once, lives as long as you want, manual seed |
 | `byline_test` | `pnpm test:integration` | Created once, wiped by the test runner between test files |
 
-Both live in the same local Postgres container (`postgres/docker-compose.yml`). Same `byline` role. The split is logical, not physical — local Postgres is a dev tool.
+The local PostgreSQL and MySQL containers each use this logical split. Search
+and storage suites only target their engine's `byline_test` database.
 
 ## Safety guards
 
-Two layers prevent any test from ever pointing at the wrong database:
+Two layers prevent tests from pointing at the wrong database:
 
-1. **Script-level (braces)** — `packages/db-postgres/src/database/common.sh` parses `BYLINE_DB_POSTGRES_CONNECTION_STRING` and refuses to continue unless the derived database name ends in `_dev` or `_test`. `db_init.sh` and `db_init_test.sh` both go through it.
-2. **Runtime (belt)** — `assertTestDatabase()` in `packages/db-postgres/src/lib/test-db.ts` parses the connection string at the top of every test bootstrap and throws unless the DB name ends in `_test`. Both Vitest global setup files call it: `packages/client/tests/_global-setup.ts` and `packages/db-postgres/tests/_global-setup.ts`.
+1. **Script-level** — both database adapters' init scripts refuse database
+   names that do not end in `_dev` or `_test`.
+2. **Runtime** — integration bootstraps parse their connection string and throw
+   unless the target database name ends in `_test`.
 
 ## Isolation strategy
 
@@ -81,7 +99,10 @@ Both `@byline/client` and `@byline/db-postgres` use the same vitest config shape
 `.github/workflows/ci.yml` runs on every pull request and on direct pushes to `develop` / `main`. Two jobs:
 
 - **lint-and-typecheck** — `pnpm install --frozen-lockfile` → `pnpm byline:generate:check` → `pnpm docs:check` → `pnpm lint` → `pnpm typecheck` → `pnpm knip`.
-- **test-suite** — boots a Postgres service container with `byline_test` pre-created, writes `.env.test` files from the job-level env block, builds the workspace packages, then runs `pnpm test` (unit) followed by `pnpm test:integration`. Both run in the same job so they share one `pnpm install`.
+- **test-suite** — boots PostgreSQL and MySQL service containers with
+  `byline_test` pre-created, writes `.env.test` files from the job-level env
+  block, builds the workspace packages, then runs `pnpm test` followed by
+  `pnpm test:integration`.
 
 Both jobs skip when the head commit starts with `chore(release):` so version-bump pushes from `pnpm version-packages` don't trigger redundant runs. Tag pushes (`git push --tags`) and `gh release create` aren't listened to at all, so the local-only release flow stays silent.
 
@@ -102,11 +123,14 @@ cd packages/db-postgres && pnpm vitest run --mode=integration tests/conformance.
 
 # @byline/search-postgres
 cd packages/search-postgres && pnpm vitest run --mode=integration tests/conformance.integration.test.ts
+
+# @byline/search-mysql
+cd packages/search-mysql && pnpm vitest run --mode=integration tests/conformance.integration.test.ts
 ```
 
 The storage conformance entry point runs `@byline/db-conformance` against the
 database adapter. The search entry point runs
-`@byline/search-conformance` against the real PostgreSQL index, including
+`@byline/search-conformance` against the real PostgreSQL or MySQL index, including
 matching semantics, multilingual parser survival, lifecycle operations,
 relative weighting, and analyzer-fingerprint enforcement. Narrow either
 aggregate file to one case or suite with `-t`:

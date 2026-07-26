@@ -119,6 +119,9 @@ jobs:
           cat > packages/db-mysql/.env.test <<EOF
           BYLINE_DB_MYSQL_CONNECTION_STRING=$BYLINE_DB_MYSQL_CONNECTION_STRING
           EOF
+          cat > packages/search-mysql/.env.test <<EOF
+          BYLINE_DB_MYSQL_CONNECTION_STRING=$BYLINE_DB_MYSQL_CONNECTION_STRING
+          EOF
 
       # Unit suites across every package (core/auth/admin/ai/host/client/...).
       # Pure CPU, no DB

@@ -85,6 +85,33 @@ export function portableAnalysisSuite(hooks: SearchConformanceHooks): void {
       ).resolves.toMatchObject({ total: 1 })
     })
 
+    it('preserves phrase adjacency across expansions and exact fallbacks', async () => {
+      const expander: SearchTokenExpander = {
+        fingerprint: 'search-conformance-phrase-english1',
+        supports: (locale) => locale.startsWith('en'),
+        expand: (token) =>
+          token.value === 'running' || token.value === 'runs'
+            ? [{ kind: 'stem', value: 'run' }]
+            : [],
+      }
+      provider = await createProvider(createPortableSearchAnalyzer({ expanders: [expander] }))
+      await provider.upsert(
+        searchDocument('running restoration', {
+          documentId: 'portable-expansion-phrase',
+        })
+      )
+
+      await expect(
+        provider.search({
+          query: '"runs restoration"',
+          collectionPath: 'search-conformance',
+        })
+      ).resolves.toMatchObject({
+        total: 1,
+        hits: [{ documentId: 'portable-expansion-phrase' }],
+      })
+    })
+
     it('ranks a heavier field above the same term in a lighter field', async () => {
       if (!provider.capabilities.weighting) return
       await provider.upsert(

@@ -9,9 +9,9 @@ summary: "Forward-looking research for attachment extraction and retrieval: prov
 :::note[Status]
 This is **forward-looking landscape research**, not a description of shipped
 code. Since it was written, the **search** subsystem's first slice has shipped —
-the `SearchProvider` seam, the built-in Postgres full-text driver
-(`@byline/search-postgres`), the type-enriched `SearchDocument` + assembler,
-lifecycle indexing, `reindex`, and `client.collection(x).search()`. The
+the `SearchProvider` seam, the built-in PostgreSQL and MySQL full-text drivers,
+the type-enriched `SearchDocument` + assembler, lifecycle indexing, `reindex`,
+and `client.collection(x).search()`. The
 present-state reference for that is [Search & Retrieval](./07-search.md). This
 brief remains the strategy source for the **still-unbuilt phases** it
 cross-links to: §1 informs the external-driver tiers (Solr / Meilisearch /

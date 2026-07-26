@@ -1,13 +1,13 @@
 ---
 title: "Search & Retrieval"
 path: "search"
-summary: "A pluggable SearchProvider seam with built-in Postgres full-text search, collection and zone queries, optional hydration, and strict post-ranking row authorization. Lifecycle hooks keep the published index live; BM25/vector/hybrid drivers and attachment extraction are future phases."
+summary: "A pluggable SearchProvider seam with built-in PostgreSQL and MySQL full-text search, collection and zone queries, optional hydration, and strict post-ranking row authorization. Lifecycle hooks keep the published index live; BM25/vector/hybrid drivers and attachment extraction are future phases."
 ---
 
 # Search & Retrieval
 
 :::note[Partly shipped]
-The `SearchProvider` seam, the built-in Postgres full-text driver, the
+The `SearchProvider` seam, the built-in PostgreSQL and MySQL full-text drivers, the
 type-enriched `SearchDocument` + assembler, lifecycle-hook indexing, the
 `reindex` command + admin button, the single-collection
 `client.collection(x).search()` query surface, the cross-collection **zone**
@@ -49,8 +49,9 @@ which is why this is one seam rather than two.
 
 The subsystem is a **single seam** — `SearchProvider` — with:
 
-- a **built-in Postgres full-text driver** (`@byline/search-postgres`) so every
-  installation gets ranked search with zero extra infrastructure, and
+- **built-in SQL full-text drivers** (`@byline/search-postgres` and
+  `@byline/search-mysql`) so installations using either database adapter get
+  ranked search with zero extra infrastructure, and
 - a **sanctioned extension point** so external drivers (BM25 rankers, vector
   stores, hybrid retrievers) plug in through one interface rather than ad-hoc
   forks of the query path.
@@ -72,8 +73,9 @@ The vertical, top to bottom:
    type-enriched `SearchDocument` (a typed `SearchField[]` projection). Rich-text
    `body` fields are flattened through the `fields.richText.toText` seam.
 3. **`SearchProvider`** (`ServerConfig.search`) indexes `SearchDocument`s and
-   answers queries. The built-in **`@byline/search-postgres`** driver stores a
-   weighted `tsvector`, owns its own schema, and reuses the host's pool.
+   answers queries. The built-in SQL drivers store disposable weighted
+   projections, own independent migration streams, and reuse the host database
+   adapter's pool.
 4. **Lifecycle hooks** call `client.collection(x).indexDocument(id)` /
    `removeFromIndex(id)` to keep the index live; **`client.reindex()`** (and the
    admin **reindex button**) rebuild it.
@@ -121,13 +123,14 @@ interface SearchCapabilities {
 }
 ```
 
-- **Registration** follows the established factory pattern. The built-in driver
-  is `postgresSearch({ pool, … })` — it takes the **host's existing pg pool**
-  (e.g. `db.pool` from `pgAdapter`), not a `getClient`, because the provider is a
-  pure index sink (it never reads source documents). `ServerConfig.search?:
+- **Registration** follows the established factory pattern. Use
+  `postgresSearch({ pool, … })` with `pgAdapter` or
+  `mysqlSearch({ pool, … })` with `mysqlAdapter`. Each takes the host database
+  adapter's existing pool, not a `getClient`, because a provider is a pure
+  index sink and never reads source documents. `ServerConfig.search?:
   SearchProvider`; `initBylineCore()` fails fast when a collection opts into
   search but no provider is registered (`validateSearchConfig`).
-- **`capabilities`** is the honesty layer: the PostgreSQL floor declares
+- **`capabilities`** is the honesty layer: both built-in SQL drivers declare
   `weighting` and portable lexical matching; `highlights` / `facets` /
   `typoTolerance` / `semantic` / `bm25` are `false` until a richer driver (or
   capability) lands. Consumers
@@ -140,8 +143,8 @@ interface SearchCapabilities {
 - **Conformance** is executable rather than documentary:
   `@byline/search-conformance` supplies backend-neutral capability, lifecycle,
   scoping, matching, multilingual parser, weighting, and analyzer-fingerprint
-  suites. PostgreSQL runs the aggregate suite against its real test database;
-  MySQL will use the named suites incrementally during its port.
+  suites. PostgreSQL and MySQL each run the aggregate suite against a real
+  database and must produce the same provider-level behavior.
 
 ## The collection search config (shipped)
 
@@ -286,12 +289,41 @@ interface SearchFacetValue { id: number | string; term: string }  // counter id 
 - **Schema ownership** — the driver **owns its schema**: numbered SQL files in
   `migrations/` are the source of truth, applied by `migrate(pool)` (tracked in
   its own `byline_search_migrations` table) or an opt-in `autoMigrate` at boot.
-  It is *not* part of the host's Drizzle migration stream — a future
-  `@byline/search-mysql` ships its own. Install paths: run the SQL by hand,
+  It is *not* part of the host's Drizzle migration stream. Install paths: run
+  the SQL by hand,
   `migrate(pool)` as a deploy step (recommended), or `autoMigrate` (dev). See the
   package README. The portable-analysis cutover rewrites the disposable initial
   schema directly: drop the search-owned tables and rebuild from published
   content; there is no in-place compatibility migration.
+
+## The MySQL full-text driver (shipped)
+
+`@byline/search-mysql` implements the same seam and portable analysis contract
+over MySQL 8 `FULLTEXT` indexes:
+
+- **Portable matching** — the adapter encodes exact, expanded, identifier, and
+  Han-gram logical terms into ASCII tokens before MySQL parses them. This avoids
+  server stopword and minimum-token differences while preserving the shared
+  `all`, `any`, minimum-should-match, and phrase behavior.
+- **Ranking** — one combined `search_text` index enforces matching semantics.
+  Separate `search_a` through `search_d` indexes produce a weighted score with
+  fixed A–D multipliers. Exact and identifier terms retain their source field's
+  class, derived terms lose one class, and Han grams use D.
+- **Scoping and locale** — one row per `(collection_path, document_id, locale)`;
+  collection, locale, published status, and JSON zone membership are applied
+  before paging. Facets and typed filters remain JSON projections for future
+  aggregation and structured filtering.
+- **Capabilities** — the provider reports the same portable lexical and
+  weighting capabilities as PostgreSQL. It does not claim BM25: MySQL's native
+  score is useful for ranking, but it is not a stable BM25 contract.
+- **Analyzer consistency** — collection metadata and rows carry the analyzer
+  fingerprint. A mismatch requires clearing and rebuilding that collection.
+- **Schema ownership** — numbered SQL files under the package's `migrations/`
+  directory form an independent stream applied by `migrate(pool)`. MySQL DDL
+  auto-commits, so the migrator serializes runners with `GET_LOCK`, uses
+  idempotent statements, and writes its ledger only after a file completes.
+  The search index is disposable; there is no compatibility path for an
+  earlier experimental schema.
 
 ## Mapping the seam to Solr (design study)
 
@@ -432,7 +464,7 @@ const results = await client.collection('docs').search({
   },
   locale,                // defaults to the client default
   status: 'published',   // defaults to published
-  where,                 // accepted; not yet applied by the Postgres driver
+  where,                 // accepted; not yet applied by the built-in SQL drivers
   facets,                // accepted; aggregation not yet implemented
   limit, offset,
 })
@@ -450,7 +482,7 @@ collection + `published` by default, and delegates to `provider.search()`. It
 passes the same optional `matching` policy as zone search: `operator` is
 `'all'` or `'any'`, `minimumShouldMatch` refines `'any'`, and `phrase` is
 `'auto'`, `'required'`, or `'off'`. Providers declare detailed support in
-`capabilities.lexical`; the PostgreSQL provider implements all four policies
+`capabilities.lexical`; both built-in SQL providers implement all four policies
 through the portable query plan.
 It accepts `status: 'any'`, but the framework lifecycle indexes published views
 only, so this does not make drafts appear in the built-in index; it only relaxes
@@ -749,9 +781,10 @@ construction — which is the proof the seam boundary is drawn correctly.
 0. **Prerequisites — done.** `admin.itemView` + the relation column formatter +
    depth-1 list populate.
 1. **Design** — ✅ done (this doc, now a present-state reference).
-2. **`SearchProvider` seam + Postgres FTS driver — ✅ shipped.** The interface +
+2. **`SearchProvider` seam + built-in SQL FTS drivers — ✅ shipped.** The interface +
    typed `SearchDocument` + assembler + `richTextToText` seam in `@byline/core`;
    `@byline/search-postgres` (weighted `tsvector`, owns its schema);
+   `@byline/search-mysql` (weighted `FULLTEXT` indexes, owns its schema);
    `ServerConfig.search` registration + boot validation; the collection
    `search` config; lifecycle-hook indexing; `reindex` + the `collections.<path>.reindex`
    ability + admin button; `client.collection(x).search()`; the docs frontend
@@ -773,15 +806,15 @@ construction — which is the proof the seam boundary is drawn correctly.
 - **Resolved — per-locale portable analysis.** Shipped: one `SearchDocument`
   per `(document, locale)`, analyzed through the declared/detected locale, plus
   a `defaultLocale` fallback.
-- **Resolved — awaited indexing for the Postgres driver.** Shipped inline in the
+- **Resolved — awaited indexing for the built-in SQL drivers.** Shipped inline in the
   post-commit lifecycle hook. Async/durable outbox support remains open.
 - **Partly resolved — facets over EAV.** The `{ id, term }` projection is built
   and indexed (term searchable, id stored). Facet *aggregation queries* remain
-  open for the Postgres driver (`capabilities.facets === false`) — but the
+  open for both built-in SQL drivers (`capabilities.facets === false`) — but the
   [Solr design study](#mapping-the-seam-to-solr-design-study) shows the
   aggregation path at the seam (JSON Facet API over the projected `counter`
   ids returning the shared `SearchFacetBucket` shape), so what's left is
-  Postgres-side implementation, not design.
+  SQL-driver implementation, not design.
 - **Settled in design — driver-specific query extensions.** The
   declaration-merged `SearchQuery.driver` slot (see
   [the typed escape hatch](#driver-specific-query-options-the-typed-escape-hatch)):

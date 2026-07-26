@@ -22,8 +22,7 @@ import { pgAdapter } from '@byline/db-postgres'
 import { createAdminStore } from '@byline/db-postgres/admin'
 // ── MySQL adapter (end-to-end testing) ────────────────────────────────────────
 // Comment out the two `@byline/db-postgres` imports above and uncomment these
-// two, then follow the matching block in `buildBylineCore()` below. There are
-// FOUR coordinated edits in this file — the block below lists all of them.
+// two, then follow the matching block in `buildBylineCore()` below.
 //
 // import { mysqlAdapter } from '@byline/db-mysql'
 // import { createAdminStore } from '@byline/db-mysql/admin'
@@ -34,6 +33,7 @@ import {
   lexicalEditorToMarkdownServer,
   lexicalEditorToTextServer,
 } from '@byline/richtext-lexical/server'
+// import { migrate, mysqlSearch } from '@byline/search-mysql'
 import { migrate, postgresSearch } from '@byline/search-postgres'
 import { localStorageProvider } from '@byline/storage-local'
 
@@ -103,17 +103,12 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
 
   // ── MySQL adapter (end-to-end testing) ──────────────────────────────────────
   //
-  // Swapping adapters takes FOUR edits in this file, all marked with this
-  // banner. Missing any one of them fails at boot or, worse, hands a mysql2
-  // pool to a Postgres-only driver:
+  // Swapping adapters takes three coordinated edits:
   //
-  //   1. the imports at the top of this file
+  //   1. the database and search-provider imports at the top of this file
   //   2. this block — comment out the `pgAdapter({...})` call above, uncomment
   //      the `mysqlAdapter({...})` call below
-  //   3. the `await migrate(db.pool, …)` call below — Postgres-only, must be
-  //      commented out
-  //   4. the `search:` entry in `initBylineCore()` — swap to the no-op provider
-  //      given at the end of this comment
+  //   3. the `search:` entry in `initBylineCore()` — select `mysqlSearch`
   //
   // Prerequisites:
   //
@@ -141,55 +136,18 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   //     ? Number(process.env.BYLINE_DB_MYSQL_CONNECTION_TIMEOUT_MILLIS)
   //     : undefined,
   // })
-  //
-  // Search is Postgres-only today (`@byline/search-postgres` has no MySQL
-  // counterpart — tracked as #52). Five collections opt into search via
-  // `CollectionDefinition.search`, and `validateSearchConfig` throws at boot if
-  // any collection opts in with no provider registered — so you cannot simply
-  // omit `search`. Register this no-op instead: it satisfies validation, and
-  // indexing / querying become silent no-ops rather than errors. The admin
-  // Reindex button and the docs search page will return nothing, which is the
-  // honest answer on MySQL.
-  //
-  // const noopSearch = {
-  //   capabilities: {
-  //     facets: false,
-  //     typoTolerance: false,
-  //     semantic: false,
-  //     bm25: false,
-  //     weighting: false,
-  //     highlights: false,
-  //     lexical: {
-  //       nativeAnalysis: false,
-  //       portableAnalysis: false,
-  //       allTerms: false,
-  //       anyTerms: false,
-  //       minimumShouldMatch: false,
-  //       phrase: false,
-  //     },
-  //   },
-  //   async upsert() {},
-  //   async remove() {},
-  //   async reindex() {},
-  //   async search() {
-  //     return { hits: [], total: 0 }
-  //   },
-  // }
 
   // Ensure the search-index schema before the provider serves any traffic.
-  // The driver owns its schema (numbered SQL in `@byline/search-postgres`);
-  // we apply it deliberately here rather than relying on `autoMigrate` so
+  // The selected search driver owns its schema in an independent numbered
+  // migration stream. Both built-in SQL providers expose the same `migrate`
+  // function shape and reuse their database adapter's existing pool.
+  // Apply it deliberately here rather than relying on `autoMigrate` so
   // startup is deterministic and DDL is an explicit, awaited step. Reuses the
   // adapter's pool — no second connection. See the package README.
   //
   // Wrapped defensively: a migration failure degrades search but must not take
   // down the whole app at boot — log loudly and continue.
   //
-  // ── MySQL adapter (end-to-end testing), edit 3 of 4 ─────────────────────────
-  // Comment this whole `try/catch` out when running on MySQL. `migrate()` comes
-  // from `@byline/search-postgres` and expects a **pg** pool; on the MySQL
-  // adapter `db.pool` is a mysql2 pool, so leaving this in place fails inside
-  // the driver rather than anywhere informative.
   try {
     await migrate(db.pool, { log: (m) => console.log(m) })
   } catch (err) {
@@ -317,16 +275,12 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
         toText: lexicalEditorToTextServer(),
       },
     },
-    // Built-in Postgres full-text search provider. Reuses the adapter's pool
+    // Built-in SQL full-text search provider. Reuses the adapter's pool
     // (no second connection); the search index lives in the same database.
     // Collections opt in via their `search` config; lifecycle
     // hooks maintain the index (see e.g. `collections/docs/hooks.ts`).
-    // ── MySQL adapter (end-to-end testing), edit 4 of 4 ───────────────────────
-    // On MySQL, comment the `postgresSearch(...)` line out and uncomment the
-    // `noopSearch` line — see the no-op provider defined in the adapter block
-    // above, and why omitting `search` entirely throws at boot.
     search: postgresSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
-    // search: noopSearch,
+    // search: mysqlSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
   })
 
   // Register admin-subsystem abilities (admin.users.*, admin.roles.*) on

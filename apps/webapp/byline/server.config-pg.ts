@@ -233,12 +233,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     // (no second connection); the search index lives in the same database.
     // Collections opt in via their `search` config; lifecycle
     // hooks maintain the index (see e.g. `collections/docs/hooks.ts`).
-    // ── MySQL adapter (end-to-end testing), edit 4 of 4 ───────────────────────
-    // On MySQL, comment the `postgresSearch(...)` line out and uncomment the
-    // `noopSearch` line — see the no-op provider defined in the adapter block
-    // above, and why omitting `search` entirely throws at boot.
     search: postgresSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
-    // search: noopSearch,
   })
 
   // Register admin-subsystem abilities (admin.users.*, admin.roles.*) on

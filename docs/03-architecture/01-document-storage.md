@@ -66,13 +66,11 @@ conformance suite before it fails anything a consumer would notice.
 
 The Postgres adapter is the supported default. The MySQL adapter is **preliminary**: its
 storage layer passes the full conformance suite, but MySQL is not yet a fully supported
-Byline backend. There is no MySQL search provider, and because `initBylineCore()` refuses
-to start when a collection declares a `search` block with no provider registered, a MySQL
-installation needs the no-op provider the
-[`@byline/db-mysql` README](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/packages/db-mysql/README.md#search-on-mysql)
-documents. `byline init` also scaffolds Postgres only. Choose MySQL for evaluation,
-prototypes, or installations that do not need search; choose Postgres for everything else
-until those gaps close.
+Byline backend. `@byline/search-mysql` provides portable weighted full-text search and
+passes the shared search-provider conformance suite. `byline init` still scaffolds
+Postgres only, and MySQL's environment matrix is narrower. Choose MySQL for evaluation,
+prototypes, or controlled installations; choose Postgres when the supported default and
+CLI scaffolding matter.
 
 ## What happens when you save a document
 

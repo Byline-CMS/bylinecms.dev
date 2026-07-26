@@ -40,7 +40,7 @@ export function validateSearchConfig(
   throw new Error(
     `initBylineCore: ${optedIn.length} collection(s) opt into search ` +
       `(${optedIn.join(', ')}) but no search provider is registered. ` +
-      `Wire one via ServerConfig.search — see \`@byline/search-postgres\` → ` +
-      `\`postgresSearch()\` for the built-in Postgres full-text driver.`
+      `Wire one via ServerConfig.search — use \`postgresSearch()\` from ` +
+      `\`@byline/search-postgres\` or \`mysqlSearch()\` from \`@byline/search-mysql\`.`
   )
 }
