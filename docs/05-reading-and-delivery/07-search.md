@@ -127,9 +127,10 @@ interface SearchCapabilities {
   pure index sink (it never reads source documents). `ServerConfig.search?:
   SearchProvider`; `initBylineCore()` fails fast when a collection opts into
   search but no provider is registered (`validateSearchConfig`).
-- **`capabilities`** is the honesty layer: the Postgres floor declares
-  `weighting` + `highlights` only; `facets` / `typoTolerance` / `semantic` /
-  `bm25` are `false` until a richer driver (or capability) lands. Consumers
+- **`capabilities`** is the honesty layer: the PostgreSQL floor declares
+  `weighting` and portable lexical matching; `highlights` / `facets` /
+  `typoTolerance` / `semantic` / `bm25` are `false` until a richer driver (or
+  capability) lands. Consumers
   light up features against it rather than assuming — which also makes driver
   degradation *deliberate*: a UI can hide facet chips when the registered
   driver can't aggregate, instead of silently returning less.
@@ -257,28 +258,35 @@ interface SearchFacetValue { id: number | string; term: string }  // counter id 
 `@byline/search-postgres` implements the seam over a single denormalised table,
 `byline_search_documents`, keyed `(collection_path, document_id, locale)`:
 
-- **Ranking** — a weighted `tsvector` (GIN-indexed) assembled at `upsert` from
-  the typed fields: `body` fields weight A–D by their `boost`, facet **terms**
-  weight C, all `setweight`-combined. Queried with `websearch_to_tsquery` +
-  `ts_rank`. Highlights via `ts_headline` (`capabilities.highlights`).
+- **Analysis and ranking** — `@byline/search-analysis` turns original text into
+  exact, expanded, identifier, and Han-gram logical terms. The adapter encodes
+  them into a weighted `tsvector` (GIN-indexed): `body` fields use A–D by
+  `boost`, derived terms lose one class, facet terms use C, and Han grams use D.
+  Queries translate the grouped portable plan into `to_tsquery('simple', …)`
+  and rank with `ts_rank`.
 - **Scoping** — `zones text[]` (GIN) for zone membership, `collection_path` +
   `status` for collection / published scoping, `facets` and `filters` as `jsonb`
   for future aggregation / filtering.
-- **Per-locale language** — one row per `(document, locale)`; each indexed with
-  the Postgres `regconfig` mapped from its content locale (`en` → `english`, …),
-  falling back to `simple`. A `defaultLocale` factory option sets the `regconfig`
-  for locale-less queries (otherwise they fall back to `simple` and miss
-  locale-stemmed vectors). Extend the map via `localeRegconfig`.
-- **Capabilities** — `weighting` + `highlights` today. The facet *data* is
-  indexed, but facet *aggregation*, structured `where` filtering, fuzzy matching,
-  BM25 ranking, and semantic retrieval are flagged `false` (follow-ups).
+- **Per-locale language** — one row per `(document, locale)`; declared locale
+  and script detection guide ICU segmentation and optional language expanders.
+  `defaultLocale` supplies the analyzer fallback for content or queries without
+  a usable locale.
+- **Capabilities** — weighting plus `all`, `any`, minimum-should-match, and
+  phrase policies are supported. Facet *data* is indexed, but highlighting,
+  facet *aggregation*, structured `where` filtering, fuzzy matching, BM25
+  ranking, and semantic retrieval are flagged `false`.
+- **Analyzer consistency** — every row and collection metadata record carries
+  the portable analyzer fingerprint. A mismatch rejects reads and writes until
+  the collection's search projection is cleared and rebuilt.
 - **Schema ownership** — the driver **owns its schema**: numbered SQL files in
   `migrations/` are the source of truth, applied by `migrate(pool)` (tracked in
   its own `byline_search_migrations` table) or an opt-in `autoMigrate` at boot.
   It is *not* part of the host's Drizzle migration stream — a future
   `@byline/search-mysql` ships its own. Install paths: run the SQL by hand,
   `migrate(pool)` as a deploy step (recommended), or `autoMigrate` (dev). See the
-  package README.
+  package README. The portable-analysis cutover rewrites the disposable initial
+  schema directly: drop the search-owned tables and rebuild from published
+  content; there is no in-place compatibility migration.
 
 ## Mapping the seam to Solr (design study)
 
@@ -314,8 +322,8 @@ conclusions double as a checklist for any external driver (Phase 4):
   index one document per source doc with locale-suffixed fields side by
   side; the per-locale grain is what the seam's contract implies, and
   locale-scoped queries filter on the locale field instead. Per-locale
-  analyzers ride a locale → language-suffix resolver mirroring the Postgres
-  driver's `localeRegconfig`.
+  analyzers ride a locale → language-suffix resolver owned by the Solr
+  adapter.
 - **Schema ownership without `migrate()`.** The index schema is the
   deployment's Solr configset (dynamic fields), applied by provisioning the
   core. The "driver owns its schema" rule is about *responsibility*, not
@@ -436,15 +444,15 @@ const results = await client.collection('docs').search({
 collection + `published` by default, and delegates to `provider.search()`. It
 passes the same optional `matching` policy as zone search: `operator` is
 `'all'` or `'any'`, `minimumShouldMatch` refines `'any'`, and `phrase` is
-`'auto'`, `'required'`, or `'off'`. Existing providers can ignore this additive
-field during the compatibility window and should declare detailed support in
-`capabilities.lexical`.
+`'auto'`, `'required'`, or `'off'`. Providers declare detailed support in
+`capabilities.lexical`; the PostgreSQL provider implements all four policies
+through the portable query plan.
 It accepts `status: 'any'`, but the framework lifecycle indexes published views
 only, so this does not make drafts appear in the built-in index; it only relaxes
 the provider filter for rows a custom indexing path may have supplied. It
-returns the **lightweight hit tier** — `title`, `path`, `score`, and
-matched-snippet `highlights` — enough to render a results list without
-hydration. Lightweight hits themselves are not document materializations, so
+returns the **lightweight hit tier** — `title`, `path`, and `score`, plus
+provider-dependent `highlights` when advertised — enough to render a results
+list without hydration. Lightweight hits themselves are not document materializations, so
 `afterRead` does not transform them; when row authorization requires an internal
 projected re-read, that fresh internal document still runs its normal hook.
 Use `hydrate: true` when the returned result must carry an actor-redacted
@@ -492,7 +500,7 @@ system/admin tooling. It skips row predicates only — it does not skip collecti
 The docs frontend is the worked example: a drawer-modal search box →
 `/<lng>/docs/search?q=` SSR results route → `client.collection('docs').search()`
 → hits rendered with canonical hierarchical URLs (resolved via the cached nav
-tree) and safely-rendered `ts_headline` snippets.
+tree).
 
 ### Zone (cross-collection) search — `client.search({ zone })` (shipped)
 
@@ -757,9 +765,9 @@ construction — which is the proof the seam boundary is drawn correctly.
 
 ## Open questions
 
-- **Resolved — per-locale indexing / `regconfig`.** Shipped: one `SearchDocument`
-  per `(document, locale)`, indexed with a per-locale `regconfig`, plus a
-  `defaultLocale` for locale-less queries.
+- **Resolved — per-locale portable analysis.** Shipped: one `SearchDocument`
+  per `(document, locale)`, analyzed through the declared/detected locale, plus
+  a `defaultLocale` fallback.
 - **Resolved — awaited indexing for the Postgres driver.** Shipped inline in the
   post-commit lifecycle hook. Async/durable outbox support remains open.
 - **Partly resolved — facets over EAV.** The `{ id, term }` projection is built

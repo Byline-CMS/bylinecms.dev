@@ -436,7 +436,7 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    *
    * defineServerConfig({
    *   // ...
-   *   search: postgresSearch({ getClient: getAdminBylineClient }),
+   *   search: postgresSearch({ pool: db.pool }),
    * })
    * ```
    */

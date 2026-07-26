@@ -201,12 +201,12 @@ the forward-looking landscape for the unbuilt phases is
   `SearchMatching`, and `SearchCapabilities`
   live in `packages/core/src/@types/search-types.ts`. The provider is a pure index
   **sink** — it never reads source documents.
-- **Portable analysis**: `@byline/search-analysis` owns the optional
+- **Portable analysis**: `@byline/search-analysis` owns the
   backend-neutral token and query-plan layer: search-only NFKC normalization,
   validated locale/script fallback, protected identifiers, ICU word boundaries,
   exact-preserving language expansions, Han bigrams, SQL-safe physical token
-  encoding, and analyzer fingerprints for reindex compatibility. The current
-  Postgres driver remains on its native analyzer until its explicit adapter phase.
+  encoding, and analyzer fingerprints for safe rebuilds. The PostgreSQL driver
+  uses this portable analysis exclusively.
 - **Collection search config**: `CollectionDefinition.search = { body?, facets?, filters?, zones? }`
   (`SearchFieldDecl = string | { field, boost? }`). The implementor names fields by
   the part they play; core derives each field's type from the schema. Nothing auto-pulled.
@@ -217,11 +217,13 @@ the forward-looking landscape for the unbuilt phases is
   `lexicalEditorToTextServer` in `@byline/richtext-lexical/server`). Facets resolve to
   `{ id: target counter, term: target useAsTitle }`.
 - **Driver**: `@byline/search-postgres` — `postgresSearch({ pool, defaultLocale?, autoMigrate? })`
-  takes the host's pg pool (e.g. `db.pool`), not a client. Weighted `tsvector` (title/body→A–D by
-  boost, facet terms→C), `websearch_to_tsquery` + `ts_rank`, `ts_headline` highlights, per-locale
-  `regconfig`. **Owns its schema** via numbered SQL in `migrations/` + `migrate(pool)` (its own
+  takes the host's pg pool (e.g. `db.pool`), not a client. Portable logical terms are encoded into
+  a weighted `tsvector` (body→A–D by boost, facet terms→C, Han grams→D), translated to
+  `to_tsquery('simple', …)`, and ranked with `ts_rank`. **Owns its disposable schema** via numbered
+  SQL in `migrations/` + `migrate(pool)` (its own
   `byline_search_migrations` table) — NOT in the host's Drizzle stream. `capabilities`:
-  `weighting` + `highlights` today; facets/where/fuzzy/bm25/semantic are `false` (follow-ups).
+  `weighting` + portable lexical policies today; highlights/facets/where/fuzzy/bm25/semantic are
+  `false` (follow-ups). Analyzer-fingerprint changes require clearing and rebuilding search rows.
 - **Indexing**: lifecycle hooks call `client.collection(x).indexDocument(id)` / `removeFromIndex(id)`
   (orchestration lives in `@byline/client`, not the provider). `indexDocument` re-syncs by reading
   the published view per locale (`status: 'published'`, `onMissingLocale: 'omit'`) and
