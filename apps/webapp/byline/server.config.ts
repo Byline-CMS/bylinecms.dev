@@ -159,9 +159,18 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   //     bm25: false,
   //     weighting: false,
   //     highlights: false,
+  //     lexical: {
+  //       nativeAnalysis: false,
+  //       portableAnalysis: false,
+  //       allTerms: false,
+  //       anyTerms: false,
+  //       minimumShouldMatch: false,
+  //       phrase: false,
+  //     },
   //   },
   //   async upsert() {},
   //   async remove() {},
+  //   async reindex() {},
   //   async search() {
   //     return { hits: [], total: 0 }
   //   },

@@ -357,7 +357,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     if (provider == null || this.definition.search == null) return result
 
     // Clear the slice so deleted documents don't leave orphan rows.
-    await provider.reindex?.({ collectionPath: this.definition.path })
+    await provider.reindex({ collectionPath: this.definition.path })
 
     const pageSize = 100
     let page = 1
