@@ -6,17 +6,19 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { SearchProvider } from '@byline/core'
+import type { SearchCapabilities, SearchProvider } from '@byline/core'
 import type { PortableSearchAnalyzer } from '@byline/search-analysis'
 import { afterAll, beforeAll } from 'vitest'
 
 import { capabilitiesSuite } from './suites/capabilities.js'
 import { fullTextMatchingSuite } from './suites/full-text-matching.js'
+import { highlightingSuite } from './suites/highlighting.js'
 import { lifecycleSuite } from './suites/lifecycle.js'
 import { portableAnalysisSuite } from './suites/portable-analysis.js'
 
 export { capabilitiesSuite } from './suites/capabilities.js'
 export { fullTextMatchingSuite } from './suites/full-text-matching.js'
+export { highlightingSuite } from './suites/highlighting.js'
 export { lifecycleSuite } from './suites/lifecycle.js'
 export { portableAnalysisSuite } from './suites/portable-analysis.js'
 
@@ -28,6 +30,8 @@ export { portableAnalysisSuite } from './suites/portable-analysis.js'
 export interface SearchConformanceHooks {
   /** Construct the adapter with its ordinary production defaults. */
   createProvider(): SearchProvider | Promise<SearchProvider>
+  /** Capabilities this adapter is expected to advertise. */
+  expectedCapabilities?: Partial<SearchCapabilities>
   /**
    * Construct the adapter with an explicit portable analyzer. Supply this
    * only when `capabilities.fullText.portableAnalysis` is true; doing so
@@ -65,5 +69,6 @@ export function runSearchProviderConformanceSuite(hooks: SearchConformanceHooks)
   capabilitiesSuite(hooks)
   lifecycleSuite(hooks)
   fullTextMatchingSuite(hooks)
+  highlightingSuite(hooks)
   portableAnalysisSuite(hooks)
 }

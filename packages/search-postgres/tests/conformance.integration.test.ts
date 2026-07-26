@@ -18,6 +18,7 @@ const pool = new pg.Pool({ connectionString, max: 4 })
 runSearchProviderConformanceSuite({
   createProvider: () => postgresSearch({ pool, defaultLocale: 'en' }),
   createPortableProvider: (analyzer: PortableSearchAnalyzer) => postgresSearch({ pool, analyzer }),
+  expectedCapabilities: { highlights: true },
 
   async migrate(): Promise<void> {
     await migrate(pool)

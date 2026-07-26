@@ -14,7 +14,7 @@ import type {
   SearchQuery,
   SearchResults,
 } from '@byline/core'
-import type { PortableSearchAnalyzer } from '@byline/search-analysis'
+import { highlightPortableText, type PortableSearchAnalyzer } from '@byline/search-analysis'
 import type { Pool, PoolClient } from 'pg'
 
 import { buildIndexRow, type IndexRow } from './build-index-row.js'
@@ -30,7 +30,7 @@ const CAPABILITIES: SearchCapabilities = {
   semantic: false,
   bm25: false,
   weighting: true,
-  highlights: false,
+  highlights: true,
   fullText: {
     nativeAnalysis: false,
     portableAnalysis: true,
@@ -181,7 +181,7 @@ export class PostgresSearchProvider implements SearchProvider {
     const offsetParam = params.length + 2
     const hitResult = await this.pool.query<HitRow>(
       `${cte}
-       SELECT d.collection_path, d.document_id, d.locale, d.title, d.path,
+       SELECT d.collection_path, d.document_id, d.locale, d.title, d.path, d.body,
               ts_rank(d.search_vector, q.query) AS score
        FROM byline_search_documents d, q
        WHERE ${whereSql}
@@ -190,14 +190,22 @@ export class PostgresSearchProvider implements SearchProvider {
       [...params, limit, offset]
     )
 
-    const hits: SearchHit[] = hitResult.rows.map((row) => ({
-      collectionPath: row.collection_path,
-      documentId: row.document_id,
-      locale: row.locale,
-      title: row.title,
-      path: row.path,
-      score: Number(row.score),
-    }))
+    const hits: SearchHit[] = hitResult.rows.map((row) => {
+      const highlight = highlightPortableText({
+        text: row.body,
+        plan,
+        analyzer: this.analyzer,
+      })
+      return {
+        collectionPath: row.collection_path,
+        documentId: row.document_id,
+        locale: row.locale,
+        title: row.title,
+        path: row.path,
+        score: Number(row.score),
+        ...(highlight == null ? {} : { highlights: { body: [highlight] } }),
+      }
+    })
     return { hits, total }
   }
 
@@ -233,6 +241,7 @@ interface HitRow {
   locale: string
   title: string
   path: string | null
+  body: string
   score: number
 }
 

@@ -9,7 +9,9 @@ Added provider-neutral full-text matching contracts and
 package. The analyzer preserves exact terms, validates locale declarations,
 uses ICU word boundaries, protects domain identifiers, emits optional
 language-specific variants and Han bigrams, and records a stable fingerprint
-for reindex decisions. Collection and zone search now pass explicit all/any,
-minimum-should-match, and phrase intent to search providers. Search providers
-must declare their full-text capabilities and implement index clearing so every
-derived projection remains explicitly rebuildable.
+for reindex decisions. It also builds bounded, original-text highlighted
+snippets from the same portable token offsets. Collection and zone search now
+pass explicit all/any, minimum-should-match, and phrase intent to search
+providers. Search providers must declare their full-text capabilities and
+implement index clearing so every derived projection remains explicitly
+rebuildable.

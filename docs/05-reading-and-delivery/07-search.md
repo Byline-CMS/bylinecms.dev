@@ -131,9 +131,9 @@ interface SearchCapabilities {
   SearchProvider`; `initBylineCore()` fails fast when a collection opts into
   search but no provider is registered (`validateSearchConfig`).
 - **`capabilities`** is the honesty layer: both built-in SQL drivers declare
-  `weighting` and portable full-text matching; `highlights` / `facets` /
-  `typoTolerance` / `semantic` / `bm25` are `false` until a richer driver (or
-  capability) lands. Consumers
+  `weighting`, highlighted snippets, and portable full-text matching.
+  `facets` / `typoTolerance` / `semantic` / `bm25` remain `false` until a
+  richer driver (or capability) lands. Consumers
   light up features against it rather than assuming — which also makes driver
   degradation *deliberate*: a UI can hide facet chips when the registered
   driver can't aggregate, instead of silently returning less.
@@ -279,10 +279,10 @@ interface SearchFacetValue { id: number | string; term: string }  // counter id 
   and script detection guide ICU segmentation and optional language expanders.
   `defaultLocale` supplies the analyzer fallback for content or queries without
   a usable locale.
-- **Capabilities** — weighting plus `all`, `any`, minimum-should-match, and
-  phrase policies are supported. Facet *data* is indexed, but highlighting,
-  facet *aggregation*, structured `where` filtering, fuzzy matching, BM25
-  ranking, and semantic retrieval are flagged `false`.
+- **Capabilities** — weighting, portable highlighted snippets, and `all`,
+  `any`, minimum-should-match, and phrase policies are supported. Facet *data*
+  is indexed, but facet *aggregation*, structured `where` filtering, fuzzy
+  matching, BM25 ranking, and semantic retrieval are flagged `false`.
 - **Analyzer consistency** — every row and collection metadata record carries
   the portable analyzer fingerprint. A mismatch rejects reads and writes until
   the collection's search projection is cleared and rebuilt.
@@ -314,8 +314,9 @@ over MySQL 8 `FULLTEXT` indexes:
   before paging. Facets and typed filters remain JSON projections for future
   aggregation and structured filtering.
 - **Capabilities** — the provider reports the same portable full-text and
-  weighting capabilities as PostgreSQL. It does not claim BM25: MySQL's native
-  score is useful for ranking, but it is not a stable BM25 contract.
+  weighting capabilities as PostgreSQL, including portable highlighted
+  snippets. It does not claim BM25: MySQL's native score is useful for ranking,
+  but it is not a stable BM25 contract.
 - **Analyzer consistency** — collection metadata and rows carry the analyzer
   fingerprint. A mismatch requires clearing and rebuilding that collection.
 - **Schema ownership** — numbered SQL files under the package's `migrations/`
@@ -488,8 +489,12 @@ It accepts `status: 'any'`, but the framework lifecycle indexes published views
 only, so this does not make drafts appear in the built-in index; it only relaxes
 the provider filter for rows a custom indexing path may have supplied. It
 returns the **lightweight hit tier** — `title`, `path`, and `score`, plus
-provider-dependent `highlights` when advertised — enough to render a results
-list without hydration. Lightweight hits themselves are not document materializations, so
+`highlights.body` snippets from both built-in SQL providers — enough to render
+a results list without hydration. Each snippet preserves original indexed text
+and uses `<mark>…</mark>` delimiters around matching exact, normalized,
+expanded, identifier, or Han-gram ranges. Renderers must parse those delimiters
+and render all surrounding content as text rather than injecting the complete
+snippet as trusted HTML. Lightweight hits themselves are not document materializations, so
 `afterRead` does not transform them; when row authorization requires an internal
 projected re-read, that fresh internal document still runs its normal hook.
 Use `hydrate: true` when the returned result must carry an actor-redacted

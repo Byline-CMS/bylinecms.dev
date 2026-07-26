@@ -111,9 +111,9 @@ function RouteComponent() {
 }
 
 /**
- * Render a `ts_headline` snippet safely: split on the `<mark>…</mark>` markers
- * the provider emits and render React `<mark>` elements, so the surrounding
- * snippet text is escaped by React (never injected as raw HTML).
+ * Render a provider snippet safely: split on the portable `<mark>…</mark>`
+ * markers and render React `<mark>` elements, so the surrounding snippet text
+ * is escaped by React (never injected as raw HTML).
  */
 function Highlighted({ snippet }: { snippet: string }): React.JSX.Element {
   const parts = snippet.split(/(<mark>.*?<\/mark>)/g)
