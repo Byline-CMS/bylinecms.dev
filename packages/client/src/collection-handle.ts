@@ -747,7 +747,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   }
 
   /**
-   * Fetch the document-grain audit log for a single document (docs/06-auth-and-security/02-auditability.md —
+   * Fetch the document-grain audit log for a single document (docs/07-auth-and-security/02-auditability.md —
    * Workstream 3): the non-versioned system-field writes (path,
    * available-locales), in-place status transitions, and the deletion event
    * the immutable version stream deliberately does not record an actor for.

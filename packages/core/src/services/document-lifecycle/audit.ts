@@ -8,7 +8,7 @@
 
 /**
  * Audit-log write helpers for the document-grain lifecycle write-points
- * (docs/06-auth-and-security/02-auditability.md — Workstream 2). The audit log records the changes the
+ * (docs/07-auth-and-security/02-auditability.md — Workstream 2). The audit log records the changes the
  * immutable version stream does NOT capture an actor for: non-versioned
  * system-field writes (path, available-locales), in-place status transitions,
  * and deletions. Each such mutation and its audit row commit atomically inside
@@ -83,7 +83,7 @@ export interface TreeAuditCapability extends AuditCapability {
  * **both** `withTransaction` and `commands.audit`. Returns a non-null
  * capability the caller composes; throws `ERR_AUDIT_UNSUPPORTED` otherwise,
  * rather than silently skipping the audit row or running it non-atomically.
- * See docs/03-architecture/03-transactions.md and docs/06-auth-and-security/02-auditability.md.
+ * See docs/03-architecture/03-transactions.md and docs/07-auth-and-security/02-auditability.md.
  */
 export function requireAuditCapability(db: IDbAdapter): AuditCapability {
   const withTransaction = db.withTransaction

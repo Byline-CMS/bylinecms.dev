@@ -932,7 +932,7 @@ export interface AfterReadContext {
  *   - `collectionPath` — the collection being queried (useful when the
  *     same hook function is reused across collections).
  *
- * See `docs/06-auth-and-security/01-authn-authz.md` for the strategic rationale; the Quick
+ * See `docs/07-auth-and-security/01-authn-authz.md` for the strategic rationale; the Quick
  * Reference there carries six worked recipes.
  */
 export interface BeforeReadContext {
@@ -1055,7 +1055,7 @@ export interface CollectionHooks {
    * that the query layer ANDs onto the caller's `where` to enforce
    * read-side row scoping (multi-tenant, owner-only-drafts, soft-delete
    * hide, etc). Returning `void` applies no scoping. Multiple functions
-   * combine with implicit AND. See `docs/06-auth-and-security/01-authn-authz.md` (Read-side
+   * combine with implicit AND. See `docs/07-auth-and-security/01-authn-authz.md` (Read-side
    * scoping + Quick Reference recipes).
    */
   beforeRead?: BeforeReadHookSlot
@@ -1182,7 +1182,7 @@ export interface CollectionDefinition {
    * of what to index. The implementor names fields by the role they play;
    * core derives each field's type from the schema and assembles the
    * type-enriched `SearchDocument` (see the `SearchProvider` seam in
-   * `docs/05-reading-and-delivery/07-search.md`). Nothing is auto-pulled, so
+   * `docs/06-search/01-configuration.md`). Nothing is auto-pulled, so
    * unindexed content (editorial notes, internal fields) never leaks into
    * the index.
    *
@@ -1272,7 +1272,7 @@ export interface CollectionDefinition {
    * collection has at least one `localized` field, so the validator rejects
    * `advertiseLocales: true` on a collection with none.
    *
-   * See `docs/07-internationalization/index.md`.
+   * See `docs/08-internationalization/index.md`.
    */
   advertiseLocales?: boolean
 

@@ -20,7 +20,7 @@
  *   pnpm tsx byline/scripts/re-anchor.ts --to fr --collection pages
  *   pnpm tsx byline/scripts/re-anchor.ts --to fr --dry-run
  *
- * See docs/07-internationalization/index.md.
+ * See docs/08-internationalization/index.md.
  */
 
 import '../load-env.js'

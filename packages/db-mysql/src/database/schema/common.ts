@@ -99,7 +99,7 @@ export const varcharCaseSensitive = customType<{
  * same tick and receive an *identical* `CURRENT_TIMESTAMP(3)` value, which
  * is a real correctness gap for anything that orders or windows by these
  * columns (found via `packages/db-conformance`'s audit activity-feed
- * fixture — see docs/09-testing.md and the Task 11 report for the
+ * fixture — see docs/10-testing.md and the Task 11 report for the
  * live-server evidence: four rapid statements produced 2 distinct values at
  * fsp 3 versus 4 distinct values at fsp 6). Matching pg's precision closes
  * that gap at the source instead of asking every fixture/consumer to work

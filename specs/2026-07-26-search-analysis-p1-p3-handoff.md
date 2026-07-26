@@ -82,7 +82,7 @@ tokens.
 
 This contradicts the principle the package states for expansions — "stems,
 lemmas, and normalized variants augment their exact source token and never
-replace it" (docs/05-reading-and-delivery/09-multilingual-search-analysis.md).
+replace it" (docs/06-search/05-portable-analysis.md).
 Masking makes identifiers the one replacing stage.
 
 **Direction** (agreed with the implementing agent — supersedes the original

@@ -65,7 +65,7 @@ import { invalidateCollection, invalidateDocument } from '@/lib/cache/with-cache
 // published view per locale and upserts / removes (so publish, unpublish,
 // draft-over-published, and plain edits all converge on the same idempotent
 // path); `removeFromIndex` drops every locale on delete. See
-// docs/05-reading-and-delivery/07-search.md.
+// docs/06-search/index.md.
 const list = { list: true }
 const structural = { list: true, sitemap: true }
 

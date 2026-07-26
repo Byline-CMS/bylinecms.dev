@@ -19,7 +19,7 @@ A `richText` field gives an editor a full document editing surface — headings,
 
 Read this document when you are registering the editor, turning built-in features on or off, contributing a toolbar or floating-UI item, or wiring the server adapters that embedded relations and search indexing depend on.
 
-`@byline/ui` no longer depends on Lexical at all. `@byline/richtext-lexical` ships two entry points: the default export is the React render surface, and `@byline/richtext-lexical/server` carries the server-side factories — `lexicalEditorEmbedServer` and `lexicalEditorPopulateServer` (the write- and read-path visitor pipeline), plus `lexicalEditorToMarkdownServer` and `lexicalEditorToTextServer` (the [markdown export](../05-reading-and-delivery/04-markdown-export.md) and [search-indexing](../05-reading-and-delivery/07-search.md) serializers).
+`@byline/ui` no longer depends on Lexical at all. `@byline/richtext-lexical` ships two entry points: the default export is the React render surface, and `@byline/richtext-lexical/server` carries the server-side factories — `lexicalEditorEmbedServer` and `lexicalEditorPopulateServer` (the write- and read-path visitor pipeline), plus `lexicalEditorToMarkdownServer` and `lexicalEditorToTextServer` (the [markdown export](../05-reading-and-delivery/04-markdown-export.md) and [search configuration](../06-search/01-configuration.md) serializers).
 
 ---
 

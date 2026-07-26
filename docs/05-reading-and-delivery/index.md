@@ -1,7 +1,7 @@
 ---
 title: "Reading & Delivery"
 path: "reading-and-delivery"
-summary: "How content leaves Byline and reaches its readers — the typed client SDK, the server-function transport surface, future HTTP transports, markdown and llms.txt for agents, an MCP server, a pluggable search/retrieval seam, and the caching strategy that ties them together."
+summary: "How content leaves Byline and reaches its readers through the typed client SDK, server-function transports, markdown and llms.txt exports, future MCP support, and application caching."
 ---
 
 # Reading & Delivery
@@ -25,11 +25,6 @@ it efficiently.
   the Model Context Protocol.
 - [Caching](./06-caching.md) — CDN edge caching, invalidation strategies, and the
   optional in-memory data cache.
-- [Search & Retrieval](./07-search.md) — the pluggable `SearchProvider` seam
-  (PostgreSQL and MySQL full-text search built in, vector / hybrid as external drivers),
-  shipped collection/zone search, hydration, and post-ranking authorization,
-  exposed through the Client SDK surfaces developers build site search on.
-- [Portable Multilingual Search Analysis](./09-multilingual-search-analysis.md)
-  — the backend-neutral token, matching, query-plan, and analyzer-fingerprint
-  contracts that prepare PostgreSQL and MySQL for consistent multilingual
-  behavior.
+- [Search](../06-search/index.md) — ranked collection and zone search, portable
+  multilingual analysis, and built-in PostgreSQL and MySQL providers now have a
+  dedicated section.

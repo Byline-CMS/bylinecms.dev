@@ -15,7 +15,7 @@
  * though the button is also permission-gated in the UI.
  *
  * Synchronous today (fine for small/medium collections). A large corpus wants
- * this backgrounded with progress — see docs/05-reading-and-delivery/07-search.md
+ * this backgrounded with progress — see docs/06-search/02-indexing-and-reindexing.md
  * ("reindex cost").
  */
 

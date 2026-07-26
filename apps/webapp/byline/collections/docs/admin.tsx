@@ -96,7 +96,7 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
    * Header action components for the default list view. `ReindexButton`
    * rebuilds the docs search index; it self-gates on the
    * `collections.docs.reindex` ability, so it only appears for actors who
-   * hold it. See docs/05-reading-and-delivery/07-search.md.
+   * hold it. See docs/06-search/index.md.
    */
   listActions: [ReindexButton],
 

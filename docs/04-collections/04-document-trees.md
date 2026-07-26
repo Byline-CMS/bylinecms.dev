@@ -11,7 +11,7 @@ Companions:
 - [Document Paths](./05-document-paths.md) — the flat leaf slug the tree composes hierarchical URLs from at read time.
 - [Relationships](./03-relationships.md) — the cross-link relation field to reach for when a topic belongs in more than one place.
 - [Transactions](../03-architecture/03-transactions.md) — the atomic mutate-plus-audit and delete-reconciliation guarantees a tree collection's adapter must supply.
-- [Auditability](../06-auth-and-security/02-auditability.md) — the tree action rows (`document.tree.placed`, `.reparented`, `.reordered`, `.removed`).
+- [Auditability](../07-auth-and-security/02-auditability.md) — the tree action rows (`document.tree.placed`, `.reparented`, `.reordered`, `.removed`).
 
 A **document tree** turns a collection into a navigable hierarchy: an ordered,
 single-parent table of contents where every document knows its place. It is the

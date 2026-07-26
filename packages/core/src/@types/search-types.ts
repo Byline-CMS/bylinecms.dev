@@ -29,7 +29,7 @@
  * `lexicalEditorPopulateServer()` lives in `@byline/richtext-lexical`. This
  * keeps `@byline/core` from depending on `@byline/client`.
  *
- * See `docs/05-reading-and-delivery/07-search.md` for the full design.
+ * See `docs/06-search/04-provider-contract.md` for the full contract.
  */
 
 import type { QueryPredicate } from './query-predicate.js'

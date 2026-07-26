@@ -63,7 +63,7 @@ function formatAuditValue(value: unknown): string {
 }
 
 /**
- * The system-wide activity report (docs/06-auth-and-security/02-auditability.md — Workstream 4): a paged,
+ * The system-wide activity report (docs/07-auth-and-security/02-auditability.md — Workstream 4): a paged,
  * filterable feed over the union of the version stream (content saves) and the
  * audit log (status / path / locale changes, deletions, and future admin-realm
  * events). Read-only; gated by `admin.activity.read`.

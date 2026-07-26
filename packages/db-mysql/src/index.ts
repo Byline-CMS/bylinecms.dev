@@ -57,7 +57,7 @@ export const mysqlAdapter = ({
    * for documents whose `source_locale` is not yet backfilled. Per-document
    * reads and writes otherwise re-base onto each document's own `source_locale`
    * (carried on the current-documents views), so changing this value does not
-   * re-interpret existing data. See docs/07-internationalization/index.md.
+   * re-interpret existing data. See docs/08-internationalization/index.md.
    */
   defaultContentLocale: string
   /**

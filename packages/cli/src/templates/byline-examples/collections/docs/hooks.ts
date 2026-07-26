@@ -46,7 +46,7 @@
  * Indexing is background maintenance that runs from out-of-band write paths
  * too (the import-docs script, seeds, migrations), where there is no HTTP
  * request to read a session cookie from. See
- * docs/05-reading-and-delivery/07-search.md.
+ * docs/06-search/index.md.
  */
 
 import { defineHooks } from '@byline/core'

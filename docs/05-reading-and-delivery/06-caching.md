@@ -8,7 +8,7 @@ summary: "How Byline applications cache HTML at the CDN edge, how editors bypass
 
 Companions:
 - [Routing & API](./02-routing-and-api.md) — the server-function transport layer that public reads ride on.
-- [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — the admin session and preview-cookie mechanics that the cache layer keys off.
+- [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md) — the admin session and preview-cookie mechanics that the cache layer keys off.
 
 ## Overview
 

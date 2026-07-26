@@ -36,7 +36,7 @@ export const News = defineCollection({
   // mean" affordance that needs no indexing and no lifecycle hooks. Falls back
   // to `useAsTitle` when omitted; declared explicitly here for guidance.
   listSearch: ['title'],
-  // Search-*provider* config (docs/05-reading-and-delivery/07-search.md) —
+  // Search-*provider* config (docs/06-search/index.md) —
   // distinct from `listSearch` above. This drives the pluggable SearchProvider
   // (full-text search in @byline/search-postgres) and offers richer options:
   // per-field weighting/`boost`, `facets`, `filters`, and `zones`. Unlike

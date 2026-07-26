@@ -126,44 +126,58 @@ schema versioning.
 - **[Caching](docs/05-reading-and-delivery/06-caching.md)** — L1/L2 cache layers,
   the reference `publicCacheMiddleware`, cookie-aware CDN bypass for editors,
   invalidation strategies, and clustering trade-offs.
-- **[Search](docs/05-reading-and-delivery/07-search.md)** — the pluggable
-  `SearchProvider` seam, the built-in PostgreSQL and MySQL full-text drivers,
-  lifecycle-hook indexing, reindex, and the collection `search()` query surface.
-- **[Search & Document Extraction](docs/05-reading-and-delivery/08-search-extraction-strategy.md)**
-  — forward-looking research for attachment extraction and retrieval: provider
-  boundaries, persistence, chunking, and phased delivery.
 
-### 6. [Auth & Security](docs/06-auth-and-security/index.md)
+### 6. [Search](docs/06-search/index.md)
 
-- **[Authentication & Authorization](docs/06-auth-and-security/01-authn-authz.md)**
+- **[Configure Search](docs/06-search/01-configuration.md)** — register a
+  PostgreSQL or MySQL provider and declare indexed fields, weights, facets,
+  filters, and zones.
+- **[Indexing and Reindexing](docs/06-search/02-indexing-and-reindexing.md)** —
+  published-only lifecycle synchronization, migrations, failure behavior, and
+  complete rebuilds.
+- **[Search API](docs/06-search/03-search-api.md)** — collection and zone
+  queries, matching policy, highlighted hits, hydration, and authorization.
+- **[Search Provider Contract](docs/06-search/04-provider-contract.md)** —
+  `SearchProvider`, `SearchDocument`, capabilities, and shared conformance.
+- **[Portable Multilingual Search Analysis](docs/06-search/05-portable-analysis.md)**
+  — normalization, identifiers, expansion plug-ins, portable query plans,
+  highlighting, and analyzer fingerprints.
+- **[PostgreSQL and MySQL Search Providers](docs/06-search/06-postgres-and-mysql.md)**
+  — the two built-in physical implementations and their operational behavior.
+- **[Attachment Extraction for Search](docs/06-search/07-attachment-extraction.md)**
+  — the planned boundary for Tika, Docling, OCR, and vision-model services.
+
+### 7. [Auth & Security](docs/07-auth-and-security/index.md)
+
+- **[Authentication & Authorization](docs/07-auth-and-security/01-authn-authz.md)**
   — two auth realms, abilities and roles, the `AbilityRegistry`, service-layer
   enforcement, and the `beforeRead` hook with worked row-scoping recipes.
-- **[Auditability](docs/06-auth-and-security/02-auditability.md)** — the
+- **[Auditability](docs/07-auth-and-security/02-auditability.md)** — the
   per-version acting-user trail, the document-level audit log, and the history
   and activity views built on top of them.
 
-### 7. [Internationalization](docs/07-internationalization/index.md)
+### 8. [Internationalization](docs/08-internationalization/index.md)
 
-- **[Host i18n](docs/07-internationalization/01-host-i18n.md)** — per-request
+- **[Host i18n](docs/08-internationalization/01-host-i18n.md)** — per-request
   locale resolution and the isomorphic URL rewrite.
-- **[Admin Translations](docs/07-internationalization/02-admin-translations.md)**
+- **[Admin Translations](docs/08-internationalization/02-admin-translations.md)**
   — `@byline/i18n`, the `byline-admin` bundle, and the extension surface.
-- **[Content Locales](docs/07-internationalization/03-content-locales.md)** —
+- **[Content Locales](docs/08-internationalization/03-content-locales.md)** —
   translating content independently of the interface.
-- **[Administering Locales](docs/07-internationalization/04-administering-locales.md)**
+- **[Administering Locales](docs/08-internationalization/04-administering-locales.md)**
   — configuring and managing locales.
 
-### 8. [Admin UI](docs/08-admin-ui/index.md)
+### 9. [Admin UI](docs/09-admin-ui/index.md)
 
-- **[UI Kit](docs/08-admin-ui/01-ui-kit.md)** — `@byline/ui` as a single
+- **[UI Kit](docs/09-admin-ui/01-ui-kit.md)** — `@byline/ui` as a single
   brand-coherent UI surface: the foundational kit shared with `@infonomic/uikit`,
   the byline-prefixed cascade-layer system, and the
   `./react/{admin,fields,forms,services}` subpath exports.
-- **[Client-config Registration](docs/08-admin-ui/02-client-config-registration.md)**
+- **[Client-config Registration](docs/09-admin-ui/02-client-config-registration.md)**
   — how the admin/editor config is registered on the client and code-split away
   from public routes.
 
-### 9. [Testing](docs/09-testing.md)
+### 10. [Testing](docs/10-testing.md)
 
 Unit and integration suites, the `byline_test` database, and isolation strategy.
 

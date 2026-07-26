@@ -263,7 +263,7 @@ export class DocumentCommands implements IDocumentCommands {
       // source locale rather than the mutable global default. NULL (a row not
       // yet touched by `backfillSourceLocales`) falls back to the configured
       // default — the value it was implicitly authored against.
-      // See docs/07-internationalization/index.md.
+      // See docs/08-internationalization/index.md.
       let sourceLocale: string
       if (documentId == null) {
         documentId = uuidv7()
@@ -439,7 +439,7 @@ export class DocumentCommands implements IDocumentCommands {
       // accounts for the per-locale carry-forward in step 5 — not just the
       // freshly-flattened locale. A version with no localized content at all
       // records a single `'all'` sentinel (it renders identically in any
-      // locale). Status-blind by design — see docs/07-internationalization/index.md.
+      // locale). Status-blind by design — see docs/08-internationalization/index.md.
       await this.writeVersionLocaleLedger(tx, documentVersion.id, sourceLocale)
 
       return {
@@ -554,7 +554,7 @@ export class DocumentCommands implements IDocumentCommands {
    * clause *after* `INSERT INTO <table>` and immediately before the `SELECT`
    * it modifies (confirmed against a live MySQL 9.7.1 server) — so the two
    * clauses are transposed relative to the pg original. See
-   * docs/07-internationalization/index.md.
+   * docs/08-internationalization/index.md.
    */
   private async writeVersionLocaleLedger(
     tx: TxConnection,
@@ -691,7 +691,7 @@ export class DocumentCommands implements IDocumentCommands {
    * **without** minting a new document version or touching workflow status. The
    * change is immediate and applies across every version of the document; the
    * public advertised set remains the intersection with the resolved version's
-   * completeness ledger. See docs/07-internationalization/index.md.
+   * completeness ledger. See docs/08-internationalization/index.md.
    */
   async setDocumentAvailableLocales(params: {
     documentId: string

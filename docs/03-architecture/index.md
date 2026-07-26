@@ -51,7 +51,7 @@ at two distinct levels to match:
     [Document Paths](../04-collections/05-document-paths.md).
   - `availableLocales` — the editorial set of advertised content locales
     (`byline_document_available_locales`); see
-    [Content locales](../07-internationalization/03-content-locales.md).
+    [Content locales](../08-internationalization/03-content-locales.md).
   - the **tree edge** — the document's single parent and its order among siblings
     (`byline_document_relationships`); see
     [Document Trees](../04-collections/04-document-trees.md).
@@ -83,7 +83,7 @@ already makes *content* changes fully accountable — each is an immutable, diff
 version. But document-level writes (and in-place status transitions) deliberately
 sit outside the version stream, so they leave no version to point at.
 Accountability for them is the job of the document-level
-[audit log](../06-auth-and-security/02-auditability.md): every non-versioned
+[audit log](../07-auth-and-security/02-auditability.md): every non-versioned
 mutation records who changed what, when, and from→to — written in the *same*
 transaction as the change itself (see [Transactions](./03-transactions.md)) so a
 change can never commit without its audit row. Versioning covers the content; the
@@ -230,7 +230,7 @@ SQL machinery the public client uses.
 
 For the full story — including six worked `beforeRead` recipes (owner-only
 drafts, multi-tenant scoping, embargo, soft-delete hide, department visibility,
-self-only) — see [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md).
+self-only) — see [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md).
 
 ## 7. Deployment topologies
 

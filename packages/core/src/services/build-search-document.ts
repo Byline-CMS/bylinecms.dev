@@ -11,7 +11,7 @@
  * `SearchProvider` seam. Walks a collection's role-based `search` config
  * against one locale-resolved document and emits a single, type-enriched
  * `SearchDocument` for a driver to index. See
- * `docs/05-reading-and-delivery/07-search.md`.
+ * `docs/06-search/04-provider-contract.md`.
  *
  * Role-based and explicit: only the fields named in `search.{body,facets,
  * filters}` are projected — nothing is auto-pulled, so unindexed content

@@ -19,7 +19,7 @@
  * Permission-gated both ends: hidden unless the actor holds
  * `collections.<path>.reindex` (the same ability the server fn re-asserts).
  * Synchronous — fine for small/medium collections; a large corpus wants a
- * backgrounded job (see docs/05-reading-and-delivery/07-search.md).
+ * backgrounded job (see docs/06-search/02-indexing-and-reindexing.md).
  */
 
 import type React from 'react'

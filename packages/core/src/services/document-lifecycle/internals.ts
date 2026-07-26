@@ -50,7 +50,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * (the seeds/migrations escape hatch) — both yield `undefined` → NULL
  * `created_by`, which the history strip renders as "unknown". Real
  * `AdminAuth` / `UserAuth` actors always carry UUID ids, so their attribution
- * is unaffected. See docs/06-auth-and-security/02-auditability.md — Workstream 1.
+ * is unaffected. See docs/07-auth-and-security/02-auditability.md — Workstream 1.
  */
 export function actorId(ctx: DocumentLifecycleContext): string | undefined {
   const id = ctx.requestContext?.actor?.id
@@ -223,7 +223,7 @@ export function resolvePathForUpdate(args: {
     // skip the write (existing path row stays as-is — sticky). The path row
     // lives under the document's source_locale (its anchor), not the mutable
     // global default — so this stays correct after the global default is
-    // switched. See docs/07-internationalization/index.md.
+    // switched. See docs/08-internationalization/index.md.
     return explicitPath ?? undefined
   }
   // Non-source-locale (translation) write: reject any path change with a warn

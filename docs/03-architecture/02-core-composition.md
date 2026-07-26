@@ -7,10 +7,10 @@ summary: "The seams Byline composes at boot: the database, storage, session, and
 # Core Composition
 
 Companions:
-- [Client Config Registration](../08-admin-ui/02-client-config-registration.md) — the client-side analogue of `initBylineCore()`, and why the admin config registers the way it does.
+- [Client Config Registration](../09-admin-ui/02-client-config-registration.md) — the client-side analogue of `initBylineCore()`, and why the admin config registers the way it does.
 - [Transactions](./03-transactions.md) — the atomicity guarantees the database adapter must supply, and what the contract requires of a new adapter.
 - [Rich Text](../04-collections/07-rich-text.md) — the reference consumer of the field-level adapter slots described here.
-- [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — where document-collection enforcement happens, which is deliberately not through the command wrapper described here.
+- [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md) — where document-collection enforcement happens, which is deliberately not through the command wrapper described here.
 
 ## Overview
 
@@ -143,7 +143,7 @@ The wrapper runs Zod input parse → admin actor resolution → handler → Zod 
 
 The `auth` slot is a discriminated union. `{ ability: 'admin.users.read' }` is a full gate, delegating to `assertAdminActor` and inheriting the super-admin bypass. `{ authenticated: true }` is an identity gate only, used by `admin-account` self-service commands where the security property is "you may only mutate your own row," enforced structurally by taking the target id from `actor.id`.
 
-Document-collection operations — create, update, delete, status, upload — do **not** flow through `createCommand`. They are gated by `assertActorCanPerform` inside the `document-lifecycle` services in `@byline/core`. See [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md).
+Document-collection operations — create, update, delete, status, upload — do **not** flow through `createCommand`. They are gated by `assertActorCanPerform` inside the `document-lifecycle` services in `@byline/core`. See [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md).
 
 ## Code map
 
