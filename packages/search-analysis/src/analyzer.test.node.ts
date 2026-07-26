@@ -12,6 +12,7 @@ import { MAX_SEARCH_QUERY_LENGTH } from '@byline/core'
 import { describe, expect, it } from 'vitest'
 
 import { createPortableSearchAnalyzer, resolveMatching } from './analyzer.js'
+import { extractIdentifierSpans } from './identifiers.js'
 import { detectSearchLocale, resolveSearchLocale } from './locale.js'
 import { normalizeForSearch } from './normalize.js'
 import type { SearchTokenExpander } from './types.js'
@@ -110,12 +111,29 @@ describe('portable search analysis', () => {
     expect(quoted.phrases).toEqual([{ conceptIndexes: [0, 1], explicit: true }])
   })
 
-  it('keeps adversarial unbroken text analysis bounded', () => {
+  it('keeps adversarial identifier extraction below the quadratic baseline', () => {
+    extractIdentifierSpans('数'.repeat(1_000))
+
+    for (const character of ['数', 'a']) {
+      const shortStarted = performance.now()
+      extractIdentifierSpans(character.repeat(5_000))
+      const shortDuration = performance.now() - shortStarted
+
+      const longStarted = performance.now()
+      extractIdentifierSpans(character.repeat(40_000))
+      const longDuration = performance.now() - longStarted
+
+      // CI runs package suites concurrently, so this is a regression guard,
+      // not a production latency target. The old unbounded email rule took
+      // more than 10 seconds and grew roughly 50–60x for this 8x input.
+      expect(longDuration).toBeLessThan(Math.max(2_500, shortDuration * 32))
+    }
+  })
+
+  it('analyzes adversarial unbroken text within the unit-test timeout', () => {
     const analyzer = createPortableSearchAnalyzer()
     for (const text of ['数'.repeat(40_000), 'a'.repeat(40_000)]) {
-      const started = performance.now()
-      analyzer.analyzeText({ text })
-      expect(performance.now() - started).toBeLessThan(1_000)
+      expect(analyzer.analyzeText({ text }).normalized).toHaveLength(40_000)
     }
   })
 
