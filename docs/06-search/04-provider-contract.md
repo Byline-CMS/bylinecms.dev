@@ -1,10 +1,10 @@
 ---
-title: "Search Provider Contract"
+title: "Search provider contract"
 path: "search-provider-contract"
 summary: "Reference for SearchProvider, SearchDocument, capability declarations, provider responsibilities, and the shared conformance suites."
 ---
 
-# Search Provider Contract
+# Search provider contract
 
 Companions:
 - [Search](./index.md) — the architecture around the provider boundary.

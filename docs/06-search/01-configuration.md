@@ -1,10 +1,10 @@
 ---
-title: "Configure Search"
+title: "Configure search"
 path: "configure-search"
 summary: "How to register a PostgreSQL or MySQL search provider and declare the collection fields, weights, zones, and rich-text adapter that feed the index."
 ---
 
-# Configure Search
+# Configure search
 
 Companions:
 - [Search](./index.md) — the subsystem overview and package boundaries.
@@ -102,13 +102,21 @@ The adapter performs a plain-text tree walk. It does not emit markdown or HTML.
 
 ## Collection search options
 
+`search` is declared inline on `CollectionDefinition`, and each `body` or
+`facets` entry is a `SearchFieldDecl` — either a bare field name or a field name
+with a ranking boost:
+
 ```ts
-interface CollectionSearchConfig {
-  body?: Array<string | { field: string; boost?: number }>
-  facets?: Array<string | { field: string; boost?: number }>
+// packages/core/src/@types/collection-types.ts — CollectionDefinition
+search?: {
+  body?: SearchFieldDecl[]
+  facets?: SearchFieldDecl[]
   filters?: string[]
   zones?: string[]
 }
+
+// packages/core/src/@types/search-types.ts
+export type SearchFieldDecl = string | { field: string; boost?: number }
 ```
 
 | Option | Meaning | Current built-in provider behavior |
@@ -141,7 +149,7 @@ The exact score is provider-specific. The contract guarantees relative weighting
 
 ### Facets
 
-Every `search.facets` entry must name a top-level relation field. During indexing, the client populates each target to depth 1. Core uses the target collection's first counter field as the stable bucket id and its identity field as the human-readable term.
+Every `search.facets` entry must name a top-level relation field. During indexing, the client populates each target to depth 1. Core uses the target collection's first `counter` field as the stable bucket id and its identity field as the human-readable term. A target vocabulary with no `counter` field falls back to the target's document id.
 
 ```ts
 search: {

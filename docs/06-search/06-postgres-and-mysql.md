@@ -1,10 +1,10 @@
 ---
-title: "PostgreSQL and MySQL Search Providers"
+title: "PostgreSQL and MySQL search providers"
 path: "postgres-mysql-search"
 summary: "How the built-in SQL providers store, rank, highlight, migrate, and validate the same portable search contract while reusing the application's database."
 ---
 
-# PostgreSQL and MySQL Search Providers
+# PostgreSQL and MySQL search providers
 
 Companions:
 - [Configure search](./01-configuration.md) — registration and collection configuration are shared across both providers.

@@ -1,10 +1,10 @@
 ---
-title: "Indexing and Reindexing"
+title: "Indexing and reindexing"
 path: "search-indexing"
 summary: "How published document versions enter and leave the search index, how lifecycle hooks reconcile changes, and when to rebuild the disposable projection."
 ---
 
-# Indexing and Reindexing
+# Indexing and reindexing
 
 Companions:
 - [Configure search](./01-configuration.md) — provider and collection configuration must exist before lifecycle synchronization can write projections.
@@ -125,13 +125,18 @@ The TanStack Start host exports a permission-gated list action.
 **Edit:** `apps/webapp/byline/collections/<name>/admin.tsx`
 
 ```tsx
-import { defineCollectionAdmin } from '@byline/core'
+import { type CollectionAdminConfig, defineAdmin } from '@byline/core'
 import { ReindexButton } from '@byline/host-tanstack-start/admin-shell/collections/reindex-button'
 
-export default defineCollectionAdmin({
+import { Docs } from './schema.js'
+
+export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
   listActions: [ReindexButton],
 })
 ```
+
+`defineAdmin()` takes the collection definition as its first argument so the
+admin config is typed against that collection's fields.
 
 The button hides unless the actor has `collections.<path>.reindex`. Its server function asserts the same ability before calling `CollectionHandle.reindex()`.
 

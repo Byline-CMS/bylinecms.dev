@@ -1,10 +1,10 @@
 ---
-title: "Portable Multilingual Search Analysis"
+title: "Portable multilingual search analysis"
 path: "multilingual-search-analysis"
 summary: "How Byline normalizes multilingual text, preserves identifiers, plans portable queries, expands language terms, creates highlights, and detects indexes that require rebuilding."
 ---
 
-# Portable Multilingual Search Analysis
+# Portable multilingual search analysis
 
 Companions:
 - [Search provider contract](./04-provider-contract.md) — portable analysis sits below the provider seam and does not change its public storage and retrieval methods.

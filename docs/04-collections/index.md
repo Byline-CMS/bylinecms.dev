@@ -336,7 +336,7 @@ export interface CollectionDefinition {
 | `useAsPath` | The field whose value initialises a document's `path` row in `byline_document_paths`. Slugified once; sticky after creation. Collections without `useAsPath` receive a UUID path. See [Document Paths](./05-document-paths.md). |
 | `workflow` | Sequential workflow config — see [Workflow](#workflow). Defaults to a standard `draft` → `published` → `archived` triple. |
 | `hooks` | Lifecycle hooks (server-side). See [Lifecycle hooks](#lifecycle-hooks). |
-| `search` | Role-based **provider indexing** config for site search (`body` / `facets` / `filters` / `zones`) — see [Configure Search](../06-search/01-configuration.md). Does not affect the admin list view's search box. |
+| `search` | Role-based **provider indexing** config for site search (`body` / `facets` / `filters` / `zones`) — see [Configure search](../06-search/01-configuration.md). Does not affect the admin list view's search box. |
 | `listSearch` | Field names the admin list view's search box matches (`ILIKE` over `store_text`, so `text` / `textArea` / `select` fields only). Independent of `search`. Falls back to the identity field (`useAsTitle`, else the first text field) when omitted. |
 | `linksInEditor` | When `true`, this collection's documents appear as linkable options inside the richtext editor's link plugin. Requires `useAsTitle`. |
 | `showStats` | When `true`, the admin landing page renders per-status counts inside this collection's card. Costs one DB round-trip per landing render — opt in deliberately. |

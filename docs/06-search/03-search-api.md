@@ -200,6 +200,14 @@ The public types already carry `where`, `facets`, and facet result buckets becau
   bm25: false,
   weighting: true,
   highlights: true,
+  fullText: {
+    nativeAnalysis: false,
+    portableAnalysis: true,
+    allTerms: true,
+    anyTerms: true,
+    minimumShouldMatch: true,
+    phrase: true,
+  },
 }
 ```
 

@@ -1,10 +1,10 @@
 ---
-title: "Attachment Extraction for Search"
+title: "Attachment extraction for search"
 path: "search-attachment-extraction"
 summary: "The planned boundary for extracting text from PDFs and other attachments before published documents enter the search index."
 ---
 
-# Attachment Extraction for Search
+# Attachment extraction for search
 
 Companions:
 - [Search](./index.md) — the current search architecture consumes text projections and does not extract files itself.

@@ -129,22 +129,22 @@ schema versioning.
 
 ### 6. [Search](docs/06-search/index.md)
 
-- **[Configure Search](docs/06-search/01-configuration.md)** — register a
+- **[Configure search](docs/06-search/01-configuration.md)** — register a
   PostgreSQL or MySQL provider and declare indexed fields, weights, facets,
   filters, and zones.
-- **[Indexing and Reindexing](docs/06-search/02-indexing-and-reindexing.md)** —
+- **[Indexing and reindexing](docs/06-search/02-indexing-and-reindexing.md)** —
   published-only lifecycle synchronization, migrations, failure behavior, and
   complete rebuilds.
 - **[Search API](docs/06-search/03-search-api.md)** — collection and zone
   queries, matching policy, highlighted hits, hydration, and authorization.
-- **[Search Provider Contract](docs/06-search/04-provider-contract.md)** —
+- **[Search provider contract](docs/06-search/04-provider-contract.md)** —
   `SearchProvider`, `SearchDocument`, capabilities, and shared conformance.
-- **[Portable Multilingual Search Analysis](docs/06-search/05-portable-analysis.md)**
+- **[Portable multilingual search analysis](docs/06-search/05-portable-analysis.md)**
   — normalization, identifiers, expansion plug-ins, portable query plans,
   highlighting, and analyzer fingerprints.
-- **[PostgreSQL and MySQL Search Providers](docs/06-search/06-postgres-and-mysql.md)**
+- **[PostgreSQL and MySQL search providers](docs/06-search/06-postgres-and-mysql.md)**
   — the two built-in physical implementations and their operational behavior.
-- **[Attachment Extraction for Search](docs/06-search/07-attachment-extraction.md)**
+- **[Attachment extraction for search](docs/06-search/07-attachment-extraction.md)**
   — the planned boundary for Tika, Docling, OCR, and vision-model services.
 
 ### 7. [Auth & Security](docs/07-auth-and-security/index.md)
