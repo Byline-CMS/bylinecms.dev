@@ -12,10 +12,10 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { searchDocument } from '../fixtures.js'
 import type { SearchConformanceHooks } from '../index.js'
 
-export function lexicalMatchingSuite(hooks: SearchConformanceHooks): void {
+export function fullTextMatchingSuite(hooks: SearchConformanceHooks): void {
   let provider: SearchProvider
 
-  describe.sequential('SearchProvider lexical matching', () => {
+  describe.sequential('SearchProvider full-text matching', () => {
     beforeEach(async () => {
       await hooks.reset()
       provider = await hooks.createProvider()

@@ -27,7 +27,7 @@ Companions:
 - [Collections](../04-collections/index.md) — the collection `search` config and the lifecycle hooks that maintain the index.
 - [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — the `collections.<path>.reindex` ability and the `beforeRead` row-scoping that search honours.
 - [Search and document extraction strategy](./08-search-extraction-strategy.md) — forward-looking landscape + tiered strategy for Phases 3–4 (attachment extraction, external drivers).
-- [Portable multilingual search analysis](./09-multilingual-search-analysis.md) — the portable lexical-analysis and query-plan contracts that adapters can implement without changing the `SearchProvider` seam.
+- [Portable multilingual search analysis](./09-multilingual-search-analysis.md) — the portable term-analysis and query-plan contracts that adapters can implement without changing the `SearchProvider` seam.
 
 ## Overview
 
@@ -112,7 +112,7 @@ interface SearchCapabilities {
   bm25: boolean           // IDF-aware ranking
   weighting: boolean      // per-field SearchField.boost
   highlights: boolean     // matched-snippet highlighting
-  lexical: {              // detailed matching/analysis support
+  fullText: {             // detailed matching/analysis support
     nativeAnalysis: boolean
     portableAnalysis: boolean
     allTerms: boolean
@@ -131,7 +131,7 @@ interface SearchCapabilities {
   SearchProvider`; `initBylineCore()` fails fast when a collection opts into
   search but no provider is registered (`validateSearchConfig`).
 - **`capabilities`** is the honesty layer: both built-in SQL drivers declare
-  `weighting` and portable lexical matching; `highlights` / `facets` /
+  `weighting` and portable full-text matching; `highlights` / `facets` /
   `typoTolerance` / `semantic` / `bm25` are `false` until a richer driver (or
   capability) lands. Consumers
   light up features against it rather than assuming — which also makes driver
@@ -313,7 +313,7 @@ over MySQL 8 `FULLTEXT` indexes:
   collection, locale, published status, and JSON zone membership are applied
   before paging. Facets and typed filters remain JSON projections for future
   aggregation and structured filtering.
-- **Capabilities** — the provider reports the same portable lexical and
+- **Capabilities** — the provider reports the same portable full-text and
   weighting capabilities as PostgreSQL. It does not claim BM25: MySQL's native
   score is useful for ranking, but it is not a stable BM25 contract.
 - **Analyzer consistency** — collection metadata and rows carry the analyzer
@@ -482,7 +482,7 @@ collection + `published` by default, and delegates to `provider.search()`. It
 passes the same optional `matching` policy as zone search: `operator` is
 `'all'` or `'any'`, `minimumShouldMatch` refines `'any'`, and `phrase` is
 `'auto'`, `'required'`, or `'off'`. Providers declare detailed support in
-`capabilities.lexical`; both built-in SQL providers implement all four policies
+`capabilities.fullText`; both built-in SQL providers implement all four policies
 through the portable query plan.
 It accepts `status: 'any'`, but the framework lifecycle indexes published views
 only, so this does not make drafts appear in the built-in index; it only relaxes

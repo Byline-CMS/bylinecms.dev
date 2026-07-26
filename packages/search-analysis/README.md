@@ -1,6 +1,6 @@
 # @byline/search-analysis
 
-Portable multilingual lexical analysis and backend-neutral query planning for
+Portable multilingual term analysis and backend-neutral query planning for
 Byline CMS search providers.
 
 The package owns logical search behavior:

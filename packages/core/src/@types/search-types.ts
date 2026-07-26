@@ -161,7 +161,7 @@ export interface SearchDocument {
 // Query surface
 // ---------------------------------------------------------------------------
 
-/** How independently analyzed query concepts combine for lexical matching. */
+/** How independently analyzed query concepts combine for full-text matching. */
 export type SearchTermOperator = 'all' | 'any'
 
 /**
@@ -174,7 +174,7 @@ export type SearchTermOperator = 'all' | 'any'
 export type SearchPhraseMode = 'auto' | 'required' | 'off'
 
 /**
- * Provider-neutral lexical matching intent. Providers translate this into
+ * Provider-neutral full-text matching intent. Providers translate this into
  * their native query syntax; it is product behavior, not a ranking hint.
  */
 export interface SearchMatching {
@@ -183,7 +183,7 @@ export interface SearchMatching {
   /**
    * Require at least this many concepts when `operator` is `any`.
    * Providers that cannot express this advertise that limitation through
-   * `capabilities.lexical.minimumShouldMatch`.
+   * `capabilities.fullText.minimumShouldMatch`.
    */
   minimumShouldMatch?: number
   /** Phrase handling. Defaults to `auto`. */
@@ -199,7 +199,7 @@ export interface SearchQuery {
   /** The free-text query string. */
   query: string
   /**
-   * Explicit lexical matching semantics. Defaults to all concepts required
+   * Explicit full-text matching semantics. Defaults to all concepts required
    * with quoted spans treated as phrases.
    */
   matching?: SearchMatching
@@ -304,8 +304,8 @@ export interface SearchCapabilities {
   weighting: boolean
   /** Matched-snippet highlighting in results. */
   highlights: boolean
-  /** Detailed lexical analysis and matching capabilities. */
-  lexical: {
+  /** Detailed full-text analysis and matching capabilities. */
+  fullText: {
     /** The backend applies its own language analyzer to original text. */
     nativeAnalysis: boolean
     /** The backend can index application-produced portable logical tokens. */

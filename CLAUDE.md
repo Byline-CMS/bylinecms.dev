@@ -27,8 +27,8 @@ Byline CMS — an open-source, AI-first headless CMS. Currently at a stable v4.x
 | `packages/ui` | `@byline/ui` | Framework-agnostic React primitives — Button, Input, Modal, Drawer, Table, Alert, icons, datepicker, generic `DraggableSortable`. No CMS concepts; importable independent of admin. Single barrel at `@byline/ui/react`. |
 | `packages/i18n` | `@byline/i18n` | Admin-interface translation system — `TranslationBundle` types, `mergeTranslations`, ICU formatter, locale resolution. React surface (`I18nProvider`, `useTranslation`, `LanguageMenu`) at `@byline/i18n/react`. Built-in `byline-admin` bundle (EN/FR) + `adminTranslations({ locales })` factory at `@byline/i18n/admin`. |
 | `packages/richtext-lexical` | `@byline/richtext-lexical` | Lexical-based richtext editor adapter |
-| `packages/search-analysis` | `@byline/search-analysis` | Portable multilingual lexical analysis and backend-neutral query planning — NFKC normalization, locale resolution, protected identifiers, ICU word segmentation, language expansion hooks, Han bigrams, analyzer fingerprints, and SQL-safe physical tokens |
-| `packages/search-conformance` | `@byline/search-conformance` | Private backend-neutral behavioral suite for `SearchProvider` adapters — capabilities, lifecycle/scoping, lexical matching, portable parser survival, weighting, and analyzer-fingerprint rebuild enforcement |
+| `packages/search-analysis` | `@byline/search-analysis` | Portable multilingual term analysis and backend-neutral query planning — NFKC normalization, locale resolution, protected identifiers, ICU word segmentation, language expansion hooks, Han bigrams, analyzer fingerprints, and SQL-safe physical tokens |
+| `packages/search-conformance` | `@byline/search-conformance` | Private backend-neutral behavioral suite for `SearchProvider` adapters — capabilities, lifecycle/scoping, full-text matching, portable parser survival, weighting, and analyzer-fingerprint rebuild enforcement |
 | `packages/search-mysql` | `@byline/search-mysql` | Built-in MySQL full-text `SearchProvider` driver — portable parser-safe tokens in weighted `FULLTEXT` indexes; owns its own schema; reuses the host mysql2 pool. See "Search & Retrieval" below |
 | `packages/search-postgres` | `@byline/search-postgres` | Built-in Postgres full-text `SearchProvider` driver — weighted `tsvector` index; owns its own schema (numbered SQL migrations); reuses the host pg pool. See "Search & Retrieval" below |
 | `packages/ai` | `@byline/ai` | AI subsystem — provider-agnostic execution (OpenAI / Google / Anthropic) for `executeInstruction`, `generateStructured`, and Lexical-node `patch` (streaming + non-streaming). Browser-safe root entry; SDK-backed execution behind `@byline/ai/server`; editor plugins at `@byline/ai/plugins/{text,lexical}`. See `packages/ai/README.md` |
@@ -225,7 +225,7 @@ the forward-looking landscape for the unbuilt phases is
 - **Drivers**: `@byline/search-postgres` provides weighted `tsvector` search;
   `@byline/search-mysql` stores parser-safe portable terms in weighted
   `FULLTEXT` indexes. Both factories take the host adapter's pool, implement the
-  complete portable lexical and weighting contract, own independent disposable
+  complete portable full-text matching and weighting contract, own independent disposable
   numbered-migration streams, and require a clear/rebuild after analyzer
   fingerprint changes. Highlights, facets, structured `where`, fuzzy matching,
   BM25, and semantic retrieval remain `false`.

@@ -11,12 +11,12 @@ import type { PortableSearchAnalyzer } from '@byline/search-analysis'
 import { afterAll, beforeAll } from 'vitest'
 
 import { capabilitiesSuite } from './suites/capabilities.js'
-import { lexicalMatchingSuite } from './suites/lexical-matching.js'
+import { fullTextMatchingSuite } from './suites/full-text-matching.js'
 import { lifecycleSuite } from './suites/lifecycle.js'
 import { portableAnalysisSuite } from './suites/portable-analysis.js'
 
 export { capabilitiesSuite } from './suites/capabilities.js'
-export { lexicalMatchingSuite } from './suites/lexical-matching.js'
+export { fullTextMatchingSuite } from './suites/full-text-matching.js'
 export { lifecycleSuite } from './suites/lifecycle.js'
 export { portableAnalysisSuite } from './suites/portable-analysis.js'
 
@@ -30,7 +30,7 @@ export interface SearchConformanceHooks {
   createProvider(): SearchProvider | Promise<SearchProvider>
   /**
    * Construct the adapter with an explicit portable analyzer. Supply this
-   * only when `capabilities.lexical.portableAnalysis` is true; doing so
+   * only when `capabilities.fullText.portableAnalysis` is true; doing so
    * registers the portable parser/fingerprint suites.
    */
   createPortableProvider?(
@@ -64,6 +64,6 @@ export function runSearchProviderConformanceSuite(hooks: SearchConformanceHooks)
 
   capabilitiesSuite(hooks)
   lifecycleSuite(hooks)
-  lexicalMatchingSuite(hooks)
+  fullTextMatchingSuite(hooks)
   portableAnalysisSuite(hooks)
 }

@@ -109,7 +109,7 @@ option 2 so startup is deterministic and DDL permissions are explicit.
 provider.capabilities
 // { facets: false, typoTolerance: false, semantic: false,
 //   bm25: false, weighting: true, highlights: false,
-//   lexical: {
+//   fullText: {
 //     nativeAnalysis: false, portableAnalysis: true,
 //     allTerms: true, anyTerms: true,
 //     minimumShouldMatch: true, phrase: true
@@ -117,7 +117,7 @@ provider.capabilities
 ```
 
 The `tsvector` + `ts_rank` floor supports per-field **weighting** and all shared
-lexical matching policies. Facet *data* is indexed, but facet *aggregation*
+full-text matching policies. Facet *data* is indexed, but facet *aggregation*
 queries, structured `where` filtering, matched-source highlighting, fuzzy
 matching, BM25 ranking, and semantic/vector retrieval are follow-ups. The
 capability flags let consumers enable only supported behavior.

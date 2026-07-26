@@ -20,11 +20,11 @@ export function capabilitiesSuite(hooks: SearchConformanceHooks): void {
       provider = await hooks.createProvider()
     })
 
-    it('declares one analysis strategy and the shared lexical matching floor', () => {
-      const lexical = provider.capabilities.lexical
+    it('declares one analysis strategy and the shared full-text matching floor', () => {
+      const fullText = provider.capabilities.fullText
 
-      expect(lexical.nativeAnalysis || lexical.portableAnalysis).toBe(true)
-      expect(lexical).toMatchObject({
+      expect(fullText.nativeAnalysis || fullText.portableAnalysis).toBe(true)
+      expect(fullText).toMatchObject({
         allTerms: true,
         anyTerms: true,
         minimumShouldMatch: true,
@@ -35,7 +35,7 @@ export function capabilitiesSuite(hooks: SearchConformanceHooks): void {
     it('declares portable analysis when a portable-provider factory is supplied', async () => {
       if (hooks.createPortableProvider == null) return
       const portableProvider = await hooks.createPortableProvider(createPortableSearchAnalyzer())
-      expect(portableProvider.capabilities.lexical.portableAnalysis).toBe(true)
+      expect(portableProvider.capabilities.fullText.portableAnalysis).toBe(true)
     })
   })
 }

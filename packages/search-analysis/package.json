@@ -6,7 +6,7 @@
   "engines": {
     "node": ">=20.9.0"
   },
-  "description": "Portable multilingual lexical analysis and query planning for Byline CMS search providers",
+  "description": "Portable multilingual term analysis and query planning for Byline CMS search providers",
   "keywords": [
     "cms",
     "headless cms",
