@@ -13,7 +13,6 @@
  * it on the process global via `initBylineCore()` — server-side callers
  * read it back with `getBylineCore<AdminStore>()`.
  */
-
 import { type AdminStore, registerAdminAbilities } from '@byline/admin'
 import { JwtSessionProvider } from '@byline/admin/auth'
 import { getAdminBylineClient } from '@byline/client/server'
@@ -148,7 +147,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   // try {
   //   await migrate(db.pool, { log: (m) => console.log(m) })
   // } catch (err) {
-  //   console.error('[search-postgres] migrate failed — search may be unavailable:', err)
+  //   console.error('[search-mysql] migrate failed — search may be unavailable:', err)
   // }
 
   const adminStore = createAdminStore(db.drizzle)
