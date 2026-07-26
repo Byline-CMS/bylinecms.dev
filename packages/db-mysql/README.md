@@ -4,14 +4,12 @@
 > exercised, not because MySQL is a fully supported Byline backend yet. The
 > storage layer is complete and proven — it passes the entire shared
 > `@byline/db-conformance` behavioural suite, the same suite `@byline/db-postgres`
-> passes, with identical results. What is missing is the surrounding ecosystem:
+> passes, with identical results. Search is also implemented; the remaining
+> limitations are in tooling and breadth of environment coverage:
 >
-> - **No search provider.** `@byline/search-postgres` has no MySQL counterpart, and
->   this is not merely a missing feature — `initBylineCore()` **throws at boot** if
->   any collection declares `search` and no provider is registered. See
->   [Search on MySQL](#search-on-mysql) below for the one-step workaround you will
->   need. Tracked in
->   [#52](https://github.com/Byline-CMS/bylinecms.dev/issues/52).
+> - **Search is available.** `@byline/search-mysql` implements the same
+>   provider contract and conformance suite as the built-in PostgreSQL search
+>   driver. It owns an independent, disposable migration stream.
 > - **No CLI support.** `byline init` scaffolds a Postgres installation; wiring
 >   MySQL is a manual edit to your `server.config.ts`.
 > - **Narrower CI coverage than Postgres.** Continuous integration pins MySQL 8.0
@@ -19,8 +17,8 @@
 >   runs under a non-UTC timezone. Tracked in
 >   [#55](https://github.com/Byline-CMS/bylinecms.dev/issues/55).
 >
-> Treat it as suitable for evaluation, prototypes, and installations that do not
-> need search. The criteria for general availability are tracked in
+> Treat it as suitable for evaluation, prototypes, and controlled installations.
+> The criteria for general availability are tracked in
 > [#58](https://github.com/Byline-CMS/bylinecms.dev/issues/58).
 
 MySQL adapter for Byline CMS — Drizzle schema, migrations, and the storage /
@@ -198,12 +196,10 @@ databases, and a few divergences are real rather than papered over.
   are meaning-bearing in some scripts (a Thai tone mark, a Devanagari
   anusvara, Hebrew niqqud) are never silently folded together the way
   `ai_ci` would fold them.
-- **No search provider yet.** `@byline/search-postgres` has no MySQL
-  counterpart today — a collection's `search` config
-  (`CollectionDefinition.search`) requires a registered `SearchProvider`,
-  and none ships for MySQL yet. Track
-  [the `@byline/search-mysql` follow-up issue](https://github.com/Byline-CMS/bylinecms.dev/issues/52)
-  for status.
+- **Search uses a dialect-specific provider.** Register
+  `@byline/search-mysql` with this adapter. It implements the same portable
+  lexical and weighting contract as `@byline/search-postgres`, while owning its
+  own MySQL `FULLTEXT` schema and migrations.
 - **The connection string is the only connection input.** See "Usage"
   above — this is called out here too because it is the most common way
   this adapter is misconfigured by a reader coming from the Postgres
@@ -218,56 +214,33 @@ databases, and a few divergences are real rather than papered over.
 
 ## Search on MySQL
 
-There is no MySQL search provider yet, and the absence is load-bearing rather
-than cosmetic: `validateSearchConfig` runs inside `initBylineCore()` and
-**throws** when any collection declares a `search` block but no provider is
-registered. Byline's own reference application opts five collections into
-search, so a MySQL installation that copies it fails at boot with an error that
-does not mention MySQL at all.
-
-Until `@byline/search-mysql` exists, register a no-op provider. It satisfies
-validation, and indexing and querying become silent no-ops rather than errors —
-the admin Reindex action and any search page return nothing, which is the honest
-answer on this adapter today:
+Register `@byline/search-mysql` with the adapter's existing promise pool. Apply
+the provider's independent migration stream before serving traffic:
 
 ```ts
-const noopSearch = {
-  capabilities: {
-    facets: false,
-    typoTolerance: false,
-    semantic: false,
-    bm25: false,
-    weighting: false,
-    highlights: false,
-  },
-  async upsert() {},
-  async remove() {},
-  async search() {
-    return { hits: [], total: 0 }
-  },
-}
+import { migrate, mysqlSearch } from '@byline/search-mysql'
+
+await migrate(db.pool)
 
 await initBylineCore({
   // …
   db,
-  search: noopSearch,
+  search: mysqlSearch({ pool: db.pool, defaultLocale }),
 })
 ```
 
-The alternative — removing the `search` block from every collection definition —
-also works, but it discards configuration you will want back when a provider
-lands. The no-op keeps your collections declarative and confines the workaround
-to one place.
+Search rows are a disposable projection of published versions. The provider
+uses parser-safe portable terms, weighted MySQL `FULLTEXT` indexes, and analyzer
+fingerprints. Its package README documents migrations, capabilities, and the
+clear-and-rebuild procedure.
 
 ## Not yet shipped
 
-- **`@byline/search-mysql`** — see [Search on MySQL](#search-on-mysql) above.
-  Tracked in [issue #52](https://github.com/Byline-CMS/bylinecms.dev/issues/52).
 - **CLI support.** `byline init` scaffolds a Postgres installation. Adding MySQL
   to an existing project is a manual edit to `byline/server.config.ts` — swap
   `pgAdapter` for `mysqlAdapter`, swap the `@byline/db-postgres/admin` import for
-  `@byline/db-mysql/admin`, drop the `@byline/search-postgres` migrate call, and
-  register the no-op search provider above.
+  `@byline/db-mysql/admin`, and swap `postgresSearch` for `mysqlSearch`. Both
+  search packages expose the same `migrate(pool)` shape.
 - **A MySQL storage-benchmark target.** The design spec flags view
   materialisation (the `ROW_NUMBER()` window inside a derived table, used
   by both current-version views) as a question to answer before this

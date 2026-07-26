@@ -29,6 +29,7 @@ Byline CMS — an open-source, AI-first headless CMS. Currently at a stable v4.x
 | `packages/richtext-lexical` | `@byline/richtext-lexical` | Lexical-based richtext editor adapter |
 | `packages/search-analysis` | `@byline/search-analysis` | Portable multilingual lexical analysis and backend-neutral query planning — NFKC normalization, locale resolution, protected identifiers, ICU word segmentation, language expansion hooks, Han bigrams, analyzer fingerprints, and SQL-safe physical tokens |
 | `packages/search-conformance` | `@byline/search-conformance` | Private backend-neutral behavioral suite for `SearchProvider` adapters — capabilities, lifecycle/scoping, lexical matching, portable parser survival, weighting, and analyzer-fingerprint rebuild enforcement |
+| `packages/search-mysql` | `@byline/search-mysql` | Built-in MySQL full-text `SearchProvider` driver — portable parser-safe tokens in weighted `FULLTEXT` indexes; owns its own schema; reuses the host mysql2 pool. See "Search & Retrieval" below |
 | `packages/search-postgres` | `@byline/search-postgres` | Built-in Postgres full-text `SearchProvider` driver — weighted `tsvector` index; owns its own schema (numbered SQL migrations); reuses the host pg pool. See "Search & Retrieval" below |
 | `packages/ai` | `@byline/ai` | AI subsystem — provider-agnostic execution (OpenAI / Google / Anthropic) for `executeInstruction`, `generateStructured`, and Lexical-node `patch` (streaming + non-streaming). Browser-safe root entry; SDK-backed execution behind `@byline/ai/server`; editor plugins at `@byline/ai/plugins/{text,lexical}`. See `packages/ai/README.md` |
 | `packages/cli` | `@byline/cli` | Guided installer that adds Byline to an existing TanStack Start app (`byline init`, `doctor`, …) |
@@ -191,7 +192,7 @@ One-way Lexical → markdown serialization (`lexicalToMarkdown`, `@byline/richte
 
 A pluggable `SearchProvider` seam in `@byline/core` (registered on
 `ServerConfig.search`, validated at `initBylineCore()` via `validateSearchConfig`)
-with a built-in Postgres full-text driver. The present-state reference is
+with built-in PostgreSQL and MySQL full-text drivers. The present-state reference is
 [docs/05-reading-and-delivery/07-search.md](docs/05-reading-and-delivery/07-search.md);
 the forward-looking landscape for the unbuilt phases is
 `docs/05-reading-and-delivery/08-search-extraction-strategy.md`.
@@ -206,13 +207,12 @@ the forward-looking landscape for the unbuilt phases is
   backend-neutral token and query-plan layer: search-only NFKC normalization,
   validated locale/script fallback, protected identifiers, ICU word boundaries,
   exact-preserving language expansions, Han bigrams, SQL-safe physical token
-  encoding, and analyzer fingerprints for safe rebuilds. The PostgreSQL driver
-  uses this portable analysis exclusively.
+  encoding, and analyzer fingerprints for safe rebuilds. Both built-in SQL
+  drivers use this portable analysis exclusively.
 - **Conformance**: `@byline/search-conformance` owns the shared capability,
   lifecycle/scoping, matching, parser-survival, weighting, and fingerprint
-  suites. `packages/search-postgres/tests/conformance.integration.test.ts`
-  runs the complete suite against live PostgreSQL; MySQL consumes the same
-  named suites during its port.
+  suites. The PostgreSQL and MySQL packages each run the complete aggregate
+  suite against a live database.
 - **Collection search config**: `CollectionDefinition.search = { body?, facets?, filters?, zones? }`
   (`SearchFieldDecl = string | { field, boost? }`). The implementor names fields by
   the part they play; core derives each field's type from the schema. Nothing auto-pulled.
@@ -222,14 +222,13 @@ the forward-looking landscape for the unbuilt phases is
   `ServerConfig.fields.richText.toText` seam (`RichTextToTextFn`; Lexical impl `lexicalToText` /
   `lexicalEditorToTextServer` in `@byline/richtext-lexical/server`). Facets resolve to
   `{ id: target counter, term: target useAsTitle }`.
-- **Driver**: `@byline/search-postgres` — `postgresSearch({ pool, defaultLocale?, autoMigrate? })`
-  takes the host's pg pool (e.g. `db.pool`), not a client. Portable logical terms are encoded into
-  a weighted `tsvector` (body→A–D by boost, facet terms→C, Han grams→D), translated to
-  `to_tsquery('simple', …)`, and ranked with `ts_rank`. **Owns its disposable schema** via numbered
-  SQL in `migrations/` + `migrate(pool)` (its own
-  `byline_search_migrations` table) — NOT in the host's Drizzle stream. `capabilities`:
-  `weighting` + portable lexical policies today; highlights/facets/where/fuzzy/bm25/semantic are
-  `false` (follow-ups). Analyzer-fingerprint changes require clearing and rebuilding search rows.
+- **Drivers**: `@byline/search-postgres` provides weighted `tsvector` search;
+  `@byline/search-mysql` stores parser-safe portable terms in weighted
+  `FULLTEXT` indexes. Both factories take the host adapter's pool, implement the
+  complete portable lexical and weighting contract, own independent disposable
+  numbered-migration streams, and require a clear/rebuild after analyzer
+  fingerprint changes. Highlights, facets, structured `where`, fuzzy matching,
+  BM25, and semantic retrieval remain `false`.
 - **Indexing**: lifecycle hooks call `client.collection(x).indexDocument(id)` / `removeFromIndex(id)`
   (orchestration lives in `@byline/client`, not the provider). `indexDocument` re-syncs by reading
   the published view per locale (`status: 'published'`, `onMissingLocale: 'omit'`) and

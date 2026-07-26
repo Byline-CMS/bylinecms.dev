@@ -26,7 +26,7 @@ it efficiently.
 - [Caching](./06-caching.md) — CDN edge caching, invalidation strategies, and the
   optional in-memory data cache.
 - [Search & Retrieval](./07-search.md) — the pluggable `SearchProvider` seam
-  (Postgres full-text search built in, vector / hybrid as external drivers),
+  (PostgreSQL and MySQL full-text search built in, vector / hybrid as external drivers),
   shipped collection/zone search, hydration, and post-ranking authorization,
   exposed through the Client SDK surfaces developers build site search on.
 - [Portable Multilingual Search Analysis](./09-multilingual-search-analysis.md)
