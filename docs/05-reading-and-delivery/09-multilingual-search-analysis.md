@@ -11,12 +11,13 @@ Companions:
 - [Search & Document Extraction](./08-search-extraction-strategy.md) — the separate attachment-extraction pipeline whose text will feed the same search projection.
 - [Client SDK](./01-client-sdk.md) — the collection and zone search APIs that accept the matching policy.
 
-:::note[Foundation phase]
-`@byline/search-analysis` and the additive `SearchQuery.matching` contract are
-available. The current `@byline/search-postgres` provider still uses its native
-PostgreSQL configuration and query parser; this phase does not change existing
-index contents, ranking, migrations, or query results. A later adapter phase
-will opt into portable analysis explicitly and require a reindex.
+:::note[PostgreSQL adapter shipped]
+`@byline/search-analysis`, the additive `SearchQuery.matching` contract, and
+the portable `@byline/search-postgres` index/query translator are available.
+The PostgreSQL cutover intentionally replaces its old native-analysis index:
+installations drop the driver-owned search tables, apply the rewritten
+`0001_init.sql`, and rebuild the published index. There is no dual-mode or
+in-place compatibility path.
 :::
 
 ## Why this is a separate package
@@ -34,12 +35,12 @@ The ownership boundaries are:
 | `@byline/core` | Public matching intent and provider capability declarations |
 | `@byline/client` | Pass matching intent from collection and zone calls without interpretation |
 | `@byline/search-analysis` | Normalization, locale resolution, token classes, grouped query plans, fingerprints, and SQL-safe token encoding |
-| Search adapter | Physical schema, persistence, query translation, ranking, highlights, and operational compatibility checks |
+| Search adapter | Physical schema, persistence, query translation, ranking, highlights, and analyzer-consistency checks |
 
 This split keeps the portable behavior independently testable. It also avoids
 forcing Solr, OpenSearch, or another engine with a strong native analyzer to
 store application-produced tokens. Providers declare whether they use native
-analysis, portable analysis, or can expose both modes.
+or portable analysis. The PostgreSQL provider uses portable analysis only.
 
 ## Matching intent
 
@@ -126,21 +127,23 @@ only in their portable index projection.
 Every analyzer exposes an `analyzerFingerprint`. It includes the portable
 pipeline versions, relevant options, the Node.js ICU version, and every
 language-expander fingerprint. An adapter that stores portable terms must
-persist this value as index metadata and compare it at startup.
+persist this value as index metadata and compare it before using an indexed
+collection.
 
 A mismatch means stored terms and query terms may no longer be comparable.
-Startup should report the mismatch clearly, and an explicit reindex should
-replace the projection and stored fingerprint. Adapters must not silently mix
-fingerprints within one active index.
+The provider should report the mismatch before searching or indexing the
+affected collection, and an explicit reindex should replace the projection and
+stored fingerprint. Adapters must not silently mix fingerprints within one
+active index.
 
 ## Adapter rollout
 
 The implementation sequence keeps each phase reviewable:
 
-1. Add these contracts and analyzer conformance cases without changing the
-   existing PostgreSQL provider.
-2. Add a versioned portable schema and query translator to
-   `@byline/search-postgres`, retaining native mode as a compatibility option.
+1. Add these contracts and analyzer conformance cases. **Shipped.**
+2. Replace the disposable `@byline/search-postgres` projection with a portable
+   schema and query translator, then rebuild the two owned installations from
+   published content. **Shipped.**
 3. Extract shared provider conformance tests for matching semantics,
    capabilities, published-only lifecycle behavior, locale isolation, and
    fingerprint mismatch/reindex behavior.

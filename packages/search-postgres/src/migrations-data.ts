@@ -33,11 +33,11 @@ export const MIGRATIONS: EmbeddedMigration[] = [
     name: '0001_init.sql',
     sql: `-- @byline/search-postgres — 0001_init
 --
--- The full-text search index, owned entirely by this driver. One row per
--- (collection_path, document_id, locale). The \`search_vector\` is a weighted
--- tsvector assembled from the type-enriched SearchDocument at upsert time
--- (title => A, body fields => A–D by boost, facet terms => C). Facet ids and
--- filterable scalars are kept as jsonb for aggregation / filtering.
+-- The disposable full-text search index, owned entirely by this driver. One
+-- row per (collection_path, document_id, locale). \`search_vector\` stores
+-- parser-safe physical tokens produced by @byline/search-analysis and
+-- \`analyzer_fingerprint\` identifies the exact portable analysis pipeline.
+-- Search indexes created with an older schema must be dropped and rebuilt.
 --
 -- Idempotent (IF NOT EXISTS throughout) so re-applying is safe. The driver's
 -- migration runner records applied versions in byline_search_migrations.
@@ -51,7 +51,8 @@ CREATE TABLE IF NOT EXISTS byline_search_documents (
   title           text        NOT NULL DEFAULT '',
   path            text,
   body            text        NOT NULL DEFAULT '',
-  search_vector   tsvector,
+  search_vector   tsvector    NOT NULL,
+  analyzer_fingerprint text   NOT NULL,
   facets          jsonb       NOT NULL DEFAULT '{}'::jsonb,
   filters         jsonb       NOT NULL DEFAULT '{}'::jsonb,
   updated_at      timestamptz NOT NULL DEFAULT now(),
@@ -73,6 +74,14 @@ CREATE INDEX IF NOT EXISTS byline_search_documents_facets_idx
 -- Single-collection scoping + status filtering.
 CREATE INDEX IF NOT EXISTS byline_search_documents_collection_idx
   ON byline_search_documents (collection_path, status);
+
+-- One locked row per collection prevents concurrent processes with different
+-- analyzer fingerprints from mixing incompatible projections.
+CREATE TABLE IF NOT EXISTS byline_search_index_metadata (
+  collection_path      text        PRIMARY KEY,
+  analyzer_fingerprint text        NOT NULL,
+  updated_at           timestamptz NOT NULL DEFAULT now()
+);
 `,
   },
 ]

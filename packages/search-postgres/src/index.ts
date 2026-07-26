@@ -29,18 +29,14 @@
  */
 
 import type { SearchProvider } from '@byline/core'
+import { createPortableSearchAnalyzer, type PortableSearchAnalyzer } from '@byline/search-analysis'
 import type { Pool } from 'pg'
 
-import { createRegconfigResolver } from './locale-regconfig.js'
 import { migrate } from './migrate.js'
 import { PostgresSearchProvider } from './postgres-search-provider.js'
 
 export { buildIndexRow, type IndexRow, type WeightClass, weightClass } from './build-index-row.js'
-export {
-  createRegconfigResolver,
-  DEFAULT_FALLBACK_REGCONFIG,
-  type RegconfigResolver,
-} from './locale-regconfig.js'
+export { SearchAnalyzerMismatchError } from './errors.js'
 export { type MigrateOptions, type MigrateResult, migrate } from './migrate.js'
 export { PostgresSearchProvider } from './postgres-search-provider.js'
 
@@ -59,22 +55,18 @@ export interface PostgresSearchOptions {
    */
   autoMigrate?: boolean
   /**
-   * Override or extend the locale → Postgres `regconfig` (text-search
-   * language) map. Merged over the built-in defaults.
-   */
-  localeRegconfig?: Record<string, string>
-  /**
-   * Fallback `regconfig` for locales not in the map. Defaults to `'simple'`
-   * (no stemming / stop-words — unstemmed but correct).
-   */
-  fallbackRegconfig?: string
-  /**
-   * Locale used to choose the query text-search config when a `search()`
-   * call omits `locale`. Set this to the host's default content locale so a
-   * locale-less query matches default-locale documents (otherwise it falls
-   * back to `simple` and won't match locale-stemmed vectors).
+   * Locale used when neither indexed content nor a query supplies one.
+   * Defaults to `en`.
    */
   defaultLocale?: string
+  /**
+   * Custom portable analyzer, typically carrying versioned language
+   * expanders. Defaults to `createPortableSearchAnalyzer({ defaultLocale })`.
+   *
+   * Changing the analyzer fingerprint requires rebuilding the affected
+   * collections before they can be searched or indexed.
+   */
+  analyzer?: PortableSearchAnalyzer
   /** Optional sink for migration progress lines (e.g. the host logger). */
   log?: (message: string) => void
 }
@@ -89,7 +81,8 @@ export interface PostgresSearchOptions {
  * `migrate(pool)` explicitly during boot instead.
  */
 export function postgresSearch(options: PostgresSearchOptions): SearchProvider {
-  const regconfig = createRegconfigResolver(options.localeRegconfig, options.fallbackRegconfig)
+  const analyzer =
+    options.analyzer ?? createPortableSearchAnalyzer({ defaultLocale: options.defaultLocale })
 
   if (options.autoMigrate === true) {
     void migrate(options.pool, { log: options.log }).catch((error) => {
@@ -99,5 +92,5 @@ export function postgresSearch(options: PostgresSearchOptions): SearchProvider {
     })
   }
 
-  return new PostgresSearchProvider(options.pool, regconfig, options.defaultLocale)
+  return new PostgresSearchProvider(options.pool, analyzer)
 }

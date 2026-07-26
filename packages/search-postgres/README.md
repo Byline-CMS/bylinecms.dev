@@ -1,16 +1,17 @@
 # @byline/search-postgres
 
-The built-in Postgres full-text `SearchProvider` for Byline CMS. Implements the
-`SearchProvider` seam from `@byline/core` over a weighted `tsvector` index —
-ranked search with **zero new infrastructure**, reusing your existing Postgres
-connection.
+The built-in PostgreSQL full-text `SearchProvider` for Byline CMS. It combines
+the portable multilingual analyzer from `@byline/search-analysis` with a
+weighted, GIN-indexed `tsvector`, providing ranked search with **zero new
+infrastructure** and reusing the existing PostgreSQL connection.
 
 It consumes the type-enriched `SearchDocument` that core assembles
 (`buildSearchDocument`) and stores one weighted row per
-`(collection_path, document_id, locale)`: `title` → weight class `A`, `body`
-fields → `A`–`D` by their declared `boost`, facet **terms** → `C` (folded into
-the searchable vector), with facet **ids** and filterable scalars kept as
-`jsonb` for aggregation / filtering.
+`(collection_path, document_id, locale)`: body fields → `A`–`D` by their
+declared `boost`, facet **terms** → `C` (folded into the searchable vector),
+with facet **ids** and filterable scalars kept as `jsonb` for future
+aggregation and filtering. A collection's title remains display-only unless
+its identity field is also declared in `search.body`.
 
 See [`docs/05-reading-and-delivery/07-search.md`](../../docs/05-reading-and-delivery/07-search.md)
 for the full subsystem design.
@@ -54,6 +55,25 @@ migration stream — it ships its own numbered SQL files in
 `byline_search_migrations` table. There are three ways to apply them; pick per
 environment.
 
+### Portable-analysis cutover
+
+The portable-analysis release replaces the original native PostgreSQL search
+schema directly. There is no in-place compatibility migration: search data is
+a disposable projection of published documents. Before deploying this version
+over an older `@byline/search-postgres` installation, drop only the three
+driver-owned tables, reapply `0001_init.sql`, and rebuild each searchable
+collection:
+
+```sql
+DROP TABLE IF EXISTS byline_search_index_metadata;
+DROP TABLE IF EXISTS byline_search_documents;
+DROP TABLE IF EXISTS byline_search_migrations;
+```
+
+This does not remove CMS documents. After applying the new schema, run the
+normal `client.reindex()` workflow so the portable index is reconstructed from
+published versions.
+
 ### 1. Run the SQL by hand (locked-down / managed Postgres)
 
 The numbered files are the source of truth and are DBA-reviewable:
@@ -88,29 +108,34 @@ option 2 so startup is deterministic and DDL permissions are explicit.
 ```ts
 provider.capabilities
 // { facets: false, typoTolerance: false, semantic: false,
-//   bm25: false, weighting: true, highlights: true }
+//   bm25: false, weighting: true, highlights: false,
+//   lexical: {
+//     nativeAnalysis: false, portableAnalysis: true,
+//     allTerms: true, anyTerms: true,
+//     minimumShouldMatch: true, phrase: true
+//   } }
 ```
 
-The `tsvector` + `ts_rank` floor: per-field **weighting** and **highlighting**
-(`ts_headline`) are supported today. Facet *data* is indexed, but facet
-*aggregation* queries, structured `where` filtering, fuzzy matching (`pg_trgm`),
-BM25 ranking, and semantic/vector retrieval are follow-ups — surfaced honestly
-through the capability flags so consumers light up only what's available.
+The `tsvector` + `ts_rank` floor supports per-field **weighting** and all shared
+lexical matching policies. Facet *data* is indexed, but facet *aggregation*
+queries, structured `where` filtering, matched-source highlighting, fuzzy
+matching, BM25 ranking, and semantic/vector retrieval are follow-ups. The
+capability flags let consumers enable only supported behavior.
 
 ## Language / locale
 
-Search is per-locale. Each document's text is indexed with the Postgres
-`regconfig` mapped from its content locale (`en` → `english`, `fr` → `french`,
-…), falling back to `simple` (unstemmed) for unmapped locales. Pass `locale`
-to `search()` so the query uses the matching `regconfig` (a locale-less query
-falls back to `simple` and won't match locale-stemmed vectors) — or set
-`defaultLocale` so locale-less queries use your default content locale:
+Search is stored per locale. The portable analyzer applies Unicode
+normalization, ICU word segmentation, identifier preservation, optional
+language expanders, and Han bigrams before the adapter writes parser-safe
+physical terms to PostgreSQL. `defaultLocale` supplies the analyzer fallback
+when content or a query does not declare a usable locale:
 
 ```ts
-postgresSearch({
-  pool: db.pool,
-  defaultLocale: 'en',             // regconfig for searches that omit `locale`
-  localeRegconfig: { th: 'thai' }, // a custom dictionary you've installed
-  fallbackRegconfig: 'simple',
-})
+postgresSearch({ pool: db.pool, defaultLocale: 'en' })
 ```
+
+For language-specific stemming or lemmatization, construct a portable analyzer
+with versioned expanders and pass it as `analyzer`. The provider persists its
+fingerprint per collection. If that fingerprint changes, clear and rebuild the
+affected collection before it accepts new writes or searches; this prevents
+mixed token pipelines from producing incomplete results.

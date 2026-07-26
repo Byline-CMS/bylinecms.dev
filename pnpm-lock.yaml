@@ -1104,6 +1104,9 @@ importers:
       '@byline/core':
         specifier: workspace:*
         version: link:../core
+      '@byline/search-analysis':
+        specifier: workspace:*
+        version: link:../search-analysis
     devDependencies:
       '@biomejs/biome':
         specifier: 2.5.4
