@@ -51,7 +51,7 @@ import {
   resolveReadSecurityFilters,
 } from './read-context.js'
 import { shapeDocument, shapePopulatedInPlace } from './response.js'
-import { finalizeSearchHits } from './search.js'
+import { assertSearchQueryLength, finalizeSearchHits } from './search.js'
 import type { BylineClient } from './client.js'
 import type {
   AuditLogOptions,
@@ -232,6 +232,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * Throws `ERR_VALIDATION` when no provider is registered.
    */
   async search(options: CollectionSearchOptions): Promise<ClientSearchResults> {
+    assertSearchQueryLength(options.query)
     const readMode = resolveReadMode(options.status)
     const readCtx = createReadContext()
     const requestContext = await this.resolveAndAssertRead(readMode, readCtx)

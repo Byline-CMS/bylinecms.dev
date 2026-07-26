@@ -76,10 +76,12 @@ CREATE INDEX IF NOT EXISTS byline_search_documents_collection_idx
   ON byline_search_documents (collection_path, status);
 
 -- One locked row per collection prevents concurrent processes with different
--- analyzer fingerprints from mixing incompatible projections.
+-- analyzer fingerprints from mixing incompatible projections. Collection
+-- zones let fingerprint guards retain zone scope without scanning documents.
 CREATE TABLE IF NOT EXISTS byline_search_index_metadata (
   collection_path      text        PRIMARY KEY,
   analyzer_fingerprint text        NOT NULL,
+  zones                text[]      NOT NULL DEFAULT '{}',
   updated_at           timestamptz NOT NULL DEFAULT now()
 );
 `,

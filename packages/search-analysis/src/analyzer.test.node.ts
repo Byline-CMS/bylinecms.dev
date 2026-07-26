@@ -6,6 +6,9 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { performance } from 'node:perf_hooks'
+
+import { MAX_SEARCH_QUERY_LENGTH } from '@byline/core'
 import { describe, expect, it } from 'vitest'
 
 import { createPortableSearchAnalyzer, resolveMatching } from './analyzer.js'
@@ -60,6 +63,70 @@ describe('portable search analysis', () => {
     ])
     expect(analyzed.exactTokens.map((token) => token.value)).toContain('see')
     expect(analyzed.exactTokens.map((token) => token.value)).toContain('mail')
+    expect(analyzed.exactTokens.map((token) => token.value)).not.toContain('example')
+    expect(analyzed.exactTokens.map((token) => token.value)).not.toContain('tést')
+  })
+
+  it('retains SKU and version constituents at one logical source position', () => {
+    const analyzer = createPortableSearchAnalyzer()
+    const analyzed = analyzer.analyzeText({
+      text: 'COVID-19 cases utf-8 encoding Section 1.2',
+    })
+    const positions = [...analyzed.exactTokens, ...analyzed.identifierTokens].map(
+      ({ kind, value, position }) => ({ kind, value, position })
+    )
+
+    expect(positions).toEqual(
+      expect.arrayContaining([
+        { kind: 'exact', value: 'covid', position: 0 },
+        { kind: 'exact', value: '19', position: 0 },
+        { kind: 'identifier', value: 'covid-19', position: 0 },
+        { kind: 'exact', value: 'cases', position: 1 },
+        { kind: 'exact', value: 'utf', position: 2 },
+        { kind: 'exact', value: '8', position: 2 },
+        { kind: 'identifier', value: 'utf-8', position: 2 },
+        { kind: 'exact', value: 'encoding', position: 3 },
+        { kind: 'exact', value: 'section', position: 4 },
+        { kind: 'exact', value: '1.2', position: 5 },
+        { kind: 'identifier', value: '1.2', position: 5 },
+      ])
+    )
+  })
+
+  it('uses a complete identifier as one query concept', () => {
+    const analyzer = createPortableSearchAnalyzer()
+    const cases = [
+      ['covid-19', 1],
+      ['covid-19 vaccine', 2],
+      ['utf-8 encoding', 2],
+      ['Section 1.2', 2],
+    ] as const
+
+    for (const [query, conceptCount] of cases) {
+      expect(analyzer.analyzeQuery({ query }).concepts, query).toHaveLength(conceptCount)
+    }
+    const quoted = analyzer.analyzeQuery({ query: '"covid-19 cases"' })
+    expect(quoted.concepts[0]?.identifierTokens.map((token) => token.value)).toEqual(['covid-19'])
+    expect(quoted.phrases).toEqual([{ conceptIndexes: [0, 1], explicit: true }])
+  })
+
+  it('keeps adversarial unbroken text analysis bounded', () => {
+    const analyzer = createPortableSearchAnalyzer()
+    for (const text of ['数'.repeat(40_000), 'a'.repeat(40_000)]) {
+      const started = performance.now()
+      analyzer.analyzeText({ text })
+      expect(performance.now() - started).toBeLessThan(1_000)
+    }
+  })
+
+  it('rejects an over-long query before analysis', () => {
+    const analyzer = createPortableSearchAnalyzer()
+    expect(() =>
+      analyzer.analyzeQuery({ query: 'a'.repeat(MAX_SEARCH_QUERY_LENGTH) })
+    ).not.toThrow()
+    expect(() => analyzer.analyzeQuery({ query: 'a'.repeat(MAX_SEARCH_QUERY_LENGTH + 1) })).toThrow(
+      RangeError
+    )
   })
 
   it('emits ordered overlapping Han bigrams without replacing exact terms', () => {

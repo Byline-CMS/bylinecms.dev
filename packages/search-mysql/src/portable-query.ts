@@ -13,8 +13,6 @@ import {
   type QueryConcept,
 } from '@byline/search-analysis'
 
-const MAX_PHRASE_VARIANTS = 256
-
 export interface PortableMySqlQuery {
   /** Boolean-mode query per source concept; terms inside one query are ORs. */
   conceptQueries: string[]
@@ -36,11 +34,11 @@ export function buildPortableMySqlQuery(plan: PortableQueryPlan): PortableMySqlQ
   }
 
   const phraseQueries = plan.phrases.map((phrase) => {
-    const alternatives = phrase.conceptIndexes.map((index) => conceptTerms[index])
-    if (alternatives.some((terms) => terms == null || terms.length === 0)) {
+    const concepts = phrase.conceptIndexes.map((index) => plan.concepts[index])
+    if (concepts.some((concept) => concept == null)) {
       throw new RangeError('Portable query phrase references an unknown concept')
     }
-    return phraseVariants(alternatives as string[][])
+    return phraseStreamVariants(concepts as QueryConcept[])
   })
 
   const gramQueries = plan.gramSequences
@@ -79,24 +77,33 @@ function conceptAlternatives(concept: QueryConcept): string[] {
   return [...new Set(terms)]
 }
 
-function phraseVariants(alternatives: string[][]): string[] {
-  let variants: string[][] = [[]]
-  for (const terms of alternatives) {
-    const next: string[][] = []
-    for (const prefix of variants) {
-      for (const term of terms) {
-        // A concept-local gram fallback is itself quoted and cannot be nested
-        // into a larger MySQL phrase. Cross-concept grams are represented by
-        // `gramQueries` instead.
-        if (term.startsWith('"')) continue
-        next.push([...prefix, term])
-        if (next.length >= MAX_PHRASE_VARIANTS) break
-      }
-      if (next.length >= MAX_PHRASE_VARIANTS) break
-    }
-    variants = next
+/**
+ * Mirror the index's phrase-capable source and expansion-kind streams. Mixed
+ * expansion kinds never coexist in one indexed stream, so their Cartesian
+ * product would only produce impossible phrases.
+ */
+function phraseStreamVariants(concepts: readonly QueryConcept[]): string[] {
+  const source = concepts.map(sourceToken)
+  const variants: LogicalToken[][] = [source]
+
+  for (const kind of ['stemTokens', 'lemmaTokens', 'normalizedTokens'] as const) {
+    if (!concepts.some((concept) => concept[kind].length > 0)) continue
+    variants.push(concepts.map((concept, index) => concept[kind][0] ?? source[index]!))
   }
-  return variants.map(quotedPhrase).filter((query) => query.length > 0)
+
+  return [
+    ...new Set(
+      variants
+        .map((tokens) => quotedPhrase(tokens.map((token) => encodeSqlToken(token))))
+        .filter((query) => query.length > 0)
+    ),
+  ]
+}
+
+function sourceToken(concept: QueryConcept): LogicalToken {
+  const token = concept.identifierTokens[0] ?? concept.exactTokens[0]
+  if (token == null) throw new TypeError('Portable query concept has no source token')
+  return token
 }
 
 function orderedTerms(tokens: readonly LogicalToken[]): string[] {

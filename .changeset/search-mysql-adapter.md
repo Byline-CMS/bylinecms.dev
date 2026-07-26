@@ -11,4 +11,7 @@ conformance suite. Ranked hits include portable highlighted snippets from the
 stored original body text.
 
 Documented and wired `@byline/db-mysql` installations to use the real search
-provider instead of a no-op workaround.
+provider instead of a no-op workaround. Fingerprint checks use collection
+metadata rather than scanning indexed documents, and phrase translation now
+emits only the source and expansion-kind variants represented by physical
+matching streams.

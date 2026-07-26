@@ -62,10 +62,13 @@ export class PostgresSearchProvider implements SearchProvider {
       await client.query('BEGIN')
       await client.query(
         `INSERT INTO byline_search_index_metadata
-           (collection_path, analyzer_fingerprint, updated_at)
-         VALUES ($1, $2, now())
-         ON CONFLICT (collection_path) DO NOTHING`,
-        [row.collectionPath, vector.analyzerFingerprint]
+           (collection_path, analyzer_fingerprint, zones, updated_at)
+         VALUES ($1, $2, $3, now())
+         ON CONFLICT (collection_path) DO UPDATE
+           SET zones = ARRAY(
+             SELECT DISTINCT unnest(byline_search_index_metadata.zones || EXCLUDED.zones)
+           )`,
+        [row.collectionPath, vector.analyzerFingerprint, row.zones]
       )
       const metadata = await client.query<{ analyzer_fingerprint: string }>(
         `SELECT analyzer_fingerprint
@@ -185,7 +188,8 @@ export class PostgresSearchProvider implements SearchProvider {
               ts_rank(d.search_vector, q.query) AS score
        FROM byline_search_documents d, q
        WHERE ${whereSql}
-       ORDER BY score DESC, d.updated_at DESC
+       ORDER BY score DESC, d.updated_at DESC,
+                d.collection_path, d.document_id, d.locale
        LIMIT $${limitParam} OFFSET $${offsetParam}`,
       [...params, limit, offset]
     )
@@ -211,15 +215,15 @@ export class PostgresSearchProvider implements SearchProvider {
 
   private async assertAnalyzerFingerprint(query: SearchQuery): Promise<void> {
     const params: unknown[] = [this.analyzer.fingerprint]
-    const where = ['d.analyzer_fingerprint IS DISTINCT FROM $1']
-    appendScopeFilters(query, params, where, false)
+    const where = ['m.analyzer_fingerprint IS DISTINCT FROM $1']
+    appendMetadataScopeFilters(query, params, where)
 
     const incompatible = await this.pool.query<{
       collection_path: string
       analyzer_fingerprint: string | null
     }>(
-      `SELECT d.collection_path, d.analyzer_fingerprint
-       FROM byline_search_documents d
+      `SELECT m.collection_path, m.analyzer_fingerprint
+       FROM byline_search_index_metadata m
        WHERE ${where.join(' AND ')}
        LIMIT 1`,
       params
@@ -232,6 +236,17 @@ export class PostgresSearchProvider implements SearchProvider {
         row.analyzer_fingerprint
       )
     }
+  }
+}
+
+function appendMetadataScopeFilters(query: SearchQuery, params: unknown[], where: string[]): void {
+  if (query.collectionPath != null) {
+    params.push(query.collectionPath)
+    where.push(`m.collection_path = $${params.length}`)
+  }
+  if (query.zone != null) {
+    params.push([query.zone])
+    where.push(`m.zones @> $${params.length}`)
   }
 }
 

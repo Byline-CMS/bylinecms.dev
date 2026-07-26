@@ -99,6 +99,21 @@ describe('portable highlighting', () => {
     expect(highlighted?.split(/\s+/)).toHaveLength(17)
   })
 
+  it('counts overlapping identifier constituents as one snippet term', () => {
+    const analyzer = createPortableSearchAnalyzer()
+    const plan = analyzer.analyzeQuery({ query: 'covid' })
+
+    expect(
+      highlightPortableText({
+        text: 'COVID-19 one two three',
+        plan,
+        analyzer,
+        maxFragments: 1,
+        maxWords: 2,
+      })
+    ).toContain('one')
+  })
+
   it('returns undefined when the stored text contains no query term', () => {
     const analyzer = createPortableSearchAnalyzer()
     const plan = analyzer.analyzeQuery({ query: 'forest' })

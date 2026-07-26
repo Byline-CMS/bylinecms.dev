@@ -190,13 +190,16 @@ export interface SearchMatching {
   phrase?: SearchPhraseMode
 }
 
+/** Maximum UTF-16 length accepted for one full-text query. */
+export const MAX_SEARCH_QUERY_LENGTH = 1_024
+
 /**
  * A search request. Either collection-scoped (`collectionPath`) for
  * homogeneous results, or zone-scoped (`zone`) for heterogeneous
  * cross-collection results — see the two `client.search()` entry points.
  */
 export interface SearchQuery {
-  /** The free-text query string. */
+  /** The free-text query string, limited to {@link MAX_SEARCH_QUERY_LENGTH}. */
   query: string
   /**
    * Explicit full-text matching semantics. Defaults to all concepts required

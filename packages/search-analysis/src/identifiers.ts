@@ -13,12 +13,15 @@ export interface IdentifierSpan {
   value: string
   start: number
   end: number
+  /** Whether word segmentation should retain exact constituent terms. */
+  preserveConstituents: boolean
 }
 
 interface IdentifierRule {
   kind: SearchIdentifierKind
   pattern: RegExp
   value?: (match: string) => string
+  preserveConstituents?: boolean
 }
 
 const RULES: readonly IdentifierRule[] = [
@@ -29,7 +32,7 @@ const RULES: readonly IdentifierRule[] = [
   },
   {
     kind: 'email',
-    pattern: /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.[\p{L}]{2,}/giu,
+    pattern: /[\p{L}\p{N}._%+-]{1,64}@[\p{L}\p{N}.-]{1,255}\.[\p{L}]{2,63}/giu,
   },
   {
     kind: 'technical',
@@ -38,10 +41,12 @@ const RULES: readonly IdentifierRule[] = [
   {
     kind: 'sku',
     pattern: /\b[\p{L}]{2,}[-_]\d+\b/giu,
+    preserveConstituents: true,
   },
   {
     kind: 'version',
     pattern: /\bv?\d+(?:\.\d+){1,3}(?:-[\p{L}\p{N}.-]+)?\b/giu,
+    preserveConstituents: true,
   },
   {
     kind: 'mention',
@@ -88,7 +93,13 @@ export function extractIdentifierSpans(text: string): IdentifierSpan[] {
       const start = matchStart
       const end = start + value.length
       if (spans.some((span) => start < span.end && end > span.start)) continue
-      spans.push({ kind: rule.kind, value, start, end })
+      spans.push({
+        kind: rule.kind,
+        value,
+        start,
+        end,
+        preserveConstituents: rule.preserveConstituents ?? false,
+      })
     }
   }
 
@@ -100,6 +111,7 @@ export function maskIdentifierSpans(text: string, spans: readonly IdentifierSpan
   if (spans.length === 0) return text
   const characters = text.split('')
   for (const span of spans) {
+    if (span.preserveConstituents) continue
     for (let index = span.start; index < span.end; index++) {
       if (characters[index] !== '\n') characters[index] = ' '
     }

@@ -13,4 +13,6 @@ native analyzer.
 This is a direct cutover for the disposable search projection: reset the
 provider-owned search tables, apply the rewritten `0001_init.sql`, and rebuild
 published indexes. There is no native compatibility mode or in-place search
-migration.
+migration. Fingerprint checks read the per-collection metadata projection
+instead of scanning indexed documents, including zone-scoped checks, and
+ranked pagination uses stable document tie-breaks.

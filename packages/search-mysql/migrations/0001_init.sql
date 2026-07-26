@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS byline_search_documents (
 CREATE TABLE IF NOT EXISTS byline_search_index_metadata (
   collection_path      varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   analyzer_fingerprint varchar(512) CHARACTER SET ascii COLLATE ascii_bin      NOT NULL,
+  zones                json                                                   NOT NULL,
   updated_at           datetime(6)                                            NOT NULL,
   PRIMARY KEY (collection_path)
 ) ENGINE=InnoDB;

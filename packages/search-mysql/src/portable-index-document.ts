@@ -115,24 +115,70 @@ function serializeMatchingStreams(tokens: readonly LogicalToken[]): string[] {
   const source = tokens
     .filter((token) => token.kind === 'exact' || token.kind === 'identifier')
     .toSorted(compareTokens)
-  const streams = source.length > 0 ? [serializeTokenStream(source)] : []
+  const sourceGroups = groupTokensByPosition(source)
+  const sourceStreams = buildSourceStreams(sourceGroups)
+  const streams = [...sourceStreams]
+  const primarySource = sourceGroups.map(preferredSourceToken)
 
   for (const kind of ['stem', 'lemma', 'normalized'] as const) {
     const derived = tokens.filter((token) => token.kind === kind)
     if (derived.length === 0) continue
 
-    const firstByPosition = new Map<number, LogicalToken>()
+    const byPosition = new Map<number, LogicalToken[]>()
     for (const token of derived.toSorted(compareTokens)) {
-      if (!firstByPosition.has(token.position)) firstByPosition.set(token.position, token)
+      const positioned = byPosition.get(token.position)
+      if (positioned == null) byPosition.set(token.position, [token])
+      else positioned.push(token)
     }
     streams.push(
-      serializeTokenStream(source.map((token) => firstByPosition.get(token.position) ?? token))
+      serializeTokenStream(
+        primarySource.map((fallback) => byPosition.get(fallback.position)?.[0] ?? fallback)
+      )
     )
   }
 
   const grams = tokens.filter((token) => token.kind === 'gram').toSorted(compareTokens)
   if (grams.length > 0) streams.push(serializeTokenStream(grams))
-  return streams.filter((stream) => stream.length > 0)
+  return [...new Set(streams.filter((stream) => stream.length > 0))]
+}
+
+function buildSourceStreams(groups: readonly LogicalToken[][]): string[] {
+  if (groups.length === 0) return []
+  const streams = [serializeTokenStream(groups.map(preferredSourceToken))]
+  const exactVariantCount = Math.max(
+    0,
+    ...groups.map((group) => group.filter((token) => token.kind === 'exact').length)
+  )
+
+  for (let variant = 0; variant < exactVariantCount; variant++) {
+    streams.push(
+      serializeTokenStream(
+        groups.map((group) => {
+          const exact = group.filter((token) => token.kind === 'exact')
+          return exact[variant] ?? exact[0] ?? preferredSourceToken(group)
+        })
+      )
+    )
+  }
+  return [...new Set(streams)]
+}
+
+function preferredSourceToken(group: readonly LogicalToken[]): LogicalToken {
+  const token =
+    group.find((candidate) => candidate.kind === 'identifier') ??
+    group.find((candidate) => candidate.kind === 'exact')
+  if (token == null) throw new TypeError('Portable source position has no searchable token')
+  return token
+}
+
+function groupTokensByPosition(tokens: readonly LogicalToken[]): LogicalToken[][] {
+  const groups = new Map<number, LogicalToken[]>()
+  for (const token of tokens) {
+    const group = groups.get(token.position)
+    if (group == null) groups.set(token.position, [token])
+    else group.push(token)
+  }
+  return [...groups.values()]
 }
 
 function serializeTokenStream(tokens: readonly LogicalToken[]): string {

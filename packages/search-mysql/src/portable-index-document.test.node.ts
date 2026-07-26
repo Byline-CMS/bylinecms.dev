@@ -80,4 +80,22 @@ describe('buildPortableMySqlIndexDocument', () => {
 
     expect(document.searchText).toContain(`${stem} ${exactNeighbor}`)
   })
+
+  it('writes identifier and constituent phrase streams at one logical position', () => {
+    const document = buildPortableMySqlIndexDocument(
+      row({ weighted: { A: 'COVID-19 cases', B: '', C: '', D: '' } }),
+      createPortableSearchAnalyzer()
+    )
+    const cases = encodeSqlToken({ kind: 'exact', value: 'cases' })
+
+    expect(document.searchText).toContain(
+      `${encodeSqlToken({ kind: 'identifier', value: 'covid-19' })} ${cases}`
+    )
+    expect(document.searchText).toContain(
+      `${encodeSqlToken({ kind: 'exact', value: 'covid' })} ${cases}`
+    )
+    expect(document.searchText).toContain(
+      `${encodeSqlToken({ kind: 'exact', value: '19' })} ${cases}`
+    )
+  })
 })
