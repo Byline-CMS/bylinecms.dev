@@ -1,5 +1,25 @@
 # @byline/host-tanstack-start
 
+## 4.9.0
+
+### Minor Changes
+
+- added portable multilingual search analysis with built-in PostgreSQL and MySQL full-text providers, shared provider conformance, and original-text highlighted snippets
+  hardened query analysis against quadratic identifier scanning and preserved SKU/version constituent recall
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [635c16a]
+- Updated dependencies [78726f3]
+  - @byline/admin@4.9.0
+  - @byline/ai@4.9.0
+  - @byline/auth@4.9.0
+  - @byline/client@4.9.0
+  - @byline/core@4.9.0
+  - @byline/i18n@4.9.0
+  - @byline/ui@4.9.0
+
 ## 4.8.0
 
 ### Patch Changes

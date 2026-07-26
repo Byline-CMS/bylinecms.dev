@@ -1,5 +1,19 @@
 # @byline/storage-local
 
+## 4.9.0
+
+### Minor Changes
+
+- added portable multilingual search analysis with built-in PostgreSQL and MySQL full-text providers, shared provider conformance, and original-text highlighted snippets
+  hardened query analysis against quadratic identifier scanning and preserved SKU/version constituent recall
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [635c16a]
+- Updated dependencies [78726f3]
+  - @byline/core@4.9.0
+
 ## 4.8.0
 
 ### Patch Changes

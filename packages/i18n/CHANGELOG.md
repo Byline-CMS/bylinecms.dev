@@ -1,5 +1,17 @@
 # @byline/i18n
 
+## 4.9.0
+
+### Minor Changes
+
+- added portable multilingual search analysis with built-in PostgreSQL and MySQL full-text providers, shared provider conformance, and original-text highlighted snippets
+  hardened query analysis against quadratic identifier scanning and preserved SKU/version constituent recall
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/ui@4.9.0
+
 ## 4.8.0
 
 ### Patch Changes

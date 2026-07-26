@@ -1,5 +1,43 @@
 # @byline/core
 
+## 4.9.0
+
+### Minor Changes
+
+- added portable multilingual search analysis with built-in PostgreSQL and MySQL full-text providers, shared provider conformance, and original-text highlighted snippets
+  hardened query analysis against quadratic identifier scanning and preserved SKU/version constituent recall
+- 635c16a: Added provider-neutral full-text matching contracts and
+  `@byline/search-analysis`, a portable multilingual analysis and query-planning
+  package. The analyzer preserves exact terms, validates locale declarations,
+  uses ICU word boundaries, protects domain identifiers, emits optional
+  language-specific variants and Han bigrams, and records a stable fingerprint
+  for reindex decisions. It also builds bounded, original-text highlighted
+  snippets from the same portable token offsets. Collection and zone search now
+  pass explicit all/any, minimum-should-match, and phrase intent to search
+  providers. Search providers must declare their full-text capabilities and
+  implement index clearing so every derived projection remains explicitly
+  rebuildable. Query analysis rejects inputs above the shared 1,024-code-unit
+  limit, identifier extraction remains linear on long unbroken text, and
+  SKU/version constituents augment their complete identifier at one logical
+  position instead of being removed from recall.
+
+### Patch Changes
+
+- 78726f3: Added the built-in MySQL full-text `SearchProvider`, backed by portable
+  multilingual analysis, weighted MySQL `FULLTEXT` indexes, driver-owned
+  migrations, analyzer-fingerprint enforcement, and the shared provider
+  conformance suite. Ranked hits include portable highlighted snippets from the
+  stored original body text.
+
+  Documented and wired `@byline/db-mysql` installations to use the real search
+  provider instead of a no-op workaround. Fingerprint checks use collection
+  metadata rather than scanning indexed documents, and phrase translation now
+  emits only the source and expansion-kind variants represented by physical
+  matching streams.
+
+- Updated dependencies
+  - @byline/auth@4.9.0
+
 ## 4.8.0
 
 ### Minor Changes

@@ -1,5 +1,34 @@
 # @byline/search-postgres
 
+## 4.9.0
+
+### Minor Changes
+
+- added portable multilingual search analysis with built-in PostgreSQL and MySQL full-text providers, shared provider conformance, and original-text highlighted snippets
+  hardened query analysis against quadratic identifier scanning and preserved SKU/version constituent recall
+- 2ecdbcc: Replaced PostgreSQL-native term analysis with the shared portable
+  multilingual analyzer and query plan. The adapter now supports all/any,
+  minimum-should-match, phrases, protected identifiers, exact-preserving
+  expansions, ordered Han-bigram fallback, and analyzer-fingerprint rebuild
+  guards through one weighted `tsvector`. Ranked hits again include highlighted
+  snippets, now produced from shared portable offsets rather than PostgreSQL's
+  native analyzer.
+
+  This is a direct cutover for the disposable search projection: reset the
+  provider-owned search tables, apply the rewritten `0001_init.sql`, and rebuild
+  published indexes. There is no native compatibility mode or in-place search
+  migration. Fingerprint checks read the per-collection metadata projection
+  instead of scanning indexed documents, including zone-scoped checks, and
+  ranked pagination uses stable document tie-breaks.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [635c16a]
+- Updated dependencies [78726f3]
+  - @byline/core@4.9.0
+  - @byline/search-analysis@4.9.0
+
 ## 4.8.0
 
 ### Patch Changes
