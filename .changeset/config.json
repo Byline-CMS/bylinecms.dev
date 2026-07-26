@@ -17,6 +17,7 @@
       "@byline/i18n",
       "@byline/richtext-lexical",
       "@byline/search-analysis",
+      "@byline/search-mysql",
       "@byline/search-postgres",
       "@byline/storage-local",
       "@byline/storage-s3",

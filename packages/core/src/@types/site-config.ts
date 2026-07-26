@@ -425,10 +425,10 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    * beside `db` and `storage`, composed by `initBylineCore()`.
    *
    * Drivers ship as separate packages and are constructed via a factory,
-   * mirroring the richText server adapters. The built-in Postgres
-   * full-text driver is `@byline/search-postgres`. When any collection
-   * opts into search (`CollectionDefinition.search`) but no provider is
-   * registered, `initBylineCore()` fails fast.
+   * mirroring the richText server adapters. The built-in SQL full-text drivers
+   * are `@byline/search-postgres` and `@byline/search-mysql`. When any
+   * collection opts into search (`CollectionDefinition.search`) but no
+   * provider is registered, `initBylineCore()` fails fast.
    *
    * @example
    * ```ts

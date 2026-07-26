@@ -17,12 +17,13 @@
  * the provider never sees EAV store rows. The document carries a typed,
  * role-tagged field projection ({@link SearchField}) so a driver can map
  * each field onto its own index schema (Postgres store columns + weighted
- * tsvector, Solr dynamic fields, a vector store's payload, …) without
- * re-deriving types. A built-in Postgres full-text driver ships as
- * `@byline/search-postgres`; external drivers implement the same interface
- * rather than forking the read path.
+ * tsvector, MySQL FULLTEXT columns, Solr dynamic fields, a vector store's
+ * payload, …) without re-deriving types. Built-in SQL full-text drivers ship as
+ * `@byline/search-postgres` and `@byline/search-mysql`; external drivers
+ * implement the same interface rather than forking the read path.
  *
- * The provider factory (e.g. `postgresSearch({ pool })`) lives in the
+ * The provider factory (e.g. `postgresSearch({ pool })` or
+ * `mysqlSearch({ pool })`) lives in the
  * driver package, not here — core declares only the interface and its data
  * types, the same way `RichTextPopulateFn` is declared in core while
  * `lexicalEditorPopulateServer()` lives in `@byline/richtext-lexical`. This
