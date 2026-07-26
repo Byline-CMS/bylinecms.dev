@@ -22,7 +22,7 @@
  * `@byline/search-postgres`; external drivers implement the same interface
  * rather than forking the read path.
  *
- * The provider factory (e.g. `postgresSearch({ getClient })`) lives in the
+ * The provider factory (e.g. `postgresSearch({ pool })`) lives in the
  * driver package, not here — core declares only the interface and its data
  * types, the same way `RichTextPopulateFn` is declared in core while
  * `lexicalEditorPopulateServer()` lives in `@byline/richtext-lexical`. This
@@ -303,11 +303,8 @@ export interface SearchCapabilities {
   weighting: boolean
   /** Matched-snippet highlighting in results. */
   highlights: boolean
-  /**
-   * Detailed lexical capabilities. Optional during the compatibility window
-   * for existing third-party providers; new providers should declare it.
-   */
-  lexical?: {
+  /** Detailed lexical analysis and matching capabilities. */
+  lexical: {
     /** The backend applies its own language analyzer to original text. */
     nativeAnalysis: boolean
     /** The backend can index application-produced portable logical tokens. */
@@ -350,9 +347,9 @@ export interface SearchProvider {
   /** Execute a query and return ranked hits. */
   search(query: SearchQuery): Promise<SearchResults>
   /**
-   * Drop and rebuild a collection's slice (or the whole index). Used for
-   * first-time backfill, driver swaps, and after a `search` config change.
-   * Optional — not every driver supports bulk rebuild.
+   * Clear a collection's slice (or the whole derived index) before the caller
+   * rebuilds it. Required because search projections are disposable and must
+   * be reproducible after analyzer, schema, or provider changes.
    */
-  reindex?(opts: { collectionPath?: string }): Promise<void>
+  reindex(opts: { collectionPath?: string }): Promise<void>
 }

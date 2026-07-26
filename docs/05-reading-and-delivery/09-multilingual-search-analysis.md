@@ -145,8 +145,10 @@ The implementation sequence keeps each phase reviewable:
    schema and query translator, then rebuild the two owned installations from
    published content. **Shipped.**
 3. Extract shared provider conformance tests for matching semantics,
-   capabilities, published-only lifecycle behavior, locale isolation, and
-   fingerprint mismatch/reindex behavior.
+   capabilities, published-status filtering, locale isolation, and
+   fingerprint mismatch/reindex behavior. **Shipped in
+   `@byline/search-conformance`, with PostgreSQL as the first passing
+   adapter.**
 4. Complete `@byline/search-mysql` against the same query plans and conformance
    suite, with MySQL-specific schema and full-text translation.
 5. Adapt the existing Solr implementation, normally using Solr's native

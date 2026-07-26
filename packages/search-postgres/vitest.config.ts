@@ -1,7 +1,8 @@
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig(({ mode }) => {
-  const testFiles = mode === 'node' ? ['**/*.test.node.ts'] : ['**/*.test.ts']
+  const isIntegration = mode === 'integration'
+  const testFiles = isIntegration ? ['tests/**/*.integration.test.ts'] : ['**/*.test.node.ts']
 
   return {
     test: {
@@ -9,6 +10,14 @@ export default defineConfig(({ mode }) => {
       include: testFiles,
       reporter: 'verbose',
       globals: true,
+      ...(isIntegration
+        ? {
+            setupFiles: ['./tests/setup.integration.ts'],
+            fileParallelism: false,
+            maxWorkers: 1,
+            isolate: false,
+          }
+        : {}),
     },
   }
 })

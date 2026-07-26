@@ -99,8 +99,8 @@ interface SearchProvider {
   remove(ref: { collectionPath: string; documentId: string; locale?: string }): Promise<void>
   /** Execute a query and return ranked hits. */
   search(query: SearchQuery): Promise<SearchResults>
-  /** Drop a collection's slice (or the whole index) — the clear half of a rebuild. */
-  reindex?(opts: { collectionPath?: string }): Promise<void>
+  /** Clear a collection's slice (or the whole index) — the first half of a rebuild. */
+  reindex(opts: { collectionPath?: string }): Promise<void>
 }
 
 interface SearchCapabilities {
@@ -110,7 +110,7 @@ interface SearchCapabilities {
   bm25: boolean           // IDF-aware ranking
   weighting: boolean      // per-field SearchField.boost
   highlights: boolean     // matched-snippet highlighting
-  lexical?: {             // detailed matching/analysis support
+  lexical: {              // detailed matching/analysis support
     nativeAnalysis: boolean
     portableAnalysis: boolean
     allTerms: boolean
@@ -137,6 +137,11 @@ interface SearchCapabilities {
 - **External drivers** implement the same interface. A vector driver embeds the
   text on `upsert` and runs ANN on `search`; a hybrid driver fuses scores. None
   touch the read path. (Planned — Phase 4.)
+- **Conformance** is executable rather than documentary:
+  `@byline/search-conformance` supplies backend-neutral capability, lifecycle,
+  scoping, matching, multilingual parser, weighting, and analyzer-fingerprint
+  suites. PostgreSQL runs the aggregate suite against its real test database;
+  MySQL will use the named suites incrementally during its port.
 
 ## The collection search config (shipped)
 

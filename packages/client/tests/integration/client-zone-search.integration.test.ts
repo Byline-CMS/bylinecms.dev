@@ -316,11 +316,11 @@ describe('zone (cross-collection) search', () => {
         collectionPath,
       })
 
-      await changed.reindex?.({ collectionPath })
+      await changed.reindex({ collectionPath })
       await changed.upsert(document)
       await expect(search(changed)).resolves.toMatchObject({ total: 1 })
     } finally {
-      await changed.reindex?.({ collectionPath })
+      await changed.reindex({ collectionPath })
     }
   })
 
@@ -356,7 +356,7 @@ describe('zone (cross-collection) search', () => {
         })
       ).resolves.toMatchObject({ total: 1 })
     } finally {
-      await provider.reindex?.({ collectionPath })
+      await provider.reindex({ collectionPath })
     }
   })
 

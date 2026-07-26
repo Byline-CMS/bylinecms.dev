@@ -99,9 +99,17 @@ cd packages/client && pnpm vitest run --mode=integration tests/integration/clien
 
 # @byline/db-postgres
 cd packages/db-postgres && pnpm vitest run --mode=integration tests/conformance.integration.test.ts
+
+# @byline/search-postgres
+cd packages/search-postgres && pnpm vitest run --mode=integration tests/conformance.integration.test.ts
 ```
 
-The conformance entry point runs all eleven `@byline/db-conformance` suites (versioning, document paths, transactions, and so on) against the Postgres adapter in one file, so narrow to a single suite by name with `-t`:
+The storage conformance entry point runs `@byline/db-conformance` against the
+database adapter. The search entry point runs
+`@byline/search-conformance` against the real PostgreSQL index, including
+matching semantics, multilingual parser survival, lifecycle operations,
+relative weighting, and analyzer-fingerprint enforcement. Narrow either
+aggregate file to one case or suite with `-t`:
 
 ```sh
 pnpm vitest run --mode=integration -t "tampered"
