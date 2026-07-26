@@ -1,0 +1,27 @@
+{
+  "name": "@byline/search-conformance",
+  "private": true,
+  "license": "MPL-2.0",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "description": "Backend-neutral behavioral conformance suites for Byline CMS SearchProvider implementations",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "lint": "biome check --write --unsafe --diagnostic-level=error",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@byline/core": "workspace:*",
+    "@byline/search-analysis": "workspace:*"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.4",
+    "@types/node": "^26.1.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}
