@@ -50,7 +50,8 @@
     "migrations"
   ],
   "dependencies": {
-    "@byline/core": "workspace:*"
+    "@byline/core": "workspace:*",
+    "@byline/search-analysis": "workspace:*"
   },
   "peerDependencies": {
     "pg": "^8.21.0"

@@ -10,7 +10,6 @@ import type { SearchDocument } from '@byline/core'
 import { describe, expect, it } from 'vitest'
 
 import { buildIndexRow, weightClass } from './build-index-row.js'
-import { createRegconfigResolver } from './locale-regconfig.js'
 
 function doc(overrides: Partial<SearchDocument> = {}): SearchDocument {
   return {
@@ -123,26 +122,5 @@ describe('buildIndexRow', () => {
       })
     )
     expect(row.body).toBe('Body text.\nEcology')
-  })
-})
-
-describe('createRegconfigResolver', () => {
-  const resolve = createRegconfigResolver()
-
-  it('maps known locales (and their base) to a Postgres regconfig', () => {
-    expect(resolve('en')).toBe('english')
-    expect(resolve('fr')).toBe('french')
-    expect(resolve('fr-CA')).toBe('french')
-  })
-
-  it('falls back to simple for unknown locales / undefined', () => {
-    expect(resolve('th')).toBe('simple')
-    expect(resolve(undefined)).toBe('simple')
-  })
-
-  it('honours overrides and a custom fallback', () => {
-    const custom = createRegconfigResolver({ th: 'thai' }, 'english')
-    expect(custom('th')).toBe('thai')
-    expect(custom('xx')).toBe('english')
   })
 })

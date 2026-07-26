@@ -21,7 +21,13 @@
  */
 
 import { AdminAuth, createRequestContext, type RequestContext } from '@byline/auth'
-import type { BeforeReadHookFn, IDbAdapter, QueryPredicate } from '@byline/core'
+import type {
+  BeforeReadHookFn,
+  IDbAdapter,
+  QueryPredicate,
+  SearchDocument,
+  SearchProvider,
+} from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
 import { migrate, postgresSearch } from '@byline/search-postgres'
 import type { Pool } from 'pg'
@@ -109,6 +115,7 @@ interface Ctx {
 }
 
 let ctx: Ctx
+let searchPool: Pool
 let articleOne: string
 let articleTwo: string
 let noteAlice: string
@@ -121,7 +128,11 @@ beforeAll(async () => {
       requestContext: () => currentRequestContext,
       search: (adapter) => {
         const pool = (adapter as unknown as { pool: Pool }).pool
-        return postgresSearch({ pool, defaultLocale: 'en' })
+        searchPool = pool
+        return postgresSearch({
+          pool,
+          defaultLocale: 'en',
+        })
       },
     }
   )
@@ -168,6 +179,46 @@ describe('zone (cross-collection) search', () => {
     expect(paths.has(articlesPath)).toBe(true)
     expect(paths.has(notesPath)).toBe(true)
     expect(results.total).toBe(4)
+  })
+
+  it('implements all, any, minimum-should-match, and phrase policies', async () => {
+    setSuperActor('super')
+
+    await expect(
+      ctx.client.search({
+        query: 'zonal missing',
+        zone,
+        matching: { operator: 'all' },
+      })
+    ).resolves.toMatchObject({ total: 0 })
+    await expect(
+      ctx.client.search({
+        query: 'zonal missing',
+        zone,
+        matching: { operator: 'any' },
+      })
+    ).resolves.toMatchObject({ total: 4 })
+    await expect(
+      ctx.client.search({
+        query: 'zonal report missing',
+        zone,
+        matching: { operator: 'any', minimumShouldMatch: 2 },
+      })
+    ).resolves.toMatchObject({ total: 4 })
+    await expect(
+      ctx.client.search({
+        query: '"report zonal"',
+        zone,
+        matching: { operator: 'all', phrase: 'auto' },
+      })
+    ).resolves.toMatchObject({ total: 0 })
+    await expect(
+      ctx.client.search({
+        query: '"report zonal"',
+        zone,
+        matching: { operator: 'all', phrase: 'off' },
+      })
+    ).resolves.toMatchObject({ total: 4 })
   })
 
   it('throws ERR_VALIDATION for a zone no collection indexes into', async () => {
@@ -230,6 +281,82 @@ describe('zone (cross-collection) search', () => {
     expect(results.hits).toHaveLength(2)
     for (const hit of results.hits) {
       expect(hit.document?.fields?.title).toBe(hit.title)
+    }
+  })
+
+  it('requires a rebuilt index after the analyzer fingerprint changes', async () => {
+    const collectionPath = `portable-fingerprint-${suffix}`
+    const document: SearchDocument = {
+      collectionPath,
+      documentId: 'fingerprint-doc',
+      locale: 'en',
+      status: 'published',
+      zones: [],
+      title: 'Fingerprint report',
+      path: 'fingerprint-report',
+      updatedAt: new Date().toISOString(),
+      fields: [
+        {
+          name: 'title',
+          type: 'text',
+          role: 'body',
+          value: 'Fingerprint report',
+        },
+      ],
+    }
+    const original = postgresSearch({ pool: searchPool, defaultLocale: 'en' })
+    const changed = postgresSearch({ pool: searchPool, defaultLocale: 'th' })
+    const search = (provider: SearchProvider) =>
+      provider.search({ query: 'fingerprint', collectionPath, locale: 'en' })
+
+    try {
+      await original.upsert(document)
+      await expect(search(changed)).rejects.toMatchObject({
+        code: 'SEARCH_INDEX_REINDEX_REQUIRED',
+        collectionPath,
+      })
+
+      await changed.reindex?.({ collectionPath })
+      await changed.upsert(document)
+      await expect(search(changed)).resolves.toMatchObject({ total: 1 })
+    } finally {
+      await changed.reindex?.({ collectionPath })
+    }
+  })
+
+  it('matches an ordered Han-bigram substring across segmentation boundaries', async () => {
+    const collectionPath = `portable-han-${suffix}`
+    const provider = postgresSearch({ pool: searchPool, defaultLocale: 'en' })
+
+    try {
+      await provider.upsert({
+        collectionPath,
+        documentId: 'han-doc',
+        locale: 'zh',
+        status: 'published',
+        zones: [],
+        title: '数据库搜索',
+        path: 'database-search',
+        updatedAt: new Date().toISOString(),
+        fields: [
+          {
+            name: 'title',
+            type: 'text',
+            role: 'body',
+            value: '数据库搜索',
+          },
+        ],
+      })
+
+      await expect(
+        provider.search({
+          query: '据库搜',
+          collectionPath,
+          locale: 'zh',
+        })
+      ).resolves.toMatchObject({ total: 1 })
+    } finally {
+      await provider.reindex?.({ collectionPath })
     }
   })
 
