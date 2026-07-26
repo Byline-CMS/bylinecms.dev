@@ -14,7 +14,7 @@ Companions:
 
 Byline search is a ranked retrieval subsystem for the public applications you build on top of the CMS. It is designed for installations that want useful full-text search without adding a separate search server, while keeping a provider boundary for deployments that later need Solr or another dedicated engine.
 
-The default PostgreSQL and MySQL providers reuse the database pool that already stores CMS content. They add their own disposable search tables in the same database, so a small organization can run the application, admin interface, content store, and search index on one host. There is no second service to provision, secure, monitor, or pay for.
+The default PostgreSQL and MySQL providers reuse the database pool that already stores CMS content. They add their own disposable search tables in the same database. Smaller organizations can run the application, admin interface, content store, and search index on one host. There is no second service to provision, secure, monitor, or pay for.
 
 This is a good fit for content sites with hundreds or a few thousand documents, including multilingual documents and text that has already been extracted from attachments. Only published versions enter the index. Lifecycle hooks may still reconcile the published view after a draft save, but they never index the draft itself.
 
