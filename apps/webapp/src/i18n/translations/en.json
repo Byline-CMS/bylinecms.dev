@@ -13,6 +13,7 @@
     "docsNext": "Next",
     "docsPagination": "Documentation pages",
     "docsSearchHeading": "Search",
+    "docsSearchBreadcrumb": "Query",
     "docsSearchPlaceholder": "Search documentation",
     "docsSearchResultsFor": "results for",
     "docsSearchNoResults": "No results for",

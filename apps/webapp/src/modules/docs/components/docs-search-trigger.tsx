@@ -27,16 +27,19 @@ export function DocsSearchTrigger({
   const navigate = useNavigate()
   const { t } = useTranslations('frontend')
 
+  // Results render on the docs index route itself (`/docs?q=…`) so that no
+  // static segment under `docs/` can shadow a document slug — see the note in
+  // `routes/$lng/_frontend/docs/index.tsx`.
   const runSearch = (value: string): void => {
     const q = value.trim()
     if (q.length === 0) return
-    navigate({ to: '/$lng/docs/search', params: lngParam(lng), search: { q } })
+    navigate({ to: '/$lng/docs', params: lngParam(lng), search: { q } })
     onNavigate?.()
   }
 
-  // Clearing the field returns to the docs table of contents (the index).
+  // Clearing the field drops `q` and returns to the docs table of contents.
   const onClear = (): void => {
-    navigate({ to: '/$lng/docs', params: lngParam(lng) })
+    navigate({ to: '/$lng/docs', params: lngParam(lng), search: {} })
     onNavigate?.()
   }
 
