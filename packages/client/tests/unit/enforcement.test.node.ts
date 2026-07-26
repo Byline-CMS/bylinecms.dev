@@ -526,7 +526,7 @@ describe('CollectionHandle enforcement', () => {
   })
 
   describe('search query contracts', () => {
-    it('passes lexical matching intent through collection and zone search', async () => {
+    it('passes full-text matching intent through collection and zone search', async () => {
       const providerSearch = vi.fn().mockResolvedValue({ hits: [], total: 0 })
       const client = createBylineClient({
         db: mockDb(),

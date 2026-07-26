@@ -29,7 +29,7 @@ const CAPABILITIES: SearchCapabilities = {
   bm25: false,
   weighting: true,
   highlights: false,
-  lexical: {
+  fullText: {
     nativeAnalysis: false,
     portableAnalysis: true,
     allTerms: true,

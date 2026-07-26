@@ -1,7 +1,7 @@
 ---
 title: "Portable Multilingual Search Analysis"
 path: "multilingual-search-analysis"
-summary: "The backend-neutral lexical matching, token analysis, query-plan, physical encoding, and analyzer-fingerprint contracts shared by Byline search providers."
+summary: "The backend-neutral full-text matching, token analysis, query-plan, physical encoding, and analyzer-fingerprint contracts shared by Byline search providers."
 ---
 
 # Portable Multilingual Search Analysis
@@ -25,7 +25,7 @@ disposable `0001_init.sql` projection.
 
 `SearchProvider` remains the stable storage and retrieval seam. It accepts
 original `SearchDocument` projections and returns ranked `SearchResults`.
-Multilingual lexical analysis is a different concern: it converts original text
+Multilingual term analysis is a different concern: it converts original text
 and query intent into a deterministic logical representation before an adapter
 chooses its physical index syntax.
 

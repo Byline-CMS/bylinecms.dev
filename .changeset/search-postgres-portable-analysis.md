@@ -2,7 +2,7 @@
 "@byline/search-postgres": minor
 ---
 
-Replaced PostgreSQL-native lexical analysis with the shared portable
+Replaced PostgreSQL-native term analysis with the shared portable
 multilingual analyzer and query plan. The adapter now supports all/any,
 minimum-should-match, phrases, protected identifiers, exact-preserving
 expansions, ordered Han-bigram fallback, and analyzer-fingerprint rebuild
