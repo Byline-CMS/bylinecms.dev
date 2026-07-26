@@ -28,6 +28,7 @@ Byline CMS — an open-source, AI-first headless CMS. Currently at a stable v4.x
 | `packages/i18n` | `@byline/i18n` | Admin-interface translation system — `TranslationBundle` types, `mergeTranslations`, ICU formatter, locale resolution. React surface (`I18nProvider`, `useTranslation`, `LanguageMenu`) at `@byline/i18n/react`. Built-in `byline-admin` bundle (EN/FR) + `adminTranslations({ locales })` factory at `@byline/i18n/admin`. |
 | `packages/richtext-lexical` | `@byline/richtext-lexical` | Lexical-based richtext editor adapter |
 | `packages/search-analysis` | `@byline/search-analysis` | Portable multilingual lexical analysis and backend-neutral query planning — NFKC normalization, locale resolution, protected identifiers, ICU word segmentation, language expansion hooks, Han bigrams, analyzer fingerprints, and SQL-safe physical tokens |
+| `packages/search-conformance` | `@byline/search-conformance` | Private backend-neutral behavioral suite for `SearchProvider` adapters — capabilities, lifecycle/scoping, lexical matching, portable parser survival, weighting, and analyzer-fingerprint rebuild enforcement |
 | `packages/search-postgres` | `@byline/search-postgres` | Built-in Postgres full-text `SearchProvider` driver — weighted `tsvector` index; owns its own schema (numbered SQL migrations); reuses the host pg pool. See "Search & Retrieval" below |
 | `packages/ai` | `@byline/ai` | AI subsystem — provider-agnostic execution (OpenAI / Google / Anthropic) for `executeInstruction`, `generateStructured`, and Lexical-node `patch` (streaming + non-streaming). Browser-safe root entry; SDK-backed execution behind `@byline/ai/server`; editor plugins at `@byline/ai/plugins/{text,lexical}`. See `packages/ai/README.md` |
 | `packages/cli` | `@byline/cli` | Guided installer that adds Byline to an existing TanStack Start app (`byline init`, `doctor`, …) |
@@ -196,7 +197,7 @@ the forward-looking landscape for the unbuilt phases is
 `docs/05-reading-and-delivery/08-search-extraction-strategy.md`.
 
 - **Interface & types**: `SearchProvider` (`capabilities` + `upsert` / `remove` /
-  `search` / `reindex?`), the type-enriched `SearchDocument` (a role-tagged
+  `search` / `reindex`), the type-enriched `SearchDocument` (a role-tagged
   `SearchField[]` projection), `SearchQuery` / `SearchResults`, provider-neutral
   `SearchMatching`, and `SearchCapabilities`
   live in `packages/core/src/@types/search-types.ts`. The provider is a pure index
@@ -207,6 +208,11 @@ the forward-looking landscape for the unbuilt phases is
   exact-preserving language expansions, Han bigrams, SQL-safe physical token
   encoding, and analyzer fingerprints for safe rebuilds. The PostgreSQL driver
   uses this portable analysis exclusively.
+- **Conformance**: `@byline/search-conformance` owns the shared capability,
+  lifecycle/scoping, matching, parser-survival, weighting, and fingerprint
+  suites. `packages/search-postgres/tests/conformance.integration.test.ts`
+  runs the complete suite against live PostgreSQL; MySQL consumes the same
+  named suites during its port.
 - **Collection search config**: `CollectionDefinition.search = { body?, facets?, filters?, zones? }`
   (`SearchFieldDecl = string | { field, boost? }`). The implementor names fields by
   the part they play; core derives each field's type from the schema. Nothing auto-pulled.
