@@ -29,3 +29,7 @@ it efficiently.
   (Postgres full-text search built in, vector / hybrid as external drivers),
   shipped collection/zone search, hydration, and post-ranking authorization,
   exposed through the Client SDK surfaces developers build site search on.
+- [Portable Multilingual Search Analysis](./09-multilingual-search-analysis.md)
+  — the backend-neutral token, matching, query-plan, and analyzer-fingerprint
+  contracts that prepare PostgreSQL and MySQL for consistent multilingual
+  behavior.

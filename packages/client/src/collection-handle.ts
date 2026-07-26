@@ -248,6 +248,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     }
     const results = await provider.search({
       query: options.query,
+      matching: options.matching,
       collectionPath: this.definition.path,
       locale: options.locale ?? this.client.defaultLocale,
       status: readMode,
