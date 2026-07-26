@@ -309,7 +309,10 @@ export interface ReindexResult {
   collectionPath: string
   /** Number of published documents walked. */
   documents: number
-  /** Number of `(document, locale)` index rows upserted. */
+  /**
+   * Currently mirrors `documents` — the provider upserts are the source of
+   * truth for how many `(document, locale)` rows were written.
+   */
   indexed: number
 }
 

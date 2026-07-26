@@ -50,9 +50,10 @@ export function weightClass(boost: number | undefined, defaultClass: WeightClass
 
 /**
  * Transform a `SearchDocument` into the flat `IndexRow` the provider writes.
- * Pure — no SQL, no DB. The title always weights `A`; body text weights by
- * boost (default `B`); facet terms weight by boost (default `C`) and their
- * ids are projected into `facets`; filters are projected as-is.
+ * Pure — no SQL, no DB. `title` is display-only and never weighted (see the
+ * note below); body text weights by boost (default `B`); facet terms weight by
+ * boost (default `C`) and their ids are projected into `facets`; filters are
+ * projected as-is.
  */
 export function buildIndexRow(doc: SearchDocument): IndexRow {
   const weighted: Record<WeightClass, string[]> = { A: [], B: [], C: [], D: [] }
