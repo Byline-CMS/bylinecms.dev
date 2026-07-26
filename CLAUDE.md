@@ -27,6 +27,7 @@ Byline CMS — an open-source, AI-first headless CMS. Currently at a stable v4.x
 | `packages/ui` | `@byline/ui` | Framework-agnostic React primitives — Button, Input, Modal, Drawer, Table, Alert, icons, datepicker, generic `DraggableSortable`. No CMS concepts; importable independent of admin. Single barrel at `@byline/ui/react`. |
 | `packages/i18n` | `@byline/i18n` | Admin-interface translation system — `TranslationBundle` types, `mergeTranslations`, ICU formatter, locale resolution. React surface (`I18nProvider`, `useTranslation`, `LanguageMenu`) at `@byline/i18n/react`. Built-in `byline-admin` bundle (EN/FR) + `adminTranslations({ locales })` factory at `@byline/i18n/admin`. |
 | `packages/richtext-lexical` | `@byline/richtext-lexical` | Lexical-based richtext editor adapter |
+| `packages/search-analysis` | `@byline/search-analysis` | Portable multilingual lexical analysis and backend-neutral query planning — NFKC normalization, locale resolution, protected identifiers, ICU word segmentation, language expansion hooks, Han bigrams, analyzer fingerprints, and SQL-safe physical tokens |
 | `packages/search-postgres` | `@byline/search-postgres` | Built-in Postgres full-text `SearchProvider` driver — weighted `tsvector` index; owns its own schema (numbered SQL migrations); reuses the host pg pool. See "Search & Retrieval" below |
 | `packages/ai` | `@byline/ai` | AI subsystem — provider-agnostic execution (OpenAI / Google / Anthropic) for `executeInstruction`, `generateStructured`, and Lexical-node `patch` (streaming + non-streaming). Browser-safe root entry; SDK-backed execution behind `@byline/ai/server`; editor plugins at `@byline/ai/plugins/{text,lexical}`. See `packages/ai/README.md` |
 | `packages/cli` | `@byline/cli` | Guided installer that adds Byline to an existing TanStack Start app (`byline init`, `doctor`, …) |
@@ -196,9 +197,16 @@ the forward-looking landscape for the unbuilt phases is
 
 - **Interface & types**: `SearchProvider` (`capabilities` + `upsert` / `remove` /
   `search` / `reindex?`), the type-enriched `SearchDocument` (a role-tagged
-  `SearchField[]` projection), `SearchQuery` / `SearchResults`, and `SearchCapabilities`
+  `SearchField[]` projection), `SearchQuery` / `SearchResults`, provider-neutral
+  `SearchMatching`, and `SearchCapabilities`
   live in `packages/core/src/@types/search-types.ts`. The provider is a pure index
   **sink** — it never reads source documents.
+- **Portable analysis**: `@byline/search-analysis` owns the optional
+  backend-neutral token and query-plan layer: search-only NFKC normalization,
+  validated locale/script fallback, protected identifiers, ICU word boundaries,
+  exact-preserving language expansions, Han bigrams, SQL-safe physical token
+  encoding, and analyzer fingerprints for reindex compatibility. The current
+  Postgres driver remains on its native analyzer until its explicit adapter phase.
 - **Collection search config**: `CollectionDefinition.search = { body?, facets?, filters?, zones? }`
   (`SearchFieldDecl = string | { field, boost? }`). The implementor names fields by
   the part they play; core derives each field's type from the schema. Nothing auto-pulled.

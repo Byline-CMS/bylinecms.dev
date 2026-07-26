@@ -525,6 +525,46 @@ describe('CollectionHandle enforcement', () => {
     })
   })
 
+  describe('search query contracts', () => {
+    it('passes lexical matching intent through collection and zone search', async () => {
+      const providerSearch = vi.fn().mockResolvedValue({ hits: [], total: 0 })
+      const client = createBylineClient({
+        db: mockDb(),
+        collections: [postsCollection],
+        requestContext: createSuperAdminContext(),
+        search: {
+          capabilities: {},
+          upsert: vi.fn(),
+          remove: vi.fn(),
+          search: providerSearch,
+        } as any,
+      })
+
+      await client.collection('posts').search({
+        query: 'forest restoration',
+        matching: { operator: 'any', minimumShouldMatch: 1, phrase: 'off' },
+      })
+      await client.search({
+        query: '"forest restoration"',
+        zone: 'posts',
+        matching: { operator: 'all', phrase: 'required' },
+      })
+
+      expect(providerSearch).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          matching: { operator: 'any', minimumShouldMatch: 1, phrase: 'off' },
+        })
+      )
+      expect(providerSearch).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          matching: { operator: 'all', phrase: 'required' },
+        })
+      )
+    })
+  })
+
   describe('beforeRead predicates fail closed', () => {
     it.each([
       [{ typoedOwner: 'alice' }, 'unknown field'],

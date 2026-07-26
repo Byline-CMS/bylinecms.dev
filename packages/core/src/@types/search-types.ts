@@ -160,6 +160,35 @@ export interface SearchDocument {
 // Query surface
 // ---------------------------------------------------------------------------
 
+/** How independently analyzed query concepts combine for lexical matching. */
+export type SearchTermOperator = 'all' | 'any'
+
+/**
+ * Phrase behavior for a lexical query:
+ *
+ * - `auto` — quoted spans are phrases; unquoted text follows `operator`.
+ * - `required` — the complete non-empty query is also required as a phrase.
+ * - `off` — do not create phrase constraints, including for quoted spans.
+ */
+export type SearchPhraseMode = 'auto' | 'required' | 'off'
+
+/**
+ * Provider-neutral lexical matching intent. Providers translate this into
+ * their native query syntax; it is product behavior, not a ranking hint.
+ */
+export interface SearchMatching {
+  /** Whether every concept or any concept must match. Defaults to `all`. */
+  operator?: SearchTermOperator
+  /**
+   * Require at least this many concepts when `operator` is `any`.
+   * Providers that cannot express this advertise that limitation through
+   * `capabilities.lexical.minimumShouldMatch`.
+   */
+  minimumShouldMatch?: number
+  /** Phrase handling. Defaults to `auto`. */
+  phrase?: SearchPhraseMode
+}
+
 /**
  * A search request. Either collection-scoped (`collectionPath`) for
  * homogeneous results, or zone-scoped (`zone`) for heterogeneous
@@ -168,6 +197,11 @@ export interface SearchDocument {
 export interface SearchQuery {
   /** The free-text query string. */
   query: string
+  /**
+   * Explicit lexical matching semantics. Defaults to all concepts required
+   * with quoted spans treated as phrases.
+   */
+  matching?: SearchMatching
   /**
    * Cross-collection scope — every collection indexed into this zone.
    * Mutually exclusive with `collectionPath` in practice.
@@ -269,6 +303,24 @@ export interface SearchCapabilities {
   weighting: boolean
   /** Matched-snippet highlighting in results. */
   highlights: boolean
+  /**
+   * Detailed lexical capabilities. Optional during the compatibility window
+   * for existing third-party providers; new providers should declare it.
+   */
+  lexical?: {
+    /** The backend applies its own language analyzer to original text. */
+    nativeAnalysis: boolean
+    /** The backend can index application-produced portable logical tokens. */
+    portableAnalysis: boolean
+    /** Supports `matching.operator: 'all'`. */
+    allTerms: boolean
+    /** Supports `matching.operator: 'any'`. */
+    anyTerms: boolean
+    /** Supports `matching.minimumShouldMatch`. */
+    minimumShouldMatch: boolean
+    /** Supports ordered phrase constraints. */
+    phrase: boolean
+  }
 }
 
 /**

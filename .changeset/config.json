@@ -16,6 +16,7 @@
       "@byline/host-tanstack-start",
       "@byline/i18n",
       "@byline/richtext-lexical",
+      "@byline/search-analysis",
       "@byline/search-postgres",
       "@byline/storage-local",
       "@byline/storage-s3",

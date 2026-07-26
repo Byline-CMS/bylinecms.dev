@@ -22,6 +22,7 @@ import type {
   RichTextToTextFn,
   SearchFacetBucket,
   SearchHit,
+  SearchMatching,
   SearchProvider,
   ServerConfig,
   SlugifierFn,
@@ -230,6 +231,8 @@ interface StatusControls {
 export interface CollectionSearchOptions extends BeforeReadControls {
   /** Free-text query string. */
   query: string
+  /** Provider-neutral term and phrase matching semantics. */
+  matching?: SearchMatching
   /** Restrict to a single content locale (defaults to the client default). */
   locale?: string
   /** Read mode — `'published'` (default) or `'any'`. */
@@ -263,6 +266,8 @@ export interface CollectionSearchOptions extends BeforeReadControls {
 export interface ZoneSearchOptions extends BeforeReadControls {
   /** Free-text query string. */
   query: string
+  /** Provider-neutral term and phrase matching semantics. */
+  matching?: SearchMatching
   /** The zone (named cross-collection scope) to search. */
   zone: string
   /** Restrict to a single content locale (defaults to the client default). */

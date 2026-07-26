@@ -27,6 +27,7 @@ Companions:
 - [Collections](../04-collections/index.md) — the collection `search` config and the lifecycle hooks that maintain the index.
 - [Authentication & Authorization](../06-auth-and-security/01-authn-authz.md) — the `collections.<path>.reindex` ability and the `beforeRead` row-scoping that search honours.
 - [Search and document extraction strategy](./08-search-extraction-strategy.md) — forward-looking landscape + tiered strategy for Phases 3–4 (attachment extraction, external drivers).
+- [Portable multilingual search analysis](./09-multilingual-search-analysis.md) — the portable lexical-analysis and query-plan contracts that adapters can implement without changing the `SearchProvider` seam.
 
 ## Overview
 
@@ -109,6 +110,14 @@ interface SearchCapabilities {
   bm25: boolean           // IDF-aware ranking
   weighting: boolean      // per-field SearchField.boost
   highlights: boolean     // matched-snippet highlighting
+  lexical?: {             // detailed matching/analysis support
+    nativeAnalysis: boolean
+    portableAnalysis: boolean
+    allTerms: boolean
+    anyTerms: boolean
+    minimumShouldMatch: boolean
+    phrase: boolean
+  }
 }
 ```
 
@@ -404,6 +413,10 @@ Search is a first-class `@byline/client` method, parallel to `find()`.
 ```ts
 const results = await client.collection('docs').search({
   query: 'fractional indexing',
+  matching: {
+    operator: 'all',     // every analyzed concept must match
+    phrase: 'auto',      // quoted spans become phrase constraints
+  },
   locale,                // defaults to the client default
   status: 'published',   // defaults to published
   where,                 // accepted; not yet applied by the Postgres driver
@@ -421,7 +434,12 @@ const results = await client.collection('docs').search({
 
 `CollectionHandle.search()` asserts the collection `read` ability, scopes to the
 collection + `published` by default, and delegates to `provider.search()`. It
-accepts `status: 'any'`, but the framework lifecycle indexes published views
+passes the same optional `matching` policy as zone search: `operator` is
+`'all'` or `'any'`, `minimumShouldMatch` refines `'any'`, and `phrase` is
+`'auto'`, `'required'`, or `'off'`. Existing providers can ignore this additive
+field during the compatibility window and should declare detailed support in
+`capabilities.lexical`.
+It accepts `status: 'any'`, but the framework lifecycle indexes published views
 only, so this does not make drafts appear in the built-in index; it only relaxes
 the provider filter for rows a custom indexing path may have supplied. It
 returns the **lightweight hit tier** — `title`, `path`, `score`, and

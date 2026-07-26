@@ -264,6 +264,7 @@ export async function zoneSearch(
 
   const results = await provider.search({
     query: options.query,
+    matching: options.matching,
     zone: options.zone,
     locale: options.locale ?? client.defaultLocale,
     status: readMode,
