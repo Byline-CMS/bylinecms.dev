@@ -49,6 +49,36 @@ describe('buildPortableMySqlQuery', () => {
     expect(translated.minimumShouldMatch).toBe(2)
   })
 
+  it('emits only phrase variants that mirror physical index streams', () => {
+    const phraseExpander: SearchTokenExpander = {
+      fingerprint: 'phrase-test1',
+      supports: (locale) => locale.startsWith('en'),
+      expand: (token) =>
+        token.value === 'running'
+          ? [{ kind: 'stem', value: 'run' }]
+          : token.value === 'restoration'
+            ? [{ kind: 'stem', value: 'restore' }]
+            : [],
+    }
+    const translated = buildPortableMySqlQuery(
+      createPortableSearchAnalyzer({ expanders: [phraseExpander] }).analyzeQuery({
+        query: '"running restoration"',
+        locale: 'en',
+      })
+    )
+
+    expect(translated.phraseQueries[0]).toEqual([
+      `"${encodeSqlToken({ kind: 'exact', value: 'running' })} ${encodeSqlToken({
+        kind: 'exact',
+        value: 'restoration',
+      })}"`,
+      `"${encodeSqlToken({ kind: 'stem', value: 'run' })} ${encodeSqlToken({
+        kind: 'stem',
+        value: 'restore',
+      })}"`,
+    ])
+  })
+
   it('returns an empty ranking query for punctuation-only input', () => {
     const translated = buildPortableMySqlQuery(
       createPortableSearchAnalyzer().analyzeQuery({ query: '— -- !!!' })

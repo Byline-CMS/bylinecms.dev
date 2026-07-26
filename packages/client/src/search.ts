@@ -25,6 +25,7 @@ import {
   createReadContext,
   ERR_VALIDATION,
   getCollectionAdminConfig,
+  MAX_SEARCH_QUERY_LENGTH,
   resolveItemViewColumns,
   resolveSearchZones,
 } from '@byline/core'
@@ -203,6 +204,7 @@ export async function zoneSearch(
   client: BylineClient<any>,
   options: ZoneSearchOptions
 ): Promise<ClientSearchResults> {
+  assertSearchQueryLength(options.query)
   const provider = client.searchProvider
   if (provider == null) {
     throw ERR_VALIDATION({
@@ -290,4 +292,15 @@ export async function zoneSearch(
   return aggregateRestricted
     ? { hits, total: hits.length }
     : { hits, total: results.total, facets: results.facets }
+}
+
+export function assertSearchQueryLength(query: string): void {
+  if (query.length <= MAX_SEARCH_QUERY_LENGTH) return
+  throw ERR_VALIDATION({
+    message: `Search query exceeds the maximum length of ${MAX_SEARCH_QUERY_LENGTH} UTF-16 code units.`,
+    details: {
+      maximumLength: MAX_SEARCH_QUERY_LENGTH,
+      actualLength: query.length,
+    },
+  })
 }

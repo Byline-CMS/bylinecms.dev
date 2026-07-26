@@ -57,13 +57,13 @@ export class MySqlSearchProvider implements SearchProvider {
       await connection.beginTransaction()
       await connection.query(
         `INSERT INTO byline_search_index_metadata
-           (collection_path, analyzer_fingerprint, updated_at)
-         VALUES (?, ?, UTC_TIMESTAMP(6))
+           (collection_path, analyzer_fingerprint, zones, updated_at)
+         VALUES (?, ?, ?, UTC_TIMESTAMP(6))
          ON DUPLICATE KEY UPDATE collection_path = collection_path`,
-        [row.collectionPath, indexDocument.analyzerFingerprint]
+        [row.collectionPath, indexDocument.analyzerFingerprint, JSON.stringify(row.zones)]
       )
       const [metadata] = await connection.query<FingerprintRow[]>(
-        `SELECT analyzer_fingerprint
+        `SELECT analyzer_fingerprint, zones
          FROM byline_search_index_metadata
          WHERE collection_path = ?
          FOR UPDATE`,
@@ -77,6 +77,15 @@ export class MySqlSearchProvider implements SearchProvider {
           actualFingerprint
         )
       }
+      const zones = [
+        ...new Set([...(parseJsonStringArray(metadata[0]?.zones) ?? []), ...row.zones]),
+      ]
+      await connection.query(
+        `UPDATE byline_search_index_metadata
+         SET zones = ?, updated_at = UTC_TIMESTAMP(6)
+         WHERE collection_path = ?`,
+        [JSON.stringify(zones), row.collectionPath]
+      )
 
       await connection.query<ResultSetHeader>(UPSERT_SQL, upsertParams(row, indexDocument))
       await connection.commit()
@@ -206,12 +215,12 @@ export class MySqlSearchProvider implements SearchProvider {
 
   private async assertAnalyzerFingerprint(query: SearchQuery): Promise<void> {
     const params: unknown[] = [this.analyzer.fingerprint]
-    const where = ['d.analyzer_fingerprint <> ?']
-    appendScopeFilters(query, params, where, false)
+    const where = ['m.analyzer_fingerprint <> ?']
+    appendMetadataScopeFilters(query, params, where)
 
     const [rows] = await this.pool.query<IncompatibleRow[]>(
-      `SELECT d.collection_path, d.analyzer_fingerprint
-       FROM byline_search_documents d
+      `SELECT m.collection_path, m.analyzer_fingerprint
+       FROM byline_search_index_metadata m
        WHERE ${where.join(' AND ')}
        LIMIT 1`,
       params
@@ -227,8 +236,20 @@ export class MySqlSearchProvider implements SearchProvider {
   }
 }
 
+function appendMetadataScopeFilters(query: SearchQuery, params: unknown[], where: string[]): void {
+  if (query.collectionPath != null) {
+    params.push(query.collectionPath)
+    where.push('m.collection_path = ?')
+  }
+  if (query.zone != null) {
+    params.push(query.zone)
+    where.push('JSON_CONTAINS(m.zones, JSON_ARRAY(?))')
+  }
+}
+
 interface FingerprintRow extends RowDataPacket {
   analyzer_fingerprint: string
+  zones: string | string[]
 }
 
 interface IncompatibleRow extends FingerprintRow {
@@ -253,6 +274,15 @@ interface PortableIndexValues {
   searchText: string
   weighted: Record<'A' | 'B' | 'C' | 'D', string>
   analyzerFingerprint: string
+}
+
+function parseJsonStringArray(value: string | string[] | undefined): string[] | undefined {
+  if (value == null) return undefined
+  if (Array.isArray(value)) return value
+  const parsed: unknown = JSON.parse(value)
+  return Array.isArray(parsed) && parsed.every((item) => typeof item === 'string')
+    ? parsed
+    : undefined
 }
 
 function upsertParams(row: IndexRow, indexDocument: PortableIndexValues): unknown[] {

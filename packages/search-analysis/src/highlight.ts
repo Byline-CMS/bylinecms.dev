@@ -72,11 +72,7 @@ export function highlightPortableText({
   )
   if (matches.length === 0) return undefined
 
-  const sourceTerms = uniqueRanges(
-    [...analyzed.exactTokens, ...analyzed.identifierTokens]
-      .toSorted(compareTokenRanges)
-      .map(({ start, end }) => ({ start, end }))
-  )
+  const sourceTerms = logicalSourceRanges([...analyzed.exactTokens, ...analyzed.identifierTokens])
   const fragments = selectFragments(text, matches, sourceTerms, maxFragments, maxWords)
   if (fragments.length === 0) return undefined
 
@@ -85,6 +81,20 @@ export function highlightPortableText({
   if (text.slice(0, fragments[0]?.start ?? 0).trim().length > 0) snippet = `… ${snippet}`
   if (text.slice(fragments.at(-1)?.end ?? text.length).trim().length > 0) snippet += ' …'
   return snippet
+}
+
+function logicalSourceRanges(tokens: readonly LogicalToken[]): TextRange[] {
+  const byPosition = new Map<number, TextRange>()
+  for (const token of tokens.toSorted(compareTokenRanges)) {
+    const current = byPosition.get(token.position)
+    if (current == null) {
+      byPosition.set(token.position, { start: token.start, end: token.end })
+      continue
+    }
+    current.start = Math.min(current.start, token.start)
+    current.end = Math.max(current.end, token.end)
+  }
+  return [...byPosition.values()].toSorted(compareRanges)
 }
 
 function queryTokens(plan: PortableQueryPlan): LogicalToken[] {

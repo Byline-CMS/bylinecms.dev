@@ -42,6 +42,40 @@ export function portableAnalysisSuite(hooks: SearchConformanceHooks): void {
       }
     })
 
+    it('retains recall for SKU constituents without leaking URL or email components', async () => {
+      await provider.upsert(
+        searchDocument(
+          'COVID-19 cases use utf-8 encoding. Contact editor@example.com at https://example.org/docs.',
+          { documentId: 'portable-identifier-constituents' }
+        )
+      )
+
+      for (const query of ['covid', '19', 'covid-19', 'utf', '8', 'utf-8']) {
+        await expect(
+          provider.search({ query, collectionPath: 'search-conformance' }),
+          query
+        ).resolves.toMatchObject({
+          total: 1,
+          hits: [{ documentId: 'portable-identifier-constituents' }],
+        })
+      }
+      for (const query of ['example', 'docs']) {
+        await expect(
+          provider.search({ query, collectionPath: 'search-conformance' }),
+          query
+        ).resolves.toMatchObject({ total: 0 })
+      }
+      await expect(
+        provider.search({
+          query: '"covid-19 cases"',
+          collectionPath: 'search-conformance',
+        })
+      ).resolves.toMatchObject({
+        total: 1,
+        hits: [{ documentId: 'portable-identifier-constituents' }],
+      })
+    })
+
     it('matches ordered Han-bigram substrings with a positive score', async () => {
       await provider.upsert(
         searchDocument('数据库搜索', {
@@ -147,6 +181,12 @@ export function portableAnalysisSuite(hooks: SearchConformanceHooks): void {
 
       await original.upsert(document)
       await expect(changed.search({ query: 'fingerprint', collectionPath })).rejects.toMatchObject({
+        code: 'SEARCH_INDEX_REINDEX_REQUIRED',
+        collectionPath,
+      })
+      await expect(
+        changed.search({ query: 'fingerprint', zone: 'search-conformance' })
+      ).rejects.toMatchObject({
         code: 'SEARCH_INDEX_REINDEX_REQUIRED',
         collectionPath,
       })

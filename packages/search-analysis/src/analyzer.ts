@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { SearchMatching } from '@byline/core'
+import { MAX_SEARCH_QUERY_LENGTH, type SearchMatching } from '@byline/core'
 
 import { extractIdentifierSpans, maskIdentifierSpans } from './identifiers.js'
 import { canonicalSegmenterLocale, resolveSearchLocale } from './locale.js'
@@ -28,7 +28,7 @@ import type {
 const PIPELINE_VERSION = 'portable1'
 const NORMALIZATION_VERSION = 'nfkc-lower1'
 const LOCALE_VERSION = 'locale1'
-const IDENTIFIER_VERSION = 'identifiers1'
+const IDENTIFIER_VERSION = 'identifiers2'
 const GRAM_VERSION = 'han-bigram1'
 
 const wordSegmenters = new Map<string, Intl.Segmenter>()
@@ -120,9 +120,7 @@ class PortableSearchAnalyzerImpl implements PortableSearchAnalyzer {
     sourceTokens.sort(
       (a, b) => a.normalizedStart - b.normalizedStart || a.normalizedEnd - b.normalizedEnd
     )
-    sourceTokens.forEach((token, position) => {
-      token.position = position
-    })
+    assignLogicalPositions(sourceTokens)
 
     const derivedTokens: LogicalToken[] = []
     for (const token of sourceTokens) {
@@ -156,6 +154,11 @@ class PortableSearchAnalyzerImpl implements PortableSearchAnalyzer {
   }
 
   analyzeQuery(input: AnalyzeQueryInput): PortableQueryPlan {
+    if (input.query.length > MAX_SEARCH_QUERY_LENGTH) {
+      throw new RangeError(
+        `Search query exceeds the maximum length of ${MAX_SEARCH_QUERY_LENGTH} UTF-16 code units`
+      )
+    }
     const matching = resolveMatching(input.matching)
     const full = this.analyzeText({ text: input.query, locale: input.locale })
     const parts = splitQueryParts(input.query)
@@ -167,29 +170,45 @@ class PortableSearchAnalyzerImpl implements PortableSearchAnalyzer {
       const analyzed = this.analyzeText({ text: part.text, locale: full.locale })
       const normalizedBase = normalizeForSearch(input.query.slice(0, part.start)).value.length
       const partConceptIndexes: number[] = []
-      const sourceTokens = [...analyzed.exactTokens, ...analyzed.identifierTokens].sort(
-        (a, b) => a.position - b.position
-      )
+      const sourceGroups = groupTokensByPosition([
+        ...analyzed.exactTokens,
+        ...analyzed.identifierTokens,
+      ])
 
-      for (const source of sourceTokens) {
+      for (const sourceGroup of sourceGroups) {
         const conceptIndex = concepts.length
         const queryToken = (token: LogicalToken): LogicalToken =>
           rebaseQueryToken(token, part.start, normalizedBase, conceptIndex)
+        const identifiers = sourceGroup.filter((token) => token.kind === 'identifier')
+        const exact = identifiers.length === 0 ? sourceGroup : []
+        const source = identifiers[0] ?? exact[0]
+        if (source == null) continue
         partConceptIndexes.push(conceptIndex)
         concepts.push({
           index: conceptIndex,
           position: conceptIndex,
-          exactTokens: source.kind === 'exact' ? [queryToken(source)] : [],
-          stemTokens: analyzed.derivedTokens
-            .filter((token) => token.kind === 'stem' && token.position === source.position)
-            .map(queryToken),
-          lemmaTokens: analyzed.derivedTokens
-            .filter((token) => token.kind === 'lemma' && token.position === source.position)
-            .map(queryToken),
-          normalizedTokens: analyzed.derivedTokens
-            .filter((token) => token.kind === 'normalized' && token.position === source.position)
-            .map(queryToken),
-          identifierTokens: source.kind === 'identifier' ? [queryToken(source)] : [],
+          exactTokens: exact.map(queryToken),
+          stemTokens:
+            identifiers.length === 0
+              ? analyzed.derivedTokens
+                  .filter((token) => token.kind === 'stem' && token.position === source.position)
+                  .map(queryToken)
+              : [],
+          lemmaTokens:
+            identifiers.length === 0
+              ? analyzed.derivedTokens
+                  .filter((token) => token.kind === 'lemma' && token.position === source.position)
+                  .map(queryToken)
+              : [],
+          normalizedTokens:
+            identifiers.length === 0
+              ? analyzed.derivedTokens
+                  .filter(
+                    (token) => token.kind === 'normalized' && token.position === source.position
+                  )
+                  .map(queryToken)
+              : [],
+          identifierTokens: identifiers.map(queryToken),
           gramTokens: analyzed.gramTokens
             .filter(
               (token) =>
@@ -233,6 +252,36 @@ class PortableSearchAnalyzerImpl implements PortableSearchAnalyzer {
   }
 }
 
+function assignLogicalPositions(tokens: LogicalToken[]): void {
+  let position = -1
+  let groupEnd = -1
+
+  for (const token of tokens) {
+    if (position === -1 || token.normalizedStart >= groupEnd) {
+      position += 1
+      groupEnd = token.normalizedEnd
+    } else {
+      groupEnd = Math.max(groupEnd, token.normalizedEnd)
+    }
+    token.position = position
+  }
+}
+
+function groupTokensByPosition(tokens: readonly LogicalToken[]): LogicalToken[][] {
+  const groups = new Map<number, LogicalToken[]>()
+  for (const token of tokens.toSorted(
+    (left, right) =>
+      left.position - right.position ||
+      left.normalizedStart - right.normalizedStart ||
+      left.normalizedEnd - right.normalizedEnd
+  )) {
+    const group = groups.get(token.position)
+    if (group == null) groups.set(token.position, [token])
+    else group.push(token)
+  }
+  return [...groups.values()]
+}
+
 function logicalToken(
   kind: LogicalToken['kind'],
   value: string,
@@ -262,6 +311,9 @@ function buildHanBigrams(
   sourceTokens: readonly LogicalToken[]
 ): LogicalToken[] {
   const grams: LogicalToken[] = []
+  let sourceIndex = 0
+  let previousPosition = 0
+
   for (const match of text.matchAll(/\p{Script=Han}+/gu)) {
     const run = match[0]
     const runStart = match.index
@@ -277,13 +329,19 @@ function buildHanBigrams(
       const first = characters[index]
       const second = characters[index + 1]
       if (first == null || second == null) continue
-      const containingToken = sourceTokens.find(
-        (token) => token.normalizedStart <= first.start && token.normalizedEnd >= first.end
-      )
-      const previousPosition = sourceTokens.findLastIndex(
-        (token) => token.normalizedStart <= first.start
-      )
-      const position = containingToken?.position ?? Math.max(0, previousPosition)
+      while (sourceIndex < sourceTokens.length) {
+        const source = sourceTokens[sourceIndex]
+        if (source == null || source.normalizedEnd > first.start) break
+        previousPosition = source.position
+        sourceIndex += 1
+      }
+      const candidate = sourceTokens[sourceIndex]
+      const position =
+        candidate != null &&
+        candidate.normalizedStart <= first.start &&
+        candidate.normalizedEnd >= first.end
+          ? candidate.position
+          : previousPosition
       grams.push(
         logicalToken(
           'gram',

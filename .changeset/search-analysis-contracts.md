@@ -14,4 +14,7 @@ snippets from the same portable token offsets. Collection and zone search now
 pass explicit all/any, minimum-should-match, and phrase intent to search
 providers. Search providers must declare their full-text capabilities and
 implement index clearing so every derived projection remains explicitly
-rebuildable.
+rebuildable. Query analysis rejects inputs above the shared 1,024-code-unit
+limit, identifier extraction remains linear on long unbroken text, and
+SKU/version constituents augment their complete identifier at one logical
+position instead of being removed from recall.

@@ -81,8 +81,9 @@ export function lifecycleSuite(hooks: SearchConformanceHooks): void {
     })
 
     it('returns stable pagination with a corpus-wide total', async () => {
+      const updatedAt = '2026-07-26T00:00:00.000Z'
       for (const documentId of ['page-a', 'page-b', 'page-c']) {
-        await provider.upsert(searchDocument('pagination marker', { documentId }))
+        await provider.upsert(searchDocument('pagination marker', { documentId, updatedAt }))
       }
 
       const first = await provider.search({
@@ -101,7 +102,8 @@ export function lifecycleSuite(hooks: SearchConformanceHooks): void {
       expect(second).toMatchObject({ total: 3 })
       expect(first.hits).toHaveLength(1)
       expect(second.hits).toHaveLength(1)
-      expect(second.hits[0]?.documentId).not.toBe(first.hits[0]?.documentId)
+      expect(first.hits[0]?.documentId).toBe('page-a')
+      expect(second.hits[0]?.documentId).toBe('page-b')
     })
 
     it('removes one locale or every locale for a document', async () => {

@@ -59,7 +59,9 @@ The defaults are conservative: every analyzed concept must match, and quoted
 spans retain phrase intent. `minimumShouldMatch` is a positive integer and is
 only valid with `operator: 'any'`. `phrase: 'required'` makes the complete
 non-empty query an ordered phrase; `phrase: 'off'` disables even explicitly
-quoted phrase constraints.
+quoted phrase constraints. `SearchQuery.query` accepts at most 1,024 UTF-16
+code units. Portable analyzers reject a longer value before normalization or
+identifier extraction.
 
 These options describe product behavior rather than backend syntax. An adapter
 must translate them faithfully or advertise the missing feature through
@@ -77,7 +79,11 @@ must translate them faithfully or advertise the missing feature through
    then uses the configured fallback.
 3. Extract identifiers before general word segmentation. URLs, email
    addresses, mentions, hashtags, SKUs, versions, and selected technical terms
-   such as `C++`, `C#`, and `Node.js` remain single logical terms.
+   such as `C++`, `C#`, and `Node.js` remain single logical terms. URL and
+   email components stay protected from noisy word-level recall. SKU and
+   version constituents remain exact alternatives at the identifier's one
+   logical position, so `COVID-19` can match `covid`, `19`, or the complete
+   identifier without changing phrase adjacency.
 4. Segment remaining words with the Node.js runtime's ICU-backed
    `Intl.Segmenter`.
 5. Run optional locale-aware expansion plug-ins. Stems, lemmas, and normalized
@@ -114,7 +120,7 @@ character. SQL full-text parsers may discard or split those values differently.
 
 - lowercase ASCII alphanumeric output;
 - distinct prefixes for exact, stem, lemma, normalized, identifier, and gram
-  terms;
+terms;
 - enough encoded characters for a one-character source term to clear common
   minimum-token limits; and
 - deterministic SHA-256 fallback for terms above the configured length.
@@ -137,7 +143,8 @@ The highlighter merges overlapping source ranges and selects at most two
 page, not while scanning the corpus. Both built-in SQL providers return the
 result as `highlights.body[0]`, with `<mark>…</mark>` delimiters. Consumers must
 parse the delimiters and render the remaining source as text; the complete
-snippet is not trusted HTML.
+snippet is not trusted HTML. Overlapping identifier and constituent ranges
+count as one logical source term when applying the fragment word budget.
 
 ## Fingerprints and reindexing
 
@@ -151,7 +158,9 @@ A mismatch means stored terms and query terms may no longer be comparable.
 The provider should report the mismatch before searching or indexing the
 affected collection, and an explicit reindex should replace the projection and
 stored fingerprint. Adapters must not silently mix fingerprints within one
-active index.
+active index. The built-in SQL providers keep collection zones beside this
+metadata so collection- and zone-scoped checks do not scan the document
+projection on every query.
 
 ## Adapter rollout
 
