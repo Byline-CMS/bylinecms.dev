@@ -4,18 +4,22 @@
 > exercised, not because MySQL is a fully supported Byline backend yet. The
 > storage layer is complete and proven — it passes the entire shared
 > `@byline/db-conformance` behavioural suite, the same suite `@byline/db-postgres`
-> passes, with identical results. Search is also implemented; the remaining
-> limitations are in tooling and breadth of environment coverage:
+> passes, with identical results. Search is complete too. The one remaining
+> limitation is in installation tooling:
 >
 > - **Search is available.** `@byline/search-mysql` implements the same
 >   provider contract and conformance suite as the built-in PostgreSQL search
 >   driver. It owns an independent, disposable migration stream.
 > - **No CLI support.** `byline init` scaffolds a Postgres installation; wiring
->   MySQL is a manual edit to your `server.config.ts`.
-> - **Narrower CI coverage than Postgres.** Continuous integration pins MySQL 8.0
->   — the engine floor — so nothing yet exercises 9.x automatically, and no leg
->   runs under a non-UTC timezone. Tracked in
->   [#55](https://github.com/Byline-CMS/bylinecms.dev/issues/55).
+>   MySQL is a manual edit to your `server.config.ts`. This is the sole
+>   outstanding criterion for general availability.
+>
+> Continuous integration pins MySQL 8.0 deliberately — that is the engine floor,
+> and pinning it is what exercises the floor. Both adapter conformance suites
+> also run under a non-UTC timezone (`Asia/Kathmandu`) so that calendar-date
+> handling cannot silently revert to a host-local anchor. MySQL 9.x is covered
+> by local development (`mysql/docker-compose.yml` runs `mysql:latest`) rather
+> than on every CI run.
 >
 > Treat it as suitable for evaluation, prototypes, and controlled installations.
 > The criteria for general availability are tracked in

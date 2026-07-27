@@ -128,3 +128,26 @@ jobs:
       - run: pnpm test
       # Integration tests now - require byline_test DB
       - run: pnpm test:integration
+
+      # Temporal regression guard. Both adapters anchor `date` values to UTC
+      # midnight deliberately, so the same stored value names the same calendar
+      # day regardless of which host serves it. The runner defaults to TZ=UTC,
+      # where local and UTC midnight are the same instant — so an adapter that
+      # silently reverted to a host-local anchor passes every step above.
+      #
+      # Verified non-vacuous: replacing normalize-row's `T00:00:00.000Z` with a
+      # local `T00:00:00.000` keeps all 177 Postgres tests green under TZ=UTC
+      # and fails "02 Field Types > round-trips a calendar date at UTC midnight"
+      # under the offset below.
+      #
+      # Only the two adapter suites re-run, and only inside this job — the
+      # services and the build are already warm, so the added cost is the
+      # suites themselves rather than another install/build/service cycle.
+      # Kathmandu (UTC+5:45) is chosen over a whole-hour offset because it also
+      # catches arithmetic that assumes offsets are whole hours. The shared
+      # `@byline/db-conformance` field-types suite carries the temporal
+      # coverage, so both adapters are exercised by this one step.
+      - name: Adapter conformance under a non-UTC timezone
+        env:
+          TZ: Asia/Kathmandu
+        run: pnpm --filter @byline/db-postgres --filter @byline/db-mysql test:integration
