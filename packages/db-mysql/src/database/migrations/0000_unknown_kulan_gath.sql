@@ -3,8 +3,8 @@ CREATE TABLE `byline_admin_permissions` (
 	`vid` int NOT NULL DEFAULT 1,
 	`admin_role_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	`ability` varchar(128) NOT NULL,
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	CONSTRAINT `byline_admin_permissions_id` PRIMARY KEY(`id`),
 	CONSTRAINT `uq_byline_admin_permissions_role_ability` UNIQUE(`admin_role_id`,`ability`)
 );
@@ -13,15 +13,15 @@ CREATE TABLE `byline_admin_refresh_tokens` (
 	`id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	`admin_user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	`token_hash` varchar(64) NOT NULL,
-	`issued_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`expires_at` datetime(3) NOT NULL,
-	`revoked_at` datetime(3),
+	`issued_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`expires_at` datetime(6) NOT NULL,
+	`revoked_at` datetime(6),
 	`rotated_to_id` char(36) CHARACTER SET ascii COLLATE ascii_bin,
-	`last_used_at` datetime(3),
+	`last_used_at` datetime(6),
 	`user_agent` varchar(512),
 	`ip` varchar(45),
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	CONSTRAINT `byline_admin_refresh_tokens_id` PRIMARY KEY(`id`),
 	CONSTRAINT `byline_admin_refresh_tokens_token_hash_unique` UNIQUE(`token_hash`)
 );
@@ -29,7 +29,7 @@ CREATE TABLE `byline_admin_refresh_tokens` (
 CREATE TABLE `byline_admin_role_admin_user` (
 	`admin_role_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	`admin_user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	CONSTRAINT `byline_admin_role_admin_user_admin_role_id_admin_user_id_pk` PRIMARY KEY(`admin_role_id`,`admin_user_id`)
 );
 --> statement-breakpoint
@@ -40,8 +40,8 @@ CREATE TABLE `byline_admin_roles` (
 	`machine_name` varchar(128) NOT NULL,
 	`description` text,
 	`order` int NOT NULL DEFAULT 0,
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	CONSTRAINT `byline_admin_roles_id` PRIMARY KEY(`id`),
 	CONSTRAINT `byline_admin_roles_machine_name_unique` UNIQUE(`machine_name`)
 );
@@ -50,8 +50,8 @@ CREATE TABLE `byline_admin_user_preferences` (
 	`user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	`scope` varchar(255) NOT NULL,
 	`value` json NOT NULL,
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	CONSTRAINT `byline_admin_user_preferences_user_id_scope_pk` PRIMARY KEY(`user_id`,`scope`)
 );
 --> statement-breakpoint
@@ -64,15 +64,15 @@ CREATE TABLE `byline_admin_users` (
 	`email` varchar(254) NOT NULL,
 	`password` varchar(255) NOT NULL,
 	`remember_me` boolean NOT NULL DEFAULT false,
-	`last_login` datetime(3),
+	`last_login` datetime(6),
 	`last_login_ip` varchar(45),
 	`failed_login_attempts` int NOT NULL DEFAULT 0,
 	`is_super_admin` boolean NOT NULL DEFAULT false,
 	`is_enabled` boolean NOT NULL DEFAULT false,
 	`is_email_verified` boolean NOT NULL DEFAULT false,
 	`preferred_locale` varchar(16),
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	CONSTRAINT `byline_admin_users_id` PRIMARY KEY(`id`),
 	CONSTRAINT `byline_admin_users_username_unique` UNIQUE(`username`),
 	CONSTRAINT `byline_admin_users_email_unique` UNIQUE(`email`)
@@ -88,7 +88,7 @@ CREATE TABLE `byline_audit_log` (
 	`field` varchar(128),
 	`before` json,
 	`after` json,
-	`occurred_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`occurred_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	CONSTRAINT `byline_audit_log_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
@@ -100,8 +100,8 @@ CREATE TABLE `byline_store_boolean` (
 	`field_name` varchar(255) NOT NULL,
 	`locale` varchar(10) NOT NULL DEFAULT 'default',
 	`parent_path` varchar(500),
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	`value` boolean NOT NULL,
 	CONSTRAINT `byline_store_boolean_id` PRIMARY KEY(`id`),
 	CONSTRAINT `unique_boolean_field` UNIQUE(`document_version_id`,`field_path`,`locale`)
@@ -115,8 +115,8 @@ CREATE TABLE `byline_collections` (
 	`config` json NOT NULL,
 	`version` int NOT NULL DEFAULT 1,
 	`schema_hash` varchar(64),
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	CONSTRAINT `byline_collections_id` PRIMARY KEY(`id`),
 	CONSTRAINT `byline_collections_path_unique` UNIQUE(`path`)
 );
@@ -124,7 +124,8 @@ CREATE TABLE `byline_collections` (
 CREATE TABLE `byline_counter_groups` (
 	`group_name` varchar(255) NOT NULL,
 	`sequence_name` text NOT NULL,
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`current_value` bigint NOT NULL DEFAULT 0,
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	CONSTRAINT `byline_counter_groups_group_name` PRIMARY KEY(`group_name`)
 );
 --> statement-breakpoint
@@ -136,12 +137,12 @@ CREATE TABLE `byline_store_datetime` (
 	`field_name` varchar(255) NOT NULL,
 	`locale` varchar(10) NOT NULL DEFAULT 'default',
 	`parent_path` varchar(500),
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	`date_type` varchar(20) NOT NULL,
 	`value_date` date,
 	`value_time` time(3),
-	`value_timestamp_tz` datetime(3),
+	`value_timestamp_tz` datetime(6),
 	CONSTRAINT `byline_store_datetime_id` PRIMARY KEY(`id`),
 	CONSTRAINT `unique_datetime_field` UNIQUE(`document_version_id`,`field_path`,`locale`)
 );
@@ -150,8 +151,8 @@ CREATE TABLE `byline_document_available_locales` (
 	`document_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	`locale` varchar(10) NOT NULL,
 	`collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	CONSTRAINT `byline_document_available_locales_document_id_locale_pk` PRIMARY KEY(`document_id`,`locale`)
 );
 --> statement-breakpoint
@@ -160,8 +161,8 @@ CREATE TABLE `byline_document_paths` (
 	`locale` varchar(10) NOT NULL,
 	`collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	`path` varchar(255) COLLATE utf8mb4_bin NOT NULL,
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	CONSTRAINT `unique_document_paths_document_locale` UNIQUE(`document_id`,`locale`),
 	CONSTRAINT `idx_document_paths_collection_locale_path` UNIQUE(`collection_id`,`locale`,`path`)
 );
@@ -170,8 +171,8 @@ CREATE TABLE `byline_document_relationships` (
 	`child_document_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	`parent_document_id` char(36) CHARACTER SET ascii COLLATE ascii_bin,
 	`order_key` varchar(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	CONSTRAINT `uq_document_relationships_child` UNIQUE(`child_document_id`)
 );
 --> statement-breakpoint
@@ -190,8 +191,8 @@ CREATE TABLE `byline_document_versions` (
 	`event_type` varchar(20) NOT NULL DEFAULT 'create',
 	`status` varchar(50) DEFAULT 'draft',
 	`is_deleted` boolean DEFAULT false,
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	`created_by` char(36) CHARACTER SET ascii COLLATE ascii_bin,
 	`change_summary` text,
 	CONSTRAINT `byline_document_versions_id` PRIMARY KEY(`id`)
@@ -202,8 +203,8 @@ CREATE TABLE `byline_documents` (
 	`collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	`order_key` varchar(128) CHARACTER SET ascii COLLATE ascii_bin,
 	`source_locale` varchar(10) NOT NULL,
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	CONSTRAINT `byline_documents_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
@@ -215,8 +216,8 @@ CREATE TABLE `byline_store_file` (
 	`field_name` varchar(255) NOT NULL,
 	`locale` varchar(10) NOT NULL DEFAULT 'default',
 	`parent_path` varchar(500),
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	`file_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	`filename` varchar(255) NOT NULL,
 	`original_filename` varchar(255) NOT NULL,
@@ -244,8 +245,8 @@ CREATE TABLE `byline_store_json` (
 	`field_name` varchar(255) NOT NULL,
 	`locale` varchar(10) NOT NULL DEFAULT 'default',
 	`parent_path` varchar(500),
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	`value` json NOT NULL,
 	`json_schema` varchar(100),
 	`object_keys` json,
@@ -261,8 +262,8 @@ CREATE TABLE `byline_store_meta` (
 	`path` varchar(512) NOT NULL,
 	`item_id` varchar(255) NOT NULL,
 	`meta` json,
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	CONSTRAINT `byline_store_meta_id` PRIMARY KEY(`id`),
 	CONSTRAINT `unique_meta_node` UNIQUE(`document_version_id`,`type`,`path`)
 );
@@ -275,8 +276,8 @@ CREATE TABLE `byline_store_numeric` (
 	`field_name` varchar(255) NOT NULL,
 	`locale` varchar(10) NOT NULL DEFAULT 'default',
 	`parent_path` varchar(500),
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	`number_type` varchar(20) NOT NULL,
 	`value_integer` int,
 	`value_decimal` decimal(10,2),
@@ -293,8 +294,8 @@ CREATE TABLE `byline_store_relation` (
 	`field_name` varchar(255) NOT NULL,
 	`locale` varchar(10) NOT NULL DEFAULT 'default',
 	`parent_path` varchar(500),
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	`target_document_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	`target_collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	`relationship_type` varchar(50) DEFAULT 'reference',
@@ -311,8 +312,8 @@ CREATE TABLE `byline_store_text` (
 	`field_name` varchar(255) NOT NULL,
 	`locale` varchar(10) NOT NULL DEFAULT 'default',
 	`parent_path` varchar(500),
-	`created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-	`updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	`value` text NOT NULL,
 	`word_count` int,
 	CONSTRAINT `byline_store_text_id` PRIMARY KEY(`id`),

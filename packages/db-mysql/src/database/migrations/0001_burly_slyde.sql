@@ -1,1 +1,0 @@
-ALTER TABLE `byline_counter_groups` ADD `current_value` bigint DEFAULT 0 NOT NULL;
