@@ -245,10 +245,12 @@ clear-and-rebuild procedure.
   `pgAdapter` for `mysqlAdapter`, swap the `@byline/db-postgres/admin` import for
   `@byline/db-mysql/admin`, and swap `postgresSearch` for `mysqlSearch`. Both
   search packages expose the same `migrate(pool)` shape.
-- **A MySQL storage-benchmark target.** The design spec flags view
-  materialisation (the `ROW_NUMBER()` window inside a derived table, used
-  by both current-version views) as a question to answer before this
-  adapter's GA — Postgres's own benchmark sweep
+- **A MySQL storage-benchmark target (non-blocking).** The design spec flags
+  view materialisation (the `ROW_NUMBER()` window inside a derived table,
+  used by both current-version views) as useful performance-characterisation
+  work. It is not a GA criterion; those are tracked in
+  [issue #58](https://github.com/Byline-CMS/bylinecms.dev/issues/58). Postgres's
+  own benchmark sweep
   ([`docs/03-architecture/01-document-storage.md`](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/docs/03-architecture/01-document-storage.md#indicative-benchmarks))
   has no MySQL counterpart yet. Tracked in
   [issue #53](https://github.com/Byline-CMS/bylinecms.dev/issues/53).
