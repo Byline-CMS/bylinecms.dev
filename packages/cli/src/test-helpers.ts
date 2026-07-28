@@ -41,7 +41,9 @@ export function createTestContext(answers: Answers = {}): Context {
 
 export function createTestContextAt(cwd: string, answers: Answers = {}): Context {
   const state = new StateStore(cwd)
-  state.patchAnswers(answers)
+  // Existing CLI tests model the historically PostgreSQL-only installer.
+  // Dialect-selection tests opt back into a genuinely fresh state explicitly.
+  state.patchAnswers({ dbDialect: 'postgres', ...answers })
   return new Context({
     cwd,
     apply: true,

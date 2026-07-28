@@ -15,7 +15,8 @@
  * user via the `@byline/*` package boundary and don't need declaring.
  */
 
-import { BYLINE_RELEASE_POLICY } from '../lib/release-policy.js'
+import { BYLINE_RELEASE_POLICY, CLI_PACKAGE_VERSION } from '../lib/release-policy.js'
+import type { Answers, DbDialect } from '../types.js'
 
 export type DepGroup = 'byline' | 'runtime' | 'dev'
 
@@ -25,7 +26,7 @@ export type DepGroup = 'byline' | 'runtime' | 'dev'
  * of dependencies they didn't ask for (e.g. the markdown ingestion stack
  * that exists only to serve `byline/scripts/import-docs.ts`).
  */
-export type DepOptionalFlag = 'importDocs'
+export type DepOptionalFlag = 'examples' | 'importDocs'
 
 export interface DepSpec {
   name: string
@@ -35,12 +36,17 @@ export interface DepSpec {
   note: string
   /** When set, only install if the matching `answers` flag is true. */
   optional?: DepOptionalFlag
+  /** Database adapters for which this dependency is required. */
+  dialects?: readonly DbDialect[]
+  /** Byline compatibility rule. Defaults to the supported release range. */
+  versionPolicy?: 'supported-range' | 'exact'
 }
 
 // The templates and publishable packages release in lockstep with the CLI.
 // Changesets updates package.json during version-packages; deriving this range
 // makes that release version the sole source of truth for scaffolded installs.
 export const BYLINE_VERSION = BYLINE_RELEASE_POLICY.dependencyRange
+export const BYLINE_ADAPTER_VERSION = CLI_PACKAGE_VERSION
 
 export const DEP_SPECS: readonly DepSpec[] = [
   // ---- @byline/* — released in lockstep at BYLINE_VERSION -----------------
@@ -82,9 +88,19 @@ export const DEP_SPECS: readonly DepSpec[] = [
   },
   {
     name: '@byline/db-postgres',
-    version: BYLINE_VERSION,
+    version: BYLINE_ADAPTER_VERSION,
     group: 'byline',
-    note: 'Postgres adapter (Drizzle ORM)',
+    dialects: ['postgres'],
+    versionPolicy: 'exact',
+    note: "Postgres adapter (Drizzle ORM) — pinned to the CLI's bundled schema baseline",
+  },
+  {
+    name: '@byline/db-mysql',
+    version: BYLINE_ADAPTER_VERSION,
+    group: 'byline',
+    dialects: ['mysql'],
+    versionPolicy: 'exact',
+    note: "MySQL adapter (Drizzle ORM) — pinned to the CLI's bundled schema baseline",
   },
   {
     name: '@byline/host-tanstack-start',
@@ -108,7 +124,17 @@ export const DEP_SPECS: readonly DepSpec[] = [
     name: '@byline/search-postgres',
     version: BYLINE_VERSION,
     group: 'byline',
+    optional: 'examples',
+    dialects: ['postgres'],
     note: 'built-in Postgres full-text search provider; registered in byline/server.config.ts, drives collections/docs indexing hooks',
+  },
+  {
+    name: '@byline/search-mysql',
+    version: BYLINE_VERSION,
+    group: 'byline',
+    optional: 'examples',
+    dialects: ['mysql'],
+    note: 'built-in MySQL full-text search provider; registered in byline/server.config.ts, drives collections/docs indexing hooks',
   },
   {
     name: '@byline/storage-local',
@@ -229,3 +255,13 @@ export const DEP_SPECS: readonly DepSpec[] = [
     note: 'extracts heading text in the optional markdown import helpers',
   },
 ] as const
+
+export function dependencySpecsFor(answers: Answers): readonly DepSpec[] {
+  const dialect = answers.dbDialect
+  if (!dialect) return []
+  return DEP_SPECS.filter((spec) => {
+    if (spec.dialects && !spec.dialects.includes(dialect)) return false
+    if (spec.optional && answers[spec.optional] !== true) return false
+    return true
+  })
+}

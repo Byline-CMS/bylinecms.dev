@@ -6,9 +6,14 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { shouldHaltInit } from '../commands/init.js'
 import { findBylineDependencyIssues, findMissingBylineDeps } from '../commands/setup-checks.js'
-import { isDependencyVersionCompatible } from '../lib/dependency-version.js'
+import { checkDependencyVersion, isDependencyVersionCompatible } from '../lib/dependency-version.js'
 import { BYLINE_RELEASE_POLICY } from '../lib/release-policy.js'
-import { BYLINE_VERSION, DEP_SPECS } from '../manifest/deps.js'
+import {
+  BYLINE_ADAPTER_VERSION,
+  BYLINE_VERSION,
+  DEP_SPECS,
+  dependencySpecsFor,
+} from '../manifest/deps.js'
 import { createTestContext, createTestContextAt } from '../test-helpers.js'
 import { depsPhase, validateDependencyPlan, validateDependencyPostconditions } from './deps.js'
 import type { Context } from '../context.js'
@@ -38,13 +43,62 @@ describe('Byline dependency compatibility', () => {
   const core = DEP_SPECS.find((spec) => spec.name === '@byline/core')
   if (!core) throw new Error('@byline/core dependency spec is missing')
 
-  it('uses the CLI-derived release policy for every Byline dependency', () => {
+  it('keeps common Byline packages ranged and database adapters exact', () => {
     expect(BYLINE_VERSION).toBe(BYLINE_RELEASE_POLICY.dependencyRange)
     expect(
-      DEP_SPECS.filter((spec) => spec.group === 'byline').every(
+      DEP_SPECS.filter((spec) => spec.group === 'byline' && spec.versionPolicy !== 'exact').every(
         (spec) => spec.version === BYLINE_RELEASE_POLICY.dependencyRange
       )
     ).toBe(true)
+    const adapters = DEP_SPECS.filter((spec) => spec.versionPolicy === 'exact')
+    expect(adapters.map((spec) => spec.name).sort()).toEqual([
+      '@byline/db-mysql',
+      '@byline/db-postgres',
+    ])
+    expect(adapters.every((spec) => spec.version === BYLINE_ADAPTER_VERSION)).toBe(true)
+  })
+
+  it('selects only the chosen adapter and includes its search provider only with examples', () => {
+    const postgresMinimal = dependencySpecsFor({
+      dbDialect: 'postgres',
+      examples: false,
+    }).map((spec) => spec.name)
+    expect(postgresMinimal).toContain('@byline/db-postgres')
+    expect(postgresMinimal).not.toContain('@byline/db-mysql')
+    expect(postgresMinimal).not.toContain('@byline/search-postgres')
+    expect(postgresMinimal).not.toContain('@byline/search-mysql')
+
+    const mysqlExamples = dependencySpecsFor({
+      dbDialect: 'mysql',
+      examples: true,
+    }).map((spec) => spec.name)
+    expect(mysqlExamples).toContain('@byline/db-mysql')
+    expect(mysqlExamples).toContain('@byline/search-mysql')
+    expect(mysqlExamples).not.toContain('@byline/db-postgres')
+    expect(mysqlExamples).not.toContain('@byline/search-postgres')
+  })
+
+  it('requires an exact adapter declaration and exact resolved workspace version', () => {
+    const adapter = DEP_SPECS.find((spec) => spec.name === '@byline/db-postgres')
+    if (!adapter) throw new Error('@byline/db-postgres dependency spec is missing')
+
+    expect(checkDependencyVersion(adapter, BYLINE_ADAPTER_VERSION).status).toBe('compatible')
+    for (const declaration of [
+      `^${BYLINE_ADAPTER_VERSION}`,
+      `~${BYLINE_ADAPTER_VERSION}`,
+      `>=${BYLINE_ADAPTER_VERSION} <${CURRENT_MAJOR + 1}`,
+      `${CURRENT_MAJOR}.${CURRENT_MINOR}.x`,
+      SAME_MAJOR_LATER_VERSION,
+      'latest',
+    ]) {
+      expect(checkDependencyVersion(adapter, declaration).status).toBe('incompatible')
+    }
+    expect(checkDependencyVersion(adapter, 'workspace:*', BYLINE_ADAPTER_VERSION).status).toBe(
+      'compatible'
+    )
+    expect(checkDependencyVersion(adapter, 'workspace:*', SAME_MAJOR_LATER_VERSION).status).toBe(
+      'incompatible'
+    )
   })
 
   it.each([
@@ -112,6 +166,32 @@ describe('Byline dependency compatibility', () => {
     expect(findMissingBylineDeps(ctx)?.map((spec) => spec.name)).toContain('@byline/ui')
   })
 
+  it('plans replacement of a pre-existing adapter caret with the exact CLI version', async () => {
+    const ctx = createTestContext({ dbDialect: 'postgres', examples: false })
+    contexts.push(ctx)
+    const dependencies = compatibleDependencies()
+    dependencies['@byline/db-postgres'] = BYLINE_VERSION
+    writeFileSync(ctx.resolve('package.json'), `${JSON.stringify({ dependencies }, null, 2)}\n`)
+
+    const plan = await depsPhase.plan(ctx)
+    expect(plan.commands.flatMap((command) => command.args)).toContain(
+      `@byline/db-postgres@${BYLINE_ADAPTER_VERSION}`
+    )
+  })
+
+  it('plans only MySQL database packages for a MySQL example installation', async () => {
+    const ctx = createTestContext({ dbDialect: 'mysql', examples: true })
+    contexts.push(ctx)
+    writeFileSync(ctx.resolve('package.json'), '{"dependencies":{}}\n')
+
+    const plan = await depsPhase.plan(ctx)
+    const planText = plan.commands.flatMap((command) => command.args).join(' ')
+    expect(planText).toContain(`@byline/db-mysql@${BYLINE_ADAPTER_VERSION}`)
+    expect(planText).toContain(`@byline/search-mysql@${BYLINE_VERSION}`)
+    expect(planText).not.toContain('@byline/db-postgres@')
+    expect(planText).not.toContain('@byline/search-postgres@')
+  })
+
   it.each([
     [BELOW_FLOOR_VERSION, 'incompatible'],
     [CURRENT_VERSION, 'compatible'],
@@ -177,7 +257,9 @@ describe('Byline dependency compatibility', () => {
     writeFileSync(ctx.resolve('package.json'), `${JSON.stringify({ dependencies })}\n`)
     expect(await depsPhase.detect(ctx)).toBe('pending')
     const plan = await depsPhase.plan(ctx)
-    expect(plan.notes.join('\n')).toContain(`resolves to unsupported ${BELOW_FLOOR_VERSION}`)
+    expect(plan.notes.join('\n')).toContain(
+      `resolves to ${BELOW_FLOOR_VERSION}, expected ${BYLINE_RELEASE_POLICY.supportedRange}`
+    )
     expect((await depsPhase.apply(plan, ctx)).state).toBe('blocked')
   })
 

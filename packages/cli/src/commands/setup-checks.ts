@@ -5,7 +5,7 @@ import {
   evaluateDependencyCompatibility,
 } from '../lib/dependency-version.js'
 import { BYLINE_RELEASE_POLICY } from '../lib/release-policy.js'
-import { DEP_SPECS, type DepSpec } from '../manifest/deps.js'
+import { type DepSpec, dependencySpecsFor } from '../manifest/deps.js'
 import { ENV_FILE_PATHS, ENV_SPECS, type EnvFile, type EnvKey } from '../manifest/env.js'
 import type { Context } from '../context.js'
 
@@ -27,6 +27,10 @@ export type SetupCheckResult = 'proceed' | 'aborted'
  * "I don't want to type defaults," not "I don't care if my env is broken."
  */
 export async function runSetupChecks(ctx: Context): Promise<SetupCheckResult> {
+  if (!ctx.state.get().answers.dbDialect) {
+    ctx.logger.error('database adapter is not selected — run the db phase first')
+    return 'aborted'
+  }
   const dependencyIssues = findBylineDependencyIssues(ctx)
   if (dependencyIssues === null) {
     ctx.logger.error('package.json not found or unreadable — run `byline init` first')
@@ -108,7 +112,7 @@ export function findBylineDependencyIssues(ctx: Context): BylineDependencyIssue[
   }
   const declared = { ...(pkg.devDependencies ?? {}), ...(pkg.dependencies ?? {}) }
   const issues: BylineDependencyIssue[] = []
-  for (const spec of DEP_SPECS) {
+  for (const spec of dependencySpecsFor(ctx.state.get().answers)) {
     if (spec.group !== 'byline') continue
     const declaredVersion = declared[spec.name]
     if (declaredVersion === undefined) {

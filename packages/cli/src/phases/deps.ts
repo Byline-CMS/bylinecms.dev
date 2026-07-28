@@ -13,7 +13,7 @@ import {
   resolveWorkspaceOwnership,
   validateWorkspacePackageManager,
 } from '../lib/workspace-root.js'
-import { DEP_SPECS, type DepSpec } from '../manifest/deps.js'
+import { type DepSpec, dependencySpecsFor } from '../manifest/deps.js'
 import type { Context } from '../context.js'
 import type { FileWrite, Phase, Plan, PlanPrecondition, ShellCommand } from '../types.js'
 
@@ -49,6 +49,7 @@ export const depsPhase: Phase = {
 
   async detect(ctx) {
     if (!validateWorkspacePackageManager(ctx.cwd, ctx.pm).valid) return 'blocked'
+    if (!ctx.state.get().answers.dbDialect) return 'blocked'
     const missing = computeMissing(ctx)
     if (missing === null) return 'blocked'
     const settings = inspectDependencySettings(ctx)
@@ -56,6 +57,9 @@ export const depsPhase: Phase = {
   },
 
   async plan(ctx) {
+    if (!ctx.state.get().answers.dbDialect) {
+      return { writes: [], commands: [], notes: ['database adapter missing — run db phase first'] }
+    }
     const managerValidation = validateWorkspacePackageManager(ctx.cwd, ctx.pm)
     if (!managerValidation.valid) {
       return { writes: [], commands: [], notes: [managerValidation.reason] }
@@ -165,8 +169,7 @@ function computeMissing(ctx: Context): DepStatus[] | null {
 
   const answers = ctx.state.get().answers
   const missing: DepStatus[] = []
-  for (const spec of DEP_SPECS) {
-    if (spec.optional && answers[spec.optional] !== true) continue
+  for (const spec of dependencySpecsFor(answers)) {
     const inDeps = deps[spec.name]
     const inDev = devDeps[spec.name]
     const present = inDeps ?? inDev ?? null

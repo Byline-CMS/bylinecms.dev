@@ -24,7 +24,7 @@ describe('database dialect selection', () => {
   })
 
   it('persists a command-line selection into fresh state', async () => {
-    const ctx = createTestContext()
+    const ctx = createTestContext({ dbDialect: undefined })
     contexts.push(ctx)
     ctx.cliFlags.database = 'mysql'
 
@@ -33,7 +33,7 @@ describe('database dialect selection', () => {
   })
 
   it('prompts for a fresh state and uses PostgreSQL as the first/default choice', async () => {
-    const ctx = createTestContext()
+    const ctx = createTestContext({ dbDialect: undefined })
     contexts.push(ctx)
 
     expect(await resolveDbDialect(ctx)).toBe('postgres')
@@ -60,7 +60,7 @@ describe('database dialect selection', () => {
   })
 
   it('blocks an invalid value even when a caller bypasses CLI validation', () => {
-    const ctx = createTestContext()
+    const ctx = createTestContext({ dbDialect: undefined })
     contexts.push(ctx)
     ctx.cliFlags.database = 'sqlite'
 

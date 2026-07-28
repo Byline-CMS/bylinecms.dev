@@ -4,7 +4,7 @@ import { dirname, relative, resolve } from 'node:path'
 import { Project, SyntaxKind } from 'ts-morph'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { DEP_SPECS } from '../manifest/deps.js'
+import { dependencySpecsFor } from '../manifest/deps.js'
 import { createTestContext } from '../test-helpers.js'
 import { buildRoutesPlan, routesPhase } from './routes.js'
 import { buildScaffoldPlan, scaffoldPhase } from './scaffold.js'
@@ -12,8 +12,7 @@ import { buildUiPlan, uiPhase } from './ui.js'
 import type { Context } from '../context.js'
 
 const contexts: Context[] = []
-const HOST_EXTERNALS = new Set([
-  ...DEP_SPECS.map((spec) => spec.name),
+const COMMON_HOST_EXTERNALS = [
   'mdast',
   'react',
   'react-dom',
@@ -21,7 +20,7 @@ const HOST_EXTERNALS = new Set([
   'vitest',
   '@tanstack/react-router',
   '@tanstack/react-start',
-])
+] as const
 
 afterEach(() => {
   for (const ctx of contexts.splice(0)) rmSync(ctx.cwd, { recursive: true, force: true })
@@ -105,6 +104,10 @@ describe('temporary host scaffold smoke contracts', () => {
  * every bare import cross an explicit package/host boundary, while Vitest parses all source files.
  */
 function validateImports(ctx: Context, sourceFiles: string[]): string[] {
+  const hostExternals = new Set([
+    ...dependencySpecsFor(ctx.state.get().answers).map((spec) => spec.name),
+    ...COMMON_HOST_EXTERNALS,
+  ])
   const unresolved: string[] = []
   for (const path of sourceFiles) {
     const source = readFileSync(path, 'utf8')
@@ -129,7 +132,7 @@ function validateImports(ctx: Context, sourceFiles: string[]): string[] {
         continue
       }
       const boundary = packageBoundary(specifier)
-      if (!HOST_EXTERNALS.has(boundary)) {
+      if (!hostExternals.has(boundary)) {
         unresolved.push(`${relative(ctx.cwd, path)} -> undeclared external ${boundary}`)
       }
     }
