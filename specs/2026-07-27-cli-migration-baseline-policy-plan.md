@@ -569,54 +569,7 @@ Expand the smoke matrix across both dialects and the existing example/import-doc
 
 ---
 
-## Task 9: Document the final installation and upgrade contract
-
-**Files**
-
-- Modify: `docs/01-getting-started/01-cli.md`
-- Modify: `packages/cli/README.md`
-- Modify: `packages/cli/TODO.md`
-- Modify: `packages/db-mysql/README.md`
-- Modify: `packages/db-mysql/sql/README.md`
-- Modify: `packages/db-postgres/sql/README.md`
-- Modify: `docs/03-architecture/01-document-storage.md`
-- Modify: `docs/06-search/06-postgres-and-mysql.md`
-- Update any other search result that still calls MySQL preliminary or PostgreSQL-only
-
-### Required documentation changes
-
-- Document interactive selection and `--database postgres|mysql`.
-- Show the selected environment key and package/config result for each dialect.
-- Replace every claim that `--force` safely reapplies database migrations as no-ops.
-- Explain:
-  - fresh database → CLI baseline;
-  - intentional rebuild → `--reset --i-mean-it`;
-  - existing installation → numbered native SQL at the target release tag.
-- State that the CLI refuses both an existing Byline schema and unrelated occupied schema before mutation.
-- Explain that each release squashes its Drizzle baseline and that it is not an upgrade history.
-- In PostgreSQL upgrade docs, retain the ownership-guard instructions.
-- In MySQL upgrade docs, explicitly retain the “no ownership guard” rule and MySQL's non-transactional DDL caveat.
-- Remove the stale claim that MySQL has no released versions.
-- Remove the MySQL “preliminary/no CLI support” status after all implementation and CI tasks pass.
-- Keep PostgreSQL as the default choice without describing MySQL as second-class.
-- Keep benchmarking listed as useful non-blocking characterization work.
-- Replace both `packages/cli/TODO.md` proposals to publish adapter Drizzle migrations with the durable bundled-baseline/native-SQL policy.
-
-Do not ship documentation promising the occupied-database refusal before Task 6 lands. Documentation and behavior may be separate commits on the feature branch, but they must enter a release together.
-
-### Verification
-
-- `pnpm docs:check`
-- `git diff --check`
-- Search for stale phrases: `migrations re-apply as no-ops`, `No CLI support`, `Postgres only`, `preliminary`, and `has no released versions yet`.
-
-### Commit
-
-`docs: documented MySQL installation and database upgrade policy`
-
----
-
-## Task 10: Enforce release invariants and add bounded CI smoke coverage
+## Task 9: Enforce release invariants and add bounded CI smoke coverage
 
 **Files**
 
@@ -703,6 +656,53 @@ Then run the CLI tarball contract check and inspect the changeset status.
 
 ---
 
+## Task 10: Document the final installation and upgrade contract
+
+**Files**
+
+- Modify: `docs/01-getting-started/01-cli.md`
+- Modify: `packages/cli/README.md`
+- Modify: `packages/cli/TODO.md`
+- Modify: `packages/db-mysql/README.md`
+- Modify: `packages/db-mysql/sql/README.md`
+- Modify: `packages/db-postgres/sql/README.md`
+- Modify: `docs/03-architecture/01-document-storage.md`
+- Modify: `docs/06-search/06-postgres-and-mysql.md`
+- Update any other search result that still calls MySQL preliminary or PostgreSQL-only
+
+### Required documentation changes
+
+- Document interactive selection and `--database postgres|mysql`.
+- Show the selected environment key and package/config result for each dialect.
+- Replace every claim that `--force` safely reapplies database migrations as no-ops.
+- Explain:
+  - fresh database → CLI baseline;
+  - intentional rebuild → `--reset --i-mean-it`;
+  - existing installation → numbered native SQL at the target release tag.
+- State that the CLI refuses both an existing Byline schema and unrelated occupied schema before mutation.
+- Explain that each release squashes its Drizzle baseline and that it is not an upgrade history.
+- In PostgreSQL upgrade docs, retain the ownership-guard instructions.
+- In MySQL upgrade docs, explicitly retain the “no ownership guard” rule and MySQL's non-transactional DDL caveat.
+- Remove the stale claim that MySQL has no released versions.
+- Remove the MySQL “preliminary/no CLI support” status after all implementation and CI tasks pass.
+- Keep PostgreSQL as the default choice without describing MySQL as second-class.
+- Keep benchmarking listed as useful non-blocking characterization work.
+- Replace both `packages/cli/TODO.md` proposals to publish adapter Drizzle migrations with the durable bundled-baseline/native-SQL policy.
+
+Do not ship documentation promising the occupied-database refusal before Task 6 lands. Documentation and behavior may be separate commits on the feature branch, but they must enter a release together.
+
+### Verification
+
+- `pnpm docs:check`
+- `git diff --check`
+- Search for stale phrases: `migrations re-apply as no-ops`, `No CLI support`, `Postgres only`, `preliminary`, and `has no released versions yet`.
+
+### Commit
+
+`docs: documented MySQL installation and database upgrade policy`
+
+---
+
 ## Explicit non-goals
 
 - The CLI will not apply native SQL upgrades automatically.
@@ -718,7 +718,7 @@ Then run the CLI tarball contract check and inspect the changeset status.
 
 ## Implementation order and release boundary
 
-Tasks 1–8 are one functional chain and should land before the GA documentation in Task 9. Task 10 supplies the release and CI guardrails. Intermediate commits are useful for review, but no release should contain only part of the chain.
+Tasks 1–8 are one functional chain. Task 9 proves the release and CI boundary, and the GA documentation lands last in Task 10. Intermediate commits are useful for review, but no release should contain only part of the chain.
 
 The minimum release-ready boundary is:
 
