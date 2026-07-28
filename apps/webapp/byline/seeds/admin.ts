@@ -48,15 +48,12 @@ export async function seedAdmin() {
     )
   }
 
+  console.log('Seeding super-admin')
+
   const result = await seedSuperAdmin(bylineCore.adminStore, { email, password })
 
-  const parts: string[] = []
-  if (result.created.role) parts.push('role')
-  if (result.created.user) parts.push('user')
-  if (result.created.assignment) parts.push('assignment')
-  if (parts.length === 0) {
-    console.log(`Super-admin already present (${email}) — no changes.`)
-  } else {
-    console.log(`Super-admin seed: created ${parts.join(', ')} for ${email}.`)
-  }
+  const created = result.created.role || result.created.user || result.created.assignment
+  console.log(
+    created ? `  - seeded super-admin (${email})` : `  - super-admin already present (${email})`
+  )
 }
