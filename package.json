@@ -11,6 +11,7 @@
     "db:init:test:mysql": "cd packages/db-mysql/src/database && ./db_init_test.sh",
     "byline:generate": "turbo run byline:generate",
     "byline:generate:check": "turbo run byline:generate:check",
+    "check:native-sql-history": "node scripts/check-native-sql-history.mjs",
     "docs:check": "pnpm --filter @byline/webapp docs:check",
     "drizzle:generate": "turbo run drizzle:generate",
     "drizzle:migrate": "turbo run drizzle:migrate",

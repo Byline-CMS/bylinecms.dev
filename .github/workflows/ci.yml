@@ -81,6 +81,8 @@ jobs:
           --health-retries 20
 
     env:
+      BYLINE_CLI_POSTGRES_ADMIN_URL: postgres://byline:byline@127.0.0.1:5432/postgres
+      BYLINE_CLI_MYSQL_ADMIN_URL: mysql://root:test@127.0.0.1:3306/mysql
       BYLINE_DB_POSTGRES_CONNECTION_STRING: postgres://byline:byline@127.0.0.1:5432/byline_test
       BYLINE_DB_MYSQL_CONNECTION_STRING: mysql://byline:byline@127.0.0.1:3306/byline_test
 
@@ -98,6 +100,13 @@ jobs:
       # subpath; @byline/client imports it from its built `dist/`. Building
       # all packages ensures every import path resolves.
       - run: pnpm build:packages
+
+      # The copied server configs are intentionally outside the CLI's normal
+      # tsconfig. Assemble and compile every database/example combination
+      # against the built workspace packages, then inspect the actual tarball
+      # so fresh baselines cannot disappear from the published artifact.
+      - run: pnpm --filter @byline/cli check:templates
+      - run: pnpm --filter @byline/cli check:artifact
 
       # Every integration runner reads its connection string from a `.env.test`
       # file. CI writes them from the job-level env block; they're gitignored so

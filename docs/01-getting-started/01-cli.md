@@ -107,6 +107,13 @@ and `--to` accept.
 | Include the example collections, blocks, and fields? | yes | The overlay that mirrors `apps/webapp/byline` in this repo. |
 | Include the markdown → Byline import example script? | no | Only asked when you kept the examples. |
 
+The administrator URL must use the same host string and port that the
+application will use. The CLI applies the baseline to the exact endpoint it
+inspected and writes that endpoint into the application environment, so it
+rejects mismatches such as `localhost` versus `127.0.0.1`, an SSH-tunnel port
+versus the service port, or a container hostname that only one side can
+resolve.
+
 ### 4. Start the application
 
 Start your application's dev server and open the admin path you chose (`/admin`
