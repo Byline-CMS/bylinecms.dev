@@ -17,11 +17,30 @@ byline init --only db-init     Re-run a single phase.
 byline init --from wire        Resume from a specific phase.
 byline init --apply            Skip the per-phase confirmation prompt (still prints diffs).
 byline init --dry-run          Show every change but write nothing.
-byline init --force --apply -y Re-detect and safely upgrade an older scaffold noninteractively.
+byline init --database mysql   Select MySQL without the database prompt.
+byline init --apply -y         Apply detected safe scaffold upgrades noninteractively.
 byline doctor                  Inspect the current app and report what's wired.
 ```
 
 See `byline init --help` for the full flag list.
+
+### Database selection
+
+The installer offers PostgreSQL (the default) and MySQL 8.0.14 or later. Pass
+`--database postgres` or `--database mysql` to choose noninteractively. MariaDB
+is not supported, and the Docker strategy remains deferred; use a running
+server with administrator credentials.
+
+The selection controls every database-specific artifact:
+
+| Selection | Package | Connection variable | Server configuration |
+|---|---|---|---|
+| PostgreSQL | `@byline/db-postgres` | `BYLINE_DB_POSTGRES_CONNECTION_STRING` | `pgAdapter()` and `@byline/db-postgres/admin` |
+| MySQL | `@byline/db-mysql` | `BYLINE_DB_MYSQL_CONNECTION_STRING` | `mysqlAdapter()` and `@byline/db-mysql/admin` |
+
+Example installations also receive the matching `@byline/search-postgres` or
+`@byline/search-mysql` provider. Minimal installations omit search. The
+unselected database package and environment variable are not added.
 
 ### Generated collection types
 
@@ -37,19 +56,22 @@ The application script evaluates `byline/collections/index.ts`; it does not load
 is its deterministic, standalone TypeScript projection for typed clients and frontend code. Keep
 the artifact committed and run the check in CI.
 
-### Upgrading older scaffolds
+### Upgrading older scaffolds and packages
 
-The v3.21 installer checks dependency ranges and required files instead of trusting old completed
-phase flags. Run `byline init --force --apply -y` to apply safe upgrades. Missing files and
-recognized canonical predecessors can be installed, while divergent user-owned scaffold, route,
-Vite, Turbo, and CI configuration is left untouched with an explicit manual instruction.
+The installer checks dependency ranges and required files instead of trusting
+old completed phase flags. Run `byline init --apply -y` to apply detected safe
+scaffold upgrades. Missing files and recognized canonical predecessors can be
+installed, while divergent user-owned scaffold, route, Vite, Turbo, and CI
+configuration is left untouched with an explicit manual instruction.
 
-Registry-backed `@byline/*` dependencies must declare a range wholly within major 3, starting at
-3.21.0 or newer. Local `workspace:*`, `workspace:^`, and `workspace:~` links are never replaced;
-their linked package version must resolve locally and satisfy the same range, otherwise installation
-is blocked with a manual compatibility instruction. Resolution uses included workspace package
-manifests, not `node_modules` registry copies. Older, future-major, or unbounded registry ranges are
-planned as upgrades to `^3.21.0`.
+For CLI version `x.y.z`, the selected database adapter is pinned exactly to
+`x.y.z` so it matches the bundled schema baseline. Other registry-backed
+`@byline/*` dependencies must declare a range within
+`>=x.y.z <(x+1).0.0-0`; missing or incompatible declarations are planned at
+`^x.y.z`. Local `workspace:*`, `workspace:^`, and `workspace:~` links are never
+replaced. Their package version must resolve locally and satisfy the same
+compatibility floor, otherwise installation is blocked with a manual
+instruction.
 
 In a monorepo, run the CLI from the application directory. App files remain under that directory,
 while pnpm settings, Turbo configuration, CI checks, and package-manager lockfile operations use the
@@ -68,6 +90,7 @@ If you wired Byline into your app by hand (collections, `server.config.ts`, env,
 
 ```sh
 byline setup                       Provision DB, then seed super-admin and example docs.
+byline setup --database mysql      Select MySQL when no choice is recorded.
 byline setup --no-seed-admin       Provision DB and seed docs only.
 byline setup --no-seed-docs        Provision DB and seed super-admin only.
 byline setup --no-seed-admin --no-seed-docs
@@ -78,6 +101,24 @@ byline setup --force --reset --i-mean-it
                                    Full re-run: drop and recreate the database, then re-seed.
 ```
 
-`setup` runs only the `db` → `db-init` → `seed-admin` → `seed-docs` phases — it does not touch project files. For new TanStack Start apps that need the full scaffold, use `byline init`.
+`setup` runs preflight, resolves and verifies the database selection, checks
+the selected adapter's dependencies and environment, then runs `db-init` and
+the enabled seed phases. It does not touch project files. Declining or
+deferring database selection stops the command before downstream work. For new
+TanStack Start apps that need the full scaffold, use `byline init`.
 
-By default `setup` consults `.byline-install.json` and skips phases already recorded as complete. Use `--force` to bypass that and re-run every phase against fresh state — useful after a manual DB reset, when you want to re-seed, or to re-verify a setup is healthy. `--force` is non-destructive on its own (migrations re-apply as no-ops, seeds are idempotent); combine with `--reset --i-mean-it` for a full nuke-and-pave, which drops the database and discards all document data. A confirmation prompt fires before either flow runs, unless you pass `-y`.
+By default `setup` consults `.byline-install.json` and skips phases already
+recorded as complete. `--force` bypasses completion state, but it does not turn
+the fresh baseline into an upgrade or weaken occupied-database checks.
+
+The ordinary path applies the CLI's release-specific, squashed baseline only
+to a missing or empty database. It refuses an existing Byline schema and an
+unrelated occupied schema before mutation. Upgrade an existing installation
+with the numbered native SQL under `packages/db-postgres/sql` or
+`packages/db-mysql/sql` from the target release tag; the CLI does not apply
+those upgrade scripts.
+
+Use `--force --reset --i-mean-it` only for an intentional rebuild. Reset skips
+occupied-database inspection, drops the named database, reapplies the fresh
+baseline, and discards all document data. Without `--i-mean-it`, the reset path
+asks for confirmation.

@@ -181,8 +181,12 @@ The client method calls the provider clear operation first, then repopulates pub
 
 ## Choosing a provider
 
-Use the provider that matches the application's storage database. Search does not require choosing or operating a second engine.
-
-PostgreSQL is Byline's supported default and the adapter scaffolded by the CLI. MySQL search passes the same provider conformance suite, but the wider MySQL backend remains preliminary. If you need a fully supported default installation, choose PostgreSQL. If you already operate a controlled MySQL installation, the search provider offers the same portable matching floor.
+Use the provider that matches the database selected by the CLI; search does not
+require choosing or operating a second engine. PostgreSQL is the default;
+`byline init --database mysql` selects MySQL 8.0.14 or later.
+Example installations receive the matching database and search packages,
+connection environment variable, server adapter, and `migrate(pool)` call.
+Minimal installations omit search for either database. Both providers pass the
+same conformance suite and offer the same portable matching floor.
 
 A dedicated engine becomes useful when the product requires capabilities the SQL providers do not claim, such as mature typo tolerance, spelling suggestions, complex facet aggregation, semantic retrieval, or engine-specific ranking. That engine should still implement `SearchProvider` so authorization and hydration remain in the Byline pipeline.

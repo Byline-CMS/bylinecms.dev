@@ -24,9 +24,11 @@ pnpm build
 
 ## 2. Set up your database
 
-Byline currently requires PostgreSQL. There is a `docker-compose.yml` in the
-root `postgres` directory. Note that the default root password is set to
-`test` in `docker-compose.yml`.
+The repository's reference application is configured for PostgreSQL. Byline
+also supports MySQL through the CLI, but this guide follows the checked-in
+`apps/webapp` configuration and the `docker-compose.yml` in the root
+`postgres` directory. The default root password is set to `test` in
+`docker-compose.yml`.
 
 ### 2.1. Create the `data` subdirectory and start Postgres
 
@@ -44,7 +46,7 @@ mkdir data
 
 ### 2.2. Initialize the database and schema
 
-Only the Postgres adapter is available at the moment.
+Initialize the PostgreSQL adapter used by the reference application:
 
 ```sh
 # From the repository root, copy the adapter environment template.

@@ -13,11 +13,12 @@ Companions:
 
 The Byline CLI (`@byline/cli`) installs Byline into an existing TanStack Start
 application. It prompts for installation and configuration options — where to
-mount the admin UI, how to connect to PostgreSQL, whether to include the example
-collections — and summarises those choices, along with a diff of every file it
-plans to write, before installing anything. When it finishes you have a working
-admin UI, a provisioned and migrated database, a seeded super-admin account, and
-a `byline/` configuration directory ready to edit.
+mount the admin UI, whether to use PostgreSQL or MySQL, how to connect to that
+database, and whether to include the example collections — and summarises those
+choices, along with a diff of every file it plans to write, before installing
+anything. When it finishes you have a working admin UI, a provisioned database
+with the release's fresh-install baseline, a seeded super-admin account, and a
+`byline/` configuration directory ready to edit.
 
 If you are evaluating Byline rather than adding it to a project, the
 [development environment](./02-development-environment.md) runs a fully
@@ -42,9 +43,10 @@ example `npx @byline/cli@latest init` or `pnpm dlx @byline/cli@latest init`.
 - Ideally, an application already under Git. The installer warns and asks for
   confirmation outside a Git repository, because Git is how you roll an
   installation back.
-- A running PostgreSQL server and superuser credentials for it. Choose the
-  existing-server option when asked; the bundled-Docker option is not yet
-  implemented.
+- A running PostgreSQL server or MySQL 8.0.14 or later, with administrator
+  credentials. PostgreSQL is the default. MariaDB is not supported.
+- Choose the existing-server option when asked; the bundled-Docker option is
+  not yet implemented.
 - pnpm, npm, Yarn, or Bun.
 
 ## Install Byline
@@ -100,7 +102,8 @@ and `--to` accept.
 |---|---|---|
 | Where should the admin UI be mounted? | `/admin` | May be nested, such as `/internal/cms`. |
 | Where should the sign-in page be mounted? | `/sign-in` | May be nested, such as `/staff/login`. |
-| How will Byline connect to Postgres? | — | Choose the existing-server option, then give a superuser connection URL, a database name (default `byline`), and an application role (default `byline`). |
+| Which database should Byline use? | PostgreSQL | Choose PostgreSQL or MySQL 8.0.14 or later. Pass `--database postgres` or `--database mysql` to make this choice noninteractively. |
+| How will Byline connect to the database? | — | Choose the existing-server option, then give an administrator connection URL, a database name (default `byline`), and an application role or user (default `byline`). |
 | Include the example collections, blocks, and fields? | yes | The overlay that mirrors `apps/webapp/byline` in this repo. |
 | Include the markdown → Byline import example script? | no | Only asked when you kept the examples. |
 
@@ -149,9 +152,10 @@ See the TanStack Router docs for [File-Based Routing](https://tanstack.com/route
 ```sh
 byline init --dry-run             # show every change but write nothing
 byline init --apply               # skip per-phase confirmations (still prints diffs)
+byline init --database mysql      # select MySQL without the database prompt
 byline init --only db-init        # run a single phase
 byline init --from wire           # resume from a phase and continue to the end
-byline init --force --apply -y    # re-detect and safely upgrade an older scaffold noninteractively
+byline init --apply -y            # apply detected safe scaffold upgrades noninteractively
 ```
 
 Run `byline init --help` for the full list.
@@ -168,6 +172,9 @@ project files:
 # Provision the DB and seed both the super-admin and example docs (default)
 byline setup
 
+# Select MySQL when no database choice is already recorded
+byline setup --database mysql
+
 # Provision the DB and seed the super-admin only
 byline setup --no-seed-docs
 
@@ -177,8 +184,8 @@ byline setup --no-seed-admin
 # Provision the DB without running either seed
 byline setup --no-seed-admin --no-seed-docs
 
-# Re-run every phase even if recorded as complete (non-destructive on its own —
-# migrations re-apply as no-ops, seeds are idempotent)
+# Re-run every phase even if recorded as complete. The database must still be
+# empty; a fresh baseline is never used as an upgrade.
 byline setup --force
 
 # Full nuke-and-pave: drop and recreate the database, then re-run every phase
@@ -186,11 +193,64 @@ byline setup --force --reset --i-mean-it
 ```
 
 `setup` skips phases already recorded as complete; `--force` re-runs them
-against fresh state. The destructive `--reset` flow always asks for
-confirmation unless you pass `--i-mean-it`, and on an installation already
-recorded complete it must be combined with `--force`. Before running, `setup`
-checks that the required `@byline/*` packages and env files are in place — it
-does not install or upgrade packages; use `byline init` for that.
+against fresh state without weakening database or file safety. It selects and
+connects to the database before checking the selected adapter's packages and
+environment key. If database selection or connection is declined, `setup`
+stops instead of continuing to initialization or seeds.
+
+The database-drop step asks for confirmation unless you pass `--i-mean-it`, and
+on an installation already recorded complete reset must be combined with
+`--force`. The `--force` confirmation is separate; add `-y` as well for a fully
+noninteractive rebuild. Reset is intentionally different from the ordinary
+safety path: it skips occupied-database inspection, drops the named database
+if present, and recreates it from the baseline. Use it only when discarding all
+existing document data is intended. Before running, `setup` checks that the
+required `@byline/*` packages and env files are in place — it does not install
+or upgrade packages; use `byline init` for that.
+
+## Database selection and generated configuration
+
+The selected adapter controls the dependency, environment variable, and
+server configuration generated by the CLI:
+
+| Selection | Database package | Connection variable | Generated server configuration |
+|---|---|---|---|
+| PostgreSQL (default) | `@byline/db-postgres` | `BYLINE_DB_POSTGRES_CONNECTION_STRING` | `pgAdapter()` and `@byline/db-postgres/admin` |
+| MySQL | `@byline/db-mysql` | `BYLINE_DB_MYSQL_CONNECTION_STRING` | `mysqlAdapter()` and `@byline/db-mysql/admin` |
+
+When you include the examples, the scaffold also installs and registers the
+matching `@byline/search-postgres` or `@byline/search-mysql` provider. The
+minimal scaffold does not install a search provider. The unselected database
+package and connection variable are not added.
+
+## Fresh baselines, rebuilds, and upgrades
+
+Every Byline release carries one squashed Drizzle SQL baseline per database
+adapter inside the CLI. The CLI applies that baseline only to a missing or
+empty target database. It is a description of the target release's complete
+schema, not a history that can upgrade an earlier Byline installation.
+
+Before any database mutation or application-password prompt, the ordinary
+initialization path inspects the target:
+
+- A missing or empty database can receive the fresh baseline.
+- A database with Byline tables is refused. Apply the numbered native SQL
+  scripts from `packages/db-postgres/sql` or `packages/db-mysql/sql` at the
+  Git tag for the release you are upgrading to.
+- A database with unrelated tables or views is refused. Byline requires a
+  dedicated empty database rather than merging into occupied application
+  storage.
+
+`--force` re-runs detection but does not bypass these refusals. The CLI does
+not apply native SQL upgrades automatically. Search providers own a separate,
+disposable numbered migration stream and may apply it from the generated
+example configuration; search migrations are not part of the database
+baseline.
+
+For an intentional rebuild, use
+`byline setup --force --reset --i-mean-it`. This path skips the inspection
+above, drops the database, reapplies the fresh baseline, and loses all existing
+content.
 
 ## Technical notes
 
@@ -256,10 +316,12 @@ none of that write set is applied.
 
 ### Dependency policy
 
-The CLI pins `@byline/*` packages to its own release line. For CLI `4.5.0`,
-registry-backed ranges must fall within `>=4.5.0 <5.0.0-0`; missing or
-incompatible declarations are planned at `^4.5.0`. Unbounded ranges and tags
-such as `latest` are not accepted. `workspace:*`, `workspace:^`, and
-`workspace:~` links are never replaced — the linked workspace package must
-resolve locally and satisfy the same range, otherwise the dependency phase
-blocks for manual repair.
+The CLI derives package compatibility from its own version. For CLI version
+`x.y.z`, the selected database adapter is pinned exactly to `x.y.z` because its
+schema must match the bundled baseline. Other registry-backed `@byline/*`
+packages must stay within `>=x.y.z <(x+1).0.0-0`; missing or incompatible
+declarations are planned at `^x.y.z`. Unbounded ranges and tags such as
+`latest` are not accepted. `workspace:*`, `workspace:^`, and `workspace:~`
+links are never replaced — the linked workspace package must resolve locally
+and satisfy the same range, otherwise the dependency phase blocks for manual
+repair.

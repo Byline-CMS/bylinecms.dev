@@ -133,7 +133,7 @@ export async function runSetup(opts: SetupOptions): Promise<void> {
     if (result.stage === 'preflight') {
       prompter.outro('setup halted — preflight checks failed')
     } else if (result.stage === 'checks') {
-      prompter.outro('setup halted — pre-flight checks failed')
+      prompter.outro('setup halted — dependency and environment checks failed')
     } else {
       logger.info(`re-run with: byline setup (resumes from ${result.stage})`)
       prompter.outro('setup halted — fix the issue above and re-run')
