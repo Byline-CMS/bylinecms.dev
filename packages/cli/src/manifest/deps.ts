@@ -15,6 +15,7 @@
  * user via the `@byline/*` package boundary and don't need declaring.
  */
 
+import { DATABASE_ADAPTER_IDS, DATABASE_ADAPTERS } from '../lib/database/adapters.js'
 import { BYLINE_RELEASE_POLICY, CLI_PACKAGE_VERSION } from '../lib/release-policy.js'
 import type { Answers, DbDialect } from '../types.js'
 
@@ -47,6 +48,24 @@ export interface DepSpec {
 // makes that release version the sole source of truth for scaffolded installs.
 export const BYLINE_VERSION = BYLINE_RELEASE_POLICY.dependencyRange
 export const BYLINE_ADAPTER_VERSION = CLI_PACKAGE_VERSION
+
+const DATABASE_DEP_SPECS: readonly DepSpec[] = DATABASE_ADAPTER_IDS.map((id) => ({
+  name: DATABASE_ADAPTERS[id].packageName,
+  version: BYLINE_ADAPTER_VERSION,
+  group: 'byline',
+  dialects: [id],
+  versionPolicy: 'exact',
+  note: `${DATABASE_ADAPTERS[id].label} adapter — pinned to the CLI's bundled schema baseline`,
+}))
+
+const SEARCH_DEP_SPECS: readonly DepSpec[] = DATABASE_ADAPTER_IDS.map((id) => ({
+  name: DATABASE_ADAPTERS[id].searchPackageName,
+  version: BYLINE_VERSION,
+  group: 'byline',
+  optional: 'examples',
+  dialects: [id],
+  note: `built-in ${DATABASE_ADAPTERS[id].label} full-text search provider used by example collections`,
+}))
 
 export const DEP_SPECS: readonly DepSpec[] = [
   // ---- @byline/* — released in lockstep at BYLINE_VERSION -----------------
@@ -86,22 +105,7 @@ export const DEP_SPECS: readonly DepSpec[] = [
     group: 'byline',
     note: 'declaration-merge target for the app-generated collection types',
   },
-  {
-    name: '@byline/db-postgres',
-    version: BYLINE_ADAPTER_VERSION,
-    group: 'byline',
-    dialects: ['postgres'],
-    versionPolicy: 'exact',
-    note: "Postgres adapter (Drizzle ORM) — pinned to the CLI's bundled schema baseline",
-  },
-  {
-    name: '@byline/db-mysql',
-    version: BYLINE_ADAPTER_VERSION,
-    group: 'byline',
-    dialects: ['mysql'],
-    versionPolicy: 'exact',
-    note: "MySQL adapter (Drizzle ORM) — pinned to the CLI's bundled schema baseline",
-  },
+  ...DATABASE_DEP_SPECS,
   {
     name: '@byline/host-tanstack-start',
     version: BYLINE_VERSION,
@@ -120,22 +124,7 @@ export const DEP_SPECS: readonly DepSpec[] = [
     group: 'byline',
     note: 'Lexical-backed richtext field + server populate',
   },
-  {
-    name: '@byline/search-postgres',
-    version: BYLINE_VERSION,
-    group: 'byline',
-    optional: 'examples',
-    dialects: ['postgres'],
-    note: 'built-in Postgres full-text search provider; registered in byline/server.config.ts, drives collections/docs indexing hooks',
-  },
-  {
-    name: '@byline/search-mysql',
-    version: BYLINE_VERSION,
-    group: 'byline',
-    optional: 'examples',
-    dialects: ['mysql'],
-    note: 'built-in MySQL full-text search provider; registered in byline/server.config.ts, drives collections/docs indexing hooks',
-  },
+  ...SEARCH_DEP_SPECS,
   {
     name: '@byline/storage-local',
     version: BYLINE_VERSION,

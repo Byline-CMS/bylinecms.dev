@@ -1,7 +1,8 @@
+import { DATABASE_ADAPTER_IDS, DATABASE_ADAPTERS } from './adapters.js'
 import type { Context } from '../../context.js'
 import type { DbDialect } from '../../types.js'
 
-export const DB_DIALECTS = ['postgres', 'mysql'] as const satisfies readonly DbDialect[]
+export const DB_DIALECTS = DATABASE_ADAPTER_IDS
 
 export interface DbDialectInspection {
   state: 'resolved' | 'pending' | 'blocked'
@@ -56,10 +57,10 @@ export async function resolveDbDialect(ctx: Context): Promise<DbDialect | null> 
 
   const dialect = await ctx.prompter.select<DbDialect>({
     message: 'Which database should Byline use?',
-    options: [
-      { value: 'postgres', label: 'PostgreSQL (default)' },
-      { value: 'mysql', label: 'MySQL 8.0.14 or later' },
-    ],
+    options: DB_DIALECTS.map((id, index) => ({
+      value: id,
+      label: `${DATABASE_ADAPTERS[id].label}${index === 0 ? ' (default)' : ''}`,
+    })),
   })
   ctx.state.patchAnswers({ dbDialect: dialect })
   return dialect

@@ -6,7 +6,7 @@ import {
 } from '../lib/dependency-version.js'
 import { BYLINE_RELEASE_POLICY } from '../lib/release-policy.js'
 import { type DepSpec, dependencySpecsFor } from '../manifest/deps.js'
-import { ENV_FILE_PATHS, ENV_SPECS, type EnvFile, type EnvKey } from '../manifest/env.js'
+import { ENV_FILE_PATHS, type EnvFile, type EnvKey, envSpecsForDialect } from '../manifest/env.js'
 import type { Context } from '../context.js'
 
 export type SetupCheckResult = 'proceed' | 'aborted'
@@ -71,7 +71,8 @@ export async function runSetupChecks(ctx: Context): Promise<SetupCheckResult> {
   if (missingEnvKeys.length > 0) {
     ctx.logger.warn('env files are missing keys Byline expects:')
     for (const key of missingEnvKeys) {
-      const spec = ENV_SPECS.find((s) => s.key === key)
+      const dialect = ctx.state.get().answers.dbDialect
+      const spec = dialect ? envSpecsForDialect(dialect).find((s) => s.key === key) : undefined
       const target = spec ? ENV_FILE_PATHS[spec.file] : '.env'
       ctx.logger.raw(`    - ${key}  (${spec?.group}, ${target}) — ${spec?.description}`)
     }
@@ -127,7 +128,7 @@ export function findBylineDependencyIssues(ctx: Context): BylineDependencyIssue[
   return issues
 }
 
-function findMissingEnvKeys(ctx: Context): EnvKey[] {
+export function findMissingEnvKeys(ctx: Context): EnvKey[] {
   // Read each file independently and check each spec against the file it
   // actually belongs to. A key missing from `.env.local` is missing even if
   // a stray copy lives in `.env` (and vice versa) — we want each value in
@@ -140,7 +141,11 @@ function findMissingEnvKeys(ctx: Context): EnvKey[] {
       // missing file → empty set; missing keys will be reported below
     }
   }
-  return ENV_SPECS.filter((s) => !present[s.file].has(s.key)).map((s) => s.key)
+  const dialect = ctx.state.get().answers.dbDialect
+  if (!dialect) return []
+  return envSpecsForDialect(dialect)
+    .filter((s) => !present[s.file].has(s.key))
+    .map((s) => s.key)
 }
 
 /**

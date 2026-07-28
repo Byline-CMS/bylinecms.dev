@@ -20,7 +20,11 @@ export type PhaseState = 'pending' | 'partial' | 'done' | 'blocked'
 
 export type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 
-export type DbDialect = 'postgres' | 'mysql'
+/** Stable CLI identifier for a database-backed storage adapter. */
+export type DatabaseAdapterId = 'postgres' | 'mysql'
+
+/** SQL-oriented compatibility name used by the current migration machinery. */
+export type DbDialect = DatabaseAdapterId
 
 export type DbStrategy = 'existing' | 'docker'
 

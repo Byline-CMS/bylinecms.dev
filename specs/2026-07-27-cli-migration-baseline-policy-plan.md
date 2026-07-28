@@ -96,6 +96,7 @@ For classification:
 ```text
 packages/cli/src/
   lib/database/
+    adapters.ts                central adapter metadata and extension registry
     dialect.ts                 DbDialect, defaults, flag validation, sticky selection
     state.ts                   database/schema object classification
     urls.ts                    dialect-aware URL parsing and application URL rendering
@@ -303,6 +304,7 @@ Do not special-case the adapter only in `depsPhase`; `setup` and future consumer
 
 - Add `BYLINE_DB_MYSQL_CONNECTION_STRING` to `EnvKey`.
 - Add optional `dialects` metadata to database `EnvSpec` entries.
+- Keep package, environment, URL, and provisioning metadata in the central adapter registry so a future adapter has one explicit registration point.
 - Export `envSpecsForDialect(dialect)` and use it in `envPhase` and setup checks.
 - PostgreSQL writes and requires `BYLINE_DB_POSTGRES_CONNECTION_STRING`.
 - MySQL writes and requires `BYLINE_DB_MYSQL_CONNECTION_STRING`.
