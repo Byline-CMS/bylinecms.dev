@@ -187,6 +187,12 @@ export const DEP_SPECS: readonly DepSpec[] = [
     note: 'native libvips binding imported by @byline/core/image; externalised at the SSR boundary so pnpm must symlink it into the host app',
   },
   {
+    name: 'use-sync-external-store',
+    version: '^1.6.0',
+    group: 'runtime',
+    note: "named in vite.config.ts's environments.client.optimizeDeps.include; it is otherwise only ever a transitive dependency (of @base-ui/react and @tanstack/react-store), and pnpm's strict layout leaves a transitive package unresolvable from the host app root — Vite then fails to pre-bundle it and the admin route never hydrates",
+  },
+  {
     name: 'nitro',
     version: 'npm:nitro-nightly@latest',
     group: 'runtime',
