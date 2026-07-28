@@ -1,5 +1,20 @@
 # @byline/host-tanstack-start
 
+## 4.10.1
+
+### Patch Changes
+
+- fixed `byline init` leaving a fresh TanStack Start app unable to boot, by merging Byline's required Vite settings into an existing `vite.config.ts`
+  fixed scaffolded seed and import scripts hanging instead of exiting once their work committed
+- Updated dependencies
+  - @byline/admin@4.10.1
+  - @byline/ai@4.10.1
+  - @byline/auth@4.10.1
+  - @byline/client@4.10.1
+  - @byline/core@4.10.1
+  - @byline/i18n@4.10.1
+  - @byline/ui@4.10.1
+
 ## 4.10.0
 
 ### Minor Changes

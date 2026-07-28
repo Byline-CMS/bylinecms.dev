@@ -1,5 +1,13 @@
 # @byline/search-conformance
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@4.10.1
+  - @byline/search-analysis@4.10.1
+
 ## 0.0.3
 
 ### Patch Changes

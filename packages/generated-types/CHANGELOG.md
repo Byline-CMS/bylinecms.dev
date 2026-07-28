@@ -1,5 +1,12 @@
 # @byline/generated-types
 
+## 4.10.1
+
+### Patch Changes
+
+- fixed `byline init` leaving a fresh TanStack Start app unable to boot, by merging Byline's required Vite settings into an existing `vite.config.ts`
+  fixed scaffolded seed and import scripts hanging instead of exiting once their work committed
+
 ## 4.10.0
 
 ### Minor Changes
