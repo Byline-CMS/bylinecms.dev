@@ -642,6 +642,11 @@ Build and inspect the package tarball programmatically. Assert these entries exi
 
 Assert no snapshot is present.
 
+Add a compile-only fixture for every `src/templates/dialects/<adapter>/**/server.config.ts`
+using workspace package resolution. Run `tsc --noEmit` over those fixtures so renamed adapter
+options, admin entry points, search factories, or search migration signatures fail CI even though
+the CLI's own `tsconfig.json` intentionally excludes copied templates.
+
 ### Full gates
 
 Run from the repository root, in authoritative CI order where applicable:

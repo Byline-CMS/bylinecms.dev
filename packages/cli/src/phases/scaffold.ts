@@ -56,7 +56,11 @@ export const scaffoldPhase: Phase = {
       (answers.examples ?? true) && (answers.importDocs ?? false)
     )
     if (entries.length === 0) {
-      ctx.logger.error('no scaffold templates found — was the CLI built with templates?')
+      ctx.logger.error(
+        answers.dbAdapter
+          ? `no scaffold templates found for ${answers.dbAdapter} — was the CLI built with templates?`
+          : 'database adapter is not selected — run the db phase before scaffold'
+      )
       return { state: 'blocked' }
     }
     const result = applyPlannedWrites(plan.writes)
@@ -132,8 +136,13 @@ export function buildScaffoldPlan(ctx: Context): Plan {
   if (ci.note) notes.push(ci.note)
 
   notes.push(`${writes.length} planned write(s), ${skipped} existing scaffold file(s) preserved`)
-  if (entries.length === 0)
-    notes.push('no template files found — was the CLI built with templates?')
+  if (entries.length === 0) {
+    notes.push(
+      answers.dbAdapter
+        ? `no template files found for ${answers.dbAdapter} — was the CLI built with templates?`
+        : 'database adapter missing — run db phase first'
+    )
+  }
   return { writes, commands: [], notes }
 }
 
