@@ -6,6 +6,7 @@ import { createTestContext } from '../test-helpers.js'
 import { buildRoutesPlan, routesPhase } from './routes.js'
 import { buildScaffoldPlan, scaffoldPhase, shouldIncludeExampleTemplate } from './scaffold.js'
 import type { Context } from '../context.js'
+import type { Logger } from '../ui/logger.js'
 
 const contexts: Context[] = []
 
@@ -24,6 +25,24 @@ function fixture(answers: Parameters<typeof createTestContext>[0] = {}): Context
 }
 
 describe('scaffold planning', () => {
+  it('reports a missing adapter instead of blaming the template build', async () => {
+    const messages: string[] = []
+    const ctx = createTestContext(
+      { dbAdapter: undefined, examples: false },
+      { logger: capturingLogger(messages) }
+    )
+    contexts.push(ctx)
+    writeFileSync(ctx.resolve('package.json'), '{"name":"fixture","scripts":{}}\n')
+
+    const plan = buildScaffoldPlan(ctx)
+    expect(plan.notes).toContain('database adapter missing — run db phase first')
+    expect((await scaffoldPhase.apply(plan, ctx)).state).toBe('blocked')
+    expect(messages.join('\n')).toContain(
+      'database adapter is not selected — run the db phase before scaffold'
+    )
+    expect(messages.join('\n')).not.toContain('was the CLI built with templates?')
+  })
+
   it('normalizes backslash paths before inventory filtering', () => {
     expect(shouldIncludeExampleTemplate('scripts\\import-docs.ts', false)).toBe(false)
     expect(shouldIncludeExampleTemplate('scripts\\lib\\helper.ts', false)).toBe(false)
@@ -191,6 +210,18 @@ describe('scaffold planning', () => {
     expect(await scaffoldPhase.detect(ctx)).toBe('done')
   })
 })
+
+function capturingLogger(messages: string[]): Logger {
+  const capture = (message: string) => messages.push(message)
+  return {
+    info: capture,
+    warn: capture,
+    error: capture,
+    success: capture,
+    step: capture,
+    raw: capture,
+  }
+}
 
 function previousReleaseRoutesSource(): string {
   return `/**

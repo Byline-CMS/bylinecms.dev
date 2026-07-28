@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { DATABASE_ADAPTER_IDS, databaseAdapterDefinition } from '../../lib/database/adapters.js'
 import { createTestContext } from '../../test-helpers.js'
 import { wirePhase } from './index.js'
 import { wireViteConfig } from './vite-config.js'
@@ -48,6 +49,11 @@ describe('Vite config safety', () => {
     expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toContain(
       'bylineClientHookBoundary()'
     )
+    for (const adapter of DATABASE_ADAPTER_IDS) {
+      expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toContain(
+        databaseAdapterDefinition(adapter).packageName
+      )
+    }
   })
 
   it('leaves a target changed after preview untouched', async () => {
@@ -62,7 +68,7 @@ describe('Vite config safety', () => {
   it('plans backup and replacement writes for a recognized canonical predecessor', async () => {
     const ctx = fixture()
     const canonical = readFileSync(`${ctx.templatesDir()}/host/vite.config.ts`, 'utf8')
-    const predecessor = canonical
+    const predecessor = withoutMysqlExternalization(canonical)
       .replace("import { bylineClientHookBoundary } from '@byline/host-tanstack-start/vite'\n", '')
       .replace('    bylineClientHookBoundary(),\n', '')
       .replace(
@@ -95,10 +101,24 @@ describe('Vite config safety', () => {
     expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toBe(canonical)
   })
 
+  it('replaces the exact canonical predecessor from before MySQL externalization', async () => {
+    const ctx = fixture()
+    const canonical = readFileSync(`${ctx.templatesDir()}/host/vite.config.ts`, 'utf8')
+    const predecessor = withoutMysqlExternalization(canonical)
+    writeFileSync(ctx.resolve('vite.config.ts'), predecessor)
+
+    const preview = await wireViteConfig.preview(ctx)
+    expect(preview).toMatchObject({ status: 'done' })
+    expect(preview.writes).toHaveLength(2)
+    expect(await wireViteConfig.apply(ctx, preview.writes)).toMatchObject({ status: 'done' })
+    expect(readFileSync(ctx.resolve('vite.config.bak'), 'utf8')).toBe(predecessor)
+    expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toBe(canonical)
+  })
+
   it('replaces the canonical config that carried an app-owned build guard', async () => {
     const ctx = fixture()
     const canonical = readFileSync(`${ctx.templatesDir()}/host/vite.config.ts`, 'utf8')
-    const predecessor = canonical
+    const predecessor = withoutMysqlExternalization(canonical)
       .replace("import { bylineClientHookBoundary } from '@byline/host-tanstack-start/vite'\n", '')
       .replace(
         "import { defineConfig, type Plugin } from 'vite'\n",
@@ -125,3 +145,20 @@ describe('Vite config safety', () => {
     expect(existsSync(ctx.resolve('vite.config.bak'))).toBe(false)
   })
 })
+
+function withoutMysqlExternalization(canonical: string): string {
+  return canonical
+    .replace(
+      '// database / storage adapters through composition at runtime, not',
+      '// db-postgres / storage adapters through composition at runtime, not'
+    )
+    .replace(
+      '//   - @byline/db-postgres + @byline/db-mysql — database drivers',
+      '//   - @byline/db-postgres — depends on `pg` native bindings'
+    )
+    .replace("  '@byline/db-mysql',\n", '')
+    .replace(
+      '/^@byline\\/(db-postgres|db-mysql|storage-local|storage-s3)/',
+      '/^@byline\\/(db-postgres|storage-local|storage-s3)/'
+    )
+}

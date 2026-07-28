@@ -11,7 +11,7 @@
 Ship the remaining CLI work required for MySQL general availability while making the database-initialization policy explicit and mechanically safe:
 
 - the user chooses PostgreSQL or MySQL in the CLI, or supplies the choice non-interactively;
-- the chosen dialect drives provisioning, environment variables, dependencies, scaffold templates, search-provider wiring, and the bundled baseline;
+- the chosen database adapter drives provisioning, environment variables, dependencies, scaffold templates, search-provider wiring, and the bundled baseline;
 - each CLI release carries exactly one squashed Drizzle baseline per dialect for a fresh database;
 - a baseline is never applied to an occupied database, including under `--force`;
 - an existing installation is upgraded with immutable, numbered native SQL from the source repository at the target release tag;
@@ -25,7 +25,7 @@ Completing this plan satisfies the remaining CLI criterion in issue #58. Benchma
 1. `byline init --database postgres` preserves the current PostgreSQL installation outcome.
 2. `byline init --database mysql` installs the MySQL database and search packages, writes the MySQL connection key, scaffolds a MySQL server config, provisions MySQL 8.0.14+, and applies the MySQL baseline to a fresh database.
 3. Interactive `init` and `setup` prompt for a database when no persisted or command-line selection exists.
-4. A persisted dialect is sticky. The CLI refuses to reinterpret an existing installation as another dialect.
+4. A persisted database adapter is sticky. The CLI refuses to reinterpret an existing installation as another adapter.
 5. PostgreSQL and MySQL baselines are byte-identical to their adapter source migrations, contain one SQL file and one matching journal entry, and contain no Drizzle snapshots.
 6. On a reused non-empty database, the CLI exits before altering a role/user, installing an extension, granting privileges, or running Drizzle.
 7. `--force` never weakens the non-empty-database guard. `--reset --i-mean-it` remains the explicit destructive path.
@@ -96,7 +96,8 @@ For classification:
 ```text
 packages/cli/src/
   lib/database/
-    dialect.ts                 DbDialect, defaults, flag validation, sticky selection
+    adapters.ts                central adapter metadata and extension registry
+    selection.ts               adapter IDs, defaults, flag validation, sticky selection
     state.ts                   database/schema object classification
     urls.ts                    dialect-aware URL parsing and application URL rendering
     provisioner.ts             DbProvisioner contract and registry
@@ -136,7 +137,7 @@ This keeps common application files single-sourced while allowing the database-s
 
 ---
 
-## Task 1: Add a first-class, sticky database dialect
+## Task 1: Add a first-class, sticky database adapter
 
 **Files**
 
@@ -145,31 +146,31 @@ This keeps common application files single-sourced while allowing the database-s
 - Modify: `packages/cli/src/commands/init.ts`
 - Modify: `packages/cli/src/commands/setup.ts`
 - Modify: `packages/cli/src/state.ts`
-- Create: `packages/cli/src/lib/database/dialect.ts`
+- Create: `packages/cli/src/lib/database/selection.ts`
 - Create/modify tests beside the affected modules
 
 ### Implementation
 
-- Add `export type DbDialect = 'postgres' | 'mysql'`.
-- Add `dbDialect?: DbDialect` to `Answers`.
+- Add `export type DatabaseAdapterId = 'postgres' | 'mysql'`.
+- Add `dbAdapter?: DatabaseAdapterId` to `Answers`.
 - Add `--database <postgres|mysql>` to both `init` and `setup`, validate it in `cli.ts`, and carry it in the typed options and `Context.cliFlags`.
 - Resolve the dialect in this order:
-  1. a valid persisted `answers.dbDialect`;
+  1. a valid persisted `answers.dbAdapter`;
   2. `--database`;
   3. an interactive select whose default/first choice is PostgreSQL.
 - If both a persisted value and a flag exist and differ, return a blocked result explaining that changing dialect is a data migration, not an installer re-run. Do not overwrite the state.
-- Treat state files written by every previously released CLI as PostgreSQL installations: when loading a non-empty version-1 state with completed database work but no `dbDialect`, migrate it in memory to `postgres` and rewrite on the next flush. A genuinely fresh state remains unset so it still prompts.
-- Make `dbPhase.detect()` require a dialect in addition to its existing answers. Do not trust the completed-phase flag alone.
+- Treat state files written by every previously released CLI as PostgreSQL installations: when loading a non-empty version-1 state with completed database work but no `dbAdapter`, migrate it in memory to `postgres` and rewrite on the next flush. A genuinely fresh state remains unset so it still prompts.
+- Make `dbPhase.detect()` require an adapter in addition to its existing answers. Do not trust the completed-phase flag alone.
 - Change `Context.secrets.superuserUrl` to the dialect-neutral `adminUrl`. Continue stripping the historical persisted `superuserUrl` field from old state files.
 
 ### Tests
 
 - `--database mysql` and `--database postgres` validate; any other value fails before a phase runs.
 - A fresh state prompts and persists the result.
-- An old completed state without `dbDialect` migrates to PostgreSQL.
+- An old completed state without `dbAdapter` migrates to PostgreSQL.
 - A fresh empty state does not silently default in persisted state.
-- A conflicting flag and persisted dialect blocks without modifying `.byline-install.json`.
-- `doctor` uses the persisted dialect and never prompts.
+- A conflicting flag and persisted adapter blocks without modifying `.byline-install.json`.
+- `doctor` uses the persisted adapter and never prompts.
 
 ### Commit
 
@@ -227,7 +228,7 @@ The test must fail if a second source migration is added, even if somebody copie
 
 ---
 
-## Task 3: Make dependency policy dialect-aware and enforce an exact adapter
+## Task 3: Make dependency policy adapter-aware and enforce an exact adapter
 
 **Files**
 
@@ -243,13 +244,13 @@ The test must fail if a second source migration is added, even if somebody copie
 Extend `DepSpec` with:
 
 ```ts
-dialects?: readonly DbDialect[]
+adapters?: readonly DatabaseAdapterId[]
 versionPolicy?: 'supported-range' | 'exact'
 ```
 
 Add `dependencySpecsFor(answers)` as the only production way to select required dependencies:
 
-- specs without `dialects` apply to both;
+- specs without `adapters` apply to every adapter;
 - `@byline/db-postgres` applies only to PostgreSQL;
 - `@byline/db-mysql` applies only to MySQL;
 - `@byline/search-postgres` applies only to PostgreSQL and only when examples are enabled;
@@ -275,7 +276,7 @@ Do not special-case the adapter only in `depsPhase`; `setup` and future consumer
 
 ### Tests
 
-- The selected dialect installs only its adapter.
+- The selected adapter installs only its database package.
 - Example mode installs the corresponding search package; minimal mode installs neither.
 - A pre-existing adapter caret becomes an install/upgrade candidate.
 - An exact registry version passes.
@@ -289,7 +290,7 @@ Do not special-case the adapter only in `depsPhase`; `setup` and future consumer
 
 ---
 
-## Task 4: Make environment generation dialect-aware
+## Task 4: Make environment generation adapter-aware
 
 **Files**
 
@@ -302,24 +303,24 @@ Do not special-case the adapter only in `depsPhase`; `setup` and future consumer
 ### Implementation
 
 - Add `BYLINE_DB_MYSQL_CONNECTION_STRING` to `EnvKey`.
-- Add optional `dialects` metadata to database `EnvSpec` entries.
-- Export `envSpecsForDialect(dialect)` and use it in `envPhase` and setup checks.
+- Add optional `adapters` metadata to database `EnvSpec` entries.
+- Keep package, environment, URL, and provisioning metadata in the central adapter registry so a future adapter has one explicit registration point.
+- Export `envSpecsForAdapter(adapter)` and use it in `envPhase` and setup checks.
 - PostgreSQL writes and requires `BYLINE_DB_POSTGRES_CONNECTION_STRING`.
 - MySQL writes and requires `BYLINE_DB_MYSQL_CONNECTION_STRING`.
 - Preserve an existing unselected connection key; do not delete it.
 - Render application URLs with `encodeURIComponent` for username, password, and database components:
   - `postgresql://...` with default port 5432;
   - `mysql://...` with default port 3306.
-- Validate admin URLs by dialect and reject a PostgreSQL URL for MySQL or vice versa.
-- Rename prompt text and descriptions so they say PostgreSQL or MySQL based on the selected dialect.
+- Rename prompt text and descriptions so they say PostgreSQL or MySQL based on the selected adapter.
 
 ### Tests
 
 - Reserved characters in usernames and passwords round-trip for both protocols.
-- Each dialect writes only its selected required key into a clean fixture.
-- Existing alternate-dialect keys are preserved.
+- Each adapter writes only its selected required key into a clean fixture.
+- Existing alternate-adapter keys are preserved.
 - Setup checks report the selected key and ignore the unselected key.
-- Missing `dbDialect` blocks environment planning rather than silently assuming PostgreSQL in a fresh state.
+- Missing `dbAdapter` blocks environment planning rather than silently assuming PostgreSQL in a fresh state. Adapter-independent setup checks remain active even before selection.
 
 ### Commit
 
@@ -334,9 +335,10 @@ Do not special-case the adapter only in `depsPhase`; `setup` and future consumer
 - Create: `packages/cli/src/lib/database/provisioner.ts`
 - Create: `packages/cli/src/lib/database/postgres.ts`
 - Create: `packages/cli/src/lib/database/mysql.ts`
+- Delete: `packages/cli/src/lib/pg-url.ts`
 - Create: `packages/cli/src/lib/database/state.ts`
-- Modify: `packages/cli/src/lib/pg-url.ts` or replace it through `urls.ts`
 - Modify: `packages/cli/src/phases/db.ts`
+- Refactor: `packages/cli/src/phases/db-init.ts` to dispatch through the provisioner seam; Task 6 adds the pre-mutation inspection gate
 - Modify: `packages/cli/src/context.ts`
 - Modify: `packages/cli/package.json`
 - Modify: `pnpm-lock.yaml`
@@ -353,8 +355,7 @@ interface DbTargetInspection {
 }
 
 interface DbProvisioner {
-  readonly dialect: DbDialect
-  readonly defaultPort: number
+  readonly adapter: DatabaseAdapterId
   verifyAdminConnection(adminUrl: string): Promise<string>
   inspectTarget(adminUrl: string, database: string): Promise<DbTargetInspection>
   provisionTarget(args: ProvisionArgs): Promise<void>
@@ -363,6 +364,8 @@ interface DbProvisioner {
 ```
 
 Keep the clients behind this seam so phase tests can inject fakes and assert call order without a live database.
+
+Resolve URL parsing, the default administrator database, and baseline support through the adapter registry. Task 5 consumes the registry's `url`, `defaultAdminDatabase`, and `baseline` fields and removes the parallel PostgreSQL-only URL module.
 
 ### PostgreSQL implementation
 
@@ -394,11 +397,12 @@ Keep the clients behind this seam so phase tests can inject fakes and assert cal
 
 ### Database phase
 
-- Resolve/prompt the dialect before connection details.
+- Resolve/prompt the adapter before connection details.
+- Validate administrator URLs through the selected adapter's URL codec and reject a PostgreSQL URL for MySQL or vice versa.
 - Make strategy and credential prompts dialect-specific.
 - Keep Docker as an explicitly unsupported strategy for both dialects in this release.
 - Test the administrator connection through the selected provisioner.
-- Persist only host, port, database, user, strategy, and dialect. Keep the administrator URL and application password in memory.
+- Persist only host, port, database, user, strategy, and adapter. Keep the administrator URL and application password in memory.
 
 ### Tests
 
@@ -508,6 +512,8 @@ The MySQL templates use:
 
 Both example templates retain the current defensive search-migration behavior: await the selected package's `migrate(pool)` at startup, log loudly on failure, and continue without taking down the application.
 
+Use the adapter registry's `adminPackageName` in scaffold/template contracts so the selected template is checked against the registered public admin entry point.
+
 Do not copy `backfill-version-locales.ts` or `re-anchor.ts` for MySQL. They call maintenance methods deliberately absent from `MySqlAdapter`; copying them would produce an invalid scaffold.
 
 Rewrite common collection comments to describe the configured database/search provider rather than claiming PostgreSQL.
@@ -549,17 +555,17 @@ Expand the smoke matrix across both dialects and the existing example/import-doc
 
 - In `setup`, run the non-mutating `db` selection/connection phase after preflight and before dependency/environment checks. Then run setup checks, followed by `db-init` and the selected seed phases.
 - Do not run `db` a second time in the later phase list.
-- Filter dependency and environment checks through the persisted selected dialect.
+- Filter dependency and environment checks through the persisted selected adapter.
 - If a manually wired application's state is absent, `setup --database mysql` provides deterministic non-interactive selection.
 - If no state and no flag exist, prompt before checks.
 - Keep seed execution database-independent through the selected scaffolded `server.config.ts`.
-- `doctor` must report a fresh/missing dialect as pending rather than assuming PostgreSQL, while an upgraded old state is recognized as PostgreSQL.
+- `doctor` must report a fresh/missing adapter as pending rather than assuming PostgreSQL, while an upgraded old state is recognized as PostgreSQL.
 
 ### Tests
 
 - MySQL setup accepts MySQL dependencies and env without demanding PostgreSQL equivalents.
 - PostgreSQL setup behavior remains unchanged.
-- Setup obtains the dialect before checks.
+- Setup obtains the adapter before checks.
 - A blocked `db-init` prevents either seed phase.
 - A normal rerun with recorded `db-init` skips it; `--force` re-enters it and therefore still observes the occupied-database guard.
 
@@ -569,7 +575,103 @@ Expand the smoke matrix across both dialects and the existing example/import-doc
 
 ---
 
-## Task 9: Document the final installation and upgrade contract
+## Task 9: Enforce release invariants and add bounded CI smoke coverage
+
+**Files**
+
+- Create: `scripts/check-native-sql-history.mjs`
+- Modify: `.agents/skills/release/SKILL.md`
+- Modify: `.claude/commands/release.md`
+- Modify: `.opencode/commands/release.md`
+- Add: `packages/cli` integration-test configuration and database smoke tests
+- Modify: `packages/cli/package.json`
+- Modify: `turbo.json`
+- Modify: `.github/workflows/ci.yml`
+- Add a changeset for the CLI/MySQL GA release
+
+### Native SQL release guard
+
+Add a repository script accepting `--base v<previous-version>` that:
+
+- lists `packages/db-postgres/sql/*.sql` and `packages/db-mysql/sql/*.sql` at the base tag;
+- fails if any previously tagged SQL file is deleted or byte-changed;
+- allows new numbered SQL files;
+- ignores README changes.
+
+Add the guard and baseline-sync/check sequence to all three maintained release instruction surfaces. The release sequence must:
+
+1. verify both adapter Drizzle sources are single squashed baselines;
+2. run the CLI baseline sync;
+3. run the baseline drift test;
+4. run the native SQL history guard against the previous release tag;
+5. continue with versioning, build, pack, and publish only when those checks pass.
+
+### CLI integration smoke
+
+Add one integration file for the CLI and run it in the existing `test-suite` job, reusing the already-running PostgreSQL and MySQL services. Do not add another job or matrix.
+
+Provide separate administrator URLs and unique `_test` database names:
+
+- PostgreSQL administrator connection to the service's administrative database;
+- MySQL root connection to the service's `mysql` database.
+- For each dialect, use exactly the same host string and port in the administrator URL
+  and the persisted application endpoint. Endpoint reconciliation is deliberately
+  string-based (`localhost` and `127.0.0.1` are not treated as equivalent), and a
+  mismatch blocks before provisioning.
+
+For each dialect:
+
+1. create/provision a fresh target and apply the selected bundled baseline;
+2. assert a canonical Byline table exists;
+3. rerun inspection and assert it classifies as Byline and refuses a baseline;
+4. create a separate target containing one unrelated table;
+5. assert refusal and verify no Byline table appeared;
+6. for PostgreSQL, verify the refusal happened before `pgcrypto` was installed in that occupied target;
+7. clean up only the explicitly named CLI test databases/users in `afterAll`.
+
+The existing MySQL 8.0 service is the GA floor. The existing adapter-only non-UTC rerun remains sufficient for temporal coverage; do not repeat the CLI smoke under the alternate timezone.
+
+### Published artifact check
+
+Build and inspect the package tarball programmatically. Assert these entries exist:
+
+- `dist/templates/migrations/postgres/<tag>.sql`
+- `dist/templates/migrations/postgres/meta/_journal.json`
+- `dist/templates/migrations/mysql/<tag>.sql`
+- `dist/templates/migrations/mysql/meta/_journal.json`
+
+Assert no snapshot is present.
+
+Add a compile-only fixture for every `src/templates/dialects/<adapter>/**/server.config.ts`
+using workspace package resolution. Run `tsc --noEmit` over those fixtures so renamed adapter
+options, admin entry points, search factories, or search migration signatures fail CI even though
+the CLI's own `tsconfig.json` intentionally excludes copied templates.
+
+### Full gates
+
+Run from the repository root, in authoritative CI order where applicable:
+
+```bash
+pnpm byline:generate:check
+pnpm docs:check
+pnpm lint
+pnpm typecheck
+pnpm knip
+pnpm test
+pnpm test:integration
+pnpm build
+git diff --check
+```
+
+Then run the CLI tarball contract check and inspect the changeset status.
+
+### Commit
+
+`test(cli): covered PostgreSQL and MySQL installation policy`
+
+---
+
+## Task 10: Document the final installation and upgrade contract
 
 **Files**
 
@@ -616,93 +718,6 @@ Do not ship documentation promising the occupied-database refusal before Task 6 
 
 ---
 
-## Task 10: Enforce release invariants and add bounded CI smoke coverage
-
-**Files**
-
-- Create: `scripts/check-native-sql-history.mjs`
-- Modify: `.agents/skills/release/SKILL.md`
-- Modify: `.claude/commands/release.md`
-- Modify: `.opencode/commands/release.md`
-- Add: `packages/cli` integration-test configuration and database smoke tests
-- Modify: `packages/cli/package.json`
-- Modify: `turbo.json`
-- Modify: `.github/workflows/ci.yml`
-- Add a changeset for the CLI/MySQL GA release
-
-### Native SQL release guard
-
-Add a repository script accepting `--base v<previous-version>` that:
-
-- lists `packages/db-postgres/sql/*.sql` and `packages/db-mysql/sql/*.sql` at the base tag;
-- fails if any previously tagged SQL file is deleted or byte-changed;
-- allows new numbered SQL files;
-- ignores README changes.
-
-Add the guard and baseline-sync/check sequence to all three maintained release instruction surfaces. The release sequence must:
-
-1. verify both adapter Drizzle sources are single squashed baselines;
-2. run the CLI baseline sync;
-3. run the baseline drift test;
-4. run the native SQL history guard against the previous release tag;
-5. continue with versioning, build, pack, and publish only when those checks pass.
-
-### CLI integration smoke
-
-Add one integration file for the CLI and run it in the existing `test-suite` job, reusing the already-running PostgreSQL and MySQL services. Do not add another job or matrix.
-
-Provide separate administrator URLs and unique `_test` database names:
-
-- PostgreSQL administrator connection to the service's administrative database;
-- MySQL root connection to the service's `mysql` database.
-
-For each dialect:
-
-1. create/provision a fresh target and apply the selected bundled baseline;
-2. assert a canonical Byline table exists;
-3. rerun inspection and assert it classifies as Byline and refuses a baseline;
-4. create a separate target containing one unrelated table;
-5. assert refusal and verify no Byline table appeared;
-6. for PostgreSQL, verify the refusal happened before `pgcrypto` was installed in that occupied target;
-7. clean up only the explicitly named CLI test databases/users in `afterAll`.
-
-The existing MySQL 8.0 service is the GA floor. The existing adapter-only non-UTC rerun remains sufficient for temporal coverage; do not repeat the CLI smoke under the alternate timezone.
-
-### Published artifact check
-
-Build and inspect the package tarball programmatically. Assert these entries exist:
-
-- `dist/templates/migrations/postgres/<tag>.sql`
-- `dist/templates/migrations/postgres/meta/_journal.json`
-- `dist/templates/migrations/mysql/<tag>.sql`
-- `dist/templates/migrations/mysql/meta/_journal.json`
-
-Assert no snapshot is present.
-
-### Full gates
-
-Run from the repository root, in authoritative CI order where applicable:
-
-```bash
-pnpm byline:generate:check
-pnpm docs:check
-pnpm lint
-pnpm typecheck
-pnpm knip
-pnpm test
-pnpm test:integration
-pnpm build
-git diff --check
-```
-
-Then run the CLI tarball contract check and inspect the changeset status.
-
-### Commit
-
-`test(cli): covered PostgreSQL and MySQL installation policy`
-
----
-
 ## Explicit non-goals
 
 - The CLI will not apply native SQL upgrades automatically.
@@ -718,7 +733,7 @@ Then run the CLI tarball contract check and inspect the changeset status.
 
 ## Implementation order and release boundary
 
-Tasks 1–8 are one functional chain and should land before the GA documentation in Task 9. Task 10 supplies the release and CI guardrails. Intermediate commits are useful for review, but no release should contain only part of the chain.
+Tasks 1–8 are one functional chain. Task 9 proves the release and CI boundary, and the GA documentation lands last in Task 10. Intermediate commits are useful for review, but no release should contain only part of the chain.
 
 The minimum release-ready boundary is:
 

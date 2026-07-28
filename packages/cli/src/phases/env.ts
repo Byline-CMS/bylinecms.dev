@@ -1,9 +1,16 @@
 import { randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
+import { databaseAdapterDefinition } from '../lib/database/adapters.js'
+import { buildDbUrl, defaultDbPort } from '../lib/database/urls.js'
 import { ensureGitignore } from '../lib/gitignore.js'
-import { buildPgUrl } from '../lib/pg-url.js'
-import { ENV_FILE_PATHS, ENV_SPECS, type EnvFile, type EnvKey } from '../manifest/env.js'
+import {
+  ENV_FILE_PATHS,
+  type EnvFile,
+  type EnvKey,
+  type EnvSpec,
+  envSpecsForAdapter,
+} from '../manifest/env.js'
 import type { Context } from '../context.js'
 import type { Phase } from '../types.js'
 
@@ -15,13 +22,18 @@ export const envPhase: Phase = {
   async detect(ctx) {
     if (ctx.state.isComplete('env')) return 'done'
     const a = ctx.state.get().answers
-    if (!a.dbHost || !a.dbName || !a.dbUser) return 'blocked'
+    if (!a.dbAdapter || !a.dbHost || !a.dbName || !a.dbUser) return 'blocked'
     return 'pending'
   },
 
   async plan(ctx) {
     const existing = readAllEnvFiles(ctx)
-    const missing = ENV_SPECS.filter((s) => !existing[s.file][s.key])
+    const adapter = ctx.state.get().answers.dbAdapter
+    if (!adapter) {
+      return { writes: [], commands: [], notes: ['database adapter missing — run db phase first'] }
+    }
+    const specs = envSpecsForAdapter(adapter)
+    const missing = specs.filter((s) => !existing[s.file][s.key])
 
     const notes: string[] = []
     for (const file of Object.keys(ENV_FILE_PATHS) as EnvFile[]) {
@@ -45,21 +57,19 @@ export const envPhase: Phase = {
   },
 
   async apply(_plan, ctx) {
+    const a = ctx.state.get().answers
+    if (!a.dbAdapter || !a.dbHost || !a.dbName || !a.dbUser) {
+      ctx.logger.error('db answers missing — run the db phase first')
+      return { state: 'blocked' }
+    }
+    const specs = envSpecsForAdapter(a.dbAdapter)
     const existing = readAllEnvFiles(ctx)
-    const missing = new Set<EnvKey>(
-      ENV_SPECS.filter((s) => !existing[s.file][s.key]).map((s) => s.key)
-    )
+    const missing = new Set<EnvKey>(specs.filter((s) => !existing[s.file][s.key]).map((s) => s.key))
 
     if (missing.size === 0) {
       ctx.logger.info('all required env vars already set — leaving .env / .env.local unchanged')
       ensureHostGitignore(ctx)
       return { state: 'done' }
-    }
-
-    const a = ctx.state.get().answers
-    if (!a.dbHost || !a.dbName || !a.dbUser) {
-      ctx.logger.error('db answers missing — run the db phase first')
-      return { state: 'blocked' }
     }
 
     const values: Record<EnvFile, Record<string, string>> = {
@@ -106,12 +116,14 @@ export const envPhase: Phase = {
       values.secret.BYLINE_SUPERADMIN_PASSWORD = pw
     }
 
-    if (missing.has('BYLINE_DB_POSTGRES_CONNECTION_STRING')) {
-      const dbPassword = await resolveDbPassword(ctx)
+    const dbKey = databaseAdapterDefinition(a.dbAdapter).connectionEnvKey
+    if (missing.has(dbKey)) {
+      const adapter = databaseAdapterDefinition(a.dbAdapter)
+      const dbPassword = await resolveDbPassword(ctx, dbKey, adapter.label)
       if (!dbPassword) return { state: 'blocked' }
-      values.secret.BYLINE_DB_POSTGRES_CONNECTION_STRING = buildPgUrl({
+      values.secret[dbKey] = buildDbUrl(a.dbAdapter, {
         host: a.dbHost,
-        port: a.dbPort ?? 5432,
+        port: a.dbPort ?? defaultDbPort(a.dbAdapter),
         user: a.dbUser,
         password: dbPassword,
         database: a.dbName,
@@ -120,7 +132,7 @@ export const envPhase: Phase = {
 
     for (const file of Object.keys(values) as EnvFile[]) {
       const path = ctx.resolve(ENV_FILE_PATHS[file])
-      writeFileSync(path, renderEnvFile(values[file], file), 'utf8')
+      writeFileSync(path, renderEnvFile(values[file], file, specs), 'utf8')
       ctx.logger.success(`wrote ${path}`)
     }
     ensureHostGitignore(ctx)
@@ -131,7 +143,7 @@ export const envPhase: Phase = {
 /**
  * Make sure the host app's `.gitignore` covers the two files Byline drops
  * into the project root: `.env.local` (host secrets) and `.byline-install.json`
- * (CLI state — no longer carries secrets after the superuserUrl fix, but
+ * (CLI state — no longer carries database administrator secrets, but
  * still noise nobody wants in their commits). Re-running is a no-op when
  * both entries are already covered.
  */
@@ -156,7 +168,11 @@ function ensureHostGitignore(ctx: Context): void {
   }
 }
 
-async function resolveDbPassword(ctx: Context): Promise<string | null> {
+async function resolveDbPassword(
+  ctx: Context,
+  connectionKey: EnvKey,
+  databaseLabel: string
+): Promise<string | null> {
   if (ctx.secrets.dbPassword) return ctx.secrets.dbPassword
   const fromEnv = process.env.BYLINE_DB_PASSWORD
   if (fromEnv) {
@@ -164,11 +180,10 @@ async function resolveDbPassword(ctx: Context): Promise<string | null> {
     return fromEnv
   }
   const pw = await ctx.prompter.password({
-    message:
-      'Application database role password (re-enter to compose BYLINE_DB_POSTGRES_CONNECTION_STRING)',
+    message: `${databaseLabel} application role password (re-enter to compose ${connectionKey})`,
   })
   if (!pw) {
-    ctx.logger.error('password is required to compose BYLINE_DB_POSTGRES_CONNECTION_STRING')
+    ctx.logger.error(`password is required to compose ${connectionKey}`)
     return null
   }
   ctx.secrets.dbPassword = pw
@@ -202,9 +217,13 @@ function readEnvFile(path: string): Record<string, string> {
   return out
 }
 
-function renderEnvFile(values: Record<string, string>, file: EnvFile): string {
+function renderEnvFile(
+  values: Record<string, string>,
+  file: EnvFile,
+  specs: readonly EnvSpec[]
+): string {
   // Only emit specs belonging to this file; the other file owns the rest.
-  const fileSpecs = ENV_SPECS.filter((s) => s.file === file)
+  const fileSpecs = specs.filter((s) => s.file === file)
   const known = new Set<string>(fileSpecs.map((s) => s.key))
   const groups: Record<'app' | 'database' | 'auth', string[]> = { app: [], database: [], auth: [] }
   for (const spec of fileSpecs) {

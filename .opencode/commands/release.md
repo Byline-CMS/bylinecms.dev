@@ -19,6 +19,26 @@ Before changing files or remotes:
 6. Read the exact fixed package names from `.changeset/config.json`, map each name to its `packages/*/package.json`, and verify all currently equal `PREV_VERSION`.
 7. Verify the prior package tag `@byline/core@<PREV_VERSION>` resolves; use it as the release-range anchor.
 
+### Database schema gates
+
+Before choosing or consuming the release changeset, run this sequence from the
+repository root:
+
+```sh
+pnpm --filter @byline/cli sync:baselines
+git diff --exit-code -- packages/cli/src/templates/migrations
+pnpm --filter @byline/cli exec vitest run src/lib/baseline-drift.test.ts
+pnpm check:native-sql-history -- --base "v${PREV_VERSION}"
+```
+
+The sync command first requires each database adapter's Drizzle source and
+journal to contain exactly one squashed baseline, then copies both baselines
+into the CLI. The diff check refuses uncommitted bundle drift; the Vitest
+contract verifies source and bundle bytes and inventory; the history guard
+requires every numbered `packages/db-*/sql/*.sql` file from the previous tag to
+remain present and byte-identical. Stop before versioning, build, pack, or
+publication if any command fails.
+
 ## 2. Choose the bump
 
 - If `$ARGUMENTS` is exactly `patch`, `minor`, or `major`, use it.

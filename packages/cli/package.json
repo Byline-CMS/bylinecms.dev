@@ -33,9 +33,13 @@
     "build": "tsc -p tsconfig.json && tsc-alias && node ./scripts/copy-templates.js && chmod +x dist/cli.js",
     "dev": "tsc -w -p tsconfig.json",
     "clean": "node scripts/clean.js node_modules dist .turbo",
+    "check:artifact": "node scripts/check-package-artifact.mjs",
+    "check:templates": "node scripts/check-dialect-templates.mjs",
+    "sync:baselines": "node scripts/sync-db-baselines.mjs",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "test": "vitest run --passWithNoTests",
-    "typecheck": "tsc --noEmit"
+    "test:integration": "vitest run --mode=integration",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.tests.json"
   },
   "files": [
     "dist"
@@ -48,6 +52,7 @@
     "execa": "^10.0.0",
     "jsonc-parser": "^3.3.1",
     "minimatch": "^10.2.5",
+    "mysql2": "^3.23.1",
     "pg": "^8.22.0",
     "picocolors": "^1.1.1",
     "semver": "^7.8.5",

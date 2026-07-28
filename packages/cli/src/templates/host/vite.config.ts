@@ -44,7 +44,7 @@ const bylineSsrNoExternal = [/^@byline\//]
 // kept external so Node resolves them at runtime instead.
 //   - sharp + @byline/storage-local — image processing (libvips)
 //   - @byline/storage-s3 — bundles the AWS SDK; keep external for Node resolution
-//   - @byline/db-postgres — depends on `pg` native bindings
+//   - @byline/db-postgres + @byline/db-mysql — database drivers
 //   - pino — CJS entrypoints don't execute under Vite's module runner
 //
 // `@byline/admin` is intentionally NOT externalised: it now hosts
@@ -53,7 +53,7 @@ const bylineSsrNoExternal = [/^@byline\//]
 // `import './foo_module.css'`. Node's ESM loader can't handle `.css`,
 // so admin must flow through Vite's SSR pipeline where the CSS plugin
 // resolves the side-effect imports. Server-only admin subpaths reach
-// db-postgres / storage adapters through composition at runtime, not
+// database / storage adapters through composition at runtime, not
 // through `@byline/admin`'s own import graph, so this is safe.
 const ssrExternal = [
   'sharp',
@@ -61,6 +61,7 @@ const ssrExternal = [
   '@byline/storage-local',
   '@byline/storage-s3',
   '@byline/db-postgres',
+  '@byline/db-mysql',
 ]
 
 const config = defineConfig({
@@ -198,7 +199,7 @@ const config = defineConfig({
           'react-dom',
           'pino',
           'sharp',
-          /^@byline\/(db-postgres|storage-local|storage-s3)/,
+          /^@byline\/(db-postgres|db-mysql|storage-local|storage-s3)/,
         ],
       },
     }),

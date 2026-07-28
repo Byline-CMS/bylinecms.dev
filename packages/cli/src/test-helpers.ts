@@ -4,6 +4,7 @@ import { join } from 'node:path'
 
 import { Context } from './context.js'
 import { StateStore } from './state.js'
+import type { DatabaseProvisionerRegistry } from './lib/database/provisioner.js'
 import type { Prompter } from './prompts.js'
 import type { Answers } from './types.js'
 import type { Logger } from './ui/logger.js'
@@ -34,24 +35,43 @@ const prompter: Prompter = {
   },
 }
 
-export function createTestContext(answers: Answers = {}): Context {
+export function createTestContext(
+  answers: Answers = {},
+  options: TestContextOptions = {}
+): Context {
   const cwd = mkdtempSync(join(tmpdir(), 'byline-cli-test-'))
-  return createTestContextAt(cwd, answers)
+  return createTestContextAt(cwd, answers, options)
 }
 
-export function createTestContextAt(cwd: string, answers: Answers = {}): Context {
+export function createTestContextAt(
+  cwd: string,
+  answers: Answers = {},
+  options: TestContextOptions = {}
+): Context {
   const state = new StateStore(cwd)
-  state.patchAnswers(answers)
+  // Existing CLI tests model the historically PostgreSQL-only installer.
+  // Adapter-selection tests opt back into a genuinely fresh state explicitly.
+  state.patchAnswers({ dbAdapter: 'postgres', ...answers })
   return new Context({
     cwd,
     apply: true,
     dryRun: false,
     yes: true,
-    reset: false,
-    resetConfirmed: false,
-    cliFlags: {},
-    logger,
-    prompter,
+    reset: options.reset ?? false,
+    resetConfirmed: options.resetConfirmed ?? false,
+    cliFlags: options.cliFlags ?? {},
+    logger: options.logger ?? logger,
+    prompter: options.prompter ?? prompter,
     state,
+    provisioners: options.provisioners,
   })
+}
+
+interface TestContextOptions {
+  provisioners?: DatabaseProvisionerRegistry
+  reset?: boolean
+  resetConfirmed?: boolean
+  cliFlags?: Record<string, string | boolean | undefined>
+  logger?: Logger
+  prompter?: Prompter
 }

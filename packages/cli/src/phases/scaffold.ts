@@ -14,6 +14,7 @@ import type { FileWrite, Phase, Plan } from '../types.js'
 const TARGET_DIR = 'byline'
 const BASE_TEMPLATE = 'byline'
 const EXAMPLES_TEMPLATE = 'byline-examples'
+const DIALECTS_TEMPLATE = 'dialects'
 const GENERATION_SCRIPTS = {
   'byline:generate': 'tsx byline/scripts/generate-types.ts',
   'byline:generate:check': 'tsx byline/scripts/generate-types.ts --check',
@@ -55,7 +56,11 @@ export const scaffoldPhase: Phase = {
       (answers.examples ?? true) && (answers.importDocs ?? false)
     )
     if (entries.length === 0) {
-      ctx.logger.error('no scaffold templates found — was the CLI built with templates?')
+      ctx.logger.error(
+        answers.dbAdapter
+          ? `no scaffold templates found for ${answers.dbAdapter} — was the CLI built with templates?`
+          : 'database adapter is not selected — run the db phase before scaffold'
+      )
       return { state: 'blocked' }
     }
     const result = applyPlannedWrites(plan.writes)
@@ -131,8 +136,13 @@ export function buildScaffoldPlan(ctx: Context): Plan {
   if (ci.note) notes.push(ci.note)
 
   notes.push(`${writes.length} planned write(s), ${skipped} existing scaffold file(s) preserved`)
-  if (entries.length === 0)
-    notes.push('no template files found — was the CLI built with templates?')
+  if (entries.length === 0) {
+    notes.push(
+      answers.dbAdapter
+        ? `no template files found for ${answers.dbAdapter} — was the CLI built with templates?`
+        : 'database adapter missing — run db phase first'
+    )
+  }
   return { writes, commands: [], notes }
 }
 
@@ -198,31 +208,31 @@ function collectTemplateEntries(
   examples: boolean,
   importDocs: boolean
 ): TemplateEntry[] {
-  const baseRoot = join(ctx.templatesDir(), BASE_TEMPLATE)
-  const examplesRoot = join(ctx.templatesDir(), EXAMPLES_TEMPLATE)
-  const allExamples = examples && existsSync(examplesRoot) ? walkFiles(examplesRoot) : []
-  const exampleFiles = allExamples.filter((abs) => {
-    return shouldIncludeExampleTemplate(relative(examplesRoot, abs), importDocs)
-  })
-  const exampleRels = new Set(
-    exampleFiles.map((abs) => toPosixTemplatePath(relative(examplesRoot, abs)))
-  )
-  const entries: TemplateEntry[] = []
+  const adapter = ctx.state.get().answers.dbAdapter
+  if (!adapter) return []
 
-  if (existsSync(baseRoot)) {
-    for (const abs of walkFiles(baseRoot)) {
-      const rel = toPosixTemplatePath(relative(baseRoot, abs))
-      if (exampleRels.has(rel)) continue
-      entries.push({ rel, contents: readFileSync(abs, 'utf8') })
+  const dialectRoot = join(ctx.templatesDir(), DIALECTS_TEMPLATE, adapter)
+  const layers = [
+    { root: join(ctx.templatesDir(), BASE_TEMPLATE), examples: false },
+    { root: join(dialectRoot, BASE_TEMPLATE), examples: false },
+    ...(examples
+      ? [
+          { root: join(ctx.templatesDir(), EXAMPLES_TEMPLATE), examples: true },
+          { root: join(dialectRoot, EXAMPLES_TEMPLATE), examples: true },
+        ]
+      : []),
+  ]
+  const entries = new Map<string, TemplateEntry>()
+
+  for (const layer of layers) {
+    if (!existsSync(layer.root)) continue
+    for (const abs of walkFiles(layer.root)) {
+      const rel = toPosixTemplatePath(relative(layer.root, abs))
+      if (layer.examples && !shouldIncludeExampleTemplate(rel, importDocs)) continue
+      entries.set(rel, { rel, contents: readFileSync(abs, 'utf8') })
     }
   }
-  for (const abs of exampleFiles) {
-    entries.push({
-      rel: toPosixTemplatePath(relative(examplesRoot, abs)),
-      contents: readFileSync(abs, 'utf8'),
-    })
-  }
-  return entries.sort((a, b) => a.rel.localeCompare(b.rel))
+  return [...entries.values()].sort((a, b) => a.rel.localeCompare(b.rel))
 }
 
 export function shouldIncludeExampleTemplate(relativePath: string, importDocs: boolean): boolean {

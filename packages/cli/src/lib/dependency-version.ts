@@ -40,6 +40,8 @@ export function checkDependencyVersion(
   }
 
   const trimmed = declared.trim()
+  const supportedRange =
+    spec.versionPolicy === 'exact' ? spec.version : BYLINE_RELEASE_POLICY.supportedRange
   if (BARE_WORKSPACE_RANGES.has(trimmed)) {
     if (!actualVersion) {
       return {
@@ -48,12 +50,12 @@ export function checkDependencyVersion(
         reason: `${trimmed} target version could not be resolved locally`,
       }
     }
-    if (!valid(actualVersion) || !satisfies(actualVersion, BYLINE_RELEASE_POLICY.supportedRange)) {
+    if (!valid(actualVersion) || !satisfies(actualVersion, supportedRange)) {
       return {
         status: 'incompatible',
         preserveDeclared: true,
         actualVersion,
-        reason: `${trimmed} resolves to unsupported ${actualVersion}`,
+        reason: `${trimmed} resolves to ${actualVersion}, expected ${supportedRange}`,
       }
     }
     return {
@@ -69,14 +71,13 @@ export function checkDependencyVersion(
     return { status: 'incompatible', preserveDeclared: false, reason: 'invalid version range' }
   }
   try {
-    const compatible =
-      validRange(range) !== null && subset(range, BYLINE_RELEASE_POLICY.supportedRange)
+    const compatible = validRange(range) !== null && subset(range, supportedRange)
     return compatible
       ? { status: 'compatible', preserveDeclared: trimmed.startsWith('workspace:'), reason: range }
       : {
           status: 'incompatible',
           preserveDeclared: trimmed.startsWith('workspace:'),
-          reason: `${range} is not wholly within ${BYLINE_RELEASE_POLICY.supportedRange}`,
+          reason: `${range} is not wholly within ${supportedRange}`,
         }
   } catch {
     return { status: 'incompatible', preserveDeclared: false, reason: 'invalid version range' }

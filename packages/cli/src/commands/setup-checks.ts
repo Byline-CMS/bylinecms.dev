@@ -5,8 +5,14 @@ import {
   evaluateDependencyCompatibility,
 } from '../lib/dependency-version.js'
 import { BYLINE_RELEASE_POLICY } from '../lib/release-policy.js'
-import { DEP_SPECS, type DepSpec } from '../manifest/deps.js'
-import { ENV_FILE_PATHS, ENV_SPECS, type EnvFile, type EnvKey } from '../manifest/env.js'
+import { type DepSpec, dependencySpecsFor } from '../manifest/deps.js'
+import {
+  ENV_FILE_PATHS,
+  ENV_SPECS,
+  type EnvFile,
+  type EnvKey,
+  envSpecsForAdapter,
+} from '../manifest/env.js'
 import type { Context } from '../context.js'
 
 export type SetupCheckResult = 'proceed' | 'aborted'
@@ -27,6 +33,10 @@ export type SetupCheckResult = 'proceed' | 'aborted'
  * "I don't want to type defaults," not "I don't care if my env is broken."
  */
 export async function runSetupChecks(ctx: Context): Promise<SetupCheckResult> {
+  if (!ctx.state.get().answers.dbAdapter) {
+    ctx.logger.error('database adapter is not selected — run the db phase first')
+    return 'aborted'
+  }
   const dependencyIssues = findBylineDependencyIssues(ctx)
   if (dependencyIssues === null) {
     ctx.logger.error('package.json not found or unreadable — run `byline init` first')
@@ -66,8 +76,10 @@ export async function runSetupChecks(ctx: Context): Promise<SetupCheckResult> {
   const missingEnvKeys = findMissingEnvKeys(ctx)
   if (missingEnvKeys.length > 0) {
     ctx.logger.warn('env files are missing keys Byline expects:')
+    const adapter = ctx.state.get().answers.dbAdapter
+    const specs = adapter ? envSpecsForAdapter(adapter) : ENV_SPECS.filter((spec) => !spec.adapters)
     for (const key of missingEnvKeys) {
-      const spec = ENV_SPECS.find((s) => s.key === key)
+      const spec = specs.find((candidate) => candidate.key === key)
       const target = spec ? ENV_FILE_PATHS[spec.file] : '.env'
       ctx.logger.raw(`    - ${key}  (${spec?.group}, ${target}) — ${spec?.description}`)
     }
@@ -108,7 +120,7 @@ export function findBylineDependencyIssues(ctx: Context): BylineDependencyIssue[
   }
   const declared = { ...(pkg.devDependencies ?? {}), ...(pkg.dependencies ?? {}) }
   const issues: BylineDependencyIssue[] = []
-  for (const spec of DEP_SPECS) {
+  for (const spec of dependencySpecsFor(ctx.state.get().answers)) {
     if (spec.group !== 'byline') continue
     const declaredVersion = declared[spec.name]
     if (declaredVersion === undefined) {
@@ -123,7 +135,7 @@ export function findBylineDependencyIssues(ctx: Context): BylineDependencyIssue[
   return issues
 }
 
-function findMissingEnvKeys(ctx: Context): EnvKey[] {
+export function findMissingEnvKeys(ctx: Context): EnvKey[] {
   // Read each file independently and check each spec against the file it
   // actually belongs to. A key missing from `.env.local` is missing even if
   // a stray copy lives in `.env` (and vice versa) — we want each value in
@@ -136,7 +148,9 @@ function findMissingEnvKeys(ctx: Context): EnvKey[] {
       // missing file → empty set; missing keys will be reported below
     }
   }
-  return ENV_SPECS.filter((s) => !present[s.file].has(s.key)).map((s) => s.key)
+  const adapter = ctx.state.get().answers.dbAdapter
+  const specs = adapter ? envSpecsForAdapter(adapter) : ENV_SPECS.filter((spec) => !spec.adapters)
+  return specs.filter((s) => !present[s.file].has(s.key)).map((s) => s.key)
 }
 
 /**

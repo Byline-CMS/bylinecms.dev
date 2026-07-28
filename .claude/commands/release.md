@@ -31,6 +31,26 @@ Before any visible action, verify all of these. If any fails, stop and explain w
 4. **You are on a branch where the release should land** — normally `develop`. If on `main` or a feature branch, confirm with the user before proceeding.
 5. **Read the *current* version** from `packages/core/package.json` and stash it as `PREV_VERSION`. This is the "before" anchor for the bump-level check.
 
+### Database schema gates
+
+Before choosing or consuming the release changeset, run this sequence from the
+repository root:
+
+```sh
+pnpm --filter @byline/cli sync:baselines
+git diff --exit-code -- packages/cli/src/templates/migrations
+pnpm --filter @byline/cli exec vitest run src/lib/baseline-drift.test.ts
+pnpm check:native-sql-history -- --base "v${PREV_VERSION}"
+```
+
+The sync command first requires each database adapter's Drizzle source and
+journal to contain exactly one squashed baseline, then copies both baselines
+into the CLI. The diff check refuses uncommitted bundle drift; the Vitest
+contract verifies source and bundle bytes and inventory; the history guard
+requires every numbered `packages/db-*/sql/*.sql` file from the previous tag to
+remain present and byte-identical. Stop before versioning, build, pack, or
+publication if any command fails.
+
 ## Step 1 — Choose bump level
 
 If `$ARGUMENTS` is one of `patch` / `minor` / `major`, use that. Otherwise ask via `AskUserQuestion`:

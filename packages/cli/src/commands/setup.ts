@@ -9,7 +9,7 @@ import { runPhase } from '../runner.js'
 import { StateStore } from '../state.js'
 import { createLogger } from '../ui/logger.js'
 import { runSetupChecks } from './setup-checks.js'
-import type { PackageManager, Phase } from '../types.js'
+import type { DatabaseAdapterId, PackageManager, Phase, PhaseId } from '../types.js'
 
 export interface SetupOptions {
   noSeedAdmin?: boolean
@@ -20,9 +20,38 @@ export interface SetupOptions {
   reset?: boolean
   resetIMeanIt?: boolean
   force?: boolean
+  database?: DatabaseAdapterId
   pm?: PackageManager
   quiet?: boolean
   noColor?: boolean
+}
+
+export interface SetupFlowDependencies {
+  runPhase: typeof runPhase
+  runChecks: typeof runSetupChecks
+  preflightPhase: Phase
+  dbPhase: Phase
+  dbInitPhase: Phase
+  seedAdminPhase: Phase
+  seedDocsPhase: Phase
+}
+
+export type SetupFlowResult =
+  | { state: 'done' }
+  | {
+      state: 'halted'
+      stage: PhaseId | 'checks'
+      error?: Error
+    }
+
+const DEFAULT_SETUP_FLOW_DEPENDENCIES: SetupFlowDependencies = {
+  runPhase,
+  runChecks: runSetupChecks,
+  preflightPhase,
+  dbPhase,
+  dbInitPhase,
+  seedAdminPhase,
+  seedDocsPhase,
 }
 
 /**
@@ -78,7 +107,8 @@ export async function runSetup(opts: SetupOptions): Promise<void> {
       notes.push('existing document data WILL be lost')
     } else {
       notes.push('database is NOT being reset (pass --reset to drop and recreate)')
-      notes.push('migrations will run against the existing database (may be a no-op)')
+      notes.push('the database phase will still refuse every occupied database')
+      notes.push('a fresh baseline is never treated as an upgrade, even under --force')
     }
     prompter.note(notes.join('\n'), '--force')
 
@@ -96,52 +126,82 @@ export async function runSetup(opts: SetupOptions): Promise<void> {
     }
   }
 
-  // Run the existing preflight phase first so Node version + git + the
-  // package manager are resolved before any setup-specific checks read
-  // ctx.pm. Preflight is `defaultMode: 'auto'`, so it just runs.
-  let preflightState: Awaited<ReturnType<typeof runPhase>>
-  try {
-    preflightState = await runPhase(preflightPhase, ctx)
-  } catch (e) {
-    logger.error(`preflight failed: ${(e as Error).message}`)
+  const result = await runSetupFlow(ctx, opts)
+  if (result.state === 'halted') {
+    if (result.error) logger.error(`${result.stage} failed: ${result.error.message}`)
     state.flush()
-    process.exit(1)
-  }
-  if (preflightState === 'blocked' || preflightState === 'pending') {
-    state.flush()
-    prompter.outro('setup halted — preflight checks failed')
-    process.exit(1)
-  }
-
-  const checks = await runSetupChecks(ctx)
-  if (checks === 'aborted') {
-    state.flush()
-    prompter.outro('setup halted — pre-flight checks failed')
-    process.exit(1)
-  }
-
-  const phases: Phase[] = [dbPhase, dbInitPhase]
-  if (!opts.noSeedAdmin) phases.push(seedAdminPhase)
-  if (!opts.noSeedDocs) phases.push(seedDocsPhase)
-
-  for (const phase of phases) {
-    let state_: Awaited<ReturnType<typeof runPhase>> | undefined
-    try {
-      state_ = await runPhase(phase, ctx)
-    } catch (e) {
-      logger.error(`${phase.id} failed: ${(e as Error).message}`)
-      logger.info(`re-run with: byline setup (resumes from this phase)`)
-      state.flush()
-      process.exit(1)
-    }
-    if (state_ === 'blocked') {
-      logger.info(`re-run with: byline setup (resumes from this phase)`)
-      state.flush()
+    if (result.stage === 'preflight') {
+      prompter.outro('setup halted — preflight checks failed')
+    } else if (result.stage === 'checks') {
+      prompter.outro('setup halted — dependency and environment checks failed')
+    } else {
+      logger.info(`re-run with: byline setup (resumes from ${result.stage})`)
       prompter.outro('setup halted — fix the issue above and re-run')
-      process.exit(1)
     }
+    process.exit(1)
   }
 
   state.flush()
   prompter.outro('Byline setup complete — see byline doctor for status')
+}
+
+/**
+ * Execute the setup phases around the adapter-aware manual-install checks.
+ * Keeping this orchestration separate from process construction makes the
+ * safety ordering directly testable:
+ *
+ * preflight → database selection/connection → dependency + env checks
+ * → database initialization → optional seeds.
+ */
+export async function runSetupFlow(
+  ctx: Context,
+  opts: Pick<SetupOptions, 'noSeedAdmin' | 'noSeedDocs'>,
+  dependencies: SetupFlowDependencies = DEFAULT_SETUP_FLOW_DEPENDENCIES
+): Promise<SetupFlowResult> {
+  for (const phase of [dependencies.preflightPhase, dependencies.dbPhase]) {
+    let phaseState: Awaited<ReturnType<typeof runPhase>>
+    try {
+      phaseState = await dependencies.runPhase(phase, ctx)
+    } catch (error) {
+      return { state: 'halted', stage: phase.id, error: error as Error }
+    }
+    if (phaseState === 'blocked' || phaseState === 'pending') {
+      return { state: 'halted', stage: phase.id }
+    }
+  }
+
+  let checks: Awaited<ReturnType<typeof runSetupChecks>>
+  try {
+    checks = await dependencies.runChecks(ctx)
+  } catch (error) {
+    return { state: 'halted', stage: 'checks', error: error as Error }
+  }
+  if (checks === 'aborted') {
+    return { state: 'halted', stage: 'checks' }
+  }
+
+  const phases: Phase[] = [dependencies.dbInitPhase]
+  if (!opts.noSeedAdmin) phases.push(dependencies.seedAdminPhase)
+  if (!opts.noSeedDocs) phases.push(dependencies.seedDocsPhase)
+
+  for (const phase of phases) {
+    let phaseState: Awaited<ReturnType<typeof runPhase>>
+    try {
+      phaseState = await dependencies.runPhase(phase, ctx)
+    } catch (error) {
+      return {
+        state: 'halted',
+        stage: phase.id,
+        error: error as Error,
+      }
+    }
+    if (
+      phaseState === 'blocked' ||
+      (phase.id === dependencies.dbInitPhase.id && phaseState === 'pending')
+    ) {
+      return { state: 'halted', stage: phase.id }
+    }
+  }
+
+  return { state: 'done' }
 }

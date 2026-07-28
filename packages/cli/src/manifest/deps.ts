@@ -15,7 +15,13 @@
  * user via the `@byline/*` package boundary and don't need declaring.
  */
 
-import { BYLINE_RELEASE_POLICY } from '../lib/release-policy.js'
+import {
+  DATABASE_ADAPTER_IDS,
+  DATABASE_ADAPTERS,
+  type DatabaseAdapterDefinition,
+} from '../lib/database/adapters.js'
+import { BYLINE_RELEASE_POLICY, CLI_PACKAGE_VERSION } from '../lib/release-policy.js'
+import type { Answers, DatabaseAdapterId } from '../types.js'
 
 export type DepGroup = 'byline' | 'runtime' | 'dev'
 
@@ -25,7 +31,7 @@ export type DepGroup = 'byline' | 'runtime' | 'dev'
  * of dependencies they didn't ask for (e.g. the markdown ingestion stack
  * that exists only to serve `byline/scripts/import-docs.ts`).
  */
-export type DepOptionalFlag = 'importDocs'
+export type DepOptionalFlag = 'examples' | 'importDocs'
 
 export interface DepSpec {
   name: string
@@ -35,12 +41,42 @@ export interface DepSpec {
   note: string
   /** When set, only install if the matching `answers` flag is true. */
   optional?: DepOptionalFlag
+  /** Database adapters for which this dependency is required. */
+  adapters?: readonly DatabaseAdapterId[]
+  /** Byline compatibility rule. Defaults to the supported release range. */
+  versionPolicy?: 'supported-range' | 'exact'
 }
 
 // The templates and publishable packages release in lockstep with the CLI.
 // Changesets updates package.json during version-packages; deriving this range
 // makes that release version the sole source of truth for scaffolded installs.
 export const BYLINE_VERSION = BYLINE_RELEASE_POLICY.dependencyRange
+export const BYLINE_ADAPTER_VERSION = CLI_PACKAGE_VERSION
+
+const DATABASE_DEP_SPECS: readonly DepSpec[] = DATABASE_ADAPTER_IDS.map((id) => ({
+  name: DATABASE_ADAPTERS[id].packageName,
+  version: BYLINE_ADAPTER_VERSION,
+  group: 'byline',
+  adapters: [id],
+  versionPolicy: 'exact',
+  note: `${DATABASE_ADAPTERS[id].label} adapter — pinned to the CLI's bundled schema baseline`,
+}))
+
+const SEARCH_DEP_SPECS: readonly DepSpec[] = DATABASE_ADAPTER_IDS.flatMap((id) => {
+  const adapter: DatabaseAdapterDefinition = DATABASE_ADAPTERS[id]
+  return adapter.searchPackageName
+    ? [
+        {
+          name: adapter.searchPackageName,
+          version: BYLINE_VERSION,
+          group: 'byline',
+          optional: 'examples',
+          adapters: [id],
+          note: `built-in ${adapter.label} full-text search provider used by example collections`,
+        } satisfies DepSpec,
+      ]
+    : []
+})
 
 export const DEP_SPECS: readonly DepSpec[] = [
   // ---- @byline/* — released in lockstep at BYLINE_VERSION -----------------
@@ -80,12 +116,7 @@ export const DEP_SPECS: readonly DepSpec[] = [
     group: 'byline',
     note: 'declaration-merge target for the app-generated collection types',
   },
-  {
-    name: '@byline/db-postgres',
-    version: BYLINE_VERSION,
-    group: 'byline',
-    note: 'Postgres adapter (Drizzle ORM)',
-  },
+  ...DATABASE_DEP_SPECS,
   {
     name: '@byline/host-tanstack-start',
     version: BYLINE_VERSION,
@@ -104,12 +135,7 @@ export const DEP_SPECS: readonly DepSpec[] = [
     group: 'byline',
     note: 'Lexical-backed richtext field + server populate',
   },
-  {
-    name: '@byline/search-postgres',
-    version: BYLINE_VERSION,
-    group: 'byline',
-    note: 'built-in Postgres full-text search provider; registered in byline/server.config.ts, drives collections/docs indexing hooks',
-  },
+  ...SEARCH_DEP_SPECS,
   {
     name: '@byline/storage-local',
     version: BYLINE_VERSION,
@@ -229,3 +255,13 @@ export const DEP_SPECS: readonly DepSpec[] = [
     note: 'extracts heading text in the optional markdown import helpers',
   },
 ] as const
+
+export function dependencySpecsFor(answers: Answers): readonly DepSpec[] {
+  const adapter = answers.dbAdapter
+  if (!adapter) return []
+  return DEP_SPECS.filter((spec) => {
+    if (spec.adapters && !spec.adapters.includes(adapter)) return false
+    if (spec.optional && answers[spec.optional] !== true) return false
+    return true
+  })
+}

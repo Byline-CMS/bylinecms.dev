@@ -3,11 +3,20 @@
 This directory is the **Drizzle-independent** upgrade path for existing
 production databases — the ones that do not run `drizzle:migrate` (after a
 release squash the Drizzle journal no longer matches a deployed DB). It
-mirrors `packages/db-postgres/sql/README.md`'s role and conventions, with
-one deliberate difference: **this stream starts empty.** `@byline/db-mysql`
-has no released versions yet, so there is nothing to hand-patch forward
-from. The first script lands here the first time a post-release schema
-change needs an upgrade path that bypasses the Drizzle journal.
+mirrors `packages/db-postgres/sql/README.md`'s role and conventions.
+
+Each Byline release squashes its Drizzle schema into the fresh-install
+baseline bundled by `@byline/cli`. That baseline describes the target schema
+from scratch; it is not an upgrade history and the CLI refuses to apply it to
+an occupied database. To upgrade an existing installation, check out or browse
+the Git tag for the target Byline release, read this directory in that tag, and
+apply every numbered script you have not already applied, in filename order.
+The CLI does not apply these scripts.
+
+This directory can legitimately contain no numbered files when the current
+release needs no MySQL schema change relative to the preceding release. Add a
+script whenever an already-deployed schema needs an explicit step to reach a
+new release.
 
 When scripts do land, each should be numbered, idempotent, and applied by
 hand as the application's DB role:
@@ -58,7 +67,7 @@ There is no per-object "owner" that can starve the app role of access the
 way Postgres's `OWNER` can, so scripts in this directory carry no
 ownership-guard block, and none should be added.
 
-The Drizzle stream (`src/database/migrations/`, run via `drizzle:migrate`)
-connects over the same pool as the application's DB role, so its objects
-are usable by construction. The rules above apply only to this
-hand-written stream.
+The squashed Drizzle source under `src/database/migrations/` is maintained for
+fresh baselines and adapter development. It connects over the same pool as the
+application's DB role, so its objects are usable by construction. The rules
+above apply only to this hand-written upgrade stream.

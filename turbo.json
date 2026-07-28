@@ -60,7 +60,12 @@
       "dependsOn": ["^build"],
       "outputs": [],
       "cache": false,
-      "env": ["BYLINE_DB_MYSQL_CONNECTION_STRING", "BYLINE_DB_POSTGRES_CONNECTION_STRING"]
+      "env": [
+        "BYLINE_CLI_MYSQL_ADMIN_URL",
+        "BYLINE_CLI_POSTGRES_ADMIN_URL",
+        "BYLINE_DB_MYSQL_CONNECTION_STRING",
+        "BYLINE_DB_POSTGRES_CONNECTION_STRING"
+      ]
     },
     "preview": {
       "cache": false,

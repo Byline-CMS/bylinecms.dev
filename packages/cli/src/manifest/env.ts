@@ -14,9 +14,13 @@
  * `file: 'secret'` → `.env.local`, gitignored, secrets only.
  */
 
+import { DATABASE_ADAPTER_IDS, DATABASE_ADAPTERS } from '../lib/database/adapters.js'
+import type { DatabaseAdapterId } from '../types.js'
+
 export type EnvKey =
   | 'VITE_SERVER_URL'
   | 'BYLINE_DB_POSTGRES_CONNECTION_STRING'
+  | 'BYLINE_DB_MYSQL_CONNECTION_STRING'
   | 'BYLINE_JWT_SECRET'
   | 'BYLINE_SUPERADMIN_EMAIL'
   | 'BYLINE_SUPERADMIN_PASSWORD'
@@ -28,7 +32,16 @@ export interface EnvSpec {
   description: string
   group: 'app' | 'database' | 'auth'
   file: EnvFile
+  adapters?: readonly DatabaseAdapterId[]
 }
+
+const DATABASE_ENV_SPECS: readonly EnvSpec[] = DATABASE_ADAPTER_IDS.map((id) => ({
+  key: DATABASE_ADAPTERS[id].connectionEnvKey,
+  description: `${DATABASE_ADAPTERS[id].label} connection string consumed by ${DATABASE_ADAPTERS[id].packageName}`,
+  group: 'database',
+  file: 'secret',
+  adapters: [id],
+}))
 
 export const ENV_SPECS: readonly EnvSpec[] = [
   {
@@ -37,12 +50,7 @@ export const ENV_SPECS: readonly EnvSpec[] = [
     group: 'app',
     file: 'public',
   },
-  {
-    key: 'BYLINE_DB_POSTGRES_CONNECTION_STRING',
-    description: 'Postgres connection string consumed by @byline/db-postgres',
-    group: 'database',
-    file: 'secret',
-  },
+  ...DATABASE_ENV_SPECS,
   {
     key: 'BYLINE_JWT_SECRET',
     description: 'Signing secret for the built-in JwtSessionProvider (>= 32 bytes of entropy)',
@@ -64,6 +72,10 @@ export const ENV_SPECS: readonly EnvSpec[] = [
 ] as const
 
 export const ENV_KEYS: readonly EnvKey[] = ENV_SPECS.map((s) => s.key)
+
+export function envSpecsForAdapter(adapter: DatabaseAdapterId): readonly EnvSpec[] {
+  return ENV_SPECS.filter((spec) => !spec.adapters || spec.adapters.includes(adapter))
+}
 
 /**
  * Relative file paths (from the host app root) corresponding to each

@@ -4,7 +4,8 @@ import { dirname, relative, resolve } from 'node:path'
 import { Project, SyntaxKind } from 'ts-morph'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { DEP_SPECS } from '../manifest/deps.js'
+import { DATABASE_ADAPTER_IDS, databaseAdapterDefinition } from '../lib/database/adapters.js'
+import { dependencySpecsFor } from '../manifest/deps.js'
 import { createTestContext } from '../test-helpers.js'
 import { buildRoutesPlan, routesPhase } from './routes.js'
 import { buildScaffoldPlan, scaffoldPhase } from './scaffold.js'
@@ -12,8 +13,7 @@ import { buildUiPlan, uiPhase } from './ui.js'
 import type { Context } from '../context.js'
 
 const contexts: Context[] = []
-const HOST_EXTERNALS = new Set([
-  ...DEP_SPECS.map((spec) => spec.name),
+const COMMON_HOST_EXTERNALS = [
   'mdast',
   'react',
   'react-dom',
@@ -21,61 +21,105 @@ const HOST_EXTERNALS = new Set([
   'vitest',
   '@tanstack/react-router',
   '@tanstack/react-start',
-])
+] as const
+const SCAFFOLD_CASES = DATABASE_ADAPTER_IDS.flatMap((dbAdapter) =>
+  [
+    { examples: true, importDocs: false },
+    { examples: false, importDocs: false },
+    { examples: true, importDocs: true },
+  ].map((options) => ({ dbAdapter, ...options }))
+)
 
 afterEach(() => {
   for (const ctx of contexts.splice(0)) rmSync(ctx.cwd, { recursive: true, force: true })
 })
 
 describe('temporary host scaffold smoke contracts', () => {
-  it.each([
-    { examples: true, importDocs: false },
-    { examples: false, importDocs: false },
-    { examples: true, importDocs: true },
-  ])('assembles a locally resolvable $examples/$importDocs inventory', async (answers) => {
-    const ctx = createTestContext({ ...answers, adminPath: '/admin', signInPath: '/sign-in' })
-    contexts.push(ctx)
-    writeFileSync(ctx.resolve('package.json'), '{"name":"smoke","scripts":{}}\n')
+  it.each(SCAFFOLD_CASES)(
+    'assembles a locally resolvable $dbAdapter/$examples/$importDocs inventory',
+    async (answers) => {
+      const ctx = createTestContext({ ...answers, adminPath: '/admin', signInPath: '/sign-in' })
+      contexts.push(ctx)
+      writeFileSync(ctx.resolve('package.json'), '{"name":"smoke","scripts":{}}\n')
 
-    const scaffold = buildScaffoldPlan(ctx)
-    expect((await scaffoldPhase.apply(scaffold, ctx)).state).toBe('done')
-    const routes = buildRoutesPlan(ctx)
-    expect((await routesPhase.apply(routes, ctx)).state).toBe('done')
-    const ui = buildUiPlan(ctx)
-    expect((await uiPhase.apply(ui, ctx)).state).toBe('done')
+      const scaffold = buildScaffoldPlan(ctx)
+      expect((await scaffoldPhase.apply(scaffold, ctx)).state).toBe('done')
+      const routes = buildRoutesPlan(ctx)
+      expect((await routesPhase.apply(routes, ctx)).state).toBe('done')
+      const ui = buildUiPlan(ctx)
+      expect((await uiPhase.apply(ui, ctx)).state).toBe('done')
 
-    const sourceFiles = walkFiles(ctx.cwd).filter((path) => /\.(?:ts|tsx)$/.test(path))
-    const generated = readFileSync(ctx.resolve('byline/generated/collection-types.ts'), 'utf8')
-    const generatedImports = sourceFiles.flatMap((path) =>
-      importedGeneratedNames(readFileSync(path, 'utf8'))
-    )
-    for (const name of generatedImports) {
-      expect(generated, `missing generated export ${name}`).toMatch(
-        new RegExp(`export (?:interface|type) ${name}\\b`)
+      const sourceFiles = walkFiles(ctx.cwd).filter((path) => /\.(?:ts|tsx)$/.test(path))
+      const generated = readFileSync(ctx.resolve('byline/generated/collection-types.ts'), 'utf8')
+      const generatedImports = sourceFiles.flatMap((path) =>
+        importedGeneratedNames(readFileSync(path, 'utf8'))
       )
-    }
+      for (const name of generatedImports) {
+        expect(generated, `missing generated export ${name}`).toMatch(
+          new RegExp(`export (?:interface|type) ${name}\\b`)
+        )
+      }
 
-    const unresolved = validateImports(ctx, sourceFiles)
-    expect(unresolved).toEqual([])
-    expect(sourceFiles.every((path) => !readFileSync(path, 'utf8').includes('@/i18n/'))).toBe(true)
+      const unresolved = validateImports(ctx, sourceFiles)
+      expect(unresolved).toEqual([])
+      expect(sourceFiles.every((path) => !readFileSync(path, 'utf8').includes('@/i18n/'))).toBe(
+        true
+      )
 
-    const inventory = sourceFiles.map((path) => relative(ctx.cwd, path).replaceAll('\\', '/'))
-    expect(inventory.filter((path) => path.endsWith('.test.node.ts'))).toEqual([])
-    expect(inventory.includes('byline/scripts/import-docs.ts')).toBe(answers.importDocs)
-    expect(inventory.some((path) => path.startsWith('byline/scripts/lib/'))).toBe(
-      answers.importDocs
-    )
-    expect(inventory.includes('src/ui/byline/render-blocks.tsx')).toBe(answers.examples)
-    // Without examples, the only generated imports are the structural
-    // registry aliases used by collections/index.ts and the contract file —
-    // no collection field shapes.
-    if (!answers.examples) {
-      expect([...new Set(generatedImports)].sort()).toEqual([
-        'CollectionFieldsAllLocalesByPath',
-        'CollectionFieldsByPath',
-      ])
+      const inventory = sourceFiles.map((path) => relative(ctx.cwd, path).replaceAll('\\', '/'))
+      expect(inventory.filter((path) => path.endsWith('.test.node.ts'))).toEqual([])
+      expect(inventory.includes('byline/scripts/import-docs.ts')).toBe(answers.importDocs)
+      expect(inventory.some((path) => path.startsWith('byline/scripts/lib/'))).toBe(
+        answers.importDocs
+      )
+      expect(inventory.includes('src/ui/byline/render-blocks.tsx')).toBe(answers.examples)
+      expect(inventory.includes('byline/scripts/backfill-version-locales.ts')).toBe(
+        answers.examples && answers.dbAdapter === 'postgres'
+      )
+      expect(inventory.includes('byline/scripts/re-anchor.ts')).toBe(
+        answers.examples && answers.dbAdapter === 'postgres'
+      )
+
+      const source = sourceFiles.map((path) => readFileSync(path, 'utf8')).join('\n')
+      const selected = databaseAdapterDefinition(answers.dbAdapter)
+      const unselected = databaseAdapterDefinition(
+        answers.dbAdapter === 'postgres' ? 'mysql' : 'postgres'
+      )
+      const dependencies = new Set(
+        dependencySpecsFor(ctx.state.get().answers).map((spec) => spec.name)
+      )
+      expect(source).toContain(`from '${selected.packageName}'`)
+      expect(source).toContain(`from '${selected.adminPackageName}'`)
+      expect(source).toContain(selected.connectionEnvKey)
+      expect(source).not.toContain(unselected.packageName)
+      expect(source).not.toContain(unselected.connectionEnvKey)
+      expect(dependencies.has(selected.packageName)).toBe(true)
+      expect(dependencies.has(unselected.packageName)).toBe(false)
+      if (answers.examples && selected.searchPackageName) {
+        expect(source).toContain(selected.searchPackageName)
+        expect(dependencies.has(selected.searchPackageName)).toBe(true)
+      } else {
+        for (const adapter of DATABASE_ADAPTER_IDS) {
+          const searchPackage = databaseAdapterDefinition(adapter).searchPackageName
+          if (!searchPackage) continue
+          expect(source).not.toContain(searchPackage)
+          expect(dependencies.has(searchPackage)).toBe(false)
+        }
+      }
+      if (unselected.searchPackageName) {
+        expect(source).not.toContain(unselected.searchPackageName)
+      }
+      // Without examples, the only generated imports are the structural
+      // registry aliases used by collections/index.ts and the contract file —
+      // no collection field shapes.
+      if (!answers.examples) {
+        expect([...new Set(generatedImports)].sort()).toEqual([
+          'CollectionFieldsAllLocalesByPath',
+          'CollectionFieldsByPath',
+        ])
+      }
     }
-  })
+  )
 
   it('assembles a custom nested sign-in route fixture with matching config and route ID', async () => {
     const ctx = createTestContext({
@@ -105,6 +149,10 @@ describe('temporary host scaffold smoke contracts', () => {
  * every bare import cross an explicit package/host boundary, while Vitest parses all source files.
  */
 function validateImports(ctx: Context, sourceFiles: string[]): string[] {
+  const hostExternals = new Set([
+    ...dependencySpecsFor(ctx.state.get().answers).map((spec) => spec.name),
+    ...COMMON_HOST_EXTERNALS,
+  ])
   const unresolved: string[] = []
   for (const path of sourceFiles) {
     const source = readFileSync(path, 'utf8')
@@ -129,7 +177,7 @@ function validateImports(ctx: Context, sourceFiles: string[]): string[] {
         continue
       }
       const boundary = packageBoundary(specifier)
-      if (!HOST_EXTERNALS.has(boundary)) {
+      if (!hostExternals.has(boundary)) {
         unresolved.push(`${relative(ctx.cwd, path)} -> undeclared external ${boundary}`)
       }
     }

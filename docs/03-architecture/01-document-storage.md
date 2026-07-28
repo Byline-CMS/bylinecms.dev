@@ -64,13 +64,12 @@ over an `IDbAdapter` factory. Both adapters run the same 14 suites against their
 database; a change to the shared model that breaks either adapter's behaviour fails a
 conformance suite before it fails anything a consumer would notice.
 
-The Postgres adapter is the supported default. The MySQL adapter is **preliminary**: its
-storage layer passes the full conformance suite, but MySQL is not yet a fully supported
-Byline backend. `@byline/search-mysql` provides portable weighted full-text search and
-passes the shared search-provider conformance suite. `byline init` still scaffolds
-Postgres only, and MySQL's environment matrix is narrower. Choose MySQL for evaluation,
-prototypes, or controlled installations; choose Postgres when the supported default and
-CLI scaffolding matter.
+PostgreSQL is the CLI's default database choice. MySQL 8.0.14 or later is also
+generally available: its storage layer passes the full conformance suite,
+`@byline/search-mysql` passes the shared search-provider conformance suite, and
+`byline init --database mysql` provisions and scaffolds the matching adapter,
+environment variable, admin store, and optional search provider. MariaDB is not
+supported.
 
 ## What happens when you save a document
 
@@ -373,16 +372,17 @@ The `_id` UUIDv7 on blocks and array items is **synthetic metadata**, not a data
 | Flatten                                  | `packages/core/src/storage/storage-flatten.ts`                                          |
 | Reconstruct                              | `packages/core/src/storage/storage-restore.ts`                                          |
 | Per-store column manifest (data)         | `packages/core/src/storage/store-manifest.ts`                                           |
-| Per-store column manifest (adapter SQL)  | `packages/db-postgres/src/modules/storage/storage-store-manifest.ts`                    |
+| Per-store column manifest (adapter SQL)  | `packages/db-postgres/src/modules/storage/storage-store-manifest.ts`; `packages/db-mysql/src/modules/storage/storage-store-manifest.ts` |
 | Selective field loading                  | `resolveStoreTypes()` in `packages/core/src/storage/storage-utils.ts`; partial UNION ALL in `storage-queries.ts` |
 | Document write services                  | `packages/core/src/services/document-lifecycle/` (per-operation modules)                |
 | Document read services + `afterRead`     | `packages/core/src/services/document-read.ts`                                           |
 | Populate orchestration                   | `packages/core/src/services/populate.ts`                                                |
 | `IDocumentQueries` interface             | `packages/core/src/@types/db-types.ts`                                                  |
-| Postgres schema                          | `packages/db-postgres/src/database/schema/index.ts`                                     |
-| Migrations                               | `packages/db-postgres/src/database/migrations/`                                         |
-| Current-version views                    | both views (`byline_current_documents`, `byline_current_published_documents`) and the `byline_document_paths` table ship in the baseline migration `0000_mushy_luckman.sql`; Drizzle definitions live in `packages/db-postgres/src/database/schema/index.ts` |
+| Database schemas                         | `packages/db-postgres/src/database/schema/index.ts`; `packages/db-mysql/src/database/schema/index.ts` |
+| Fresh baseline sources                   | `packages/db-postgres/src/database/migrations/`; `packages/db-mysql/src/database/migrations/` |
+| Existing-installation upgrades           | `packages/db-postgres/sql/`; `packages/db-mysql/sql/`                                   |
+| Current-version views                    | `byline_current_documents` and `byline_current_published_documents` in each adapter's schema and squashed baseline |
 | Reserved field names                     | `RESERVED_FIELD_NAMES` exported from `@byline/core`                                     |
 | Benchmark harness                        | `benchmarks/storage/harness/`                                                           |
-| Benchmark sweep results                  | `benchmarks/storage/results/2026-07-21-storage-cold-summary.md` (latest; links the 2026-04-18 baseline) |
+| Benchmark sweep results                  | `benchmarks/storage/results/2026-07-21-storage-cold-summary.md` (PostgreSQL characterization; links the 2026-04-18 baseline) |
 </content>

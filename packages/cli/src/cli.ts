@@ -4,9 +4,11 @@ import { Command } from 'commander'
 import { runDoctor } from './commands/doctor.js'
 import { runInit } from './commands/init.js'
 import { runSetup } from './commands/setup.js'
+import { DATABASE_ADAPTER_IDS } from './lib/database/adapters.js'
+import { isDatabaseAdapterId } from './lib/database/selection.js'
 import { CLI_PACKAGE_VERSION } from './lib/release-policy.js'
 import { PHASE_IDS } from './phases/index.js'
-import type { PackageManager, PhaseId } from './types.js'
+import type { DatabaseAdapterId, PackageManager, PhaseId } from './types.js'
 
 const PACKAGE_MANAGERS: PackageManager[] = ['pnpm', 'npm', 'yarn', 'bun']
 
@@ -29,6 +31,7 @@ program
   .option('--reset', 'destructive: drop existing database in db-init')
   .option('--i-mean-it', 'second confirmation required by --reset')
   .option('--force', 're-run phases even when detection reports them complete')
+  .option('--database <adapter>', `database adapter: ${DATABASE_ADAPTER_IDS.join('|')}`)
   .option('--pm <pm>', `force package manager: ${PACKAGE_MANAGERS.join('|')}`)
   .option('-q, --quiet', 'suppress decorative output')
   .option('--no-color', 'disable color output')
@@ -37,6 +40,7 @@ program
     if (opts.from) assertPhaseId(opts.from as string, '--from')
     if (opts.to) assertPhaseId(opts.to as string, '--to')
     if (opts.only) assertPhaseId(opts.only as string, '--only')
+    if (opts.database) assertDatabaseAdapter(opts.database as string)
     if (opts.pm) assertPackageManager(opts.pm as string)
     await runInit({
       from: opts.from as PhaseId | undefined,
@@ -48,6 +52,7 @@ program
       reset: opts.reset as boolean | undefined,
       resetIMeanIt: opts.iMeanIt as boolean | undefined,
       force: opts.force as boolean | undefined,
+      database: opts.database as DatabaseAdapterId | undefined,
       pm: opts.pm as PackageManager | undefined,
       quiet: opts.quiet as boolean | undefined,
       noColor: opts.color === false,
@@ -67,11 +72,13 @@ program
   .option('--reset', 'destructive: drop existing database in db-init')
   .option('--i-mean-it', 'second confirmation required by --reset')
   .option('--force', 're-run every phase even if recorded as complete')
+  .option('--database <adapter>', `database adapter: ${DATABASE_ADAPTER_IDS.join('|')}`)
   .option('--pm <pm>', `force package manager: ${PACKAGE_MANAGERS.join('|')}`)
   .option('-q, --quiet', 'suppress decorative output')
   .option('--no-color', 'disable color output')
   .action(async (raw) => {
     const opts = raw as Record<string, unknown>
+    if (opts.database) assertDatabaseAdapter(opts.database as string)
     if (opts.pm) assertPackageManager(opts.pm as string)
     await runSetup({
       // commander flips `--no-seed-admin` to `seedAdmin: false`
@@ -83,6 +90,7 @@ program
       reset: opts.reset as boolean | undefined,
       resetIMeanIt: opts.iMeanIt as boolean | undefined,
       force: opts.force as boolean | undefined,
+      database: opts.database as DatabaseAdapterId | undefined,
       pm: opts.pm as PackageManager | undefined,
       quiet: opts.quiet as boolean | undefined,
       noColor: opts.color === false,
@@ -111,6 +119,13 @@ function assertPhaseId(value: string, flag: string): asserts value is PhaseId {
 function assertPackageManager(value: string): asserts value is PackageManager {
   if (!(PACKAGE_MANAGERS as readonly string[]).includes(value)) {
     console.error(`--pm: invalid value "${value}". Valid: ${PACKAGE_MANAGERS.join(', ')}`)
+    process.exit(1)
+  }
+}
+
+function assertDatabaseAdapter(value: string): asserts value is DatabaseAdapterId {
+  if (!isDatabaseAdapterId(value)) {
+    console.error(`--database: invalid value "${value}". Valid: ${DATABASE_ADAPTER_IDS.join(', ')}`)
     process.exit(1)
   }
 }

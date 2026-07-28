@@ -20,6 +20,9 @@ export type PhaseState = 'pending' | 'partial' | 'done' | 'blocked'
 
 export type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 
+/** Stable CLI identifier for a database-backed storage adapter. */
+export type DatabaseAdapterId = 'postgres' | 'mysql'
+
 export type DbStrategy = 'existing' | 'docker'
 
 export interface FileWrite {
@@ -68,6 +71,7 @@ export interface Phase {
 }
 
 export interface Answers {
+  dbAdapter?: DatabaseAdapterId
   dbStrategy?: DbStrategy
   dbHost?: string
   dbPort?: number

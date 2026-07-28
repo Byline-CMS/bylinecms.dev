@@ -10,6 +10,8 @@ import type { SubEdit, SubEditResult } from './shared.js'
 const REL = 'vite.config.ts'
 const TEMPLATE_REL = 'host/vite.config.ts'
 const PREDECESSOR_HASHES = new Set([
+  // Canonical config immediately before MySQL became a scaffold option.
+  'b6ca128489e49f5efd40dd49b30a0adf33c7d9285453087d673e2b6c2a2b3696',
   // Canonical config with the app-owned client-hook build boundary.
   'c85b9ed94e70e4d7854e73a71c0021642fcb72353d7af0ace0cb3192b447b94e',
   // Canonical config immediately before the client-hook build boundary shipped.
