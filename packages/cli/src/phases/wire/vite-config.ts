@@ -1,14 +1,28 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 
 import { applyPlannedWrites } from '../../lib/planned-writes.js'
+import {
+  analyzeUserConfig,
+  extractCanonicalPieces,
+  type MergeAnalysis,
+} from './vite-config-merge.js'
 import type { Context } from '../../context.js'
 import type { FileWrite } from '../../types.js'
 import type { SubEdit, SubEditResult } from './shared.js'
 
 const REL = 'vite.config.ts'
 const TEMPLATE_REL = 'host/vite.config.ts'
+const BACKUP_PREFIX = 'vite.config.ts.bak-'
+
+/** `20260729T014500` — sortable, filesystem-safe, no collisions across runs. */
+function backupStamp(): string {
+  return new Date()
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d+Z$/, '')
+}
 const PREDECESSOR_HASHES = new Set([
   // Canonical config immediately before MySQL became a scaffold option.
   'b6ca128489e49f5efd40dd49b30a0adf33c7d9285453087d673e2b6c2a2b3696',
@@ -56,8 +70,11 @@ function inspect(ctx: Context): SubEditResult {
     return { status: 'skipped', message: `${REL}: already matches the canonical Byline config` }
   }
 
-  const backupPath = ctx.resolve('vite.config.bak')
-  if (PREDECESSOR_HASHES.has(hashConfig(userText)) && !existsSync(backupPath)) {
+  // Timestamped so a second run never collides with an earlier backup. The
+  // previous fixed `vite.config.bak` name meant a re-run found the file already
+  // present and silently degraded to a manual instruction.
+  const backupPath = ctx.resolve(`${BACKUP_PREFIX}${backupStamp()}`)
+  if (PREDECESSOR_HASHES.has(hashConfig(userText))) {
     return {
       status: 'done',
       message: `${REL}: recognized canonical predecessor; will back up and replace it`,
@@ -68,17 +85,63 @@ function inspect(ctx: Context): SubEditResult {
     }
   }
 
+  // Not canonical and not a predecessor — the ordinary first-install case, where
+  // the host app brought its own config. Merge Byline's settings into it rather
+  // than replacing it, but only where every insertion lands in a key the host
+  // has not already claimed.
+  let analysis: MergeAnalysis
+  try {
+    analysis = analyzeUserConfig(userText, extractCanonicalPieces(canonical))
+  } catch (error) {
+    return {
+      status: 'blocked',
+      message: `${REL}: could not read Byline's canonical settings (${(error as Error).message})`,
+      snippet: canonical,
+    }
+  }
+
+  if (analysis.kind === 'canonical') {
+    return { status: 'skipped', message: `${REL}: already provides Byline's required settings` }
+  }
+
+  if (analysis.kind === 'mergeable') {
+    const merged = analysis.plan.apply()
+    const leftover =
+      analysis.plan.unplaced.length > 0
+        ? ` Left for you to merge by hand: ${analysis.plan.unplaced.join('; ')}.`
+        : ''
+    return {
+      status: 'done',
+      message: `${REL}: will back up and ${analysis.plan.changes.join(', ')}.${leftover}`,
+      writes: [
+        { path: backupPath, contents: userText, mode: 'create' },
+        { path, contents: merged, mode: 'patch', before: userText },
+      ],
+      ...(analysis.plan.unplaced.length > 0 ? { snippet: canonical } : {}),
+    }
+  }
+
+  // Nothing could be placed safely. Block rather than warn: without these
+  // settings Vite resolves `@byline/ui`'s CSS-module imports through Node's ESM
+  // loader and the app fails to boot with `ERR_UNKNOWN_FILE_EXTENSION ".css"`.
+  // Reporting "installation complete" over that is worse than stopping here.
   return {
-    status: 'manual',
-    message: `${REL}: divergent user config was left untouched; merge the canonical requirements manually`,
+    status: 'blocked',
+    message:
+      `${REL}: left untouched — ${analysis.reason}. Byline's SSR settings are required; without ` +
+      `them the app fails to boot with ERR_UNKNOWN_FILE_EXTENSION ".css". Merge the settings ` +
+      `below, then re-run: byline init --from wire`,
     snippet: canonical,
   }
 }
 
 function apply(ctx: Context, plannedWrites: readonly FileWrite[]): SubEditResult {
   const path = ctx.resolve(REL)
-  const backupPath = ctx.resolve('vite.config.bak')
-  const writes = plannedWrites.filter((write) => write.path === path || write.path === backupPath)
+  // Backups are timestamped, so match by prefix — the exact name was decided
+  // during preview and must not be recomputed here.
+  const backupPrefix = ctx.resolve(BACKUP_PREFIX)
+  const isBackup = (write: FileWrite) => write.path.startsWith(backupPrefix)
+  const writes = plannedWrites.filter((write) => write.path === path || isBackup(write))
   if (writes.length === 0) {
     const current = inspect(ctx)
     if (!current.writes?.length) return current
@@ -97,11 +160,13 @@ function apply(ctx: Context, plannedWrites: readonly FileWrite[]): SubEditResult
       snippet: readCanonical(ctx),
     }
   }
+  const backup = writes.find(isBackup)
+  if (!backup) {
+    return { status: 'done', message: `${REL}: created canonical Byline config` }
+  }
   return {
     status: 'done',
-    message: writes.some((write) => write.path === backupPath)
-      ? `${REL}: canonical predecessor backed up and replaced`
-      : `${REL}: created canonical Byline config`,
+    message: `${REL}: updated with Byline's required settings (backup: ${basename(backup.path)})`,
   }
 }
 

@@ -63,6 +63,11 @@ export const wirePhase: Phase = {
           break
         case 'blocked':
           ctx.logger.error(`  ${sub.key}: ${r.message}`)
+          // A blocked sub-edit halts the run, so this note is the user's only
+          // instruction for how to unblock it — always show it when present.
+          if (r.snippet) {
+            ctx.prompter.note(r.snippet, `${sub.key}: required configuration`)
+          }
           break
       }
     }

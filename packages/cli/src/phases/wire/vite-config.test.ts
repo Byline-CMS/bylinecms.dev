@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -17,6 +17,13 @@ function fixture(): Context {
   const ctx = createTestContext()
   contexts.push(ctx)
   return ctx
+}
+
+/** Backups are timestamped, so tests resolve them by prefix rather than name. */
+function readBackup(ctx: Context): string {
+  const backups = readdirSync(ctx.cwd).filter((name) => name.startsWith('vite.config.ts.bak-'))
+  if (backups.length !== 1) throw new Error(`expected one backup, found ${backups.length}`)
+  return readFileSync(ctx.resolve(backups[0] as string), 'utf8')
 }
 
 describe('Vite config safety', () => {
@@ -97,7 +104,7 @@ describe('Vite config safety', () => {
       predecessor
     )
     expect(await wireViteConfig.apply(ctx, preview.writes)).toMatchObject({ status: 'done' })
-    expect(readFileSync(ctx.resolve('vite.config.bak'), 'utf8')).toBe(predecessor)
+    expect(readBackup(ctx)).toBe(predecessor)
     expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toBe(canonical)
   })
 
@@ -111,7 +118,7 @@ describe('Vite config safety', () => {
     expect(preview).toMatchObject({ status: 'done' })
     expect(preview.writes).toHaveLength(2)
     expect(await wireViteConfig.apply(ctx, preview.writes)).toMatchObject({ status: 'done' })
-    expect(readFileSync(ctx.resolve('vite.config.bak'), 'utf8')).toBe(predecessor)
+    expect(readBackup(ctx)).toBe(predecessor)
     expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toBe(canonical)
   })
 
@@ -130,19 +137,64 @@ describe('Vite config safety', () => {
     const preview = await wireViteConfig.preview(ctx)
     expect(preview).toMatchObject({ status: 'done' })
     expect(await wireViteConfig.apply(ctx, preview.writes)).toMatchObject({ status: 'done' })
-    expect(readFileSync(ctx.resolve('vite.config.bak'), 'utf8')).toBe(predecessor)
+    expect(readBackup(ctx)).toBe(predecessor)
     expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toBe(canonical)
   })
 
-  it('keeps a divergent user config manual in both preview and apply', async () => {
+  it('merges Byline settings into a host config and backs up the original', async () => {
+    // The ordinary first-install case: a stock TanStack Start app brings its own
+    // vite.config.ts, matching neither the canonical config nor any predecessor
+    // hash. Byline's settings are merged in rather than replacing the file.
     const ctx = fixture()
-    const custom =
-      "import { defineConfig } from 'vite'\nexport default defineConfig({ custom: true })\n"
-    writeFileSync(ctx.resolve('vite.config.ts'), custom)
-    expect(await wireViteConfig.preview(ctx)).toMatchObject({ status: 'manual' })
-    expect(await wireViteConfig.apply(ctx)).toMatchObject({ status: 'manual' })
-    expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toBe(custom)
-    expect(existsSync(ctx.resolve('vite.config.bak'))).toBe(false)
+    const host = `import { defineConfig } from 'vite'
+import { nitro } from 'nitro/vite'
+
+const config = defineConfig({
+  plugins: [nitro({ rollupConfig: { external: [/^@sentry\\//] } })],
+})
+
+export default config
+`
+    writeFileSync(ctx.resolve('vite.config.ts'), host)
+
+    const preview = await wireViteConfig.preview(ctx)
+    expect(preview).toMatchObject({ status: 'done' })
+    expect(await wireViteConfig.apply(ctx, preview.writes)).toMatchObject({ status: 'done' })
+
+    const merged = readFileSync(ctx.resolve('vite.config.ts'), 'utf8')
+    expect(merged).toContain('noExternal: bylineSsrNoExternal')
+    expect(merged).toContain('browserAsyncHooksAlias()')
+    // The host's own nitro option must survive — it lives under `rollupConfig`,
+    // a different key from the `rolldownConfig` Byline writes.
+    expect(merged).toContain('@sentry')
+
+    // The original is preserved under a timestamped name, so a later run cannot
+    // collide with it the way the old fixed `vite.config.bak` did.
+    const backups = readdirSync(ctx.cwd).filter((name) => name.startsWith('vite.config.ts.bak-'))
+    expect(backups).toHaveLength(1)
+    expect(readFileSync(ctx.resolve(backups[0] as string), 'utf8')).toBe(host)
+  })
+
+  it('blocks, without editing, on a config it cannot place settings into', async () => {
+    // No inline `defineConfig({ ... })` to work with. This must block rather
+    // than warn: `init` treats anything short of `blocked` as a soft warning and
+    // would go on to report "installation complete" over an app that cannot boot.
+    const ctx = fixture()
+    const opaque = `import { defineConfig } from 'vite'
+const options = { plugins: [] }
+export default defineConfig(options)
+`
+    writeFileSync(ctx.resolve('vite.config.ts'), opaque)
+
+    for (const result of [await wireViteConfig.preview(ctx), await wireViteConfig.apply(ctx)]) {
+      expect(result).toMatchObject({ status: 'blocked' })
+      // Blocking halts the run, so the snippet is the user's only instruction.
+      expect(result.snippet).toBeTruthy()
+      expect(result.message).toContain('byline init --from wire')
+    }
+
+    expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toBe(opaque)
+    expect(readdirSync(ctx.cwd).some((name) => name.startsWith('vite.config.ts.bak-'))).toBe(false)
   })
 })
 
