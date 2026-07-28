@@ -41,6 +41,7 @@ describe('MySQL version support', () => {
       'utf8'
     )
     const match = adapterCheck.match(/const MIN = \{ major: (\d+), minor: (\d+), patch: (\d+) \}/)
+    expect(match, 'db-mysql minimum-version declaration changed shape').not.toBeNull()
     expect(match?.slice(1).map(Number)).toEqual([
       MYSQL_MINIMUM_VERSION.major,
       MYSQL_MINIMUM_VERSION.minor,

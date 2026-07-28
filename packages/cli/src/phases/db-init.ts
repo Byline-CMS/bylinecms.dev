@@ -35,6 +35,7 @@ export const dbInitPhase: Phase = {
       notes.push('--reset: existing database will be DROPPED if present')
     } else {
       notes.push('non-destructive: existing database/user will be reused')
+      notes.push('inspect the database first; stop without mutation unless it is empty')
     }
     if (answers.dbAdapter) {
       const prerequisites = databaseAdapterDefinition(answers.dbAdapter).prerequisites
@@ -77,6 +78,25 @@ export const dbInitPhase: Phase = {
     const adminUrl = await resolveAdminUrl(ctx, adapter, answers.dbHost, answers.dbPort)
     if (!adminUrl) return { state: 'blocked' }
 
+    const adminConnection = parseDbUrl(adminUrl, adapter)
+    const applicationPort = answers.dbPort ?? definition.url.defaultPort
+    const adminPort = adminConnection.port ?? definition.url.defaultPort
+    if (
+      normalizeHost(adminConnection.host) !== normalizeHost(answers.dbHost) ||
+      adminPort !== applicationPort
+    ) {
+      ctx.logger.error(
+        'administrator and application connection endpoints must use the same database host and port'
+      )
+      ctx.logger.info(
+        `application endpoint: ${answers.dbHost}:${applicationPort ?? '(default)'}; administrator endpoint: ${adminConnection.host}:${adminPort ?? '(default)'}`
+      )
+      ctx.logger.info(
+        'use an administrator URL for the same endpoint that will be written to the application environment'
+      )
+      return { state: 'blocked' }
+    }
+
     const provisioner = databaseProvisioner(adapter, ctx.provisioners)
 
     if (ctx.reset && !ctx.resetConfirmed) {
@@ -114,10 +134,9 @@ export const dbInitPhase: Phase = {
       logger: ctx.logger,
     })
 
-    const inspectedConnection = parseDbUrl(adminUrl, adapter)
     const applicationUrl = buildDbUrl(adapter, {
-      host: inspectedConnection.host,
-      port: inspectedConnection.port ?? definition.url.defaultPort,
+      host: answers.dbHost,
+      port: applicationPort,
       user: answers.dbUser,
       password,
       database: answers.dbName,
@@ -152,6 +171,9 @@ function refuseOccupiedTarget(
     ctx.logger.info(
       `upgrade the existing installation with native SQL for the target release: ${nativeSqlUpgradeUrl(adapter)}`
     )
+    ctx.logger.info(
+      'only when destroying and rebuilding this Byline installation is intended, run: byline setup --force --reset --i-mean-it'
+    )
   } else {
     ctx.logger.error(
       `refusing fresh baseline: database "${database}" contains existing tables or views`
@@ -159,10 +181,12 @@ function refuseOccupiedTarget(
     ctx.logger.info(
       'the installer requires a dedicated empty database/schema and will not merge Byline into occupied application storage'
     )
+    ctx.logger.info('choose a different, empty database name and run setup again')
   }
-  ctx.logger.info(
-    'only when destroying and rebuilding is intended, run: byline setup --force --reset --i-mean-it'
-  )
+}
+
+function normalizeHost(host: string): string {
+  return host.replace(/^\[|\]$/g, '').toLowerCase()
 }
 
 async function resolveAdminUrl(

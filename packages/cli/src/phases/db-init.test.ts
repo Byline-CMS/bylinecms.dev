@@ -49,7 +49,7 @@ describe.each([
     expect(baseline?.type).toBe('baseline')
     if (baseline?.type === 'baseline') {
       expect(baseline.args.applicationUrl).toMatch(new RegExp(`^${protocol}`))
-      expect(new URL(baseline.args.applicationUrl).hostname).toBe('admin-tunnel.test')
+      expect(new URL(baseline.args.applicationUrl).hostname).toBe('application-service.test')
       expect(baseline.args.migrationsFolder).toMatch(new RegExp(`/migrations/${adapter}$`))
     }
   })
@@ -67,12 +67,14 @@ describe.each([
     expect(ctx.secrets.dbPassword).toBeUndefined()
     expect(messages.join('\n')).toContain('target release')
     expect(messages.join('\n')).toContain(nativeSqlUpgradeUrl(adapter))
+    expect(messages.join('\n')).toContain('--force --reset --i-mean-it')
   })
 
   it('uses registry prerequisites in the plan', async () => {
     const { ctx } = testContext(adapter, { exists: false, objects: [] }, { port })
     const notes = (await dbInitPhase.plan(ctx)).notes.join('\n')
 
+    expect(notes).toContain('inspect the database first')
     expect(notes.includes('pgcrypto')).toBe(adapter === 'postgres')
   })
 
@@ -93,16 +95,41 @@ describe.each([
 })
 
 it('refuses an unrelated occupied schema even when --force is present', async () => {
+  const messages: string[] = []
   const { ctx, calls } = testContext(
     'mysql',
     { exists: true, objects: ['posts', '__drizzle_migrations'] },
-    { port: 3306, force: true }
+    { port: 3306, force: true, logger: capturingLogger(messages) }
   )
 
   expect((await dbInitPhase.apply(await dbInitPhase.plan(ctx), ctx)).state).toBe('blocked')
   expect(calls.map((call) => call.type)).toEqual(['inspect'])
   expect(ctx.secrets.dbPassword).toBeUndefined()
+  expect(messages.join('\n')).toContain('choose a different, empty database name')
+  expect(messages.join('\n')).not.toContain('--reset')
 })
+
+it.each([
+  ['host', { adminHost: 'admin-tunnel.test' }],
+  ['port', { adminPort: 15432 }],
+] as const)(
+  'refuses an administrator %s that differs from the application endpoint',
+  async (_difference, endpoint) => {
+    const messages: string[] = []
+    const { ctx, calls } = testContext(
+      'postgres',
+      { exists: false, objects: [] },
+      { port: 5432, ...endpoint, logger: capturingLogger(messages) }
+    )
+
+    expect((await dbInitPhase.apply(await dbInitPhase.plan(ctx), ctx)).state).toBe('blocked')
+    expect(calls).toEqual([])
+    expect(ctx.secrets.dbPassword).toBeUndefined()
+    expect(messages.join('\n')).toContain(
+      'administrator and application connection endpoints must use the same database host and port'
+    )
+  }
+)
 
 it('requires reset confirmation before inspection or mutation', async () => {
   const { ctx, calls } = testContext(
@@ -132,6 +159,8 @@ function testContext(
     reset?: boolean
     confirmed?: boolean
     force?: boolean
+    adminHost?: string
+    adminPort?: number
     logger?: Logger
   }
 ): { ctx: Context; calls: RecordedCall[] } {
@@ -156,7 +185,9 @@ function testContext(
   contexts.push(ctx)
   const protocol = adapter === 'postgres' ? 'postgresql' : 'mysql'
   const adminDatabase = adapter === 'postgres' ? 'postgres' : 'mysql'
-  ctx.secrets.adminUrl = `${protocol}://admin:secret@admin-tunnel.test:${options.port}/${adminDatabase}`
+  const adminHost = options.adminHost ?? 'application-service.test'
+  const adminPort = options.adminPort ?? options.port
+  ctx.secrets.adminUrl = `${protocol}://admin:secret@${adminHost}:${adminPort}/${adminDatabase}`
   return { ctx, calls }
 }
 
