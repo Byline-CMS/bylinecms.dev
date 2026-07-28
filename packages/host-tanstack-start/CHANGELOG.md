@@ -1,5 +1,20 @@
 # @byline/host-tanstack-start
 
+## 4.10.2
+
+### Patch Changes
+
+- fixed a fresh install failing to hydrate: use-sync-external-store is now installed as a host dependency, and `@byline/i18n/react` is pre-bundled so one <I18nProvider> instance serves the whole admin
+  fixed `byline init` reporting an already-merged `vite.config.ts` as complete instead of bringing Byline-owned settings up to date
+- Updated dependencies
+  - @byline/admin@4.10.2
+  - @byline/ai@4.10.2
+  - @byline/auth@4.10.2
+  - @byline/client@4.10.2
+  - @byline/core@4.10.2
+  - @byline/i18n@4.10.2
+  - @byline/ui@4.10.2
+
 ## 4.10.1
 
 ### Patch Changes
