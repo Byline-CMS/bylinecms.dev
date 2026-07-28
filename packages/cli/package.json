@@ -33,6 +33,7 @@
     "build": "tsc -p tsconfig.json && tsc-alias && node ./scripts/copy-templates.js && chmod +x dist/cli.js",
     "dev": "tsc -w -p tsconfig.json",
     "clean": "node scripts/clean.js node_modules dist .turbo",
+    "sync:baselines": "node scripts/sync-db-baselines.mjs",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
