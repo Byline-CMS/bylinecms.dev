@@ -9,7 +9,7 @@ import { runPhase } from '../runner.js'
 import { StateStore } from '../state.js'
 import { createLogger } from '../ui/logger.js'
 import { runSetupChecks } from './setup-checks.js'
-import type { PackageManager, Phase } from '../types.js'
+import type { DbDialect, PackageManager, Phase } from '../types.js'
 
 export interface SetupOptions {
   noSeedAdmin?: boolean
@@ -20,6 +20,7 @@ export interface SetupOptions {
   reset?: boolean
   resetIMeanIt?: boolean
   force?: boolean
+  database?: DbDialect
   pm?: PackageManager
   quiet?: boolean
   noColor?: boolean

@@ -4,7 +4,7 @@ import { createPrompter } from '../prompts.js'
 import { runPhase } from '../runner.js'
 import { StateStore } from '../state.js'
 import { createLogger } from '../ui/logger.js'
-import type { PackageManager, PhaseId } from '../types.js'
+import type { DbDialect, PackageManager, PhaseId } from '../types.js'
 
 export interface InitOptions {
   from?: PhaseId
@@ -16,6 +16,7 @@ export interface InitOptions {
   reset?: boolean
   resetIMeanIt?: boolean
   force?: boolean
+  database?: DbDialect
   pm?: PackageManager
   quiet?: boolean
   noColor?: boolean

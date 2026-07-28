@@ -49,14 +49,14 @@ export const dbInitPhase: Phase = {
       return { state: 'blocked' }
     }
 
-    const superuserUrl = await resolveSuperuserUrl(ctx, a.dbHost, a.dbPort)
-    if (!superuserUrl) return { state: 'blocked' }
+    const adminUrl = await resolveAdminUrl(ctx, a.dbHost, a.dbPort)
+    if (!adminUrl) return { state: 'blocked' }
 
     const password = await resolveAppPassword(ctx)
     if (!password) return { state: 'blocked' }
     ctx.secrets.dbPassword = password
 
-    const sup = parsePgUrl(superuserUrl)
+    const sup = parsePgUrl(adminUrl)
 
     if (ctx.reset && !ctx.resetConfirmed) {
       const ok = await ctx.prompter.confirm({
@@ -91,13 +91,13 @@ export const dbInitPhase: Phase = {
   },
 }
 
-async function resolveSuperuserUrl(
+async function resolveAdminUrl(
   ctx: Context,
   dbHost: string,
   dbPort: number
 ): Promise<string | null> {
   // Preferred path: same process as the `db` phase, URL still in memory.
-  if (ctx.secrets.superuserUrl) return ctx.secrets.superuserUrl
+  if (ctx.secrets.adminUrl) return ctx.secrets.adminUrl
   // Fresh process (state file loaded from disk): re-prompt. The URL carries
   // the superuser password, so it is intentionally not persisted.
   const url = await ctx.prompter.text({
@@ -109,7 +109,7 @@ async function resolveSuperuserUrl(
     ctx.logger.error('superuser URL is required to provision the role and database')
     return null
   }
-  ctx.secrets.superuserUrl = url
+  ctx.secrets.adminUrl = url
   return url
 }
 

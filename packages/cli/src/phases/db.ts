@@ -1,5 +1,6 @@
 import { Client } from 'pg'
 
+import { inspectDbDialect, resolveDbDialect } from '../lib/database/dialect.js'
 import { buildPgUrl, parsePgUrl } from '../lib/pg-url.js'
 import type { Phase } from '../types.js'
 
@@ -9,12 +10,16 @@ export const dbPhase: Phase = {
   defaultMode: 'confirm',
 
   async detect(ctx) {
-    return ctx.state.isComplete('db') ? 'done' : 'pending'
+    const dialect = inspectDbDialect(ctx)
+    if (dialect.state === 'blocked') return 'blocked'
+    return ctx.state.isComplete('db') && dialect.state === 'resolved' ? 'done' : 'pending'
   },
 
   async plan(ctx) {
     const a = ctx.state.get().answers
     const notes: string[] = []
+    if (a.dbDialect) notes.push(`database adapter: ${a.dbDialect}`)
+    else notes.push('will ask: PostgreSQL or MySQL?')
     if (a.dbStrategy) notes.push(`strategy: ${a.dbStrategy}`)
     if (a.dbHost) notes.push(`host: ${a.dbHost}:${a.dbPort}`)
     if (a.dbName) notes.push(`database: ${a.dbName}`)
@@ -24,6 +29,15 @@ export const dbPhase: Phase = {
   },
 
   async apply(_plan, ctx) {
+    const dialect = await resolveDbDialect(ctx)
+    if (!dialect) return { state: 'blocked' }
+    if (dialect === 'mysql') {
+      ctx.logger.warn(
+        'MySQL provisioning is not available until the database provisioner phase lands'
+      )
+      return { state: 'blocked' }
+    }
+
     const strategy = await ctx.prompter.select({
       message: 'How will Byline connect to Postgres?',
       options: [
@@ -82,8 +96,9 @@ export const dbPhase: Phase = {
     // (mirrors how `ctx.secrets.dbPassword` is handled) so it never lands in
     // `.byline-install.json`. If a later phase needs it after a process
     // restart, it will re-prompt.
-    ctx.secrets.superuserUrl = superuserUrl
+    ctx.secrets.adminUrl = superuserUrl
     ctx.state.patchAnswers({
+      dbDialect: dialect,
       dbStrategy: strategy,
       dbHost: sup.host,
       dbPort: sup.port,

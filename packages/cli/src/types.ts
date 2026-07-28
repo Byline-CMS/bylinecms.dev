@@ -20,6 +20,8 @@ export type PhaseState = 'pending' | 'partial' | 'done' | 'blocked'
 
 export type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 
+export type DbDialect = 'postgres' | 'mysql'
+
 export type DbStrategy = 'existing' | 'docker'
 
 export interface FileWrite {
@@ -68,6 +70,7 @@ export interface Phase {
 }
 
 export interface Answers {
+  dbDialect?: DbDialect
   dbStrategy?: DbStrategy
   dbHost?: string
   dbPort?: number

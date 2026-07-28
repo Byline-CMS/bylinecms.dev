@@ -23,7 +23,7 @@ export interface ContextOptions {
 
 export interface Secrets {
   dbPassword?: string
-  superuserUrl?: string
+  adminUrl?: string
 }
 
 export class Context {

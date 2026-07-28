@@ -24,11 +24,34 @@ export class StateStore {
    */
   private stripPersistedSecrets(raw: InstallState): boolean {
     const answers = raw.answers as Record<string, unknown> | undefined
-    if (answers && 'superuserUrl' in answers) {
-      delete answers.superuserUrl
-      return true
+    let changed = false
+    if (answers) {
+      for (const key of ['superuserUrl', 'adminUrl']) {
+        if (!(key in answers)) continue
+        delete answers[key]
+        changed = true
+      }
     }
-    return false
+    return changed
+  }
+
+  /**
+   * Every CLI release before database selection existed installed PostgreSQL.
+   * Recover that implicit choice only when persisted database work proves this
+   * is an existing installation; a genuinely fresh state must still prompt.
+   */
+  private migrateLegacyDbDialect(raw: InstallState): boolean {
+    if (raw.answers.dbDialect !== undefined) return false
+    const hasDatabaseWork =
+      raw.completedPhases.includes('db') ||
+      raw.completedPhases.includes('db-init') ||
+      raw.answers.dbStrategy !== undefined ||
+      raw.answers.dbHost !== undefined ||
+      raw.answers.dbName !== undefined ||
+      raw.answers.dbUser !== undefined
+    if (!hasDatabaseWork) return false
+    raw.answers.dbDialect = 'postgres'
+    return true
   }
 
   private fresh(): InstallState {
@@ -46,7 +69,9 @@ export class StateStore {
     try {
       const raw = JSON.parse(readFileSync(this.path, 'utf8')) as InstallState
       if (raw.version !== 1) return null
-      if (this.stripPersistedSecrets(raw)) this.dirty = true
+      const strippedSecrets = this.stripPersistedSecrets(raw)
+      const migratedDialect = this.migrateLegacyDbDialect(raw)
+      if (strippedSecrets || migratedDialect) this.dirty = true
       return raw
     } catch {
       return null
