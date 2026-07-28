@@ -1,5 +1,23 @@
 # @byline/host-tanstack-start
 
+## 4.10.0
+
+### Minor Changes
+
+- added MySQL as a first-class `byline init` / `byline setup` database choice, with per-adapter squashed baselines refused on any occupied database
+  pinned `@byline/db-*` exactly to the CLI release carrying its baseline
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@4.10.0
+  - @byline/ai@4.10.0
+  - @byline/auth@4.10.0
+  - @byline/client@4.10.0
+  - @byline/core@4.10.0
+  - @byline/i18n@4.10.0
+  - @byline/ui@4.10.0
+
 ## 4.9.0
 
 ### Minor Changes

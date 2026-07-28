@@ -1,5 +1,12 @@
 # @byline/auth
 
+## 4.10.0
+
+### Minor Changes
+
+- added MySQL as a first-class `byline init` / `byline setup` database choice, with per-adapter squashed baselines refused on any occupied database
+  pinned `@byline/db-*` exactly to the CLI release carrying its baseline
+
 ## 4.9.0
 
 ### Minor Changes

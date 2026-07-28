@@ -1,5 +1,14 @@
 # @byline/db-conformance
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@4.10.0
+  - @byline/auth@4.10.0
+  - @byline/core@4.10.0
+
 ## 0.0.3
 
 ### Patch Changes

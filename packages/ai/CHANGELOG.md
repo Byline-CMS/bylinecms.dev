@@ -1,5 +1,19 @@
 # @infonomic/ai
 
+## 4.10.0
+
+### Minor Changes
+
+- added MySQL as a first-class `byline init` / `byline setup` database choice, with per-adapter squashed baselines refused on any occupied database
+  pinned `@byline/db-*` exactly to the CLI release carrying its baseline
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@4.10.0
+  - @byline/richtext-lexical@4.10.0
+  - @byline/ui@4.10.0
+
 ## 4.9.0
 
 ### Minor Changes
