@@ -614,6 +614,10 @@ Provide separate administrator URLs and unique `_test` database names:
 
 - PostgreSQL administrator connection to the service's administrative database;
 - MySQL root connection to the service's `mysql` database.
+- For each dialect, use exactly the same host string and port in the administrator URL
+  and the persisted application endpoint. Endpoint reconciliation is deliberately
+  string-based (`localhost` and `127.0.0.1` are not treated as equivalent), and a
+  mismatch blocks before provisioning.
 
 For each dialect:
 

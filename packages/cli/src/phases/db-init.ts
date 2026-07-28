@@ -89,7 +89,7 @@ export const dbInitPhase: Phase = {
         'administrator and application connection endpoints must use the same database host and port'
       )
       ctx.logger.info(
-        `application endpoint: ${answers.dbHost}:${applicationPort ?? '(default)'}; administrator endpoint: ${adminConnection.host}:${adminPort ?? '(default)'}`
+        `application endpoint: ${answers.dbHost}:${applicationPort}; administrator endpoint: ${adminConnection.host}:${adminPort}`
       )
       ctx.logger.info(
         'use an administrator URL for the same endpoint that will be written to the application environment'
