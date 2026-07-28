@@ -459,8 +459,12 @@ async function run(): Promise<void> {
   if (failed > 0) process.exit(1)
 }
 
-run().catch((err) => {
-  console.error('import-docs: fatal error')
-  console.error(err)
-  process.exit(1)
-})
+// Exit explicitly on success too — the adapter's pool holds a live timer, so
+// the process does not terminate on its own. See the note in `seed-admin.ts`.
+run()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error('import-docs: fatal error')
+    console.error(err)
+    process.exit(1)
+  })
