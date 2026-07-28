@@ -12,6 +12,9 @@
  * first time the storage layer emits a LATERAL join (Task 10+).
  */
 
+// Keep this adapter floor synchronized with the pre-install check in
+// `packages/cli/src/lib/database/mysql.ts`; the CLI contract test compares
+// the two constants without adding a runtime dependency on this package.
 const MIN = { major: 8, minor: 0, patch: 14 }
 
 const unsupportedEngineError = (reported: string): Error =>

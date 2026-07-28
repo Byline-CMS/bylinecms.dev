@@ -12,7 +12,12 @@ import type {
   ProvisionArgs,
 } from './provisioner.js'
 
-const MYSQL_MINIMUM_VERSION = { major: 8, minor: 0, patch: 14 } as const
+/**
+ * Keep this CLI-owned floor synchronized with
+ * `packages/db-mysql/src/lib/boot-check.ts`. The CLI cannot import the adapter
+ * because it verifies the server before installing host dependencies.
+ */
+export const MYSQL_MINIMUM_VERSION = { major: 8, minor: 0, patch: 14 } as const
 
 export const mysqlProvisioner: DbProvisioner = {
   adapter: 'mysql',
@@ -61,7 +66,7 @@ export const mysqlProvisioner: DbProvisioner = {
 export function assertSupportedMySqlVersion(reported: unknown): asserts reported is string {
   if (typeof reported !== 'string' || reported.length === 0) {
     throw new Error(
-      "@byline/db-mysql: could not determine the MySQL server version — 'SELECT VERSION()' returned no usable result."
+      "@byline/cli: could not determine the MySQL server version — 'SELECT VERSION()' returned no usable result."
     )
   }
   if (/mariadb/i.test(reported)) throw unsupportedEngineError(reported)
@@ -182,6 +187,6 @@ function connectionOptions(raw: string): ConnectionOptions {
 function unsupportedEngineError(reported: string): Error {
   const minimum = MYSQL_MINIMUM_VERSION
   return new Error(
-    `@byline/db-mysql requires MySQL ${minimum.major}.${minimum.minor}.${minimum.patch}+ (LATERAL joins); server reports ${reported}. MariaDB is not supported.`
+    `@byline/cli requires MySQL ${minimum.major}.${minimum.minor}.${minimum.patch}+ for @byline/db-mysql compatibility (LATERAL joins); server reports ${reported}. MariaDB is not supported.`
   )
 }

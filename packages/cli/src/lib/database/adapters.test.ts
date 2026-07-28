@@ -27,6 +27,10 @@ describe.each(DATABASE_ADAPTER_IDS)('%s database adapter registration', (id) => 
     expect(adapter.url.acceptedProtocols.length).toBeGreaterThan(0)
     expect(adapter.url.defaultPort).toBeGreaterThan(0)
   })
+
+  it('declares provisioner prerequisites without phase-level branching', () => {
+    expect(adapter.prerequisites).toEqual(id === 'postgres' ? ['pgcrypto'] : [])
+  })
 })
 
 it('keeps the default explicit and first without relying on registry key order', () => {

@@ -5,7 +5,9 @@ import {
   databaseProvisioner,
   isValidDatabaseIdentifier,
 } from '../lib/database/provisioner.js'
+import { classifyDbTarget, type DbTargetState } from '../lib/database/state.js'
 import { buildDbUrl, parseDbUrl } from '../lib/database/urls.js'
+import { CLI_PACKAGE_VERSION } from '../lib/release-policy.js'
 import type { Context } from '../context.js'
 import type { DatabaseAdapterId, Phase } from '../types.js'
 
@@ -34,7 +36,12 @@ export const dbInitPhase: Phase = {
     } else {
       notes.push('non-destructive: existing database/user will be reused')
     }
-    if (answers.dbAdapter === 'postgres') notes.push('install extension: pgcrypto')
+    if (answers.dbAdapter) {
+      const prerequisites = databaseAdapterDefinition(answers.dbAdapter).prerequisites
+      if (prerequisites.length > 0) {
+        notes.push(`install prerequisites: ${prerequisites.join(', ')}`)
+      }
+    }
     if (answers.dbAdapter) {
       notes.push(`apply the bundled ${answers.dbAdapter} fresh-install baseline`)
     }
@@ -70,9 +77,7 @@ export const dbInitPhase: Phase = {
     const adminUrl = await resolveAdminUrl(ctx, adapter, answers.dbHost, answers.dbPort)
     if (!adminUrl) return { state: 'blocked' }
 
-    const password = await resolveAppPassword(ctx, definition.label)
-    if (!password) return { state: 'blocked' }
-    ctx.secrets.dbPassword = password
+    const provisioner = databaseProvisioner(adapter, ctx.provisioners)
 
     if (ctx.reset && !ctx.resetConfirmed) {
       const ok = await ctx.prompter.confirm({
@@ -85,7 +90,21 @@ export const dbInitPhase: Phase = {
       }
     }
 
-    const provisioner = databaseProvisioner(adapter, ctx.provisioners)
+    if (!ctx.reset) {
+      ctx.logger.step(`inspecting database "${answers.dbName}" before any mutation`)
+      const targetState = classifyDbTarget(
+        await provisioner.inspectTarget(adminUrl, answers.dbName)
+      )
+      if (targetState === 'byline-schema' || targetState === 'occupied-schema') {
+        refuseOccupiedTarget(ctx, adapter, answers.dbName, targetState)
+        return { state: 'blocked' }
+      }
+    }
+
+    const password = await resolveAppPassword(ctx, definition.label)
+    if (!password) return { state: 'blocked' }
+    ctx.secrets.dbPassword = password
+
     await provisioner.provisionTarget({
       adminUrl,
       database: answers.dbName,
@@ -95,9 +114,10 @@ export const dbInitPhase: Phase = {
       logger: ctx.logger,
     })
 
+    const inspectedConnection = parseDbUrl(adminUrl, adapter)
     const applicationUrl = buildDbUrl(adapter, {
-      host: answers.dbHost,
-      port: answers.dbPort ?? definition.url.defaultPort,
+      host: inspectedConnection.host,
+      port: inspectedConnection.port ?? definition.url.defaultPort,
       user: answers.dbUser,
       password,
       database: answers.dbName,
@@ -110,6 +130,39 @@ export const dbInitPhase: Phase = {
 
     return { state: 'done' }
   },
+}
+
+export function nativeSqlUpgradeUrl(adapter: DatabaseAdapterId): string {
+  return `https://github.com/Byline-CMS/bylinecms.dev/blob/v${CLI_PACKAGE_VERSION}/packages/db-${adapter}/sql/README.md`
+}
+
+function refuseOccupiedTarget(
+  ctx: Context,
+  adapter: DatabaseAdapterId,
+  database: string,
+  state: Extract<DbTargetState, 'byline-schema' | 'occupied-schema'>
+): void {
+  if (state === 'byline-schema') {
+    ctx.logger.error(
+      `refusing fresh baseline: database "${database}" already contains Byline schema objects`
+    )
+    ctx.logger.info(
+      'the squashed baseline creates the target release schema from scratch; it is not an upgrade stream'
+    )
+    ctx.logger.info(
+      `upgrade the existing installation with native SQL for the target release: ${nativeSqlUpgradeUrl(adapter)}`
+    )
+  } else {
+    ctx.logger.error(
+      `refusing fresh baseline: database "${database}" contains existing tables or views`
+    )
+    ctx.logger.info(
+      'the installer requires a dedicated empty database/schema and will not merge Byline into occupied application storage'
+    )
+  }
+  ctx.logger.info(
+    'only when destroying and rebuilding is intended, run: byline setup --force --reset --i-mean-it'
+  )
 }
 
 async function resolveAdminUrl(

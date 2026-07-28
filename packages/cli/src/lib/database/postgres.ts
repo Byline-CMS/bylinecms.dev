@@ -11,8 +11,6 @@ import type {
   ProvisionArgs,
 } from './provisioner.js'
 
-const REQUIRED_EXTENSIONS = ['pgcrypto'] as const
-
 export const postgresProvisioner: DbProvisioner = {
   adapter: 'postgres',
 
@@ -129,7 +127,7 @@ async function provisionPostgresTarget(args: ProvisionArgs): Promise<void> {
   try {
     const userIdentifier = target.escapeIdentifier(args.user)
     await target.query(`GRANT ALL ON SCHEMA public TO ${userIdentifier}`)
-    for (const extension of REQUIRED_EXTENSIONS) {
+    for (const extension of databaseAdapterDefinition('postgres').prerequisites) {
       args.logger.step(`CREATE EXTENSION IF NOT EXISTS ${extension}`)
       await target.query(`CREATE EXTENSION IF NOT EXISTS ${target.escapeIdentifier(extension)}`)
     }

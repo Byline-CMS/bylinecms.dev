@@ -37,7 +37,7 @@ const prompter: Prompter = {
 
 export function createTestContext(
   answers: Answers = {},
-  options: { provisioners?: DatabaseProvisionerRegistry } = {}
+  options: TestContextOptions = {}
 ): Context {
   const cwd = mkdtempSync(join(tmpdir(), 'byline-cli-test-'))
   return createTestContextAt(cwd, answers, options)
@@ -46,7 +46,7 @@ export function createTestContext(
 export function createTestContextAt(
   cwd: string,
   answers: Answers = {},
-  options: { provisioners?: DatabaseProvisionerRegistry } = {}
+  options: TestContextOptions = {}
 ): Context {
   const state = new StateStore(cwd)
   // Existing CLI tests model the historically PostgreSQL-only installer.
@@ -57,12 +57,21 @@ export function createTestContextAt(
     apply: true,
     dryRun: false,
     yes: true,
-    reset: false,
-    resetConfirmed: false,
-    cliFlags: {},
-    logger,
-    prompter,
+    reset: options.reset ?? false,
+    resetConfirmed: options.resetConfirmed ?? false,
+    cliFlags: options.cliFlags ?? {},
+    logger: options.logger ?? logger,
+    prompter: options.prompter ?? prompter,
     state,
     provisioners: options.provisioners,
   })
+}
+
+interface TestContextOptions {
+  provisioners?: DatabaseProvisionerRegistry
+  reset?: boolean
+  resetConfirmed?: boolean
+  cliFlags?: Record<string, string | boolean | undefined>
+  logger?: Logger
+  prompter?: Prompter
 }

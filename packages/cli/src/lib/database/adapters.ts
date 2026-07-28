@@ -11,6 +11,7 @@ export interface DatabaseAdapterDefinition {
   connectionEnvKey: `BYLINE_DB_${string}_CONNECTION_STRING`
   url: DatabaseUrlCodec
   defaultAdminDatabase: string
+  prerequisites: readonly string[]
   baseline: 'drizzle-sql' | 'none'
 }
 
@@ -37,6 +38,7 @@ export const DATABASE_ADAPTERS = {
       defaultPort: 5432,
     }),
     defaultAdminDatabase: 'postgres',
+    prerequisites: ['pgcrypto'],
     baseline: 'drizzle-sql',
   },
   mysql: {
@@ -54,6 +56,7 @@ export const DATABASE_ADAPTERS = {
       defaultPort: 3306,
     }),
     defaultAdminDatabase: 'mysql',
+    prerequisites: [],
     baseline: 'drizzle-sql',
   },
 } as const satisfies Record<DatabaseAdapterId, DatabaseAdapterDefinition>

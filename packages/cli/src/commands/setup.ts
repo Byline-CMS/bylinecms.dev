@@ -79,7 +79,8 @@ export async function runSetup(opts: SetupOptions): Promise<void> {
       notes.push('existing document data WILL be lost')
     } else {
       notes.push('database is NOT being reset (pass --reset to drop and recreate)')
-      notes.push('migrations will run against the existing database (may be a no-op)')
+      notes.push('the database phase will still refuse every occupied database')
+      notes.push('a fresh baseline is never treated as an upgrade, even under --force')
     }
     prompter.note(notes.join('\n'), '--force')
 

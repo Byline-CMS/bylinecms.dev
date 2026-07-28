@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -10,6 +13,11 @@ describe('database provisioner registry', () => {
   it('registers both supported adapters', () => {
     expect(DATABASE_PROVISIONERS.postgres.adapter).toBe('postgres')
     expect(DATABASE_PROVISIONERS.mysql.adapter).toBe('mysql')
+  })
+
+  it.each(['postgres.ts', 'mysql.ts'])('%s never shells out', (filename) => {
+    const source = readFileSync(fileURLToPath(new URL(`./${filename}`, import.meta.url)), 'utf8')
+    expect(source).not.toMatch(/from\s+['"](?:node:child_process|child_process|execa)['"]/)
   })
 })
 
