@@ -1,6 +1,10 @@
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import {
+  DATABASE_PROVISIONERS,
+  type DatabaseProvisionerRegistry,
+} from './lib/database/provisioner.js'
 import { findWorkspaceRoot } from './lib/workspace-root.js'
 import type { Prompter } from './prompts.js'
 import type { StateStore } from './state.js'
@@ -19,6 +23,7 @@ export interface ContextOptions {
   logger: Logger
   prompter: Prompter
   state: StateStore
+  provisioners?: DatabaseProvisionerRegistry
 }
 
 export interface Secrets {
@@ -39,6 +44,7 @@ export class Context {
   readonly logger: Logger
   readonly prompter: Prompter
   readonly state: StateStore
+  readonly provisioners: DatabaseProvisionerRegistry
   readonly secrets: Secrets = {}
 
   constructor(opts: ContextOptions) {
@@ -54,6 +60,7 @@ export class Context {
     this.logger = opts.logger
     this.prompter = opts.prompter
     this.state = opts.state
+    this.provisioners = opts.provisioners ?? DATABASE_PROVISIONERS
   }
 
   resolve(...parts: string[]): string {

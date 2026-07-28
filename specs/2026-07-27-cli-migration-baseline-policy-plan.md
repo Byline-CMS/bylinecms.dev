@@ -337,8 +337,8 @@ Do not special-case the adapter only in `depsPhase`; `setup` and future consumer
 - Create: `packages/cli/src/lib/database/mysql.ts`
 - Delete: `packages/cli/src/lib/pg-url.ts`
 - Create: `packages/cli/src/lib/database/state.ts`
-- Modify: `packages/cli/src/lib/pg-url.ts` or replace it through `urls.ts`
 - Modify: `packages/cli/src/phases/db.ts`
+- Refactor: `packages/cli/src/phases/db-init.ts` to dispatch through the provisioner seam; Task 6 adds the pre-mutation inspection gate
 - Modify: `packages/cli/src/context.ts`
 - Modify: `packages/cli/package.json`
 - Modify: `pnpm-lock.yaml`
@@ -402,7 +402,7 @@ Resolve URL parsing, the default administrator database, and baseline support th
 - Make strategy and credential prompts dialect-specific.
 - Keep Docker as an explicitly unsupported strategy for both dialects in this release.
 - Test the administrator connection through the selected provisioner.
-- Persist only host, port, database, user, strategy, and dialect. Keep the administrator URL and application password in memory.
+- Persist only host, port, database, user, strategy, and adapter. Keep the administrator URL and application password in memory.
 
 ### Tests
 
