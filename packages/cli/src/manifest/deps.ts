@@ -15,9 +15,13 @@
  * user via the `@byline/*` package boundary and don't need declaring.
  */
 
-import { DATABASE_ADAPTER_IDS, DATABASE_ADAPTERS } from '../lib/database/adapters.js'
+import {
+  DATABASE_ADAPTER_IDS,
+  DATABASE_ADAPTERS,
+  type DatabaseAdapterDefinition,
+} from '../lib/database/adapters.js'
 import { BYLINE_RELEASE_POLICY, CLI_PACKAGE_VERSION } from '../lib/release-policy.js'
-import type { Answers, DbDialect } from '../types.js'
+import type { Answers, DatabaseAdapterId } from '../types.js'
 
 export type DepGroup = 'byline' | 'runtime' | 'dev'
 
@@ -38,7 +42,7 @@ export interface DepSpec {
   /** When set, only install if the matching `answers` flag is true. */
   optional?: DepOptionalFlag
   /** Database adapters for which this dependency is required. */
-  dialects?: readonly DbDialect[]
+  adapters?: readonly DatabaseAdapterId[]
   /** Byline compatibility rule. Defaults to the supported release range. */
   versionPolicy?: 'supported-range' | 'exact'
 }
@@ -53,19 +57,26 @@ const DATABASE_DEP_SPECS: readonly DepSpec[] = DATABASE_ADAPTER_IDS.map((id) => 
   name: DATABASE_ADAPTERS[id].packageName,
   version: BYLINE_ADAPTER_VERSION,
   group: 'byline',
-  dialects: [id],
+  adapters: [id],
   versionPolicy: 'exact',
   note: `${DATABASE_ADAPTERS[id].label} adapter — pinned to the CLI's bundled schema baseline`,
 }))
 
-const SEARCH_DEP_SPECS: readonly DepSpec[] = DATABASE_ADAPTER_IDS.map((id) => ({
-  name: DATABASE_ADAPTERS[id].searchPackageName,
-  version: BYLINE_VERSION,
-  group: 'byline',
-  optional: 'examples',
-  dialects: [id],
-  note: `built-in ${DATABASE_ADAPTERS[id].label} full-text search provider used by example collections`,
-}))
+const SEARCH_DEP_SPECS: readonly DepSpec[] = DATABASE_ADAPTER_IDS.flatMap((id) => {
+  const adapter: DatabaseAdapterDefinition = DATABASE_ADAPTERS[id]
+  return adapter.searchPackageName
+    ? [
+        {
+          name: adapter.searchPackageName,
+          version: BYLINE_VERSION,
+          group: 'byline',
+          optional: 'examples',
+          adapters: [id],
+          note: `built-in ${adapter.label} full-text search provider used by example collections`,
+        } satisfies DepSpec,
+      ]
+    : []
+})
 
 export const DEP_SPECS: readonly DepSpec[] = [
   // ---- @byline/* — released in lockstep at BYLINE_VERSION -----------------
@@ -246,10 +257,10 @@ export const DEP_SPECS: readonly DepSpec[] = [
 ] as const
 
 export function dependencySpecsFor(answers: Answers): readonly DepSpec[] {
-  const dialect = answers.dbDialect
-  if (!dialect) return []
+  const adapter = answers.dbAdapter
+  if (!adapter) return []
   return DEP_SPECS.filter((spec) => {
-    if (spec.dialects && !spec.dialects.includes(dialect)) return false
+    if (spec.adapters && !spec.adapters.includes(adapter)) return false
     if (spec.optional && answers[spec.optional] !== true) return false
     return true
   })

@@ -40,8 +40,20 @@ export class StateStore {
    * Recover that implicit choice only when persisted database work proves this
    * is an existing installation; a genuinely fresh state must still prompt.
    */
-  private migrateLegacyDbDialect(raw: InstallState): boolean {
-    if (raw.answers.dbDialect !== undefined) return false
+  private migrateLegacyDatabaseAdapter(raw: InstallState): boolean {
+    const answers = raw.answers as Record<string, unknown>
+    if (raw.answers.dbAdapter !== undefined) {
+      if (!('dbDialect' in answers)) return false
+      delete answers.dbDialect
+      return true
+    }
+
+    if (answers.dbDialect !== undefined) {
+      answers.dbAdapter = answers.dbDialect
+      delete answers.dbDialect
+      return true
+    }
+
     const hasDatabaseWork =
       raw.completedPhases.includes('db') ||
       raw.completedPhases.includes('db-init') ||
@@ -50,7 +62,7 @@ export class StateStore {
       raw.answers.dbName !== undefined ||
       raw.answers.dbUser !== undefined
     if (!hasDatabaseWork) return false
-    raw.answers.dbDialect = 'postgres'
+    raw.answers.dbAdapter = 'postgres'
     return true
   }
 
@@ -70,8 +82,8 @@ export class StateStore {
       const raw = JSON.parse(readFileSync(this.path, 'utf8')) as InstallState
       if (raw.version !== 1) return null
       const strippedSecrets = this.stripPersistedSecrets(raw)
-      const migratedDialect = this.migrateLegacyDbDialect(raw)
-      if (strippedSecrets || migratedDialect) this.dirty = true
+      const migratedAdapter = this.migrateLegacyDatabaseAdapter(raw)
+      if (strippedSecrets || migratedAdapter) this.dirty = true
       return raw
     } catch {
       return null

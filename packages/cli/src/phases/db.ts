@@ -1,6 +1,6 @@
 import { Client } from 'pg'
 
-import { inspectDbDialect, resolveDbDialect } from '../lib/database/dialect.js'
+import { inspectDatabaseAdapter, resolveDatabaseAdapter } from '../lib/database/selection.js'
 import { buildPgUrl, parsePgUrl } from '../lib/pg-url.js'
 import type { Phase } from '../types.js'
 
@@ -10,15 +10,15 @@ export const dbPhase: Phase = {
   defaultMode: 'confirm',
 
   async detect(ctx) {
-    const dialect = inspectDbDialect(ctx)
-    if (dialect.state === 'blocked') return 'blocked'
-    return ctx.state.isComplete('db') && dialect.state === 'resolved' ? 'done' : 'pending'
+    const adapter = inspectDatabaseAdapter(ctx)
+    if (adapter.state === 'blocked') return 'blocked'
+    return ctx.state.isComplete('db') && adapter.state === 'resolved' ? 'done' : 'pending'
   },
 
   async plan(ctx) {
     const a = ctx.state.get().answers
     const notes: string[] = []
-    if (a.dbDialect) notes.push(`database adapter: ${a.dbDialect}`)
+    if (a.dbAdapter) notes.push(`database adapter: ${a.dbAdapter}`)
     else notes.push('will ask: PostgreSQL or MySQL?')
     if (a.dbStrategy) notes.push(`strategy: ${a.dbStrategy}`)
     if (a.dbHost) notes.push(`host: ${a.dbHost}:${a.dbPort}`)
@@ -29,9 +29,9 @@ export const dbPhase: Phase = {
   },
 
   async apply(_plan, ctx) {
-    const dialect = await resolveDbDialect(ctx)
-    if (!dialect) return { state: 'blocked' }
-    if (dialect === 'mysql') {
+    const adapter = await resolveDatabaseAdapter(ctx)
+    if (!adapter) return { state: 'blocked' }
+    if (adapter === 'mysql') {
       ctx.logger.warn(
         'MySQL provisioning is not available until the database provisioner phase lands'
       )
@@ -98,7 +98,7 @@ export const dbPhase: Phase = {
     // restart, it will re-prompt.
     ctx.secrets.adminUrl = superuserUrl
     ctx.state.patchAnswers({
-      dbDialect: dialect,
+      dbAdapter: adapter,
       dbStrategy: strategy,
       dbHost: sup.host,
       dbPort: sup.port,

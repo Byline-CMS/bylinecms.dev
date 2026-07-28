@@ -23,9 +23,6 @@ export type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 /** Stable CLI identifier for a database-backed storage adapter. */
 export type DatabaseAdapterId = 'postgres' | 'mysql'
 
-/** SQL-oriented compatibility name used by the current migration machinery. */
-export type DbDialect = DatabaseAdapterId
-
 export type DbStrategy = 'existing' | 'docker'
 
 export interface FileWrite {
@@ -74,7 +71,7 @@ export interface Phase {
 }
 
 export interface Answers {
-  dbDialect?: DbDialect
+  dbAdapter?: DatabaseAdapterId
   dbStrategy?: DbStrategy
   dbHost?: string
   dbPort?: number

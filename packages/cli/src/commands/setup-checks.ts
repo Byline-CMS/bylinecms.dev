@@ -6,7 +6,13 @@ import {
 } from '../lib/dependency-version.js'
 import { BYLINE_RELEASE_POLICY } from '../lib/release-policy.js'
 import { type DepSpec, dependencySpecsFor } from '../manifest/deps.js'
-import { ENV_FILE_PATHS, type EnvFile, type EnvKey, envSpecsForDialect } from '../manifest/env.js'
+import {
+  ENV_FILE_PATHS,
+  ENV_SPECS,
+  type EnvFile,
+  type EnvKey,
+  envSpecsForAdapter,
+} from '../manifest/env.js'
 import type { Context } from '../context.js'
 
 export type SetupCheckResult = 'proceed' | 'aborted'
@@ -27,7 +33,7 @@ export type SetupCheckResult = 'proceed' | 'aborted'
  * "I don't want to type defaults," not "I don't care if my env is broken."
  */
 export async function runSetupChecks(ctx: Context): Promise<SetupCheckResult> {
-  if (!ctx.state.get().answers.dbDialect) {
+  if (!ctx.state.get().answers.dbAdapter) {
     ctx.logger.error('database adapter is not selected — run the db phase first')
     return 'aborted'
   }
@@ -70,9 +76,10 @@ export async function runSetupChecks(ctx: Context): Promise<SetupCheckResult> {
   const missingEnvKeys = findMissingEnvKeys(ctx)
   if (missingEnvKeys.length > 0) {
     ctx.logger.warn('env files are missing keys Byline expects:')
+    const adapter = ctx.state.get().answers.dbAdapter
+    const specs = adapter ? envSpecsForAdapter(adapter) : ENV_SPECS.filter((spec) => !spec.adapters)
     for (const key of missingEnvKeys) {
-      const dialect = ctx.state.get().answers.dbDialect
-      const spec = dialect ? envSpecsForDialect(dialect).find((s) => s.key === key) : undefined
+      const spec = specs.find((candidate) => candidate.key === key)
       const target = spec ? ENV_FILE_PATHS[spec.file] : '.env'
       ctx.logger.raw(`    - ${key}  (${spec?.group}, ${target}) — ${spec?.description}`)
     }
@@ -141,11 +148,9 @@ export function findMissingEnvKeys(ctx: Context): EnvKey[] {
       // missing file → empty set; missing keys will be reported below
     }
   }
-  const dialect = ctx.state.get().answers.dbDialect
-  if (!dialect) return []
-  return envSpecsForDialect(dialect)
-    .filter((s) => !present[s.file].has(s.key))
-    .map((s) => s.key)
+  const adapter = ctx.state.get().answers.dbAdapter
+  const specs = adapter ? envSpecsForAdapter(adapter) : ENV_SPECS.filter((spec) => !spec.adapters)
+  return specs.filter((s) => !present[s.file].has(s.key)).map((s) => s.key)
 }
 
 /**

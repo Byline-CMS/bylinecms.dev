@@ -15,7 +15,7 @@
  */
 
 import { DATABASE_ADAPTER_IDS, DATABASE_ADAPTERS } from '../lib/database/adapters.js'
-import type { DbDialect } from '../types.js'
+import type { DatabaseAdapterId } from '../types.js'
 
 export type EnvKey =
   | 'VITE_SERVER_URL'
@@ -32,7 +32,7 @@ export interface EnvSpec {
   description: string
   group: 'app' | 'database' | 'auth'
   file: EnvFile
-  dialects?: readonly DbDialect[]
+  adapters?: readonly DatabaseAdapterId[]
 }
 
 const DATABASE_ENV_SPECS: readonly EnvSpec[] = DATABASE_ADAPTER_IDS.map((id) => ({
@@ -40,7 +40,7 @@ const DATABASE_ENV_SPECS: readonly EnvSpec[] = DATABASE_ADAPTER_IDS.map((id) => 
   description: `${DATABASE_ADAPTERS[id].label} connection string consumed by ${DATABASE_ADAPTERS[id].packageName}`,
   group: 'database',
   file: 'secret',
-  dialects: [id],
+  adapters: [id],
 }))
 
 export const ENV_SPECS: readonly EnvSpec[] = [
@@ -73,8 +73,8 @@ export const ENV_SPECS: readonly EnvSpec[] = [
 
 export const ENV_KEYS: readonly EnvKey[] = ENV_SPECS.map((s) => s.key)
 
-export function envSpecsForDialect(dialect: DbDialect): readonly EnvSpec[] {
-  return ENV_SPECS.filter((spec) => !spec.dialects || spec.dialects.includes(dialect))
+export function envSpecsForAdapter(adapter: DatabaseAdapterId): readonly EnvSpec[] {
+  return ENV_SPECS.filter((spec) => !spec.adapters || spec.adapters.includes(adapter))
 }
 
 /**

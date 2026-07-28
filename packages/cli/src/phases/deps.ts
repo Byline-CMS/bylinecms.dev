@@ -49,7 +49,7 @@ export const depsPhase: Phase = {
 
   async detect(ctx) {
     if (!validateWorkspacePackageManager(ctx.cwd, ctx.pm).valid) return 'blocked'
-    if (!ctx.state.get().answers.dbDialect) return 'blocked'
+    if (!ctx.state.get().answers.dbAdapter) return 'blocked'
     const missing = computeMissing(ctx)
     if (missing === null) return 'blocked'
     const settings = inspectDependencySettings(ctx)
@@ -57,7 +57,7 @@ export const depsPhase: Phase = {
   },
 
   async plan(ctx) {
-    if (!ctx.state.get().answers.dbDialect) {
+    if (!ctx.state.get().answers.dbAdapter) {
       return { writes: [], commands: [], notes: ['database adapter missing — run db phase first'] }
     }
     const managerValidation = validateWorkspacePackageManager(ctx.cwd, ctx.pm)

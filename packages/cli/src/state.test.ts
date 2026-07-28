@@ -12,12 +12,12 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
-describe('StateStore database dialect migration', () => {
-  it('keeps a genuinely fresh state dialect-free', () => {
+describe('StateStore database adapter migration', () => {
+  it('keeps a genuinely fresh state adapter-free', () => {
     const root = temporaryRoot()
     const state = new StateStore(root)
 
-    expect(state.get().answers.dbDialect).toBeUndefined()
+    expect(state.get().answers.dbAdapter).toBeUndefined()
   })
 
   it('migrates a legacy database installation to PostgreSQL and strips old secrets', () => {
@@ -41,14 +41,14 @@ describe('StateStore database dialect migration', () => {
     )
 
     const state = new StateStore(root)
-    expect(state.get().answers.dbDialect).toBe('postgres')
+    expect(state.get().answers.dbAdapter).toBe('postgres')
     expect(state.get().answers).not.toHaveProperty('superuserUrl')
 
     state.flush()
     const persisted = JSON.parse(readFileSync(path, 'utf8')) as {
       answers: Record<string, unknown>
     }
-    expect(persisted.answers.dbDialect).toBe('postgres')
+    expect(persisted.answers.dbAdapter).toBe('postgres')
     expect(persisted.answers).not.toHaveProperty('superuserUrl')
   })
 
@@ -67,7 +67,32 @@ describe('StateStore database dialect migration', () => {
     )
 
     const state = new StateStore(root)
-    expect(state.get().answers.dbDialect).toBeUndefined()
+    expect(state.get().answers.dbAdapter).toBeUndefined()
+  })
+
+  it('renames an unreleased dbDialect selection without changing its value', () => {
+    const root = temporaryRoot()
+    const path = join(root, '.byline-install.json')
+    writeFileSync(
+      path,
+      `${JSON.stringify({
+        version: 1,
+        startedAt: '2026-07-01T00:00:00.000Z',
+        completedPhases: [],
+        answers: { dbDialect: 'mysql' },
+        wireSubEdits: {},
+      })}\n`
+    )
+
+    const state = new StateStore(root)
+    expect(state.get().answers.dbAdapter).toBe('mysql')
+
+    state.flush()
+    const persisted = JSON.parse(readFileSync(path, 'utf8')) as {
+      answers: Record<string, unknown>
+    }
+    expect(persisted.answers.dbAdapter).toBe('mysql')
+    expect(persisted.answers).not.toHaveProperty('dbDialect')
   })
 })
 

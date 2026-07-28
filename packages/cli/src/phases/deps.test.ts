@@ -60,7 +60,7 @@ describe('Byline dependency compatibility', () => {
 
   it('selects only the chosen adapter and includes its search provider only with examples', () => {
     const postgresMinimal = dependencySpecsFor({
-      dbDialect: 'postgres',
+      dbAdapter: 'postgres',
       examples: false,
     }).map((spec) => spec.name)
     expect(postgresMinimal).toContain('@byline/db-postgres')
@@ -69,7 +69,7 @@ describe('Byline dependency compatibility', () => {
     expect(postgresMinimal).not.toContain('@byline/search-mysql')
 
     const mysqlExamples = dependencySpecsFor({
-      dbDialect: 'mysql',
+      dbAdapter: 'mysql',
       examples: true,
     }).map((spec) => spec.name)
     expect(mysqlExamples).toContain('@byline/db-mysql')
@@ -167,7 +167,7 @@ describe('Byline dependency compatibility', () => {
   })
 
   it('plans replacement of a pre-existing adapter caret with the exact CLI version', async () => {
-    const ctx = createTestContext({ dbDialect: 'postgres', examples: false })
+    const ctx = createTestContext({ dbAdapter: 'postgres', examples: false })
     contexts.push(ctx)
     const dependencies = compatibleDependencies()
     dependencies['@byline/db-postgres'] = BYLINE_VERSION
@@ -180,7 +180,7 @@ describe('Byline dependency compatibility', () => {
   })
 
   it('plans only MySQL database packages for a MySQL example installation', async () => {
-    const ctx = createTestContext({ dbDialect: 'mysql', examples: true })
+    const ctx = createTestContext({ dbAdapter: 'mysql', examples: true })
     contexts.push(ctx)
     writeFileSync(ctx.resolve('package.json'), '{"dependencies":{}}\n')
 

@@ -5,7 +5,7 @@ import { buildDbUrl, defaultDbPort, parseDbUrl, withDbDatabase } from './urls.js
 describe.each([
   ['postgres', 'postgresql', 5432],
   ['mysql', 'mysql', 3306],
-] as const)('%s database URLs', (dialect, protocol, defaultPort) => {
+] as const)('%s database URLs', (adapter, protocol, defaultPort) => {
   it('round-trips encoded credentials and database names', () => {
     const parts = {
       host: 'db.example.test',
@@ -14,17 +14,17 @@ describe.each([
       password: 'p@ss/#% word',
       database: 'byline content',
     }
-    const rendered = buildDbUrl(dialect, parts)
+    const rendered = buildDbUrl(adapter, parts)
 
     expect(rendered).toMatch(new RegExp(`^${protocol}://`))
     expect(rendered).not.toContain(parts.password)
-    expect(parseDbUrl(rendered, dialect)).toEqual(parts)
+    expect(parseDbUrl(rendered, adapter)).toEqual(parts)
   })
 
   it('uses the dialect default port and can replace the database', () => {
-    const parsed = parseDbUrl(`${protocol}://root:secret@localhost/system`, dialect)
+    const parsed = parseDbUrl(`${protocol}://root:secret@localhost/system`, adapter)
     expect(parsed.port).toBe(defaultPort)
-    expect(defaultDbPort(dialect)).toBe(defaultPort)
+    expect(defaultDbPort(adapter)).toBe(defaultPort)
     expect(withDbDatabase(parsed, 'byline')).toMatchObject({ database: 'byline' })
   })
 })

@@ -9,7 +9,7 @@ import {
   type EnvFile,
   type EnvKey,
   type EnvSpec,
-  envSpecsForDialect,
+  envSpecsForAdapter,
 } from '../manifest/env.js'
 import type { Context } from '../context.js'
 import type { Phase } from '../types.js'
@@ -22,17 +22,17 @@ export const envPhase: Phase = {
   async detect(ctx) {
     if (ctx.state.isComplete('env')) return 'done'
     const a = ctx.state.get().answers
-    if (!a.dbDialect || !a.dbHost || !a.dbName || !a.dbUser) return 'blocked'
+    if (!a.dbAdapter || !a.dbHost || !a.dbName || !a.dbUser) return 'blocked'
     return 'pending'
   },
 
   async plan(ctx) {
     const existing = readAllEnvFiles(ctx)
-    const dialect = ctx.state.get().answers.dbDialect
-    if (!dialect) {
+    const adapter = ctx.state.get().answers.dbAdapter
+    if (!adapter) {
       return { writes: [], commands: [], notes: ['database adapter missing — run db phase first'] }
     }
-    const specs = envSpecsForDialect(dialect)
+    const specs = envSpecsForAdapter(adapter)
     const missing = specs.filter((s) => !existing[s.file][s.key])
 
     const notes: string[] = []
@@ -58,11 +58,11 @@ export const envPhase: Phase = {
 
   async apply(_plan, ctx) {
     const a = ctx.state.get().answers
-    if (!a.dbDialect || !a.dbHost || !a.dbName || !a.dbUser) {
+    if (!a.dbAdapter || !a.dbHost || !a.dbName || !a.dbUser) {
       ctx.logger.error('db answers missing — run the db phase first')
       return { state: 'blocked' }
     }
-    const specs = envSpecsForDialect(a.dbDialect)
+    const specs = envSpecsForAdapter(a.dbAdapter)
     const existing = readAllEnvFiles(ctx)
     const missing = new Set<EnvKey>(specs.filter((s) => !existing[s.file][s.key]).map((s) => s.key))
 
@@ -116,14 +116,14 @@ export const envPhase: Phase = {
       values.secret.BYLINE_SUPERADMIN_PASSWORD = pw
     }
 
-    const dbKey = databaseAdapterDefinition(a.dbDialect).connectionEnvKey
+    const dbKey = databaseAdapterDefinition(a.dbAdapter).connectionEnvKey
     if (missing.has(dbKey)) {
-      const adapter = databaseAdapterDefinition(a.dbDialect)
+      const adapter = databaseAdapterDefinition(a.dbAdapter)
       const dbPassword = await resolveDbPassword(ctx, dbKey, adapter.label)
       if (!dbPassword) return { state: 'blocked' }
-      values.secret[dbKey] = buildDbUrl(a.dbDialect, {
+      values.secret[dbKey] = buildDbUrl(a.dbAdapter, {
         host: a.dbHost,
-        port: a.dbPort ?? defaultDbPort(a.dbDialect),
+        port: a.dbPort ?? defaultDbPort(a.dbAdapter),
         user: a.dbUser,
         password: dbPassword,
         database: a.dbName,
