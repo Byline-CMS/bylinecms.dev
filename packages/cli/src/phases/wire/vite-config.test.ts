@@ -198,8 +198,34 @@ export default defineConfig(options)
   })
 })
 
+/**
+ * Reconstructs the canonical config immediately before `@byline/i18n/react`
+ * was pre-bundled — the newest entry in PREDECESSOR_HASHES.
+ */
+function withoutI18nPreBundling(canonical: string): string {
+  return canonical.replace(
+    `        // \`@byline/i18n/react\` is pinned for a different reason from the rest:
+        // module identity, not interop. The admin layout mounts
+        // \`<I18nProvider>\` from \`@byline/host-tanstack-start\`, which is
+        // deliberately NOT pre-bundled (see the note below), while collection
+        // views reach \`useTranslation\` through \`@byline/admin\` and
+        // \`@byline/richtext-lexical\`, which are. Left undeclared, the optimizer
+        // inlines a copy of the module into the chunk that reaches it first and
+        // the host adapter loads a second copy through the regular pipeline —
+        // two React Contexts, so the provider is invisible to the consumer and
+        // every collection route throws "useTranslation must be used inside
+        // <I18nProvider>". Naming it as an entry makes every importer, pipeline
+        // or pre-bundled, resolve to one module instance.
+        include: [
+          '@byline/ui/react',
+          '@byline/i18n/react',
+`,
+    "        include: [\n          '@byline/ui/react',\n"
+  )
+}
+
 function withoutMysqlExternalization(canonical: string): string {
-  return canonical
+  return withoutI18nPreBundling(canonical)
     .replace(
       '// database / storage adapters through composition at runtime, not',
       '// db-postgres / storage adapters through composition at runtime, not'

@@ -64,6 +64,15 @@ function isBylineOwnedValue(key: string, text: string): boolean {
   return marker != null && text.includes(marker)
 }
 
+/**
+ * Whitespace-insensitive comparison. A value written by an earlier release and
+ * then reformatted — by `formatText` here, or by the host's own formatter — is
+ * still the same value, and must not be rewritten on every run.
+ */
+function sameCode(a: string, b: string): boolean {
+  return a.replace(/\s+/g, ' ').trim() === b.replace(/\s+/g, ' ').trim()
+}
+
 export interface CanonicalPieces {
   /** Source text of each module-level statement, keyed by declaration name. */
   statements: Map<string, string>
@@ -183,12 +192,19 @@ export function analyzeUserConfig(userSource: string, canonical: CanonicalPieces
   // whether that value was deliberate. A key already holding Byline's own value
   // is simply done.
   const configKeysToAdd: string[] = []
+  const configKeysToReplace: string[] = []
   for (const key of CANONICAL_CONFIG_KEYS) {
     const property = configObject.getProperty(key)
+    const canonicalText = canonical.configProps.get(key)
     if (!property) {
       configKeysToAdd.push(key)
     } else if (!isBylineOwnedValue(key, property.getText())) {
       unplaced.push(`\`${key}\` is already set`)
+    } else if (canonicalText && !sameCode(property.getText(), canonicalText)) {
+      // The key holds Byline's own value from an earlier release. We own it, so
+      // bring it up to date — otherwise a config merged by a previous version
+      // silently never receives later fixes to these settings.
+      configKeysToReplace.push(key)
     }
   }
 
@@ -197,6 +213,7 @@ export function analyzeUserConfig(userSource: string, canonical: CanonicalPieces
   const nitroObject = nitroCall ? firstObjectArgument(nitroCall) : undefined
 
   const nitroKeysToAdd: string[] = []
+  const nitroKeysToReplace: string[] = []
   if (!pluginsArray) {
     unplaced.push('no inline `plugins: [ ... ]` array to register Byline plugins in')
   } else if (!nitroCall) {
@@ -206,10 +223,13 @@ export function analyzeUserConfig(userSource: string, canonical: CanonicalPieces
   } else {
     for (const key of CANONICAL_NITRO_KEYS) {
       const property = nitroObject.getProperty(key)
+      const canonicalText = canonical.nitroProps.get(key)
       if (!property) {
         nitroKeysToAdd.push(key)
       } else if (!isBylineOwnedValue(key, property.getText())) {
         unplaced.push(`nitro \`${key}\` is already set`)
+      } else if (canonicalText && !sameCode(property.getText(), canonicalText)) {
+        nitroKeysToReplace.push(key)
       }
     }
   }
@@ -218,7 +238,9 @@ export function analyzeUserConfig(userSource: string, canonical: CanonicalPieces
 
   if (missingStatements.length > 0) changes.push(`add ${missingStatements.join(', ')}`)
   if (configKeysToAdd.length > 0) changes.push(`set ${configKeysToAdd.join(', ')}`)
+  if (configKeysToReplace.length > 0) changes.push(`update ${configKeysToReplace.join(', ')}`)
   if (nitroKeysToAdd.length > 0) changes.push(`set nitro ${nitroKeysToAdd.join(', ')}`)
+  if (nitroKeysToReplace.length > 0) changes.push(`update nitro ${nitroKeysToReplace.join(', ')}`)
   if (addsPlugin) changes.push('register browserAsyncHooksAlias()')
 
   if (changes.length === 0 && unplaced.length === 0) {
@@ -248,9 +270,11 @@ export function analyzeUserConfig(userSource: string, canonical: CanonicalPieces
 
         insertStatementsBeforeConfig(applySource, canonical, missingStatements)
 
-        for (const key of configKeysToAdd) {
+        for (const key of [...configKeysToReplace, ...configKeysToAdd]) {
           const text = canonical.configProps.get(key)
-          if (text) applyConfig.addProperty(text)
+          if (!text) continue
+          applyConfig.getProperty(key)?.remove()
+          applyConfig.addProperty(text)
         }
 
         const applyPlugins = getPluginsArray(applyConfig)
@@ -259,9 +283,11 @@ export function analyzeUserConfig(userSource: string, canonical: CanonicalPieces
           const applyNitro = findNitroCallInArray(applyPlugins)
           const applyNitroObject = applyNitro ? firstObjectArgument(applyNitro) : undefined
           if (applyNitroObject) {
-            for (const key of nitroKeysToAdd) {
+            for (const key of [...nitroKeysToReplace, ...nitroKeysToAdd]) {
               const text = canonical.nitroProps.get(key)
-              if (text) applyNitroObject.addProperty(text)
+              if (!text) continue
+              applyNitroObject.getProperty(key)?.remove()
+              applyNitroObject.addProperty(text)
             }
           }
         }

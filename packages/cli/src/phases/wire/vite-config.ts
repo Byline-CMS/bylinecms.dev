@@ -24,6 +24,8 @@ function backupStamp(): string {
     .replace(/\.\d+Z$/, '')
 }
 const PREDECESSOR_HASHES = new Set([
+  // Canonical config immediately before @byline/i18n/react was pre-bundled.
+  'f4ae4e2238571af4de1b620baea9c2834f26fe022084960ad58e0d2e4d6d9f6b',
   // Canonical config immediately before MySQL became a scaffold option.
   'b6ca128489e49f5efd40dd49b30a0adf33c7d9285453087d673e2b6c2a2b3696',
   // Canonical config with the app-owned client-hook build boundary.

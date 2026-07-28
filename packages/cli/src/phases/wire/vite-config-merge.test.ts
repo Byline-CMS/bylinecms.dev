@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
+import { DEP_SPECS } from '../../manifest/deps.js'
 import { analyzeUserConfig, extractCanonicalPieces } from './vite-config-merge.js'
 
 const CANONICAL = readFileSync(
@@ -59,6 +60,29 @@ describe('canonical extraction', () => {
   it('throws rather than silently omitting a renamed piece', () => {
     const renamed = CANONICAL.replace('const ssrExternal =', 'const somethingElse =')
     expect(() => extractCanonicalPieces(renamed)).toThrow(/ssrExternal/)
+  })
+
+  // `optimizeDeps.include` takes bare specifiers that Vite resolves from the
+  // host app root. A package that is only ever a transitive dependency is not
+  // resolvable there under pnpm's strict layout, so Vite fails to pre-bundle it
+  // and the admin route never hydrates. The scaffold smoke test only covers
+  // bare imports in scaffolded source, so nothing else catches this.
+  it('declares every package named in optimizeDeps.include as a host dependency', () => {
+    const environments = extractCanonicalPieces(CANONICAL).configProps.get('environments') ?? ''
+    const include = environments.match(/include:\s*\[([^\]]*)\]/)?.[1]
+    expect(include, 'canonical config no longer has an optimizeDeps.include array').toBeTruthy()
+
+    const specifiers = [...(include ?? '').matchAll(/['"]([^'"]+)['"]/g)].map((m) => m[1] as string)
+    expect(specifiers.length).toBeGreaterThan(0)
+
+    const declared = new Set(DEP_SPECS.map((spec) => spec.name))
+    for (const specifier of specifiers) {
+      const segments = specifier.split('/')
+      const packageName = specifier.startsWith('@')
+        ? `${segments[0]}/${segments[1]}`
+        : (segments[0] as string)
+      expect(declared, `${specifier} is not installed by the CLI`).toContain(packageName)
+    }
   })
 })
 
@@ -119,6 +143,31 @@ describe('merging into a host config', () => {
 
   it('recognises the canonical config itself as already complete', () => {
     expect(analyzeUserConfig(CANONICAL, canonical).kind).toBe('canonical')
+  })
+
+  it('updates a Byline-owned value left stale by an earlier release', () => {
+    // Without this, a config merged by an earlier CLI is reported as "already
+    // provides Byline's required settings" and silently never receives later
+    // fixes to those settings — which is exactly how a missing
+    // optimizeDeps.include entry survived an upgrade.
+    const merged = (() => {
+      const first = analyzeUserConfig(STOCK_STARTER, canonical)
+      if (first.kind !== 'mergeable') throw new Error('expected mergeable')
+      return first.plan.apply()
+    })()
+    const stale = merged.replace("'@byline/i18n/react',\n", '')
+    expect(stale).not.toBe(merged)
+
+    const analysis = analyzeUserConfig(stale, canonical)
+    expect(analysis.kind).toBe('mergeable')
+    if (analysis.kind !== 'mergeable') return
+
+    expect(analysis.plan.changes.join(' ')).toContain('update')
+    expect(analysis.plan.unplaced).toEqual([])
+    const upgraded = analysis.plan.apply()
+    expect(upgraded).toContain("'@byline/i18n/react'")
+    // The host's own settings must survive an upgrade just as they do an install.
+    expect(upgraded).toContain('@sentry')
   })
 
   it('reports a key it cannot claim rather than overwriting it', () => {
