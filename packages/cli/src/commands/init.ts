@@ -45,7 +45,7 @@ export async function runInit(opts: InitOptions): Promise<void> {
   prompter.intro('Byline CMS installer')
   prompter.note(
     [
-      'This installer adds Byline CMS to a TanStack Start app you already own.',
+      'This installer adds Byline CMS to TanStack Start.',
       '',
       'A working reference monorepo (the demo webapp the installer is modelled',
       'on, with example collections, seeds, and route stubs) lives at:',
