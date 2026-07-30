@@ -136,6 +136,11 @@ Consequently:
 - `alive` cannot be set independently from `deleted_at`;
 - the original path remains available to a future deleted-document administration surface.
 
+The existing `unique_document_paths_document_locale` constraint remains unchanged on
+`(document_id, locale)`. Soft delete changes liveness on the document's existing path rows rather
+than inserting historical path-row copies, so the one-row-per-document-locale invariant still
+holds independently from live namespace ownership.
+
 Do not put `deleted_at` itself in the unique constraint. A bulk operation can assign the same
 transaction timestamp to several rows, causing deleted rows with the same path to collide.
 
@@ -327,12 +332,13 @@ CONSTRAINT `idx_document_paths_collection_locale_path`
 Both generated snapshots record `alive` as nullable, generated, and stored, and record the exact
 four-column constraint name and order. Ordinary inserts omitted `alive`.
 
-The migrations were applied to disposable tables on PostgreSQL 18.4 and MySQL 9.7.1. Both
-databases passed all four SQL-level transitions: a second live claimant failed, multiple deleted
-claimants coexisted, restoration over a live claimant failed, and restoration succeeded after the
-live claimant was deleted. Catalog inspection confirmed `ALWAYS ... STORED` on PostgreSQL and
-`STORED GENERATED` on MySQL. The disposable tables and PostgreSQL probe schema were removed after
-verification.
+The migrations were applied to disposable tables on PostgreSQL 18.4, local-development MySQL
+9.7.1, and the CI-pinned `mysql:8.0` image, which resolved to MySQL 8.0.46 during the probe. All
+three server runs passed the four SQL-level transitions: a second live claimant failed, multiple
+deleted claimants coexisted, restoration over a live claimant failed, and restoration succeeded
+after the live claimant was deleted. Catalog inspection confirmed `ALWAYS ... STORED` on
+PostgreSQL and `STORED GENERATED` on both MySQL versions. The disposable tables, PostgreSQL probe
+schema, and MySQL 8.0 container were removed after verification.
 
 ### Fallback if either dialect fails
 
@@ -402,6 +408,8 @@ generated DDL, lock behavior, driver classification, and migration backfill.
 - [ ] Add generated stored nullable boolean `alive`.
 - [ ] Rebuild `idx_document_paths_collection_locale_path` over
   `(collection_id, locale, path, alive)` without changing its name.
+- [ ] Keep `unique_document_paths_document_locale` unchanged on `(document_id, locale)`; deletion
+  changes the existing row's liveness and does not create path-history rows.
 - [ ] Generate development migrations with the package-local Drizzle commands.
 - [ ] Inspect the generated SQL and snapshots; do not format migration metadata manually. This
   Drizzle stream supports adapter development and is not the upgrade path for deployed databases.
