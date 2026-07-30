@@ -413,6 +413,11 @@ export class DocumentQueries implements IDocumentQueries {
    * reaches the `ORDER BY` has a genuine position, and ascending order
    * therefore picks the earliest (highest-priority, i.e. most-requested)
    * chain entry first, exactly matching `array_position`'s semantics.
+   *
+   * This is a projection by known document identity, not a live-namespace
+   * lookup. Deliberately do not filter `alive`: history and deleted-document
+   * administration must continue to display the retained path.
+   *
    * Verified live against MySQL 9.7.1 (see the Task 10A report) and pinned
    * by `storage-queries.test.ts`'s locale-chain-ordering test.
    */
@@ -457,6 +462,7 @@ export class DocumentQueries implements IDocumentQueries {
       SELECT ${documentPaths.document_id} FROM ${documentPaths}
       WHERE ${documentPaths.collection_id} = ${collection_id}
         AND ${documentPaths.path} = ${path}
+        AND ${documentPaths.alive} = true
         AND ${documentPaths.locale} IN (${chainSql})
       ORDER BY FIELD(${documentPaths.locale}, ${chainSql})
       LIMIT 1

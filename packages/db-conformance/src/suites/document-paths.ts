@@ -264,6 +264,36 @@ export function documentPathsSuite(hooks: ConformanceHooks): void {
         })
 
         expect(found?.document_id).toBe(live.document.document_id)
+        expect(found).not.toHaveProperty('deleted_at')
+        expect(found).not.toHaveProperty('alive')
+      })
+
+      it('skips a higher-priority deleted locale before resolving a live fallback', async () => {
+        const path = uniquePath('locale-live-wins')
+        const deleted = await createDocument({
+          path: uniquePath('locale-deleted-source'),
+          title: 'Former French occupant',
+        })
+        await adapter.commands.documents.updateDocumentPath({
+          documentId: deleted.document.document_id,
+          collectionId: testCollection.id,
+          locale: 'fr',
+          path,
+        })
+        await adapter.commands.documents.softDeleteDocument({
+          document_id: deleted.document.document_id,
+        })
+
+        const live = await createDocument({ path, title: 'Live English fallback' })
+        const found = await adapter.queries.documents.getDocumentByPath({
+          collection_id: testCollection.id,
+          path,
+          locale: 'fr',
+          reconstruct: false,
+        })
+
+        expect(found?.document_id).toBe(live.document.document_id)
+        expect(found?.path).toBe(path)
       })
 
       it('duplicates onto an un-suffixed path retained only by a deleted document', async () => {

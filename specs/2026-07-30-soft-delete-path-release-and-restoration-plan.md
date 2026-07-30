@@ -469,6 +469,10 @@ the adapter Drizzle streams are squashed for release.
 
 ## Task 3: Make live-path reads explicit
 
+**Status:** Complete as read-path implementation on 2026-07-30. The shared soft-delete
+end-to-end assertions remain intentionally red until Task 4 synchronizes path and version
+liveness.
+
 **Files**
 
 - Modify: `packages/db-postgres/src/modules/storage/storage-queries.ts`
@@ -476,18 +480,34 @@ the adapter Drizzle streams are squashed for release.
 - Modify: related filter/relation path compilers if they resolve a document ID from an unscoped
   path row
 - Modify: shared document-path conformance tests
+- Create: focused PostgreSQL/MySQL live-path query integration tests
 
 ### Implementation
 
-- [ ] Add `alive = true` to every path-to-document lookup that addresses the live namespace.
-- [ ] Preserve the determinism invariant: the unique constraint supplies the within-locale
+- [x] Add `alive = true` to every path-to-document lookup that addresses the live namespace.
+- [x] Preserve the determinism invariant: the unique constraint supplies the within-locale
   singleton; locale-chain ordering supplies cross-locale priority. Do not add a row-ID tiebreaker
   that masks a weakened uniqueness constraint.
-- [ ] Do not filter `alive` from path projection by a known document ID; deleted-document
+- [x] Do not filter `alive` from path projection by a known document ID; deleted-document
   administration must still be able to display retained paths.
-- [ ] Audit relation filters and locale fallback queries for raw path-row lookups.
-- [ ] Prove locale priority remains deterministic when deleted and live rows share a path.
-- [ ] Ensure normal live reads never expose `deleted_at` or `alive` as document fields.
+- [x] Audit relation filters and locale fallback queries for raw path-row lookups.
+- [x] Prove locale priority remains deterministic when deleted and live rows share a path.
+- [x] Ensure normal live reads never expose `deleted_at` or `alive` as document fields.
+
+### Result
+
+Both adapters now apply `alive = true` in their single live-namespace resolver,
+`resolveDocumentIdByPath`. The locale-chain ordering remains the only cross-locale priority rule;
+no row-ID tiebreaker was added. `pathProjection` remains intentionally unfiltered because it
+projects a retained path for an already-known document identity, including history and nested
+relation-filter contexts. The shared conformance suite now pins the case where a deleted row in
+the requested locale must be skipped before a live default-locale fallback is selected, and
+asserts that live document envelopes expose neither liveness column.
+
+Focused adapter integration tests establish the read contract independently from Task 4 by
+constructing synchronized path/version liveness directly: the resolver skips a deleted
+requested-locale row, falls back to the live default-locale row, and still projects the deleted
+row's retained path when history is addressed by known document identity.
 
 ## Task 4: Synchronize soft delete and retain media
 
