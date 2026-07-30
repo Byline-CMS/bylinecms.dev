@@ -99,7 +99,10 @@ await initBylineCore({
 
 ### 4. Handle `ERR_PATH_CONFLICT`
 
-Per-collection path uniqueness is enforced at the database level via a unique index on `(collection_id, locale, path)`. Collisions across different documents surface as `ERR_PATH_CONFLICT` from the lifecycle layer; re-saving the same path for the *same* document is idempotent.
+Per-collection path uniqueness is enforced for live documents at the database level. Collisions
+with another live document surface as `ERR_PATH_CONFLICT` from the lifecycle layer; a deleted
+document can retain the same path without occupying the live namespace, and re-saving the same
+path for the *same* live document is idempotent.
 
 **Edit:** any write call site that surfaces user-supplied paths.
 
@@ -119,7 +122,10 @@ try {
 }
 ```
 
-Auto-suffixing is intentionally not implemented — silent rename is footgun-shaped. Seeders / bulk imports can pre-resolve uniqueness in caller code if they need to.
+Create and update do not auto-suffix because a silent rename would change the requested address.
+The explicit duplicate operation is different: it retries one live collision with a short-UUID
+suffix. Seeders and bulk imports can pre-resolve uniqueness in caller code when they need another
+policy.
 
 → [Path uniqueness](#path-uniqueness)
 
@@ -201,33 +207,93 @@ Per-collection path uniqueness is enforced at the database level via a dedicated
 
 ```ts
 byline_document_paths
-  document_id   uuid    } composite primary key
-  locale        varchar }
+  document_id   uuid       } unique with locale
+  locale        varchar    }
   collection_id uuid
   path          varchar(255)
-  UNIQUE (collection_id, locale, path)
+  deleted_at    timestamp | null
+  alive         boolean GENERATED ALWAYS AS (
+                  CASE WHEN deleted_at IS NULL THEN true ELSE NULL END
+                ) STORED
+  UNIQUE (collection_id, locale, path, alive)
 ```
 
-One row per logical document per content locale; the `(collection_id, locale, path)` unique index is what enforces the invariant that no two documents in the same collection share a path within the same locale. Locale is modelled from day one even though the lifecycle writes only the document's source-locale row — the column is present so localized paths remain an additive future capability.
+There is one row per logical document per content locale. `alive = true` marks a live path;
+`deleted_at` being non-null makes generated `alive` null. PostgreSQL and MySQL unique constraints
+allow several null values, so `UNIQUE (collection_id, locale, path, alive)` prevents two live
+documents from sharing a path while allowing any number of deleted documents to retain it. Callers
+never write `alive` directly.
+
+`UNIQUE (document_id, locale)` remains unchanged. Soft deletion changes the existing row's
+liveness rather than creating path-history rows. Locale is modelled from day one even though the
+lifecycle writes only the document's source-locale row — the column is present so localized paths
+remain an additive future capability.
 
 ### Lifecycle behaviour
 
 - **Create** — `createDocument` enforces "first create must be in the default content locale" (existing rule), then writes the path row keyed by `(document_id, defaultContentLocale)`. Collisions surface as `ERR_PATH_CONFLICT`.
 - **Update in the source locale** — a versioned `updateDocument` upserts the path row when an explicit `params.path` is supplied. The admin direct-write path first compares the locked current value and skips an equal value. Sticky: if no non-empty `path` is supplied, the existing row carries forward unchanged. Collisions surface as `ERR_PATH_CONFLICT`.
 - **Update in a non-source (translation) locale** — path changes are dropped silently with a `logger.warn`; the source-locale row is left untouched and the path widget is read-only. A future per-locale paths UI can lift this restriction.
-- **Restore** — never changes a document's path. `restoreDocumentVersion` does not pass `path` to the storage primitive; the existing `byline_document_paths` row is preserved.
+- **Soft delete** — one transaction sets `deleted_at` on every path row and `is_deleted = true` on
+  every version with one operation timestamp. Path values, versions, field rows, uploaded sources,
+  and generated variants remain stored, but path lookup ignores the tombstoned rows and another
+  document can claim the path.
+- **Whole-document storage un-delete** — `restoreSoftDeletedDocument({ document_id })` clears every
+  path tombstone and every version tombstone in one transaction. The live unique constraint
+  revalidates the retained path; if another live document has claimed it, the whole restoration
+  rolls back. Missing, versionless, already-live, and legacy partially-live documents return `0`.
+  This storage primitive does not reconstruct tree placement or search/cache projections, so it is
+  reserved for trusted tooling until a complete lifecycle restore exists.
+- **Historical-version restore** — `restoreDocumentVersion` creates a new version of an
+  already-live document. It never changes path liveness and cannot un-delete a whole document.
 
 ### Collision policy
 
-**Reject by default**, surfaced as `ERR_PATH_CONFLICT` from the lifecycle layer. The storage adapter's `createDocumentVersion` performs an upsert keyed by `(document_id, locale)`, so re-saving the same path for the *same* document is idempotent; only collisions across different documents trigger the error. Auto-suffixing is intentionally not implemented — silent rename is footgun-shaped, and seeders / bulk imports can pre-resolve uniqueness in caller code if they need to.
+**Reject live collisions by default**, surfaced as `ERR_PATH_CONFLICT` from the lifecycle layer.
+The message identifies the attempted operation and states that a live document already owns the
+path without exposing that document's id. The storage adapter's `createDocumentVersion` performs
+an upsert keyed by `(document_id, locale)`, so re-saving the same path for the *same* document is
+idempotent. Deleted rows do not collide. Ordinary create and update do not auto-suffix; the
+`duplicateDocument` lifecycle is the exception and retries one live collision with a short-UUID
+suffix.
 
 ### Read-side locale resolution
 
-Once a document row is known, reads compose a fallback chain `[requested, source]`, deduplicated when both values match. The initial `findByPath` lookup cannot know that source locale yet, so it currently resolves `(collection_id, path)` against `[requested, configuredDefault]` via one subquery using `array_position` for priority ordering — never a double round-trip. Projection helpers (`pathProjection`, `viewProjection`, `documentVersionsProjection`) then attach source-aware locale-resolved paths to read results; the relation-filter compiler does the same for nested target documents. The `current_*` views deliberately do **not** project `path` — locale is request-scoped and lives in the storage adapter's read functions, not in static view DDL.
+Once a document row is known, reads compose a fallback chain `[requested, source]`, deduplicated
+when both values match. The initial `findByPath` lookup cannot know that source locale yet, so it
+resolves `(collection_id, path)` against `[requested, configuredDefault]` via one ordered subquery
+— never a double round-trip — and requires `alive = true`. A deleted higher-priority locale is
+skipped before a live fallback is selected. Projection helpers (`pathProjection`,
+`viewProjection`, `documentVersionsProjection`) remain unfiltered because they attach retained
+paths after a document id is already known, including for trusted history tooling. The
+`current_*` views deliberately do **not** project `path` — locale is request-scoped and lives in
+the storage adapter's read functions, not in static view DDL.
 
 ### Where the source-locale value comes from
 
-`pgAdapter()` takes a `defaultContentLocale: string` parameter, threaded from `ServerConfig.i18n.content.defaultLocale`. New documents use this as their initial `sourceLocale`; existing documents resolve path writes and fallback against their own source locale (falling back to the configured default for legacy rows). `@byline/client` resolves the same value (from explicit config, the supplied `ServerConfig`, or `'en'` as a last-resort fallback for tests / migration scripts) and applies it as the implicit default for `locale` on every read method.
+`pgAdapter()` and `mysqlAdapter()` take a `defaultContentLocale: string` parameter, threaded from
+`ServerConfig.i18n.content.defaultLocale`. New documents use this as their initial `sourceLocale`;
+existing documents resolve path writes and fallback against their own source locale (falling back
+to the configured default for legacy rows). `@byline/client` resolves the same value (from explicit
+config, the supplied `ServerConfig`, or `'en'` as a last-resort fallback for tests and migration
+scripts) and applies it as the implicit default for `locale` on every read method.
+
+### Existing-installation migration
+
+Fresh installations receive the current schema from each adapter's squashed `0000` Drizzle
+baseline. That baseline is not an upgrade stream. Existing installations must apply the numbered,
+idempotent native script for their provider:
+
+```sh
+psql "$DATABASE_URL" -f packages/db-postgres/sql/0006_soft_delete_path_liveness.sql
+mysql -u byline -p byline_dev < packages/db-mysql/sql/0001_soft_delete_path_liveness.sql
+```
+
+Apply the scripts from the target release in filename order. The PostgreSQL script runs the
+backfill and constraint replacement transactionally. MySQL DDL auto-commits, so its script guards
+each step, validates both directions of path/version liveness afterwards, and is safe to rerun.
+Do not apply the feature's development Drizzle migration or a future fresh-install baseline to an
+existing database.
 
 ## Current limitations
 
@@ -240,6 +306,10 @@ Once a document row is known, reads compose a fallback chain `[requested, source
 - **No per-collection slugifier override.** The slugifier is configured once on
   `ServerConfig`; a collection cannot yet supply its own (for example to preserve
   filename extensions on a media collection).
+- **No supported editorial un-delete or purge.** The adapter-level
+  `restoreSoftDeletedDocument` primitive preserves identity but does not rebuild tree, search, or
+  cache projections. Irreversible field and object-storage cleanup belongs to a future
+  reference-safe purge workflow.
 
 ## Code map
 
@@ -251,15 +321,16 @@ Once a document row is known, reads compose a fallback chain `[requested, source
 | Reserved-name + `useAsPath` validation              | `packages/core/src/config/validate-collections.ts`                        |
 | Lifecycle derivation + sticky update + locale rules | `packages/core/src/services/document-lifecycle/` (`internals.ts`, `create.ts`, `update.ts`) |
 | `ERR_PATH_CONFLICT` error type                      | `packages/core/src/lib/errors.ts`                                         |
-| `byline_document_paths` schema                      | `packages/db-postgres/src/database/schema/index.ts`                       |
-| Storage adapter — locale-aware path resolution      | `packages/db-postgres/src/modules/storage/storage-queries.ts` (`pathProjection`, `resolveDocumentIdByPath`, `viewProjection`) |
-| Storage adapter — path upsert on write              | `packages/db-postgres/src/modules/storage/storage-commands.ts` (`createDocumentVersion`) |
-| Adapter `defaultContentLocale` plumbing             | `packages/db-postgres/src/index.ts` (`pgAdapter`)                         |
+| `byline_document_paths` schema                      | `packages/db-postgres/src/database/schema/index.ts`; `packages/db-mysql/src/database/schema/index.ts` |
+| Storage adapters — locale-aware path resolution     | each adapter's `src/modules/storage/storage-queries.ts`                   |
+| Storage adapters — path write/delete/un-delete      | each adapter's `src/modules/storage/storage-commands.ts`                  |
+| Existing-installation path-liveness upgrades        | `packages/db-postgres/sql/0006_soft_delete_path_liveness.sql`; `packages/db-mysql/sql/0001_soft_delete_path_liveness.sql` |
+| Adapter `defaultContentLocale` plumbing             | `packages/db-postgres/src/index.ts` (`pgAdapter`); `packages/db-mysql/src/index.ts` (`mysqlAdapter`) |
 | Client SDK options + locale defaults                | `packages/client/src/{types,collection-handle,client}.ts`                 |
 | Admin server fns accept `path`                      | `packages/host-tanstack-start/src/server-fns/collections/{create,update}.ts` |
 | Form context `systemPath` slot                      | `packages/admin/src/forms/form-context.tsx`                               |
 | Path widget (sidebar)                               | `packages/admin/src/forms/path-widget.tsx`                                |
 | Form rendering integration                          | `packages/admin/src/forms/form-renderer.tsx`                              |
-| Integration tests (collision, upsert, fallback)     | `packages/db-conformance/src/suites/document-paths.ts`, run against Postgres via `packages/db-postgres/tests/conformance.integration.test.ts` |
+| Integration tests (collision, upsert, fallback)     | `packages/db-conformance/src/suites/document-paths.ts`, run by both adapter packages |
 | Lifecycle tests (warn, conflict translation)        | `packages/core/src/services/document-lifecycle.test.node.ts`              |
 | Reference collections using `useAsPath`             | `apps/webapp/byline/collections/{pages,news,docs,news-categories}/schema.ts` |

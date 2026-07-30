@@ -185,17 +185,20 @@ This rides on the request-scoped `withTransaction` boundary owned by the
 service layer (the audit write is a peer command in the same transaction; the
 storage adapter never learns the word "audit"). System-field writes take their
 authoritative before snapshot under the same lock. Tree placement/removal does
-the same for structural state; deleting a tree document includes soft deletion,
-direct-child promotion, edge removal, and every parent/child audit row in one
-unit. That mechanism — its AsyncLocalStorage propagation and the DB↔DB vs
-DB↔external distinction — is specified in
+the same for structural state; deleting a tree document includes version and
+path-row soft deletion, direct-child promotion, edge removal, and every
+parent/child audit row in one unit. Path rows receive the same operation
+timestamp as version tombstones, so audit commit cannot leave version and path
+liveness out of sync. That mechanism — its AsyncLocalStorage propagation and
+the DB↔DB vs DB↔external distinction — is specified in
 **[Transactions](../03-architecture/03-transactions.md)**.
 
 Collection after-hooks are outside the transaction. A hook failure rejects the
 call after data and audit have committed for ordinary audited writes; it never
-creates an unaudited rollback. Delete is the exception: storage cleanup,
-`afterTreeChange`, and `afterDelete` failures are returned as a committed outcome
-instead of rejecting the completed delete.
+creates an unaudited rollback. Delete is the exception: `afterTreeChange` and
+`afterDelete` failures are returned as a committed outcome instead of rejecting
+the completed delete. Soft delete performs no object-storage cleanup; immutable
+sources and persisted variants remain retained.
 
 Explicit tree place/remove keeps the ordinary SDK rejection contract but marks
 this particular post-commit case with `ERR_TREE_HOOK_COMMITTED`. The TanStack
@@ -213,6 +216,12 @@ breaking change requires `withTransaction`, `commands.audit`, `queries.audit`,
 the transaction-scoped `getDocumentSystemFieldsForUpdate` lock/read, and
 `promoteChildrenAndRemoveFromTree` for delete-time tree reconciliation. These are
 not optional capabilities for typed adapters.
+
+The canonical `IDocumentCommands` also requires
+`restoreSoftDeletedDocument({ document_id })`. Both built-in adapters implement
+the transaction that reactivates every version and path row, while the live
+unique constraint rolls it back if the path has been reclaimed. Out-of-tree
+adapters must implement the member when upgrading `@byline/core`.
 
 Defensive structural checks remain because plain JavaScript can supply an object
 without satisfying TypeScript. `requireAuditCapability` checks
@@ -251,12 +260,14 @@ recording a gap — plus `auditActor(ctx)` (UUID id → realm `'admin'`; synthet
 - `deleteDocument` (`document-lifecycle/delete.ts`) — the deletion event (the
   one change that otherwise erases its own history). For a tree document the
   same transaction also records one reparent action per promoted direct child
-  and a removal action when an edge is removed or children are promoted. The
-  storage-file cleanup stays outside it (DB↔external). After commit, storage
-  cleanup, `afterTreeChange`, and `afterDelete` are attempted independently;
-  failures no longer reject and instead produce
-  `outcome: 'committed-with-side-effect-failures'` with serializable phase,
-  message, and code entries. The host strips messages and allowlists public
+  and a removal action when an edge is removed or children are promoted. Every
+  version tombstone and path-row `deleted_at` marker commits with those audit
+  rows. Uploaded sources and generated variants are retained rather than
+  treated as delete side effects. After commit, `afterTreeChange` and
+  `afterDelete` are attempted independently; failures no longer reject and
+  instead produce `outcome: 'committed-with-side-effect-failures'` with
+  serializable phase, message, and code entries. The public phase union contains
+  only those two hook phases. The host strips messages and allowlists public
   phase/code values before returning the result. The admin navigates to the
   collection list and shows a warning rather than presenting the committed
   delete as failed. Durable retry/outbox handling remains deferred.

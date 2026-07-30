@@ -842,6 +842,8 @@ approved. No variant deletion or regeneration behavior changed in this task.
 
 ## Task 9: Documentation and issue alignment
 
+**Status:** Complete on 2026-07-30.
+
 **Files**
 
 - Modify: `docs/04-collections/05-document-paths.md`
@@ -856,37 +858,63 @@ approved. No variant deletion or regeneration behavior changed in this task.
 
 ### Documentation
 
-- [ ] Document `deleted_at`, generated `alive`, and live-only uniqueness.
-- [ ] Document soft-delete/un-delete atomicity and conflict behavior.
-- [ ] State that soft delete retains path values, versions, fields, and source assets.
-- [ ] State that generated variants are retained in this phase.
-- [ ] State prominently that soft delete no longer reclaims object storage and no supported purge
+- [x] Document `deleted_at`, generated `alive`, and live-only uniqueness.
+- [x] Document soft-delete/un-delete atomicity and conflict behavior.
+- [x] State that soft delete retains path values, versions, fields, and source assets.
+- [x] State that generated variants are retained in this phase.
+- [x] State prominently that soft delete no longer reclaims object storage and no supported purge
   operation exists yet.
-- [ ] Add a changeset covering the path, un-delete, and media-retention behavior changes for the
+- [x] Add a changeset covering the path, un-delete, and media-retention behavior changes for the
   fixed Byline package group.
-- [ ] Document the PostgreSQL and MySQL numbered native upgrade scripts for existing
+- [x] Document the PostgreSQL and MySQL numbered native upgrade scripts for existing
   installations. Do not direct existing installations to the development Drizzle migration or
   the future squashed fresh-install baseline.
-- [ ] State in the changeset that `IDocumentCommands` gains a required `restoreSoftDeletedDocument`
+- [x] State in the changeset that `IDocumentCommands` gains a required `restoreSoftDeletedDocument`
   member, and tell out-of-tree adapter authors what they must implement. Both built-in adapters ship
   the implementation, so the break is only visible to external `IDbAdapter` implementations.
-- [ ] State in the changeset that existing-document version writes now take a row-scoped document
+- [x] State in the changeset that existing-document version writes now take a row-scoped document
   lock, so concurrent saves to the same document serialize while unrelated documents remain
   concurrent.
-- [ ] Update importer documentation/help to describe plain upsert behavior, removal of the
+- [x] Update importer documentation/help to describe plain upsert behavior, removal of the
   deleted-document `--force` workaround, and the new-document-ID consequence after re-importing a
   deleted path.
-- [ ] State that delete-then-reimport changes document identity: existing relations to the deleted
+- [x] State that delete-then-reimport changes document identity: existing relations to the deleted
   document ID do not retarget automatically. The current reference docs import is safe because no
   current collection relates to the imported `docs` collection; future schemas that add such a
   relation must account for the identity split.
-- [ ] Distinguish un-delete from historical-version restore.
-- [ ] State that tree placement is not reconstructed.
-- [ ] State that storage-level un-delete does not reconstruct search indexing. The future
+- [x] Distinguish un-delete from historical-version restore.
+- [x] State that tree placement is not reconstructed.
+- [x] State that storage-level un-delete does not reconstruct search indexing. The future
   lifecycle API must restore search/cache projections before it becomes a supported editorial
   operation.
-- [ ] Reserve irreversible source cleanup for future purge.
-- [ ] Run `pnpm docs:check` and `git diff --check`.
+- [x] Reserve irreversible source cleanup for future purge.
+- [x] Run `pnpm docs:check` and `git diff --check`.
+
+### Result
+
+The paths, storage, transactions, uploads, document-tree, client SDK, and auditability guides now
+describe live-only path ownership, atomic soft delete and storage-level un-delete, conflict
+rollback, retained history, and the limits of the restoration primitive. Existing installations
+are directed to the numbered PostgreSQL or MySQL native upgrade script rather than the squashed
+fresh-install baseline.
+
+The uploads and storage guides make immutable media retention explicit: versions and duplicated
+documents can share source and generated-variant paths, ordinary soft delete cannot prove exclusive
+ownership and deletes no objects, and Byline has no supported purge or reference-safe reclamation
+operation. Upload compensation remains limited to objects newly written by a failed operation.
+Issue [#72](https://github.com/Byline-CMS/bylinecms.dev/issues/72) owns generation recipes,
+provider-neutral source reads, shared-reference analysis, regeneration, and eventual cleanup.
+
+The importer guide records plain live-path upsert behavior, hard rejection of the retired
+deleted-document `--force` flag, the new-document-ID result of delete followed by re-import, and
+the relation-retargeting limitation. The changeset records the fixed-group release impact,
+`storageCleanup` phase removal, the required `restoreSoftDeletedDocument` adapter command, and
+row-scoped serialization of existing-document saves. Issue
+[#69](https://github.com/Byline-CMS/bylinecms.dev/issues/69) now links PR #71 and issue #72 from an
+implementation-status section in its body.
+
+`pnpm docs:check` passed all 49 documents and 452 links, `pnpm changeset status` accepted the
+release note and resolved the fixed package group to a minor bump, and `git diff --check` passed.
 
 ## Task 10: Verification gates
 

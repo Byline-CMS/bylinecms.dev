@@ -258,7 +258,7 @@ Document trees deliberately separate **where a document is stored** from **how i
 is reached**.
 
 **The stored path stays flat.** `byline_document_paths` holds a flat slug
-(`cli`), globally unique per `(collection, locale, path)`. Re-parenting,
+(`cli`), unique among live documents per `(collection, locale, path)`. Re-parenting,
 reordering, and nesting write only the tree table and never touch the path row.
 This is what keeps a document untouched by its position: moving a subtree never
 rewrites a single stored path. Storing tree-derived paths (`getting-started/cli`)
@@ -353,11 +353,17 @@ committed and a runtime placement failure is best-effort.
 
 For deletion, the database boundary includes the soft delete, direct-child
 promotion, edge removal, and every delete/tree audit row. Once that transaction
-commits, the delete is committed even if storage cleanup or post-commit tree and
-delete hooks fail. The lifecycle returns
+commits, the delete is committed even if post-commit tree and delete hooks fail.
+Soft delete retains uploaded sources and generated variants; storage reclamation
+is not a delete side effect. The lifecycle returns
 `outcome: 'committed-with-side-effect-failures'` instead of rejecting for those
 failures; the host exposes only sanitized phase/code data, and the admin still
 navigates to the collection list with a warning toast.
+
+The adapter-level `restoreSoftDeletedDocument` primitive does not reconstruct
+tree placement. Deleting a node has already promoted its children and removed
+its edge, so a future editorial restore workflow must choose and apply placement
+explicitly rather than guessing the old hierarchy.
 
 ## Invalidation
 
@@ -394,33 +400,30 @@ Cache/ISR and markdown consumers can subscribe here. Search reindexing is needed
 only if a provider stores tree-derived hierarchy — the reference docs app stores
 the flat leaf path and invalidates its tree-derived cache without reindexing.
 
-## Recovering the docs tree from markdown
+## Rebuilding the docs tree from markdown
 
-The repository importer can restore content and then reapply the folder/index
-hierarchy in one run:
+The repository importer applies the folder/index hierarchy after its document
+upserts:
 
 ```sh
-pnpm tsx apps/webapp/byline/scripts/import-docs.ts 'docs/**/*.md' --force --tree
+pnpm tsx apps/webapp/byline/scripts/import-docs.ts 'docs/**/*.md' --tree
 ```
 
-`--force` recovers a soft-deleted document that still owns an imported path
-without exposing its previous published versions. It temporarily stages only
-the latest tombstoned version under a non-published status, runs the normal
-update and requested status transitions, then re-tombstones that staging row.
-The document id, path row, historical version rows and statuses, and audit rows
-are preserved.
-If the update or any ordinary post-commit hook/status step reports failure, a
-compensating write re-tombstones every version, including a replacement version
-that committed before an after-hook failed, then the configured `afterDelete`
-hooks reconcile search and cache state. Compensation or reconciliation failures
-are aggregated with the original error and remain fatal.
+The importer is a plain path-based upsert. It updates a live document found at
+the imported path. If no live document owns the path, it creates a new logical
+document—even when one or more deleted documents retain that same path—and uses
+the new document id for tree placement. The retired deleted-document `--force`
+flag is rejected as an unknown option; the importer does not call
+`restoreSoftDeletedDocument`.
 
-Recovery takes a path-scoped Postgres advisory lock, which serializes competing
-`--force` import processes for the same path. Ordinary lifecycle writers do not
-take that maintenance lock. Run forced recovery without concurrent editorial
-writes to the recovered documents; without a durable operation id on version
-rows, compensation cannot distinguish its replacement from a version committed
-concurrently by an editor.
+Delete followed by import therefore splits history across document ids. The
+old document, audit trail, and media references remain deleted; the new import
+starts a new history at the same public path. Existing relations to the deleted
+id do not retarget automatically. The repository's current reference
+collections declare no relation to the imported `docs` collection, so this is
+safe for the shipped docs import. A future schema that adds such a relation
+must account for the identity split or use a separate explicit-id restoration
+workflow.
 
 `--tree` then places successful imports in deterministic source-file order using
 the folder plus `index.md` / `index.markdown` convention.

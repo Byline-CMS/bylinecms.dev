@@ -650,6 +650,38 @@ A jsonb column rather than a sidecar `byline_store_file_variants` table because 
 
 This is the single source of truth — the upload service does not return a separate top-level variants list. Public clients reading via `@byline/client` see `result.fields.image.variants` and can build a `<picture>` / `srcset` without a second round-trip. When the field is reached via a relation, `populateDocuments` carries the same envelope on the populated relation value.
 
+### Immutable media retention
+
+Byline treats each stored source path and each persisted variant path as part of an immutable
+document version. Replacing media writes a new file envelope for the new version; it does not
+rewrite the envelope held by an older version. Duplicating a document can also carry the same
+stored paths into another logical document. A source or variant path can therefore have several
+retained database references.
+
+:::warning[Soft delete does not reclaim storage]
+Soft delete tombstones every version and releases the document's live path, but it deletes no
+source files or generated variants. The document's field rows and stored path values remain
+available for trusted history and a future whole-document restoration workflow.
+
+Byline has no supported purge or reference-safe storage reclamation operation. Do not infer that
+an object is unreferenced from one deleted document or one current version, and do not delete it
+from an `afterDelete` hook unless your application maintains a separate, authoritative ownership
+model.
+:::
+
+This retention rule is separate from **upload compensation**. When an operation has just written a
+new source and variants but fails to create their owning document, the upload/import path attempts
+to delete those newly written objects. That rollback knows which objects the failed operation
+created; soft delete has no equivalent proof of exclusive ownership.
+
+Persisted `variants` metadata is enough to read the generated objects, but it is not a complete
+regeneration recipe. It records names, paths, dimensions, and formats, not every requested bound,
+fit, quality, or processor/version that produced the bytes. Changing `UploadConfig.sizes` does not
+rewrite historical media. [Issue #72](https://github.com/Byline-CMS/bylinecms.dev/issues/72) owns
+the design for recipe persistence, provider-neutral source reads, shared-reference analysis,
+regeneration compatibility, retry/idempotency, and eventual cleanup. Until that design is approved,
+sources and persisted variants have the same indefinite retention behavior.
+
 ### The transport server function
 
 Uploads currently travel through a TanStack Start server function. Its generated
@@ -813,6 +845,11 @@ For non-image uploads, `variants` is absent and `imageWidth` / `imageHeight` / `
 - **No orphan reaper.** A file written in the gap between the upload round-trip and
   the document save is not swept up if the save never happens. On S3 a lifecycle
   rule covers it; the local provider has no equivalent yet.
+- **No reference-safe purge or general regeneration contract.** Soft-deleted sources and variants
+  remain stored because immutable versions and duplicated documents can share their paths.
+  `IStorageProvider` also has no provider-neutral read method, and legacy variant rows do not
+  retain a complete generation recipe. [Issue #72](https://github.com/Byline-CMS/bylinecms.dev/issues/72)
+  tracks the required design.
 - **Image constraints are upload-only.** Aspect-ratio, min/max dimensions, and
   required-alt validation are not yet expressible on an image field.
 

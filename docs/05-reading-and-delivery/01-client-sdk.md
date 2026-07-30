@@ -310,7 +310,23 @@ if (deleted.outcome === 'committed-with-side-effect-failures') {
 
 Every write resolves the client's configured `requestContext` and runs `assertActorCanPerform('collections.<path>.<verb>')`. `actor: null` is rejected on writes.
 
-`delete` returns a discriminated committed result rather than using rejection for post-commit failures. `outcome: 'committed'` carries an empty `sideEffectFailures`; `outcome: 'committed-with-side-effect-failures'` carries one or more failures from `storageCleanup`, `afterTreeChange`, or `afterDelete`. Each failure exposes only its `phase` and an allowlisted `code` (`ERR_STORAGE` or `ERR_UNHANDLED`); raw errors, hook messages, and storage paths remain in internal logs. Authorization, existence lookup, `beforeDelete`, and the transactional soft-delete + audit + tree reconciliation are pre-commit: any failure there rejects and no committed result is returned. Once that transaction commits, storage cleanup and both hook families get independent attempts; their failures cannot turn the committed delete into a rejected promise.
+`delete` returns a discriminated committed result rather than using rejection for post-commit
+failures. `outcome: 'committed'` carries an empty `sideEffectFailures`;
+`outcome: 'committed-with-side-effect-failures'` carries one or more failures from
+`afterTreeChange` or `afterDelete`. Each failure exposes only its `phase` and an allowlisted code
+(`ERR_STORAGE` or `ERR_UNHANDLED`); raw errors, hook messages, and any storage paths from a hook
+remain in internal logs. Authorization, existence lookup, `beforeDelete`, and the transactional
+version/path soft delete, audit, and tree reconciliation are pre-commit: any failure there rejects
+and no committed result is returned. Once that transaction commits, both hook families get
+independent attempts; their failures cannot turn the committed delete into a rejected promise.
+
+Soft delete retains every path value, version, field row, uploaded source, and persisted generated
+variant. It releases only the live path namespace. The SDK exposes no whole-document un-delete or
+purge method: `restoreDocumentVersion` is the historical-version operation for an already-live
+document, while adapter-level `restoreSoftDeletedDocument` is reserved for trusted tooling because
+it does not reconstruct tree, search, or cache projections. The immutable-media retention contract
+and the deferred reference-safe cleanup design are documented in
+[File / Media Uploads](../04-collections/06-file-media-uploads.md#immutable-media-retention).
 
 → [Write surface](#write-surface)
 
@@ -653,7 +669,22 @@ client.collection('news').unpublish(id)
 
 Each method delegates to the corresponding `document-lifecycle` service. The handle resolves the collection id once, builds a `DocumentLifecycleContext`, and invokes the service — collection hooks (`beforeCreate`, `afterUpdate`, etc.) fire the same way they do when the admin UI writes.
 
-**Delete has an explicit commit contract.** `delete(id)` resolves to `{ deletedVersionCount, outcome, sideEffectFailures }`. The transaction atomically soft-deletes all versions, appends audit data, and reconciles tree edges when applicable. Ability/existence checks, `beforeDelete`, and transaction failures reject before commit. After commit, file/variant cleanup (`storageCleanup`), tree invalidation (`afterTreeChange`), and delete consumers (`afterDelete`) each run independently. If any fail, the SDK still resolves with `outcome: 'committed-with-side-effect-failures'`; otherwise it resolves with `outcome: 'committed'`. Callers must not retry the delete merely because a post-commit side effect failed.
+**Delete has an explicit commit contract.** `delete(id)` resolves to
+`{ deletedVersionCount, outcome, sideEffectFailures }`. The transaction atomically tombstones all
+versions and path rows, appends audit data, and reconciles tree edges when applicable.
+Ability/existence checks, `beforeDelete`, and transaction failures reject before commit. After
+commit, tree invalidation (`afterTreeChange`) and delete consumers (`afterDelete`) run
+independently. If either fails, the SDK still resolves with
+`outcome: 'committed-with-side-effect-failures'`; otherwise it resolves with
+`outcome: 'committed'`. Callers must not retry the delete merely because a post-commit hook failed.
+Soft delete does not remove source files or generated variants from object storage.
+
+**Whole-document un-delete is not an SDK operation.** `restoreDocumentVersion` restores historical
+content on an already-live document. The lower-level
+`db.commands.documents.restoreSoftDeletedDocument({ document_id })` clears every version and path
+tombstone atomically, but it does not rebuild tree placement or search/cache projections. Direct
+`db.commands.*` access remains reserved for migrations, tests, and trusted internal tooling until
+a complete editorial restore lifecycle exists.
 
 **Patches stay admin-internal.** The `update` method accepts whole-document `data`, plus an optional `patches` array for the admin form's reordering / block-insertion flow. Public consumers should use whole-document writes; the patch families (`field.*`, `array.*`, `block.*`) are tied to UI intent and not part of the supported public surface.
 

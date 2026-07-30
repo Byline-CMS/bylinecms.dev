@@ -128,7 +128,9 @@ document_paths                     ── per-(document, locale) URL slug, outsi
   locale              text    pk
   collection_id       uuid    fk
   path                text         ── derived via useAsPath + slugifier
-                                   UNIQUE(collection_id, locale, path)
+  deleted_at          timestamp    ── NULL while the path is live
+  alive               bool         ── stored generated true-or-NULL marker
+                                   UNIQUE(collection_id, locale, path, alive)
 ```
 
 Every store table shares the same base columns — `id`, `document_version_id`, `collection_id`, `field_path`, `field_name`, `locale`, `parent_path`, timestamps — and adds its own value columns:
@@ -268,6 +270,25 @@ Status changes are the exception: they mutate the existing version row in place.
 
 Locale copy-forward on a versioned write runs as a **single transaction batch**. When only `en` is being written, the seven per-store `INSERT ... SELECT` statements that carry `fr` and `de` rows forward from the previous version run as one round trip, not seven.
 
+### Immutable media retention
+
+A `store_file` row belongs to an immutable document version. Its `storage_path` and persisted
+variant paths are therefore historical references, not disposable properties of whichever version
+is current today. Several versions—and documents created through duplication—can refer to the
+same stored object.
+
+Soft delete preserves that model. It tombstones every version and marks each retained path row
+inactive, but it does not delete field rows, uploaded sources, or generated variants from external
+storage. A later storage-level un-delete can reactivate the versions and path rows without
+discovering that historical media has disappeared.
+
+Byline currently has no supported purge or reference-safe storage reclamation operation. Code must
+not infer exclusive object ownership from one document or version. The full upload-side contract
+is documented in [File / Media Uploads](../04-collections/06-file-media-uploads.md#immutable-media-retention);
+[issue #72](https://github.com/Byline-CMS/bylinecms.dev/issues/72) owns the design for persisted
+generation recipes, provider-neutral source reads, shared-reference analysis, regeneration, and
+eventual cleanup.
+
 ## Status-aware reads
 
 Public consumers — `@byline/client` defaults to `status: 'published'` — read through a second view:
@@ -291,9 +312,22 @@ Immutable versioning gives content changes a complete, queryable history: every 
 1. **Document-level system fields** — `path` (`byline_document_paths`), the editorial `availableLocales` set (`byline_document_available_locales`), and the tree edge (`byline_document_relationships`). You edit these through dedicated **non-versioned** writes (`updateDocumentPath`, `setDocumentAvailableLocales`, `placeTreeNode`) that mint no version and do not reset status. They are document-level and sticky across versions, so gating them behind the publish workflow would falsely imply per-version staging. See [Internationalization](../08-internationalization/index.md), [Document Paths](../04-collections/05-document-paths.md), and [Document Trees](../04-collections/04-document-trees.md).
 2. **Status and lifecycle transitions** — these mutate the version row in place rather than forking a version, so a publish → unpublish → re-publish sequence is not independently recorded by the version timeline beyond the current status value.
 
-Dedicated non-versioned lifecycle services pair these changes with the document-level audit log: `updateDocumentSystemFields` records path and advertised-locale changes, `changeDocumentStatus` records explicit status transitions, `unpublishDocument` records a published-to-archived transition when it changes at least one version, and explicit tree mutations record placement changes. Tree-document deletion atomically records child promotion and parent edge removal beside the soft delete.
+Dedicated non-versioned lifecycle services pair these changes with the document-level audit log:
+`updateDocumentSystemFields` records path and advertised-locale changes, `changeDocumentStatus`
+records explicit status transitions, `unpublishDocument` records a published-to-archived
+transition when it changes at least one version, and explicit tree mutations record placement
+changes. Deletion atomically tombstones every version and path row; a tree-document deletion also
+records child promotion and parent edge removal in the same transaction.
 
-That database and audit commit is the success boundary. Storage cleanup and post-commit `afterTreeChange` / `afterDelete` failures do not reject or undo the delete; the lifecycle returns `committed-with-side-effect-failures` for reconciliation and logging instead. SDK whole-document updates still write their optional path and locales through version creation rather than the direct system-field audit service, so if you need dedicated before/after audit rows you must use that entry point. The admin surfaces available audit rows as a **Document history** tab beside the version timeline. See [Auditability](../07-auth-and-security/02-auditability.md) for the full reference.
+That database and audit commit is the success boundary. Post-commit `afterTreeChange` and
+`afterDelete` failures do not reject or undo the delete; the lifecycle returns
+`committed-with-side-effect-failures` for reconciliation and logging instead. Soft delete performs
+no object-storage cleanup: immutable media remains retained until a future reference-safe purge
+exists. SDK whole-document updates still write their optional path and locales through version
+creation rather than the direct system-field audit service, so if you need dedicated before/after
+audit rows you must use that entry point. The admin surfaces available audit rows as a **Document
+history** tab beside the version timeline. See
+[Auditability](../07-auth-and-security/02-auditability.md) for the full reference.
 
 ## Indicative benchmarks
 
@@ -381,6 +415,7 @@ The `_id` UUIDv7 on blocks and array items is **synthetic metadata**, not a data
 | Database schemas                         | `packages/db-postgres/src/database/schema/index.ts`; `packages/db-mysql/src/database/schema/index.ts` |
 | Fresh baseline sources                   | `packages/db-postgres/src/database/migrations/`; `packages/db-mysql/src/database/migrations/` |
 | Existing-installation upgrades           | `packages/db-postgres/sql/`; `packages/db-mysql/sql/`                                   |
+| Path-liveness upgrade scripts            | `packages/db-postgres/sql/0006_soft_delete_path_liveness.sql`; `packages/db-mysql/sql/0001_soft_delete_path_liveness.sql` |
 | Current-version views                    | `byline_current_documents` and `byline_current_published_documents` in each adapter's schema and squashed baseline |
 | Reserved field names                     | `RESERVED_FIELD_NAMES` exported from `@byline/core`                                     |
 | Benchmark harness                        | `benchmarks/storage/harness/`                                                           |
