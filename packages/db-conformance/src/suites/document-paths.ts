@@ -185,7 +185,7 @@ export function documentPathsSuite(hooks: ConformanceHooks): void {
     })
 
     describe('soft-delete path liveness', () => {
-      it('releases a soft-deleted document path for a new live document', async () => {
+      it('creates and resolves a new document ID when a deleted path is re-imported', async () => {
         const path = uniquePath('released')
         const deleted = await createDocument({ path, title: 'Deleted occupant' })
         const deletedDocumentId = deleted.document.document_id
@@ -194,6 +194,8 @@ export function documentPathsSuite(hooks: ConformanceHooks): void {
           document_id: deletedDocumentId,
         })
 
+        // This is the reference importer's plain upsert branch: findByPath
+        // returns no live occupant, so create starts a new logical history.
         const replacement = await createDocument({ path, title: 'Live replacement' })
 
         expect(replacement.document.document_id).not.toBe(deletedDocumentId)

@@ -19,9 +19,9 @@
  * filename. A second import of the same filename reuses the existing media
  * document rather than uploading again — which also means an image whose
  * *contents* changed under the same filename is NOT re-ingested. Rename the
- * source file to force a fresh ingest. This is deliberate: a Byline delete is
- * soft and leaves the path reserved, so re-uploading in place would need the
- * same revive dance `--force` does for docs.
+ * source file to force a fresh ingest. A soft-deleted media document is not a
+ * dedupe match and no longer reserves the live path, so a later import creates
+ * a new logical media document while retaining the old history.
  */
 
 import { createHash } from 'node:crypto'
@@ -30,22 +30,19 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, extname, join, resolve } from 'node:path'
 
 import type { RequestContext } from '@byline/auth'
-import type { CollectionHandle, createBylineClient } from '@byline/client'
+import type { createBylineClient } from '@byline/client'
 import {
   type CollectionDefinition,
   type FieldUploadContext,
   getCollectionDefinition,
   getServerConfig,
-  normalizeCollectionHook,
-  resolveHooks,
+  type IStorageProvider,
   type StoredFileValue,
   slugify,
 } from '@byline/core'
 import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byline/core/image'
 import { uploadField as coreUploadField } from '@byline/core/services'
 import type { Content, Image, Root } from 'mdast'
-
-import { type ImportDocsForceDatabase, replaceDeletedDocumentAtPath } from './import-docs-force.js'
 
 const MEDIA_COLLECTION = 'media'
 const MEDIA_UPLOAD_FIELD = 'image'
@@ -99,8 +96,6 @@ export interface IngestResult {
   created: number
   /** Existing media documents matched by path and reused. */
   reused: number
-  /** Soft-deleted media documents reclaimed under `--force`. */
-  revived: number
 }
 
 /**
@@ -220,22 +215,13 @@ function dimensionsForStoredFile(image: StoredFileValue): { width?: number; heig
   return { width: image.imageWidth, height: image.imageHeight }
 }
 
-/** `ERR_PATH_CONFLICT` from the document-lifecycle path write. */
-function isPathConflict(err: unknown): boolean {
-  return (
-    err != null &&
-    typeof err === 'object' &&
-    (err as { code?: string }).code === 'ERR_PATH_CONFLICT'
-  )
-}
-
 /**
  * Remove an already-stored file (and any variants) after the document write
  * that would have owned it failed. Best effort: a cleanup failure must not
  * mask the original error, so it is logged and swallowed.
  */
 async function deleteStoredFileBestEffort(
-  storage: NonNullable<ReturnType<typeof getServerConfig>['storage']>,
+  storage: Pick<IStorageProvider, 'delete'>,
   storedFile: StoredFileValue
 ): Promise<void> {
   const paths = [
@@ -253,6 +239,23 @@ async function deleteStoredFileBestEffort(
           `${err instanceof Error ? err.message : String(err)}`
       )
     }
+  }
+}
+
+/**
+ * Persist the document that owns an uploaded source, deleting the fresh
+ * source and variants when the document operation fails.
+ */
+export async function persistUploadedMediaDocument(
+  storage: Pick<IStorageProvider, 'delete'>,
+  storedFile: StoredFileValue,
+  createDocument: () => Promise<{ documentId: string }>
+): Promise<string> {
+  try {
+    return (await createDocument()).documentId
+  } catch (err) {
+    await deleteStoredFileBestEffort(storage, storedFile)
+    throw err
   }
 }
 
@@ -278,33 +281,6 @@ export interface IngestImagesArgs {
   requestContext: RequestContext
   /** Not used for writes under `--dry-run`; existing media are still resolved. */
   dryRun: boolean
-  /**
-   * `--force`: revive a soft-deleted media document occupying the target
-   * path instead of colliding with it. Same meaning the flag carries for
-   * docs — see `replaceDeletedDocumentAtPath`.
-   */
-  force: boolean
-  /** Raw pool backing the `--force` revive. */
-  pool: ImportDocsForceDatabase
-}
-
-/**
- * Walk a revived media document forward to `published`. `update` resets a
- * document to the workflow's default status, and the workflow only permits
- * ±1 step transitions, so this steps rather than jumping.
- */
-async function walkToPublished(
-  handle: CollectionHandle,
-  definition: CollectionDefinition,
-  documentId: string
-): Promise<void> {
-  const statuses = definition.workflow?.statuses ?? []
-  const from = statuses.findIndex((s) => s.name === (statuses[0]?.name ?? 'draft'))
-  const to = statuses.findIndex((s) => s.name === MEDIA_IMPORT_STATUS)
-  if (from === -1 || to === -1 || to <= from) return
-  for (let i = from + 1; i <= to; i++) {
-    await handle.changeStatus(documentId, statuses[i].name)
-  }
 }
 
 /**
@@ -322,8 +298,6 @@ export async function ingestImages({
   client,
   requestContext,
   dryRun,
-  force,
-  pool,
 }: IngestImagesArgs): Promise<IngestResult> {
   const urls = collectImageUrls(root)
   const result: IngestResult = {
@@ -331,7 +305,6 @@ export async function ingestImages({
     warnings: [],
     created: 0,
     reused: 0,
-    revived: 0,
   }
   if (urls.length === 0) return result
 
@@ -459,59 +432,15 @@ export async function ingestImages({
 
         // The bytes are in storage now, but `shouldCreateDocument: false`
         // means core has no document write to roll back against — cleanup on
-        // a failed placement is ours to do, or we leak an orphaned object
-        // into S3 / the upload dir on every retry.
-        let documentId: string
-        try {
-          // A soft-deleted media document still owns its path row while
-          // `findByPath` (which reads the deleted-filtering view) reports
-          // nothing — so the dedupe check above finds nothing and a plain
-          // create would collide. Under `--force`, revive it instead, exactly
-          // as the docs import does for its own collection.
-          const revived = force
-            ? await replaceDeletedDocumentAtPath(
-                pool,
-                { collectionId, locale: client.defaultLocale, path: mediaPath },
-                async (deletedId) => {
-                  await handle.update(deletedId, fields, { locale: client.defaultLocale })
-                  await walkToPublished(handle, definition, deletedId)
-                  return deletedId
-                },
-                async (deletedId) => {
-                  const hooks = await resolveHooks(definition)
-                  for (const hook of normalizeCollectionHook(hooks?.afterDelete)) {
-                    await hook({
-                      documentId: deletedId,
-                      collectionPath: MEDIA_COLLECTION,
-                      path: mediaPath,
-                    })
-                  }
-                }
-              )
-            : null
-
-          if (revived != null) {
-            documentId = revived.value
-            result.revived += 1
-          } else {
-            const created = await handle.create(fields, {
-              path: mediaPath,
-              status: MEDIA_IMPORT_STATUS,
-            })
-            documentId = created.documentId
-            result.created += 1
-          }
-        } catch (err) {
-          await deleteStoredFileBestEffort(storage, storedFile)
-          if (isPathConflict(err)) {
-            throw new Error(
-              `media path '${mediaPath}' is reserved by a deleted media document. ` +
-                'Re-run with --force to reclaim it, rename the source image, or purge ' +
-                'that document.'
-            )
-          }
-          throw err
-        }
+        // a failed create is ours to do, or we leak an orphaned object into
+        // S3 / the upload dir on every retry.
+        const documentId = await persistUploadedMediaDocument(storage, storedFile, () =>
+          handle.create(fields, {
+            path: mediaPath,
+            status: MEDIA_IMPORT_STATUS,
+          })
+        )
+        result.created += 1
 
         result.images.set(url, {
           targetDocumentId: documentId,

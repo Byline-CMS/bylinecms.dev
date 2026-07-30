@@ -712,6 +712,8 @@ workspace typecheck completed 36 of 36 tasks successfully.
 
 ## Task 7: Retire importer `--force` and preserve plain upsert behavior
 
+**Status:** Complete on 2026-07-30.
+
 **Files**
 
 - Remove: `apps/webapp/byline/scripts/lib/import-docs-force.ts`
@@ -729,27 +731,27 @@ workspace typecheck completed 36 of 36 tasks successfully.
 
 ### Implementation
 
-- [ ] Remove every raw `UPDATE ... SET is_deleted = ...` operation.
-- [ ] Remove the deleted-document `--force` flag, help text, advisory lock, staging snapshots,
+- [x] Remove every raw `UPDATE ... SET is_deleted = ...` operation.
+- [x] Remove the deleted-document `--force` flag, help text, advisory lock, staging snapshots,
   compensation paths, and manual `afterDelete` replay.
-- [ ] Keep the importer as a plain path-based upsert:
+- [x] Keep the importer as a plain path-based upsert:
   - `findByPath` returns a live occupant → update it;
   - no live occupant → create a new logical document;
   - deleted tombstones at the path do not participate.
-- [ ] Do not make the importer call `restoreSoftDeletedDocument`. Identity-preserving un-delete
+- [x] Do not make the importer call `restoreSoftDeletedDocument`. Identity-preserving un-delete
   requires an explicitly selected document ID and belongs to a future trash/restore workflow.
-- [ ] Keep upload compensation for a newly uploaded source whose subsequent document operation
+- [x] Keep upload compensation for a newly uploaded source whose subsequent document operation
   fails; that rollback is unrelated to soft delete.
-- [ ] Remove the media-ingest deleted-occupant revival branch and its “re-run with `--force`”
+- [x] Remove the media-ingest deleted-occupant revival branch and its “re-run with `--force`”
   diagnostic; normal create now succeeds.
-- [ ] Remove `force` and `pool` from the media-ingest options shape and the reclaimed-occupant
+- [x] Remove `force` and `pool` from the media-ingest options shape and the reclaimed-occupant
   counter from its result/summary output. Both are part of the ingest function's signature and its
   user-visible summary, so update the `import-docs.ts` call site and any test asserting the counter.
-- [ ] Drop the now-dead `resolveHooks` / `normalizeCollectionHook` imports in `import-docs.ts`,
+- [x] Drop the now-dead `resolveHooks` / `normalizeCollectionHook` imports in `import-docs.ts`,
   used only by the removed compensation branch's manual `afterDelete` replay.
-- [ ] Pin delete-then-reimport behavior: the new ID is returned and subsequently resolved by path.
-- [ ] Pin `--tree` behavior against the new ID.
-- [ ] Run or extend focused tests proving both media-regeneration scripts continue to operate only
+- [x] Pin delete-then-reimport behavior: the new ID is returned and subsequently resolved by path.
+- [x] Pin `--tree` behavior against the new ID.
+- [x] Run or extend focused tests proving both media-regeneration scripts continue to operate only
   on live documents and retain their existing rollback/collision behavior.
 
 ### Adapter-neutrality outcome
@@ -761,17 +763,41 @@ solely to back the workaround: `import-docs.ts` casts `getBylineCore().db as PgA
 ingest, whose own `pool` option is typed `ImportDocsForceDatabase`. With the workaround gone, none
 of that plumbing has a consumer.
 
-- [ ] Remove the `PgAdapter` cast, the `adapter` parameter threading, and the `adapter.pool`
+- [x] Remove the `PgAdapter` cast, the `adapter` parameter threading, and the `adapter.pool`
   plumbing once `--force` is gone.
-- [ ] Verify no remaining consumer of the `adapter` value exists besides the removed force
+- [x] Verify no remaining consumer of the `adapter` value exists besides the removed force
   plumbing before deleting it.
-- [ ] Confirm the importer's remaining database access is adapter-neutral client API usage.
+- [x] Confirm the importer's remaining database access is adapter-neutral client API usage.
 
 The reference importer is currently the repository's own counter-example to the adapter
 abstraction — it would not run against MySQL. Completing this task makes it dialect-neutral, which
 matters now that MySQL is a supported adapter and further adapters are anticipated. If any residual
 dialect-specific access is discovered during implementation, record it rather than leaving the claim
 overstated.
+
+### Result
+
+The reference importer no longer accepts `--force`; its CLI parser rejects the retired flag as
+unknown. The PostgreSQL-only advisory-lock, staging, version-tombstone mutation, compensation, and
+manual hook-replay helper and tests were removed. Document and media imports now use the ordinary
+client contract: update a live path occupant or create a new logical document when no live occupant
+exists. They do not call the explicit restoration primitive. Media creation still removes a newly
+uploaded source and its variants if the owning document creation fails, without masking the
+original failure.
+
+The `PgAdapter` cast, raw pool, adapter parameter, media `force`/`pool` options, and reclaimed
+counter are gone. The importer's remaining database calls are adapter-neutral client API calls. A
+shared live-database test now proves that delete followed by a plain create returns a different
+document ID, resolves that new ID by path, and retains the deleted history; the 23-case path suite
+passes on both PostgreSQL and MySQL. The tree test proves directory placement consumes the returned
+replacement IDs.
+
+The two media-regeneration implementation files remain byte-for-byte unchanged. Their source
+enumerates through the live client collection view, and the existing focused operation tests still
+cover complete variant sets, fresh-path collision rejection, transactional status preservation,
+and rollback path selection. The focused importer/media tests passed 35 tests, the complete webapp
+node suite passed 134 tests, workspace lint completed 21 of 21 tasks, and workspace typecheck
+completed 36 of 36 tasks.
 
 ### Identity consequence
 
