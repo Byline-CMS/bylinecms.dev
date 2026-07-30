@@ -16,6 +16,7 @@ type(scope): lowercase message in past tense
 - `chore(deps):` — dependency updates
 - `refactor:` — restructuring without behaviour change
 - `docs:` — documentation only
+- `specs:` — implementation plans, designs, and analyses under `specs/`
 - `test:` — test changes
 - `style:` — formatting/whitespace (not CSS — those are feat/fix)
 - `ci:` — CI/CD changes

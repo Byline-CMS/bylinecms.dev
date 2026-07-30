@@ -142,7 +142,9 @@ transaction timestamp to several rows, causing deleted rows with the same path t
 The repository currently pins `drizzle-orm` 0.45.2 and `drizzle-kit` 0.31.10. Their PostgreSQL and
 MySQL column builders both support `generatedAlwaysAs()`. A local schema probe represents the
 proposed expression as `mode: 'stored'` for both dialects. Generated SQL must still be inspected
-and exercised against both real databases before this design is considered verified.
+and exercised against both real databases before this design is considered verified. Task 0 is a
+blocking preflight: do not write the behavioral test suite against this schema until that gate
+passes or the fallback schema is adopted.
 
 ### The denormalization boundary
 
@@ -266,6 +268,49 @@ and media-upload documentation must call out this tradeoff.
   exclusively owns an object.
 
 ---
+
+## Task 0: Prove the generated-column model before implementation
+
+**Status:** Blocking preflight. Complete this before Task 1.
+
+The generated `alive` column is load-bearing. Type-level support and Drizzle's in-memory column
+configuration are not sufficient evidence that the pinned toolchain emits and migrates the
+required schema on both databases.
+
+### Probe
+
+- [ ] Create disposable PostgreSQL and MySQL probe schemas using the repository's pinned
+  `drizzle-orm` 0.45.2 and `drizzle-kit` 0.31.10.
+- [ ] Declare the proposed `deleted_at`, generated stored `alive`, and four-column unique
+  constraint through the same builders intended for the production schemas.
+- [ ] Run each package's real Drizzle generation path.
+- [ ] Inspect the emitted SQL and snapshot metadata. Require:
+  - a stored generated boolean column on both dialects;
+  - `CASE WHEN deleted_at IS NULL THEN true ELSE NULL END` or an exactly equivalent expression;
+  - the named unique constraint/index over `(collection_id, locale, path, alive)`;
+  - no insert/update requirement for callers to supply `alive`.
+- [ ] Apply each disposable migration to a real supported database.
+- [ ] Prove with SQL-level assertions that:
+  - two live rows at one `(collection, locale, path)` conflict;
+  - multiple rows with the same key and `deleted_at IS NOT NULL` coexist;
+  - clearing one tombstone's `deleted_at` conflicts when a live occupant exists;
+  - clearing it succeeds after the live occupant is deleted.
+- [ ] Record the generated SQL result in this spec or the implementation handoff so the assumption
+  is not repeatedly re-investigated.
+
+### Fallback if either dialect fails
+
+Stop before Task 1 and revise this plan to use a plain nullable boolean `alive`:
+
+- live rows store `true`;
+- deleted rows store `NULL`;
+- create/path upsert establishes `true`;
+- soft delete writes `deleted_at` and `alive = NULL` in the same transaction;
+- storage un-delete clears `deleted_at` and writes `alive = true` in the same transaction;
+- migration and invariant tests cover drift between `deleted_at`, `alive`, and version tombstones.
+
+The fallback preserves portable uniqueness but gives up the database-derived invariant. Task 4,
+the migration backfill, and invariant diagnostics must be rewritten explicitly before proceeding.
 
 ## Task 1: Pin the behavior with shared failing tests
 
