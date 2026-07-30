@@ -389,9 +389,12 @@ generated DDL, lock behavior, driver classification, and migration backfill.
 - Modify: `packages/db-postgres/src/database/schema/index.ts`
 - Modify: `packages/db-mysql/src/database/schema/index.ts`
 - Modify: schema pin tests in both adapters
-- Generate: PostgreSQL and MySQL Drizzle migrations and snapshots
-- Synchronize: `packages/cli/src/templates/migrations/postgres`
-- Synchronize: `packages/cli/src/templates/migrations/mysql`
+- Generate for development: PostgreSQL and MySQL Drizzle migrations and snapshots under each
+  adapter's `src/database/migrations/`
+- Create: `packages/db-postgres/sql/0006_soft_delete_path_liveness.sql`
+- Create: `packages/db-mysql/sql/0001_soft_delete_path_liveness.sql`
+- Leave unchanged in this feature: `packages/cli/src/templates/migrations/postgres` and
+  `packages/cli/src/templates/migrations/mysql`
 
 ### Implementation
 
@@ -399,8 +402,13 @@ generated DDL, lock behavior, driver classification, and migration backfill.
 - [ ] Add generated stored nullable boolean `alive`.
 - [ ] Rebuild `idx_document_paths_collection_locale_path` over
   `(collection_id, locale, path, alive)` without changing its name.
-- [ ] Generate migrations with the package-local Drizzle commands.
-- [ ] Inspect the generated SQL and snapshots; do not format migration metadata manually.
+- [ ] Generate development migrations with the package-local Drizzle commands.
+- [ ] Inspect the generated SQL and snapshots; do not format migration metadata manually. This
+  Drizzle stream supports adapter development and is not the upgrade path for deployed databases.
+- [ ] Create one final, numbered, hand-written upgrade script per provider under
+  `packages/db-postgres/sql/` and `packages/db-mysql/sql/`. Base their DDL on the inspected
+  Drizzle output, include the data backfill, and follow each directory's idempotency and
+  transactional conventions.
 - [ ] Backfill `deleted_at` for a path row only when no non-deleted version exists for its
   document.
 - [ ] Use the latest version `updated_at` as the best available historical deletion timestamp,
@@ -408,14 +416,19 @@ generated DDL, lock behavior, driver classification, and migration backfill.
 - [ ] Treat a partially revived legacy document with any non-deleted version as live.
 - [ ] Verify the expression is a stored generated column in both real databases.
 - [ ] Preserve case/accent-sensitive MySQL path behavior and index length compatibility.
-- [ ] Keep CLI template migrations byte-synchronized with adapter migrations.
+- [ ] Test both native upgrade scripts against already-provisioned databases and prove they are
+  safely rerunnable.
+- [ ] Do not copy the development Drizzle migrations into the CLI during this feature. Before
+  release, squash each adapter's Drizzle stream to its single fresh-install baseline, then run the
+  CLI baseline synchronization and drift gates.
 
 ### Migration-order check
 
-The migration must never leave a committed state in which deleted rows are marked live under the
-new uniqueness contract. PostgreSQL can run the data and DDL changes transactionally. MySQL DDL
-may auto-commit, so inspect and order its migration to remain safe under interruption; document
-the operational migration expectation if a fully transactional sequence is impossible.
+Neither the development Drizzle migration nor the native upgrade script may leave a completed
+state in which deleted rows are marked live under the new uniqueness contract. PostgreSQL can run
+the data and DDL changes transactionally. MySQL DDL auto-commits, so order and guard its native
+script to be safely rerunnable after interruption, and document any required operator inspection
+when a fully atomic sequence is impossible.
 
 ## Task 3: Make live-path reads explicit
 
@@ -684,6 +697,9 @@ their source files.
   operation exists yet.
 - [ ] Add a changeset covering the path, un-delete, and media-retention behavior changes for the
   fixed Byline package group.
+- [ ] Document the PostgreSQL and MySQL numbered native upgrade scripts for existing
+  installations. Do not direct existing installations to the development Drizzle migration or
+  the future squashed fresh-install baseline.
 - [ ] State in the changeset that `IDocumentCommands` gains a required `restoreSoftDeletedDocument`
   member, and tell out-of-tree adapter authors what they must implement. Both built-in adapters ship
   the implementation, so the break is only visible to external `IDbAdapter` implementations.
@@ -705,8 +721,10 @@ their source files.
 - [ ] Run focused core lifecycle unit tests.
 - [ ] Run shared db-conformance against PostgreSQL.
 - [ ] Run shared db-conformance against MySQL.
-- [ ] Run each adapter's schema pin and migration tests.
-- [ ] Exercise migrations against databases containing:
+- [ ] Run each adapter's schema pin and development Drizzle migration tests.
+- [ ] Apply each adapter's numbered native `sql/` upgrade script twice and verify the second run is
+  a no-op.
+- [ ] Exercise both development and native upgrade migrations against databases containing:
   - a live document;
   - a fully deleted document;
   - a legacy partially revived document, which remains active, returns `0` from un-delete, and is
@@ -736,6 +754,23 @@ git diff --check
 
 Check build exit status rather than treating known Lexical `INVALID_ANNOTATION` warnings as
 failures.
+
+### Release-only database gates
+
+Do not synchronize the feature's incremental Drizzle migrations directly into the CLI. During
+release preparation, after both adapter Drizzle streams have been squashed to one fresh-install
+baseline, run the repository's guarded baseline workflow:
+
+```bash
+pnpm --filter @byline/cli sync:baselines
+git diff --exit-code -- packages/cli/src/templates/migrations
+pnpm --filter @byline/cli exec vitest run src/lib/baseline-drift.test.ts
+pnpm check:native-sql-history -- --base "v<previous-version>"
+```
+
+The first three commands verify and copy the squashed fresh-install baselines. The native SQL
+history guard separately protects the append-only PostgreSQL and MySQL upgrade scripts used by
+existing installations.
 
 ## Review decisions and confirmed positions before implementation
 
