@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "65379d41-bc47-4426-ac16-8cb878e28721",
+  "id": "70d22012-9fda-4e4d-88dc-ec6ba413992d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "byline_admin_permissions": {
@@ -1337,6 +1337,24 @@
           "notNull": true,
           "autoincrement": false
         },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "alive": {
+          "name": "alive",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "generated": {
+            "as": "CASE WHEN `deleted_at` IS NULL THEN true ELSE NULL END",
+            "type": "stored"
+          }
+        },
         "created_at": {
           "name": "created_at",
           "type": "datetime(6)",
@@ -1405,7 +1423,8 @@
           "columns": [
             "collection_id",
             "locale",
-            "path"
+            "path",
+            "alive"
           ]
         }
       },

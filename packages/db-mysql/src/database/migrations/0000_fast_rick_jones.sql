@@ -161,10 +161,12 @@ CREATE TABLE `byline_document_paths` (
 	`locale` varchar(10) NOT NULL,
 	`collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	`path` varchar(255) COLLATE utf8mb4_bin NOT NULL,
+	`deleted_at` datetime(6),
+	`alive` boolean GENERATED ALWAYS AS (CASE WHEN `deleted_at` IS NULL THEN true ELSE NULL END) STORED,
 	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	CONSTRAINT `unique_document_paths_document_locale` UNIQUE(`document_id`,`locale`),
-	CONSTRAINT `idx_document_paths_collection_locale_path` UNIQUE(`collection_id`,`locale`,`path`)
+	CONSTRAINT `idx_document_paths_collection_locale_path` UNIQUE(`collection_id`,`locale`,`path`,`alive`)
 );
 --> statement-breakpoint
 CREATE TABLE `byline_document_relationships` (
