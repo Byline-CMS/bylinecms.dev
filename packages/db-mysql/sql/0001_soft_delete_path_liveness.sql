@@ -10,8 +10,9 @@
 --   - any non-deleted version keeps every path for its document live;
 --   - otherwise the latest version `updated_at` is the best available deletion
 --     timestamp;
---   - malformed/versionless legacy rows fall back to the path timestamps and
---     finally the migration timestamp.
+--   - malformed legacy rows with versions fall back to the path timestamps and
+--     finally the migration timestamp;
+--   - versionless bootstrap documents remain live because no deletion occurred.
 --
 --   mysql -u byline -p byline_dev < packages/db-mysql/sql/0001_soft_delete_path_liveness.sql
 --
@@ -73,7 +74,8 @@ SET `path`.`deleted_at` = COALESCE(
   CURRENT_TIMESTAMP(6)
 )
 WHERE `path`.`deleted_at` IS NULL
-  AND COALESCE(`version_state`.`has_live_version`, 0) = 0;
+  AND `version_state`.`document_id` IS NOT NULL
+  AND `version_state`.`has_live_version` = 0;
 
 COMMIT;
 
@@ -96,8 +98,91 @@ PREPARE byline_statement FROM @byline_sql;
 EXECUTE byline_statement;
 DEALLOCATE PREPARE byline_statement;
 
--- Operator diagnostics: a completed run returns STORED GENERATED, the exact
--- four-column key, and zero fully deleted paths still marked live.
+-- Fail hard when the completed schema or path/version liveness is inconsistent.
+-- MySQL does not allow SIGNAL in a prepared statement, so each failed assertion
+-- prepares a SELECT from a deliberately nonexistent, descriptively named table.
+SET @byline_alive_is_stored := (
+  SELECT COUNT(*) = 1
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = @byline_schema
+    AND TABLE_NAME = 'byline_document_paths'
+    AND COLUMN_NAME = 'alive'
+    AND EXTRA = 'STORED GENERATED'
+);
+SET @byline_sql := IF(
+  @byline_alive_is_stored,
+  'DO 0',
+  'SELECT 1 FROM `byline__migration_error__alive_must_be_stored_generated`'
+);
+PREPARE byline_statement FROM @byline_sql;
+EXECUTE byline_statement;
+DEALLOCATE PREPARE byline_statement;
+
+SET @byline_path_index_is_valid := (
+  SELECT
+    GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX SEPARATOR ',') =
+      'collection_id,locale,path,alive'
+    AND MIN(NON_UNIQUE) = 0
+  FROM information_schema.STATISTICS
+  WHERE TABLE_SCHEMA = @byline_schema
+    AND TABLE_NAME = 'byline_document_paths'
+    AND INDEX_NAME = 'idx_document_paths_collection_locale_path'
+);
+SET @byline_sql := IF(
+  COALESCE(@byline_path_index_is_valid, false),
+  'DO 0',
+  'SELECT 1 FROM `byline__migration_error__live_path_unique_key_is_invalid`'
+);
+PREPARE byline_statement FROM @byline_sql;
+EXECUTE byline_statement;
+DEALLOCATE PREPARE byline_statement;
+
+SET @byline_fully_deleted_paths_still_live := (
+  SELECT COUNT(*)
+  FROM `byline_document_paths` AS `path`
+  WHERE `path`.`deleted_at` IS NULL
+    AND EXISTS (
+      SELECT 1
+      FROM `byline_document_versions` AS `version`
+      WHERE `version`.`document_id` = `path`.`document_id`
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM `byline_document_versions` AS `live_version`
+      WHERE `live_version`.`document_id` = `path`.`document_id`
+        AND `live_version`.`is_deleted` = false
+    )
+);
+SET @byline_sql := IF(
+  @byline_fully_deleted_paths_still_live = 0,
+  'DO 0',
+  'SELECT 1 FROM `byline__migration_error__fully_deleted_paths_remain_live`'
+);
+PREPARE byline_statement FROM @byline_sql;
+EXECUTE byline_statement;
+DEALLOCATE PREPARE byline_statement;
+
+SET @byline_live_versions_with_deleted_paths := (
+  SELECT COUNT(*)
+  FROM `byline_document_paths` AS `path`
+  WHERE `path`.`deleted_at` IS NOT NULL
+    AND EXISTS (
+      SELECT 1
+      FROM `byline_document_versions` AS `live_version`
+      WHERE `live_version`.`document_id` = `path`.`document_id`
+        AND `live_version`.`is_deleted` = false
+    )
+);
+SET @byline_sql := IF(
+  @byline_live_versions_with_deleted_paths = 0,
+  'DO 0',
+  'SELECT 1 FROM `byline__migration_error__live_versions_have_deleted_paths`'
+);
+PREPARE byline_statement FROM @byline_sql;
+EXECUTE byline_statement;
+DEALLOCATE PREPARE byline_statement;
+
+-- Operator diagnostics accompany the hard assertions for manual upgrades.
 SELECT COLUMN_TYPE, IS_NULLABLE, EXTRA, GENERATION_EXPRESSION
 FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA = @byline_schema
@@ -118,12 +203,6 @@ WHERE TABLE_SCHEMA = @byline_schema
 GROUP BY INDEX_NAME
 ORDER BY INDEX_NAME;
 
-SELECT COUNT(*) AS fully_deleted_paths_still_live
-FROM `byline_document_paths` AS `path`
-WHERE `path`.`deleted_at` IS NULL
-  AND NOT EXISTS (
-    SELECT 1
-    FROM `byline_document_versions` AS `live_version`
-    WHERE `live_version`.`document_id` = `path`.`document_id`
-      AND `live_version`.`is_deleted` = false
-  );
+SELECT
+  @byline_fully_deleted_paths_still_live AS fully_deleted_paths_still_live,
+  @byline_live_versions_with_deleted_paths AS live_versions_with_deleted_paths;

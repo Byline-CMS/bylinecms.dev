@@ -423,10 +423,11 @@ generated DDL, lock behavior, driver classification, and migration backfill.
   `packages/db-postgres/sql/` and `packages/db-mysql/sql/`. Base their DDL on the inspected
   Drizzle output, include the data backfill, and follow each directory's idempotency and
   transactional conventions.
-- [x] Backfill `deleted_at` for a path row only when no non-deleted version exists for its
-  document.
+- [x] Backfill `deleted_at` for a path row only when its document has at least one version and no
+  non-deleted version exists.
 - [x] Use the latest version `updated_at` as the best available historical deletion timestamp,
-  with a documented fallback for malformed/versionless legacy data.
+  with a documented fallback for malformed legacy rows that have versions. Keep versionless
+  bootstrap documents live because no deletion occurred.
 - [x] Treat a partially revived legacy document with any non-deleted version as live.
 - [x] Verify the expression is a stored generated column in both real databases.
 - [x] Preserve case/accent-sensitive MySQL path behavior and index length compatibility.
@@ -447,10 +448,11 @@ when a fully atomic sequence is impossible.
 ### Result
 
 The development migrations and native upgrade scripts were applied to isolated databases created
-from each adapter's existing Drizzle baseline on PostgreSQL 18.4 and MySQL 9.7.1. Fixtures covered
-a fully deleted document, a partially revived document, and a versionless legacy document. Both
-migration paths assigned the fully deleted path the latest version timestamp, kept the partially
-revived path live, and used the path `updated_at` fallback for the versionless row.
+from each adapter's existing Drizzle baseline on PostgreSQL 18.4, MySQL 9.7.1, and the CI-pinned
+MySQL 8.0 image, which resolved to 8.0.46. Fixtures covered a fully deleted document, a partially
+revived document, and a versionless bootstrap document. Both migration paths assigned the fully
+deleted path the latest version timestamp and kept the partially revived and versionless paths
+live.
 
 Catalog inspection confirmed PostgreSQL `attgenerated = 's'` and MySQL `STORED GENERATED`.
 The live key retained its name and exact `(collection_id, locale, path, alive)` order, while
@@ -458,7 +460,9 @@ The live key retained its name and exact `(collection_id, locale, path, alive)` 
 claimed a deleted occupant's path, a second live claimant remained blocked, and MySQL admitted
 case- and accent-distinct paths under the rebuilt key. Both native scripts completed successfully
 on a second run; the MySQL development migration uses one atomic `ALTER TABLE` for the index swap
-because InnoDB may use the old unique key to support the collection foreign key.
+because InnoDB may use the old unique key to support the collection foreign key. Both native
+scripts reject drift in either direction between path and version liveness, and MySQL returns a
+nonzero exit status when any post-condition fails.
 
 The CLI template directories remained unchanged. Their baselines will be synchronized only after
 the adapter Drizzle streams are squashed for release.

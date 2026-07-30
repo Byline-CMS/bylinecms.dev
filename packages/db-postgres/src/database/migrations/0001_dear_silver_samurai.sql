@@ -1,5 +1,7 @@
 ALTER TABLE "byline_document_paths" ADD COLUMN "deleted_at" timestamp (6) with time zone;--> statement-breakpoint
 ALTER TABLE "byline_document_paths" ADD COLUMN "alive" boolean GENERATED ALWAYS AS (CASE WHEN "deleted_at" IS NULL THEN true ELSE NULL END) STORED;--> statement-breakpoint
+-- byline:manual-backfill
+-- Drizzle generated the surrounding DDL; preserve this data migration when regenerating.
 UPDATE "byline_document_paths" AS "path"
 SET "deleted_at" = COALESCE(
 	(
@@ -12,6 +14,11 @@ SET "deleted_at" = COALESCE(
 	CURRENT_TIMESTAMP
 )
 WHERE "path"."deleted_at" IS NULL
+	AND EXISTS (
+		SELECT 1
+		FROM "byline_document_versions" AS "version"
+		WHERE "version"."document_id" = "path"."document_id"
+	)
 	AND NOT EXISTS (
 		SELECT 1
 		FROM "byline_document_versions" AS "live_version"

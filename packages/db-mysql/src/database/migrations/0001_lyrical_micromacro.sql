@@ -1,5 +1,7 @@
 ALTER TABLE `byline_document_paths` ADD `deleted_at` datetime(6);--> statement-breakpoint
 ALTER TABLE `byline_document_paths` ADD `alive` boolean GENERATED ALWAYS AS (CASE WHEN `deleted_at` IS NULL THEN true ELSE NULL END) STORED;--> statement-breakpoint
+-- byline:manual-backfill
+-- Drizzle generated the surrounding DDL; preserve this data migration when regenerating.
 UPDATE `byline_document_paths` AS `path`
 LEFT JOIN (
 	SELECT
@@ -16,7 +18,8 @@ SET `path`.`deleted_at` = COALESCE(
 	CURRENT_TIMESTAMP(6)
 )
 WHERE `path`.`deleted_at` IS NULL
-	AND COALESCE(`version_state`.`has_live_version`, 0) = 0;--> statement-breakpoint
+	AND `version_state`.`document_id` IS NOT NULL
+	AND `version_state`.`has_live_version` = 0;--> statement-breakpoint
 ALTER TABLE `byline_document_paths`
 	DROP INDEX `idx_document_paths_collection_locale_path`,
 	ADD CONSTRAINT `idx_document_paths_collection_locale_path` UNIQUE(`collection_id`,`locale`,`path`,`alive`);

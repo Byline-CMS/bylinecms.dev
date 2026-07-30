@@ -10,8 +10,9 @@
 --   - any non-deleted version keeps every path for its document live;
 --   - otherwise the latest version `updated_at` is the best available deletion
 --     timestamp;
---   - malformed/versionless legacy rows fall back to the path timestamps and
---     finally the migration timestamp.
+--   - malformed legacy rows with versions fall back to the path timestamps and
+--     finally the migration timestamp;
+--   - versionless bootstrap documents remain live because no deletion occurred.
 --
 --   psql "$DATABASE_URL" -f packages/db-postgres/sql/0006_soft_delete_path_liveness.sql
 --
@@ -42,6 +43,11 @@ SET "deleted_at" = COALESCE(
   CURRENT_TIMESTAMP
 )
 WHERE "path"."deleted_at" IS NULL
+  AND EXISTS (
+    SELECT 1
+    FROM "byline_document_versions" AS "version"
+    WHERE "version"."document_id" = "path"."document_id"
+  )
   AND NOT EXISTS (
     SELECT 1
     FROM "byline_document_versions" AS "live_version"
@@ -89,6 +95,11 @@ BEGIN
     SELECT 1
     FROM "byline_document_paths" AS "path"
     WHERE "path"."deleted_at" IS NULL
+      AND EXISTS (
+        SELECT 1
+        FROM "byline_document_versions" AS "version"
+        WHERE "version"."document_id" = "path"."document_id"
+      )
       AND NOT EXISTS (
         SELECT 1
         FROM "byline_document_versions" AS "live_version"
@@ -97,6 +108,20 @@ BEGIN
       )
   ) THEN
     RAISE EXCEPTION 'fully deleted document paths remain live after backfill';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM "byline_document_paths" AS "path"
+    WHERE "path"."deleted_at" IS NOT NULL
+      AND EXISTS (
+        SELECT 1
+        FROM "byline_document_versions" AS "live_version"
+        WHERE "live_version"."document_id" = "path"."document_id"
+          AND "live_version"."is_deleted" = false
+      )
+  ) THEN
+    RAISE EXCEPTION 'live document versions retain deleted paths after backfill';
   END IF;
 END $$;
 
