@@ -1369,7 +1369,7 @@ describe('Document lifecycle service', () => {
       expect(afterDelete).not.toHaveBeenCalled()
     })
 
-    it('cleans up stored files for upload fields at any nesting depth', async () => {
+    it('retains stored files when soft-deleting an upload-capable document', async () => {
       const { db, getDocumentById } = createMockDb()
       const upload = { mimeTypes: ['application/pdf'], maxFileSize: 1024 }
       const definition: CollectionDefinition = {
@@ -1414,14 +1414,8 @@ describe('Document lifecycle service', () => {
 
       await deleteDocument(ctx, { documentId: 'doc-1' })
 
-      // reconstruct: true because the collection is upload-capable
-      expect(getDocumentById).toHaveBeenCalledWith(expect.objectContaining({ reconstruct: true }))
-      expect(storageDelete.mock.calls.map((c) => c[0])).toEqual([
-        'covers/original.jpg',
-        'covers/thumb.avif',
-        'files/a.pdf',
-        'files/b.pdf',
-      ])
+      expect(getDocumentById).toHaveBeenCalledWith(expect.objectContaining({ reconstruct: false }))
+      expect(storageDelete).not.toHaveBeenCalled()
     })
 
     it('returns only allowlisted failures and keeps raw details in internal logs', async () => {
@@ -1467,42 +1461,17 @@ describe('Document lifecycle service', () => {
 
       const result = await deleteDocument(ctx, { documentId: 'doc-1' })
 
-      expect(storageDelete.mock.calls.map((call) => call[0])).toEqual([
-        'private/original.pdf',
-        'private/preview.pdf',
-        'private/thumbnail.pdf',
-      ])
+      expect(storageDelete).not.toHaveBeenCalled()
       expect(result).toEqual({
         deletedVersionCount: 1,
         outcome: 'committed-with-side-effect-failures',
-        sideEffectFailures: [
-          { phase: 'storageCleanup', code: 'ERR_STORAGE' },
-          { phase: 'storageCleanup', code: 'ERR_UNHANDLED' },
-          { phase: 'afterDelete', code: 'ERR_UNHANDLED' },
-        ],
+        sideEffectFailures: [{ phase: 'afterDelete', code: 'ERR_UNHANDLED' }],
       })
       const serializedResult = JSON.stringify(result)
-      expect(serializedResult).not.toContain('storage unavailable')
-      expect(serializedResult).not.toContain('cleanup failed')
       expect(serializedResult).not.toContain('hook leaked')
       expect(serializedResult).not.toContain('private/')
       expect(serializedResult).not.toContain('ERR_SEARCH')
-      expect(ctx.logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          err: expect.objectContaining({ message: 'storage unavailable' }),
-          documentId: 'doc-1',
-          storagePath: 'private/original.pdf',
-        }),
-        'failed to delete storage file'
-      )
-      expect(ctx.logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          err: expect.objectContaining({ message: 'cleanup failed' }),
-          documentId: 'doc-1',
-          storagePath: 'private/thumbnail.pdf',
-        }),
-        'failed to delete storage file'
-      )
+      expect(ctx.logger.error).toHaveBeenCalledOnce()
       expect(ctx.logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ err: hookError, documentId: 'doc-1' }),
         'afterDelete hook failed after document delete'

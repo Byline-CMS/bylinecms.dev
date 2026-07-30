@@ -357,6 +357,10 @@ The completed probe did not trigger this fallback.
 
 ## Task 1: Pin the behavior with shared failing tests
 
+**Status:** Complete as test definition on 2026-07-30. These checkboxes record that the contract
+coverage exists; implementation-dependent assertions remain intentionally red until the later
+tasks make them green.
+
 **Files**
 
 - Modify: `packages/db-conformance/src/suites/document-paths.ts`
@@ -367,22 +371,22 @@ The completed probe did not trigger this fallback.
 
 ### Tests
 
-- [ ] A live duplicate still violates `idx_document_paths_collection_locale_path`.
-- [ ] Soft delete releases a path for a new live document.
-- [ ] Two or more deleted documents retain the same path.
-- [ ] `getDocumentByPath` returns the live document when deleted documents retain the same path.
-- [ ] Duplicate-to-path succeeds without suffixing when only deleted rows retain the target path.
-- [ ] Duplicate-to-path retains its suffix/retry behavior when a live row owns the target path.
-- [ ] Un-delete restores all version tombstones and the original path.
-- [ ] Un-delete conflict rolls back path and version liveness.
-- [ ] Missing/already-live un-delete is idempotent.
-- [ ] Soft-delete and un-delete transaction rollback leave both tables synchronized.
-- [ ] `createDocumentVersion({ documentId })` refuses to add a live version to a fully deleted
+- [x] A live duplicate still violates `idx_document_paths_collection_locale_path`.
+- [x] Soft delete releases a path for a new live document.
+- [x] Two or more deleted documents retain the same path.
+- [x] `getDocumentByPath` returns the live document when deleted documents retain the same path.
+- [x] Duplicate-to-path succeeds without suffixing when only deleted rows retain the target path.
+- [x] Duplicate-to-path retains its suffix/retry behavior when a live row owns the target path.
+- [x] Un-delete restores all version tombstones and the original path.
+- [x] Un-delete conflict rolls back path and version liveness.
+- [x] Missing/already-live un-delete is idempotent.
+- [x] Soft-delete and un-delete transaction rollback leave both tables synchronized.
+- [x] `createDocumentVersion({ documentId })` refuses to add a live version to a fully deleted
   existing document; a concurrent version-write/soft-delete race leaves version and path liveness
   synchronized.
-- [ ] Tree locking behavior remains serialized.
-- [ ] Soft delete does not call `storage.delete()` for sources or variants.
-- [ ] `afterDelete` and `afterTreeChange` failure reporting remains unchanged apart from removal of
+- [x] Tree locking behavior remains serialized.
+- [x] Soft delete does not call `storage.delete()` for sources or variants.
+- [x] `afterDelete` and `afterTreeChange` failure reporting remains unchanged apart from removal of
   `storageCleanup`.
 
 The shared suite should exercise public adapter contracts. Keep dialect-only tests only for
@@ -487,6 +491,8 @@ when a fully atomic sequence is impossible.
 - [ ] Remove source and variant path collection.
 - [ ] Remove all soft-delete `storage.delete()` calls.
 - [ ] Remove `storageCleanup` from `DeleteDocumentSideEffectPhase`.
+- [ ] Remove `storageCleanup` from downstream result sanitization and allowlists; do not reserve
+  the soft-delete phase name for a future purge operation.
 - [ ] Preserve original-path capture for `beforeDelete`/`afterDelete`.
 - [ ] Preserve search/cache/tree invalidation and allowlisted side-effect reporting.
 - [ ] Update comments that currently describe soft delete as physically removing objects.
