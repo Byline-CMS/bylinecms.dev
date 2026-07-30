@@ -271,7 +271,8 @@ and media-upload documentation must call out this tradeoff.
 
 ## Task 0: Prove the generated-column model before implementation
 
-**Status:** Blocking preflight. Complete this before Task 1.
+**Status:** Complete on 2026-07-30. The generated-column model passed on both supported
+databases; use the primary design in Tasks 1–10.
 
 The generated `alive` column is load-bearing. Type-level support and Drizzle's in-memory column
 configuration are not sufficient evidence that the pinned toolchain emits and migrates the
@@ -279,24 +280,59 @@ required schema on both databases.
 
 ### Probe
 
-- [ ] Create disposable PostgreSQL and MySQL probe schemas using the repository's pinned
+- [x] Create disposable PostgreSQL and MySQL probe schemas using the repository's pinned
   `drizzle-orm` 0.45.2 and `drizzle-kit` 0.31.10.
-- [ ] Declare the proposed `deleted_at`, generated stored `alive`, and four-column unique
+- [x] Declare the proposed `deleted_at`, generated stored `alive`, and four-column unique
   constraint through the same builders intended for the production schemas.
-- [ ] Run each package's real Drizzle generation path.
-- [ ] Inspect the emitted SQL and snapshot metadata. Require:
+- [x] Run each package's real Drizzle generation path.
+- [x] Inspect the emitted SQL and snapshot metadata. Require:
   - a stored generated boolean column on both dialects;
   - `CASE WHEN deleted_at IS NULL THEN true ELSE NULL END` or an exactly equivalent expression;
   - the named unique constraint/index over `(collection_id, locale, path, alive)`;
   - no insert/update requirement for callers to supply `alive`.
-- [ ] Apply each disposable migration to a real supported database.
-- [ ] Prove with SQL-level assertions that:
+- [x] Apply each disposable migration to a real supported database.
+- [x] Prove with SQL-level assertions that:
   - two live rows at one `(collection, locale, path)` conflict;
   - multiple rows with the same key and `deleted_at IS NOT NULL` coexist;
   - clearing one tombstone's `deleted_at` conflicts when a live occupant exists;
   - clearing it succeeds after the live occupant is deleted.
-- [ ] Record the generated SQL result in this spec or the implementation handoff so the assumption
+- [x] Record the generated SQL result in this spec or the implementation handoff so the assumption
   is not repeatedly re-investigated.
+
+### Result
+
+The probe used the pinned `drizzle-orm` 0.45.2 and `drizzle-kit` 0.31.10 packages installed in
+each adapter workspace. Drizzle generated these definitions:
+
+```sql
+-- PostgreSQL
+"deleted_at" timestamp (6) with time zone,
+"alive" boolean GENERATED ALWAYS AS (
+  CASE WHEN "deleted_at" IS NULL THEN true ELSE NULL END
+) STORED,
+CONSTRAINT "idx_document_paths_collection_locale_path"
+  UNIQUE("collection_id","locale","path","alive")
+```
+
+```sql
+-- MySQL
+`deleted_at` datetime(6),
+`alive` boolean GENERATED ALWAYS AS (
+  CASE WHEN `deleted_at` IS NULL THEN true ELSE NULL END
+) STORED,
+CONSTRAINT `idx_document_paths_collection_locale_path`
+  UNIQUE(`collection_id`,`locale`,`path`,`alive`)
+```
+
+Both generated snapshots record `alive` as nullable, generated, and stored, and record the exact
+four-column constraint name and order. Ordinary inserts omitted `alive`.
+
+The migrations were applied to disposable tables on PostgreSQL 18.4 and MySQL 9.7.1. Both
+databases passed all four SQL-level transitions: a second live claimant failed, multiple deleted
+claimants coexisted, restoration over a live claimant failed, and restoration succeeded after the
+live claimant was deleted. Catalog inspection confirmed `ALWAYS ... STORED` on PostgreSQL and
+`STORED GENERATED` on MySQL. The disposable tables and PostgreSQL probe schema were removed after
+verification.
 
 ### Fallback if either dialect fails
 
@@ -311,6 +347,7 @@ Stop before Task 1 and revise this plan to use a plain nullable boolean `alive`:
 
 The fallback preserves portable uniqueness but gives up the database-derived invariant. Task 4,
 the migration backfill, and invariant diagnostics must be rewritten explicitly before proceeding.
+The completed probe did not trigger this fallback.
 
 ## Task 1: Pin the behavior with shared failing tests
 
@@ -334,6 +371,9 @@ the migration backfill, and invariant diagnostics must be rewritten explicitly b
 - [ ] Un-delete conflict rolls back path and version liveness.
 - [ ] Missing/already-live un-delete is idempotent.
 - [ ] Soft-delete and un-delete transaction rollback leave both tables synchronized.
+- [ ] `createDocumentVersion({ documentId })` refuses to add a live version to a fully deleted
+  existing document; a concurrent version-write/soft-delete race leaves version and path liveness
+  synchronized.
 - [ ] Tree locking behavior remains serialized.
 - [ ] Soft delete does not call `storage.delete()` for sources or variants.
 - [ ] `afterDelete` and `afterTreeChange` failure reporting remains unchanged apart from removal of
@@ -407,6 +447,8 @@ the operational migration expectation if a fully transactional sequence is impos
 - Modify: `packages/db-mysql/src/modules/storage/storage-commands.ts`
 - Modify: `packages/core/src/services/document-lifecycle/delete.ts`
 - Modify: `packages/core/src/services/document-lifecycle/context.ts`
+- Modify: `packages/host-tanstack-start/src/server-fns/collections/delete-outcome.ts`
+- Modify: `packages/host-tanstack-start/src/server-fns/collections/delete-outcome.test.node.ts`
 - Modify: delete lifecycle/storage tests
 - Modify: exported delete result types and downstream tests
 
@@ -465,6 +507,14 @@ incompleteness.
 - [ ] Return `0` when the document is missing.
 - [ ] Return `0` when any version is already live; do not “repair” a partially live document
   implicitly.
+- [ ] Make whole-document un-delete the only supported way to add live versions to a fully deleted
+  existing document. Both adapters' `createDocumentVersion({ documentId })` path must reject that
+  state rather than inserting a non-deleted version while leaving its path rows inactive.
+- [ ] Preserve the legitimate versionless-document bootstrap case: an existing document row with
+  no versions may still receive its first version.
+- [ ] Serialize that existing-document liveness check with soft delete and un-delete at the
+  document lock boundary, and verify the race without introducing collection-wide serialization
+  for ordinary version writes.
 - [ ] Set every path row `deleted_at = NULL`.
 - [ ] Set every version `is_deleted = false`.
 - [ ] Keep both updates in one adapter transaction.
@@ -620,6 +670,7 @@ their source files.
 - Modify: `docs/03-architecture/03-transactions.md`
 - Modify: `docs/04-collections/06-file-media-uploads.md`
 - Modify: `docs/04-collections/04-document-trees.md`
+- Modify: `docs/05-reading-and-delivery/01-client-sdk.md`
 - Create: a Changesets release note under `.changeset/`
 - Modify: issue #69 only after this plan is approved
 
