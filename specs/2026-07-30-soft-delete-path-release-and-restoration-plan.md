@@ -652,10 +652,11 @@ partially-live documents return `0`. Restoration preserves statuses and path val
 deliberately does not reconstruct tree placement or search/cache projections.
 
 Existing-document version creation now takes only its target document lock, checks the existing
-version set, and rejects a fully deleted document before inserting. Documents with no versions
-remain valid bootstrap targets, and a legacy partial state remains writable because at least one
-version is already live. This document-level lock serializes ordinary writes with soft delete and
-un-delete without adding collection-wide serialization to normal edits.
+version liveness through a one-row aggregate, and rejects a fully deleted document before
+inserting. Documents with no versions remain valid bootstrap targets, and a legacy partial state
+remains writable because at least one version is already live. Restoration uses the same bounded
+liveness query. This document-level lock serializes ordinary writes with soft delete and un-delete
+without adding collection-wide serialization to normal edits.
 
 Focused live-database tests on both adapters verify two path rows and two versions transition
 together with one restoration timestamp, preserve two workflow statuses and both path values, leave
@@ -813,6 +814,9 @@ their source files.
 - [ ] State in the changeset that `IDocumentCommands` gains a required `restoreSoftDeletedDocument`
   member, and tell out-of-tree adapter authors what they must implement. Both built-in adapters ship
   the implementation, so the break is only visible to external `IDbAdapter` implementations.
+- [ ] State in the changeset that existing-document version writes now take a row-scoped document
+  lock, so concurrent saves to the same document serialize while unrelated documents remain
+  concurrent.
 - [ ] Update importer documentation/help to describe plain upsert behavior, removal of the
   deleted-document `--force` workaround, and the new-document-ID consequence after re-importing a
   deleted path.

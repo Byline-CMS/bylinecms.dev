@@ -282,14 +282,8 @@ export class DocumentCommands implements IDocumentCommands {
           .for('update')
           .then(getFirstOrThrow('Failed to load document for new version'))
 
-        const existingVersions = await tx
-          .select({ is_deleted: documentVersions.is_deleted })
-          .from(documentVersions)
-          .where(eq(documentVersions.document_id, documentId))
-        if (
-          existingVersions.length > 0 &&
-          existingVersions.every((version) => version.is_deleted)
-        ) {
+        const versionLiveness = await this.readDocumentVersionLiveness(tx, documentId)
+        if (versionLiveness.total > 0 && versionLiveness.live === 0) {
           throw ERR_CONFLICT({
             message: 'cannot add a version to a soft-deleted document',
             details: { documentId },
@@ -991,11 +985,8 @@ export class DocumentCommands implements IDocumentCommands {
         .for('update')
       if (document == null) return 0
 
-      const versions = await tx
-        .select({ is_deleted: documentVersions.is_deleted })
-        .from(documentVersions)
-        .where(eq(documentVersions.document_id, params.document_id))
-      if (versions.length === 0 || versions.some((version) => !version.is_deleted)) return 0
+      const versionLiveness = await this.readDocumentVersionLiveness(tx, params.document_id)
+      if (versionLiveness.total === 0 || versionLiveness.live > 0) return 0
 
       await tx
         .update(documentPaths)
@@ -1014,6 +1005,20 @@ export class DocumentCommands implements IDocumentCommands {
         .where(eq(documentVersions.document_id, params.document_id))
       return affectedRowCount(result)
     })
+  }
+
+  private async readDocumentVersionLiveness(
+    tx: TxConnection,
+    documentId: string
+  ): Promise<{ total: number; live: number }> {
+    return tx
+      .select({
+        total: sql<number>`CAST(COUNT(*) AS SIGNED)`,
+        live: sql<number>`CAST(COUNT(CASE WHEN ${documentVersions.is_deleted} = false THEN 1 END) AS SIGNED)`,
+      })
+      .from(documentVersions)
+      .where(eq(documentVersions.document_id, documentId))
+      .then(getFirstOrThrow('Failed to read document version liveness'))
   }
 
   /**
