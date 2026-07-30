@@ -10,7 +10,7 @@ import type { CollectionDefinition } from '@byline/core'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { documentPaths } from '../../../database/schema/index.js'
+import { documentPaths, documentVersions } from '../../../database/schema/index.js'
 import { setupTestDB, teardownTestDB } from '../../../lib/test-helper.js'
 
 const timestamp = Date.now()
@@ -60,13 +60,44 @@ describe('live-path query resolution (MySQL)', () => {
       locale: 'fr',
       path,
     })
+    await testDb.commandBuilders.documents.createDocumentVersion({
+      documentId: deletedDocumentId,
+      collectionId,
+      collectionVersion: 1,
+      collectionConfig: PagesCollectionConfig,
+      action: 'update',
+      documentData: { title: 'Former French occupant, revised' },
+      locale: 'all',
+      status: 'draft',
+      previousVersionId: deleted.document.id,
+    })
     await testDb.commandBuilders.documents.softDeleteDocument({
       document_id: deletedDocumentId,
     })
-    await testDb.db
-      .update(documentPaths)
-      .set({ deleted_at: new Date() })
+
+    const pathRows = await testDb.db
+      .select({
+        deletedAt: documentPaths.deleted_at,
+        updatedAt: documentPaths.updated_at,
+      })
+      .from(documentPaths)
       .where(eq(documentPaths.document_id, deletedDocumentId))
+    expect(pathRows).toHaveLength(2)
+    const deletedAt = pathRows[0]?.deletedAt
+    expect(deletedAt).toBeInstanceOf(Date)
+    expect(pathRows.every((row) => row.deletedAt?.getTime() === deletedAt?.getTime())).toBe(true)
+    expect(pathRows.every((row) => row.updatedAt.getTime() === deletedAt?.getTime())).toBe(true)
+
+    const versionRows = await testDb.db
+      .select({
+        isDeleted: documentVersions.is_deleted,
+        updatedAt: documentVersions.updated_at,
+      })
+      .from(documentVersions)
+      .where(eq(documentVersions.document_id, deletedDocumentId))
+    expect(versionRows).toHaveLength(2)
+    expect(versionRows.every((row) => row.isDeleted)).toBe(true)
+    expect(versionRows.every((row) => row.updatedAt.getTime() === deletedAt?.getTime())).toBe(true)
 
     const live = await testDb.commandBuilders.documents.createDocumentVersion({
       collectionId,
@@ -95,7 +126,7 @@ describe('live-path query resolution (MySQL)', () => {
       document_id: deletedDocumentId,
       locale: 'fr',
     })
-    expect(history.documents).toHaveLength(1)
+    expect(history.documents).toHaveLength(2)
     expect(history.documents[0]?.path).toBe(path)
   })
 })

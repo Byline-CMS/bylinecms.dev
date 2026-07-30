@@ -39,7 +39,7 @@ export type DeleteDocumentResponse =
     }
 
 function sanitizePhase(phase: DeleteDocumentSideEffectPhase): DeleteDocumentPublicSideEffectPhase {
-  if (phase === 'storageCleanup' || phase === 'afterTreeChange' || phase === 'afterDelete') {
+  if (phase === 'afterTreeChange' || phase === 'afterDelete') {
     return phase
   }
   return 'unknown'

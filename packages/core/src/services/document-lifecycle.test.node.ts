@@ -1471,10 +1471,19 @@ describe('Document lifecycle service', () => {
       expect(serializedResult).not.toContain('hook leaked')
       expect(serializedResult).not.toContain('private/')
       expect(serializedResult).not.toContain('ERR_SEARCH')
-      expect(ctx.logger.error).toHaveBeenCalledOnce()
-      expect(ctx.logger.error).toHaveBeenCalledWith(
+      expect(ctx.logger.error).toHaveBeenCalledTimes(2)
+      expect(ctx.logger.error).toHaveBeenNthCalledWith(
+        1,
         expect.objectContaining({ err: hookError, documentId: 'doc-1' }),
         'afterDelete hook failed after document delete'
+      )
+      expect(ctx.logger.error).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          documentId: 'doc-1',
+          sideEffectFailures: [{ phase: 'afterDelete', code: 'ERR_UNHANDLED' }],
+        }),
+        'post-commit delete side effects failed'
       )
     })
   })

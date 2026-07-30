@@ -505,9 +505,8 @@ export function documentPathsSuite(hooks: ConformanceHooks): void {
       })
 
       it('rolls back soft delete and path release with an outer transaction', async () => {
-        // This is intentionally green before Task 2: soft delete does not
-        // mutate path rows yet. It becomes the transaction-coupling guard
-        // once path liveness is written alongside version tombstones.
+        // The ambient adapter transaction must encompass both the path
+        // tombstone and every version tombstone written by soft delete.
         const path = uniquePath('delete-rollback')
         const live = await createDocument({ path })
         const documentId = live.document.document_id

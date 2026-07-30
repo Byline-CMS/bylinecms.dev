@@ -504,12 +504,15 @@ relation-filter contexts. The shared conformance suite now pins the case where a
 the requested locale must be skipped before a live default-locale fallback is selected, and
 asserts that live document envelopes expose neither liveness column.
 
-Focused adapter integration tests establish the read contract independently from Task 4 by
-constructing synchronized path/version liveness directly: the resolver skips a deleted
-requested-locale row, falls back to the live default-locale row, and still projects the deleted
-row's retained path when history is addressed by known document identity.
+Focused adapter integration tests established the read contract independently from Task 4 by
+constructing synchronized path/version liveness directly. Task 4 converted those fixtures to
+exercise the production soft-delete command while retaining the same assertions: the resolver
+skips a deleted requested-locale row, falls back to the live default-locale row, and still projects
+the deleted row's retained path when history is addressed by known document identity.
 
 ## Task 4: Synchronize soft delete and retain media
+
+**Status:** Complete on 2026-07-30.
 
 **Files**
 
@@ -524,23 +527,44 @@ row's retained path when history is addressed by known document identity.
 
 ### Storage command
 
-- [ ] Capture one operation timestamp.
-- [ ] Under the existing collection/document locks, set that timestamp on every path row.
-- [ ] Set every version `is_deleted = true` in the same transaction.
-- [ ] Preserve the existing return value unless a richer result is required by a proven caller.
-- [ ] Verify nested/ambient adapter transactions preserve the outer audit/tree atomic boundary.
+- [x] Capture one operation timestamp.
+- [x] Under the existing collection/document locks, set that timestamp on every path row.
+- [x] Set every version `is_deleted = true` in the same transaction.
+- [x] Preserve the existing return value unless a richer result is required by a proven caller.
+- [x] Verify nested/ambient adapter transactions preserve the outer audit/tree atomic boundary.
 
 ### Lifecycle cleanup
 
-- [ ] Stop reconstructing upload fields solely for deletion cleanup.
-- [ ] Remove source and variant path collection.
-- [ ] Remove all soft-delete `storage.delete()` calls.
-- [ ] Remove `storageCleanup` from `DeleteDocumentSideEffectPhase`.
-- [ ] Remove `storageCleanup` from downstream result sanitization and allowlists; do not reserve
+- [x] Stop reconstructing upload fields solely for deletion cleanup.
+- [x] Remove source and variant path collection.
+- [x] Remove all soft-delete `storage.delete()` calls.
+- [x] Remove `storageCleanup` from `DeleteDocumentSideEffectPhase`.
+- [x] Remove `storageCleanup` from downstream result sanitization and allowlists; do not reserve
   the soft-delete phase name for a future purge operation.
-- [ ] Preserve original-path capture for `beforeDelete`/`afterDelete`.
-- [ ] Preserve search/cache/tree invalidation and allowlisted side-effect reporting.
-- [ ] Update comments that currently describe soft delete as physically removing objects.
+- [x] Preserve original-path capture for `beforeDelete`/`afterDelete`.
+- [x] Preserve search/cache/tree invalidation and allowlisted side-effect reporting.
+- [x] Update comments that currently describe soft delete as physically removing objects.
+
+### Result
+
+Both adapters now take their existing collection and document locks, capture one timestamp, mark
+every path row inactive with that timestamp, and mark every version deleted with the same
+`updated_at` value in one transaction. The command still returns the number of affected version
+rows. Focused live-database tests cover multiple locale path rows and multiple versions, and prove
+that every touched row shares the operation timestamp. Shared conformance tests prove path release,
+reuse, locale fallback, duplicate-path discrimination, the existing-version-write race, and
+ambient transaction rollback on PostgreSQL and MySQL.
+
+The lifecycle now fetches only the non-reconstructed document envelope needed to preserve the
+original path for delete hooks. It retains upload sources and variants and never calls
+`storage.delete()` during soft delete. `storageCleanup` is no longer an exported delete side-effect
+phase or a host transport allowlist value; an old or malformed occurrence is sanitized to
+`unknown`. `afterDelete` and `afterTreeChange` reporting, audit/tree atomicity, and post-commit
+invalidation behavior remain unchanged.
+
+The focused document-path conformance run is now 17 passed and 6 intentionally failed on each
+adapter. Every remaining failure belongs to Task 5: five require the absent restoration primitive,
+and one requires the fully-deleted existing-document version-write guard coupled to that primitive.
 
 ## Task 5: Add the storage-level un-delete command
 

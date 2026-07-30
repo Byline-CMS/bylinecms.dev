@@ -630,9 +630,10 @@ export interface IDocumentCommands {
   }): Promise<number>
 
   /**
-   * Soft-delete a document by setting `is_deleted = true` on ALL of its
-   * versions. The `current_documents` view automatically filters these out,
-   * so the document disappears from listings without physically removing data.
+   * Soft-delete a document by marking ALL of its path rows inactive and
+   * setting `is_deleted = true` on ALL of its versions in one transaction.
+   * Live views and path resolution filter the tombstones without physically
+   * removing retained content or path values.
    *
    * Returns the number of version rows marked as deleted.
    */

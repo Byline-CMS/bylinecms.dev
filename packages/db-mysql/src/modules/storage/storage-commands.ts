@@ -912,13 +912,14 @@ export class DocumentCommands implements IDocumentCommands {
   /**
    * softDeleteDocument
    *
-   * Mark ALL versions of a document as deleted by setting `is_deleted = true`.
-   * The `current_documents` view filters these out, so the document disappears
-   * from listings without physically removing data.
+   * Tombstone every path and version row for a document with one operation
+   * timestamp. Live views and path resolution filter these rows without
+   * physically removing retained content or path values.
    *
    * Returns the number of version rows marked as deleted.
    */
   async softDeleteDocument(params: { document_id: string }): Promise<number> {
+    const deletedAt = new Date()
     return this.db.transaction(async (tx) => {
       // Tree placement takes this same collection lock before inspecting any
       // endpoint state. Taking it before document/version locks makes direct
@@ -934,11 +935,19 @@ export class DocumentCommands implements IDocumentCommands {
         .for('update')
       if (document == null) return 0
 
+      await tx
+        .update(documentPaths)
+        .set({
+          deleted_at: deletedAt,
+          updated_at: deletedAt,
+        })
+        .where(eq(documentPaths.document_id, params.document_id))
+
       const result = await tx
         .update(documentVersions)
         .set({
           is_deleted: true,
-          updated_at: new Date(),
+          updated_at: deletedAt,
         })
         .where(eq(documentVersions.document_id, params.document_id))
       return affectedRowCount(result)
