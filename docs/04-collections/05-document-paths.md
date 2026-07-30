@@ -285,7 +285,10 @@ baseline. That baseline is not an upgrade stream. Existing installations must ap
 idempotent native script for their provider:
 
 ```sh
+# PostgreSQL
 psql "$DATABASE_URL" -f packages/db-postgres/sql/0006_soft_delete_path_liveness.sql
+
+# MySQL
 mysql -u byline -p byline_dev < packages/db-mysql/sql/0001_soft_delete_path_liveness.sql
 ```
 

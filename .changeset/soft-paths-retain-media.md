@@ -16,6 +16,11 @@ installations must apply
 `packages/db-mysql/sql/0001_soft_delete_path_liveness.sql`; the squashed
 Drizzle and CLI baselines are for fresh installations, not upgrades.
 
+Lifecycle `ERR_PATH_CONFLICT` messages now identify the attempted operation and
+state that a live document owns the requested path. Update operations report
+the document's source locale rather than the configured default locale. The
+error code and public details shape are unchanged.
+
 Soft delete now retains field rows, uploaded sources, and persisted generated
 variants. Source and variant paths are immutable historical references that can
 be shared by versions or duplicated documents, so deletion no longer infers
