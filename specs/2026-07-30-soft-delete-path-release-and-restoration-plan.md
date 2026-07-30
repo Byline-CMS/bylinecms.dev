@@ -809,6 +809,8 @@ the directory layout. This is the consistent result of “update when live, crea
 
 ## Task 8: Record a follow-on variant-retention investigation
 
+**Status:** Complete on 2026-07-30.
+
 Do not implement variant deletion or regeneration in this phase. Open a separate design issue after
 this plan is approved and link it from issue #69.
 
@@ -828,6 +830,15 @@ The follow-on investigation should cover:
 
 Until that issue is designed and approved, generated variants have the same retention behavior as
 their source files.
+
+### Result
+
+Issue [#72](https://github.com/Byline-CMS/bylinecms.dev/issues/72) records the reference-safe
+retention and regeneration design as deferred work. It covers variant identity, rule compatibility,
+reproducibility, persisted generation recipes, provider-neutral source reads, shared references,
+legacy variants, cross-system retries, cleanup scope, rollout, and failure testing. Issue #69 links
+to the follow-on and states that ordinary soft delete retains object storage until the design is
+approved. No variant deletion or regeneration behavior changed in this task.
 
 ## Task 9: Documentation and issue alignment
 
@@ -865,6 +876,10 @@ their source files.
 - [ ] Update importer documentation/help to describe plain upsert behavior, removal of the
   deleted-document `--force` workaround, and the new-document-ID consequence after re-importing a
   deleted path.
+- [ ] State that delete-then-reimport changes document identity: existing relations to the deleted
+  document ID do not retarget automatically. The current reference docs import is safe because no
+  current collection relates to the imported `docs` collection; future schemas that add such a
+  relation must account for the identity split.
 - [ ] Distinguish un-delete from historical-version restore.
 - [ ] State that tree placement is not reconstructed.
 - [ ] State that storage-level un-delete does not reconstruct search indexing. The future
