@@ -918,15 +918,17 @@ release note and resolved the fixed package group to a minor bump, and `git diff
 
 ## Task 10: Verification gates
 
+**Status:** Complete on 2026-07-30.
+
 ### Package-local iteration
 
-- [ ] Run focused core lifecycle unit tests.
-- [ ] Run shared db-conformance against PostgreSQL.
-- [ ] Run shared db-conformance against MySQL.
-- [ ] Run each adapter's schema pin and development Drizzle migration tests.
-- [ ] Apply each adapter's numbered native `sql/` upgrade script twice and verify the second run is
+- [x] Run focused core lifecycle unit tests.
+- [x] Run shared db-conformance against PostgreSQL.
+- [x] Run shared db-conformance against MySQL.
+- [x] Run each adapter's schema pin and development Drizzle migration tests.
+- [x] Apply each adapter's numbered native `sql/` upgrade script twice and verify the second run is
   a no-op.
-- [ ] Exercise both development and native upgrade migrations against databases containing:
+- [x] Exercise both development and native upgrade migrations against databases containing:
   - a live document;
   - a fully deleted document;
   - a legacy partially revived document, which remains active, returns `0` from un-delete, and is
@@ -973,6 +975,31 @@ pnpm check:native-sql-history -- --base "v<previous-version>"
 The first three commands verify and copy the squashed fresh-install baselines. The native SQL
 history guard separately protects the append-only PostgreSQL and MySQL upgrade scripts used by
 existing installations.
+
+### Result
+
+Focused core lifecycle coverage passed 129 tests. The shared document-path conformance suite
+passed 23 tests on each adapter, and the PostgreSQL and MySQL schema pin suites passed 11 and 248
+tests respectively. Reset test databases also applied each adapter's squashed development
+baseline from an empty database.
+
+Four disposable databases exercised the pre-feature development baseline followed by either the
+historical incremental development migration or the current numbered native upgrade script.
+Fixtures covered live, fully deleted, legacy-partial, versionless-bootstrap, and reclaimed-path
+states. Both providers retained live and partial paths, assigned the fully deleted path the latest
+version timestamp, allowed versionless bootstrap and deleted-path reclamation, rejected a second
+live claimant, and returned `0` when asked to restore the legacy-partial document. Catalog checks
+confirmed stored generated columns and the exact `(collection_id, locale, path, alive)` key.
+Reapplying both native scripts succeeded without changing the completed state.
+
+The CLI synchronization replaced its PostgreSQL and MySQL fresh-install templates with the
+squashed adapter baselines. Their SQL and journals matched the adapter sources byte for byte, and
+the CLI baseline-drift suite passed 3 tests. The native SQL history guard confirmed that all five
+released scripts remained unchanged since `v4.10.2`.
+
+The repository gates passed: generation 11/11 tasks, lint 21/21, typecheck 36/36, full unit tests
+15/15 tasks, integration 21/21 tasks, documentation 49 documents and 452 links, and build 18/18
+tasks. Knip completed with its existing warning-only findings, and `git diff --check` passed.
 
 ## Review decisions and confirmed positions before implementation
 
