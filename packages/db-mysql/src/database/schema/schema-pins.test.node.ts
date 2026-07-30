@@ -34,11 +34,13 @@
  *      user-authored field data, not statement-ordering timestamps, so the
  *      race that motivated the instant-column bump upstream doesn't apply
  *      to them.
- *   4. The `byline_document_paths` per-collection path-uniqueness index
+ *   4. The `byline_document_paths` live-path-uniqueness index
  *      keeps the exact name `idx_document_paths_collection_locale_path`,
  *      because `packages/core/src/services/document-lifecycle/internals.ts`
  *      substring-matches this name against the adapter's `classifyError`
- *      constraint report to detect path collisions.
+ *      constraint report to detect path collisions. Its generated `alive`
+ *      discriminator is stored and nullable so deleted rows no longer
+ *      occupy the live namespace.
  *   5. `byline_document_paths.path` carries the `utf8mb4_bin` collation
  *      (project-owner ruling) so path uniqueness is case- and
  *      accent-sensitive on MySQL exactly like it already is on Postgres —
@@ -448,13 +450,47 @@ describe('schema pins — timestamp precision (spec §F.3)', () => {
 })
 
 describe('schema pins — document-paths unique index name (spec §E)', () => {
-  it('byline_document_paths carries a unique key literally named idx_document_paths_collection_locale_path', () => {
+  it('pins the live-path and document-locale unique keys', () => {
     const cfg = getTableConfig(coreSchema.documentPaths)
     const pathKey = cfg.uniqueConstraints.find(
       (uc) => uc.name === 'idx_document_paths_collection_locale_path'
     )
     expect(pathKey).toBeDefined()
-    expect(pathKey?.columns.map((c) => c.name)).toEqual(['collection_id', 'locale', 'path'])
+    expect(pathKey?.columns.map((c) => c.name)).toEqual([
+      'collection_id',
+      'locale',
+      'path',
+      'alive',
+    ])
+
+    const documentLocaleKey = cfg.uniqueConstraints.find(
+      (uc) => uc.name === 'unique_document_paths_document_locale'
+    )
+    expect(documentLocaleKey?.columns.map((c) => c.name)).toEqual(['document_id', 'locale'])
+
+    const width = (pathKey?.columns ?? []).reduce(
+      (sum, column) =>
+        sum +
+        indexColumnByteWidth(
+          'byline_document_paths',
+          'idx_document_paths_collection_locale_path',
+          column
+        ),
+      0
+    )
+    expect(width).toBe(1097)
+  })
+
+  it('pins nullable deleted_at and the stored generated alive discriminator', () => {
+    const cfg = getTableConfig(coreSchema.documentPaths)
+    const deletedAt = cfg.columns.find((column) => column.name === 'deleted_at')
+    const alive = cfg.columns.find((column) => column.name === 'alive')
+
+    expect(deletedAt?.getSQLType()).toBe('datetime(6)')
+    expect(deletedAt?.notNull).toBe(false)
+    expect(alive?.getSQLType()).toBe('boolean')
+    expect(alive?.notNull).toBe(false)
+    expect(alive?.generated).toMatchObject({ type: 'always', mode: 'stored' })
   })
 })
 

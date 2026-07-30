@@ -394,6 +394,8 @@ generated DDL, lock behavior, driver classification, and migration backfill.
 
 ## Task 2: Add `deleted_at`, generated `alive`, and the live unique constraint
 
+**Status:** Complete on 2026-07-30.
+
 **Files**
 
 - Modify: `packages/db-postgres/src/database/schema/index.ts`
@@ -408,29 +410,29 @@ generated DDL, lock behavior, driver classification, and migration backfill.
 
 ### Implementation
 
-- [ ] Add nullable `deleted_at` to `documentPaths`.
-- [ ] Add generated stored nullable boolean `alive`.
-- [ ] Rebuild `idx_document_paths_collection_locale_path` over
+- [x] Add nullable `deleted_at` to `documentPaths`.
+- [x] Add generated stored nullable boolean `alive`.
+- [x] Rebuild `idx_document_paths_collection_locale_path` over
   `(collection_id, locale, path, alive)` without changing its name.
-- [ ] Keep `unique_document_paths_document_locale` unchanged on `(document_id, locale)`; deletion
+- [x] Keep `unique_document_paths_document_locale` unchanged on `(document_id, locale)`; deletion
   changes the existing row's liveness and does not create path-history rows.
-- [ ] Generate development migrations with the package-local Drizzle commands.
-- [ ] Inspect the generated SQL and snapshots; do not format migration metadata manually. This
+- [x] Generate development migrations with the package-local Drizzle commands.
+- [x] Inspect the generated SQL and snapshots; do not format migration metadata manually. This
   Drizzle stream supports adapter development and is not the upgrade path for deployed databases.
-- [ ] Create one final, numbered, hand-written upgrade script per provider under
+- [x] Create one final, numbered, hand-written upgrade script per provider under
   `packages/db-postgres/sql/` and `packages/db-mysql/sql/`. Base their DDL on the inspected
   Drizzle output, include the data backfill, and follow each directory's idempotency and
   transactional conventions.
-- [ ] Backfill `deleted_at` for a path row only when no non-deleted version exists for its
+- [x] Backfill `deleted_at` for a path row only when no non-deleted version exists for its
   document.
-- [ ] Use the latest version `updated_at` as the best available historical deletion timestamp,
+- [x] Use the latest version `updated_at` as the best available historical deletion timestamp,
   with a documented fallback for malformed/versionless legacy data.
-- [ ] Treat a partially revived legacy document with any non-deleted version as live.
-- [ ] Verify the expression is a stored generated column in both real databases.
-- [ ] Preserve case/accent-sensitive MySQL path behavior and index length compatibility.
-- [ ] Test both native upgrade scripts against already-provisioned databases and prove they are
+- [x] Treat a partially revived legacy document with any non-deleted version as live.
+- [x] Verify the expression is a stored generated column in both real databases.
+- [x] Preserve case/accent-sensitive MySQL path behavior and index length compatibility.
+- [x] Test both native upgrade scripts against already-provisioned databases and prove they are
   safely rerunnable.
-- [ ] Do not copy the development Drizzle migrations into the CLI during this feature. Before
+- [x] Do not copy the development Drizzle migrations into the CLI during this feature. Before
   release, squash each adapter's Drizzle stream to its single fresh-install baseline, then run the
   CLI baseline synchronization and drift gates.
 
@@ -441,6 +443,25 @@ state in which deleted rows are marked live under the new uniqueness contract. P
 the data and DDL changes transactionally. MySQL DDL auto-commits, so order and guard its native
 script to be safely rerunnable after interruption, and document any required operator inspection
 when a fully atomic sequence is impossible.
+
+### Result
+
+The development migrations and native upgrade scripts were applied to isolated databases created
+from each adapter's existing Drizzle baseline on PostgreSQL 18.4 and MySQL 9.7.1. Fixtures covered
+a fully deleted document, a partially revived document, and a versionless legacy document. Both
+migration paths assigned the fully deleted path the latest version timestamp, kept the partially
+revived path live, and used the path `updated_at` fallback for the versionless row.
+
+Catalog inspection confirmed PostgreSQL `attgenerated = 's'` and MySQL `STORED GENERATED`.
+The live key retained its name and exact `(collection_id, locale, path, alive)` order, while
+`unique_document_paths_document_locale` remained `(document_id, locale)`. A new live document
+claimed a deleted occupant's path, a second live claimant remained blocked, and MySQL admitted
+case- and accent-distinct paths under the rebuilt key. Both native scripts completed successfully
+on a second run; the MySQL development migration uses one atomic `ALTER TABLE` for the index swap
+because InnoDB may use the old unique key to support the collection foreign key.
+
+The CLI template directories remained unchanged. Their baselines will be synchronized only after
+the adapter Drizzle streams are squashed for release.
 
 ## Task 3: Make live-path reads explicit
 
