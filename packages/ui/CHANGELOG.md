@@ -1,5 +1,12 @@
 # @byline/ui
 
+## 4.11.0
+
+### Minor Changes
+
+- released document paths on soft delete so a new document can claim a deleted document's path, enforced live-only in **`@byline/db-postgres`** and **`@byline/db-mysql`**
+  soft delete now retains uploaded sources and generated variants; existing installations must apply the numbered native `sql/` upgrade script for their provider
+
 ## 4.10.2
 
 ### Patch Changes
