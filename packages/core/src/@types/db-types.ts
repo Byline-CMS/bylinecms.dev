@@ -630,13 +630,26 @@ export interface IDocumentCommands {
   }): Promise<number>
 
   /**
-   * Soft-delete a document by setting `is_deleted = true` on ALL of its
-   * versions. The `current_documents` view automatically filters these out,
-   * so the document disappears from listings without physically removing data.
+   * Soft-delete a document by marking ALL of its path rows inactive and
+   * setting `is_deleted = true` on ALL of its versions in one transaction.
+   * Live views and path resolution filter the tombstones without physically
+   * removing retained content or path values.
    *
    * Returns the number of version rows marked as deleted.
    */
   softDeleteDocument(params: { document_id: string }): Promise<number>
+
+  /**
+   * Restore a fully soft-deleted document by reactivating ALL of its path
+   * rows and versions in one transaction. Returns `0` when the document is
+   * missing, versionless, already live, or in a legacy partially-live state.
+   *
+   * This storage primitive does not reconstruct tree placement or
+   * search/cache projections.
+   *
+   * Returns the number of version rows restored.
+   */
+  restoreSoftDeletedDocument(params: { document_id: string }): Promise<number>
 
   /**
    * Remove one content locale's data from a document by writing a new

@@ -1,5 +1,5 @@
 {
-  "id": "114bdd2f-7e31-4172-9d72-7debf7801cfb",
+  "id": "c8e9e9e4-5d6b-42eb-b580-c2b236da657f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1382,6 +1382,22 @@
           "primaryKey": false,
           "notNull": true
         },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp (6) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "alive": {
+          "name": "alive",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "CASE WHEN \"deleted_at\" IS NULL THEN true ELSE NULL END",
+            "type": "stored"
+          }
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp (6) with time zone",
@@ -1458,7 +1474,8 @@
           "columns": [
             "collection_id",
             "locale",
-            "path"
+            "path",
+            "alive"
           ]
         }
       },

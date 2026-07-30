@@ -238,7 +238,9 @@ export async function duplicateDocument(
             orderKey,
             createdBy: actorId(ctx),
           })
-          .catch((err: unknown) => rethrowPathConflict(db, err, finalPath, defaultLocale))
+          .catch((err: unknown) =>
+            rethrowPathConflict(db, err, finalPath, defaultLocale, 'duplicate')
+          )
       } catch (err: unknown) {
         if (!isPathConflictError(err)) {
           throw err
@@ -265,7 +267,9 @@ export async function duplicateDocument(
             orderKey,
             createdBy: actorId(ctx),
           })
-          .catch((retryErr: unknown) => rethrowPathConflict(db, retryErr, finalPath, defaultLocale))
+          .catch((retryErr: unknown) =>
+            rethrowPathConflict(db, retryErr, finalPath, defaultLocale, 'duplicate')
+          )
       }
 
       const newDocumentId = extractDocumentId(result.document)

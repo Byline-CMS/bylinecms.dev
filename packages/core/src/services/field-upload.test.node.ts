@@ -71,6 +71,7 @@ function createMockDb() {
         setDocumentStatus: vi.fn(),
         archivePublishedVersions: vi.fn(),
         softDeleteDocument: vi.fn(),
+        restoreSoftDeletedDocument: vi.fn(),
         deleteDocumentLocale: vi.fn(),
         setOrderKey: vi.fn(),
         placeTreeNode: vi.fn(),

@@ -15,7 +15,7 @@ import {
 } from '@byline/auth'
 import { describe, expect, it, vi } from 'vitest'
 
-import { BylineError, DbErrorCodes, ERR_PATH_CONFLICT, ErrorCodes } from '../lib/errors.js'
+import { BylineError, DbErrorCodes, ErrorCodes } from '../lib/errors.js'
 import {
   changeDocumentStatus,
   copyToLocale,
@@ -105,6 +105,7 @@ function createMockDb() {
         setDocumentStatus,
         archivePublishedVersions,
         softDeleteDocument,
+        restoreSoftDeletedDocument: vi.fn(),
         deleteDocumentLocale: vi.fn() as any,
         setOrderKey: vi.fn() as any,
         placeTreeNode: vi.fn() as any,
@@ -182,6 +183,13 @@ function createMockDb() {
     auditAppend,
     withTransaction,
   }
+}
+
+function pathUniqueViolation(): Error {
+  return Object.assign(new Error('duplicate key value violates unique constraint'), {
+    code: '23505',
+    constraint: 'idx_document_paths_collection_locale_path',
+  })
 }
 
 const noopLogger: BylineLogger = {
@@ -387,6 +395,25 @@ describe('Document lifecycle service', () => {
 
       const persistedPath = createDocumentVersion.mock.calls[0]?.[0].path
       expect(persistedPath).toBe('custom/route')
+    })
+
+    it('describes a create path conflict as ownership by a live document', async () => {
+      const { db, createDocumentVersion } = createMockDb()
+      createDocumentVersion.mockRejectedValueOnce(pathUniqueViolation())
+      const ctx = buildCtx(db)
+
+      await expect(
+        createDocument(ctx, { data: { title: 'Home' }, path: 'home' })
+      ).rejects.toMatchObject({
+        code: ErrorCodes.PATH_CONFLICT,
+        message:
+          'cannot create a document at path "home" because a live document already uses it in this collection (locale: en)',
+        details: {
+          path: 'home',
+          locale: 'en',
+          constraint: 'idx_document_paths_collection_locale_path',
+        },
+      })
     })
 
     it('falls back to a UUID when no useAsPath and no explicit path', async () => {
@@ -782,12 +809,7 @@ describe('Document lifecycle service', () => {
       // Simulate the pg driver throwing a unique-violation on the path
       // constraint when the upsert tries to claim a slug owned by another
       // document in the same (collection, locale).
-      createDocumentVersion.mockRejectedValueOnce(
-        Object.assign(new Error('duplicate key value violates unique constraint'), {
-          code: '23505',
-          constraint: 'idx_document_paths_collection_locale_path',
-        })
-      )
+      createDocumentVersion.mockRejectedValueOnce(pathUniqueViolation())
       const ctx = buildCtx(db)
 
       try {
@@ -799,7 +821,16 @@ describe('Document lifecycle service', () => {
         throw new Error('expected ERR_PATH_CONFLICT')
       } catch (err) {
         expect(err).toBeInstanceOf(BylineError)
-        expect((err as BylineError).code).toBe(ErrorCodes.PATH_CONFLICT)
+        expect(err).toMatchObject({
+          code: ErrorCodes.PATH_CONFLICT,
+          message:
+            'cannot update this document to path "home" because a live document already uses it in this collection (locale: en)',
+          details: {
+            path: 'home',
+            locale: 'en',
+            constraint: 'idx_document_paths_collection_locale_path',
+          },
+        })
       }
     })
 
@@ -935,6 +966,36 @@ describe('Document lifecycle service', () => {
           documentVersionId: 'ver-1',
         })
       )
+    })
+
+    it('describes a patched path conflict as ownership by a live document', async () => {
+      const { db, getDocumentById, createDocumentVersion } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'ver-current',
+        path: 'old-slug',
+        source_locale: 'de',
+        fields: { title: 'Old' },
+      })
+      createDocumentVersion.mockRejectedValueOnce(pathUniqueViolation())
+      const ctx = buildCtx(db)
+
+      await expect(
+        updateDocumentWithPatches(ctx, {
+          documentId: 'doc-1',
+          patches: [],
+          path: 'new-slug',
+          locale: 'de',
+        })
+      ).rejects.toMatchObject({
+        code: ErrorCodes.PATH_CONFLICT,
+        message:
+          'cannot update this document to path "new-slug" because a live document already uses it in this collection (locale: de)',
+        details: {
+          path: 'new-slug',
+          locale: 'de',
+          constraint: 'idx_document_paths_collection_locale_path',
+        },
+      })
     })
 
     it('normalizes patched and hook-produced numeric values before persistence', async () => {
@@ -1369,7 +1430,7 @@ describe('Document lifecycle service', () => {
       expect(afterDelete).not.toHaveBeenCalled()
     })
 
-    it('cleans up stored files for upload fields at any nesting depth', async () => {
+    it('retains stored files when soft-deleting an upload-capable document', async () => {
       const { db, getDocumentById } = createMockDb()
       const upload = { mimeTypes: ['application/pdf'], maxFileSize: 1024 }
       const definition: CollectionDefinition = {
@@ -1414,14 +1475,8 @@ describe('Document lifecycle service', () => {
 
       await deleteDocument(ctx, { documentId: 'doc-1' })
 
-      // reconstruct: true because the collection is upload-capable
-      expect(getDocumentById).toHaveBeenCalledWith(expect.objectContaining({ reconstruct: true }))
-      expect(storageDelete.mock.calls.map((c) => c[0])).toEqual([
-        'covers/original.jpg',
-        'covers/thumb.avif',
-        'files/a.pdf',
-        'files/b.pdf',
-      ])
+      expect(getDocumentById).toHaveBeenCalledWith(expect.objectContaining({ reconstruct: false }))
+      expect(storageDelete).not.toHaveBeenCalled()
     })
 
     it('returns only allowlisted failures and keeps raw details in internal logs', async () => {
@@ -1467,45 +1522,29 @@ describe('Document lifecycle service', () => {
 
       const result = await deleteDocument(ctx, { documentId: 'doc-1' })
 
-      expect(storageDelete.mock.calls.map((call) => call[0])).toEqual([
-        'private/original.pdf',
-        'private/preview.pdf',
-        'private/thumbnail.pdf',
-      ])
+      expect(storageDelete).not.toHaveBeenCalled()
       expect(result).toEqual({
         deletedVersionCount: 1,
         outcome: 'committed-with-side-effect-failures',
-        sideEffectFailures: [
-          { phase: 'storageCleanup', code: 'ERR_STORAGE' },
-          { phase: 'storageCleanup', code: 'ERR_UNHANDLED' },
-          { phase: 'afterDelete', code: 'ERR_UNHANDLED' },
-        ],
+        sideEffectFailures: [{ phase: 'afterDelete', code: 'ERR_UNHANDLED' }],
       })
       const serializedResult = JSON.stringify(result)
-      expect(serializedResult).not.toContain('storage unavailable')
-      expect(serializedResult).not.toContain('cleanup failed')
       expect(serializedResult).not.toContain('hook leaked')
       expect(serializedResult).not.toContain('private/')
       expect(serializedResult).not.toContain('ERR_SEARCH')
-      expect(ctx.logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          err: expect.objectContaining({ message: 'storage unavailable' }),
-          documentId: 'doc-1',
-          storagePath: 'private/original.pdf',
-        }),
-        'failed to delete storage file'
-      )
-      expect(ctx.logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          err: expect.objectContaining({ message: 'cleanup failed' }),
-          documentId: 'doc-1',
-          storagePath: 'private/thumbnail.pdf',
-        }),
-        'failed to delete storage file'
-      )
-      expect(ctx.logger.error).toHaveBeenCalledWith(
+      expect(ctx.logger.error).toHaveBeenCalledTimes(2)
+      expect(ctx.logger.error).toHaveBeenNthCalledWith(
+        1,
         expect.objectContaining({ err: hookError, documentId: 'doc-1' }),
         'afterDelete hook failed after document delete'
+      )
+      expect(ctx.logger.error).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          documentId: 'doc-1',
+          sideEffectFailures: [{ phase: 'afterDelete', code: 'ERR_UNHANDLED' }],
+        }),
+        'post-commit delete side effects failed'
       )
     })
   })
@@ -1548,6 +1587,31 @@ describe('Document lifecycle service', () => {
           after: 'new-slug',
         })
       )
+    })
+
+    it('describes a system-field path conflict as ownership by a live document', async () => {
+      const { db, getDocumentSystemFieldsForUpdate } = createMockDb()
+      setupDoc(getDocumentSystemFieldsForUpdate)
+      ;(db.commands.documents.updateDocumentPath as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+        pathUniqueViolation()
+      )
+      const ctx = buildCtx(db)
+
+      await expect(
+        updateDocumentSystemFields(ctx, {
+          documentId: 'doc-1',
+          path: 'new-slug',
+        })
+      ).rejects.toMatchObject({
+        code: ErrorCodes.PATH_CONFLICT,
+        message:
+          'cannot update this document to path "new-slug" because a live document already uses it in this collection (locale: en)',
+        details: {
+          path: 'new-slug',
+          locale: 'en',
+          constraint: 'idx_document_paths_collection_locale_path',
+        },
+      })
     })
 
     it('does not write, audit, or fire the hook when the path is unchanged', async () => {
@@ -2218,13 +2282,13 @@ describe('Document lifecycle service', () => {
       setupSource(mocks)
       const ctx = buildCtx(mocks.db, localizedCollection)
 
-      // First call: throw a path-conflict error. Second call: succeed.
+      // First call: throw a raw path unique violation. The lifecycle maps it
+      // to ERR_PATH_CONFLICT, then the duplicate retry classifier handles it.
       let attempt = 0
       mocks.createDocumentVersion.mockImplementation(() => {
         attempt += 1
         if (attempt === 1) {
-          const err = ERR_PATH_CONFLICT({ message: 'path conflict' })
-          return Promise.reject(err)
+          return Promise.reject(pathUniqueViolation())
         }
         return Promise.resolve({
           document: { id: 'ver-new', document_id: 'doc-new' },
@@ -2249,14 +2313,29 @@ describe('Document lifecycle service', () => {
       setupSource(mocks)
       const ctx = buildCtx(mocks.db, localizedCollection)
 
-      // Both attempts throw path-conflict.
+      // Both attempts throw raw path unique violations, exercising both
+      // duplicateDocument conflict-mapping calls.
       mocks.createDocumentVersion.mockImplementation(() => {
-        return Promise.reject(ERR_PATH_CONFLICT({ message: 'path conflict' }))
+        return Promise.reject(pathUniqueViolation())
       })
 
-      await expect(
-        duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
-      ).rejects.toMatchObject({ code: ErrorCodes.PATH_CONFLICT })
+      let thrown: unknown
+      try {
+        await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+      } catch (err) {
+        thrown = err
+      }
+
+      const retryPath = mocks.createDocumentVersion.mock.calls[1]?.[0].path as string
+      expect(thrown).toMatchObject({
+        code: ErrorCodes.PATH_CONFLICT,
+        message: `cannot duplicate this document to path "${retryPath}" because a live document already uses it in this collection (locale: en)`,
+        details: {
+          path: retryPath,
+          locale: 'en',
+          constraint: 'idx_document_paths_collection_locale_path',
+        },
+      })
       // Bounded to exactly two attempts.
       expect(mocks.createDocumentVersion).toHaveBeenCalledTimes(2)
     })

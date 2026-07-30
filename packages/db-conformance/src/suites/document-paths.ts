@@ -25,18 +25,39 @@
  *     `(document_id, locale)`, so the existing row is updated in place).
  */
 
-import type { CollectionDefinition, IDbAdapter } from '@byline/core'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { createSuperAdminContext } from '@byline/auth'
+import {
+  type BylineLogger,
+  type CollectionDefinition,
+  type DocumentLifecycleContext,
+  duplicateDocument,
+  type IDbAdapter,
+} from '@byline/core'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { ConformanceHooks } from '../index.js'
 
 const timestamp = Date.now()
+let pathSequence = 0
 
 const PathsCollectionConfig: CollectionDefinition = {
   path: `paths-${timestamp}`,
   labels: { singular: 'PathsTest', plural: 'PathsTests' },
+  useAsTitle: 'title',
+  useAsPath: 'title',
   fields: [{ name: 'title', type: 'text' }],
 }
+
+const logger = {
+  log: vi.fn(),
+  fatal: vi.fn(),
+  error: vi.fn(),
+  warn: vi.fn(),
+  info: vi.fn(),
+  debug: vi.fn(),
+  trace: vi.fn(),
+  silent: vi.fn(),
+} satisfies BylineLogger
 
 /**
  * Ported from `packages/db-postgres/src/modules/storage/tests/storage-document-paths.test.ts`.
@@ -44,6 +65,55 @@ const PathsCollectionConfig: CollectionDefinition = {
 export function documentPathsSuite(hooks: ConformanceHooks): void {
   let adapter: IDbAdapter
   let testCollection: { id: string; name: string } = {} as any
+
+  const uniquePath = (label: string): string => `${label}-${timestamp}-${pathSequence++}`
+
+  const restoreSoftDeletedDocument = (documentId: string): Promise<number> =>
+    adapter.commands.documents.restoreSoftDeletedDocument({ document_id: documentId })
+
+  const createDocument = async ({
+    documentId,
+    path,
+    status = 'draft',
+    title = path,
+    previousVersionId,
+  }: {
+    documentId?: string
+    path: string
+    status?: string
+    title?: string
+    previousVersionId?: string
+  }) =>
+    adapter.commands.documents.createDocumentVersion({
+      documentId,
+      collectionId: testCollection.id,
+      collectionVersion: 1,
+      collectionConfig: PathsCollectionConfig,
+      action: documentId == null ? 'create' : 'update',
+      documentData: { title },
+      path,
+      locale: 'all',
+      status,
+      previousVersionId,
+    })
+
+  const getHistory = (documentId: string) =>
+    adapter.queries.documents.getDocumentHistory({
+      collection_id: testCollection.id,
+      document_id: documentId,
+      page_size: 100,
+    })
+
+  const lifecycleContext = (): DocumentLifecycleContext => ({
+    db: adapter,
+    definition: PathsCollectionConfig,
+    collectionId: testCollection.id,
+    collectionVersion: 1,
+    collectionPath: PathsCollectionConfig.path,
+    logger,
+    defaultLocale: 'en',
+    requestContext: createSuperAdminContext(),
+  })
 
   describe('byline_document_paths integration', () => {
     beforeAll(async () => {
@@ -112,6 +182,387 @@ export function documentPathsSuite(hooks: ConformanceHooks): void {
       const classification = adapter.classifyError(caught)
       expect(classification.code).toBe('DB_UNIQUE_VIOLATION')
       expect(classification.constraint ?? '').toContain('document_paths_collection_locale_path')
+    })
+
+    describe('soft-delete path liveness', () => {
+      it('creates and resolves a new document ID when a deleted path is re-imported', async () => {
+        const path = uniquePath('released')
+        const deleted = await createDocument({ path, title: 'Deleted occupant' })
+        const deletedDocumentId = deleted.document.document_id
+
+        await adapter.commands.documents.softDeleteDocument({
+          document_id: deletedDocumentId,
+        })
+
+        // This is the reference importer's plain upsert branch: findByPath
+        // returns no live occupant, so create starts a new logical history.
+        const replacement = await createDocument({ path, title: 'Live replacement' })
+
+        expect(replacement.document.document_id).not.toBe(deletedDocumentId)
+        const found = await adapter.queries.documents.getDocumentByPath({
+          collection_id: testCollection.id,
+          path,
+          reconstruct: false,
+        })
+        expect(found?.document_id).toBe(replacement.document.document_id)
+
+        const deletedHistory = await getHistory(deletedDocumentId)
+        expect(deletedHistory.documents).toHaveLength(1)
+        expect(deletedHistory.documents[0]).toMatchObject({
+          document_id: deletedDocumentId,
+          path,
+        })
+      })
+
+      it('allows multiple deleted documents to retain the same path', async () => {
+        const path = uniquePath('reused-tombstones')
+        const deletedDocumentIds: string[] = []
+
+        for (const title of ['First occupant', 'Second occupant', 'Third occupant']) {
+          const created = await createDocument({ path, title })
+          const documentId = created.document.document_id
+          deletedDocumentIds.push(documentId)
+          await adapter.commands.documents.softDeleteDocument({ document_id: documentId })
+        }
+
+        for (const documentId of deletedDocumentIds) {
+          const history = await getHistory(documentId)
+          expect(history.documents).toHaveLength(1)
+          expect(history.documents[0]).toMatchObject({
+            document_id: documentId,
+            path,
+          })
+        }
+
+        const found = await adapter.queries.documents.getDocumentByPath({
+          collection_id: testCollection.id,
+          path,
+          reconstruct: false,
+        })
+        expect(found).toBe(null)
+      })
+
+      it('resolves the live occupant when deleted tombstones retain its path', async () => {
+        const path = uniquePath('live-wins')
+        const first = await createDocument({ path, title: 'Former occupant' })
+        await adapter.commands.documents.softDeleteDocument({
+          document_id: first.document.document_id,
+        })
+
+        const live = await createDocument({ path, title: 'Current occupant' })
+        const found = await adapter.queries.documents.getDocumentByPath({
+          collection_id: testCollection.id,
+          path,
+          reconstruct: false,
+        })
+
+        expect(found?.document_id).toBe(live.document.document_id)
+        expect(found).not.toHaveProperty('deleted_at')
+        expect(found).not.toHaveProperty('alive')
+      })
+
+      it('skips a higher-priority deleted locale before resolving a live fallback', async () => {
+        const path = uniquePath('locale-live-wins')
+        const deleted = await createDocument({
+          path: uniquePath('locale-deleted-source'),
+          title: 'Former French occupant',
+        })
+        await adapter.commands.documents.updateDocumentPath({
+          documentId: deleted.document.document_id,
+          collectionId: testCollection.id,
+          locale: 'fr',
+          path,
+        })
+        await adapter.commands.documents.softDeleteDocument({
+          document_id: deleted.document.document_id,
+        })
+
+        const live = await createDocument({ path, title: 'Live English fallback' })
+        const found = await adapter.queries.documents.getDocumentByPath({
+          collection_id: testCollection.id,
+          path,
+          locale: 'fr',
+          reconstruct: false,
+        })
+
+        expect(found?.document_id).toBe(live.document.document_id)
+        expect(found?.path).toBe(path)
+      })
+
+      it('duplicates onto an un-suffixed path retained only by a deleted document', async () => {
+        const sourceTitle = uniquePath('duplicate-deleted')
+        const candidatePath = `${sourceTitle}-copy`
+        const source = await createDocument({
+          path: uniquePath('duplicate-deleted-source'),
+          title: sourceTitle,
+        })
+        const deletedOccupant = await createDocument({
+          path: candidatePath,
+          title: 'Deleted duplicate-path occupant',
+        })
+        await adapter.commands.documents.softDeleteDocument({
+          document_id: deletedOccupant.document.document_id,
+        })
+
+        const duplicate = await duplicateDocument(lifecycleContext(), {
+          sourceDocumentId: source.document.document_id,
+        })
+
+        expect(duplicate.pathRetried).toBe(false)
+        expect(duplicate.newPath).toBe(candidatePath)
+        const found = await adapter.queries.documents.getDocumentByPath({
+          collection_id: testCollection.id,
+          path: candidatePath,
+          reconstruct: false,
+        })
+        expect(found?.document_id).toBe(duplicate.documentId)
+      })
+
+      it('suffixes a duplicate path retained by a live document', async () => {
+        const sourceTitle = uniquePath('duplicate-live')
+        const candidatePath = `${sourceTitle}-copy`
+        const source = await createDocument({
+          path: uniquePath('duplicate-live-source'),
+          title: sourceTitle,
+        })
+        await createDocument({
+          path: candidatePath,
+          title: 'Live duplicate-path occupant',
+        })
+
+        const duplicate = await duplicateDocument(lifecycleContext(), {
+          sourceDocumentId: source.document.document_id,
+        })
+
+        expect(duplicate.pathRetried).toBe(true)
+        expect(duplicate.newPath).toMatch(new RegExp(`^${candidatePath}-[0-9a-f]{4}$`))
+        const found = await adapter.queries.documents.getDocumentByPath({
+          collection_id: testCollection.id,
+          path: duplicate.newPath,
+          reconstruct: false,
+        })
+        expect(found?.document_id).toBe(duplicate.documentId)
+      })
+
+      it('restores every tombstoned version without changing status or path', async () => {
+        const path = uniquePath('restore')
+        const first = await createDocument({ path, status: 'draft', title: 'Draft' })
+        const documentId = first.document.document_id
+        await createDocument({
+          documentId,
+          path,
+          status: 'published',
+          title: 'Published',
+          previousVersionId: first.document.id,
+        })
+        await adapter.commands.documents.softDeleteDocument({ document_id: documentId })
+
+        await expect(restoreSoftDeletedDocument(documentId)).resolves.toBe(2)
+
+        const history = await getHistory(documentId)
+        expect(history.documents).toHaveLength(2)
+        expect(history.documents.map((version) => version.status).sort()).toEqual([
+          'draft',
+          'published',
+        ])
+        expect(history.documents.every((version) => version.path === path)).toBe(true)
+
+        const found = await adapter.queries.documents.getDocumentByPath({
+          collection_id: testCollection.id,
+          path,
+          reconstruct: false,
+        })
+        expect(found?.document_id).toBe(documentId)
+      })
+
+      it('rolls back restoration when a live document has reclaimed the path', async () => {
+        const path = uniquePath('restore-conflict')
+        const deleted = await createDocument({ path, title: 'Deleted occupant' })
+        const deletedDocumentId = deleted.document.document_id
+        await adapter.commands.documents.softDeleteDocument({
+          document_id: deletedDocumentId,
+        })
+        const live = await createDocument({ path, title: 'Live occupant' })
+
+        let restoreError: unknown
+        try {
+          await restoreSoftDeletedDocument(deletedDocumentId)
+        } catch (error) {
+          restoreError = error
+        }
+        expect(restoreError, 'expected unique-constraint violation on path reclaim').toBeTruthy()
+        if (adapter.classifyError == null) {
+          throw new Error('expected adapter to implement classifyError for this suite')
+        }
+        const classification = adapter.classifyError(restoreError)
+        expect(classification.code).toBe('DB_UNIQUE_VIOLATION')
+        expect(classification.constraint ?? '').toContain('document_paths_collection_locale_path')
+
+        const deletedHistory = await getHistory(deletedDocumentId)
+        expect(deletedHistory.documents).toHaveLength(1)
+        const found = await adapter.queries.documents.getDocumentByPath({
+          collection_id: testCollection.id,
+          path,
+          reconstruct: false,
+        })
+        expect(found?.document_id).toBe(live.document.document_id)
+
+        await adapter.commands.documents.softDeleteDocument({
+          document_id: live.document.document_id,
+        })
+        await expect(restoreSoftDeletedDocument(deletedDocumentId)).resolves.toBe(1)
+        const restored = await adapter.queries.documents.getDocumentByPath({
+          collection_id: testCollection.id,
+          path,
+          reconstruct: false,
+        })
+        expect(restored?.document_id).toBe(deletedDocumentId)
+      })
+
+      it('returns zero when restoring a missing or already-live document', async () => {
+        await expect(restoreSoftDeletedDocument(crypto.randomUUID())).resolves.toBe(0)
+
+        const live = await createDocument({ path: uniquePath('already-live') })
+        await expect(restoreSoftDeletedDocument(live.document.document_id)).resolves.toBe(0)
+      })
+
+      it('rejects a new version for an existing fully deleted document', async () => {
+        const path = uniquePath('deleted-version-guard')
+        const first = await createDocument({ path, title: 'Original' })
+        const documentId = first.document.document_id
+        await adapter.commands.documents.softDeleteDocument({ document_id: documentId })
+
+        await expect(
+          createDocument({
+            documentId,
+            path,
+            title: 'Must not become live',
+            previousVersionId: first.document.id,
+          })
+        ).rejects.toBeTruthy()
+
+        const history = await getHistory(documentId)
+        expect(history.documents).toHaveLength(1)
+        expect(history.documents[0]?.document_id).toBe(documentId)
+      })
+
+      it('serializes an existing-document write with soft delete', async () => {
+        const path = uniquePath('delete-write-race')
+        const first = await createDocument({ path, title: 'Original' })
+        const documentId = first.document.document_id
+
+        const [write, deletion] = await Promise.allSettled([
+          createDocument({
+            documentId,
+            path,
+            title: 'Concurrent update',
+            previousVersionId: first.document.id,
+          }),
+          adapter.commands.documents.softDeleteDocument({ document_id: documentId }),
+        ])
+
+        expect(deletion.status).toBe('fulfilled')
+        expect(['fulfilled', 'rejected']).toContain(write.status)
+        const deleted = await adapter.queries.documents.getDocumentByPath({
+          collection_id: testCollection.id,
+          path,
+          reconstruct: false,
+        })
+        expect(deleted).toBe(null)
+
+        const replacement = await createDocument({ path, title: 'Replacement' })
+        const found = await adapter.queries.documents.getDocumentByPath({
+          collection_id: testCollection.id,
+          path,
+          reconstruct: false,
+        })
+        expect(found?.document_id).toBe(replacement.document.document_id)
+      })
+
+      it('allows exactly one winner when restore races with path reuse', async () => {
+        const path = uniquePath('restore-create-race')
+        const deleted = await createDocument({ path, title: 'Deleted contender' })
+        const deletedDocumentId = deleted.document.document_id
+        await adapter.commands.documents.softDeleteDocument({
+          document_id: deletedDocumentId,
+        })
+
+        const [restoration, creation] = await Promise.allSettled([
+          restoreSoftDeletedDocument(deletedDocumentId),
+          createDocument({ path, title: 'New contender' }),
+        ])
+        const fulfilledCount = [restoration, creation].filter(
+          (result) => result.status === 'fulfilled'
+        ).length
+        expect(fulfilledCount).toBe(1)
+
+        const found = await adapter.queries.documents.getDocumentByPath({
+          collection_id: testCollection.id,
+          path,
+          reconstruct: false,
+        })
+        if (restoration.status === 'fulfilled') {
+          expect(restoration.value).toBe(1)
+          expect(found?.document_id).toBe(deletedDocumentId)
+        } else if (creation.status === 'fulfilled') {
+          expect(found?.document_id).toBe(creation.value.document.document_id)
+        }
+      })
+
+      it('rolls back soft delete and path release with an outer transaction', async () => {
+        // The ambient adapter transaction must encompass both the path
+        // tombstone and every version tombstone written by soft delete.
+        const path = uniquePath('delete-rollback')
+        const live = await createDocument({ path })
+        const documentId = live.document.document_id
+
+        await expect(
+          adapter.withTransaction(async () => {
+            await adapter.commands.documents.softDeleteDocument({ document_id: documentId })
+            throw new Error('roll back soft delete')
+          })
+        ).rejects.toThrow('roll back soft delete')
+
+        const history = await getHistory(documentId)
+        expect(history.documents).toHaveLength(1)
+        const found = await adapter.queries.documents.getDocumentByPath({
+          collection_id: testCollection.id,
+          path,
+          reconstruct: false,
+        })
+        expect(found?.document_id).toBe(documentId)
+      })
+
+      it('rolls back restoration and path reclaim with an outer transaction', async () => {
+        const path = uniquePath('restore-rollback')
+        const deleted = await createDocument({ path })
+        const documentId = deleted.document.document_id
+        await adapter.commands.documents.softDeleteDocument({ document_id: documentId })
+
+        await expect(
+          adapter.withTransaction(async () => {
+            await restoreSoftDeletedDocument(documentId)
+            throw new Error('roll back restoration')
+          })
+        ).rejects.toThrow('roll back restoration')
+
+        const history = await getHistory(documentId)
+        expect(history.documents).toHaveLength(1)
+        const found = await adapter.queries.documents.getDocumentByPath({
+          collection_id: testCollection.id,
+          path,
+          reconstruct: false,
+        })
+        expect(found).toBe(null)
+
+        await expect(restoreSoftDeletedDocument(documentId)).resolves.toBe(1)
+        const restored = await adapter.queries.documents.getDocumentByPath({
+          collection_id: testCollection.id,
+          path,
+          reconstruct: false,
+        })
+        expect(restored?.document_id).toBe(documentId)
+      })
     })
 
     it('upserts in place when the same document re-saves the same path', async () => {

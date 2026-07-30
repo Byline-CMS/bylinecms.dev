@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { exitImportDocsWithFailure } from './import-docs-cli.js'
 import {
   buildCanonicalSourcePathMap,
   type ImportedTreeDocument,
@@ -117,6 +116,28 @@ describe('import docs tree placement', () => {
     expect(groups.get('b')).toEqual(['child'])
   })
 
+  it('places the new IDs returned when deleted paths are re-imported', async () => {
+    const { handle, placeTreeNode } = createTreeHandle()
+    const reimported: ImportedTreeDocument[] = [
+      { filePath: '/docs/index.md', documentId: 'new-root', path: '/root' },
+      { filePath: '/docs/guide.md', documentId: 'new-guide', path: '/guide' },
+    ]
+
+    await placeTreeFromDirectories(handle, reimported, quietLogger)
+
+    expect(placeTreeNode).toHaveBeenCalledWith('new-root', {
+      parentDocumentId: null,
+      beforeDocumentId: null,
+    })
+    expect(placeTreeNode).toHaveBeenCalledWith('new-guide', {
+      parentDocumentId: 'new-root',
+      beforeDocumentId: null,
+    })
+    expect(new Set(placeTreeNode.mock.calls.map(([documentId]) => documentId))).toEqual(
+      new Set(['new-root', 'new-guide'])
+    )
+  })
+
   it('resolves index.markdown parents at every level', async () => {
     const { handle, groups } = createTreeHandle()
     const longExtensionDocuments: ImportedTreeDocument[] = [
@@ -144,16 +165,5 @@ describe('import docs tree placement', () => {
     )
     expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('stale placement'))
     expect(logger.log).toHaveBeenLastCalledWith(expect.stringContaining('1 failed'))
-  })
-
-  it('exits the CLI unsuccessfully when tree placement failure reaches the fatal handler', () => {
-    const error = new AggregateError([new Error('stale placement')], 'tree placement failed')
-    const io = { error: vi.fn(), exit: vi.fn() }
-
-    exitImportDocsWithFailure(error, io)
-
-    expect(io.error).toHaveBeenNthCalledWith(1, 'import-docs: fatal error')
-    expect(io.error).toHaveBeenNthCalledWith(2, error)
-    expect(io.exit).toHaveBeenCalledWith(1)
   })
 })

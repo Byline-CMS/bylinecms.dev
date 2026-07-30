@@ -12,7 +12,7 @@
 // pnpm tsx byline/scripts/import-docs.ts ../../docs/**/*.md --verbose
 // pnpm tsx byline/scripts/import-docs.ts '../../docs/*.md' --dry-run --verbose
 // pnpm tsx byline/scripts/import-docs.ts ../../docs/**/*.md
-// pnpm tsx byline/scripts/import-docs.ts ../../docs/**/*.md --force --tree
+// pnpm tsx byline/scripts/import-docs.ts ../../docs/**/*.md --tree
 //
 // Run tests...
 //
@@ -37,26 +37,14 @@
  *      path, then convert mdast → Lexical SerializedEditorState — images
  *      become full-width `inline-image` nodes (see lib/media-ingest.ts).
  *   5. Resolve `featureImage` (a `media` path) to a relation envelope.
- *   6. `findByPath` to decide create vs update. On update, status and
- *      publishedOn are preserved — editorial state in Byline wins.
+ *   6. `findByPath` to decide create vs update. A live occupant is updated;
+ *      when none exists, a new logical document is created even if deleted
+ *      tombstones retain the path. On update, status and publishedOn are
+ *      preserved — editorial state in Byline wins.
  *
  * Flags:
  *   --dry-run     Parse + log, no DB writes.
  *   --verbose     Print warnings for dropped/unsupported nodes.
- *   --force       Overwrite a soft-deleted document occupying the target path,
- *                 in the `docs` collection and in `media` (see lib/media-ingest.ts
- *                 — a deleted media document reserves its path the same way).
- *                 A Byline delete is soft (`is_deleted = true` on every version)
- *                 but leaves the `byline_document_paths` row in place, so the
- *                 path stays reserved while `findByPath` (which reads the
- *                 deleted-filtering `current_documents` view) returns nothing —
- *                 a re-import then hits `ERR_PATH_CONFLICT` on create. With
- *                 `--force`, when no live document is found at the path, the
- *                 importer stages only its latest version as non-published,
- *                 runs the normal update + requested status flow, then
- *                 re-tombstones the staging row. Any failure compensates by
- *                 re-tombstoning every version. The document id, path, version
- *                 rows, and audit history remain in place. No-op for new paths.
  *   --tree        After importing, build the document tree from the source
  *                 directory layout (the "folder + index.md" convention). A flat
  *                 `D/leaf.md` nests under `D/index.md`; a `D/index.md` (a node
@@ -79,19 +67,14 @@ import { resolve } from 'node:path'
 
 import { createSuperAdminContext, type RequestContext } from '@byline/auth'
 import { type CollectionHandle, createBylineClient } from '@byline/client'
-import {
-  getBylineCore,
-  getCollectionDefinition,
-  getServerConfig,
-  normalizeCollectionHook,
-  resolveHooks,
-  slugify,
-} from '@byline/core'
-import type { PgAdapter } from '@byline/db-postgres'
+import { getCollectionDefinition, getServerConfig, slugify } from '@byline/core'
 
 import { type DocFrontmatter, parseDocFile } from './lib/frontmatter.js'
-import { exitImportDocsWithFailure } from './lib/import-docs-cli.js'
-import { replaceDeletedDocumentAtPath } from './lib/import-docs-force.js'
+import {
+  exitImportDocsWithFailure,
+  type ImportDocsFlags,
+  parseImportDocsFlags,
+} from './lib/import-docs-cli.js'
 import { buildCanonicalSourcePathMap, placeTreeFromDirectories } from './lib/import-docs-tree.js'
 import { type MdastToLexicalWarning, mdastToLexical } from './lib/mdast-to-lexical.js'
 import { ingestImages, type MediaIngestWarning } from './lib/media-ingest.js'
@@ -103,30 +86,6 @@ const DOCS_COLLECTION = 'docs'
 const MEDIA_COLLECTION = 'media'
 const DOCS_URL_PREFIX = '/docs'
 const DEFAULT_IMPORT_STATUS = 'published'
-
-interface Flags {
-  dryRun: boolean
-  verbose: boolean
-  tree: boolean
-  force: boolean
-  patterns: string[]
-}
-
-function parseFlags(argv: string[]): Flags {
-  const flags: Flags = { dryRun: false, verbose: false, tree: false, force: false, patterns: [] }
-  for (const arg of argv) {
-    if (arg === '--dry-run') flags.dryRun = true
-    else if (arg === '--verbose') flags.verbose = true
-    else if (arg === '--tree') flags.tree = true
-    else if (arg === '--force') flags.force = true
-    else if (arg.startsWith('--')) throw new Error(`unknown flag: ${arg}`)
-    else flags.patterns.push(arg)
-  }
-  if (flags.patterns.length === 0) {
-    throw new Error('import-docs: provide at least one file path or glob (e.g. "docs/**/*.md")')
-  }
-  return flags
-}
 
 async function expandPatterns(patterns: string[]): Promise<string[]> {
   const out = new Set<string>()
@@ -273,9 +232,8 @@ async function processFile(
   filePath: string,
   client: ReturnType<typeof createBylineClient>,
   handle: CollectionHandle,
-  flags: Flags,
+  flags: ImportDocsFlags,
   pathMap: Map<string, string>,
-  adapter: PgAdapter,
   requestContext: RequestContext
 ): Promise<ProcessResult> {
   const source = readFileSync(filePath, 'utf8')
@@ -304,14 +262,11 @@ async function processFile(
     client,
     requestContext,
     dryRun: flags.dryRun,
-    force: flags.force,
-    pool: adapter.pool,
   })
   logMediaWarnings(filePath, media.warnings)
-  if (media.created > 0 || media.reused > 0 || media.revived > 0) {
+  if (media.created > 0 || media.reused > 0) {
     console.log(
-      `  - media: ${media.created} ingested, ${media.reused} reused` +
-        `${media.revived > 0 ? `, ${media.revived} reclaimed` : ''} from '${MEDIA_COLLECTION}'`
+      `  - media: ${media.created} ingested, ${media.reused} reused from '${MEDIA_COLLECTION}'`
     )
   }
 
@@ -374,40 +329,6 @@ async function processFile(
     return { filePath, action: 'updated', documentId: result.documentId, path: docPath }
   }
 
-  // --force: no live document at this path, but the path may still be reserved
-  // by a soft-deleted document. Stage only its latest version as non-published,
-  // overwrite it through the normal lifecycle, then re-tombstone the staging
-  // row. Any failure re-tombstones every version, including a replacement that
-  // committed before an after-hook reported failure.
-  if (!existing && flags.force) {
-    const collectionId = await client.resolveCollectionId(DOCS_COLLECTION)
-    const recovered = await replaceDeletedDocumentAtPath(
-      adapter.pool,
-      { collectionId, locale, path: docPath },
-      async (documentId) => {
-        console.log(`  ↻ staged   soft-deleted doc at '${docPath}' (locale=${locale})`)
-        const staged = await handle.findByPath(docPath, {
-          locale,
-          status: 'any',
-          _bypassBeforeRead: true,
-        })
-        if (staged == null || staged.id !== documentId) {
-          throw new Error(`staged soft-deleted document could not be re-read at '${docPath}'`)
-        }
-        return updateExisting(staged)
-      },
-      async (documentId) => {
-        const hooks = await resolveHooks(definition)
-        for (const hook of normalizeCollectionHook(hooks?.afterDelete)) {
-          await hook({ documentId, collectionPath: DOCS_COLLECTION, path: docPath })
-        }
-      }
-    )
-    if (recovered != null) {
-      return recovered.value
-    }
-  }
-
   if (existing) {
     return updateExisting(existing)
   }
@@ -424,7 +345,7 @@ async function processFile(
 }
 
 async function run(): Promise<void> {
-  const flags = parseFlags(process.argv.slice(2))
+  const flags = parseImportDocsFlags(process.argv.slice(2))
   const files = await expandPatterns(flags.patterns)
   if (files.length === 0) {
     console.error('import-docs: no .md files matched the provided patterns.')
@@ -437,10 +358,6 @@ async function run(): Promise<void> {
   const requestContext = createSuperAdminContext({ id: 'import-docs-script' })
   const client = createBylineClient({ config, requestContext })
   const handle = client.collection(DOCS_COLLECTION)
-  // The configured Postgres adapter — its raw pool backs `--force`'s
-  // soft-delete revive (server.config side-effect import has already run
-  // initBylineCore, so the core is resolvable here).
-  const adapter = getBylineCore().db as PgAdapter
 
   // Pre-pass: map each source file to the path its imported doc will
   // live at, so pass 2 can rewrite cross-doc markdown links.
@@ -454,15 +371,7 @@ async function run(): Promise<void> {
 
   for (const file of files) {
     try {
-      const result = await processFile(
-        file,
-        client,
-        handle,
-        flags,
-        pathMap,
-        adapter,
-        requestContext
-      )
+      const result = await processFile(file, client, handle, flags, pathMap, requestContext)
       results.push(result)
       if (result.action === 'created') created += 1
       else if (result.action === 'updated') updated += 1

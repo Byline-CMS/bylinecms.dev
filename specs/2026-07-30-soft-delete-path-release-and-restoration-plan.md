@@ -136,6 +136,11 @@ Consequently:
 - `alive` cannot be set independently from `deleted_at`;
 - the original path remains available to a future deleted-document administration surface.
 
+The existing `unique_document_paths_document_locale` constraint remains unchanged on
+`(document_id, locale)`. Soft delete changes liveness on the document's existing path rows rather
+than inserting historical path-row copies, so the one-row-per-document-locale invariant still
+holds independently from live namespace ownership.
+
 Do not put `deleted_at` itself in the unique constraint. A bulk operation can assign the same
 transaction timestamp to several rows, causing deleted rows with the same path to collide.
 
@@ -271,7 +276,8 @@ and media-upload documentation must call out this tradeoff.
 
 ## Task 0: Prove the generated-column model before implementation
 
-**Status:** Blocking preflight. Complete this before Task 1.
+**Status:** Complete on 2026-07-30. The generated-column model passed on both supported
+databases; use the primary design in Tasks 1–10.
 
 The generated `alive` column is load-bearing. Type-level support and Drizzle's in-memory column
 configuration are not sufficient evidence that the pinned toolchain emits and migrates the
@@ -279,24 +285,60 @@ required schema on both databases.
 
 ### Probe
 
-- [ ] Create disposable PostgreSQL and MySQL probe schemas using the repository's pinned
+- [x] Create disposable PostgreSQL and MySQL probe schemas using the repository's pinned
   `drizzle-orm` 0.45.2 and `drizzle-kit` 0.31.10.
-- [ ] Declare the proposed `deleted_at`, generated stored `alive`, and four-column unique
+- [x] Declare the proposed `deleted_at`, generated stored `alive`, and four-column unique
   constraint through the same builders intended for the production schemas.
-- [ ] Run each package's real Drizzle generation path.
-- [ ] Inspect the emitted SQL and snapshot metadata. Require:
+- [x] Run each package's real Drizzle generation path.
+- [x] Inspect the emitted SQL and snapshot metadata. Require:
   - a stored generated boolean column on both dialects;
   - `CASE WHEN deleted_at IS NULL THEN true ELSE NULL END` or an exactly equivalent expression;
   - the named unique constraint/index over `(collection_id, locale, path, alive)`;
   - no insert/update requirement for callers to supply `alive`.
-- [ ] Apply each disposable migration to a real supported database.
-- [ ] Prove with SQL-level assertions that:
+- [x] Apply each disposable migration to a real supported database.
+- [x] Prove with SQL-level assertions that:
   - two live rows at one `(collection, locale, path)` conflict;
   - multiple rows with the same key and `deleted_at IS NOT NULL` coexist;
   - clearing one tombstone's `deleted_at` conflicts when a live occupant exists;
   - clearing it succeeds after the live occupant is deleted.
-- [ ] Record the generated SQL result in this spec or the implementation handoff so the assumption
+- [x] Record the generated SQL result in this spec or the implementation handoff so the assumption
   is not repeatedly re-investigated.
+
+### Result
+
+The probe used the pinned `drizzle-orm` 0.45.2 and `drizzle-kit` 0.31.10 packages installed in
+each adapter workspace. Drizzle generated these definitions:
+
+```sql
+-- PostgreSQL
+"deleted_at" timestamp (6) with time zone,
+"alive" boolean GENERATED ALWAYS AS (
+  CASE WHEN "deleted_at" IS NULL THEN true ELSE NULL END
+) STORED,
+CONSTRAINT "idx_document_paths_collection_locale_path"
+  UNIQUE("collection_id","locale","path","alive")
+```
+
+```sql
+-- MySQL
+`deleted_at` datetime(6),
+`alive` boolean GENERATED ALWAYS AS (
+  CASE WHEN `deleted_at` IS NULL THEN true ELSE NULL END
+) STORED,
+CONSTRAINT `idx_document_paths_collection_locale_path`
+  UNIQUE(`collection_id`,`locale`,`path`,`alive`)
+```
+
+Both generated snapshots record `alive` as nullable, generated, and stored, and record the exact
+four-column constraint name and order. Ordinary inserts omitted `alive`.
+
+The migrations were applied to disposable tables on PostgreSQL 18.4, local-development MySQL
+9.7.1, and the CI-pinned `mysql:8.0` image, which resolved to MySQL 8.0.46 during the probe. All
+three server runs passed the four SQL-level transitions: a second live claimant failed, multiple
+deleted claimants coexisted, restoration over a live claimant failed, and restoration succeeded
+after the live claimant was deleted. Catalog inspection confirmed `ALWAYS ... STORED` on
+PostgreSQL and `STORED GENERATED` on both MySQL versions. The disposable tables, PostgreSQL probe
+schema, and MySQL 8.0 container were removed after verification.
 
 ### Fallback if either dialect fails
 
@@ -311,8 +353,13 @@ Stop before Task 1 and revise this plan to use a plain nullable boolean `alive`:
 
 The fallback preserves portable uniqueness but gives up the database-derived invariant. Task 4,
 the migration backfill, and invariant diagnostics must be rewritten explicitly before proceeding.
+The completed probe did not trigger this fallback.
 
 ## Task 1: Pin the behavior with shared failing tests
+
+**Status:** Complete as test definition on 2026-07-30. These checkboxes record that the contract
+coverage exists; implementation-dependent assertions remain intentionally red until the later
+tasks make them green.
 
 **Files**
 
@@ -324,19 +371,22 @@ the migration backfill, and invariant diagnostics must be rewritten explicitly b
 
 ### Tests
 
-- [ ] A live duplicate still violates `idx_document_paths_collection_locale_path`.
-- [ ] Soft delete releases a path for a new live document.
-- [ ] Two or more deleted documents retain the same path.
-- [ ] `getDocumentByPath` returns the live document when deleted documents retain the same path.
-- [ ] Duplicate-to-path succeeds without suffixing when only deleted rows retain the target path.
-- [ ] Duplicate-to-path retains its suffix/retry behavior when a live row owns the target path.
-- [ ] Un-delete restores all version tombstones and the original path.
-- [ ] Un-delete conflict rolls back path and version liveness.
-- [ ] Missing/already-live un-delete is idempotent.
-- [ ] Soft-delete and un-delete transaction rollback leave both tables synchronized.
-- [ ] Tree locking behavior remains serialized.
-- [ ] Soft delete does not call `storage.delete()` for sources or variants.
-- [ ] `afterDelete` and `afterTreeChange` failure reporting remains unchanged apart from removal of
+- [x] A live duplicate still violates `idx_document_paths_collection_locale_path`.
+- [x] Soft delete releases a path for a new live document.
+- [x] Two or more deleted documents retain the same path.
+- [x] `getDocumentByPath` returns the live document when deleted documents retain the same path.
+- [x] Duplicate-to-path succeeds without suffixing when only deleted rows retain the target path.
+- [x] Duplicate-to-path retains its suffix/retry behavior when a live row owns the target path.
+- [x] Un-delete restores all version tombstones and the original path.
+- [x] Un-delete conflict rolls back path and version liveness.
+- [x] Missing/already-live un-delete is idempotent.
+- [x] Soft-delete and un-delete transaction rollback leave both tables synchronized.
+- [x] `createDocumentVersion({ documentId })` refuses to add a live version to a fully deleted
+  existing document; a concurrent version-write/soft-delete race leaves version and path liveness
+  synchronized.
+- [x] Tree locking behavior remains serialized.
+- [x] Soft delete does not call `storage.delete()` for sources or variants.
+- [x] `afterDelete` and `afterTreeChange` failure reporting remains unchanged apart from removal of
   `storageCleanup`.
 
 The shared suite should exercise public adapter contracts. Keep dialect-only tests only for
@@ -344,40 +394,84 @@ generated DDL, lock behavior, driver classification, and migration backfill.
 
 ## Task 2: Add `deleted_at`, generated `alive`, and the live unique constraint
 
+**Status:** Complete on 2026-07-30.
+
 **Files**
 
 - Modify: `packages/db-postgres/src/database/schema/index.ts`
 - Modify: `packages/db-mysql/src/database/schema/index.ts`
 - Modify: schema pin tests in both adapters
-- Generate: PostgreSQL and MySQL Drizzle migrations and snapshots
-- Synchronize: `packages/cli/src/templates/migrations/postgres`
-- Synchronize: `packages/cli/src/templates/migrations/mysql`
+- Generate for development: PostgreSQL and MySQL Drizzle migrations and snapshots under each
+  adapter's `src/database/migrations/`
+- Create: `packages/db-postgres/sql/0006_soft_delete_path_liveness.sql`
+- Create: `packages/db-mysql/sql/0001_soft_delete_path_liveness.sql`
+- Leave unchanged in this feature: `packages/cli/src/templates/migrations/postgres` and
+  `packages/cli/src/templates/migrations/mysql`
 
 ### Implementation
 
-- [ ] Add nullable `deleted_at` to `documentPaths`.
-- [ ] Add generated stored nullable boolean `alive`.
-- [ ] Rebuild `idx_document_paths_collection_locale_path` over
+- [x] Add nullable `deleted_at` to `documentPaths`.
+- [x] Add generated stored nullable boolean `alive`.
+- [x] Rebuild `idx_document_paths_collection_locale_path` over
   `(collection_id, locale, path, alive)` without changing its name.
-- [ ] Generate migrations with the package-local Drizzle commands.
-- [ ] Inspect the generated SQL and snapshots; do not format migration metadata manually.
-- [ ] Backfill `deleted_at` for a path row only when no non-deleted version exists for its
-  document.
-- [ ] Use the latest version `updated_at` as the best available historical deletion timestamp,
-  with a documented fallback for malformed/versionless legacy data.
-- [ ] Treat a partially revived legacy document with any non-deleted version as live.
-- [ ] Verify the expression is a stored generated column in both real databases.
-- [ ] Preserve case/accent-sensitive MySQL path behavior and index length compatibility.
-- [ ] Keep CLI template migrations byte-synchronized with adapter migrations.
+- [x] Keep `unique_document_paths_document_locale` unchanged on `(document_id, locale)`; deletion
+  changes the existing row's liveness and does not create path-history rows.
+- [x] Generate development migrations with the package-local Drizzle commands.
+- [x] Inspect the generated SQL and snapshots; do not format migration metadata manually. This
+  Drizzle stream supports adapter development and is not the upgrade path for deployed databases.
+- [x] Create one final, numbered, hand-written upgrade script per provider under
+  `packages/db-postgres/sql/` and `packages/db-mysql/sql/`. Base their DDL on the inspected
+  Drizzle output, include the data backfill, and follow each directory's idempotency and
+  transactional conventions.
+- [x] Backfill `deleted_at` for a path row only when its document has at least one version and no
+  non-deleted version exists.
+- [x] Use the latest version `updated_at` as the best available historical deletion timestamp,
+  with a documented fallback for malformed legacy rows that have versions. Keep versionless
+  bootstrap documents live because no deletion occurred.
+- [x] Treat a partially revived legacy document with any non-deleted version as live.
+- [x] Verify the expression is a stored generated column in both real databases.
+- [x] Preserve case/accent-sensitive MySQL path behavior and index length compatibility.
+- [x] Test both native upgrade scripts against already-provisioned databases and prove they are
+  safely rerunnable.
+- [x] Do not copy the development Drizzle migrations into the CLI during this feature. Before
+  release, squash each adapter's Drizzle stream to its single fresh-install baseline, then run the
+  CLI baseline synchronization and drift gates.
 
 ### Migration-order check
 
-The migration must never leave a committed state in which deleted rows are marked live under the
-new uniqueness contract. PostgreSQL can run the data and DDL changes transactionally. MySQL DDL
-may auto-commit, so inspect and order its migration to remain safe under interruption; document
-the operational migration expectation if a fully transactional sequence is impossible.
+Neither the development Drizzle migration nor the native upgrade script may leave a completed
+state in which deleted rows are marked live under the new uniqueness contract. PostgreSQL can run
+the data and DDL changes transactionally. MySQL DDL auto-commits, so order and guard its native
+script to be safely rerunnable after interruption, and document any required operator inspection
+when a fully atomic sequence is impossible.
+
+### Result
+
+The development migrations and native upgrade scripts were applied to isolated databases created
+from each adapter's existing Drizzle baseline on PostgreSQL 18.4, MySQL 9.7.1, and the CI-pinned
+MySQL 8.0 image, which resolved to 8.0.46. Fixtures covered a fully deleted document, a partially
+revived document, and a versionless bootstrap document. Both migration paths assigned the fully
+deleted path the latest version timestamp and kept the partially revived and versionless paths
+live.
+
+Catalog inspection confirmed PostgreSQL `attgenerated = 's'` and MySQL `STORED GENERATED`.
+The live key retained its name and exact `(collection_id, locale, path, alive)` order, while
+`unique_document_paths_document_locale` remained `(document_id, locale)`. A new live document
+claimed a deleted occupant's path, a second live claimant remained blocked, and MySQL admitted
+case- and accent-distinct paths under the rebuilt key. Both native scripts completed successfully
+on a second run; the MySQL development migration uses one atomic `ALTER TABLE` for the index swap
+because InnoDB may use the old unique key to support the collection foreign key. Both native
+scripts reject drift in either direction between path and version liveness, and MySQL returns a
+nonzero exit status when any post-condition fails.
+
+The CLI template directories remained unchanged. Their baselines will be synchronized only after
+the adapter Drizzle streams are squashed for release.
 
 ## Task 3: Make live-path reads explicit
+
+**Status:** Complete as read-path implementation on 2026-07-30. The shared soft-delete
+end-to-end assertions remain intentionally red until Task 4 synchronizes path and version
+liveness.
 
 **Files**
 
@@ -386,20 +480,39 @@ the operational migration expectation if a fully transactional sequence is impos
 - Modify: related filter/relation path compilers if they resolve a document ID from an unscoped
   path row
 - Modify: shared document-path conformance tests
+- Create: focused PostgreSQL/MySQL live-path query integration tests
 
 ### Implementation
 
-- [ ] Add `alive = true` to every path-to-document lookup that addresses the live namespace.
-- [ ] Preserve the determinism invariant: the unique constraint supplies the within-locale
+- [x] Add `alive = true` to every path-to-document lookup that addresses the live namespace.
+- [x] Preserve the determinism invariant: the unique constraint supplies the within-locale
   singleton; locale-chain ordering supplies cross-locale priority. Do not add a row-ID tiebreaker
   that masks a weakened uniqueness constraint.
-- [ ] Do not filter `alive` from path projection by a known document ID; deleted-document
+- [x] Do not filter `alive` from path projection by a known document ID; deleted-document
   administration must still be able to display retained paths.
-- [ ] Audit relation filters and locale fallback queries for raw path-row lookups.
-- [ ] Prove locale priority remains deterministic when deleted and live rows share a path.
-- [ ] Ensure normal live reads never expose `deleted_at` or `alive` as document fields.
+- [x] Audit relation filters and locale fallback queries for raw path-row lookups.
+- [x] Prove locale priority remains deterministic when deleted and live rows share a path.
+- [x] Ensure normal live reads never expose `deleted_at` or `alive` as document fields.
+
+### Result
+
+Both adapters now apply `alive = true` in their single live-namespace resolver,
+`resolveDocumentIdByPath`. The locale-chain ordering remains the only cross-locale priority rule;
+no row-ID tiebreaker was added. `pathProjection` remains intentionally unfiltered because it
+projects a retained path for an already-known document identity, including history and nested
+relation-filter contexts. The shared conformance suite now pins the case where a deleted row in
+the requested locale must be skipped before a live default-locale fallback is selected, and
+asserts that live document envelopes expose neither liveness column.
+
+Focused adapter integration tests established the read contract independently from Task 4 by
+constructing synchronized path/version liveness directly. Task 4 converted those fixtures to
+exercise the production soft-delete command while retaining the same assertions: the resolver
+skips a deleted requested-locale row, falls back to the live default-locale row, and still projects
+the deleted row's retained path when history is addressed by known document identity.
 
 ## Task 4: Synchronize soft delete and retain media
+
+**Status:** Complete on 2026-07-30.
 
 **Files**
 
@@ -407,28 +520,56 @@ the operational migration expectation if a fully transactional sequence is impos
 - Modify: `packages/db-mysql/src/modules/storage/storage-commands.ts`
 - Modify: `packages/core/src/services/document-lifecycle/delete.ts`
 - Modify: `packages/core/src/services/document-lifecycle/context.ts`
+- Modify: `packages/host-tanstack-start/src/server-fns/collections/delete-outcome.ts`
+- Modify: `packages/host-tanstack-start/src/server-fns/collections/delete-outcome.test.node.ts`
 - Modify: delete lifecycle/storage tests
 - Modify: exported delete result types and downstream tests
 
 ### Storage command
 
-- [ ] Capture one operation timestamp.
-- [ ] Under the existing collection/document locks, set that timestamp on every path row.
-- [ ] Set every version `is_deleted = true` in the same transaction.
-- [ ] Preserve the existing return value unless a richer result is required by a proven caller.
-- [ ] Verify nested/ambient adapter transactions preserve the outer audit/tree atomic boundary.
+- [x] Capture one operation timestamp.
+- [x] Under the existing collection/document locks, set that timestamp on every path row.
+- [x] Set every version `is_deleted = true` in the same transaction.
+- [x] Preserve the existing return value unless a richer result is required by a proven caller.
+- [x] Verify nested/ambient adapter transactions preserve the outer audit/tree atomic boundary.
 
 ### Lifecycle cleanup
 
-- [ ] Stop reconstructing upload fields solely for deletion cleanup.
-- [ ] Remove source and variant path collection.
-- [ ] Remove all soft-delete `storage.delete()` calls.
-- [ ] Remove `storageCleanup` from `DeleteDocumentSideEffectPhase`.
-- [ ] Preserve original-path capture for `beforeDelete`/`afterDelete`.
-- [ ] Preserve search/cache/tree invalidation and allowlisted side-effect reporting.
-- [ ] Update comments that currently describe soft delete as physically removing objects.
+- [x] Stop reconstructing upload fields solely for deletion cleanup.
+- [x] Remove source and variant path collection.
+- [x] Remove all soft-delete `storage.delete()` calls.
+- [x] Remove `storageCleanup` from `DeleteDocumentSideEffectPhase`.
+- [x] Remove `storageCleanup` from downstream result sanitization and allowlists; do not reserve
+  the soft-delete phase name for a future purge operation.
+- [x] Preserve original-path capture for `beforeDelete`/`afterDelete`.
+- [x] Preserve search/cache/tree invalidation and allowlisted side-effect reporting.
+- [x] Update comments that currently describe soft delete as physically removing objects.
+
+### Result
+
+Both adapters now take their existing collection and document locks, capture one timestamp, mark
+every path row inactive with that timestamp, and mark every version deleted with the same
+`updated_at` value in one transaction. The command still returns the number of affected version
+rows. Focused live-database tests cover multiple locale path rows and multiple versions, and prove
+that every touched row shares the operation timestamp. Shared conformance tests prove path release,
+reuse, locale fallback, duplicate-path discrimination, the existing-version-write race, and
+ambient transaction rollback on PostgreSQL and MySQL.
+
+The lifecycle now fetches only the non-reconstructed document envelope needed to preserve the
+original path for delete hooks. It retains upload sources and variants and never calls
+`storage.delete()` during soft delete. `storageCleanup` is no longer an exported delete side-effect
+phase or a host transport allowlist value; an old or malformed occurrence is sanitized to
+`unknown`. `afterDelete` and `afterTreeChange` reporting, audit/tree atomicity, and post-commit
+invalidation behavior remain unchanged.
+
+The focused document-path conformance run is now 17 passed and 6 intentionally failed on each
+adapter. Every remaining failure belongs to Task 5: five require the absent restoration primitive,
+and one requires the fully-deleted existing-document version-write guard coupled to that primitive.
 
 ## Task 5: Add the storage-level un-delete command
+
+**Status:** Complete as a storage primitive on 2026-07-30. No production lifecycle, route, client,
+importer, or administrator caller was added.
 
 **Files**
 
@@ -461,17 +602,25 @@ incompleteness.
 
 ### Implementation
 
-- [ ] Take the same collection then document locks as soft delete.
-- [ ] Return `0` when the document is missing.
-- [ ] Return `0` when any version is already live; do not “repair” a partially live document
+- [x] Take the same collection then document locks as soft delete.
+- [x] Return `0` when the document is missing.
+- [x] Return `0` when any version is already live; do not “repair” a partially live document
   implicitly.
-- [ ] Set every path row `deleted_at = NULL`.
-- [ ] Set every version `is_deleted = false`.
-- [ ] Keep both updates in one adapter transaction.
-- [ ] Preserve every version status and all path values.
-- [ ] Let a path unique violation abort the transaction and flow through adapter classification.
-- [ ] Verify two concurrent restore/create operations have one deterministic winner.
-- [ ] Document that tree placement and search/cache projections are not reconstructed.
+- [x] Make whole-document un-delete the only supported way to add live versions to a fully deleted
+  existing document. Both adapters' `createDocumentVersion({ documentId })` path must reject that
+  state rather than inserting a non-deleted version while leaving its path rows inactive.
+- [x] Preserve the legitimate versionless-document bootstrap case: an existing document row with
+  no versions may still receive its first version.
+- [x] Serialize that existing-document liveness check with soft delete and un-delete at the
+  document lock boundary, and verify the race without introducing collection-wide serialization
+  for ordinary version writes.
+- [x] Set every path row `deleted_at = NULL`.
+- [x] Set every version `is_deleted = false`.
+- [x] Keep both updates in one adapter transaction.
+- [x] Preserve every version status and all path values.
+- [x] Let a path unique violation abort the transaction and flow through adapter classification.
+- [x] Verify two concurrent restore/create operations have one deterministic winner.
+- [x] Document that tree placement and search/cache projections are not reconstructed.
 
 ### Invariant diagnostics
 
@@ -493,7 +642,34 @@ un-delete command.
 Do not make ordinary reads execute expensive invariant checks. Keep them in migration validation,
 tests, and explicit maintenance diagnostics with the legacy distinction above.
 
+### Result
+
+`IDocumentCommands` now requires `restoreSoftDeletedDocument`. Both built-in adapters take the same
+collection then document locks as soft delete, restore only a fully deleted state, reactivate every
+path row before restoring every version, and let the live path unique constraint abort the entire
+transaction when a path has been reclaimed. Missing, versionless, already-live, and legacy
+partially-live documents return `0`. Restoration preserves statuses and path values and
+deliberately does not reconstruct tree placement or search/cache projections.
+
+Existing-document version creation now takes only its target document lock, checks the existing
+version liveness through a one-row aggregate, and rejects a fully deleted document before
+inserting. Documents with no versions remain valid bootstrap targets, and a legacy partial state
+remains writable because at least one version is already live. Restoration uses the same bounded
+liveness query. Its explicit `is_deleted = false` predicate deliberately matches the live views, so
+nullable legacy rows are not treated as live. This document-level lock serializes ordinary writes
+with soft delete and un-delete without adding collection-wide serialization to normal edits.
+
+Focused live-database tests on both adapters verify two path rows and two versions transition
+together with one restoration timestamp, preserve two workflow statuses and both path values, leave
+a deliberately constructed legacy partial state untouched, and permit versionless bootstrap. The
+shared document-path conformance suite is now 23 passed on both PostgreSQL and MySQL, including
+rollback and path-conflict cases; the complete adapter conformance file is 159 passed on each
+provider. The two concurrency cases passed five repeated runs per adapter, and the full workspace
+typecheck completed 36 of 36 tasks successfully.
+
 ## Task 6: Improve operation-specific path conflicts
+
+**Status:** Complete on 2026-07-30.
 
 **Files**
 
@@ -506,19 +682,37 @@ tests, and explicit maintenance diagnostics with the legacy distinction above.
 
 ### Implementation
 
-- [ ] Preserve the `ERR_PATH_CONFLICT` code.
-- [ ] Preserve `path`, `locale`, and constraint details.
-- [ ] Use live-occupant language for create/update.
-- [ ] Thread the same language through both `duplicateDocument` conflict mapping calls without
+- [x] Preserve the `ERR_PATH_CONFLICT` code.
+- [x] Preserve `path`, `locale`, and constraint details.
+- [x] Use live-occupant language for create/update.
+- [x] Thread the same language through both `duplicateDocument` conflict mapping calls without
   changing its live-conflict retry classifier.
-- [ ] Pin the improved first-attempt behavior when a deleted row is the only retained occupant:
+- [x] Pin the improved first-attempt behavior when a deleted row is the only retained occupant:
   duplication keeps the requested path and does not append a short-UUID suffix.
-- [ ] When a core restoration wrapper is introduced, use reclaimed-original-path language.
-- [ ] Do not issue a second occupant query merely to label a deleted row; the unique constraint can
+- [x] Reserve reclaimed-original-path language for a future core restoration wrapper; no wrapper is
+  introduced in this phase.
+- [x] Do not issue a second occupant query merely to label a deleted row; the unique constraint can
   collide only with an active row.
-- [ ] Avoid exposing the occupant document ID through public error details.
+- [x] Avoid exposing the occupant document ID through public error details.
+
+### Result
+
+The path-conflict mapper now requires the attempted operation. Create, full update, patch update,
+direct system-field update, and both duplicate write attempts report that a live document already
+uses the requested path. They continue to expose `ERR_PATH_CONFLICT` with only the requested
+`path`, `locale`, and classified constraint in public details. No occupant lookup or occupant
+document ID was added.
+
+Duplicate retry classification remains code-based and bounded to one suffix attempt. Unit tests now
+feed raw unique violations through both duplicate mapping calls, while the shared live-database
+suite proves that a path retained only by deleted rows stays unsuffixed and a live occupant still
+causes a suffix. The focused lifecycle and mapper tests passed 111 tests, the full core unit suite
+passed 848 tests, and the document-path conformance suite passed 23 tests on each adapter. The full
+workspace typecheck completed 36 of 36 tasks successfully.
 
 ## Task 7: Retire importer `--force` and preserve plain upsert behavior
+
+**Status:** Complete on 2026-07-30.
 
 **Files**
 
@@ -537,27 +731,27 @@ tests, and explicit maintenance diagnostics with the legacy distinction above.
 
 ### Implementation
 
-- [ ] Remove every raw `UPDATE ... SET is_deleted = ...` operation.
-- [ ] Remove the deleted-document `--force` flag, help text, advisory lock, staging snapshots,
+- [x] Remove every raw `UPDATE ... SET is_deleted = ...` operation.
+- [x] Remove the deleted-document `--force` flag, help text, advisory lock, staging snapshots,
   compensation paths, and manual `afterDelete` replay.
-- [ ] Keep the importer as a plain path-based upsert:
+- [x] Keep the importer as a plain path-based upsert:
   - `findByPath` returns a live occupant → update it;
   - no live occupant → create a new logical document;
   - deleted tombstones at the path do not participate.
-- [ ] Do not make the importer call `restoreSoftDeletedDocument`. Identity-preserving un-delete
+- [x] Do not make the importer call `restoreSoftDeletedDocument`. Identity-preserving un-delete
   requires an explicitly selected document ID and belongs to a future trash/restore workflow.
-- [ ] Keep upload compensation for a newly uploaded source whose subsequent document operation
+- [x] Keep upload compensation for a newly uploaded source whose subsequent document operation
   fails; that rollback is unrelated to soft delete.
-- [ ] Remove the media-ingest deleted-occupant revival branch and its “re-run with `--force`”
+- [x] Remove the media-ingest deleted-occupant revival branch and its “re-run with `--force`”
   diagnostic; normal create now succeeds.
-- [ ] Remove `force` and `pool` from the media-ingest options shape and the reclaimed-occupant
+- [x] Remove `force` and `pool` from the media-ingest options shape and the reclaimed-occupant
   counter from its result/summary output. Both are part of the ingest function's signature and its
   user-visible summary, so update the `import-docs.ts` call site and any test asserting the counter.
-- [ ] Drop the now-dead `resolveHooks` / `normalizeCollectionHook` imports in `import-docs.ts`,
+- [x] Drop the now-dead `resolveHooks` / `normalizeCollectionHook` imports in `import-docs.ts`,
   used only by the removed compensation branch's manual `afterDelete` replay.
-- [ ] Pin delete-then-reimport behavior: the new ID is returned and subsequently resolved by path.
-- [ ] Pin `--tree` behavior against the new ID.
-- [ ] Run or extend focused tests proving both media-regeneration scripts continue to operate only
+- [x] Pin delete-then-reimport behavior: the new ID is returned and subsequently resolved by path.
+- [x] Pin `--tree` behavior against the new ID.
+- [x] Run or extend focused tests proving both media-regeneration scripts continue to operate only
   on live documents and retain their existing rollback/collision behavior.
 
 ### Adapter-neutrality outcome
@@ -569,17 +763,41 @@ solely to back the workaround: `import-docs.ts` casts `getBylineCore().db as PgA
 ingest, whose own `pool` option is typed `ImportDocsForceDatabase`. With the workaround gone, none
 of that plumbing has a consumer.
 
-- [ ] Remove the `PgAdapter` cast, the `adapter` parameter threading, and the `adapter.pool`
+- [x] Remove the `PgAdapter` cast, the `adapter` parameter threading, and the `adapter.pool`
   plumbing once `--force` is gone.
-- [ ] Verify no remaining consumer of the `adapter` value exists besides the removed force
+- [x] Verify no remaining consumer of the `adapter` value exists besides the removed force
   plumbing before deleting it.
-- [ ] Confirm the importer's remaining database access is adapter-neutral client API usage.
+- [x] Confirm the importer's remaining database access is adapter-neutral client API usage.
 
 The reference importer is currently the repository's own counter-example to the adapter
 abstraction — it would not run against MySQL. Completing this task makes it dialect-neutral, which
 matters now that MySQL is a supported adapter and further adapters are anticipated. If any residual
 dialect-specific access is discovered during implementation, record it rather than leaving the claim
 overstated.
+
+### Result
+
+The reference importer no longer accepts `--force`; its CLI parser rejects the retired flag as
+unknown. The PostgreSQL-only advisory-lock, staging, version-tombstone mutation, compensation, and
+manual hook-replay helper and tests were removed. Document and media imports now use the ordinary
+client contract: update a live path occupant or create a new logical document when no live occupant
+exists. They do not call the explicit restoration primitive. Media creation still removes a newly
+uploaded source and its variants if the owning document creation fails, without masking the
+original failure.
+
+The `PgAdapter` cast, raw pool, adapter parameter, media `force`/`pool` options, and reclaimed
+counter are gone. The importer's remaining database calls are adapter-neutral client API calls. A
+shared live-database test now proves that delete followed by a plain create returns a different
+document ID, resolves that new ID by path, and retains the deleted history; the 23-case path suite
+passes on both PostgreSQL and MySQL. The tree test proves directory placement consumes the returned
+replacement IDs.
+
+The two media-regeneration implementation files remain byte-for-byte unchanged. Their source
+enumerates through the live client collection view, and the existing focused operation tests still
+cover complete variant sets, fresh-path collision rejection, transactional status preservation,
+and rollback path selection. The focused importer/media tests passed 35 tests, the complete webapp
+node suite passed 134 tests, workspace lint completed 21 of 21 tasks, and workspace typecheck
+completed 36 of 36 tasks.
 
 ### Identity consequence
 
@@ -590,6 +808,8 @@ declare relationships to the imported docs collection, and `--tree` reconstructs
 the directory layout. This is the consistent result of “update when live, create when absent.”
 
 ## Task 8: Record a follow-on variant-retention investigation
+
+**Status:** Complete on 2026-07-30.
 
 Do not implement variant deletion or regeneration in this phase. Open a separate design issue after
 this plan is approved and link it from issue #69.
@@ -611,7 +831,18 @@ The follow-on investigation should cover:
 Until that issue is designed and approved, generated variants have the same retention behavior as
 their source files.
 
+### Result
+
+Issue [#72](https://github.com/Byline-CMS/bylinecms.dev/issues/72) records the reference-safe
+retention and regeneration design as deferred work. It covers variant identity, rule compatibility,
+reproducibility, persisted generation recipes, provider-neutral source reads, shared references,
+legacy variants, cross-system retries, cleanup scope, rollout, and failure testing. Issue #69 links
+to the follow-on and states that ordinary soft delete retains object storage until the design is
+approved. No variant deletion or regeneration behavior changed in this task.
+
 ## Task 9: Documentation and issue alignment
+
+**Status:** Complete on 2026-07-30.
 
 **Files**
 
@@ -620,42 +851,84 @@ their source files.
 - Modify: `docs/03-architecture/03-transactions.md`
 - Modify: `docs/04-collections/06-file-media-uploads.md`
 - Modify: `docs/04-collections/04-document-trees.md`
+- Modify: `docs/05-reading-and-delivery/01-client-sdk.md`
+- Modify: `docs/07-auth-and-security/02-auditability.md`
 - Create: a Changesets release note under `.changeset/`
 - Modify: issue #69 only after this plan is approved
 
 ### Documentation
 
-- [ ] Document `deleted_at`, generated `alive`, and live-only uniqueness.
-- [ ] Document soft-delete/un-delete atomicity and conflict behavior.
-- [ ] State that soft delete retains path values, versions, fields, and source assets.
-- [ ] State that generated variants are retained in this phase.
-- [ ] State prominently that soft delete no longer reclaims object storage and no supported purge
+- [x] Document `deleted_at`, generated `alive`, and live-only uniqueness.
+- [x] Document soft-delete/un-delete atomicity and conflict behavior.
+- [x] State that soft delete retains path values, versions, fields, and source assets.
+- [x] State that generated variants are retained in this phase.
+- [x] State prominently that soft delete no longer reclaims object storage and no supported purge
   operation exists yet.
-- [ ] Add a changeset covering the path, un-delete, and media-retention behavior changes for the
+- [x] Add a changeset covering the path, un-delete, and media-retention behavior changes for the
   fixed Byline package group.
-- [ ] State in the changeset that `IDocumentCommands` gains a required `restoreSoftDeletedDocument`
+- [x] Document the PostgreSQL and MySQL numbered native upgrade scripts for existing
+  installations. Do not direct existing installations to the development Drizzle migration or
+  the future squashed fresh-install baseline.
+- [x] State in the changeset that `IDocumentCommands` gains a required `restoreSoftDeletedDocument`
   member, and tell out-of-tree adapter authors what they must implement. Both built-in adapters ship
   the implementation, so the break is only visible to external `IDbAdapter` implementations.
-- [ ] Update importer documentation/help to describe plain upsert behavior, removal of the
+- [x] State in the changeset that existing-document version writes now take a row-scoped document
+  lock, so concurrent saves to the same document serialize while unrelated documents remain
+  concurrent.
+- [x] Update importer documentation/help to describe plain upsert behavior, removal of the
   deleted-document `--force` workaround, and the new-document-ID consequence after re-importing a
   deleted path.
-- [ ] Distinguish un-delete from historical-version restore.
-- [ ] State that tree placement is not reconstructed.
-- [ ] State that storage-level un-delete does not reconstruct search indexing. The future
+- [x] State that delete-then-reimport changes document identity: existing relations to the deleted
+  document ID do not retarget automatically. The current reference docs import is safe because no
+  current collection relates to the imported `docs` collection; future schemas that add such a
+  relation must account for the identity split.
+- [x] Distinguish un-delete from historical-version restore.
+- [x] State that tree placement is not reconstructed.
+- [x] State that storage-level un-delete does not reconstruct search indexing. The future
   lifecycle API must restore search/cache projections before it becomes a supported editorial
   operation.
-- [ ] Reserve irreversible source cleanup for future purge.
-- [ ] Run `pnpm docs:check` and `git diff --check`.
+- [x] Reserve irreversible source cleanup for future purge.
+- [x] Run `pnpm docs:check` and `git diff --check`.
+
+### Result
+
+The paths, storage, transactions, uploads, document-tree, client SDK, and auditability guides now
+describe live-only path ownership, atomic soft delete and storage-level un-delete, conflict
+rollback, retained history, and the limits of the restoration primitive. Existing installations
+are directed to the numbered PostgreSQL or MySQL native upgrade script rather than the squashed
+fresh-install baseline.
+
+The uploads and storage guides make immutable media retention explicit: versions and duplicated
+documents can share source and generated-variant paths, ordinary soft delete cannot prove exclusive
+ownership and deletes no objects, and Byline has no supported purge or reference-safe reclamation
+operation. Upload compensation remains limited to objects newly written by a failed operation.
+Issue [#72](https://github.com/Byline-CMS/bylinecms.dev/issues/72) owns generation recipes,
+provider-neutral source reads, shared-reference analysis, regeneration, and eventual cleanup.
+
+The importer guide records plain live-path upsert behavior, hard rejection of the retired
+deleted-document `--force` flag, the new-document-ID result of delete followed by re-import, and
+the relation-retargeting limitation. The changeset records the fixed-group release impact,
+`storageCleanup` phase removal, the required `restoreSoftDeletedDocument` adapter command, and
+row-scoped serialization of existing-document saves. Issue
+[#69](https://github.com/Byline-CMS/bylinecms.dev/issues/69) now links PR #71 and issue #72 from an
+implementation-status section in its body.
+
+`pnpm docs:check` passed all 49 documents and 452 links, `pnpm changeset status` accepted the
+release note and resolved the fixed package group to a minor bump, and `git diff --check` passed.
 
 ## Task 10: Verification gates
 
+**Status:** Complete on 2026-07-30.
+
 ### Package-local iteration
 
-- [ ] Run focused core lifecycle unit tests.
-- [ ] Run shared db-conformance against PostgreSQL.
-- [ ] Run shared db-conformance against MySQL.
-- [ ] Run each adapter's schema pin and migration tests.
-- [ ] Exercise migrations against databases containing:
+- [x] Run focused core lifecycle unit tests.
+- [x] Run shared db-conformance against PostgreSQL.
+- [x] Run shared db-conformance against MySQL.
+- [x] Run each adapter's schema pin and development Drizzle migration tests.
+- [x] Apply each adapter's numbered native `sql/` upgrade script twice and verify the second run is
+  a no-op.
+- [x] Exercise both development and native upgrade migrations against databases containing:
   - a live document;
   - a fully deleted document;
   - a legacy partially revived document, which remains active, returns `0` from un-delete, and is
@@ -685,6 +958,48 @@ git diff --check
 
 Check build exit status rather than treating known Lexical `INVALID_ANNOTATION` warnings as
 failures.
+
+### Release-only database gates
+
+Do not synchronize the feature's incremental Drizzle migrations directly into the CLI. During
+release preparation, after both adapter Drizzle streams have been squashed to one fresh-install
+baseline, run the repository's guarded baseline workflow:
+
+```bash
+pnpm --filter @byline/cli sync:baselines
+git diff --exit-code -- packages/cli/src/templates/migrations
+pnpm --filter @byline/cli exec vitest run src/lib/baseline-drift.test.ts
+pnpm check:native-sql-history -- --base "v<previous-version>"
+```
+
+The first three commands verify and copy the squashed fresh-install baselines. The native SQL
+history guard separately protects the append-only PostgreSQL and MySQL upgrade scripts used by
+existing installations.
+
+### Result
+
+Focused core lifecycle coverage passed 129 tests. The shared document-path conformance suite
+passed 23 tests on each adapter, and the PostgreSQL and MySQL schema pin suites passed 11 and 248
+tests respectively. Reset test databases also applied each adapter's squashed development
+baseline from an empty database.
+
+Four disposable databases exercised the pre-feature development baseline followed by either the
+historical incremental development migration or the current numbered native upgrade script.
+Fixtures covered live, fully deleted, legacy-partial, versionless-bootstrap, and reclaimed-path
+states. Both providers retained live and partial paths, assigned the fully deleted path the latest
+version timestamp, allowed versionless bootstrap and deleted-path reclamation, rejected a second
+live claimant, and returned `0` when asked to restore the legacy-partial document. Catalog checks
+confirmed stored generated columns and the exact `(collection_id, locale, path, alive)` key.
+Reapplying both native scripts succeeded without changing the completed state.
+
+The CLI synchronization replaced its PostgreSQL and MySQL fresh-install templates with the
+squashed adapter baselines. Their SQL and journals matched the adapter sources byte for byte, and
+the CLI baseline-drift suite passed 3 tests. The native SQL history guard confirmed that all five
+released scripts remained unchanged since `v4.10.2`.
+
+The repository gates passed: generation 11/11 tasks, lint 21/21, typecheck 36/36, full unit tests
+15/15 tasks, integration 21/21 tasks, documentation 49 documents and 452 links, and build 18/18
+tasks. Knip completed with its existing warning-only findings, and `git diff --check` passed.
 
 ## Review decisions and confirmed positions before implementation
 

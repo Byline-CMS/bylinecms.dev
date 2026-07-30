@@ -279,7 +279,16 @@ export class DocumentCommands implements IDocumentCommands {
           .select({ source_locale: documents.source_locale })
           .from(documents)
           .where(eq(documents.id, documentId))
+          .for('update')
           .then(getFirstOrThrow('Failed to load document for new version'))
+
+        const versionLiveness = await this.readDocumentVersionLiveness(tx, documentId)
+        if (versionLiveness.total > 0 && versionLiveness.live === 0) {
+          throw ERR_CONFLICT({
+            message: 'cannot add a version to a soft-deleted document',
+            details: { documentId },
+          })
+        }
         sourceLocale = existing.source_locale ?? this.defaultContentLocale
       }
 
@@ -912,13 +921,14 @@ export class DocumentCommands implements IDocumentCommands {
   /**
    * softDeleteDocument
    *
-   * Mark ALL versions of a document as deleted by setting `is_deleted = true`.
-   * The `current_documents` view filters these out, so the document disappears
-   * from listings without physically removing data.
+   * Tombstone every path and version row for a document with one operation
+   * timestamp. Live views and path resolution filter these rows without
+   * physically removing retained content or path values.
    *
    * Returns the number of version rows marked as deleted.
    */
   async softDeleteDocument(params: { document_id: string }): Promise<number> {
+    const deletedAt = new Date()
     return this.db.transaction(async (tx) => {
       // Tree placement takes this same collection lock before inspecting any
       // endpoint state. Taking it before document/version locks makes direct
@@ -934,15 +944,82 @@ export class DocumentCommands implements IDocumentCommands {
         .for('update')
       if (document == null) return 0
 
+      await tx
+        .update(documentPaths)
+        .set({
+          deleted_at: deletedAt,
+          updated_at: deletedAt,
+        })
+        .where(eq(documentPaths.document_id, params.document_id))
+
       const result = await tx
         .update(documentVersions)
         .set({
           is_deleted: true,
-          updated_at: new Date(),
+          updated_at: deletedAt,
         })
         .where(eq(documentVersions.document_id, params.document_id))
       return affectedRowCount(result)
     })
+  }
+
+  /**
+   * Restore every path and version tombstone for a fully soft-deleted document.
+   *
+   * Takes the same collection then document locks as soft delete. A missing,
+   * versionless, already-live, or legacy partially-live document is a no-op.
+   * Path uniqueness is revalidated by the live unique constraint; any conflict
+   * aborts both updates. Tree placement and search/cache projections are not
+   * reconstructed by this storage primitive.
+   */
+  async restoreSoftDeletedDocument(params: { document_id: string }): Promise<number> {
+    const restoredAt = new Date()
+    return this.db.transaction(async (tx) => {
+      const collectionId = await this.lockDocumentCollection(tx, params.document_id)
+      if (collectionId == null) return 0
+
+      const [document] = await tx
+        .select({ id: documents.id })
+        .from(documents)
+        .where(eq(documents.id, params.document_id))
+        .for('update')
+      if (document == null) return 0
+
+      const versionLiveness = await this.readDocumentVersionLiveness(tx, params.document_id)
+      if (versionLiveness.total === 0 || versionLiveness.live > 0) return 0
+
+      await tx
+        .update(documentPaths)
+        .set({
+          deleted_at: null,
+          updated_at: restoredAt,
+        })
+        .where(eq(documentPaths.document_id, params.document_id))
+
+      const result = await tx
+        .update(documentVersions)
+        .set({
+          is_deleted: false,
+          updated_at: restoredAt,
+        })
+        .where(eq(documentVersions.document_id, params.document_id))
+      return affectedRowCount(result)
+    })
+  }
+
+  private async readDocumentVersionLiveness(
+    tx: TxConnection,
+    documentId: string
+  ): Promise<{ total: number; live: number }> {
+    // Match the live views: only explicit `false` is live; legacy `NULL` is not.
+    return tx
+      .select({
+        total: sql<number>`CAST(COUNT(*) AS SIGNED)`,
+        live: sql<number>`CAST(COUNT(CASE WHEN ${documentVersions.is_deleted} = false THEN 1 END) AS SIGNED)`,
+      })
+      .from(documentVersions)
+      .where(eq(documentVersions.document_id, documentId))
+      .then(getFirstOrThrow('Failed to read document version liveness'))
   }
 
   /**

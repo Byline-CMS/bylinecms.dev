@@ -20,7 +20,11 @@ describe('delete outcome transport and admin interpretation', () => {
       outcome: 'committed-with-side-effect-failures',
       sideEffectFailures: [
         { phase: 'afterDelete', message: 'secret hook details', code: 'ERR_SEARCH' },
-        { phase: 'storageCleanup', message: 'private/path.pdf', code: 'ERR_STORAGE' },
+        {
+          phase: 'storageCleanup' as DeleteDocumentSideEffectPhase,
+          message: 'private/path.pdf',
+          code: 'ERR_STORAGE',
+        },
         {
           phase: 'internalOnly' as DeleteDocumentSideEffectPhase,
           message: 'internal phase details',
@@ -36,7 +40,7 @@ describe('delete outcome transport and admin interpretation', () => {
       outcome: 'committed-with-side-effect-failures',
       sideEffectFailures: [
         { phase: 'afterDelete', code: 'ERR_UNHANDLED' },
-        { phase: 'storageCleanup', code: 'ERR_STORAGE' },
+        { phase: 'unknown', code: 'ERR_STORAGE' },
         { phase: 'unknown', code: 'ERR_UNHANDLED' },
       ],
     })

@@ -384,6 +384,10 @@ export class DocumentQueries implements IDocumentQueries {
    *  ORDER BY array_position(<chain>, locale)
    *  LIMIT 1)
    * ```
+   *
+   * This is a projection by known document identity, not a live-namespace
+   * lookup. Deliberately do not filter `alive`: history and deleted-document
+   * administration must continue to display the retained path.
    */
   private pathProjection(
     documentIdCol: SQL,
@@ -490,6 +494,7 @@ export class DocumentQueries implements IDocumentQueries {
    * WHERE document_id = (
    *   SELECT document_id FROM byline_document_paths
    *   WHERE collection_id = ? AND path = ?
+   *     AND alive = true
    *     AND locale = ANY(<chain>)
    *   ORDER BY array_position(<chain>, locale)
    *   LIMIT 1
@@ -513,6 +518,7 @@ export class DocumentQueries implements IDocumentQueries {
       SELECT ${documentPaths.document_id} FROM ${documentPaths}
       WHERE ${documentPaths.collection_id} = ${collection_id}
         AND ${documentPaths.path} = ${path}
+        AND ${documentPaths.alive} = true
         AND ${documentPaths.locale} = ANY(ARRAY[${chainSql}]::text[])
       ORDER BY array_position(ARRAY[${chainSql}]::text[], ${documentPaths.locale})
       LIMIT 1

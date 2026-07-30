@@ -178,17 +178,25 @@ export const documentPaths = pgTable(
       .notNull()
       .references(() => collections.id, { onDelete: 'cascade' }),
     path: varchar('path', { length: 255 }).notNull(),
+    // Whole-document soft delete releases the live namespace without
+    // discarding the retained path. `alive` is derived so callers cannot
+    // update the two liveness columns inconsistently.
+    deleted_at: timestamp('deleted_at', { precision: 6, withTimezone: true }),
+    alive: boolean('alive').generatedAlwaysAs(
+      sql`CASE WHEN "deleted_at" IS NULL THEN true ELSE NULL END`
+    ),
     ...timestamps,
   },
   (table) => [
     // One path per (logical document, locale).
     unique('unique_document_paths_document_locale').on(table.document_id, table.locale),
-    // Per-collection per-locale path uniqueness. Column order matches the
-    // resolution lookup pattern: WHERE collection_id = ? AND locale = ? AND path = ?.
+    // Per-collection per-locale live-path uniqueness. NULL generated values
+    // allow any number of deleted rows to retain the same path.
     unique('idx_document_paths_collection_locale_path').on(
       table.collection_id,
       table.locale,
-      table.path
+      table.path,
+      table.alive
     ),
     // Reverse lookup by document.
     index('idx_document_paths_document_id').on(table.document_id),

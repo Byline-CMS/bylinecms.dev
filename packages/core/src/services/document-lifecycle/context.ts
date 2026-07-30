@@ -38,15 +38,16 @@ export interface DocumentLifecycleContext {
   /** The collection `path` string (e.g. `'docs'`, `'news'`). */
   collectionPath: string
   /**
-   * Storage provider for this collection. Required when the collection
-   * has any upload-capable image/file field, so that the original files
-   * and their persisted variants can be cleaned up on document deletion.
+   * Storage provider for this collection. Required when the collection has
+   * upload-capable image/file fields so lifecycle writes can persist sources,
+   * generate variants, and clean up superseded objects.
    *
    * Resolved by the route layer as:
    *   `field.upload?.storage ?? serverConfig.storage`
    *
-   * Optional — callers whose collections have no upload-capable fields
-   * are unaffected.
+   * Whole-document soft delete deliberately retains uploaded objects for
+   * restoration. Optional — callers whose collections have no upload-capable
+   * fields are unaffected.
    */
   storage?: IStorageProvider
   /** Structured logger instance. Provided via the DI registry. */

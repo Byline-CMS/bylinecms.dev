@@ -6,9 +6,15 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { describe, expect, test } from 'vitest'
+import type { StoredFileValue } from '@byline/core'
+import { describe, expect, test, vi } from 'vitest'
 
-import { collectImageUrls, mediaPathForUrl, mimeTypeFromContentType } from './media-ingest.js'
+import {
+  collectImageUrls,
+  mediaPathForUrl,
+  mimeTypeFromContentType,
+  persistUploadedMediaDocument,
+} from './media-ingest.js'
 import { parseBodyToMdast } from './parse-markdown.js'
 
 // Stand-in for `slugify` from @byline/core — the real one needs a locale and
@@ -91,5 +97,72 @@ describe('mimeTypeFromContentType', () => {
 
   test('a missing header yields null rather than throwing', () => {
     expect(mimeTypeFromContentType(null)).toBeNull()
+  })
+})
+
+describe('persistUploadedMediaDocument', () => {
+  const storedFile: StoredFileValue = {
+    fileId: 'file-1',
+    filename: 'diagram.png',
+    originalFilename: 'diagram.png',
+    mimeType: 'image/png',
+    fileSize: 100,
+    storageProvider: 'local',
+    storagePath: 'media/diagram.png',
+    processingStatus: 'complete',
+    variants: [
+      {
+        name: 'tablet',
+        storagePath: 'media/diagram-tablet.avif',
+        width: 1024,
+        height: 768,
+        format: 'avif',
+      },
+    ],
+  }
+
+  test('returns the new document ID without deleting a successful upload', async () => {
+    const deleteFile = vi.fn()
+    const createDocument = vi.fn().mockResolvedValue({ documentId: 'media-new' })
+
+    await expect(
+      persistUploadedMediaDocument({ delete: deleteFile }, storedFile, createDocument)
+    ).resolves.toBe('media-new')
+    expect(deleteFile).not.toHaveBeenCalled()
+  })
+
+  test('deletes the new source and variants when document creation fails', async () => {
+    const failure = new Error('document create failed')
+    const deleteFile = vi.fn().mockResolvedValue(undefined)
+
+    await expect(
+      persistUploadedMediaDocument(
+        { delete: deleteFile },
+        storedFile,
+        vi.fn().mockRejectedValue(failure)
+      )
+    ).rejects.toBe(failure)
+    expect(deleteFile.mock.calls.map(([storagePath]) => storagePath)).toEqual([
+      'media/diagram.png',
+      'media/diagram-tablet.avif',
+    ])
+  })
+
+  test('does not mask the document failure when cleanup also fails', async () => {
+    const failure = new Error('document create failed')
+    const cleanupFailure = new Error('storage unavailable')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+    await expect(
+      persistUploadedMediaDocument(
+        { delete: vi.fn().mockRejectedValue(cleanupFailure) },
+        storedFile,
+        vi.fn().mockRejectedValue(failure)
+      )
+    ).rejects.toBe(failure)
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("could not remove orphaned 'media/diagram.png'")
+    )
+    warn.mockRestore()
   })
 })

@@ -28,13 +28,27 @@ Multiple database commands composed inside one `withTransaction` block commit to
 
 - A mutation and its audit row — a path edit, a status transition, a tree move or promotion, a delete.
 - A locked system-field snapshot and the write that depends on it.
-- A tree document delete: the soft delete, child promotion, edge removal, and every parent and child audit row.
+- A whole-document soft delete: every version tombstone and every path-row `deleted_at` marker.
+- A storage-level whole-document un-delete: every version and path row, including rollback when a
+  retained path conflicts with a live document.
+- A tree document delete: the version/path soft delete, child promotion, edge removal, and every
+  parent and child audit row.
 
 This is fully solved when the participating commands are transaction-aware capabilities. It is the property that makes auditability trustworthy — the unacceptable outcome for an audit feature is a change that succeeds while its audit row silently fails.
 
 ### Database to an external side effect — not guaranteed
 
-You cannot roll back an S3 or filesystem `PUT` inside a database transaction. File storage paired with a media record is therefore a **compensation** concern, not a transaction one: write the file, write the database record in a transaction, and on database failure delete the file. The upload flow already carries partial compensation — `shouldCreateDocument: true` rolls back storage on failure. See [File / Media Uploads](../04-collections/06-file-media-uploads.md).
+You cannot roll back an S3 or filesystem `PUT` inside a database transaction. File storage paired
+with a new media record is therefore a **compensation** concern, not a transaction one: write the
+file, write the database record in a transaction, and on database failure delete only the newly
+written source and variants. The upload flow carries that compensation when document creation is
+part of the operation.
+
+Soft delete is deliberately different. It performs no external-storage delete: immutable document
+versions or duplicated documents may share the same source and variant paths, so one document
+cannot prove exclusive ownership. Sources and persisted variants remain retained until a supported
+reference-safe purge exists. See
+[File / Media Uploads](../04-collections/06-file-media-uploads.md#immutable-media-retention).
 
 Transactions make the *database side* of uploads atomic and tidier. **"Transactions fix uploads" is not a promise this makes.**
 
@@ -42,20 +56,43 @@ Transactions make the *database side* of uploads atomic and tidier. **"Transacti
 
 Collection `after*` hooks run only after commit. They cannot roll back the mutation or its audit row. Most lifecycle operations still reject when such a hook fails, so you can reconcile.
 
-**Delete is deliberately different, and it is visible in the return type.** Storage cleanup, `afterTreeChange`, and `afterDelete` are each attempted independently, and their failures do not reject an already-committed delete. `deleteDocument` resolves with one of:
+**Delete is deliberately different, and it is visible in the return type.** `afterTreeChange` and
+`afterDelete` are attempted independently, and their failures do not reject an already-committed
+delete. `deleteDocument` resolves with one of:
 
 ```ts
 { outcome: 'committed', sideEffectFailures: [] }
 { outcome: 'committed-with-side-effect-failures', sideEffectFailures: [...] }
 ```
 
-If you call `deleteDocument`, handle both. Reported failures carry an allowlisted phase and only `ERR_STORAGE` or `ERR_UNHANDLED`; raw errors and storage paths stay in internal logs. Side-effect consumers must be idempotent and use the reconciliation paths described for [system fields](../04-collections/05-document-paths.md#server-transport) and [document trees](../04-collections/04-document-trees.md#invalidation). A durable retry queue or outbox for reported side effects remains deferred.
+If you call `deleteDocument`, handle both. Reported failures carry an allowlisted phase
+(`afterTreeChange` or `afterDelete`) and only `ERR_STORAGE` or `ERR_UNHANDLED`; raw errors and any
+storage paths from a hook stay in internal logs. Side-effect consumers must be idempotent and use
+the reconciliation paths described for
+[system fields](../04-collections/05-document-paths.md#server-transport) and
+[document trees](../04-collections/04-document-trees.md#invalidation). A durable retry queue or
+outbox for reported hooks remains deferred.
 
 ## What your adapter must supply
 
 `withTransaction` is **mandatory** on `IDbAdapter` in 4.x, not an optional capability. Services depend on `IDbAdapter.withTransaction(fn)` rather than on Postgres specifically, so a new adapter must provide equivalent atomic semantics. Pretending that `fn` is transactional when it is not is not an accepted degradation.
 
-It arrives alongside the rest of the accountability surface — `commands.audit`, `queries.audit`, `getDocumentSystemFieldsForUpdate`, and `promoteChildrenAndRemoveFromTree`. Runtime structural checks back the TypeScript contract for untyped JavaScript adapters: audited and system-field writes throw `ERR_AUDIT_UNSUPPORTED` when a required function is absent, and tree support is validated at boot when any collection sets `tree: true`.
+It arrives alongside the rest of the accountability surface — `commands.audit`, `queries.audit`,
+`getDocumentSystemFieldsForUpdate`, and `promoteChildrenAndRemoveFromTree`.
+`IDocumentCommands.restoreSoftDeletedDocument` is also required: an adapter must reactivate all
+version and path tombstones atomically and let its live-path constraint roll the operation back on
+conflict. Both built-in adapters implement the member. An out-of-tree adapter must add it when
+upgrading `@byline/core`; there is no optional capability fallback.
+
+Creating a version for an existing document takes a row-scoped document lock before checking
+version liveness. Saves to the same document therefore serialize with each other and with
+soft-delete/un-delete, while unrelated documents remain concurrent. The guard rejects adding a
+live version to a fully deleted document; whole-document un-delete is the supported storage
+primitive for that transition.
+
+Runtime structural checks back the TypeScript contract for untyped JavaScript adapters: audited
+and system-field writes throw `ERR_AUDIT_UNSUPPORTED` when a required function is absent, and tree
+support is validated at boot when any collection sets `tree: true`.
 
 ### Boundary ownership
 
@@ -69,7 +106,11 @@ Interactive transactions require a **stateful session** bound to one connection 
 
 Serverless database services exposing only a per-request HTTP gateway — Neon's HTTP driver, Cloudflare D1, PlanetScale's HTTP driver — generally cannot offer this. They accept single queries or pre-batched arrays, not a callback with application logic interleaved. Drizzle reflects the split: `db.transaction(callback)` exists for session-capable drivers, including node-postgres, postgres.js, and Neon over WebSocket, and is absent or throws on pure-HTTP drivers.
 
-Byline ships one adapter today — `@byline/db-postgres` on `drizzle-orm/node-postgres` with a real `pg.Pool` — which is fully capable of interactive transactions, so the pattern works now with no compromise. A batching command buffer that flushed as one HTTP request at commit is conceivable for HTTP-batch drivers, but designing it before a second, genuinely serverless adapter exists would be speculative. It stays deferred, on the same "design against two concrete shapes" discipline used for the stable HTTP transport and the rich-text adapter contract.
+Byline's built-in `@byline/db-postgres` and `@byline/db-mysql` adapters use stateful pooled
+connections and support interactive transactions. A batching command buffer that flushed as one
+HTTP request at commit is conceivable for HTTP-batch drivers, but designing it before a genuinely
+serverless adapter exists would be speculative. It stays deferred, on the same "design against two
+concrete shapes" discipline used for the stable HTTP transport and the rich-text adapter contract.
 
 ## How it works
 
@@ -117,13 +158,13 @@ When `get()` already returns a transaction and a command opens its own `.transac
 
 | Concern | Location |
 |---|---|
-| `DBManager` / `TXManager` (ALS propagation) | `packages/db-postgres/src/lib/db-manager.ts` |
+| `DBManager` / `TXManager` (ALS propagation) | each built-in adapter's `src/lib/db-manager.ts` |
 | Canonical transaction/audit/lock/tree contract | `packages/core/src/@types/db-types.ts` (`IDbAdapter`) |
-| Command-builder executor getter (`private get db()`) | `packages/db-postgres/src/modules/storage/storage-commands.ts` (`CollectionCommands`, `DocumentCommands`) |
-| Transaction-scoped system-field lock/snapshot | `packages/db-postgres/src/modules/storage/storage-queries.ts` (`getDocumentSystemFieldsForUpdate`) |
-| Manager construction + `withTransaction` wiring | `packages/db-postgres/src/index.ts` (`pgAdapter`) |
+| Command-builder executor getter (`private get db()`) | each adapter's `src/modules/storage/storage-commands.ts` (`CollectionCommands`, `DocumentCommands`) |
+| Transaction-scoped system-field lock/snapshot | each adapter's `src/modules/storage/storage-queries.ts` (`getDocumentSystemFieldsForUpdate`) |
+| Manager construction + `withTransaction` wiring | `packages/db-postgres/src/index.ts`; `packages/db-mysql/src/index.ts` |
 | Delete outcome type | `packages/core/src/services/document-lifecycle/delete.ts` (`DeleteDocumentOutcome`) |
-| Atomicity / propagation test | `packages/db-postgres/src/modules/storage/tests/storage-transactions.test.ts` |
-| Tree mutation/delete atomicity tests | `packages/db-conformance/src/suites/document-tree-audit.ts`, run against Postgres via `packages/db-postgres/tests/conformance.integration.test.ts` |
+| Atomicity / propagation tests | `packages/db-conformance/src/suites/transactions.ts`; PostgreSQL's focused `src/modules/storage/tests/storage-transactions.test.ts` |
+| Path delete/un-delete and tree atomicity tests | `packages/db-conformance/src/suites/document-paths.ts`; `packages/db-conformance/src/suites/document-tree-audit.ts` |
 | Prior-art ALS usage in-repo | `packages/core/src/lib/logger.ts` (`withLogContext`) |
 </content>
