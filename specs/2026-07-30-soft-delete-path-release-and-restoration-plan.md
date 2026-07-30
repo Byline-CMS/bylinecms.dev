@@ -767,6 +767,7 @@ their source files.
 - Modify: `docs/04-collections/06-file-media-uploads.md`
 - Modify: `docs/04-collections/04-document-trees.md`
 - Modify: `docs/05-reading-and-delivery/01-client-sdk.md`
+- Modify: `docs/07-auth-and-security/02-auditability.md`
 - Create: a Changesets release note under `.changeset/`
 - Modify: issue #69 only after this plan is approved
 
