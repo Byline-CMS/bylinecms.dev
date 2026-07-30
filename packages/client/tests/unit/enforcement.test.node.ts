@@ -51,6 +51,7 @@ function mockDb(): IDbAdapter {
         createDocumentVersion: vi.fn(),
         setDocumentStatus: vi.fn(),
         softDeleteDocument: vi.fn(),
+        restoreSoftDeletedDocument: vi.fn(),
         archivePublishedVersions: vi.fn(),
       },
       counters: {

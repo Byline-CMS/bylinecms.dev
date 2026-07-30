@@ -59,10 +59,6 @@ const logger = {
   silent: vi.fn(),
 } satisfies BylineLogger
 
-interface SoftDeleteRestorationCommands {
-  restoreSoftDeletedDocument(params: { document_id: string }): Promise<number>
-}
-
 /**
  * Ported from `packages/db-postgres/src/modules/storage/tests/storage-document-paths.test.ts`.
  */
@@ -72,13 +68,8 @@ export function documentPathsSuite(hooks: ConformanceHooks): void {
 
   const uniquePath = (label: string): string => `${label}-${timestamp}-${pathSequence++}`
 
-  // Task 1 pins the missing behavior before Task 4 promotes this command to
-  // the public adapter contract. Keep the temporary extension test-local.
   const restoreSoftDeletedDocument = (documentId: string): Promise<number> =>
-    (
-      adapter.commands.documents as unknown as IDbAdapter['commands']['documents'] &
-        SoftDeleteRestorationCommands
-    ).restoreSoftDeletedDocument({ document_id: documentId })
+    adapter.commands.documents.restoreSoftDeletedDocument({ document_id: documentId })
 
   const createDocument = async ({
     documentId,
@@ -391,7 +382,19 @@ export function documentPathsSuite(hooks: ConformanceHooks): void {
         })
         const live = await createDocument({ path, title: 'Live occupant' })
 
-        await expect(restoreSoftDeletedDocument(deletedDocumentId)).rejects.toBeTruthy()
+        let restoreError: unknown
+        try {
+          await restoreSoftDeletedDocument(deletedDocumentId)
+        } catch (error) {
+          restoreError = error
+        }
+        expect(restoreError, 'expected unique-constraint violation on path reclaim').toBeTruthy()
+        if (adapter.classifyError == null) {
+          throw new Error('expected adapter to implement classifyError for this suite')
+        }
+        const classification = adapter.classifyError(restoreError)
+        expect(classification.code).toBe('DB_UNIQUE_VIOLATION')
+        expect(classification.constraint ?? '').toContain('document_paths_collection_locale_path')
 
         const deletedHistory = await getHistory(deletedDocumentId)
         expect(deletedHistory.documents).toHaveLength(1)

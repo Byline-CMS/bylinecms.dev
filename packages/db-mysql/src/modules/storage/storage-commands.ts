@@ -279,7 +279,22 @@ export class DocumentCommands implements IDocumentCommands {
           .select({ source_locale: documents.source_locale })
           .from(documents)
           .where(eq(documents.id, documentId))
+          .for('update')
           .then(getFirstOrThrow('Failed to load document for new version'))
+
+        const existingVersions = await tx
+          .select({ is_deleted: documentVersions.is_deleted })
+          .from(documentVersions)
+          .where(eq(documentVersions.document_id, documentId))
+        if (
+          existingVersions.length > 0 &&
+          existingVersions.every((version) => version.is_deleted)
+        ) {
+          throw ERR_CONFLICT({
+            message: 'cannot add a version to a soft-deleted document',
+            details: { documentId },
+          })
+        }
         sourceLocale = existing.source_locale ?? this.defaultContentLocale
       }
 
@@ -948,6 +963,53 @@ export class DocumentCommands implements IDocumentCommands {
         .set({
           is_deleted: true,
           updated_at: deletedAt,
+        })
+        .where(eq(documentVersions.document_id, params.document_id))
+      return affectedRowCount(result)
+    })
+  }
+
+  /**
+   * Restore every path and version tombstone for a fully soft-deleted document.
+   *
+   * Takes the same collection then document locks as soft delete. A missing,
+   * versionless, already-live, or legacy partially-live document is a no-op.
+   * Path uniqueness is revalidated by the live unique constraint; any conflict
+   * aborts both updates. Tree placement and search/cache projections are not
+   * reconstructed by this storage primitive.
+   */
+  async restoreSoftDeletedDocument(params: { document_id: string }): Promise<number> {
+    const restoredAt = new Date()
+    return this.db.transaction(async (tx) => {
+      const collectionId = await this.lockDocumentCollection(tx, params.document_id)
+      if (collectionId == null) return 0
+
+      const [document] = await tx
+        .select({ id: documents.id })
+        .from(documents)
+        .where(eq(documents.id, params.document_id))
+        .for('update')
+      if (document == null) return 0
+
+      const versions = await tx
+        .select({ is_deleted: documentVersions.is_deleted })
+        .from(documentVersions)
+        .where(eq(documentVersions.document_id, params.document_id))
+      if (versions.length === 0 || versions.some((version) => !version.is_deleted)) return 0
+
+      await tx
+        .update(documentPaths)
+        .set({
+          deleted_at: null,
+          updated_at: restoredAt,
+        })
+        .where(eq(documentPaths.document_id, params.document_id))
+
+      const result = await tx
+        .update(documentVersions)
+        .set({
+          is_deleted: false,
+          updated_at: restoredAt,
         })
         .where(eq(documentVersions.document_id, params.document_id))
       return affectedRowCount(result)

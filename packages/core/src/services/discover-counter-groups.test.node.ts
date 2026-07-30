@@ -38,6 +38,7 @@ function makeAdapter(options?: {
         setDocumentStatus: vi.fn(fail),
         archivePublishedVersions: vi.fn(fail) as any,
         softDeleteDocument: vi.fn(fail) as any,
+        restoreSoftDeletedDocument: vi.fn(fail) as any,
         deleteDocumentLocale: vi.fn(fail) as any,
         setOrderKey: vi.fn(fail) as any,
         placeTreeNode: vi.fn(fail) as any,

@@ -568,6 +568,9 @@ and one requires the fully-deleted existing-document version-write guard coupled
 
 ## Task 5: Add the storage-level un-delete command
 
+**Status:** Complete as a storage primitive on 2026-07-30. No production lifecycle, route, client,
+importer, or administrator caller was added.
+
 **Files**
 
 - Modify: `packages/core/src/@types/db-types.ts`
@@ -599,25 +602,25 @@ incompleteness.
 
 ### Implementation
 
-- [ ] Take the same collection then document locks as soft delete.
-- [ ] Return `0` when the document is missing.
-- [ ] Return `0` when any version is already live; do not “repair” a partially live document
+- [x] Take the same collection then document locks as soft delete.
+- [x] Return `0` when the document is missing.
+- [x] Return `0` when any version is already live; do not “repair” a partially live document
   implicitly.
-- [ ] Make whole-document un-delete the only supported way to add live versions to a fully deleted
+- [x] Make whole-document un-delete the only supported way to add live versions to a fully deleted
   existing document. Both adapters' `createDocumentVersion({ documentId })` path must reject that
   state rather than inserting a non-deleted version while leaving its path rows inactive.
-- [ ] Preserve the legitimate versionless-document bootstrap case: an existing document row with
+- [x] Preserve the legitimate versionless-document bootstrap case: an existing document row with
   no versions may still receive its first version.
-- [ ] Serialize that existing-document liveness check with soft delete and un-delete at the
+- [x] Serialize that existing-document liveness check with soft delete and un-delete at the
   document lock boundary, and verify the race without introducing collection-wide serialization
   for ordinary version writes.
-- [ ] Set every path row `deleted_at = NULL`.
-- [ ] Set every version `is_deleted = false`.
-- [ ] Keep both updates in one adapter transaction.
-- [ ] Preserve every version status and all path values.
-- [ ] Let a path unique violation abort the transaction and flow through adapter classification.
-- [ ] Verify two concurrent restore/create operations have one deterministic winner.
-- [ ] Document that tree placement and search/cache projections are not reconstructed.
+- [x] Set every path row `deleted_at = NULL`.
+- [x] Set every version `is_deleted = false`.
+- [x] Keep both updates in one adapter transaction.
+- [x] Preserve every version status and all path values.
+- [x] Let a path unique violation abort the transaction and flow through adapter classification.
+- [x] Verify two concurrent restore/create operations have one deterministic winner.
+- [x] Document that tree placement and search/cache projections are not reconstructed.
 
 ### Invariant diagnostics
 
@@ -638,6 +641,29 @@ un-delete command.
 
 Do not make ordinary reads execute expensive invariant checks. Keep them in migration validation,
 tests, and explicit maintenance diagnostics with the legacy distinction above.
+
+### Result
+
+`IDocumentCommands` now requires `restoreSoftDeletedDocument`. Both built-in adapters take the same
+collection then document locks as soft delete, restore only a fully deleted state, reactivate every
+path row before restoring every version, and let the live path unique constraint abort the entire
+transaction when a path has been reclaimed. Missing, versionless, already-live, and legacy
+partially-live documents return `0`. Restoration preserves statuses and path values and
+deliberately does not reconstruct tree placement or search/cache projections.
+
+Existing-document version creation now takes only its target document lock, checks the existing
+version set, and rejects a fully deleted document before inserting. Documents with no versions
+remain valid bootstrap targets, and a legacy partial state remains writable because at least one
+version is already live. This document-level lock serializes ordinary writes with soft delete and
+un-delete without adding collection-wide serialization to normal edits.
+
+Focused live-database tests on both adapters verify two path rows and two versions transition
+together with one restoration timestamp, preserve two workflow statuses and both path values, leave
+a deliberately constructed legacy partial state untouched, and permit versionless bootstrap. The
+shared document-path conformance suite is now 23 passed on both PostgreSQL and MySQL, including
+rollback and path-conflict cases; the complete adapter conformance file is 159 passed on each
+provider. The two concurrency cases passed five repeated runs per adapter, and the full workspace
+typecheck completed 36 of 36 tasks successfully.
 
 ## Task 6: Improve operation-specific path conflicts
 

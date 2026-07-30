@@ -640,6 +640,18 @@ export interface IDocumentCommands {
   softDeleteDocument(params: { document_id: string }): Promise<number>
 
   /**
+   * Restore a fully soft-deleted document by reactivating ALL of its path
+   * rows and versions in one transaction. Returns `0` when the document is
+   * missing, versionless, already live, or in a legacy partially-live state.
+   *
+   * This storage primitive does not reconstruct tree placement or
+   * search/cache projections.
+   *
+   * Returns the number of version rows restored.
+   */
+  restoreSoftDeletedDocument(params: { document_id: string }): Promise<number>
+
+  /**
    * Remove one content locale's data from a document by writing a new
    * immutable version that carries forward every store row except the target
    * locale's (the `'all'` rows and all other locales are kept). The prior

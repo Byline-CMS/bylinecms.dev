@@ -69,6 +69,7 @@ function makeAdapter() {
         setDocumentStatus: vi.fn(),
         archivePublishedVersions: vi.fn(),
         softDeleteDocument: vi.fn(),
+        restoreSoftDeletedDocument: vi.fn(),
       },
       counters: {
         ensureCounterGroup: vi.fn(),
