@@ -146,7 +146,9 @@ export async function updateDocument(
           previousVersionId: originalData.document_version_id as string | undefined,
           createdBy: actorId(ctx),
         })
-        .catch((err: unknown) => rethrowPathConflict(db, err, pathForCommand ?? '', defaultLocale))
+        .catch((err: unknown) =>
+          rethrowPathConflict(db, err, pathForCommand ?? '', sourceLocale, 'update')
+        )
 
       const documentId = extractDocumentId(result.document) || params.documentId
       const documentVersionId = extractVersionId(result.document)
@@ -316,7 +318,9 @@ export async function updateDocumentWithPatches(
           previousVersionId: originalData.document_version_id as string | undefined,
           createdBy: actorId(ctx),
         })
-        .catch((err: unknown) => rethrowPathConflict(db, err, pathForCommand ?? '', defaultLocale))
+        .catch((err: unknown) =>
+          rethrowPathConflict(db, err, pathForCommand ?? '', sourceLocale, 'update')
+        )
 
       const documentId = extractDocumentId(result.document) || params.documentId
       const documentVersionId = extractVersionId(result.document)

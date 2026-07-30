@@ -1011,6 +1011,7 @@ export class DocumentCommands implements IDocumentCommands {
     tx: TxConnection,
     documentId: string
   ): Promise<{ total: number; live: number }> {
+    // Match the live views: only explicit `false` is live; legacy `NULL` is not.
     return tx
       .select({
         total: sql<number>`CAST(COUNT(*) AS SIGNED)`,

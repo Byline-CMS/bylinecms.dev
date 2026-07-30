@@ -134,7 +134,9 @@ export async function createDocument(
           orderKey,
           createdBy: actorId(ctx),
         })
-        .catch((err: unknown) => rethrowPathConflict(db, err, resolvedPath, defaultLocale))
+        .catch((err: unknown) =>
+          rethrowPathConflict(db, err, resolvedPath, defaultLocale, 'create')
+        )
 
       const documentId = extractDocumentId(result.document)
       const documentVersionId = extractVersionId(result.document)

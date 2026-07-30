@@ -655,8 +655,9 @@ Existing-document version creation now takes only its target document lock, chec
 version liveness through a one-row aggregate, and rejects a fully deleted document before
 inserting. Documents with no versions remain valid bootstrap targets, and a legacy partial state
 remains writable because at least one version is already live. Restoration uses the same bounded
-liveness query. This document-level lock serializes ordinary writes with soft delete and un-delete
-without adding collection-wide serialization to normal edits.
+liveness query. Its explicit `is_deleted = false` predicate deliberately matches the live views, so
+nullable legacy rows are not treated as live. This document-level lock serializes ordinary writes
+with soft delete and un-delete without adding collection-wide serialization to normal edits.
 
 Focused live-database tests on both adapters verify two path rows and two versions transition
 together with one restoration timestamp, preserve two workflow statuses and both path values, leave
@@ -667,6 +668,8 @@ provider. The two concurrency cases passed five repeated runs per adapter, and t
 typecheck completed 36 of 36 tasks successfully.
 
 ## Task 6: Improve operation-specific path conflicts
+
+**Status:** Complete on 2026-07-30.
 
 **Files**
 
@@ -679,17 +682,33 @@ typecheck completed 36 of 36 tasks successfully.
 
 ### Implementation
 
-- [ ] Preserve the `ERR_PATH_CONFLICT` code.
-- [ ] Preserve `path`, `locale`, and constraint details.
-- [ ] Use live-occupant language for create/update.
-- [ ] Thread the same language through both `duplicateDocument` conflict mapping calls without
+- [x] Preserve the `ERR_PATH_CONFLICT` code.
+- [x] Preserve `path`, `locale`, and constraint details.
+- [x] Use live-occupant language for create/update.
+- [x] Thread the same language through both `duplicateDocument` conflict mapping calls without
   changing its live-conflict retry classifier.
-- [ ] Pin the improved first-attempt behavior when a deleted row is the only retained occupant:
+- [x] Pin the improved first-attempt behavior when a deleted row is the only retained occupant:
   duplication keeps the requested path and does not append a short-UUID suffix.
-- [ ] When a core restoration wrapper is introduced, use reclaimed-original-path language.
-- [ ] Do not issue a second occupant query merely to label a deleted row; the unique constraint can
+- [x] Reserve reclaimed-original-path language for a future core restoration wrapper; no wrapper is
+  introduced in this phase.
+- [x] Do not issue a second occupant query merely to label a deleted row; the unique constraint can
   collide only with an active row.
-- [ ] Avoid exposing the occupant document ID through public error details.
+- [x] Avoid exposing the occupant document ID through public error details.
+
+### Result
+
+The path-conflict mapper now requires the attempted operation. Create, full update, patch update,
+direct system-field update, and both duplicate write attempts report that a live document already
+uses the requested path. They continue to expose `ERR_PATH_CONFLICT` with only the requested
+`path`, `locale`, and classified constraint in public details. No occupant lookup or occupant
+document ID was added.
+
+Duplicate retry classification remains code-based and bounded to one suffix attempt. Unit tests now
+feed raw unique violations through both duplicate mapping calls, while the shared live-database
+suite proves that a path retained only by deleted rows stays unsuffixed and a live occupant still
+causes a suffix. The focused lifecycle and mapper tests passed 111 tests, the full core unit suite
+passed 848 tests, and the document-path conformance suite passed 23 tests on each adapter. The full
+workspace typecheck completed 36 of 36 tasks successfully.
 
 ## Task 7: Retire importer `--force` and preserve plain upsert behavior
 

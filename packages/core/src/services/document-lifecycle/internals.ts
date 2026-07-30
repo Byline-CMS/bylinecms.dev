@@ -172,15 +172,22 @@ export function rethrowPathConflict(
   db: IDbAdapter,
   err: unknown,
   path: string,
-  locale: string
+  locale: string,
+  operation: 'create' | 'update' | 'duplicate'
 ): never {
   const classification = db.classifyError?.(err)
   if (
     classification?.code === DbErrorCodes.UNIQUE_VIOLATION &&
     classification.constraint?.includes('document_paths_collection_locale_path')
   ) {
+    const message =
+      operation === 'create'
+        ? `cannot create a document at path "${path}" because a live document already uses it in this collection (locale: ${locale})`
+        : operation === 'update'
+          ? `cannot update this document to path "${path}" because a live document already uses it in this collection (locale: ${locale})`
+          : `cannot duplicate this document to path "${path}" because a live document already uses it in this collection (locale: ${locale})`
     throw ERR_PATH_CONFLICT({
-      message: `path "${path}" is already in use in this collection (locale: ${locale})`,
+      message,
       details: { path, locale, constraint: classification.constraint },
     })
   }
