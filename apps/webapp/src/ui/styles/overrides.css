@@ -12,10 +12,19 @@
 
 .prose table {
   border-collapse: collapse;
+}
 
-  td:first-child,
-  th:first-child {
-    min-width: 70px;
+.prose table {
+  min-width: 40rem;
+
+  td:first-child code {
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+
+  td:nth-child(2),
+  th:nth-child(2) {
+    overflow-wrap: normal;
   }
 }
 

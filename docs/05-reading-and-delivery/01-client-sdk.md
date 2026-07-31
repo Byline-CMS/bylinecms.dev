@@ -13,12 +13,15 @@ Companions:
 - [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md) — `RequestContext` threading and `beforeRead` / `afterRead` enforcement.
 - [Collections](../04-collections/index.md) — `CollectionAdminConfig.preview.url` builder used by the admin preview affordance.
 - [`packages/client/DESIGN.md`](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/packages/client/DESIGN.md) — implementation-detail design doc; phase-by-phase status snapshot.
+- [Client SDK API](../10-api-reference/04-client-sdk.md) — every public client and collection-handle method, option, and result envelope.
 
 ## Overview
 
 `@byline/client` is an **in-process, server-side SDK** for querying and mutating Byline documents. It sits above the storage primitives (`IDbAdapter`) and the `document-lifecycle` services, and exposes a richer DSL than the adapter alone: field-level filters, sort, pagination, populate, status awareness, and automatic `beforeRead` / `afterRead` hook firing. It is *not* a browser-safe SDK, *not* a public HTTP client, and *not* a framework-agnostic network transport client.
 
 Read this document when you are building a public frontend, a feed or sitemap, a seed or migration script, or any other server-side consumer that needs to read or write Byline content from outside the admin UI.
+
+Use the [Client SDK API](../10-api-reference/04-client-sdk.md) when you need an exhaustive method or option lookup. This document concentrates on runnable usage and the architectural rules behind the SDK.
 
 The distinction matters because Byline today is in an internal transport phase (see [Routing & API](./02-routing-and-api.md)). The admin UI is the only active client, TanStack Start server functions are the internal transport boundary, and stable/public HTTP transport is intentionally deferred until the first real non-admin client arrives. `@byline/client` fits that phase well — it lives in the same Node process as Byline Core, holds direct references to the configured DB and storage adapters, and does no network I/O of its own.
 
@@ -507,7 +510,7 @@ The host adapter (`@byline/host-tanstack-start`) ships three module-scoped clien
 
 ### Read surface
 
-Five basic read methods with camelCase-shaped document results:
+The five ordinary current-document read methods return camelCase-shaped document results:
 
 ```ts
 client.collection('news').find({ where, sort, page, pageSize, select, populate, depth, status, locale })
@@ -516,6 +519,8 @@ client.collection('news').findById(id, opts)
 client.collection('news').findByPath(path, opts)
 client.collection('news').count({ status })
 ```
+
+History, audit, search indexing, workflow, and tree methods are listed in the [complete `CollectionHandle` method index](../10-api-reference/04-client-sdk.md#collectionhandle-method-index).
 
 ### Filtering
 

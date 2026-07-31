@@ -6,6 +6,11 @@ summary: "Byline separates interface translation from content translation, and t
 
 # Internationalization (i18n)
 
+Companions:
+- [Configuration](../01-getting-started/03-configuration.md) — how `locales.ts`, `i18n.ts`, and `public.ts` divide public-safe data from admin translation registration.
+- [Configuration API](../10-api-reference/01-configuration.md) — the exact `i18n.interface`, `i18n.content`, locale-definition, and translation-bundle properties.
+- [Document paths](../04-collections/05-document-paths.md) — how source locale and path resolution interact.
+
 Byline's i18n grew out of a recurring requirement: sites where content is
 translated *independently* of the interface it is presented in. Supporting that
 cleanly is one of the reasons Byline exists.
@@ -46,10 +51,10 @@ content; a visitor reading the English public site can be handed one Japanese
 article without the site flipping into Japanese around them.
 
 :::note[Reference-app note]
-The example app in this repo is configured more modestly than the table above
-— host interface `en`/`fr`, admin interface `en`/`fr`, content
-`en`/`fr`/`es`/`de` — because that is enough to exercise every mechanism. The
-table shows what the system *permits*, not what the demo ships.
+The example app keeps its public host interface to `en`/`fr`. Its Byline admin
+interface enables `en`, `fr`, `es`, `de`, `it`, `zh-CN`, and `ko`; its content
+locales are `en`, `fr`, `es`, `de`, `zh-CN`, and `th-TH`. The three sets remain
+independent even when some codes overlap.
 :::
 
 ## How this section is organised

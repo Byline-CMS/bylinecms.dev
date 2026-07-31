@@ -201,8 +201,6 @@ The Account page exposes a "Default language" field backed by
 field is surfaced on the admin-users list so a super-admin can pre-set a
 colleague's locale.
 
-## Architecture
-
 ## The contract surface
 
 Six things compose the present surface:

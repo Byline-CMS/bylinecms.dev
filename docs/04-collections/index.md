@@ -13,6 +13,7 @@ Companions:
 - [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md) — auth + access-control subsystem, including six worked `beforeRead` row-scoping recipes (owner-only drafts, multi-tenant, soft-delete, …).
 - [Document Storage](../03-architecture/01-document-storage.md) — *document* versioning (the sibling pillar — this doc covers *schema* versioning).
 - [Document Paths](./05-document-paths.md) — how `useAsPath` lands in `byline_document_paths`.
+- [Collections API](../10-api-reference/02-collections.md) — the exhaustive `CollectionDefinition`, `CollectionAdminConfig`, block, workflow, layout, and hook contracts.
 
 ## Overview
 
@@ -301,74 +302,30 @@ The split mirrors Django's `Model` / `ModelAdmin`. The same field names appear o
 
 ### The `CollectionDefinition` surface
 
-```ts
-// packages/core/src/@types/collection-types.ts (excerpt)
-export interface CollectionDefinition {
-  labels: { singular: string; plural: string }
-  path: string
-  fields: Field[]
-  workflow?: WorkflowConfig
-  hooks?: CollectionHooks | CollectionHooksLoader
-  search?: {                               // provider indexing — see Search
-    body?: SearchFieldDecl[]
-    facets?: SearchFieldDecl[]
-    filters?: string[]
-    zones?: string[]
-  }
-  listSearch?: string[]                    // admin list-view search box
-  useAsTitle?: string
-  useAsPath?: string
-  linksInEditor?: boolean
-  showStats?: boolean
-  orderable?: boolean
-  version?: number
-}
-```
+The properties you use most often are `path`, `labels`, `fields`, `useAsTitle`,
+`useAsPath`, and `workflow`. Structural and integration options add search,
+list search, lifecycle hooks, locale advertising, public path composition,
+rich-text link targets, statistics, ordering, document trees, and explicit
+schema-version pins.
 
-**Properties that matter day-to-day:**
+The [Collections API](../10-api-reference/02-collections.md#collectiondefinition)
+lists every property, its default, its constraints, and the companion reference
+for the subsystem it enables. The [Fields API](../10-api-reference/03-fields.md)
+lists every field accepted by `fields[]`.
 
-| Property | Effect |
-|---|---|
-| `path` | The collection's URL slug + storage key. Must be unique. Drives `collection_path` in storage and the admin route. |
-| `labels` | Display strings for the admin shell (sidebar, breadcrumbs, "New X" buttons). |
-| `fields` | Schema-side field definitions. See [Fields](./01-fields.md) for the field-level model. |
-| `useAsTitle` | The field whose value is the document's single-line label — form heading, relation widget summary, populate's default projection, log lines. Analogous to Django's `Model.__str__`. |
-| `useAsPath` | The field whose value initialises a document's `path` row in `byline_document_paths`. Slugified once; sticky after creation. Collections without `useAsPath` receive a UUID path. See [Document Paths](./05-document-paths.md). |
-| `workflow` | Sequential workflow config — see [Workflow](#workflow). Defaults to a standard `draft` → `published` → `archived` triple. |
-| `hooks` | Lifecycle hooks (server-side). See [Lifecycle hooks](#lifecycle-hooks). |
-| `search` | Role-based **provider indexing** config for site search (`body` / `facets` / `filters` / `zones`) — see [Configure search](../06-search/01-configuration.md). Does not affect the admin list view's search box. |
-| `listSearch` | Field names the admin list view's search box matches (`ILIKE` over `store_text`, so `text` / `textArea` / `select` fields only). Independent of `search`. Falls back to the identity field (`useAsTitle`, else the first text field) when omitted. |
-| `linksInEditor` | When `true`, this collection's documents appear as linkable options inside the richtext editor's link plugin. Requires `useAsTitle`. |
-| `showStats` | When `true`, the admin landing page renders per-status counts inside this collection's card. Costs one DB round-trip per landing render — opt in deliberately. |
-| `orderable` | When `true`, documents carry a fractional-index `order_key` and the list view sorts by it ascending with drag-to-reorder. See [Orderable collections](#orderable-collections). |
-| `version` | Optional version pin. Omit to let the bootstrap auto-bump on schema change. See [Version-bump policy](./08-collection-versioning.md#version-bump-policy). |
-
-`path` is reserved — `path` (top-level metadata, populated from `useAsPath`) is not a user-defined field and cannot be declared on `fields[]`.
+`path` is reserved system metadata and cannot be declared in `fields[]`.
 
 ### The `CollectionAdminConfig` surface
 
-```ts
-// packages/core/src/@types/admin-types.ts (excerpt)
-export interface CollectionAdminConfig<T = any> {
-  slug: string                           // set automatically by defineAdmin
-  group?: string                         // sidebar grouping
-  columns?: ColumnDefinition<T>[]        // default list view
-  itemView?: ColumnDefinition<T>[]       // single-item rows (picker, tiles, cells)
-  itemViewSort?: ListDefaultSort<T>      // default sort for itemView results
-  picker?: ColumnDefinition<T>[]         // deprecated alias for itemView
-  defaultColumns?: string[]
-  tabSets?: TabSetDefinition[]
-  rows?: RowDefinition[]
-  groups?: GroupDefinition[]
-  layout?: LayoutDefinition              // { main, sidebar? }
-  fields?: Record<string, FieldAdminConfig>
-  preview?: { url: (doc, ctx) => string | null }
-  listView?: (props: ListViewComponentProps) => any
-  listActions?: Array<(props: ListActionComponentProps) => any>  // list-header slot
-}
-```
+The major areas are `columns` and `defaultSort` for the list view; `itemView`
+and `itemViewSort` for compact document rows; `tabSets`, `rows`, `groups`, and
+`layout` for edit-form composition; `preview` for public preview URLs; and
+`listView` / `listActions` for list-level extensions. Per-field presentation
+lives in `fields`.
 
-The major slot areas are: **columns** (the default list view), **itemView** (how a single document renders when it appears elsewhere — a relation picker row, a tile, a cell), **layout** (tabs / rows / groups composed into main and sidebar), **preview** (the preview URL builder), **listView** (the custom-component escape hatch), and **listActions** (a header slot on the list view, used by the search Reindex button). Per-field admin lives in `fields{}` and is documented in [Fields](./01-fields.md).
+The [Collections API](../10-api-reference/02-collections.md#collectionadminconfig)
+lists the exhaustive surface, including defaults, deprecated aliases, layout
+rules, callback signatures, and component props.
 
 ### Columns and itemView
 

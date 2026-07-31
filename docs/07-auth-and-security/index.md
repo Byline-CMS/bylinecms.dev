@@ -6,6 +6,11 @@ summary: "How Byline controls who can do what, and how it records what was done 
 
 # Auth & Security
 
+Companions:
+- [Core composition](../03-architecture/02-core-composition.md) — where session providers, ability registries, and request-bound services enter the runtime.
+- [Client SDK](../05-reading-and-delivery/01-client-sdk.md) — how every document operation resolves request authority and applies read predicates.
+- [Configuration API](../10-api-reference/01-configuration.md) — the exact session, admin-store, core, and server-client configuration surface.
+
 Byline takes access control and provenance seriously by default rather than as a
 bolt-on. This section covers both halves: deciding what an actor is allowed to
 do, and keeping a faithful record of what actually happened.

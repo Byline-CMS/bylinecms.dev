@@ -6,6 +6,11 @@ summary: "Why structured versioning, workflow, and translation matter more — n
 
 # Content Management in the Time of AI
 
+Companions:
+- [Mission & Vision](./01-mission.md) — the broader product goals and data-ownership principles behind this argument.
+- [Markdown Export](../05-reading-and-delivery/04-markdown-export.md) — the shipped document and `llms.txt` surfaces for agent-readable content.
+- [Auditability](../07-auth-and-security/02-auditability.md) — how Byline attributes immutable versions and non-versioned changes.
+
 In a world where generative AI can produce content in seconds and translate it
 into dozens of languages, why does a headless CMS with structured versioning,
 workflow, and translation still matter?

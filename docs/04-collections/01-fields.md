@@ -10,6 +10,7 @@ Companions:
 - [Rich Text](./07-rich-text.md) — the Lexical adapter and how `lexicalEditor()` / per-field editor overrides plug in.
 - [Collections](./index.md) — collection-level admin (columns, layout, preview URL, custom list views).
 - [Architecture](../03-architecture/index.md) — the schema / admin split (Django-style model vs ModelAdmin) at the framework level.
+- [Fields API](../10-api-reference/03-fields.md) — all 22 built-in field kinds, common properties, value shapes, validation, hooks, defaults, and admin overrides.
 
 ## Overview
 
@@ -19,6 +20,8 @@ A field is one piece of a collection's content — a title, a body, a publish da
 - The **admin** side describes how the field *renders* in the dashboard: slot-component overrides for the label, input, help text, and adornments, plus the per-field richtext editor swap. React lives here.
 
 Read this document when you are adding fields to a collection, reaching for a reusable field helper, or replacing part of a field's rendering. It is the working reference for both sides — how the split works, how to write helpers for each side, and how the field-level component slots compose.
+
+Use the [Fields API](../10-api-reference/03-fields.md) when you need an exhaustive lookup of field discriminators and properties. This document concentrates on how field schemas and admin presentation compose in a real application.
 
 The split mirrors Django's `Model` / `ModelAdmin`. The same field name appears on both sides: the schema's `fields[]` array declares the data, and the admin's `fields{}` map attaches presentation, keyed by [schema path](#schema-paths-vs-instance-paths) — a top-level name, or a dotted path to a declaration nested in group or array structure.
 

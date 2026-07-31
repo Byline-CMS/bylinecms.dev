@@ -420,4 +420,3 @@ The `_id` UUIDv7 on blocks and array items is **synthetic metadata**, not a data
 | Reserved field names                     | `RESERVED_FIELD_NAMES` exported from `@byline/core`                                     |
 | Benchmark harness                        | `benchmarks/storage/harness/`                                                           |
 | Benchmark sweep results                  | `benchmarks/storage/results/2026-07-21-storage-cold-summary.md` (PostgreSQL characterization; links the 2026-04-18 baseline) |
-</content>

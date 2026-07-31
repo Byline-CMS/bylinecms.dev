@@ -6,13 +6,6 @@ summary: "Planned Model Context Protocol support: a peer transport binding the o
 
 # MCP Server
 
-:::note[Planned]
-This document describes a planned subsystem. It sets out the intended shape of
-the MCP server so its dependencies — service-account auth, the shared operation
-layer, and relationship completeness — are settled first. Treat it as the design
-the implementation follows rather than a description of shipped code.
-:::
-
 Companions:
 - [Transports](./03-transports.md) — MCP is a **peer transport** in that family. It shares the operation layer with the HTTP bindings and differs only in how it surfaces operations (tools/resources/prompts vs HTTP routes). Read that first.
 - [Client SDK](./01-client-sdk.md) — every MCP tool delegates to `CollectionHandle` / `document-lifecycle`. The hard problems (populate, status-aware reads, validation) are solved below the transport line.
@@ -20,6 +13,13 @@ Companions:
 - [Relationships](../04-collections/03-relationships.md) — `populate` + `hasMany` are what make MCP reads rich; relationship completeness gates a satisfying MCP experience, hence the sequencing.
 - [Markdown Export](./04-markdown-export.md) — the agent-readable representation **already shipped**: `documentToMarkdown`, `.md` routes, `llms.txt`. The MCP content tools should serve these same representations rather than invent a parallel shape.
 - [Content Management in the Time of AI](../02-why-byline/02-content-in-the-time-of-ai.md) — the "why": structured versioning, workflow, and provenance matter *more* when an LLM is the author. MCP is where that thesis meets a keyboard.
+
+:::note[Planned]
+This document describes a planned subsystem. It sets out the intended shape of
+the MCP server so its dependencies — service-account auth, the shared operation
+layer, and relationship completeness — are settled first. Treat it as the design
+the implementation follows rather than a description of shipped code.
+:::
 
 ## Overview
 

@@ -6,6 +6,11 @@ summary: "The load-bearing design decisions behind Byline: universal EAV storage
 
 # Key Architectural Decisions
 
+Companions:
+- [Configuration](../01-getting-started/03-configuration.md) — where these architectural boundaries appear in an application's files and imports.
+- [Document Storage](./01-document-storage.md) — the complete typed EAV and immutable-versioning model.
+- [API Reference](../10-api-reference/index.md) — exact configuration, collection, field, and Client SDK contracts built on these decisions.
+
 These are the load-bearing decisions behind Byline. Each is described in depth in
 its own reference document; this page is the map.
 

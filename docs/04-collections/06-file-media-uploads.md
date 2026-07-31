@@ -13,6 +13,8 @@ Companions:
 - [Relationships](./03-relationships.md) — `populate` over a `relation` to a media collection carries the file envelope and its variants in one round-trip.
 - [Client SDK](../05-reading-and-delivery/01-client-sdk.md) — reading uploaded files (and their variants) via `@byline/client`.
 - [Routing & API](../05-reading-and-delivery/02-routing-and-api.md) — the upload transport is an internal TanStack Start server function today; a stable public HTTP boundary is deferred.
+- [Fields API](../10-api-reference/03-fields.md#file-and-image-fields) — the `file` and `image` field declarations that opt into this upload contract.
+- [Configuration API](../10-api-reference/01-configuration.md#serverconfig) — installation-wide storage and filename-slugifier registration.
 
 ## Overview
 

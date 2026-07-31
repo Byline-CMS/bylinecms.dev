@@ -12,6 +12,8 @@ Companions:
 - [Relationships](./03-relationships.md) — the relation-field primitive that richtext links and inline images are layered on top of.
 - [Core Composition](../03-architecture/02-core-composition.md) — the field-level adapter slots (`ServerConfig.fields.richText.*`) this editor registers through.
 - [Markdown Export](../05-reading-and-delivery/04-markdown-export.md) — the one-way serializer the `toMarkdown` server factory feeds.
+- [Configuration API](../10-api-reference/01-configuration.md) — the exact client editor and server rich-text adapter slots.
+- [Fields API](../10-api-reference/03-fields.md#rich-text) — the complete `RichTextField` schema properties and defaults.
 
 ## Overview
 

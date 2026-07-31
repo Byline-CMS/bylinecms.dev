@@ -6,6 +6,10 @@ summary: "The thinking behind Byline: why it exists, the problems it sets out to
 
 # Why Byline
 
+Companions:
+- [Getting Started](../01-getting-started/index.md) — the shortest paths to a working Byline application.
+- [Key architectural decisions](../03-architecture/index.md) — how the product goals described here become storage, versioning, configuration, and authorization boundaries.
+
 Before the APIs and the storage model, it helps to know what Byline is trying to
 be — and what it is reacting against. These two essays set the context for
 everything else in the documentation.

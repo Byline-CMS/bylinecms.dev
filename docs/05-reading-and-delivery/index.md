@@ -6,6 +6,11 @@ summary: "How content leaves Byline and reaches its readers through the typed cl
 
 # Reading & Delivery
 
+Companions:
+- [Collections](../04-collections/index.md) — the schemas that determine what the delivery surfaces read and serialize.
+- [Client SDK](./01-client-sdk.md) — the primary in-process read and write API.
+- [Client SDK API](../10-api-reference/04-client-sdk.md) — every public client and collection-handle method with its options and return shape.
+
 Modeling content is only half the job; the other half is getting it out to the
 things that read it — browsers, other services, and increasingly language models
 and agents. This section covers every way content leaves Byline and how to serve

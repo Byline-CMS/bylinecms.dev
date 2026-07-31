@@ -24,15 +24,17 @@ Everything you plug in arrives through one call, `initBylineCore()`, in your app
 
 | Seam | Config key | Contract | Shipped implementations |
 |---|---|---|---|
-| Database | `db` | `IDbAdapter` | `@byline/db-postgres` |
+| Database | `db` | `IDbAdapter` | `@byline/db-postgres`, `@byline/db-mysql` |
 | File storage | `storage` | `IStorageProvider` | `@byline/storage-local`, `@byline/storage-s3` |
 | Sessions | `sessionProvider` | `SessionProvider` | built-in JWT provider in `@byline/admin` |
-| Search | `search` | `SearchProvider` | `@byline/search-postgres` |
+| Search | `search` | `SearchProvider` | `@byline/search-postgres`, `@byline/search-mysql` |
 | Rich text (server) | `fields.richText` | four function slots | `@byline/richtext-lexical/server` |
-| Admin store | `adminStore` | `AdminStore` aggregate | `@byline/db-postgres/admin` |
+| Admin store | `adminStore` | `AdminStore` aggregate | `@byline/db-postgres/admin`, `@byline/db-mysql/admin` |
 | Lifecycle hooks | `hooks` | `CollectionHooks`, `UploadHooks` | your application |
 
 `@byline/core` declares every one of these as an interface and imports none of the packages that implement them. That is what makes swapping an adapter a single-file change.
+
+The [Configuration API](../10-api-reference/01-configuration.md#serverconfig) lists every `ServerConfig` property, default, and conditional requirement.
 
 ## Registering your adapters
 
@@ -162,4 +164,3 @@ Document-collection operations — create, update, delete, status, upload — do
 | Rich-text adapter context contracts   | `packages/core/src/@types/field-types.ts`                                |
 | `AbilityRegistry`                    | `packages/auth/src/abilities.ts`                                        |
 | Admin request-context resolver       | `packages/client/src/server/admin-context.ts` (`getAdminRequestContext`, exported from `@byline/client/server`) |
-</content>

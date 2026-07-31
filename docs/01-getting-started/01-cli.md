@@ -9,7 +9,7 @@ summary: "Add Byline to an existing TanStack Start application with 'byline init
 Companions:
 - [Getting started](./index.md) — the two routes into a running Byline instance, and where to go next.
 - [Development environment and example application](./02-development-environment.md) — clone this repo and run `apps/webapp`, the reference application the installer's scaffold mirrors.
-- [Upgrading from 3.21 to 4.x](./03-upgrading-to-v4.md) — the application-side migration guide when you move an existing installation to 4.x.
+- [Upgrading from 3.21 to 4.x](./04-upgrading-to-v4.md) — the application-side migration guide when you move an existing installation to 4.x.
 
 The Byline CLI (`@byline/cli`) installs Byline into an existing TanStack Start
 application. It prompts for installation and configuration options — where to

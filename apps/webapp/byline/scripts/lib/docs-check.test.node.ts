@@ -5,7 +5,7 @@ import { checkDocSources, type DocSource } from './docs-check.js'
 function source(filePath: string, title: string, path: string, body: string): DocSource {
   return {
     filePath,
-    source: `---\ntitle: "${title}"\npath: "${path}"\n---\n\n# ${title}\n\n${body}`,
+    source: `---\ntitle: "${title}"\npath: "${path}"\nsummary: "Test document."\n---\n\n# ${title}\n\nCompanions:\n- Test companion context.\n\n${body}`,
   }
 }
 
@@ -65,6 +65,24 @@ describe('docs check', () => {
         kind: 'leading-h1-mismatch',
         detail: expect.stringContaining('will render as a duplicate title'),
       }),
+    ])
+  })
+
+  it('reports house-wrapper and importer compatibility failures', () => {
+    const document = source('/docs/guide.md', 'Guide', 'guide', '<details>hidden</details>')
+    const invalid = {
+      ...document,
+      source: document.source
+        .replace('summary: "Test document."\n', '')
+        .replace('Companions:\n- Test companion context.\n\n', ''),
+    }
+
+    const result = checkDocSources([invalid])
+
+    expect(result.issues.map((issue) => issue.kind)).toEqual([
+      'missing-summary',
+      'missing-companions',
+      'unsupported-import-node',
     ])
   })
 })

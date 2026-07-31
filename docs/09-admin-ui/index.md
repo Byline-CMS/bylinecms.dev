@@ -6,6 +6,11 @@ summary: "The building blocks of Byline's admin interface — the framework-agno
 
 # Admin UI
 
+Companions:
+- [Configuration](../01-getting-started/03-configuration.md) — the admin config file, isomorphic schema boundary, and public-bundle isolation rules.
+- [Collections](../04-collections/index.md) — collection layouts, columns, preview URLs, and list-view extension points.
+- [Configuration API](../10-api-reference/01-configuration.md) — the exact `ClientConfig` and registration contract.
+
 Byline's admin interface is assembled from a small, framework-agnostic component
 kit and wired into a host application through a deliberately code-split
 registration path. This section is for readers extending the admin surface or

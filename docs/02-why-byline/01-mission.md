@@ -6,6 +6,10 @@ summary: "Why Byline exists: an AI-first, structurally sound headless CMS that t
 
 # Mission & Vision
 
+Companions:
+- [Content Management in the Time of AI](./02-content-in-the-time-of-ai.md) — why agent consumption increases the need for structured, versioned, attributable content.
+- [Key architectural decisions](../03-architecture/index.md) — the engineering choices that implement the goals described here.
+
 ## Why Byline exists
 
 Byline grew out of a frustration that we suspect many projects share. In our

@@ -322,4 +322,3 @@ Search, relation, populate, and diagnostic APIs have separate tests. A new path-
 The runtime collection fingerprint includes the collection path, field names, selected field properties, structure, and block types. With an unchanged collection path, changing an included component normally increments the collection version. Changing the collection path registers a new collection unless a migration handles the rename.
 
 Generated collection types have a separate output hash. Neither hash validates path grammar, and neither includes admin overrides, upload hooks, search configuration, or upload context.
-</content>

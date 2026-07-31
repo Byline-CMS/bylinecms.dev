@@ -12,8 +12,10 @@ import { formatTextValue, slugify } from '@byline/core'
 import type { Heading, Link, Parent, Root, RootContent } from 'mdast'
 import { toString as mdastToString } from 'mdast-util-to-string'
 
+import { DOCS_API_SURFACE_SPECS } from './docs-api-surface.js'
 import { parseDocFile } from './frontmatter.js'
 import { buildCanonicalSourcePathMap } from './import-docs-tree.js'
+import { mdastToLexical } from './mdast-to-lexical.js'
 import { parseBodyToMdast } from './parse-markdown.js'
 import { stripLeadingH1IfMatches } from './strip-leading-h1.js'
 
@@ -26,11 +28,15 @@ export interface DocCheckIssue {
   filePath: string
   line: number
   kind:
+    | 'api-reference-missing-token'
     | 'duplicate-route'
     | 'leading-h1-mismatch'
+    | 'missing-companions'
     | 'missing-fragment'
+    | 'missing-summary'
     | 'parse-error'
     | 'relative-non-document'
+    | 'unsupported-import-node'
     | 'unresolved-document'
   detail: string
 }
@@ -107,6 +113,17 @@ export function checkDocSources(
   for (const source of sources) {
     try {
       const document = parseDocFile(source.source, source.filePath)
+      if (
+        document.frontmatter.summary == null ||
+        document.frontmatter.summary.trim().length === 0
+      ) {
+        issues.push({
+          filePath: source.filePath,
+          line: 1,
+          kind: 'missing-summary',
+          detail: 'frontmatter must include a non-empty summary',
+        })
+      }
       const locale = document.frontmatter.locale ?? defaultLocale
       const path =
         document.frontmatter.path ??
@@ -125,7 +142,30 @@ export function checkDocSources(
           detail: `leading H1 '${mdastToString(first)}' does not match frontmatter title '${document.frontmatter.title}' and will render as a duplicate title`,
         })
       }
+      const companions = parsedRoot.children[1]
+      if (
+        first?.type !== 'heading' ||
+        first.depth !== 1 ||
+        companions?.type !== 'paragraph' ||
+        mdastToString(companions).trim() !== 'Companions:'
+      ) {
+        issues.push({
+          filePath: source.filePath,
+          line: first ? lineOf(first) : 1,
+          kind: 'missing-companions',
+          detail: 'document must include a Companions: block immediately below its leading H1',
+        })
+      }
       const root = stripLeadingH1IfMatches(parsedRoot, document.frontmatter.title)
+      for (const warning of mdastToLexical(root).warnings) {
+        if (warning.kind === 'dropped-image') continue
+        issues.push({
+          filePath: source.filePath,
+          line: 1,
+          kind: 'unsupported-import-node',
+          detail: warning.detail,
+        })
+      }
       parsed.push({ filePath: source.filePath, title: document.frontmatter.title, path, root })
     } catch (error) {
       issues.push({
@@ -133,6 +173,20 @@ export function checkDocSources(
         line: 1,
         kind: 'parse-error',
         detail: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
+  for (const spec of DOCS_API_SURFACE_SPECS) {
+    const source = sources.find((candidate) => candidate.filePath.endsWith(spec.fileSuffix))
+    if (source == null) continue
+    for (const token of spec.tokens) {
+      if (source.source.includes(token)) continue
+      issues.push({
+        filePath: source.filePath,
+        line: 1,
+        kind: 'api-reference-missing-token',
+        detail: `API reference does not mention public surface token '${token}'`,
       })
     }
   }

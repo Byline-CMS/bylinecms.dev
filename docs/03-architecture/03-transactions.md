@@ -167,4 +167,3 @@ When `get()` already returns a transaction and a command opens its own `.transac
 | Atomicity / propagation tests | `packages/db-conformance/src/suites/transactions.ts`; PostgreSQL's focused `src/modules/storage/tests/storage-transactions.test.ts` |
 | Path delete/un-delete and tree atomicity tests | `packages/db-conformance/src/suites/document-paths.ts`; `packages/db-conformance/src/suites/document-tree-audit.ts` |
 | Prior-art ALS usage in-repo | `packages/core/src/lib/logger.ts` (`withLogContext`) |
-</content>

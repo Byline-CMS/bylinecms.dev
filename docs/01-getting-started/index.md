@@ -6,6 +6,11 @@ summary: "Two ways to get started with Byline: add it to an existing TanStack St
 
 # Getting Started
 
+Companions:
+- [Configuration](./03-configuration.md) — a guided tour of the application-owned files and their server, admin, schema, and public boundaries.
+- [Key architectural decisions](../03-architecture/index.md) — the storage, versioning, schema/presentation, and authorization model behind the setup.
+- [Collections](../04-collections/index.md) — the first subsystem to configure after the application is running.
+
 The best way to get up to speed with Byline is to look at our working reference application in the main [GitHub repository](https://github.com/Byline-CMS/bylinecms.dev). The application is located in the `apps/webapp` directory, and is a fully configured Byline CMS instance built on TanStack Start. We've included several collection examples, options, and configuration settings that should give you a solid introduction to Byline.
 
 The heart of Byline is its configuration system. In the example application — and by convention — Byline's configuration lives in `apps/webapp/byline`. This is where content collections are defined, which ultimately shapes how editors enter and manage content.
@@ -16,6 +21,8 @@ For a broader introduction that explains why Byline exists, and why we think it'
 2. [Development environment and reference application](./02-development-environment.md) — clone the main repo, provision PostgreSQL, seed the database, and run the example app (`apps/webapp`) in dev mode.
 
 If you're evaluating Byline, the development environment is the quickest way to see a working installation; the CLI is the path to adding Byline to your own app.
+
+Once the application is running, [Configuration](./03-configuration.md) explains every application-owned file under `apps/webapp/byline`, which runtime imports it, and where each kind of customization belongs. Existing 3.21 installations should follow [Upgrading from 3.21 to 4.x](./04-upgrading-to-v4.md).
 
 ## Where to go next
 
@@ -29,3 +36,5 @@ If you're evaluating Byline, the development environment is the quickest way to 
   [rich text](../04-collections/07-rich-text.md).
 - **Connect the frontend** — the [Client SDK](../05-reading-and-delivery/01-client-sdk.md)
   is how a frontend or script queries and writes Byline content.
+- **Look up an exact contract** — the [API Reference](../10-api-reference/index.md)
+  lists configuration properties, collection and field options, and every public Client SDK method.
