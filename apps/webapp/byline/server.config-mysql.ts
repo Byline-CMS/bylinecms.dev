@@ -7,6 +7,12 @@
  */
 
 /**
+ * IMPORTANT NOTE: This file is NOT part of Byline's normal configuration,
+ * and is only here as a convenience configuration for switching back
+ * and forth between mysql and pg providers.
+ */
+
+/**
  * Server-side Byline bootstrap. Imported as a side-effect from
  * `src/server.ts` (and from any seed / migration script that needs the
  * configured runtime). Resolves the composed `BylineCore` and registers
