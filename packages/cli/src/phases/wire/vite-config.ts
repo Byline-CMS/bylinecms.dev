@@ -23,6 +23,16 @@ function backupStamp(): string {
     .replace(/[-:]/g, '')
     .replace(/\.\d+Z$/, '')
 }
+
+/**
+ * Named in the preview message so the "Apply wire changes?" confirm states
+ * outright that the user's own config survives. The backup is already listed
+ * among the planned writes, but that line reads as one more file being created
+ * rather than as a safety net — worth saying in words before they answer.
+ */
+function backupNote(backupPath: string): string {
+  return `Your existing ${REL} will be backed up to ${basename(backupPath)}.`
+}
 const PREDECESSOR_HASHES = new Set([
   // Canonical config immediately before @byline/i18n/react was pre-bundled.
   'f4ae4e2238571af4de1b620baea9c2834f26fe022084960ad58e0d2e4d6d9f6b',
@@ -79,7 +89,7 @@ function inspect(ctx: Context): SubEditResult {
   if (PREDECESSOR_HASHES.has(hashConfig(userText))) {
     return {
       status: 'done',
-      message: `${REL}: recognized canonical predecessor; will back up and replace it`,
+      message: `${REL}: recognized canonical predecessor; will replace it. ${backupNote(backupPath)}`,
       writes: [
         { path: backupPath, contents: userText, mode: 'create' },
         { path, contents: canonical, mode: 'patch', before: userText },
@@ -114,7 +124,7 @@ function inspect(ctx: Context): SubEditResult {
         : ''
     return {
       status: 'done',
-      message: `${REL}: will back up and ${analysis.plan.changes.join(', ')}.${leftover}`,
+      message: `${REL}: will ${analysis.plan.changes.join(', ')}. ${backupNote(backupPath)}${leftover}`,
       writes: [
         { path: backupPath, contents: userText, mode: 'create' },
         { path, contents: merged, mode: 'patch', before: userText },
