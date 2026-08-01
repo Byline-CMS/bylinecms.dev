@@ -9,7 +9,7 @@
 import type React from 'react'
 
 import { Accordion as AccordionPrimitive } from '@base-ui/react/accordion'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './accordion.module.css'
 

@@ -175,9 +175,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.0.3
         version: 6.0.3(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.7)(sass@1.101.0)(stylus@0.62.0(supports-color@5.5.0))(tsx@4.23.1)(yaml@2.9.0))
-      classnames:
-        specifier: ^2.5.1
-        version: 2.5.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       jsdom:
         specifier: ^29.1.1
         version: 29.1.1
@@ -281,9 +281,9 @@ importers:
       '@tanstack/react-form-start':
         specifier: ^1.33.2
         version: 1.33.2(@tanstack/react-start@1.168.28(@rsbuild/core@2.1.6)(@rspack/core@2.1.4(@swc/helpers@0.5.23))(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rolldown@1.2.0)(supports-color@5.5.0)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.7)(sass@1.101.0)(stylus@0.62.0(supports-color@5.5.0))(tsx@4.23.1)(yaml@2.9.0)))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      classnames:
-        specifier: ^2.5.1
-        version: 2.5.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       jose:
         specifier: ^6.2.3
         version: 6.2.3
@@ -379,9 +379,6 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.4
         version: 2.5.4
-      '@infonomic/uikit':
-        specifier: ^6.7.7
-        version: 6.7.7(@date-fns/tz@1.5.0)(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@types/json-schema':
         specifier: ^7.0.15
         version: 7.0.15
@@ -833,9 +830,9 @@ importers:
       '@dnd-kit/sortable':
         specifier: ^10.0.0
         version: 10.0.0(@dnd-kit/core@6.3.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)
-      classnames:
-        specifier: ^2.5.1
-        version: 2.5.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       react-json-view-lite:
         specifier: ^2.5.0
         version: 2.5.0(react@19.2.7)
@@ -906,9 +903,9 @@ importers:
       '@formatjs/intl-localematcher':
         specifier: ^0.8.13
         version: 0.8.13
-      classnames:
-        specifier: ^2.5.1
-        version: 2.5.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       intl-messageformat:
         specifier: ^11.2.12
         version: 11.2.12
@@ -1015,9 +1012,9 @@ importers:
       '@lexical/utils':
         specifier: 0.48.0
         version: 0.48.0(typescript@7.0.2)
-      classnames:
-        specifier: ^2.5.1
-        version: 2.5.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       lexical:
         specifier: 0.48.0
         version: 0.48.0(typescript@7.0.2)
@@ -1307,9 +1304,9 @@ importers:
       '@dnd-kit/sortable':
         specifier: ^10.0.0
         version: 10.0.0(@dnd-kit/core@6.3.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)
-      classnames:
-        specifier: ^2.5.1
-        version: 2.5.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       date-fns:
         specifier: ^4.4.0
         version: 4.4.0
@@ -2669,12 +2666,6 @@ packages:
   '@infonomic/schemas@2.4.0':
     resolution: {integrity: sha512-FFt69fDyhYdNiWabxUq/cBCsvenh1OVkj/ZrbjmGhPGkrDTY7N20KqysC46mFFmUzrTnLfMRAyy2f7sT1ZScwg==}
 
-  '@infonomic/uikit@6.7.7':
-    resolution: {integrity: sha512-AQY3a4BQkwiPLtxD3Iz50G2oH85bIB//HA/NKDGFy1z3/m9OlT3YVnJMlfVwvuWniNKoyfXRIjjc4+iBfCUiwQ==}
-    peerDependencies:
-      react: ^19.0.0
-      react-dom: ^19.0.0
-
   '@inquirer/external-editor@1.0.3':
     resolution: {integrity: sha512-RWbSrDiYmO4LbejWY7ttpxczuwQyZLBUyygsA9Nsv95hpzUWwnNTVQmAq3xuh7vNwCp07UTmE5i11XAEExx4RA==}
     engines: {node: '>=18'}
@@ -3802,9 +3793,6 @@ packages:
     peerDependenciesMeta:
       '@rspack/core':
         optional: true
-
-  '@rvf/set-get@7.0.3':
-    resolution: {integrity: sha512-Ky2uOJ5WpgqVev4W+dNlOIJ2R9b6heHD4PHx7NGI98XanfeH8Pl/m5wE0aZU3d/nD79iOUlZHBn0uxJU/DJF7g==}
 
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
@@ -7670,11 +7658,6 @@ packages:
     resolution: {integrity: sha512-CzhO+pFNo8ajLM2d2IW/R93ipy99LWjtwblvC1RsoSUMZgyLbYFr221TnSNT7GjGdYui6P459mw9JH/g/zW2ug==}
     engines: {node: '>=18'}
 
-  zod-form-data@3.0.3:
-    resolution: {integrity: sha512-1qXJ6hayyUr3TqxfXqmm5qwCa8f/mnG/o8Itcny03iFyrwX/dZkCwfCcYoJDyQP8RxEkycw0c/ldCJXBeaCstg==}
-    peerDependencies:
-      zod: '>= 3.25.0'
-
   zod@4.4.3:
     resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
@@ -8960,24 +8943,6 @@ snapshots:
       dotenv: 17.4.2
       zod: 4.4.3
 
-  '@infonomic/uikit@6.7.7(@date-fns/tz@1.5.0)(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
-    dependencies:
-      '@base-ui/react': 1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      classnames: 2.5.1
-      date-fns: 4.4.0
-      motion: 12.42.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      npm-run-all: 4.1.5
-      prism-react-renderer: 2.4.1(react@19.2.7)
-      react: 19.2.7
-      react-day-picker: 10.0.1(@types/react@19.2.17)(react@19.2.7)
-      react-dom: 19.2.7(react@19.2.7)
-      zod: 4.4.3
-      zod-form-data: 3.0.3(zod@4.4.3)
-    transitivePeerDependencies:
-      - '@date-fns/tz'
-      - '@emotion/is-prop-valid'
-      - '@types/react'
-
   '@inquirer/external-editor@1.0.3(@types/node@26.1.1)':
     dependencies:
       chardet: 2.2.0
@@ -9861,8 +9826,6 @@ snapshots:
       react-refresh: 0.18.0
     optionalDependencies:
       '@rspack/core': 2.1.4(@swc/helpers@0.5.23)
-
-  '@rvf/set-get@7.0.3': {}
 
   '@sec-ant/readable-stream@0.4.1': {}
 
@@ -13913,11 +13876,6 @@ snapshots:
       lib0: 0.2.117
 
   yoctocolors@2.1.2: {}
-
-  zod-form-data@3.0.3(zod@4.4.3):
-    dependencies:
-      '@rvf/set-get': 7.0.3
-      zod: 4.4.3
 
   zod@4.4.3: {}
 

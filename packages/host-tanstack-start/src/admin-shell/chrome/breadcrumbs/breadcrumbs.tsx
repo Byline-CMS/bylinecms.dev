@@ -12,7 +12,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { useTranslation } from '@byline/i18n/react'
 import { Dropdown, EllipsisIcon } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { Link } from '../loose-router.js'
 import styles from './breadcrumbs.module.css'

@@ -157,8 +157,8 @@ export const DEP_SPECS: readonly DepSpec[] = [
 
   // ---- Runtime third-party ------------------------------------------------
   {
-    name: 'classnames',
-    version: '^2.5.1',
+    name: 'clsx',
+    version: '^2.1.1',
     group: 'runtime',
     note: 'utility for conditionally joining classNames; imported by ui/byline templates',
   },

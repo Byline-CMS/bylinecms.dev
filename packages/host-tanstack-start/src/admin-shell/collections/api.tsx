@@ -10,7 +10,7 @@ import type { CollectionDefinition } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { useTranslation } from '@byline/i18n/react'
 import { Container, Section } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 import { allExpanded, darkStyles, JsonView } from 'react-json-view-lite'
 
 import styles from './api.module.css'

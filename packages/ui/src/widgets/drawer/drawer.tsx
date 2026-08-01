@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import { useEffect } from 'react'
 
 import { Drawer as BaseDrawer } from '@base-ui/react/drawer'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './drawer.module.css'
 import { DrawerContainer } from './drawer-container'

@@ -7,7 +7,7 @@
  */
 
 import { IconButton, Tooltip } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useDocsMenu } from './docs-provider.js'
 import styles from './drawer-toggle.module.css'

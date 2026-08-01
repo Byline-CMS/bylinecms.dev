@@ -24,7 +24,7 @@ import type React from 'react'
 import { useEffect, useState } from 'react'
 
 import { CheckIcon, ComboButton, CopyIcon, MarkdownIcon } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './copy-page-button.module.css'
 

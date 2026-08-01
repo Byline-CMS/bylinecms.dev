@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react'
 import type { ArrayField as ArrayFieldType, Field, FieldAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { DraggableSortable, IconButton, moveItem, PlusIcon } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { sliceFieldAdmin } from '../../fields/field-admin'
 import { defaultScalarForField } from '../../fields/field-helpers'

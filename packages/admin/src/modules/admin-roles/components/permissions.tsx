@@ -33,7 +33,7 @@ import { useMemo, useState } from 'react'
 
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, Checkbox, LoaderEllipsis } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'
 import styles from './permissions.module.css'

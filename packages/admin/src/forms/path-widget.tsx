@@ -14,7 +14,7 @@ import type { SlugifierFn } from '@byline/core'
 import { slugify } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Input, Label } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useFieldValue, useFormContext, useSystemPath } from './form-context'
 import styles from './path-widget.module.css'

@@ -20,7 +20,7 @@
 
 import type React from 'react'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './toc.module.css'
 import { useActiveHeading } from './use-active-heading'

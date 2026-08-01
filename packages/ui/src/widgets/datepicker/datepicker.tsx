@@ -11,7 +11,7 @@ import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
 
 import { Popover } from '@base-ui/react/popover'
-import cx from 'classnames'
+import cx from 'clsx'
 import { format } from 'date-fns'
 
 import { Button } from '../../components/button/button.js'

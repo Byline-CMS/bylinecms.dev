@@ -16,7 +16,7 @@ import type {
   RichTextEditorComponent,
 } from '@byline/core'
 import { getClientConfig } from '@byline/core'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useFormContext } from '../forms/form-context'
 import { ArrayField } from './array/array-field'

@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './locale-badge.module.css'
 

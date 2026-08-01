@@ -1,7 +1,7 @@
 import type React from 'react'
 
 import { ScrollArea as ScrollAreaPrimitive } from '@base-ui/react/scroll-area'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './scroll-area.module.css'
 

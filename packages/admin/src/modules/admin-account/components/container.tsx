@@ -30,7 +30,7 @@ import { useState } from 'react'
 import { LocalDateTime } from '@byline/admin/react'
 import { useTranslation } from '@byline/i18n/react'
 import { CloseIcon, Drawer, EditIcon, IconButton } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { ChangeAccountPassword } from './change-password.js'
 import styles from './container.module.css'

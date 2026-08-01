@@ -16,7 +16,7 @@ import {
   IconButton,
   PlusIcon,
 } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './draggable-context-menu.module.css'
 

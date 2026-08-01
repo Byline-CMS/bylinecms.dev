@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { ChevronDownIcon } from '../../icons/chevron-down-icon'
 import { Dropdown as DropdownComponent } from '../dropdown/dropdown'

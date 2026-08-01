@@ -3,7 +3,7 @@
 import type * as React from 'react'
 
 import { Tabs as TabsPrimitive } from '@base-ui/react/tabs'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './tabs.module.css'
 

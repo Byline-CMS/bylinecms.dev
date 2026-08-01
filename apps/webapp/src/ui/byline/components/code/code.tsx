@@ -2,7 +2,7 @@
 
 import { CopyButton } from '@byline/ui/react'
 /* eslint-disable no-param-reassign */
-import cx from 'classnames'
+import cx from 'clsx'
 import { Highlight, themes } from 'prism-react-renderer'
 
 type CodeIntrinsicProps = React.JSX.IntrinsicElements['pre']

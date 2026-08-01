@@ -23,7 +23,7 @@ import {
   Label,
   LoaderRing,
 } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import {
   useFieldError,

@@ -10,7 +10,7 @@ import { useCallback } from 'react'
 
 import type { Field, FieldComponentSlots, TextAreaField as FieldType } from '@byline/core'
 import { Label, TextArea } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
 import { LocaleBadge } from '../locale-badge'

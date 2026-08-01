@@ -1,7 +1,7 @@
 import { useLocation } from '@tanstack/react-router'
 
 import { Accordion, Button, ChevronDownIcon, HomeIcon } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 import { useSwipeable } from 'react-swipeable'
 
 import { useTranslations } from '@/i18n/client/translations-provider'

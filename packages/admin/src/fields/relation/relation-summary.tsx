@@ -8,7 +8,7 @@
 
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import { resolveItemViewColumns } from '@byline/core'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { PickerCell, resolveFallbackDisplayField, resolveRowLabel } from './relation-display'
 import styles from './relation-summary.module.css'

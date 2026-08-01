@@ -28,7 +28,7 @@ import { BylineAdminServicesProvider } from '@byline/admin/services'
 import { getClientConfig } from '@byline/core'
 import type { LocaleCode } from '@byline/i18n'
 import { I18nProvider } from '@byline/i18n/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { AdminAppBar } from '../admin-shell/chrome/admin-app-bar.js'
 import layoutStyles from '../admin-shell/chrome/admin-layout.module.css'

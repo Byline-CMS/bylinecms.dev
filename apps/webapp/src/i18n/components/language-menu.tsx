@@ -1,5 +1,5 @@
 import { CheckIcon, Dropdown as DropdownMenu, GlobeIcon } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useLanguageSwitcher } from '@/i18n/hooks/use-language-switcher'
 import { interfaceLanguageMap as languageMap } from '@/i18n/language-map'

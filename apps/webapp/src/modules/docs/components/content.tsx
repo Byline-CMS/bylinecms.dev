@@ -11,7 +11,7 @@
 import type React from 'react'
 import { useEffect } from 'react'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './content.module.css'
 import { useDocsMenu } from './docs-provider.js'

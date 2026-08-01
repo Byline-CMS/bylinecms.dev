@@ -23,7 +23,7 @@
 import { useContext, useState } from 'react'
 
 import { CheckIcon, Dropdown as DropdownMenu, GlobeIcon } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { I18nContext } from './i18n-context.js'
 import styles from './language-menu.module.css'

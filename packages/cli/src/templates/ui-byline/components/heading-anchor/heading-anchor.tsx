@@ -3,7 +3,7 @@
 import type * as React from 'react'
 
 import { formatTextValue } from '@byline/core'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { extractHeadingText } from './utils.ts'
 import type { SerializedLexicalNode } from '../richtext-lexical/serialize/types.ts'

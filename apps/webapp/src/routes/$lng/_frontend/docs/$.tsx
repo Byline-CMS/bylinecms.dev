@@ -25,7 +25,7 @@ import { useMemo } from 'react'
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
 
 import { Container, Section } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useTranslations } from '@/i18n/client/translations-provider'
 import { useInterfaceLocale } from '@/i18n/hooks/use-locale-navigation'

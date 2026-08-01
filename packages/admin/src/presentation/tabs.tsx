@@ -10,7 +10,7 @@
 
 import { useTranslation } from '@byline/i18n/react'
 import { Badge } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './tabs.module.css'
 

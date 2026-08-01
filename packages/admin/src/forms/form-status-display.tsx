@@ -10,7 +10,7 @@
 
 import type { WorkflowStatus } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { LocalDateTime } from '../fields/local-date-time'
 import styles from './form-renderer.module.css'

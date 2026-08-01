@@ -6,7 +6,7 @@
 /* eslint-disable react/jsx-pascal-case */
 import React, { useContext } from 'react'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { Ellipses } from './ellipses.js'
 import { FirstButton } from './first-button'

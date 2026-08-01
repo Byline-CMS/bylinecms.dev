@@ -29,7 +29,7 @@ import type { TranslationBundle } from '@byline/i18n'
 import type { UseTranslationReturn } from '@byline/i18n/react'
 import { I18nContext, I18nProvider, useTranslation } from '@byline/i18n/react'
 import { Alert, Button, Container, Section } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './route-error.module.css'
 

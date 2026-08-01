@@ -1,7 +1,7 @@
 'use client'
 
 import { Container } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import type { RichTextBlockData } from '@byline/generated-types'
 

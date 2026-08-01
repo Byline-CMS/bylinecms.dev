@@ -3,7 +3,7 @@
 import type React from 'react'
 
 import { Button, type Intent } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { LangLink } from '@/ui/byline/components/link/lang-link'
 import type { Locale } from '@/ui/byline/types/i18n'

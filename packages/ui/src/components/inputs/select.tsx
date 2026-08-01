@@ -3,7 +3,7 @@
 import type React from 'react'
 
 import { Select as SelectPrimitive } from '@base-ui/react/select'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { CheckIcon } from '../../icons/check-icon.jsx'
 import { ChevronDownIcon } from '../../icons/chevron-down-icon.jsx'

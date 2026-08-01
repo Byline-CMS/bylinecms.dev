@@ -4,7 +4,7 @@ import type React from 'react'
 
 import { mergeProps } from '@base-ui/react/merge-props'
 import { useRender } from '@base-ui/react/use-render'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { CheckIcon } from '../../icons/check-icon.js'
 import { CloseIcon } from '../../icons/close-icon.js'

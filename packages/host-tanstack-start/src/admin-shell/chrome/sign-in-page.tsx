@@ -11,7 +11,7 @@ import { BylineAdminServicesProvider } from '@byline/admin/services'
 import { getClientConfig } from '@byline/core'
 import type { LocaleCode } from '@byline/i18n'
 import { I18nProvider, LanguageMenu } from '@byline/i18n/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { buildLocaleDefinitions } from '../../i18n/locale-definitions.js'
 import { bylineAdminServices } from '../../integrations/byline-admin-services.js'

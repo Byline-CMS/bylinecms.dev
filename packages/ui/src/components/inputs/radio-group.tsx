@@ -4,7 +4,7 @@ import type React from 'react'
 
 import { Radio } from '@base-ui/react/radio'
 import { RadioGroup as RadioGroupPrimitive } from '@base-ui/react/radio-group'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './radio-group.module.css'
 import type { Intent } from '../@types/shared'

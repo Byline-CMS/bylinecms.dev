@@ -22,7 +22,7 @@ import { useRouter } from '@tanstack/react-router'
 
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, LoaderEllipsis, Modal } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { type AdminRoleResponse, deleteAdminRole } from '../../server-fns/admin-roles/index.js'

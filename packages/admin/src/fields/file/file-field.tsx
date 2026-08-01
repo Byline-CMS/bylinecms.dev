@@ -23,7 +23,7 @@ import {
   LoaderRing,
   VideoIcon,
 } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import {
   useFieldError,

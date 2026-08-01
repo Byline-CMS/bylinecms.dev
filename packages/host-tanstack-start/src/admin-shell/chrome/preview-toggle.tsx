@@ -25,7 +25,7 @@ import { useEffect, useState } from 'react'
 
 import { useTranslation } from '@byline/i18n/react'
 import { EyeClosedIcon, EyeOpenIcon, Tooltip } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import {
   disablePreviewModeFn,

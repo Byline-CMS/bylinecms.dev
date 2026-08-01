@@ -1,7 +1,7 @@
 import type React from 'react'
 
 import { useRender } from '@base-ui/react/use-render'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './card.module.css'
 

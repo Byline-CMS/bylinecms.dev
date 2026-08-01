@@ -10,7 +10,7 @@ import { useMemo } from 'react'
 
 import type { Field, FieldAdminConfig, GroupField as GroupFieldType } from '@byline/core'
 import { ErrorText } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { sliceFieldAdmin } from '../../fields/field-admin'
 import { placeholderForField } from '../../fields/field-helpers'

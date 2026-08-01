@@ -3,7 +3,7 @@
 import type React from 'react'
 
 import { Autocomplete as AutocompletePrimitive } from '@base-ui/react/autocomplete'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './autocomplete.module.css'
 import { ErrorText } from './error-text.jsx'

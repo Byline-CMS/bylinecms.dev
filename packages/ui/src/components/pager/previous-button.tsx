@@ -2,7 +2,7 @@
 
 import React from 'react'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { ChevronLeftIcon } from '../../icons/chevron-left-icon.js'
 import { usePager } from './pagination'

@@ -27,7 +27,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouterState } from '@tanstack/react-router'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './route-progress-bar.module.css'
 

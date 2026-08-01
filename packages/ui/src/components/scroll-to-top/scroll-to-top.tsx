@@ -2,7 +2,7 @@
 
 import { type ComponentProps, type MouseEvent, useEffect, useState } from 'react'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './scroll-to-top.module.css'
 

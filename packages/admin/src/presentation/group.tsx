@@ -8,7 +8,7 @@
 
 import type { ReactNode } from 'react'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './group.module.css'
 

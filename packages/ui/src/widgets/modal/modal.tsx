@@ -4,7 +4,7 @@ import type React from 'react'
 import { createContext, useCallback, useRef, useState } from 'react'
 
 import { Dialog } from '@base-ui/react/dialog'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './modal.module.css'
 import { ModalActions } from './modal-actions'

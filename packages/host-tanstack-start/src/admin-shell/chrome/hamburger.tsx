@@ -3,7 +3,7 @@
 import type React from 'react'
 
 import { useTranslation } from '@byline/i18n/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useAdminMenu } from './admin-menu-provider.jsx'
 import styles from './hamburger.module.css'

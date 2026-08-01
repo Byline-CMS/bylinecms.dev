@@ -39,7 +39,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { getAdminRoutePath } from '../../routes/admin-path.js'
 import {

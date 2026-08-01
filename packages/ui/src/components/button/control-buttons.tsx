@@ -2,7 +2,7 @@
 
 import type React from 'react'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './control-buttons.module.css'
 import type { Size } from './@types/button.js'

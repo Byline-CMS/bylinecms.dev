@@ -29,7 +29,7 @@ import {
   PlusIcon,
   useSortable,
 } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useFieldError, useFieldValue, useFormContext } from '../../forms/form-context'
 import styles from './relation-field.module.css'

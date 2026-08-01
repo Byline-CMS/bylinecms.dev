@@ -1,6 +1,6 @@
 import type * as React from 'react'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './table.module.css'
 

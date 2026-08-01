@@ -8,7 +8,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { IconButton } from '../../components/button/icon-button.js'
 import { CloseIcon } from '../../icons/close-icon.js'

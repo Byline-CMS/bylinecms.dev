@@ -1,6 +1,6 @@
 'use client'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { Button } from './button'
 import styles from './button.module.css'

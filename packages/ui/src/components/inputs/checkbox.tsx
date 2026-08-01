@@ -3,7 +3,7 @@
 import type * as React from 'react'
 
 import { Checkbox as CheckboxPrimitive } from '@base-ui/react/checkbox'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { CheckIcon } from '../../icons/check-icon'
 import styles from './checkbox.module.css'

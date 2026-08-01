@@ -2,7 +2,7 @@
 
 import type React from 'react'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './timeline.module.css'
 

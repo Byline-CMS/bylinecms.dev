@@ -20,7 +20,7 @@ import { useEffect, useState } from 'react'
 
 import { useTranslation } from '@byline/i18n/react'
 import { ButtonGroup, ButtonGroupItem } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { getThemeMode, setThemeMode, type ThemeMode } from './theme.js'
 import styles from './theme-switch.module.css'

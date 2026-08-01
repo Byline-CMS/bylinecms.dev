@@ -363,7 +363,7 @@ describe('Byline dependency compatibility', () => {
     [
       'added dependency',
       (deps: Record<string, string>): void => {
-        deps.classnames = '^2.5.1'
+        deps.clsx = '^2.1.1'
       },
     ],
   ] as const)('blocks stale install candidates after a %s change', async (_name, mutate) => {
@@ -372,7 +372,7 @@ describe('Byline dependency compatibility', () => {
     ctx.pm = 'npm'
     const dependencies = compatibleDependencies()
     dependencies['@byline/core'] = `^${BELOW_FLOOR_VERSION}`
-    delete dependencies.classnames
+    delete dependencies.clsx
     const packagePath = ctx.resolve('package.json')
     writeFileSync(packagePath, `${JSON.stringify({ dependencies }, null, 2)}\n`)
     const plan = await depsPhase.plan(ctx)

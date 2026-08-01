@@ -4,7 +4,7 @@ import React, { type Ref } from 'react'
 
 import { Toggle } from '@base-ui/react/toggle'
 import { ToggleGroup } from '@base-ui/react/toggle-group'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { Button } from './button'
 import styles from './button-group.module.css'

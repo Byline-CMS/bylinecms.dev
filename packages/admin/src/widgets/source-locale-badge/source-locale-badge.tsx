@@ -7,7 +7,7 @@
  */
 
 import { Badge } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './source-locale-badge.module.css'
 

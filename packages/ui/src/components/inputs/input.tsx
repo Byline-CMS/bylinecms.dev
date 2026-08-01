@@ -2,7 +2,7 @@
 
 import type React from 'react'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { ErrorText } from './error-text.jsx'
 import { HelpText } from './help-text.jsx'

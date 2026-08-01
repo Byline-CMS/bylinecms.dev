@@ -2,7 +2,7 @@
 
 import type { CodeBlockData } from '@byline/generated-types'
 import { Container } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { Code } from '@/ui/byline/components/code'
 import type { Locale } from '@/i18n/i18n-config'

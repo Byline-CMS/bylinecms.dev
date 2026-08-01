@@ -12,7 +12,7 @@ import { useState } from 'react'
 
 import { LanguageMenu, useTranslation } from '@byline/i18n/react'
 import { Button } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { getSignInRoutePath } from '../../routes/sign-in-path.js'
 import { adminSignOut, type CurrentAdminUser } from '../../server-fns/auth/index.js'

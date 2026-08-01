@@ -28,7 +28,7 @@ import { type FormEvent, useState } from 'react'
 import { getClientConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, Card, Input, LoaderEllipsis } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'
 import { normalizeRootRelativeRedirect, resolveSignInFormRedirect } from '../safe-redirect.js'

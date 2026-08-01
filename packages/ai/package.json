@@ -76,7 +76,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.4",
-    "@infonomic/uikit": "^6.7.7",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^26.1.1",
     "@types/react": "19.2.17",

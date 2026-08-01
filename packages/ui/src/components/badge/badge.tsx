@@ -1,5 +1,5 @@
 import { useRender } from '@base-ui/react/use-render'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './badge.module.css'
 import type { Intent } from '../@types/shared'

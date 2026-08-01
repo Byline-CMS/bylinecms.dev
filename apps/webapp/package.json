@@ -86,7 +86,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
-    "classnames": "^2.5.1",
+    "clsx": "^2.1.1",
     "jsdom": "^29.1.1",
     "rollup-plugin-visualizer": "^7.0.1",
     "tailwindcss": "4.3.3",

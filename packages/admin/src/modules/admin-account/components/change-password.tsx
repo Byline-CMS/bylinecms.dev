@@ -31,7 +31,7 @@ import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 import { passwordSchema } from '@byline/core/validation'
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, InputPassword, LoaderEllipsis } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 import { z } from 'zod'
 
 import { translateValidationError } from '../../../lib/translate-validation-error.js'

@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react'
 
 import { useTranslation } from '@byline/i18n/react'
 import { CloseIcon, IconButton, LoaderRing, Modal } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued'
 
 import styles from './diff-modal.module.css'

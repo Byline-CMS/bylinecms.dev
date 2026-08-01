@@ -11,7 +11,7 @@
 import type { CSSProperties } from 'react'
 
 import type { StoredFileValue } from '@byline/core'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import {
   getVariant,

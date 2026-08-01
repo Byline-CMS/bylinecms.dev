@@ -7,7 +7,7 @@
  */
 
 import { IconButton, Tooltip } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './admin-drawer-toggle.module.css'
 import { useAdminMenu } from './admin-menu-provider.jsx'

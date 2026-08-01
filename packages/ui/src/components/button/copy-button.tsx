@@ -3,7 +3,7 @@
 import type React from 'react'
 import { useEffect, useState } from 'react'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { Tooltip } from '../tooltip/tooltip.js'
 import { Button } from './button.js'

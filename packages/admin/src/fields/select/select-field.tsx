@@ -8,7 +8,7 @@
 
 import type { SelectField as FieldType } from '@byline/core'
 import { ErrorText, Label, Select } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
 import styles from './select-field.module.css'

@@ -20,7 +20,7 @@
 
 import type React from 'react'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { CopyPageButton } from './copy-page-button'
 import styles from './page-utilities.module.css'

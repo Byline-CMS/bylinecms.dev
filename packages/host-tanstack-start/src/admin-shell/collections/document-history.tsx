@@ -8,7 +8,7 @@
 
 import { useTranslation } from '@byline/i18n/react'
 import { Container, Section, Table } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './document-history.module.css'
 

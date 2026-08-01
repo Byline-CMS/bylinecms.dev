@@ -3,7 +3,7 @@
 import type React from 'react'
 
 import { Avatar as AvatarPrimitive } from '@base-ui/react/avatar'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './avatar.module.css'
 

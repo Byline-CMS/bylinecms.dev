@@ -7,7 +7,7 @@
  */
 
 import type { CollectionDefinition, ColumnDefinition } from '@byline/core'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './relation-display.module.css'
 

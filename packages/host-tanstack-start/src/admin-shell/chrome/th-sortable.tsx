@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react'
 import { useRouterState } from '@tanstack/react-router'
 
 import { Table } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useNavigate } from './loose-router.js'
 import { SortAscendingIcon, SortDescendingIcon, SortNeutralIcon } from './sort-icons.js'

@@ -24,7 +24,7 @@ import {
   Select,
   Table,
 } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { getAdminRouteId, getAdminRoutePath } from '../../routes/admin-path.js'
 import { Link, useNavigate } from '../chrome/loose-router.js'

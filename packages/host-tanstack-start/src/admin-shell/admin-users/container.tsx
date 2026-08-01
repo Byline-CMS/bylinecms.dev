@@ -26,7 +26,7 @@ import {
   Modal,
   useToastManager,
 } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './container.module.css'
 import { DeleteUser } from './delete.js'

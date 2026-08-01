@@ -8,7 +8,7 @@
 
 import type { DateTimeField as FieldType } from '@byline/core'
 import { DatePicker, ErrorText } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
 import styles from './datetime-field.module.css'

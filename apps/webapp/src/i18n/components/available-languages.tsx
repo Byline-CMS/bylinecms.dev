@@ -1,7 +1,7 @@
 import type React from 'react'
 
 import { CheckIcon } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useTranslations } from '@/i18n/client/translations-provider'
 import { useLocale, useLocaleNavigation } from '@/i18n/hooks/use-locale-navigation'

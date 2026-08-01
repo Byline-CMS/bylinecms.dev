@@ -26,7 +26,7 @@ describe('workspace root ownership', () => {
     const root = monorepo('pnpm')
     const app = join(root, 'apps/webapp')
     const dependencies = compatibleDependencies()
-    delete dependencies.classnames
+    delete dependencies.clsx
     writeFileSync(
       join(app, 'package.json'),
       `${JSON.stringify({ name: '@fixture/webapp', dependencies, scripts: {} }, null, 2)}\n`
@@ -46,7 +46,7 @@ describe('workspace root ownership', () => {
     expect(deps.commands[0]).toMatchObject({
       cwd: root,
       command: 'pnpm',
-      args: ['--filter', './apps/webapp', 'add', 'classnames@^2.5.1'],
+      args: ['--filter', './apps/webapp', 'add', 'clsx@^2.1.1'],
     })
 
     const scaffold = buildScaffoldPlan(ctx)
@@ -59,7 +59,7 @@ describe('workspace root ownership', () => {
     const root = mkdtempSync(join(tmpdir(), 'byline-pnpm-root-'))
     roots.push(root)
     const dependencies = compatibleDependencies()
-    delete dependencies.classnames
+    delete dependencies.clsx
     writeFileSync(
       join(root, 'package.json'),
       `${JSON.stringify({ name: '@fixture/root-app', dependencies })}\n`
@@ -69,7 +69,7 @@ describe('workspace root ownership', () => {
     const command = (await depsPhase.plan(ctx)).commands[0]
     expect(command).toEqual({
       command: 'pnpm',
-      args: ['add', '-w', 'classnames@^2.5.1'],
+      args: ['add', '-w', 'clsx@^2.1.1'],
       cwd: root,
     })
   })
@@ -145,7 +145,7 @@ describe('workspace root ownership', () => {
       const root = packageJsonOnlyWorkspace()
       const app = join(root, 'apps/webapp')
       const dependencies = compatibleDependencies()
-      delete dependencies.classnames
+      delete dependencies.clsx
       writeFileSync(
         join(app, 'package.json'),
         `${JSON.stringify({ name: '@fixture/webapp', dependencies })}\n`
@@ -166,7 +166,7 @@ describe('workspace root ownership', () => {
       const root = monorepo(manager)
       const app = join(root, 'apps/webapp')
       const dependencies = compatibleDependencies()
-      delete dependencies.classnames
+      delete dependencies.clsx
       writeFileSync(
         join(app, 'package.json'),
         `${JSON.stringify({ name: '@fixture/webapp', dependencies })}\n`
@@ -181,11 +181,11 @@ describe('workspace root ownership', () => {
       } else if (manager === 'npm') {
         expect(command).toMatchObject({ cwd: root })
         expect(command?.args).toEqual(
-          expect.arrayContaining(['--workspace', './apps/webapp', 'classnames@^2.5.1'])
+          expect.arrayContaining(['--workspace', './apps/webapp', 'clsx@^2.1.1'])
         )
       } else {
         expect(command).toMatchObject({ cwd: app })
-        expect(command?.args).toContain('classnames@^2.5.1')
+        expect(command?.args).toContain('clsx@^2.1.1')
       }
     }
   )
@@ -225,7 +225,7 @@ describe('workspace root ownership', () => {
     const standalone = join(root, 'apps/excluded')
     mkdirSync(standalone, { recursive: true })
     const standaloneDependencies = compatibleDependencies()
-    delete standaloneDependencies.classnames
+    delete standaloneDependencies.clsx
     writeFileSync(
       join(standalone, 'package.json'),
       `${JSON.stringify({ packageManager: 'npm@11', dependencies: standaloneDependencies })}\n`
@@ -342,7 +342,7 @@ describe('workspace root ownership', () => {
       const app = join(root, 'apps/webapp')
       writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - apps/*\n')
       const dependencies = compatibleDependencies()
-      delete dependencies.classnames
+      delete dependencies.clsx
       writeFileSync(join(app, 'package.json'), `${JSON.stringify({ dependencies })}\n`)
       const ctx = createTestContextAt(app, { examples: false })
       ctx.pm = manager

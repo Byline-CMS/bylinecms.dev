@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './branding.module.css'
 import Logo from './byline-logo.js'

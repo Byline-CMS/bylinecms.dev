@@ -2,7 +2,7 @@
 
 import React from 'react'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useMediaQuery } from '../../hooks/use-media-query'
 import { usePager } from './pagination'

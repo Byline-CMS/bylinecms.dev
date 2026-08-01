@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation } from '@tanstack/react-router'
 
 import { GithubIcon, Hamburger } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { LanguageMenu } from '@/i18n/components/language-menu'
 import { isRoutableLocale, routableLocales } from '@/i18n/i18n-config'

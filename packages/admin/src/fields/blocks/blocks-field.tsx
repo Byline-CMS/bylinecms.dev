@@ -25,7 +25,7 @@ import {
   moveItem,
   PlusIcon,
 } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { defaultScalarForField } from '../../fields/field-helpers'
 import { GroupField } from '../../fields/group/group-field'

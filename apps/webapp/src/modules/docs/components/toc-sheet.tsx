@@ -18,7 +18,7 @@
 import type React from 'react'
 
 import { Button, ChevronDownIcon, Modal, useModal } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { DocsTocList } from './toc'
 import styles from './toc-sheet.module.css'

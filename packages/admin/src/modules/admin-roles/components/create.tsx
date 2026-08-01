@@ -22,7 +22,7 @@ import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, Input, LoaderEllipsis, TextArea } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 import { z } from 'zod'
 
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'

@@ -30,7 +30,7 @@ import { useState } from 'react'
 
 import { useTranslation } from '@byline/i18n/react'
 import { Button, Container, LoaderRing, Section } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'
 import styles from './inspector.module.css'

@@ -23,7 +23,7 @@ import {
   UserIcon,
   UsersIcon,
 } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 import { useSwipeable } from 'react-swipeable'
 
 import { useAbilities } from '../../integrations/abilities.jsx'

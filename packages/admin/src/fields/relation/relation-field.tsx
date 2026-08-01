@@ -25,7 +25,7 @@ import {
   IconButton,
   Label,
 } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
 import styles from './relation-field.module.css'

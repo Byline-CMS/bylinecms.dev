@@ -13,7 +13,7 @@ import { useRouterState } from '@tanstack/react-router'
 import { getClientConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Button, Container, Section, Select, Table } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { Link, useNavigate } from '../chrome/loose-router.js'

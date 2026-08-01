@@ -26,7 +26,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from '@tanstack/react-router'
 
 import { ChevronRightIcon } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 import { useSwipeable } from 'react-swipeable'
 
 import { lngParam } from '@/i18n/hooks/use-locale-navigation'

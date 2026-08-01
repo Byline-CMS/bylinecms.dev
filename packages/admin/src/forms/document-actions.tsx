@@ -22,7 +22,7 @@ import {
   Modal,
   Select,
 } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './document-actions.module.css'
 import type { PublishedVersionInfo } from './form-renderer'

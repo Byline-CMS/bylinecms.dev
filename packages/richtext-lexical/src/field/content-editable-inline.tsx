@@ -8,7 +8,7 @@
 import type * as React from 'react'
 
 import { ContentEditable as LexicalContentEditable } from '@lexical/react/LexicalContentEditable'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import './content-editable.css'
 

@@ -27,7 +27,7 @@ import {
   type StoredFileValue,
 } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useFormContext } from '../../forms/form-context'
 import styles from './file-upload-field.module.css'

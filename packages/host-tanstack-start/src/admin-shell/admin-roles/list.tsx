@@ -44,7 +44,7 @@ import {
   useSortable,
   useToastManager,
 } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { reorderAdminRoles } from '../../server-fns/admin-roles/reorder.js'

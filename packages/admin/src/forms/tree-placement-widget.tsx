@@ -13,7 +13,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { getCollectionDefinition } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Button } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useBylineFieldServices } from '../fields/field-services-context.js'
 import { RelationPicker } from '../fields/relation/relation-picker.js'

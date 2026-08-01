@@ -181,7 +181,7 @@
     "@codemirror/view": "^6.43.6",
     "@lezer/highlight": "^1.2.3",
     "@tanstack/react-form-start": "^1.33.2",
-    "classnames": "^2.5.1",
+    "clsx": "^2.1.1",
     "jose": "^6.2.3",
     "react-diff-viewer-continued": "^4.4.0",
     "uuid": "^14.0.1",

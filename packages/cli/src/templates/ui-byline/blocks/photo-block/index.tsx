@@ -3,7 +3,7 @@
 import type React from 'react'
 
 import { Container, FadeInLift } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { ResponsiveImage } from '@/ui/byline/components/responsive-image'
 import { LexicalRichText } from '@/ui/byline/components/richtext-lexical'

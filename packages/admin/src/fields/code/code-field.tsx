@@ -10,7 +10,7 @@ import React, { Suspense, useCallback } from 'react'
 
 import type { Field, FieldComponentSlots, CodeField as FieldType } from '@byline/core'
 import { ErrorText, HelpText, Label } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
 import { LocaleBadge } from '../locale-badge'

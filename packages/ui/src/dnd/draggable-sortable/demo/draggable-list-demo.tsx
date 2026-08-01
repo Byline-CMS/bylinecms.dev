@@ -3,7 +3,7 @@
 import { useState } from 'react'
 
 import { Card, GripperVerticalIcon } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { DraggableSortable, moveItem, useSortable } from '..'
 import styles from './draggable-list-demo.module.css'

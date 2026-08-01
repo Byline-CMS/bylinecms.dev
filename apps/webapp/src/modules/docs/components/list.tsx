@@ -10,7 +10,7 @@ import type React from 'react'
 import { Link } from '@tanstack/react-router'
 
 import { Card, ChevronRightIcon } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useTranslations } from '@/i18n/client/translations-provider'
 import { lngParam } from '@/i18n/hooks/use-locale-navigation'

@@ -3,7 +3,7 @@
 import type React from 'react'
 
 import { LightIcon, MoonIcon } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useTheme } from './provider'
 import { Theme } from './utils'

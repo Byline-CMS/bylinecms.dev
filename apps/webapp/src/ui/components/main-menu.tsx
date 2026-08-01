@@ -13,7 +13,7 @@
 
 import { useRouterState } from '@tanstack/react-router'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useTranslations } from '@/i18n/client/translations-provider'
 import { LangLink } from '@/i18n/components/lang-link'

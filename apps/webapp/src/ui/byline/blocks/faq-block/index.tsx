@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 
 import type { FaqBlockData } from '@byline/generated-types'
 import { Accordion, Container } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { LexicalRichText } from '@/ui/byline/components/richtext-lexical'
 import type { Locale } from '@/i18n/i18n-config'

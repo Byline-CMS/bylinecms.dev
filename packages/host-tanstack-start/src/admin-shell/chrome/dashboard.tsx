@@ -10,7 +10,7 @@ import type { WorkflowStatus } from '@byline/core'
 import { getClientConfig, getWorkflowStatuses } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Card, Container, Section } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { getAdminRoutePath } from '../../routes/admin-path.js'
 import styles from './dashboard.module.css'

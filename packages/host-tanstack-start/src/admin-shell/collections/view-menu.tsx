@@ -11,7 +11,7 @@ import { useEffect } from 'react'
 import type { CollectionAdminConfig, PreviewDocument } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Button, HistoryIcon, IconButton, Label, Select } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { useNavigate } from '../chrome/loose-router.js'

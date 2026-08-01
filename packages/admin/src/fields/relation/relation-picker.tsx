@@ -12,7 +12,7 @@ import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
 import { getCollectionAdminConfig, resolveItemViewColumns } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Button, CheckIcon, LoaderRing, Modal, Search } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { useBylineFieldServices } from '../field-services-context'
 import {

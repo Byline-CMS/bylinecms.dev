@@ -2,7 +2,7 @@
 
 import type React from 'react'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import type { Locale } from '@/i18n/i18n-config'
 import type { SerializeOptions, SerializeProps } from '../richtext-lexical/serialize/index.tsx'

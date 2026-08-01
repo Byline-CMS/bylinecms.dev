@@ -22,7 +22,7 @@ import { getClientConfig } from '@byline/core'
 import type { DocumentPatch } from '@byline/core/patches'
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, ComboButton } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { sliceFieldAdmin } from '../fields/field-admin'
 import { FieldRenderer } from '../fields/field-renderer'

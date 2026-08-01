@@ -12,7 +12,7 @@ import { useCallback, useMemo } from 'react'
 
 import { useTranslation } from '@byline/i18n/react'
 import { Checkbox, Label } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { reconcileLocaleState } from './available-locales-reconcile'
 import styles from './available-locales-widget.module.css'

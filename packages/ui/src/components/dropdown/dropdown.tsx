@@ -3,7 +3,7 @@
 import type React from 'react'
 
 import { Menu } from '@base-ui/react/menu'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './dropdown.module.css'
 

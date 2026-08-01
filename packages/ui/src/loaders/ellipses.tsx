@@ -1,7 +1,7 @@
 // https://github.com/JoshK2/react-spinners-css
 import type React from 'react'
 
-import cx from 'classnames'
+import cx from 'clsx'
 
 import styles from './ellipses.module.css'
 import type { LoaderProps } from './@types/index.js'

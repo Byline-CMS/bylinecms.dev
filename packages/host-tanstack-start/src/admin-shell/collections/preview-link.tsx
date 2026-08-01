@@ -48,7 +48,7 @@ import { useState } from 'react'
 import type { CollectionAdminConfig, PreviewDocument } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { ExternalLinkIcon, IconButton, useToastManager } from '@byline/ui/react'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { enablePreviewModeFn } from '../../server-fns/preview/index.js'
 import { resolvePreviewUrl } from './resolve-preview-url.js'

@@ -3,7 +3,7 @@
 import React from 'react'
 
 import { Toast as ToastPrimitive } from '@base-ui/react/toast'
-import cx from 'classnames'
+import cx from 'clsx'
 
 import { CloseIcon } from '../../icons/close-icon'
 import { DangerIcon } from '../../icons/danger-icon'
