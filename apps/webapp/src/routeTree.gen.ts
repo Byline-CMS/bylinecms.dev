@@ -9,90 +9,79 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
-import { Route as BylineRouteRouteImport } from './routes/_byline/route'
 import { Route as LngRouteRouteImport } from './routes/$lng/route'
-import { Route as BylineSignInRouteImport } from './routes/_byline/sign-in'
-import { Route as BylineAdminRouteRouteImport } from './routes/_byline/admin/route'
+import { Route as BylineRouteRouteImport } from './routes/_byline/route'
+import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as LngFrontendRouteRouteImport } from './routes/$lng/_frontend/route'
-import { Route as BylineAdminIndexRouteImport } from './routes/_byline/admin/index'
+import { Route as BylineAdminRouteRouteImport } from './routes/_byline/admin/route'
+import { Route as BylineSignInRouteImport } from './routes/_byline/sign-in'
 import { Route as LngFrontendIndexRouteImport } from './routes/$lng/_frontend/index'
-import { Route as LngFrontendChar123pathChar125DotmdRouteImport } from './routes/$lng/_frontend/{$path}[.]md'
 import { Route as LngFrontendPathRouteImport } from './routes/$lng/_frontend/$path'
 import { Route as LngFrontendDocsRouteRouteImport } from './routes/$lng/_frontend/docs/route'
-import { Route as BylineAdminUsersIndexRouteImport } from './routes/_byline/admin/users/index'
-import { Route as BylineAdminRolesIndexRouteImport } from './routes/_byline/admin/roles/index'
-import { Route as BylineAdminPermissionsIndexRouteImport } from './routes/_byline/admin/permissions/index'
-import { Route as BylineAdminActivityIndexRouteImport } from './routes/_byline/admin/activity/index'
-import { Route as BylineAdminAccountIndexRouteImport } from './routes/_byline/admin/account/index'
-import { Route as LngFrontendNewsIndexRouteImport } from './routes/$lng/_frontend/news/index'
-import { Route as LngFrontendDocsIndexRouteImport } from './routes/$lng/_frontend/docs/index'
-import { Route as LngFrontendNewsChar123pathChar125DotmdRouteImport } from './routes/$lng/_frontend/news/{$path}[.]md'
-import { Route as LngFrontendNewsPathRouteImport } from './routes/$lng/_frontend/news/$path'
-import { Route as LngFrontendLegalChar123pathChar125DotmdRouteImport } from './routes/$lng/_frontend/legal/{$path}[.]md'
-import { Route as LngFrontendLegalPathRouteImport } from './routes/$lng/_frontend/legal/$path'
-import { Route as LngFrontendDocsChar123Char125DotmdRouteImport } from './routes/$lng/_frontend/docs/{$}[.]md'
-import { Route as LngFrontendDocsSplatRouteImport } from './routes/$lng/_frontend/docs/$'
-import { Route as LngFrontendAboutChar123pathChar125DotmdRouteImport } from './routes/$lng/_frontend/about/{$path}[.]md'
+import { Route as LngFrontendChar123pathChar125DotmdRouteImport } from './routes/$lng/_frontend/{$path}[.]md'
+import { Route as BylineAdminIndexRouteImport } from './routes/_byline/admin/index'
 import { Route as LngFrontendAboutPathRouteImport } from './routes/$lng/_frontend/about/$path'
-import { Route as BylineAdminUsersIdIndexRouteImport } from './routes/_byline/admin/users/$id/index'
-import { Route as BylineAdminRolesIdIndexRouteImport } from './routes/_byline/admin/roles/$id/index'
+import { Route as LngFrontendAboutChar123pathChar125DotmdRouteImport } from './routes/$lng/_frontend/about/{$path}[.]md'
+import { Route as LngFrontendDocsIndexRouteImport } from './routes/$lng/_frontend/docs/index'
+import { Route as LngFrontendDocsSplatRouteImport } from './routes/$lng/_frontend/docs/$'
+import { Route as LngFrontendDocsChar123Char125DotmdRouteImport } from './routes/$lng/_frontend/docs/{$}[.]md'
+import { Route as LngFrontendLegalPathRouteImport } from './routes/$lng/_frontend/legal/$path'
+import { Route as LngFrontendLegalChar123pathChar125DotmdRouteImport } from './routes/$lng/_frontend/legal/{$path}[.]md'
+import { Route as LngFrontendNewsIndexRouteImport } from './routes/$lng/_frontend/news/index'
+import { Route as LngFrontendNewsPathRouteImport } from './routes/$lng/_frontend/news/$path'
+import { Route as LngFrontendNewsChar123pathChar125DotmdRouteImport } from './routes/$lng/_frontend/news/{$path}[.]md'
+import { Route as BylineAdminAccountIndexRouteImport } from './routes/_byline/admin/account/index'
+import { Route as BylineAdminActivityIndexRouteImport } from './routes/_byline/admin/activity/index'
+import { Route as BylineAdminPermissionsIndexRouteImport } from './routes/_byline/admin/permissions/index'
+import { Route as BylineAdminRolesIndexRouteImport } from './routes/_byline/admin/roles/index'
+import { Route as BylineAdminUsersIndexRouteImport } from './routes/_byline/admin/users/index'
 import { Route as BylineAdminCollectionsCollectionIndexRouteImport } from './routes/_byline/admin/collections/$collection/index'
 import { Route as BylineAdminCollectionsCollectionCreateRouteImport } from './routes/_byline/admin/collections/$collection/create'
+import { Route as BylineAdminRolesIdIndexRouteImport } from './routes/_byline/admin/roles/$id/index'
+import { Route as BylineAdminUsersIdIndexRouteImport } from './routes/_byline/admin/users/$id/index'
 import { Route as BylineAdminCollectionsCollectionIdIndexRouteImport } from './routes/_byline/admin/collections/$collection/$id/index'
-import { Route as BylineAdminCollectionsCollectionIdHistoryRouteImport } from './routes/_byline/admin/collections/$collection/$id/history'
 import { Route as BylineAdminCollectionsCollectionIdApiRouteImport } from './routes/_byline/admin/collections/$collection/$id/api'
+import { Route as BylineAdminCollectionsCollectionIdHistoryRouteImport } from './routes/_byline/admin/collections/$collection/$id/history'
 
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
-  id: '/llms.txt',
-  path: '/llms.txt',
+const LngRouteRoute = LngRouteRouteImport.update({
+  id: '/$lng',
+  path: '/$lng',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BylineRouteRoute = BylineRouteRouteImport.update({
   id: '/_byline',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/_byline/route.lazy').then((d) => d.Route))
-const LngRouteRoute = LngRouteRouteImport.update({
-  id: '/$lng',
-  path: '/$lng',
+const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
+  id: '/llms.txt',
+  path: '/llms.txt',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BylineSignInRoute = BylineSignInRouteImport.update({
-  id: '/sign-in',
-  path: '/sign-in',
-  getParentRoute: () => BylineRouteRoute,
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LngFrontendRouteRoute = LngFrontendRouteRouteImport.update({
+  id: '/_frontend',
+  getParentRoute: () => LngRouteRoute,
 } as any)
 const BylineAdminRouteRoute = BylineAdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => BylineRouteRoute,
 } as any)
-const LngFrontendRouteRoute = LngFrontendRouteRouteImport.update({
-  id: '/_frontend',
-  getParentRoute: () => LngRouteRoute,
-} as any)
-const BylineAdminIndexRoute = BylineAdminIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => BylineAdminRouteRoute,
+const BylineSignInRoute = BylineSignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
+  getParentRoute: () => BylineRouteRoute,
 } as any)
 const LngFrontendIndexRoute = LngFrontendIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => LngFrontendRouteRoute,
 } as any)
-const LngFrontendChar123pathChar125DotmdRoute =
-  LngFrontendChar123pathChar125DotmdRouteImport.update({
-    id: '/{$path}.md',
-    path: '/{$path}.md',
-    getParentRoute: () => LngFrontendRouteRoute,
-  } as any)
 const LngFrontendPathRoute = LngFrontendPathRouteImport.update({
   id: '/$path',
   path: '/$path',
@@ -103,52 +92,47 @@ const LngFrontendDocsRouteRoute = LngFrontendDocsRouteRouteImport.update({
   path: '/docs',
   getParentRoute: () => LngFrontendRouteRoute,
 } as any)
-const BylineAdminUsersIndexRoute = BylineAdminUsersIndexRouteImport.update({
-  id: '/users/',
-  path: '/users/',
-  getParentRoute: () => BylineAdminRouteRoute,
-} as any)
-const BylineAdminRolesIndexRoute = BylineAdminRolesIndexRouteImport.update({
-  id: '/roles/',
-  path: '/roles/',
-  getParentRoute: () => BylineAdminRouteRoute,
-} as any)
-const BylineAdminPermissionsIndexRoute =
-  BylineAdminPermissionsIndexRouteImport.update({
-    id: '/permissions/',
-    path: '/permissions/',
-    getParentRoute: () => BylineAdminRouteRoute,
+const LngFrontendChar123pathChar125DotmdRoute =
+  LngFrontendChar123pathChar125DotmdRouteImport.update({
+    id: '/{$path}.md',
+    path: '/{$path}.md',
+    getParentRoute: () => LngFrontendRouteRoute,
   } as any)
-const BylineAdminActivityIndexRoute =
-  BylineAdminActivityIndexRouteImport.update({
-    id: '/activity/',
-    path: '/activity/',
-    getParentRoute: () => BylineAdminRouteRoute,
-  } as any)
-const BylineAdminAccountIndexRoute = BylineAdminAccountIndexRouteImport.update({
-  id: '/account/',
-  path: '/account/',
+const BylineAdminIndexRoute = BylineAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => BylineAdminRouteRoute,
 } as any)
-const LngFrontendNewsIndexRoute = LngFrontendNewsIndexRouteImport.update({
-  id: '/news/',
-  path: '/news/',
+const LngFrontendAboutPathRoute = LngFrontendAboutPathRouteImport.update({
+  id: '/about/$path',
+  path: '/about/$path',
   getParentRoute: () => LngFrontendRouteRoute,
 } as any)
+const LngFrontendAboutChar123pathChar125DotmdRoute =
+  LngFrontendAboutChar123pathChar125DotmdRouteImport.update({
+    id: '/about/{$path}.md',
+    path: '/about/{$path}.md',
+    getParentRoute: () => LngFrontendRouteRoute,
+  } as any)
 const LngFrontendDocsIndexRoute = LngFrontendDocsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => LngFrontendDocsRouteRoute,
 } as any)
-const LngFrontendNewsChar123pathChar125DotmdRoute =
-  LngFrontendNewsChar123pathChar125DotmdRouteImport.update({
-    id: '/news/{$path}.md',
-    path: '/news/{$path}.md',
-    getParentRoute: () => LngFrontendRouteRoute,
+const LngFrontendDocsSplatRoute = LngFrontendDocsSplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => LngFrontendDocsRouteRoute,
+} as any)
+const LngFrontendDocsChar123Char125DotmdRoute =
+  LngFrontendDocsChar123Char125DotmdRouteImport.update({
+    id: '/{$}.md',
+    path: '/{$}.md',
+    getParentRoute: () => LngFrontendDocsRouteRoute,
   } as any)
-const LngFrontendNewsPathRoute = LngFrontendNewsPathRouteImport.update({
-  id: '/news/$path',
-  path: '/news/$path',
+const LngFrontendLegalPathRoute = LngFrontendLegalPathRouteImport.update({
+  id: '/legal/$path',
+  path: '/legal/$path',
   getParentRoute: () => LngFrontendRouteRoute,
 } as any)
 const LngFrontendLegalChar123pathChar125DotmdRoute =
@@ -157,41 +141,47 @@ const LngFrontendLegalChar123pathChar125DotmdRoute =
     path: '/legal/{$path}.md',
     getParentRoute: () => LngFrontendRouteRoute,
   } as any)
-const LngFrontendLegalPathRoute = LngFrontendLegalPathRouteImport.update({
-  id: '/legal/$path',
-  path: '/legal/$path',
+const LngFrontendNewsIndexRoute = LngFrontendNewsIndexRouteImport.update({
+  id: '/news/',
+  path: '/news/',
   getParentRoute: () => LngFrontendRouteRoute,
 } as any)
-const LngFrontendDocsChar123Char125DotmdRoute =
-  LngFrontendDocsChar123Char125DotmdRouteImport.update({
-    id: '/{$}.md',
-    path: '/{$}.md',
-    getParentRoute: () => LngFrontendDocsRouteRoute,
-  } as any)
-const LngFrontendDocsSplatRoute = LngFrontendDocsSplatRouteImport.update({
-  id: '/$',
-  path: '/$',
-  getParentRoute: () => LngFrontendDocsRouteRoute,
+const LngFrontendNewsPathRoute = LngFrontendNewsPathRouteImport.update({
+  id: '/news/$path',
+  path: '/news/$path',
+  getParentRoute: () => LngFrontendRouteRoute,
 } as any)
-const LngFrontendAboutChar123pathChar125DotmdRoute =
-  LngFrontendAboutChar123pathChar125DotmdRouteImport.update({
-    id: '/about/{$path}.md',
-    path: '/about/{$path}.md',
+const LngFrontendNewsChar123pathChar125DotmdRoute =
+  LngFrontendNewsChar123pathChar125DotmdRouteImport.update({
+    id: '/news/{$path}.md',
+    path: '/news/{$path}.md',
     getParentRoute: () => LngFrontendRouteRoute,
   } as any)
-const LngFrontendAboutPathRoute = LngFrontendAboutPathRouteImport.update({
-  id: '/about/$path',
-  path: '/about/$path',
-  getParentRoute: () => LngFrontendRouteRoute,
-} as any)
-const BylineAdminUsersIdIndexRoute = BylineAdminUsersIdIndexRouteImport.update({
-  id: '/users/$id/',
-  path: '/users/$id/',
+const BylineAdminAccountIndexRoute = BylineAdminAccountIndexRouteImport.update({
+  id: '/account/',
+  path: '/account/',
   getParentRoute: () => BylineAdminRouteRoute,
 } as any)
-const BylineAdminRolesIdIndexRoute = BylineAdminRolesIdIndexRouteImport.update({
-  id: '/roles/$id/',
-  path: '/roles/$id/',
+const BylineAdminActivityIndexRoute =
+  BylineAdminActivityIndexRouteImport.update({
+    id: '/activity/',
+    path: '/activity/',
+    getParentRoute: () => BylineAdminRouteRoute,
+  } as any)
+const BylineAdminPermissionsIndexRoute =
+  BylineAdminPermissionsIndexRouteImport.update({
+    id: '/permissions/',
+    path: '/permissions/',
+    getParentRoute: () => BylineAdminRouteRoute,
+  } as any)
+const BylineAdminRolesIndexRoute = BylineAdminRolesIndexRouteImport.update({
+  id: '/roles/',
+  path: '/roles/',
+  getParentRoute: () => BylineAdminRouteRoute,
+} as any)
+const BylineAdminUsersIndexRoute = BylineAdminUsersIndexRouteImport.update({
+  id: '/users/',
+  path: '/users/',
   getParentRoute: () => BylineAdminRouteRoute,
 } as any)
 const BylineAdminCollectionsCollectionIndexRoute =
@@ -206,22 +196,32 @@ const BylineAdminCollectionsCollectionCreateRoute =
     path: '/collections/$collection/create',
     getParentRoute: () => BylineAdminRouteRoute,
   } as any)
+const BylineAdminRolesIdIndexRoute = BylineAdminRolesIdIndexRouteImport.update({
+  id: '/roles/$id/',
+  path: '/roles/$id/',
+  getParentRoute: () => BylineAdminRouteRoute,
+} as any)
+const BylineAdminUsersIdIndexRoute = BylineAdminUsersIdIndexRouteImport.update({
+  id: '/users/$id/',
+  path: '/users/$id/',
+  getParentRoute: () => BylineAdminRouteRoute,
+} as any)
 const BylineAdminCollectionsCollectionIdIndexRoute =
   BylineAdminCollectionsCollectionIdIndexRouteImport.update({
     id: '/collections/$collection/$id/',
     path: '/collections/$collection/$id/',
     getParentRoute: () => BylineAdminRouteRoute,
   } as any)
-const BylineAdminCollectionsCollectionIdHistoryRoute =
-  BylineAdminCollectionsCollectionIdHistoryRouteImport.update({
-    id: '/collections/$collection/$id/history',
-    path: '/collections/$collection/$id/history',
-    getParentRoute: () => BylineAdminRouteRoute,
-  } as any)
 const BylineAdminCollectionsCollectionIdApiRoute =
   BylineAdminCollectionsCollectionIdApiRouteImport.update({
     id: '/collections/$collection/$id/api',
     path: '/collections/$collection/$id/api',
+    getParentRoute: () => BylineAdminRouteRoute,
+  } as any)
+const BylineAdminCollectionsCollectionIdHistoryRoute =
+  BylineAdminCollectionsCollectionIdHistoryRouteImport.update({
+    id: '/collections/$collection/$id/history',
+    path: '/collections/$collection/$id/history',
     getParentRoute: () => BylineAdminRouteRoute,
   } as any)
 
@@ -444,18 +444,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/llms.txt': {
-      id: '/llms.txt'
-      path: '/llms.txt'
-      fullPath: '/llms.txt'
-      preLoaderRoute: typeof LlmsDottxtRouteImport
+    '/$lng': {
+      id: '/$lng'
+      path: '/$lng'
+      fullPath: '/$lng'
+      preLoaderRoute: typeof LngRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_byline': {
@@ -465,26 +458,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BylineRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$lng': {
-      id: '/$lng'
-      path: '/$lng'
-      fullPath: '/$lng'
-      preLoaderRoute: typeof LngRouteRouteImport
+    '/llms.txt': {
+      id: '/llms.txt'
+      path: '/llms.txt'
+      fullPath: '/llms.txt'
+      preLoaderRoute: typeof LlmsDottxtRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_byline/sign-in': {
-      id: '/_byline/sign-in'
-      path: '/sign-in'
-      fullPath: '/sign-in'
-      preLoaderRoute: typeof BylineSignInRouteImport
-      parentRoute: typeof BylineRouteRoute
-    }
-    '/_byline/admin': {
-      id: '/_byline/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof BylineAdminRouteRouteImport
-      parentRoute: typeof BylineRouteRoute
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/$lng/_frontend': {
       id: '/$lng/_frontend'
@@ -493,25 +479,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LngFrontendRouteRouteImport
       parentRoute: typeof LngRouteRoute
     }
-    '/_byline/admin/': {
-      id: '/_byline/admin/'
-      path: '/'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof BylineAdminIndexRouteImport
-      parentRoute: typeof BylineAdminRouteRoute
+    '/_byline/admin': {
+      id: '/_byline/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof BylineAdminRouteRouteImport
+      parentRoute: typeof BylineRouteRoute
+    }
+    '/_byline/sign-in': {
+      id: '/_byline/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof BylineSignInRouteImport
+      parentRoute: typeof BylineRouteRoute
     }
     '/$lng/_frontend/': {
       id: '/$lng/_frontend/'
       path: '/'
       fullPath: '/$lng/'
       preLoaderRoute: typeof LngFrontendIndexRouteImport
-      parentRoute: typeof LngFrontendRouteRoute
-    }
-    '/$lng/_frontend/{$path}.md': {
-      id: '/$lng/_frontend/{$path}.md'
-      path: '/{$path}.md'
-      fullPath: '/$lng/{$path}.md'
-      preLoaderRoute: typeof LngFrontendChar123pathChar125DotmdRouteImport
       parentRoute: typeof LngFrontendRouteRoute
     }
     '/$lng/_frontend/$path': {
@@ -528,46 +514,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LngFrontendDocsRouteRouteImport
       parentRoute: typeof LngFrontendRouteRoute
     }
-    '/_byline/admin/users/': {
-      id: '/_byline/admin/users/'
-      path: '/users'
-      fullPath: '/admin/users/'
-      preLoaderRoute: typeof BylineAdminUsersIndexRouteImport
+    '/$lng/_frontend/{$path}.md': {
+      id: '/$lng/_frontend/{$path}.md'
+      path: '/{$path}.md'
+      fullPath: '/$lng/{$path}.md'
+      preLoaderRoute: typeof LngFrontendChar123pathChar125DotmdRouteImport
+      parentRoute: typeof LngFrontendRouteRoute
+    }
+    '/_byline/admin/': {
+      id: '/_byline/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof BylineAdminIndexRouteImport
       parentRoute: typeof BylineAdminRouteRoute
     }
-    '/_byline/admin/roles/': {
-      id: '/_byline/admin/roles/'
-      path: '/roles'
-      fullPath: '/admin/roles/'
-      preLoaderRoute: typeof BylineAdminRolesIndexRouteImport
-      parentRoute: typeof BylineAdminRouteRoute
+    '/$lng/_frontend/about/$path': {
+      id: '/$lng/_frontend/about/$path'
+      path: '/about/$path'
+      fullPath: '/$lng/about/$path'
+      preLoaderRoute: typeof LngFrontendAboutPathRouteImport
+      parentRoute: typeof LngFrontendRouteRoute
     }
-    '/_byline/admin/permissions/': {
-      id: '/_byline/admin/permissions/'
-      path: '/permissions'
-      fullPath: '/admin/permissions/'
-      preLoaderRoute: typeof BylineAdminPermissionsIndexRouteImport
-      parentRoute: typeof BylineAdminRouteRoute
-    }
-    '/_byline/admin/activity/': {
-      id: '/_byline/admin/activity/'
-      path: '/activity'
-      fullPath: '/admin/activity/'
-      preLoaderRoute: typeof BylineAdminActivityIndexRouteImport
-      parentRoute: typeof BylineAdminRouteRoute
-    }
-    '/_byline/admin/account/': {
-      id: '/_byline/admin/account/'
-      path: '/account'
-      fullPath: '/admin/account/'
-      preLoaderRoute: typeof BylineAdminAccountIndexRouteImport
-      parentRoute: typeof BylineAdminRouteRoute
-    }
-    '/$lng/_frontend/news/': {
-      id: '/$lng/_frontend/news/'
-      path: '/news'
-      fullPath: '/$lng/news/'
-      preLoaderRoute: typeof LngFrontendNewsIndexRouteImport
+    '/$lng/_frontend/about/{$path}.md': {
+      id: '/$lng/_frontend/about/{$path}.md'
+      path: '/about/{$path}.md'
+      fullPath: '/$lng/about/{$path}.md'
+      preLoaderRoute: typeof LngFrontendAboutChar123pathChar125DotmdRouteImport
       parentRoute: typeof LngFrontendRouteRoute
     }
     '/$lng/_frontend/docs/': {
@@ -577,18 +549,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LngFrontendDocsIndexRouteImport
       parentRoute: typeof LngFrontendDocsRouteRoute
     }
-    '/$lng/_frontend/news/{$path}.md': {
-      id: '/$lng/_frontend/news/{$path}.md'
-      path: '/news/{$path}.md'
-      fullPath: '/$lng/news/{$path}.md'
-      preLoaderRoute: typeof LngFrontendNewsChar123pathChar125DotmdRouteImport
-      parentRoute: typeof LngFrontendRouteRoute
+    '/$lng/_frontend/docs/$': {
+      id: '/$lng/_frontend/docs/$'
+      path: '/$'
+      fullPath: '/$lng/docs/$'
+      preLoaderRoute: typeof LngFrontendDocsSplatRouteImport
+      parentRoute: typeof LngFrontendDocsRouteRoute
     }
-    '/$lng/_frontend/news/$path': {
-      id: '/$lng/_frontend/news/$path'
-      path: '/news/$path'
-      fullPath: '/$lng/news/$path'
-      preLoaderRoute: typeof LngFrontendNewsPathRouteImport
+    '/$lng/_frontend/docs/{$}.md': {
+      id: '/$lng/_frontend/docs/{$}.md'
+      path: '/{$}.md'
+      fullPath: '/$lng/docs/{$}.md'
+      preLoaderRoute: typeof LngFrontendDocsChar123Char125DotmdRouteImport
+      parentRoute: typeof LngFrontendDocsRouteRoute
+    }
+    '/$lng/_frontend/legal/$path': {
+      id: '/$lng/_frontend/legal/$path'
+      path: '/legal/$path'
+      fullPath: '/$lng/legal/$path'
+      preLoaderRoute: typeof LngFrontendLegalPathRouteImport
       parentRoute: typeof LngFrontendRouteRoute
     }
     '/$lng/_frontend/legal/{$path}.md': {
@@ -598,53 +577,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LngFrontendLegalChar123pathChar125DotmdRouteImport
       parentRoute: typeof LngFrontendRouteRoute
     }
-    '/$lng/_frontend/legal/$path': {
-      id: '/$lng/_frontend/legal/$path'
-      path: '/legal/$path'
-      fullPath: '/$lng/legal/$path'
-      preLoaderRoute: typeof LngFrontendLegalPathRouteImport
+    '/$lng/_frontend/news/': {
+      id: '/$lng/_frontend/news/'
+      path: '/news'
+      fullPath: '/$lng/news/'
+      preLoaderRoute: typeof LngFrontendNewsIndexRouteImport
       parentRoute: typeof LngFrontendRouteRoute
     }
-    '/$lng/_frontend/docs/{$}.md': {
-      id: '/$lng/_frontend/docs/{$}.md'
-      path: '/{$}.md'
-      fullPath: '/$lng/docs/{$}.md'
-      preLoaderRoute: typeof LngFrontendDocsChar123Char125DotmdRouteImport
-      parentRoute: typeof LngFrontendDocsRouteRoute
-    }
-    '/$lng/_frontend/docs/$': {
-      id: '/$lng/_frontend/docs/$'
-      path: '/$'
-      fullPath: '/$lng/docs/$'
-      preLoaderRoute: typeof LngFrontendDocsSplatRouteImport
-      parentRoute: typeof LngFrontendDocsRouteRoute
-    }
-    '/$lng/_frontend/about/{$path}.md': {
-      id: '/$lng/_frontend/about/{$path}.md'
-      path: '/about/{$path}.md'
-      fullPath: '/$lng/about/{$path}.md'
-      preLoaderRoute: typeof LngFrontendAboutChar123pathChar125DotmdRouteImport
+    '/$lng/_frontend/news/$path': {
+      id: '/$lng/_frontend/news/$path'
+      path: '/news/$path'
+      fullPath: '/$lng/news/$path'
+      preLoaderRoute: typeof LngFrontendNewsPathRouteImport
       parentRoute: typeof LngFrontendRouteRoute
     }
-    '/$lng/_frontend/about/$path': {
-      id: '/$lng/_frontend/about/$path'
-      path: '/about/$path'
-      fullPath: '/$lng/about/$path'
-      preLoaderRoute: typeof LngFrontendAboutPathRouteImport
+    '/$lng/_frontend/news/{$path}.md': {
+      id: '/$lng/_frontend/news/{$path}.md'
+      path: '/news/{$path}.md'
+      fullPath: '/$lng/news/{$path}.md'
+      preLoaderRoute: typeof LngFrontendNewsChar123pathChar125DotmdRouteImport
       parentRoute: typeof LngFrontendRouteRoute
     }
-    '/_byline/admin/users/$id/': {
-      id: '/_byline/admin/users/$id/'
-      path: '/users/$id'
-      fullPath: '/admin/users/$id/'
-      preLoaderRoute: typeof BylineAdminUsersIdIndexRouteImport
+    '/_byline/admin/account/': {
+      id: '/_byline/admin/account/'
+      path: '/account'
+      fullPath: '/admin/account/'
+      preLoaderRoute: typeof BylineAdminAccountIndexRouteImport
       parentRoute: typeof BylineAdminRouteRoute
     }
-    '/_byline/admin/roles/$id/': {
-      id: '/_byline/admin/roles/$id/'
-      path: '/roles/$id'
-      fullPath: '/admin/roles/$id/'
-      preLoaderRoute: typeof BylineAdminRolesIdIndexRouteImport
+    '/_byline/admin/activity/': {
+      id: '/_byline/admin/activity/'
+      path: '/activity'
+      fullPath: '/admin/activity/'
+      preLoaderRoute: typeof BylineAdminActivityIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
+    }
+    '/_byline/admin/permissions/': {
+      id: '/_byline/admin/permissions/'
+      path: '/permissions'
+      fullPath: '/admin/permissions/'
+      preLoaderRoute: typeof BylineAdminPermissionsIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
+    }
+    '/_byline/admin/roles/': {
+      id: '/_byline/admin/roles/'
+      path: '/roles'
+      fullPath: '/admin/roles/'
+      preLoaderRoute: typeof BylineAdminRolesIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
+    }
+    '/_byline/admin/users/': {
+      id: '/_byline/admin/users/'
+      path: '/users'
+      fullPath: '/admin/users/'
+      preLoaderRoute: typeof BylineAdminUsersIndexRouteImport
       parentRoute: typeof BylineAdminRouteRoute
     }
     '/_byline/admin/collections/$collection/': {
@@ -661,6 +647,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BylineAdminCollectionsCollectionCreateRouteImport
       parentRoute: typeof BylineAdminRouteRoute
     }
+    '/_byline/admin/roles/$id/': {
+      id: '/_byline/admin/roles/$id/'
+      path: '/roles/$id'
+      fullPath: '/admin/roles/$id/'
+      preLoaderRoute: typeof BylineAdminRolesIdIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
+    }
+    '/_byline/admin/users/$id/': {
+      id: '/_byline/admin/users/$id/'
+      path: '/users/$id'
+      fullPath: '/admin/users/$id/'
+      preLoaderRoute: typeof BylineAdminUsersIdIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
+    }
     '/_byline/admin/collections/$collection/$id/': {
       id: '/_byline/admin/collections/$collection/$id/'
       path: '/collections/$collection/$id'
@@ -668,18 +668,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BylineAdminCollectionsCollectionIdIndexRouteImport
       parentRoute: typeof BylineAdminRouteRoute
     }
-    '/_byline/admin/collections/$collection/$id/history': {
-      id: '/_byline/admin/collections/$collection/$id/history'
-      path: '/collections/$collection/$id/history'
-      fullPath: '/admin/collections/$collection/$id/history'
-      preLoaderRoute: typeof BylineAdminCollectionsCollectionIdHistoryRouteImport
-      parentRoute: typeof BylineAdminRouteRoute
-    }
     '/_byline/admin/collections/$collection/$id/api': {
       id: '/_byline/admin/collections/$collection/$id/api'
       path: '/collections/$collection/$id/api'
       fullPath: '/admin/collections/$collection/$id/api'
       preLoaderRoute: typeof BylineAdminCollectionsCollectionIdApiRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
+    }
+    '/_byline/admin/collections/$collection/$id/history': {
+      id: '/_byline/admin/collections/$collection/$id/history'
+      path: '/collections/$collection/$id/history'
+      fullPath: '/admin/collections/$collection/$id/history'
+      preLoaderRoute: typeof BylineAdminCollectionsCollectionIdHistoryRouteImport
       parentRoute: typeof BylineAdminRouteRoute
     }
   }

@@ -9,9 +9,5 @@
 import { HeroTagline } from '@/modules/home/hero-tagline'
 
 export function HomeView() {
-  return (
-    <>
-      <HeroTagline />
-    </>
-  )
+  return <HeroTagline />
 }
