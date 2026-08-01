@@ -210,9 +210,9 @@ The [Collections API reference](../10-api-reference/02-collections.md) lists eve
 
 ## Common boundary mistakes
 
-### Importing admin config from a public route
+### Importing admin config from a frontend route
 
-This pulls collection presentation, React components, and editor extensions into the public graph. Import `byline/public.ts` for route and locale data instead.
+This pulls admin collection presentation, React components, and editor extensions into the frontend public graph (your website). You can safely import route and locale data, if needed - from `byline/public.ts` instead.
 
 ### Importing server-only code from a schema
 
