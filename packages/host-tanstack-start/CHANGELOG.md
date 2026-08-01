@@ -1,5 +1,22 @@
 # @byline/host-tanstack-start
 
+## 4.11.2
+
+### Patch Changes
+
+- fixed **`@byline/richtext-lexical`** and **`@byline/ai`** command payload types for lexical 0.49, including an inline-image enter handler that could throw on IME input
+
+  **`@byline/cli`** wire prompt now names the vite.config.ts backup file
+
+- Updated dependencies
+  - @byline/admin@4.11.2
+  - @byline/ai@4.11.2
+  - @byline/auth@4.11.2
+  - @byline/client@4.11.2
+  - @byline/core@4.11.2
+  - @byline/i18n@4.11.2
+  - @byline/ui@4.11.2
+
 ## 4.11.1
 
 ### Patch Changes

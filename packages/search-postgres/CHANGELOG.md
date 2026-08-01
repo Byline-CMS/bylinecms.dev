@@ -1,5 +1,17 @@
 # @byline/search-postgres
 
+## 4.11.2
+
+### Patch Changes
+
+- fixed **`@byline/richtext-lexical`** and **`@byline/ai`** command payload types for lexical 0.49, including an inline-image enter handler that could throw on IME input
+
+  **`@byline/cli`** wire prompt now names the vite.config.ts backup file
+
+- Updated dependencies
+  - @byline/core@4.11.2
+  - @byline/search-analysis@4.11.2
+
 ## 4.11.1
 
 ### Patch Changes
