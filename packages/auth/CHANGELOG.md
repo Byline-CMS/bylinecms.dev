@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 4.11.1
+
+### Patch Changes
+
+- replaced classnames with clsx across all packages, fixing a cold-start vite optimizer error that broke admin modules in cli-installed apps
+
 ## 4.11.0
 
 ### Minor Changes

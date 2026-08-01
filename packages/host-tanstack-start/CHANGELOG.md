@@ -1,5 +1,19 @@
 # @byline/host-tanstack-start
 
+## 4.11.1
+
+### Patch Changes
+
+- replaced classnames with clsx across all packages, fixing a cold-start vite optimizer error that broke admin modules in cli-installed apps
+- Updated dependencies
+  - @byline/admin@4.11.1
+  - @byline/ai@4.11.1
+  - @byline/auth@4.11.1
+  - @byline/client@4.11.1
+  - @byline/core@4.11.1
+  - @byline/i18n@4.11.1
+  - @byline/ui@4.11.1
+
 ## 4.11.0
 
 ### Minor Changes

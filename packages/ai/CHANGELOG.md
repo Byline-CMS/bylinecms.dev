@@ -1,5 +1,15 @@
 # @infonomic/ai
 
+## 4.11.1
+
+### Patch Changes
+
+- replaced classnames with clsx across all packages, fixing a cold-start vite optimizer error that broke admin modules in cli-installed apps
+- Updated dependencies
+  - @byline/core@4.11.1
+  - @byline/richtext-lexical@4.11.1
+  - @byline/ui@4.11.1
+
 ## 4.11.0
 
 ### Minor Changes
