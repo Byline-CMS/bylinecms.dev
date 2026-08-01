@@ -16,7 +16,7 @@
 
 import { createCommand } from 'lexical'
 
-export const TOGGLE_AI_DRAWER_COMMAND = createCommand('TOGGLE_AI_DRAWER_COMMAND')
+export const TOGGLE_AI_DRAWER_COMMAND = createCommand<void>('TOGGLE_AI_DRAWER_COMMAND')
 
 /**
  * Broadcasts the AI drawer's open/closed state so contributed UI (the

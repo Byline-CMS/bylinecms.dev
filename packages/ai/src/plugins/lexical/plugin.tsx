@@ -362,7 +362,7 @@ export const AiPluginLexical = React.memo(function AiPlugin(): React.JSX.Element
 
   useEffect(() => {
     return mergeRegister(
-      editor.registerCommand<null>(
+      editor.registerCommand<void>(
         TOGGLE_AI_DRAWER_COMMAND,
         () => {
           setOpen((prevOpen) => !prevOpen)

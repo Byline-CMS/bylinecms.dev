@@ -8,7 +8,7 @@ import { COMMAND_PRIORITY_NORMAL, createCommand } from 'lexical'
 
 import { TableModal } from './table-modal'
 
-export const OPEN_TABLE_MODAL_COMMAND = createCommand('OPEN_TABLE_MODAL_COMMAND')
+export const OPEN_TABLE_MODAL_COMMAND = createCommand<null>('OPEN_TABLE_MODAL_COMMAND')
 
 export function TablePlugin(): React.JSX.Element {
   const [editor] = useLexicalComposerContext()

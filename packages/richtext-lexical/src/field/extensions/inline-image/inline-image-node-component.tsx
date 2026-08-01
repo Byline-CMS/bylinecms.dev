@@ -158,7 +158,11 @@ export default function InlineImageComponent({
   )
 
   const onEnter = useCallback(
-    (event: KeyboardEvent) => {
+    // KEY_ENTER_COMMAND carries `KeyboardEvent | null` — Lexical synthesises an
+    // Enter with a null event when an IME composition ends in a newline, and
+    // that path reaches node selections too. There is nothing to preventDefault
+    // in that case, but the focus move still applies.
+    (event: KeyboardEvent | null) => {
       const latestSelection = $getSelection()
       const buttonElem = buttonRef.current
       if (
@@ -169,11 +173,11 @@ export default function InlineImageComponent({
         if (showCaption) {
           // Move focus into nested editor
           $setSelection(null)
-          event.preventDefault()
+          event?.preventDefault()
           caption.focus()
           return true
         } else if (buttonElem !== null && buttonElem !== document.activeElement) {
-          event.preventDefault()
+          event?.preventDefault()
           buttonElem.focus()
           return true
         }

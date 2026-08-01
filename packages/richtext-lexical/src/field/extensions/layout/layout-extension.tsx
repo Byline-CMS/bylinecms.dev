@@ -39,7 +39,9 @@ import {
 } from './layout-container-node'
 import { $createLayoutItemNode, $isLayoutItemNode, LayoutItemNode } from './layout-item-node'
 
-export const OPEN_INSERT_LAYOUT_MODAL_COMMAND = createCommand('OPEN_INSERT_LAYOUT_MODAL_COMMAND')
+export const OPEN_INSERT_LAYOUT_MODAL_COMMAND = createCommand<null>(
+  'OPEN_INSERT_LAYOUT_MODAL_COMMAND'
+)
 
 export const INSERT_LAYOUT_COMMAND: LexicalCommand<string> = createCommand<string>()
 
