@@ -36,6 +36,19 @@ jobs:
       # files and devDependencies surface as warnings only (see knip.json).
       - run: pnpm knip
 
+      # Advisory public-export audit. The gate above cannot see unused exported
+      # symbols in published packages: `knip.json` treats each library's
+      # `src/*.{ts,tsx}` barrel as an entry file, leaves `includeEntryExports`
+      # disabled, and turns the `exports`/`types` rules off — which is how the
+      # unused `toSerializableCollection()` helper survived. `knip.exports.json`
+      # re-enables all three for `packages/*` only.
+      #
+      # Runs with `--no-exit-code`, so it reports and never blocks. Findings are
+      # candidates for public-API review, not proof: an export may serve a
+      # consumer outside this repository. Promote to a blocking step only once
+      # the baseline is annotated and new findings are actionable.
+      - run: pnpm knip:exports
+
   test-suite:
     if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     runs-on: ubuntu-latest
