@@ -1,7 +1,7 @@
 # Configuration Surface Breaking Cleanup Plan
 
 Date: 2026-08-02
-Status: implementation complete; two downstream pull requests pending GitHub authentication
+Status: implementation complete; four draft pull requests published
 Last revised: 2026-08-02 after implementation and coordinated four-repository verification
 
 ## Goal
@@ -594,12 +594,12 @@ Published draft pull requests:
 
 - `Byline-CMS/bylinecms.dev#74`
 - `Byline-CMS/bylinecms.app#1`
+- `Modulus-Learning/modulus-learning.org#1`
+- `infonomic/beta.forru.org#1`
 
-The Modulus and FORRU branches are pushed, but pull request creation is pending
-a valid GitHub login with access to those organizations. The installed GitHub
-connector can access only the Byline-CMS organization, the configured CLI token
-for `58bits` is invalid, and the in-app browser has no signed-in GitHub
-session. No implementation or verification work remains on those branches.
+All implementation branches are pushed and clean. The three downstream pull
+requests remain drafts until the framework 5.x package set is published and
+their manifests and lockfiles can be updated from 4.x to the released versions.
 
 ---
 
