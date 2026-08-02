@@ -88,7 +88,7 @@ export interface AdminTranslationsOptions {
  *
  * defineAdminConfig({
  *   i18n: {
- *     interface: { defaultLocale: 'en', locales: ['en', 'fr'] },
+ *     admin: { defaultLocale: 'en', locales: ['en', 'fr'] },
  *     translations: adminTranslations({ locales: ['en', 'fr'] }),
  *   },
  * })

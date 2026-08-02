@@ -54,7 +54,7 @@ export interface RoutesConfigInput {
  */
 export interface BaseConfig {
   i18n: {
-    interface: {
+    admin: {
       defaultLocale: string
       locales: string[]
       /**
@@ -91,7 +91,7 @@ export interface BaseConfig {
       locales: string[]
       /**
        * Optional display names for the content locales a document can be
-       * published in. Mirrors `interface.localeDefinitions`, but for the
+       * published in. Mirrors `admin.localeDefinitions`, but for the
        * *content* dimension rather than the admin chrome.
        *
        * Byline itself does not render these — the content-locale set has
@@ -117,8 +117,8 @@ export interface BaseConfig {
      *
      * Optional at the type level so `BaseConfig` stays loose for tests
      * and seed scripts; required at runtime via `validateTranslations`
-     * whenever `interface.locales` is non-empty. See `docs/08-internationalization/index.md` for
-     * the design.
+     * whenever `admin.locales` is non-empty. See
+     * `docs/08-internationalization/index.md` for the design.
      *
      * The shape is declared inline (rather than imported from
      * `@byline/i18n`) so `@byline/core` stays a leaf-ish package. The

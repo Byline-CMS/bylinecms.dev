@@ -54,7 +54,7 @@ export interface AdminUserRow {
    * Admin interface locale preference. `null` means "use the detection
    * cascade" (cookie → Accept-Language → defaultLocale). Stored as a
    * BCP 47 code; validated at the command layer against the host's
-   * `i18n.interface.locales`.
+   * `i18n.admin.locales`.
    */
   preferred_locale: string | null
   created_at: Date

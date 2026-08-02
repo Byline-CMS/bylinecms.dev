@@ -94,7 +94,7 @@ function ErrorScreenI18nProvider({ children }: { children: ReactNode }) {
     bundle = i18n.translations ?? {}
     // No active provider, so render in the default locale — recovering the
     // per-user active locale isn't worth another lookup that could itself throw.
-    locale = i18n.interface.defaultLocale
+    locale = i18n.admin.defaultLocale
   } catch {
     // Config unavailable (very early boot / broken provider chain) — fall
     // through with the English defaults above.

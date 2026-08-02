@@ -36,7 +36,7 @@ interface BaseConfig {
 
 ```ts
 interface I18nConfig {
-  interface: {
+  admin: {
     defaultLocale: string
     locales: string[]
     localeDefinitions?: ReadonlyArray<{ code: string; nativeName: string }>
@@ -52,13 +52,13 @@ interface I18nConfig {
 
 | Property | Required | Description |
 |---|---|---|
-| `interface.defaultLocale` | Yes | Fallback locale for the admin interface. It must be present in `interface.locales` when that list is non-empty. |
-| `interface.locales` | Yes | Permitted admin-interface locale codes. Every declared code requires at least one registered translation namespace. |
-| `interface.localeDefinitions` | No | Display labels used by the admin language switcher. Missing codes fall back through `Intl.DisplayNames`, then the raw code. |
+| `admin.defaultLocale` | Yes | Fallback locale for the admin interface. It must be present in `admin.locales` when that list is non-empty. |
+| `admin.locales` | Yes | Permitted admin-interface locale codes. Every declared code requires at least one registered translation namespace. |
+| `admin.localeDefinitions` | No | Display labels used by the admin language switcher. Missing codes fall back through `Intl.DisplayNames`, then the raw code. |
 | `content.defaultLocale` | Yes | Source locale assigned to newly created documents and the default locale for reads that do not specify one. Existing documents retain their own `sourceLocale`. |
 | `content.locales` | Yes | Content locales the installation can author and serve. |
 | `content.localeDefinitions` | No | Host-authored display labels for public content-language affordances. Byline stores and exposes them but does not render them itself. |
-| `translations` | Conditional | Locale → namespace → key → ICU message string. Required at boot when `interface.locales` is non-empty. |
+| `translations` | Conditional | Locale → namespace → key → ICU message string. Required at boot when `admin.locales` is non-empty. |
 
 The complete behavioral model is in [Internationalization](../08-internationalization/index.md).
 

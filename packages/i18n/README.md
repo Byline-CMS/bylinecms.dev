@@ -17,7 +17,7 @@ The package bundles every official Byline admin translation as a JSON file under
 ## Three entry points
 
 ```ts
-import { mergeTranslations, createFormatter, resolveInterfaceLocale } from '@byline/i18n'
+import { mergeTranslations, createFormatter, resolveAdminLocale } from '@byline/i18n'
 import { I18nProvider, useTranslation, LanguageMenu } from '@byline/i18n/react'
 import { adminTranslations, en } from '@byline/i18n/admin'
 ```
@@ -35,7 +35,7 @@ import { adminTranslations } from '@byline/i18n/admin'
 
 defineAdminConfig({
   i18n: {
-    interface: {
+    admin: {
       defaultLocale: 'en',
       locales: ['en'],
     },
@@ -52,7 +52,7 @@ defineAdminConfig({
 import { adminTranslations } from '@byline/i18n/admin'
 
 i18n: {
-  interface: { defaultLocale: 'en', locales: ['en', 'fr'] },
+  admin: { defaultLocale: 'en', locales: ['en', 'fr'] },
   translations: adminTranslations({ locales: ['en', 'fr'] }),
 }
 ```
@@ -63,7 +63,7 @@ The set of bundled locales is exported as `bundledLocales` for hosts that want t
 import { adminTranslations, bundledLocales } from '@byline/i18n/admin'
 
 i18n: {
-  interface: { defaultLocale: 'en', locales: [...bundledLocales] },
+  admin: { defaultLocale: 'en', locales: [...bundledLocales] },
   translations: adminTranslations({ locales: bundledLocales }),
 }
 ```
@@ -80,7 +80,7 @@ import { adminTranslations } from '@byline/i18n/admin'
 import { aiTranslations } from '@byline/ai/i18n'
 
 i18n: {
-  interface: { defaultLocale: 'en', locales: ['en', 'fr'] },
+  admin: { defaultLocale: 'en', locales: ['en', 'fr'] },
   translations: mergeTranslations(
     adminTranslations({ locales: ['en', 'fr'] }),
     aiTranslations({ locales: ['en', 'fr'] }),
@@ -88,7 +88,7 @@ i18n: {
 }
 ```
 
-A plugin that ships a locale the host hasn't enabled is harmless — the plugin's factory simply returns nothing for that code, the merge produces an empty entry for it, and the boot validator gates against `i18n.interface.locales` anyway.
+A plugin that ships a locale the host hasn't enabled is harmless — the plugin's factory simply returns nothing for that code, the merge produces an empty entry for it, and the boot validator gates against `i18n.admin.locales` anyway.
 
 `mergeTranslations` is associative + deterministic; later sources override earlier ones at the `(locale, namespace, key)` grain, and a `MergeOptions.onCollision` callback is available for surfacing conflicts during development.
 
@@ -138,12 +138,12 @@ In a TanStack Start host, `resolveServerTranslator(namespace)` (provided by `@by
 
 ## Locale resolution cascade
 
-`resolveInterfaceLocale` is the same pure cascade run on client and server, so SSR and hydration produce the same answer:
+`resolveAdminLocale` is the same pure cascade run on client and server, so SSR and hydration produce the same answer:
 
 ```ts
-import { resolveInterfaceLocale } from '@byline/i18n'
+import { resolveAdminLocale } from '@byline/i18n'
 
-const activeLocale = resolveInterfaceLocale({
+const activeLocale = resolveAdminLocale({
   locales: ['en', 'fr'],
   defaultLocale: 'en',
   preferred: actor?.admin_user?.preferred_locale,

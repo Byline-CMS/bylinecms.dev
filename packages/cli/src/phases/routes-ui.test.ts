@@ -227,7 +227,7 @@ describe('routes planning', () => {
     mkdirSync(localeCtx.resolve('byline'), { recursive: true })
     writeFileSync(
       localeCtx.resolve('byline/locales.ts'),
-      "export const contentLocales = [{ code: 'pt', label: 'Português' }]\n"
+      "export const contentLocales = [{ code: 'pt', nativeName: 'Português' }]\n"
     )
     expect(buildRoutesPlan(localeCtx).notes.join('\n')).toContain('conflicts')
 
@@ -240,7 +240,7 @@ describe('routes planning', () => {
     expect(buildRoutesPlan(signInCtx).notes.join('\n')).toContain('conflicts')
   })
 
-  it('ignores comments, unrelated values, and interface locale definitions', () => {
+  it('reads only contentLocales codes and ignores admin locales and display names', () => {
     const ctx = fixture({ adminPath: '/cms' })
     mkdirSync(ctx.resolve('byline'), { recursive: true })
     writeFileSync(
@@ -259,8 +259,8 @@ describe('routes planning', () => {
     writeFileSync(
       ctx.resolve('byline/locales.ts'),
       `
-        export const interfaceLocales = [{ code: 'cms', label: 'Ignored' }]
-        export const contentLocales = [{ code: 'en', label: translateAtRuntime() }] as const
+        export const adminLocales = [{ code: 'cms', nativeName: 'Ignored' }]
+        export const contentLocales = [{ code: 'en', nativeName: translateAtRuntime() }] as const
       `
     )
 
@@ -739,7 +739,7 @@ describe('routes planning', () => {
     expect(routesSource).toContain("signIn: '/sign-in'")
     expect(publicSource).toContain("export { contentLocales } from './locales.js'")
     expect(publicSource).toContain("export { routes } from './routes.js'")
-    expect(publicSource).not.toContain('interfaceLocales')
+    expect(publicSource).not.toContain('adminLocales')
     expect(publicSource).not.toContain('LocaleDefinition')
   })
 

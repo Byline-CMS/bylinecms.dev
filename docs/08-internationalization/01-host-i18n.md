@@ -46,7 +46,7 @@ The key design idea on the host side is that the set of locales a URL can
 *resolve* is wider than the set it *promotes*:
 
 ```
-routableLocales = interfaceLocales ∪ contentLocales
+routableLocales = adminLocales ∪ contentLocales
 ```
 
 The required `$lng` route segment resolves any routable locale, so a
@@ -152,7 +152,7 @@ import { routes } from '~/public'
 const { admin, api, signIn } = routes
 ```
 
-The same resolved object is passed to the client and server configs, whose
+The same resolved object is passed to the admin and server configs, whose
 registration also validates and snapshots route input. Locale rewriting and
 server negotiation therefore consume canonical paths directly; route validation
 is not deferred until a rewrite, render, or request.
@@ -169,25 +169,27 @@ locale negotiation, markdown negotiation, and locale-aware links, so all four
 surfaces agree.
 
 ```ts
-// apps/webapp/byline/locales.ts (re-exported by byline/public.ts)
-export const interfaceLocales = [
-  { code: 'en', label: 'English' },
-  { code: 'fr', label: 'Français' },
+// apps/webapp/byline/locales.ts
+export const defaultAdminLocale = 'en'
+export const defaultContentLocale = 'en'
+
+export const adminLocales = [
+  { code: 'en', nativeName: 'English' },
+  { code: 'fr', nativeName: 'Français' },
 ] as const satisfies readonly LocaleDefinition[]
 
 export const contentLocales = [
-  { code: 'en', label: 'English' },
-  { code: 'fr', label: 'Français' },
-  { code: 'es', label: 'Español' },
-  { code: 'de', label: 'Deutsch' },
+  { code: 'en', nativeName: 'English' },
+  { code: 'fr', nativeName: 'Français' },
+  { code: 'es', nativeName: 'Español' },
+  { code: 'de', nativeName: 'Deutsch' },
 ] as const satisfies readonly LocaleDefinition[]
 ```
 
 `byline/i18n.ts` consumes these to assemble the `defineServerConfig` /
 `defineAdminConfig` payload; the public frontend's `src/i18n/i18n-config.ts`
 imports `contentLocales` through `~/public` to build its `routableLocales` and
-label map. The host
-authors the display labels here once (`Français`, not CLDR's lowercase
+native-name map. The host authors the display names here once (`Français`, not CLDR's lowercase
 `français`), and the server-side consumers (sitemap / `getMeta`) read the same
 set via `getServerConfig().i18n.content.localeDefinitions` — one source of truth,
 no parallel map.

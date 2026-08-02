@@ -9,14 +9,14 @@
 /**
  * Locale code — kept as a plain `string` so the package stays open to
  * any BCP 47 tag (`en`, `pt-BR`, `zh-Hans-CN`). The host's
- * `i18n.interface.locales` config is the canonical allow-list at
+ * `i18n.admin.locales` config is the canonical allow-list at
  * runtime; the resolver / validator narrow against it.
  */
 export type LocaleCode = string
 
 /**
  * Lightweight locale definition used by `<LanguageMenu>` to render the
- * dropdown. The `code` matches a string in `i18n.interface.locales`;
+ * dropdown. The `code` matches a string in `i18n.admin.locales`;
  * the `nativeName` is what the user sees ("English", "Español",
  * "Français", "Deutsch", "日本語").
  */

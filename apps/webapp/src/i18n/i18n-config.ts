@@ -6,8 +6,8 @@ export const i18nConfig = {
   // Interface locales — the languages the host **frontend** chrome is
   // translated into. Sticky: drives the `lng` cookie, the language
   // switcher, and which URL prefix persists across a session. Distinct
-  // from Byline's *admin* interface set (`byline/locales.ts` →
-  // interfaceLocales) and from the content set below.
+  // from Byline's admin locale set (`byline/locales.ts` → `adminLocales`)
+  // and from the content set below.
   locales: ['en', 'fr'],
   defaultLocale: 'en',
   cookieName: 'lng',
@@ -26,7 +26,7 @@ export const contentLocaleDefinitions = publicContentLocales
 export type ContentLocale = (typeof contentLocaleDefinitions)[number]['code']
 export const contentLocales = contentLocaleDefinitions.map((locale) => locale.code)
 export const contentLocaleLabels = Object.fromEntries(
-  contentLocaleDefinitions.map((locale) => [locale.code, locale.label])
+  contentLocaleDefinitions.map((locale) => [locale.code, locale.nativeName])
 ) as Readonly<Record<ContentLocale, string>>
 
 /**

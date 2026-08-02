@@ -88,7 +88,7 @@ export const adminUsers = mysqlTable(
      * Per-user admin interface locale preference. Nullable — `null` means
      * "use the detection cascade" (cookie → Accept-Language → defaultLocale).
      * Stored as a BCP 47 code (`en`, `pt-BR`, `zh-Hans-CN`); validated at
-     * write time against the host's `i18n.interface.locales` set.
+     * write time against the host's `i18n.admin.locales` set.
      */
     preferred_locale: varchar('preferred_locale', { length: 16 }),
     ...timestamps,

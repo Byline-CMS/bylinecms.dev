@@ -31,7 +31,7 @@ export * from './document-read.js'
 export * from './document-to-markdown.js'
 export * from './field-upload.js'
 export {
-  type InterfaceI18nConfig,
+  type AdminI18nConfig,
   type TranslationDriftWarning,
   type ValidateTranslationsResult,
   validateTranslations,

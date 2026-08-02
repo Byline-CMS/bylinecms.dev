@@ -13,7 +13,7 @@ import type { LocaleDefinition } from '@byline/i18n'
  * resolution order:
  *
  *   1. An entry from the host's configured `localeDefinitions` —
- *      `i18n.interface.localeDefinitions` for the admin switcher, or
+ *      `i18n.admin.localeDefinitions` for the admin switcher, or
  *      `i18n.content.localeDefinitions` when a host frontend resolves
  *      content-locale labels (matched by code). Wins outright — this is
  *      the path that lets a host author write `Français` instead of the

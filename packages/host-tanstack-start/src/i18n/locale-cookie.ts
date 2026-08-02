@@ -44,7 +44,7 @@ export function readAdminLocaleCookie(): string | null {
 
 /**
  * Write the admin locale cookie. Caller is expected to have validated
- * `locale` against the permitted `i18n.interface.locales` set first.
+ * `locale` against the permitted `i18n.admin.locales` set first.
  */
 export function setAdminLocaleCookie(locale: string): void {
   setCookie(ADMIN_LOCALE_COOKIE, locale, {

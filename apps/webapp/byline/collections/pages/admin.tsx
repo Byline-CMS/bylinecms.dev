@@ -147,7 +147,7 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
     url: (doc, { locale }) => {
       const path = Pages.buildDocumentPath?.(doc, { collectionPath: Pages.path }) ?? null
       if (path == null) return null
-      const prefix = locale && locale !== i18n.interface.defaultLocale ? `/${locale}` : ''
+      const prefix = locale && locale !== i18n.admin.defaultLocale ? `/${locale}` : ''
       return `${prefix}${path}`
     },
   },

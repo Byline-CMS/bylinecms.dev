@@ -29,10 +29,10 @@ import Negotiator from 'negotiator'
 
 import type { LocaleCode } from './types.js'
 
-export interface ResolveInterfaceLocaleOptions {
-  /** Permitted locale set — from `i18n.interface.locales`. */
+export interface ResolveAdminLocaleOptions {
+  /** Permitted locale set — from `i18n.admin.locales`. */
   locales: readonly LocaleCode[]
-  /** Last-resort fallback — from `i18n.interface.defaultLocale`. */
+  /** Last-resort fallback — from `i18n.admin.defaultLocale`. */
   defaultLocale: LocaleCode
   /** `admin_users.preferred_locale` for the authenticated request, if any. */
   preferred?: LocaleCode | null
@@ -42,7 +42,7 @@ export interface ResolveInterfaceLocaleOptions {
   acceptLanguage?: string | null
 }
 
-export function resolveInterfaceLocale(options: ResolveInterfaceLocaleOptions): LocaleCode {
+export function resolveAdminLocale(options: ResolveAdminLocaleOptions): LocaleCode {
   const { locales, defaultLocale, preferred, cookie, acceptLanguage } = options
 
   // Tier 1 — admin user preference.

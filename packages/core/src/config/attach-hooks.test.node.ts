@@ -192,7 +192,7 @@ describe('server hook attachment', () => {
       db: {} as IDbAdapter,
       hooks: { collections: { documents: replacement } },
       i18n: {
-        interface: { defaultLocale: 'en', locales: ['en'] },
+        admin: { defaultLocale: 'en', locales: ['en'] },
         content: { defaultLocale: 'en', locales: [] },
       },
     }

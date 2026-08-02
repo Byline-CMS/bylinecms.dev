@@ -119,7 +119,7 @@ describe('route configuration boundary', () => {
       collections: [],
       admin: [],
       i18n: {
-        interface: { defaultLocale: 'en', locales: [] },
+        admin: { defaultLocale: 'en', locales: [] },
         content: { defaultLocale: 'en', locales: [] },
       },
     })
@@ -140,7 +140,7 @@ describe('route configuration boundary', () => {
       collections: [],
       admin: [],
       i18n: {
-        interface: { defaultLocale: 'en', locales: [] },
+        admin: { defaultLocale: 'en', locales: [] },
         content: { defaultLocale: 'en', locales: [] },
       },
     })
@@ -157,7 +157,7 @@ describe('route configuration boundary', () => {
         collections: [],
         admin: [],
         i18n: {
-          interface: { defaultLocale: 'en', locales: [] },
+          admin: { defaultLocale: 'en', locales: [] },
           content: { defaultLocale: 'en', locales: [] },
         },
       })

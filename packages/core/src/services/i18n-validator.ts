@@ -28,7 +28,7 @@
 
 import type { TranslationBundleShape } from '../@types/site-config.js'
 
-export interface InterfaceI18nConfig {
+export interface AdminI18nConfig {
   defaultLocale: string
   locales: string[]
   translations?: TranslationBundleShape
@@ -51,14 +51,14 @@ export interface ValidateTranslationsResult {
  * locale set. Throws on any structural error; returns soft warnings for
  * key-set drift between locales.
  */
-export function validateTranslations(i18n: InterfaceI18nConfig): ValidateTranslationsResult {
+export function validateTranslations(i18n: AdminI18nConfig): ValidateTranslationsResult {
   const { defaultLocale, locales, translations } = i18n
   const errors: string[] = []
 
   // (1) Default must be in the permitted set.
   if (locales.length > 0 && !locales.includes(defaultLocale)) {
     errors.push(
-      `defaultLocale '${defaultLocale}' is not in i18n.interface.locales [${locales.join(', ')}]. ` +
+      `defaultLocale '${defaultLocale}' is not in i18n.admin.locales [${locales.join(', ')}]. ` +
         `Add it to locales, or change defaultLocale to one of the existing entries.`
     )
   }
@@ -73,7 +73,7 @@ export function validateTranslations(i18n: InterfaceI18nConfig): ValidateTransla
   // (2) Non-empty locale set requires a translations bundle.
   if (translations == null) {
     errors.push(
-      `i18n.interface.locales declares [${locales.join(', ')}] but no translations bundle is registered. ` +
+      `i18n.admin.locales declares [${locales.join(', ')}] but no translations bundle is registered. ` +
         `Pass one to defineAdminConfig via i18n.translations — see @byline/i18n's adminTranslations() ` +
         `and mergeTranslations() helpers.`
     )
@@ -88,7 +88,7 @@ export function validateTranslations(i18n: InterfaceI18nConfig): ValidateTransla
     const localeBundle = translations[locale]
     if (localeBundle == null || namespaceKeyCount(localeBundle) === 0) {
       errors.push(
-        `i18n.interface.locales includes '${locale}' but no translations are registered for it. ` +
+        `i18n.admin.locales includes '${locale}' but no translations are registered for it. ` +
           `Either drop '${locale}' from locales or wire a community bundle (e.g. @byline/i18n-${locale}).`
       )
     }

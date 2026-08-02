@@ -49,7 +49,7 @@ import { adminTranslations } from '@byline/i18n/admin'
 
 defineAdminConfig({
   i18n: {
-    interface: { defaultLocale: 'en', locales: ['en'] },
+    admin: { defaultLocale: 'en', locales: ['en'] },
     translations: adminTranslations({ locales: ['en'] }),
   },
   // … the rest of your admin config
@@ -65,14 +65,14 @@ mount the admin without at least one registered locale.
 
 Every bundled translation lives in-package at
 `packages/i18n/src/admin/<code>.json`. To enable a locale, list its code in
-`i18n.interface.locales` and pass the same codes to
+`i18n.admin.locales` and pass the same codes to
 `adminTranslations({ locales })`. Today's bundle ships `en` and `fr`; adding more
 is a one-file PR (drop a new JSON, add it to the bundle map).
 
 ```ts
 defineAdminConfig({
   i18n: {
-    interface: { defaultLocale: 'en', locales: ['en', 'fr'] },
+    admin: { defaultLocale: 'en', locales: ['en', 'fr'] },
     translations: adminTranslations({ locales: ['en', 'fr'] }),
   },
 })
@@ -183,7 +183,7 @@ client uses (preferred_locale → cookie → `Accept-Language` → default).
 ## 7. The language-switcher menu
 
 The built-in `<LanguageMenu>` mounts in the admin chrome. It reads the registered
-`i18n.interface.locales`, the current request locale, and calls the server fn
+`i18n.admin.locales`, the current request locale, and calls the server fn
 that persists the new preference. No host-side wiring required.
 
 ```tsx
@@ -206,7 +206,7 @@ colleague's locale.
 Six things compose the present surface:
 
 1. **`LocaleCode` / `LocaleDefinition`** — the existing types in `@byline/core`
-   (`i18n.interface.locales`, `i18n.interface.defaultLocale`).
+   (`i18n.admin.locales`, `i18n.admin.defaultLocale`).
 2. **The translation registry** — a frozen map of
    `{ [locale]: { [namespace]: { [key]: string } } }` produced by
    `defineAdminConfig({ i18n: { translations } })`. Built once at startup,
@@ -215,10 +215,10 @@ Six things compose the present surface:
    signature on client and server.
 4. **The React provider + `useTranslation(namespace)` hook** — the only
    client-side consumer surface. Throws if mounted outside the provider.
-5. **The locale resolver** — `resolveInterfaceLocale({ preferred, cookie,
+5. **The locale resolver** — `resolveAdminLocale({ preferred, cookie,
    acceptLanguage })`. A pure function the host calls once per request and threads
    into the provider.
-6. **The locale-persistence server fn** — `setInterfaceLocaleFn({ lng })`.
+6. **The locale-persistence server fn** — `setAdminLocaleFn({ lng })`.
    Updates the admin user record (if authenticated) AND the `byline_admin_lng`
    cookie. Cookie-only when no actor is present (e.g. the login page).
 
@@ -291,12 +291,12 @@ knows about every wired-in subsystem.
 
 ## Locale configuration
 
-Default locale + permitted set live on `i18n.interface`. One optional companion
+Default locale + permitted set live on `i18n.admin`. One optional companion
 slot carries display names for the language switcher:
 
 ```ts
 i18n: {
-  interface: {
+  admin: {
     defaultLocale: 'en',                   // fallback when detection yields nothing useful
     locales: ['en', 'fr'],                 // permitted set; values outside are rejected
     localeDefinitions: [                   // optional — display names for the switcher
@@ -314,7 +314,7 @@ i18n: {
       { code: 'de', nativeName: 'Deutsch' },
     ],
   },
-  translations: { /* … */ },               // required when interface.locales is non-empty
+  translations: { /* … */ },               // required when admin.locales is non-empty
 }
 ```
 
@@ -333,9 +333,9 @@ names. The same resolution order applies, via the exported
 `buildLocaleDefinitions(codes, localeDefinitions)` helper from
 `@byline/host-tanstack-start/i18n`.
 
-`initBylineCore()` validates at boot: every locale in `interface.locales` has at
+`initBylineCore()` validates at boot: every locale in `admin.locales` has at
 least one namespace in `translations` (missing → fail fast with a pointer to
-`adminTranslations({ locales })`); `defaultLocale` is in `interface.locales`; and
+`adminTranslations({ locales })`); `defaultLocale` is in `admin.locales`; and
 key-set drift between locales surfaces as a *warning* — partial translations are
 fine, but contributors see the gap.
 
@@ -362,18 +362,22 @@ flicker):
 2. **`byline_admin_lng` cookie** — set on every language switch. A *different*
    cookie name from any host-side `lng` cookie, to avoid cross-talk.
 3. **`Accept-Language`** negotiation — via `@formatjs/intl-localematcher`,
-   matching against `i18n.interface.locales`.
-4. **`i18n.interface.defaultLocale`** — last resort.
+   matching against `i18n.admin.locales`.
+4. **`i18n.admin.defaultLocale`** — last resort.
 
 ## Per-user locale preference
 
 `byline_admin_users.preferred_locale` (varchar 16, nullable; `null` = "use
 detection cascade") is surfaced in two places: the **Account preferences** page
-(a `Select` of interface locales plus a "Use browser default" option that sets
+(a `Select` of admin locales plus a "Use browser default" option that sets
 the column back to `null`), and the **admin users list** (so a super-admin can
 set a colleague's default before they first log in). The server fn that updates
 the column also writes the cookie, so the change is visible without a sign-out /
 sign-in cycle.
+
+The column stores only a locale code. Renaming the configuration axis from
+`interface` to `admin` does not change stored values, so it requires no database
+or data migration.
 
 ## Namespacing conventions
 
@@ -477,7 +481,7 @@ import { adminTranslations } from '@byline/i18n/admin'
 import { mediaAdminTranslations } from './collections/media/i18n/index.js'
 
 export const i18n = {
-  interface: { defaultLocale: 'en', locales: ['en', 'fr'] },
+  admin: { defaultLocale: 'en', locales: ['en', 'fr'] },
   content:   { defaultLocale: 'en', locales: ['en', 'fr', 'es', 'de'] },
   translations: mergeTranslations(
     adminTranslations({ locales: ['en', 'fr'] }),
@@ -539,11 +543,11 @@ namespace-then-key structure, cookie-as-persistence-medium, and
 | `t(key, values)` formatter (shared) | `packages/i18n/src/formatter.ts` |
 | `useTranslation` hook + `<I18nProvider>` | `packages/i18n/src/react/index.ts` |
 | `<LanguageMenu>` | `packages/i18n/src/react/language-menu.tsx` |
-| `resolveInterfaceLocale()` (pure cascade) | `packages/i18n/src/resolve.ts` |
+| `resolveAdminLocale()` (pure cascade) | `packages/i18n/src/resolve.ts` |
 | `resolveServerTranslator()` | `packages/host-tanstack-start/src/i18n/server-translator.ts` |
 | `resolveRequestLocale()` (host cascade) | `packages/host-tanstack-start/src/i18n/resolve-locale.ts` |
 | `getActiveLocaleFn()` (client-graph-safe wrapper) | `packages/host-tanstack-start/src/server-fns/i18n/get-active-locale.ts` |
-| `setInterfaceLocaleFn()` server fn | `packages/host-tanstack-start/src/server-fns/i18n/set-locale.ts` |
+| `setAdminLocaleFn()` server fn | `packages/host-tanstack-start/src/server-fns/i18n/set-locale.ts` |
 | `byline_admin_lng` cookie helpers | `packages/host-tanstack-start/src/i18n/locale-cookie.ts` |
 | `byline_admin_users.preferred_locale` column + migration | `packages/db-postgres/src/database/schema/auth.ts` + migrations |
 | `preferred_locale` self-service write | `packages/admin/src/modules/admin-account/{commands,service,schemas}.ts` |

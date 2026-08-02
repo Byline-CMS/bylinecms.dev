@@ -16,7 +16,7 @@ function registerRoutes(admin?: string): void {
     collections: [],
     admin: [],
     i18n: {
-      interface: { defaultLocale: 'en', locales: [] },
+      admin: { defaultLocale: 'en', locales: [] },
       content: { defaultLocale: 'en', locales: [] },
     },
   })

@@ -11,7 +11,7 @@ describe('admin authentication routes', () => {
       collections: [],
       admin: [],
       i18n: {
-        interface: { defaultLocale: 'en', locales: [] },
+        admin: { defaultLocale: 'en', locales: [] },
         content: { defaultLocale: 'en', locales: [] },
       },
     })

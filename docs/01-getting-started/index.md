@@ -22,7 +22,7 @@ For a broader introduction that explains why Byline exists, and why we think it'
 
 If you're evaluating Byline, the development environment is the quickest way to see a working installation; the CLI is the path to adding Byline to your own app.
 
-Once the application is running, [Configuration](./03-configuration.md) explains every application-owned file under `apps/webapp/byline`, which runtime imports it, and where each kind of customization belongs. Existing 3.21 installations should follow [Upgrading from 3.21 to 4.x](./04-upgrading-to-v4.md).
+Once the application is running, [Configuration](./03-configuration.md) explains every application-owned file under `apps/webapp/byline`, which runtime imports it, and where each kind of customization belongs. Existing 3.21 installations should first follow [Upgrading from 3.21 to 4.x](./04-upgrading-to-v4.md); 4.x installations should then follow [Upgrading from 4.x to 5.x](./05-upgrading-to-v5.md).
 
 ## Where to go next
 

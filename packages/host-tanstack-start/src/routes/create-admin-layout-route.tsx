@@ -42,7 +42,7 @@ import { bylineAdminServices } from '../integrations/byline-admin-services.js'
 import { BylineAiAdminProvider } from '../integrations/byline-ai.js'
 import { bylineFieldServices } from '../integrations/byline-field-services.js'
 import { getCurrentAdminUser } from '../server-fns/auth/index.js'
-import { getActiveLocaleFn, setInterfaceLocaleFn } from '../server-fns/i18n/index.js'
+import { getActiveLocaleFn, setAdminLocaleFn } from '../server-fns/i18n/index.js'
 import { getSignInRoutePath } from './sign-in-path.js'
 
 export function createAdminLayoutRoute(path: string) {
@@ -77,8 +77,8 @@ export function createAdminLayoutRoute(path: string) {
       }
       const { i18n } = getAdminConfig()
       const localeDefinitions = buildLocaleDefinitions(
-        i18n.interface.locales,
-        i18n.interface.localeDefinitions
+        i18n.admin.locales,
+        i18n.admin.localeDefinitions
       )
       // Re-assert the admin user's stored theme when the shell mounts.
       // Byline shares the host's theme contract, but a host theme provider
@@ -87,18 +87,18 @@ export function createAdminLayoutRoute(path: string) {
       useEffect(() => {
         applyStoredTheme()
       }, [])
-      // Cookie + DB write happen in setInterfaceLocaleFn; full reload
+      // Cookie + DB write happen in setAdminLocaleFn; full reload
       // re-runs beforeLoad so the provider re-renders with the new
       // bundle/locale (no in-place bundle swap needed for PR 1's scope).
       const handleSetLocale = async (next: LocaleCode) => {
-        await setInterfaceLocaleFn({ data: { locale: next } })
+        await setAdminLocaleFn({ data: { locale: next } })
         window.location.reload()
       }
       return (
         <I18nProvider
           bundle={i18n.translations ?? {}}
           activeLocale={activeLocale}
-          defaultLocale={i18n.interface.defaultLocale}
+          defaultLocale={i18n.admin.defaultLocale}
           localeDefinitions={localeDefinitions}
           setLocale={handleSetLocale}
         >

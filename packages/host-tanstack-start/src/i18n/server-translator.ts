@@ -39,7 +39,7 @@ export interface ServerTranslator {
 
 export async function resolveServerTranslator(namespace: string): Promise<ServerTranslator> {
   const core = bylineCore()
-  const { interface: ifaceConfig, translations: bundle } = core.config.i18n
+  const { admin: adminConfig, translations: bundle } = core.config.i18n
   if (bundle == null) {
     throw new Error(
       '[resolveServerTranslator] no translation bundle is registered. ' +
@@ -51,7 +51,7 @@ export async function resolveServerTranslator(namespace: string): Promise<Server
   const formatter = createFormatter({
     bundle,
     activeLocale,
-    defaultLocale: ifaceConfig.defaultLocale,
+    defaultLocale: adminConfig.defaultLocale,
   })
   return {
     t: (key, values) => formatter.t(namespace, key, values),
