@@ -1,7 +1,7 @@
 # Configuration Surface Breaking Cleanup Plan
 
 Date: 2026-08-02
-Status: implementation complete; pull request publication pending GitHub authentication
+Status: implementation complete; two downstream pull requests pending GitHub authentication
 Last revised: 2026-08-02 after implementation and coordinated four-repository verification
 
 ## Goal
@@ -590,8 +590,16 @@ Do not merge a downstream migration while its manifest still resolves Byline
 4.x. The prepared source commits deliberately omit an unresolvable `^5.0.0`
 lockfile update before the packages exist.
 
-Pull request publication is pending a valid GitHub CLI login for the configured
-`58bits` account. The local branches and commits are complete and clean.
+Published draft pull requests:
+
+- `Byline-CMS/bylinecms.dev#74`
+- `Byline-CMS/bylinecms.app#1`
+
+The Modulus and FORRU branches are pushed, but pull request creation is pending
+a valid GitHub login with access to those organizations. The installed GitHub
+connector can access only the Byline-CMS organization, the configured CLI token
+for `58bits` is invalid, and the in-app browser has no signed-in GitHub
+session. No implementation or verification work remains on those branches.
 
 ---
 
