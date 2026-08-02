@@ -737,7 +737,10 @@ describe('routes planning', () => {
     const routesSource = readFileSync(`${ctx.templatesDir()}/byline/routes.ts`, 'utf8')
     const publicSource = readFileSync(`${ctx.templatesDir()}/byline/public.ts`, 'utf8')
     expect(routesSource).toContain("signIn: '/sign-in'")
+    expect(publicSource).toContain("export { contentLocales } from './locales.js'")
     expect(publicSource).toContain("export { routes } from './routes.js'")
+    expect(publicSource).not.toContain('interfaceLocales')
+    expect(publicSource).not.toContain('LocaleDefinition')
   })
 
   it('only patches an exact canonical runtime routes predecessor', () => {
