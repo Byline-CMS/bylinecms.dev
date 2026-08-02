@@ -26,7 +26,6 @@ import {
   ERR_VALIDATION,
   getCollectionAdminConfig,
   MAX_SEARCH_QUERY_LENGTH,
-  resolveItemViewColumns,
   resolveSearchZones,
 } from '@byline/core'
 
@@ -110,7 +109,7 @@ export async function finalizeSearchHits(
     if (hydrate) {
       // itemView columns are the projection when the admin config is
       // registered in this runtime; otherwise read the full field set.
-      const itemView = resolveItemViewColumns(getCollectionAdminConfig(collectionPath))
+      const itemView = getCollectionAdminConfig(collectionPath)?.itemView
       const select =
         itemView != null && itemView.length > 0
           ? Array.from(

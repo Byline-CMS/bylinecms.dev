@@ -286,7 +286,6 @@ Returns the core registered by `initBylineCore()`. It throws in the browser or b
 |---|---|---|
 | `getCollectionDefinition(path)` | `CollectionDefinition \| null` | Reads the current server config, or client config when no server config exists, and finds a schema by path. |
 | `getCollectionAdminConfig(slug)` | `CollectionAdminConfig \| null` | Finds one client-side collection admin config by slug. Returns `null` when the client config is absent. |
-| `resolveItemViewColumns(config)` | `ColumnDefinition[] \| undefined` | Returns `config.itemView`, falling back to the deprecated `config.picker`. |
 | `orderByContentLocale(codes)` | `string[]` | Returns a sorted copy using configured content-locale order, with unknown codes alphabetized at the end. It never filters codes. |
 
 ## Server client getters

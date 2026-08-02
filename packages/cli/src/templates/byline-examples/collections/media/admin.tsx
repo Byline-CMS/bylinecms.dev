@@ -63,7 +63,7 @@ const listViewColumns: ColumnDefinition[] = [
  * picker (e.g. News → `heroImage` → Media). Narrower than the list view —
  * just enough to identify the right media item at a glance.
  */
-const pickerViewColumns: ColumnDefinition[] = [
+const itemViewColumns: ColumnDefinition[] = [
   {
     fieldName: 'image' as keyof any,
     label: 'Preview',
@@ -99,7 +99,7 @@ export const MediaAdmin: CollectionAdminConfig = defineAdmin(Media, {
    *
    * Shape matches `ColumnDefinition` so formatters can be reused across list and item view.
    */
-  itemView: pickerViewColumns,
+  itemView: itemViewColumns,
 
   /**
    * Custom list-view component that completely replaces the default table-based `ListView`

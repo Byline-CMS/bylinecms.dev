@@ -134,7 +134,6 @@ export const ArticlesAdmin = defineAdmin(Articles, {
 | `defaultSort` | `createdAt desc` | Initial list sort when the URL has no explicit order. Invalid on `orderable` collections. |
 | `itemView` | `useAsTitle` plus `path` | Compact row/tile projection and presentation used by relation pickers and relation summaries. |
 | `itemViewSort` | `defaultSort`, then `createdAt desc` | Sort used by item-view list surfaces. Invalid on `orderable` collections. |
-| `picker` | Deprecated | Backwards-compatible alias for `itemView`; `itemView` wins when both exist. |
 | `defaultColumns` | None | Default field-name list used when no explicit column configuration is supplied. |
 | `tabSets` | `[]` | Named tab bars referenced from `layout.main`. |
 | `rows` | `[]` | Named horizontal field rows referenced from layouts, tabs, or groups. |

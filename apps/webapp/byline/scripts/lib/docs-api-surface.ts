@@ -110,7 +110,6 @@ const collectionAdminConfigKeys = completeKeys<CollectionAdminConfig>()([
   'defaultSort',
   'itemView',
   'itemViewSort',
-  'picker',
   'defaultColumns',
   'tabSets',
   'rows',

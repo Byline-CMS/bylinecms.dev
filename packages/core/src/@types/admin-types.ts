@@ -262,8 +262,6 @@ export interface CollectionAdminConfig<T = any> {
    * formatters are shared with the list view. Omit to fall back to a
    * single-line render of `useAsTitle` + `path`.
    *
-   * Resolve it through `resolveItemViewColumns(config)` rather than reading
-   * the field directly, so the deprecated `picker` alias keeps working.
    */
   itemView?: ColumnDefinition<T>[]
 
@@ -286,13 +284,6 @@ export interface CollectionAdminConfig<T = any> {
    * omitted.
    */
   itemViewSort?: ListDefaultSort<T>
-
-  /**
-   * @deprecated Renamed to {@link itemView}. Kept as a backwards-compatible
-   * alias — `itemView` wins when both are present. Read both via
-   * `resolveItemViewColumns(config)`. Will be removed in a future major.
-   */
-  picker?: ColumnDefinition<T>[]
 
   /** Default columns to show when no explicit column config is provided. */
   defaultColumns?: string[]

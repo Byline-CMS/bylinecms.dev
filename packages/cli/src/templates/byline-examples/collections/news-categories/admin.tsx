@@ -57,7 +57,7 @@ const listViewColumns: ColumnDefinition[] = [
  * picker (e.g. News → `heroImage` → Media). Narrower than the list view —
  * just enough to identify the right media item at a glance.
  */
-const pickerViewColumns: ColumnDefinition[] = [
+const itemViewColumns: ColumnDefinition[] = [
   {
     fieldName: 'name',
     label: 'Name',
@@ -74,5 +74,5 @@ const pickerViewColumns: ColumnDefinition[] = [
 
 export const NewsCategoriesAdmin: CollectionAdminConfig = defineAdmin(NewsCategories, {
   columns: listViewColumns,
-  itemView: pickerViewColumns,
+  itemView: itemViewColumns,
 })

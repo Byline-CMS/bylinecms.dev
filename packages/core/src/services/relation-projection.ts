@@ -18,7 +18,6 @@
  * arrive pre-hydrated on first paint — no client-side fetch per relation.
  */
 
-import { resolveItemViewColumns } from '../config/config.js'
 import type {
   CollectionAdminConfig,
   CollectionDefinition,
@@ -50,7 +49,7 @@ export function resolveRelationProjection(
   if (targetDef?.useAsTitle) out.add(targetDef.useAsTitle)
   const firstText = targetDef?.fields.find((f) => f.type === 'text')?.name
   if (firstText) out.add(firstText)
-  const itemViewColumns = resolveItemViewColumns(targetAdmin)
+  const itemViewColumns = targetAdmin?.itemView
   if (itemViewColumns) {
     for (const col of itemViewColumns) {
       const name = String(col.fieldName)

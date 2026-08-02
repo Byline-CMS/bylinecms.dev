@@ -34,7 +34,6 @@ export {
   getCollectionDefinition,
   getServerConfig,
   orderByContentLocale,
-  resolveItemViewColumns,
 } from './config/config.js'
 export { resolveRoutes } from './config/routes.js'
 export {
