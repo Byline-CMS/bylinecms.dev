@@ -10,7 +10,7 @@ import type { RequestContext } from '@byline/auth'
 
 import type { ReadContext } from './db-types.js'
 import type { FieldSetData, FieldSetDataAllLocales, StoredFileValue } from './field-data-types.js'
-import type { Block, DefaultValue, Field, FileField, ImageField } from './field-types.js'
+import type { Block, Field, FileField, ImageField } from './field-types.js'
 import type { QueryPredicate } from './query-predicate.js'
 import type { SearchFieldDecl } from './search-types.js'
 import type { IStorageProvider } from './storage-types.js'
@@ -1519,110 +1519,3 @@ export type CollectionDataAllLocales<C extends CollectionDefinition> = Prettify<
     updated_at: Date
   } & CollectionFieldDataAllLocales<C>
 >
-
-// ---------------------------------------------------------------------------
-// Serializable types — safe for JSON wire transfer (SSR loaders, RSC, APIs)
-// ---------------------------------------------------------------------------
-
-/**
- * A field definition with all function-valued properties stripped.
- *
- * Safe for JSON serialization — use for API responses, SSR loader return
- * values, RSC props, mobile clients, and CLI introspection. The following
- * are omitted:
- * - `validate` — client UI concern, cannot cross a network boundary
- * - `hooks`    — field-level hooks are always functions
- * - `defaultValue` — only literal (non-function) defaults are preserved
- *
- * Nested `fields` (composite / array / blocks) are recursively serialized.
- */
-export type SerializableField = Omit<
-  Field,
-  'validate' | 'hooks' | 'defaultValue' | 'fields' | 'blocks'
-> & {
-  /** Only literal defaults are serializable; function defaults are dropped. */
-  defaultValue?: Exclude<DefaultValue, (...args: any[]) => any>
-  /** Recursively serializable child fields (group / array). */
-  fields?: SerializableField[]
-  /** Recursively serializable blocks (blocks field). */
-  blocks?: SerializableBlock[]
-}
-
-/**
- * A block definition with all function-valued properties stripped.
- */
-export type SerializableBlock = Omit<Block, 'validate' | 'hooks' | 'fields'> & {
-  fields: SerializableField[]
-}
-
-/**
- * A collection definition with all function-valued properties stripped.
- *
- * Safe for JSON serialization — use for API schema endpoints, SSR loaders,
- * RSC components, mobile clients, and any context where the full definition
- * (with live functions) cannot be transmitted.
- *
- * - Collection-level `hooks` are entirely omitted (all entries are functions).
- * - Field `validate`, `hooks`, and function `defaultValue` are stripped.
- *
- * On the receiving end, resolve the full `CollectionDefinition` from the
- * local config store via `getCollectionDefinition(path)` to regain access
- * to validators, hooks, and computed defaults.
- */
-export type SerializableCollectionDefinition = Omit<CollectionDefinition, 'hooks' | 'fields'> & {
-  fields: SerializableField[]
-}
-
-/**
- * Strips all function-valued properties from a `CollectionDefinition`,
- * producing a version safe for JSON serialization.
- *
- * @example
- * ```ts
- * // In an API route:
- * return Response.json(toSerializableCollection(collectionDef))
- *
- * // In an SSR loader:
- * return { schema: toSerializableCollection(collectionDef), document: data }
- * ```
- */
-export function toSerializableCollection(
-  def: CollectionDefinition
-): SerializableCollectionDefinition {
-  function serializeField(field: Field): SerializableField {
-    // biome-ignore lint/suspicious/noExplicitAny: intentional structural spread
-    const { validate: _v, hooks: _h, defaultValue, fields, blocks, ...rest } = field as any
-    const serialized: SerializableField = { ...rest }
-
-    // Keep defaultValue only when it is a literal (not a factory function)
-    if (defaultValue !== undefined && typeof defaultValue !== 'function') {
-      serialized.defaultValue = defaultValue
-    }
-
-    // Recurse into nested child fields (group / array)
-    if (Array.isArray(fields)) {
-      serialized.fields = fields.map(serializeField)
-    }
-
-    // Recurse into blocks (blocks field)
-    if (Array.isArray(blocks)) {
-      serialized.blocks = blocks.map(serializeBlock)
-    }
-
-    return serialized
-  }
-
-  function serializeBlock(block: Block): SerializableBlock {
-    const { validate: _v, hooks: _h, fields, ...rest } = block
-    return {
-      ...rest,
-      fields: fields.map(serializeField),
-    }
-  }
-
-  const { hooks: _hooks, fields, ...rest } = def
-  return {
-    ...rest,
-    fields: fields.map(serializeField),
-  }
-}

@@ -49,9 +49,8 @@ export interface RoutesConfigInput {
 }
 
 /**
- * Common configuration shared by the server and client. Contains only
- * serializable, framework-agnostic properties — no React components, no
- * database adapters, no storage providers.
+ * Common live configuration shared by the server and admin client. This is an
+ * in-process runtime contract, not a JSON or transport representation.
  */
 export interface BaseConfig {
   serverURL: string
@@ -180,8 +179,9 @@ export interface ClientConfig extends BaseConfig {
    * back to the default `slugify` from `@byline/core` when not set — so
    * installations that keep the default slugifier need not set this at all.
    *
-   * Lives on `ClientConfig` rather than `BaseConfig` because it is a function
-   * (not serialisable), and `BaseConfig` is contractually serialisable.
+   * Lives on `ClientConfig` because only the admin path widget consumes this
+   * client-side copy. `ServerConfig` declares the authoritative server copy
+   * separately.
    *
    * @see ServerConfig.slugifier
    */

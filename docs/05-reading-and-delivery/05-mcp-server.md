@@ -81,12 +81,20 @@ tools the model can reason about beats hundreds it must disambiguate:
 | Tool                  | Maps to                                  | Notes                                        |
 |-----------------------|------------------------------------------|----------------------------------------------|
 | `list_collections`    | config / collection registry             | discovery — what can I work with?            |
-| `describe_collection` | `CollectionDefinition` + admin config    | returns the Zod-derived field shape          |
+| `describe_collection` | future allowlisted `CollectionDescriptor` | returns the authenticated transport field shape |
 | `query_documents`     | `CollectionHandle.find` (where/sort/populate/depth) | status-aware; published-only by default |
 | `get_document`        | `findById` / `findByPath`                | optional `populate` / `depth` / `locale`     |
 | `create_document`     | `document-lifecycle` create              | **always creates a draft** (see Safety)      |
 | `update_document`     | `document-lifecycle` update              | whole-document / field-level; patches stay admin-internal |
 | `publish_document`    | `changeStatus` (workflow transition)     | gated; the human-promotion seam              |
+
+`describe_collection` must not serialize `CollectionDefinition` or combine it
+with `CollectionAdminConfig`. Both are live in-process contracts that may contain
+functions and implementation instances, and the preferred co-located MCP server
+does not register the React/admin presentation configuration at all. A future
+`CollectionDescriptor` will be an explicit allowlisted projection of the server
+collection registry and the authenticated actor's capabilities. Its exact fields
+remain deferred until the HTTP or MCP consumer contract is implemented.
 
 Two MCP affordances beyond tools are worth shipping:
 
