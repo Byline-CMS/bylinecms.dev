@@ -57,9 +57,9 @@ must still be migrated and verified.
    already owns its canonical origin through `getPublicConfig().serverUrl`, which
    supplies absolute sitemap, canonical, hreflang, social-image, markdown, and
    `llms.txt` URLs. The sign-in page's SSR path is a plumbing constraint, not a
-   reason for Byline to duplicate that required value: the host route can pass an
-   optional `homeUrl` from its client-safe public config into the sign-in route
-   factory and page.
+   reason for Byline to duplicate that required value: the sign-in route can
+   default its Home link to the same-origin root, while a host may pass an
+   explicit `homeUrl` from client-safe public config when needed.
 7. `public.ts` must remain a synchronous, dependency-light module. Host locale
    rewriting, TypeScript literal inference, CLI route generation, and client
    hydration all need a static snapshot. An HTTP API may supplement this boundary
@@ -91,10 +91,10 @@ must still be migrated and verified.
   docs, and applications.
 - Rename the admin i18n axis explicitly; do not couple the host frontend's route
   default automatically to Byline's default content locale.
-- Remove `serverURL` from Byline configuration entirely. The host owns its public
-  origin; it may pass optional `homeUrl` to the sign-in route factory when it
-  wants the Home link. A future remote SDK will use a separate
-  `baseURL`/`apiURL` contract.
+- Remove `serverURL` from Byline configuration entirely. The sign-in route
+  defaults its Home link to `/`; the host owns its public origin and may pass an
+  explicit `homeUrl` when navigation needs that value. A future remote SDK will
+  use a separate `baseURL`/`apiURL` contract.
 - Preserve the published `client-config-registration` docs path by default when
   renaming the document and source file for `AdminConfig`. Change that path only
   with an explicit CMS document-path migration and durable redirect plan.
@@ -109,9 +109,10 @@ Keep the work bisectable even if several slices land in one breaking release:
    document.
 2. Remove the independently verifiable deprecated compatibility APIs after
    migrating the thirteen downstream `picker` declarations.
-3. Rename `ClientConfig` to `AdminConfig`, remove `serverURL`, and add the narrow
-   optional sign-in `homeUrl` route input, including the documentation source
-   rename while preserving its published path.
+3. Rename `ClientConfig` to `AdminConfig`, remove `serverURL`, default the
+   sign-in Home link to `/`, and add the narrow optional `homeUrl` override,
+   including the documentation source rename while preserving its published
+   path.
 4. Rename the admin i18n terminology in its own pull request and preferably its
    own release. This slice crosses core, i18n, admin preferences, host server
    functions, persisted preferred-locale semantics, CLI templates, applications,
@@ -472,7 +473,8 @@ Target ownership:
   origin.
 - Host public config: the single owner used by public sitemap, metadata,
   markdown, `llms.txt`, and optional admin-to-public navigation.
-- `createSignInRoute`: optional `{ homeUrl?: string }` host integration input.
+- `createSignInRoute`: same-origin `/` default plus optional
+  `{ homeUrl?: string }` host override.
 - Future remote SDK: independent `baseURL`/`apiURL`, out of scope here.
 
 Tasks:
@@ -480,12 +482,13 @@ Tasks:
 - [x] Remove `serverURL` from `BaseConfig`, resolved config types, SSR fallback
   construction, config key contract tests, and every admin/server bootstrap.
 - [x] Add an optional second argument to `createSignInRoute(path, options)` with
-  `options.homeUrl?: string`, and pass it directly through `SignInPage` to the
-  existing optional `SignInForm.homeUrl` prop. This static client-safe value is
-  available during SSR and hydration without reading Byline configuration.
+  `options.homeUrl?: string`, default omission to `/`, and pass the resolved
+  value through `SignInPage` to `SignInForm.homeUrl`. This static client-safe
+  value is available during SSR and hydration without reading Byline
+  configuration.
 - [x] In the reference app, call the route factory with
-  `getPublicConfig().serverUrl`. Allow generated templates and applications that
-  do not want a Home link to omit the option.
+  `getPublicConfig().serverUrl`. Allow generated templates and integrated hosts
+  to omit the option and receive the same-origin `/` default.
 - [x] Audit all three downstream applications and opt them into `homeUrl` from
   their own client-safe public config where that config exists. Do not create a
   second canonical-origin setting solely for Byline.
@@ -493,9 +496,9 @@ Tasks:
   identity. Retain or rename the host's existing `VITE_SERVER_URL` only as a host
   application concern, outside Byline config and CLI Byline templates.
 - [x] Update CLI admin and database-dialect server templates so neither emitted
-  Byline config calculates or accepts a site URL. Update the sign-in route
-  template to demonstrate the optional host hook only if the generated host
-  template has a concrete client-safe public-config source.
+  Byline config calculates or accepts a site URL. Document the `/` default and
+  optional absolute override in the sign-in route template without inventing a
+  client-safe public-config source.
 - [x] Add no `apiURL` replacement in this phase.
 
 ### Phase 3 verification
@@ -665,8 +668,8 @@ other operational commands for this configuration-only work.
 - Public host code imports only static content-locale and route data through
   `public.ts`; no registration order or network request is required.
 - Byline runtime configuration exposes no public-site origin and no
-  remote-transport endpoint. The host's public configuration supplies optional
-  sign-in `homeUrl` directly through the route factory.
+  remote-transport endpoint. The sign-in route defaults its Home link to `/` and
+  accepts a host-owned `homeUrl` override directly through the route factory.
 - CLI templates generate the final configuration shape and continue to parse
   static content locale codes.
 - The dead-public-export audit makes new unused entry-barrel exports visible for

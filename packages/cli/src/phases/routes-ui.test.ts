@@ -74,9 +74,9 @@ describe('routes planning', () => {
     expect(existsSync(ctx.resolve(`src/routes/_byline/${slug}/route.tsx`))).toBe(true)
     expect(readFileSync(ctx.resolve('byline/routes.ts'), 'utf8')).toContain(`admin: '${adminPath}'`)
     expect(existsSync(ctx.resolve('src/routes/_byline/sign-in.tsx'))).toBe(true)
-    expect(readFileSync(ctx.resolve('src/routes/_byline/sign-in.tsx'), 'utf8')).toContain(
-      "createSignInRoute('/_byline/sign-in')"
-    )
+    const signInRoute = readFileSync(ctx.resolve('src/routes/_byline/sign-in.tsx'), 'utf8')
+    expect(signInRoute).toContain("createSignInRoute('/_byline/sign-in')")
+    expect(signInRoute).toContain("The Home link defaults to '/'")
     expect(readFileSync(ctx.resolve('byline/routes.ts'), 'utf8')).toContain("signIn: '/sign-in'")
   })
 

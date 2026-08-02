@@ -8,4 +8,6 @@
 
 import { createSignInRoute } from '@byline/host-tanstack-start/routes'
 
+// The Home link defaults to '/'. Pass { homeUrl: 'https://example.com/' }
+// when the public site uses a different origin.
 export const Route = createSignInRoute('/_byline/sign-in')

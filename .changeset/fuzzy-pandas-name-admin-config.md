@@ -4,4 +4,4 @@
 '@byline/host-tanstack-start': minor
 ---
 
-Renamed the browser/SSR configuration contract from `ClientConfig` to `AdminConfig`, including its resolved type and registration/getter functions. Removed Byline's duplicated `serverURL` setting; hosts can now pass an optional client-safe `homeUrl` to `createSignInRoute()` when the sign-in page should link to the public site.
+Renamed the browser/SSR configuration contract from `ClientConfig` to `AdminConfig`, including its resolved type and registration/getter functions. Removed Byline's duplicated `serverURL` setting; `createSignInRoute()` now defaults its Home link to `/`, and hosts can pass an explicit client-safe `homeUrl` when the public site uses another origin.

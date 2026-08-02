@@ -92,6 +92,32 @@ export const routes = resolveRoutes({
 
 Changing this object does not rename the physical host route files. [Routing and API](../05-reading-and-delivery/02-routing-and-api.md) documents that coordination boundary.
 
+### `createSignInRoute(path, options?)`
+
+The TanStack Start host adapter exposes the sign-in route factory from
+`@byline/host-tanstack-start/routes`:
+
+```ts
+interface CreateSignInRouteOptions {
+  homeUrl?: string
+}
+
+function createSignInRoute(
+  path: string,
+  options?: CreateSignInRouteOptions
+): Route
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `homeUrl` | `/` | Client-safe destination for the sign-in form's Home link. Use the default for an integrated same-origin host. Pass an absolute host-owned URL when navigation must target another origin. |
+
+The route preserves and validates the `callbackUrl` search parameter used to
+return a newly authenticated editor to the requested admin page. `homeUrl` is
+independent of that redirect and is not part of `BaseConfig`, `AdminConfig`, or
+`ServerConfig`. An absolute value changes only the Home destination; it does
+not transfer Byline's host-only session or preview cookies across origins.
+
 ## `AdminConfig`
 
 `AdminConfig` extends `BaseConfig` with admin presentation and browser-side adapter slots. It may contain React component references and must remain outside public route bundles.

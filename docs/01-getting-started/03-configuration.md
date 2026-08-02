@@ -165,6 +165,34 @@ The server and admin configs share `i18n`, `routes`, and `collections`. They do 
 
 The complete property contract is in the [Configuration API reference](../10-api-reference/01-configuration.md#adminconfig).
 
+### Configure the sign-in Home link
+
+The scaffolded sign-in route needs no site-origin configuration for an
+integrated host. `createSignInRoute()` defaults its Home link to `/`, so a
+signed-out editor can return to the public root:
+
+```ts
+import { createSignInRoute } from '@byline/host-tanstack-start/routes'
+
+export const Route = createSignInRoute('/_byline/sign-in')
+```
+
+Pass a client-safe `homeUrl` when the public home is not the current origin, or
+when the host wants the link to use its canonical absolute URL:
+
+```ts
+export const Route = createSignInRoute('/_byline/sign-in', {
+  homeUrl: getPublicConfig().serverUrl,
+})
+```
+
+These values have separate ownership. `/` is Byline's same-origin navigation
+default. The canonical site origin belongs to the host's public configuration
+because metadata, sitemaps, feeds, and exports consume it. A future remote SDK
+will require a separate transport `baseURL` or `apiURL`. An absolute `homeUrl`
+only changes navigation; it does not transfer host-only admin or preview
+cookies to another origin.
+
 ## Add a collection
 
 Create the schema first and keep it isomorphic:

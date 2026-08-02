@@ -84,8 +84,10 @@ Delete `serverURL` from `AdminConfig`, `ServerConfig`, and every
 `initBylineCore()` call. The host application's public configuration owns its
 canonical origin.
 
-If the sign-in page should link back to the public site, pass the host's
-client-safe value to the route factory:
+The sign-in page's Home link now defaults to `/`, which preserves the link for
+an integrated same-origin host without configuring an absolute origin. Pass the
+host's client-safe value when the public site uses another origin or the link
+should use the canonical absolute URL:
 
 ```ts
 export const Route = createSignInRoute('/_byline/sign-in', {
