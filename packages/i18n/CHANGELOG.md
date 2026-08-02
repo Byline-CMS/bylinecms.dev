@@ -1,5 +1,15 @@
 # @byline/i18n
 
+## 4.12.0
+
+### Minor Changes
+
+- c6ee4b5: Renamed Byline's admin-language configuration and APIs to distinguish them from a host frontend's interface language. Configuration now uses `i18n.admin`; locale resolution and persistence APIs use `AdminLocale`; authored locale tuples use `adminLocales`, named default constants, and `nativeName` display values.
+
+### Patch Changes
+
+- @byline/ui@4.12.0
+
 ## 4.11.2
 
 ### Patch Changes

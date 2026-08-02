@@ -1,5 +1,18 @@
 # @byline/core
 
+## 4.12.0
+
+### Minor Changes
+
+- ae500fb: Removed deprecated compatibility APIs from the configuration, read-context, and sign-in surfaces. Collection admin definitions now use `itemView` exclusively; `UnionRowValue`, `ReadContext.beforeReadCache`, legacy sign-in route overrides, and `SignInForm.callbackUrl` are no longer available.
+- 1a1c2d0: Removed the unsafe, unused collection serialization types and `toSerializableCollection()` helper. Runtime collection definitions are not wire contracts; future HTTP and MCP descriptors will use explicit allowlisted projections.
+- 7df2278: Renamed the browser/SSR configuration contract from `ClientConfig` to `AdminConfig`, including its resolved type and registration/getter functions. Removed Byline's duplicated `serverURL` setting; `createSignInRoute()` now defaults its Home link to `/`, and hosts can pass an explicit client-safe `homeUrl` when the public site uses another origin.
+- c6ee4b5: Renamed Byline's admin-language configuration and APIs to distinguish them from a host frontend's interface language. Configuration now uses `i18n.admin`; locale resolution and persistence APIs use `AdminLocale`; authored locale tuples use `adminLocales`, named default constants, and `nativeName` display values.
+
+### Patch Changes
+
+- @byline/auth@4.12.0
+
 ## 4.11.2
 
 ### Patch Changes

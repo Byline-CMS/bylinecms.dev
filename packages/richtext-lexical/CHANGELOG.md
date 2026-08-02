@@ -1,5 +1,18 @@
 # @byline/richtext-lexical
 
+## 4.12.0
+
+### Patch Changes
+
+- Updated dependencies [ae500fb]
+- Updated dependencies [1a1c2d0]
+- Updated dependencies [7df2278]
+- Updated dependencies [c6ee4b5]
+  - @byline/admin@4.12.0
+  - @byline/core@4.12.0
+  - @byline/client@4.12.0
+  - @byline/ui@4.12.0
+
 ## 4.11.2
 
 ### Patch Changes

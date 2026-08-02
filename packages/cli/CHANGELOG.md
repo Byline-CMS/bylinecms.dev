@@ -1,5 +1,12 @@
 # @byline/cli
 
+## 4.12.0
+
+### Minor Changes
+
+- 7df2278: Renamed the browser/SSR configuration contract from `ClientConfig` to `AdminConfig`, including its resolved type and registration/getter functions. Removed Byline's duplicated `serverURL` setting; `createSignInRoute()` now defaults its Home link to `/`, and hosts can pass an explicit client-safe `homeUrl` when the public site uses another origin.
+- c6ee4b5: Renamed Byline's admin-language configuration and APIs to distinguish them from a host frontend's interface language. Configuration now uses `i18n.admin`; locale resolution and persistence APIs use `AdminLocale`; authored locale tuples use `adminLocales`, named default constants, and `nativeName` display values.
+
 ## 4.11.2
 
 ### Patch Changes
