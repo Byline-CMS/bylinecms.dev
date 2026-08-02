@@ -31,22 +31,17 @@ describe('normalizeRootRelativeRedirect', () => {
 })
 
 describe('resolveSignInFormRedirect', () => {
-  it('prefers a safe redirectTo over the deprecated callbackUrl', () => {
-    expect(resolveSignInFormRedirect('/cms/account', '/cms/users', '/cms')).toBe('/cms/account')
+  it('uses a safe redirectTo without evaluating the fallback', () => {
+    expect(resolveSignInFormRedirect('/cms/account', '/cms')).toBe('/cms/account')
     expect(
-      resolveSignInFormRedirect('/cms/account', undefined, () => {
+      resolveSignInFormRedirect('/cms/account', () => {
         throw new Error('fallback must be lazy')
       })
     ).toBe('/cms/account')
   })
 
-  it('supports a safe deprecated callbackUrl when redirectTo is absent or unsafe', () => {
-    expect(resolveSignInFormRedirect(undefined, '/cms/users', '/cms')).toBe('/cms/users')
-    expect(resolveSignInFormRedirect('https://evil.test', '/cms/users', '/cms')).toBe('/cms/users')
-  })
-
   it('uses the safe configured fallback without permitting an open redirect', () => {
-    expect(resolveSignInFormRedirect('//evil.test', 'https://evil.test', '/cms')).toBe('/cms')
-    expect(resolveSignInFormRedirect(undefined, undefined, 'https://evil.test')).toBe('/')
+    expect(resolveSignInFormRedirect('//evil.test', '/cms')).toBe('/cms')
+    expect(resolveSignInFormRedirect(undefined, 'https://evil.test')).toBe('/')
   })
 })

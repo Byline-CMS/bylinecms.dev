@@ -37,8 +37,6 @@ import styles from './sign-in-form.module.css'
 export interface SignInFormProps {
   /** Host-validated root-relative destination after successful sign-in. */
   redirectTo?: string
-  /** @deprecated Use `redirectTo`. */
-  callbackUrl?: string
   /**
    * Optional plain "Home" link rendered on the left of the action row.
    * Typically the host's configured `serverURL` so signed-out admins can
@@ -47,7 +45,7 @@ export interface SignInFormProps {
   homeUrl?: string
 }
 
-export function SignInForm({ redirectTo, callbackUrl, homeUrl }: SignInFormProps) {
+export function SignInForm({ redirectTo, homeUrl }: SignInFormProps) {
   const { adminSignIn } = useBylineAdminServices()
   const { t } = useTranslation('byline-admin')
   const [email, setEmail] = useState('')
@@ -63,11 +61,7 @@ export function SignInForm({ redirectTo, callbackUrl, homeUrl }: SignInFormProps
       return
     }
 
-    const destination = resolveSignInFormRedirect(
-      redirectTo,
-      callbackUrl,
-      getClientConfig().routes.admin
-    )
+    const destination = resolveSignInFormRedirect(redirectTo, getClientConfig().routes.admin)
 
     setPending(true)
     setError(null)

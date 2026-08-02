@@ -43,18 +43,12 @@ import { BylineAiAdminProvider } from '../integrations/byline-ai.js'
 import { bylineFieldServices } from '../integrations/byline-field-services.js'
 import { getCurrentAdminUser } from '../server-fns/auth/index.js'
 import { getActiveLocaleFn, setInterfaceLocaleFn } from '../server-fns/i18n/index.js'
-import { createSignInRoutePathResolver } from './sign-in-path.js'
+import { getSignInRoutePath } from './sign-in-path.js'
 
-interface AdminLayoutOpts {
-  /** @deprecated Configure `routes.signIn`; an override must resolve to the same path. */
-  signInPath?: string
-}
-
-export function createAdminLayoutRoute(path: string, opts: AdminLayoutOpts = {}) {
-  const resolveSignInPath = createSignInRoutePathResolver(opts.signInPath)
+export function createAdminLayoutRoute(path: string) {
   const Route: any = createFileRoute(path as never)({
     beforeLoad: async ({ location }: { location: { href: string } }) => {
-      const signInPath = resolveSignInPath()
+      const signInPath = getSignInRoutePath()
       try {
         const user = await getCurrentAdminUser()
         // Resolve the active interface locale once on the server so SSR

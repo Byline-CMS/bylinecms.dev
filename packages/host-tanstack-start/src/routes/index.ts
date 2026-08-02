@@ -14,7 +14,7 @@ export {
   resolveAdminCallbackPath,
   resolveAdminSignInRedirect,
 } from './admin-path.js'
-export { configureSignInRoutePath, getSignInRoutePath } from './sign-in-path.js'
+export { getSignInRoutePath } from './sign-in-path.js'
 
 /**
  * Route factories for the Byline admin UI on TanStack Start.
