@@ -140,12 +140,12 @@ adding temporary compatibility aliases to partially land the new API.
 
 ## Phase 0: Preflight and coordination
 
-- [ ] Confirm all four repositories are on known clean branches and record their
+- [x] Confirm all four repositories are on known clean branches and record their
   branch names in the implementation session notes.
-- [ ] Read each repository's current `AGENTS.md` before editing it. In particular,
+- [x] Read each repository's current `AGENTS.md` before editing it. In particular,
   `beta.forru.org/AGENTS.md` requires checking `TODO-INTERNAL.md` before
   re-deriving deferred design decisions.
-- [ ] Repeat the serializer gate across all repositories:
+- [x] Repeat the serializer gate across all repositories:
 
   ```bash
   rg -n "toSerializableCollection|SerializableCollectionDefinition|SerializableField|SerializableBlock" \
@@ -174,18 +174,18 @@ Primary file:
 
 Tasks:
 
-- [ ] Delete `SerializableField`.
-- [ ] Delete `SerializableBlock`.
-- [ ] Delete `SerializableCollectionDefinition`.
-- [ ] Delete `toSerializableCollection()` and its API/SSR examples.
-- [ ] Remove imports used only by these types or the helper.
-- [ ] Search package barrels and published export tests for explicit references;
+- [x] Delete `SerializableField`.
+- [x] Delete `SerializableBlock`.
+- [x] Delete `SerializableCollectionDefinition`.
+- [x] Delete `toSerializableCollection()` and its API/SSR examples.
+- [x] Remove imports used only by these types or the helper.
+- [x] Search package barrels and published export tests for explicit references;
   remove them if present. The current root type barrel is expected to re-export
   them only transitively.
-- [ ] Correct the comment on `BaseConfig` in
+- [x] Correct the comment on `BaseConfig` in
   `packages/core/src/@types/site-config.ts`: it contains shared live/isomorphic
   runtime values and must not claim to be a wire-serializable contract.
-- [ ] Add a changeset that clearly identifies the deleted public symbols as a
+- [x] Add a changeset that clearly identifies the deleted public symbols as a
   breaking change.
 
 ### Planned-transport documentation correction
@@ -196,14 +196,14 @@ File:
 
 Tasks:
 
-- [ ] Change `describe_collection` so it does not depend on
+- [x] Change `describe_collection` so it does not depend on
   `CollectionDefinition + admin config`.
-- [ ] State that it will consume a future allowlisted `CollectionDescriptor`
+- [x] State that it will consume a future allowlisted `CollectionDescriptor`
   derived from the server's collection registry and the authenticated actor's
   capabilities.
-- [ ] State that `CollectionAdminConfig` is unavailable in the preferred MCP
+- [x] State that `CollectionAdminConfig` is unavailable in the preferred MCP
   server deployment and is not a serializable transport contract.
-- [ ] Do not define the descriptor's full field list in this phase.
+- [x] Do not define the descriptor's full field list in this phase.
 
 ### Narrow the static public facades
 
@@ -217,15 +217,15 @@ export { routes } from './routes.js'
 
 Tasks:
 
-- [ ] Remove `interfaceLocales` and `LocaleDefinition` from every application's
+- [x] Remove `interfaceLocales` and `LocaleDefinition` from every application's
   `public.ts`; the downstream audit found no public-host imports of either.
-- [ ] Keep interface/admin locale data available through direct `locales.ts`
+- [x] Keep interface/admin locale data available through direct `locales.ts`
   imports inside `byline/i18n.ts`.
-- [ ] Do not export a speculative config object or manifest.
+- [x] Do not export a speculative config object or manifest.
 - [ ] Export a content default through `public.ts` only when a concrete public
   host consumer needs it. The host's current `i18nConfig.defaultLocale` remains
   an independent CLI source contract.
-- [ ] Keep and update source-graph/bundle guards that ensure `public.ts` does not
+- [x] Keep and update source-graph/bundle guards that ensure `public.ts` does not
   reach admin translations, React presentation, or server implementations.
 
 ### Add a dead-public-export audit
@@ -237,11 +237,11 @@ an unused exported helper such as `toSerializableCollection()`.
 
 Tasks:
 
-- [ ] Add a dedicated `pnpm knip:exports` library-public-export configuration or
+- [x] Add a dedicated `pnpm knip:exports` library-public-export configuration or
   command that enables `includeEntryExports` and the `exports` and `types` rules
   for published library packages. Do not assume the flag alone overrides rules
   that are `off`.
-- [ ] Run it once as a baseline and classify every finding. An export may be a
+- [x] Run it once as a baseline and classify every finding. An export may be a
   deliberate external API even when the monorepo has no internal consumer.
 - [ ] Record intentional public exports explicitly using the narrowest supported
   Knip ignore/tag mechanism or a reviewed allowlist; do not globally suppress
@@ -249,18 +249,25 @@ Tasks:
 - [ ] Add the resulting audit to CI as a warning first. Promote it to an error
   only after the baseline is clean and stable enough that new findings are
   actionable.
-- [ ] Document that this audit finds candidates for public-API review; it cannot
+- [x] Document that this audit finds candidates for public-API review; it cannot
   prove an export is unused by consumers outside the audited repositories.
+
+The initial published-package baseline contains 527 runtime exports and 535
+exported types. Most are intentional external API, so the command is deliberately
+non-blocking and bounded to 100 displayed findings per category. Do not add this
+raw report to CI until the intentional public surface has a reviewed baseline;
+otherwise the volume would hide new findings rather than prevent them.
 
 ### Phase 1 verification
 
-- [ ] `rg` finds none of the four deleted symbol names in any in-scope repository.
-- [ ] `pnpm --filter @byline/core test`
-- [ ] `pnpm --filter @byline/core typecheck`
-- [ ] The new dead-public-export audit either passes its reviewed baseline or has
+- [x] `rg` finds none of the four deleted symbol names outside this historical
+  specification in any in-scope repository.
+- [x] `pnpm --filter @byline/core test`
+- [x] `pnpm --filter @byline/core typecheck`
+- [x] The new dead-public-export audit either passes its reviewed baseline or has
   an explicitly documented follow-up before it becomes a blocking CI gate.
-- [ ] `pnpm docs:check`
-- [ ] `git diff --check`
+- [x] `pnpm docs:check`
+- [x] `git diff --check`
 
 The serializer deletion requires no downstream edits. Narrowing `public.ts`
 requires the same small facade edit in the reference app, all three downstream
