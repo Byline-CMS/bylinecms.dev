@@ -1,8 +1,8 @@
 # Configuration Surface Breaking Cleanup Plan
 
 Date: 2026-08-02
-Status: proposed implementation plan following the configuration-system review
-Last revised: 2026-08-02 after downstream, CLI, URL-ownership, and documentation-import audits
+Status: implementation complete; pull request publication pending GitHub authentication
+Last revised: 2026-08-02 after implementation and coordinated four-repository verification
 
 ## Goal
 
@@ -156,10 +156,10 @@ adding temporary compatibility aliases to partially land the new API.
   ```
 
   Expected before Phase 1: definitions in `bylinecms.dev` only; no callers.
-- [ ] Decide the cross-repository delivery mechanism before Phase 3: local
+- [x] Decide the cross-repository delivery mechanism before Phase 3: local
   workspace/package override, prerelease package versions, or ordered package
   release followed by downstream dependency updates.
-- [ ] Keep the phases below as separate commits or changesets even if they share a
+- [x] Keep the phases below as separate commits or changesets even if they share a
   branch. Each phase must be independently understandable and verifiable.
 
 ---
@@ -305,11 +305,11 @@ The downstream audit found thirteen active `picker:` declarations.
 
 Tasks:
 
-- [ ] Change every active `picker:` property to `itemView:`.
-- [ ] Rename local `pickerViewColumns` identifiers only where doing so improves
+- [x] Change every active `picker:` property to `itemView:`.
+- [x] Rename local `pickerViewColumns` identifiers only where doing so improves
   clarity; the identifier name is not part of the framework contract.
-- [ ] Update application comments that still instruct authors to use `picker:`.
-- [ ] Verify each application before removing the framework alias.
+- [x] Update application comments that still instruct authors to use `picker:`.
+- [x] Verify each application before removing the framework alias.
 
 ### 2B. Remove the framework alias
 
@@ -325,44 +325,44 @@ Framework files include:
 
 Tasks:
 
-- [ ] Remove `CollectionAdminConfig.picker`.
-- [ ] Remove the fallback to `config.picker`.
-- [ ] Decide whether `resolveItemViewColumns()` still adds a useful semantic
+- [x] Remove `CollectionAdminConfig.picker`.
+- [x] Remove the fallback to `config.picker`.
+- [x] Decide whether `resolveItemViewColumns()` still adds a useful semantic
   boundary. If it only returns `config?.itemView`, delete it and read `itemView`
   directly at its callers.
-- [ ] Delete compatibility-only tests and add/retain canonical `itemView` tests.
-- [ ] Remove deprecated `picker` API documentation while retaining ordinary prose
+- [x] Delete compatibility-only tests and add/retain canonical `itemView` tests.
+- [x] Remove deprecated `picker` API documentation while retaining ordinary prose
   uses of “picker” that refer to the UI control.
 
 ### 2C. Remove other unused deprecated runtime APIs
 
 Tasks:
 
-- [ ] Remove `UnionRowValue` from
+- [x] Remove `UnionRowValue` from
   `packages/core/src/@types/store-types.ts`; use `UnifiedFieldValue` exclusively.
-- [ ] Remove `ReadContext.beforeReadCache`, its compatibility accessor in
+- [x] Remove `ReadContext.beforeReadCache`, its compatibility accessor in
   `packages/core/src/auth/read-context-scope.ts`, and tests/documentation that
   exist only to prove caller-supplied cache values are ignored. Preserve the
   private authority-bound before-read cache implementation.
-- [ ] Remove `configureSignInRoutePath()` and
+- [x] Remove `configureSignInRoutePath()` and
   `createSignInRoutePathResolver()` from
   `packages/host-tanstack-start/src/routes/sign-in-path.ts`.
-- [ ] Remove the deprecated `signInPath` option from
+- [x] Remove the deprecated `signInPath` option from
   `createAdminLayoutRoute()`; use registered `routes.signIn` directly.
-- [ ] Remove the deprecated `SignInForm.callbackUrl` component prop and simplify
+- [x] Remove the deprecated `SignInForm.callbackUrl` component prop and simplify
   `resolveSignInFormRedirect` accordingly.
-- [ ] Keep the sign-in route's `callbackUrl` URL search parameter unless a
+- [x] Keep the sign-in route's `callbackUrl` URL search parameter unless a
   separate route-contract change explicitly renames it. The deprecated React
   prop and the current URL parameter are different contracts.
-- [ ] Remove compatibility exports, tests, and docs for the deleted APIs.
+- [x] Remove compatibility exports, tests, and docs for the deleted APIs.
 
 ### Phase 2 verification
 
-- [ ] No active `picker:` configuration remains in any downstream application.
-- [ ] No deleted compatibility symbol remains in framework or application source.
-- [ ] Run focused core, client, admin, and host package tests.
-- [ ] Run `pnpm typecheck` and `pnpm test` in `bylinecms.dev`.
-- [ ] Run `pnpm typecheck` and `pnpm build` in all three downstream applications
+- [x] No active `picker:` configuration remains in any downstream application.
+- [x] No deleted compatibility symbol remains in framework or application source.
+- [x] Run focused core, client, admin, and host package tests.
+- [x] Run `pnpm typecheck` and `pnpm test` in `bylinecms.dev`.
+- [x] Run `pnpm typecheck` and `pnpm build` in all three downstream applications
   against the breaking framework build/package.
 
 ---
@@ -387,27 +387,27 @@ Canonical public names:
 
 Tasks:
 
-- [ ] Rename the types, functions, global singleton symbols, internal helpers,
+- [x] Rename the types, functions, global singleton symbols, internal helpers,
   error messages, and comments in `@byline/core`.
-- [ ] Update all consumers in `@byline/admin`, `@byline/client`,
+- [x] Update all consumers in `@byline/admin`, `@byline/client`,
   `@byline/host-tanstack-start`, `@byline/richtext-lexical`, tests, and examples.
-- [ ] Preserve `getCollectionAdminConfig()`; its name is already accurate.
-- [ ] Preserve the SSR fallback behavior under `getAdminConfig()`, but document
+- [x] Preserve `getCollectionAdminConfig()`; its name is already accurate.
+- [x] Preserve the SSR fallback behavior under `getAdminConfig()`, but document
   that it carries shared server configuration with empty admin presentation.
-- [ ] Update `apps/webapp/byline/admin.config.ts` and all CLI templates.
-- [ ] Update all three downstream `admin.config.ts` files and `_byline` route
+- [x] Update `apps/webapp/byline/admin.config.ts` and all CLI templates.
+- [x] Update all three downstream `admin.config.ts` files and `_byline` route
   comments/import-registration descriptions.
-- [ ] Rename
+- [x] Rename
   `docs/09-admin-ui/02-client-config-registration.md` to
   `docs/09-admin-ui/02-admin-config-registration.md` and update its title and
   inbound source links, but retain frontmatter
   `path: "client-config-registration"` by default. This gives the document an
   accurate source identity without breaking its published URL.
-- [ ] If the published path must also become `admin-config-registration`, stop
+- [x] If the published path must also become `admin-config-registration`, stop
   and define the CMS document-path migration and old-URL redirect before changing
   the frontmatter. Re-running `import-docs.ts` against only the new path is not a
   migration and may create a duplicate document.
-- [ ] Add no compatibility aliases for the old names.
+- [x] Add no compatibility aliases for the old names.
 
 ### 3B. Rename the Byline admin i18n axis
 
@@ -429,37 +429,37 @@ Canonical authored names:
 
 Tasks:
 
-- [ ] Update `I18nConfig` types, validators, admin translation resolution,
+- [x] Update `I18nConfig` types, validators, admin translation resolution,
   server functions, and admin UI consumers.
-- [ ] Rename the public `@byline/i18n` resolver and option type, their root barrel
+- [x] Rename the public `@byline/i18n` resolver and option type, their root barrel
   exports, tests, README examples, and all host-adapter consumers. Do not leave
   the package API saying “interface” after its configuration axis says “admin.”
-- [ ] Rename the host server function and admin-service input/result types and
+- [x] Rename the host server function and admin-service input/result types and
   method listed above. Preserve host-application names such as
   `useInterfaceLocale()` where “interface” intentionally describes that host's
   public frontend rather than Byline's admin chrome.
-- [ ] In every application and CLI locale template, retain a top-level exported
+- [x] In every application and CLI locale template, retain a top-level exported
   `contentLocales` tuple whose entries contain a static string `code`. This is a
   CLI source contract.
-- [ ] Define `defaultAdminLocale` and `defaultContentLocale` beside the locale
+- [x] Define `defaultAdminLocale` and `defaultContentLocale` beside the locale
   tuples and derive `i18n.admin` / `i18n.content` from them.
-- [ ] Remove the redundant `label` to `nativeName` mapping by authoring
+- [x] Remove the redundant `label` to `nativeName` mapping by authoring
   `nativeName` directly.
-- [ ] Update public host consumers from `locale.label` to `locale.nativeName`.
-- [ ] Keep the host frontend's own `i18nConfig.defaultLocale` semantically
+- [x] Update public host consumers from `locale.label` to `locale.nativeName`.
+- [x] Keep the host frontend's own `i18nConfig.defaultLocale` semantically
   independent. If an application requires it to equal `defaultContentLocale`,
   express that as an application test or explicit assignment rather than a
   framework invariant.
-- [ ] Update CLI static-config tests to prove the parser still reads
+- [x] Update CLI static-config tests to prove the parser still reads
   `contentLocales[*].code` after the non-code property rename.
-- [ ] Add or retain explicit CLI contract tests for both pinned source shapes:
+- [x] Add or retain explicit CLI contract tests for both pinned source shapes:
   `contentLocales[*].code` in `byline/locales.ts`, and
   `i18nConfig.{locales, defaultLocale}` in
   `src/i18n/i18n-config.ts`. Verify unrelated exports and properties remain
   ignored.
-- [ ] Land and verify this i18n rename separately from Phase 3A. Do not make its
+- [x] Land and verify this i18n rename separately from Phase 3A. Do not make its
   breadth look mechanical by hiding it inside the `AdminConfig` rename.
-- [ ] Do not migrate or rename `byline_admin_users.preferred_locale`. It stores a
+- [x] Do not migrate or rename `byline_admin_users.preferred_locale`. It stores a
   locale code, not the name of the configuration axis, and its values remain
   valid. Update surrounding comments/docs to call it the admin user's preferred
   locale. No database or data migration is required for this phase.
@@ -477,38 +477,38 @@ Target ownership:
 
 Tasks:
 
-- [ ] Remove `serverURL` from `BaseConfig`, resolved config types, SSR fallback
+- [x] Remove `serverURL` from `BaseConfig`, resolved config types, SSR fallback
   construction, config key contract tests, and every admin/server bootstrap.
-- [ ] Add an optional second argument to `createSignInRoute(path, options)` with
+- [x] Add an optional second argument to `createSignInRoute(path, options)` with
   `options.homeUrl?: string`, and pass it directly through `SignInPage` to the
   existing optional `SignInForm.homeUrl` prop. This static client-safe value is
   available during SSR and hydration without reading Byline configuration.
-- [ ] In the reference app, call the route factory with
+- [x] In the reference app, call the route factory with
   `getPublicConfig().serverUrl`. Allow generated templates and applications that
   do not want a Home link to omit the option.
-- [ ] Audit all three downstream applications and opt them into `homeUrl` from
+- [x] Audit all three downstream applications and opt them into `homeUrl` from
   their own client-safe public config where that config exists. Do not create a
   second canonical-origin setting solely for Byline.
-- [ ] Remove `DEFAULT_SERVER_URL` from `byline/routes.ts`; routes do not own site
+- [x] Remove `DEFAULT_SERVER_URL` from `byline/routes.ts`; routes do not own site
   identity. Retain or rename the host's existing `VITE_SERVER_URL` only as a host
   application concern, outside Byline config and CLI Byline templates.
-- [ ] Update CLI admin and database-dialect server templates so neither emitted
+- [x] Update CLI admin and database-dialect server templates so neither emitted
   Byline config calculates or accepts a site URL. Update the sign-in route
   template to demonstrate the optional host hook only if the generated host
   template has a concrete client-safe public-config source.
-- [ ] Add no `apiURL` replacement in this phase.
+- [x] Add no `apiURL` replacement in this phase.
 
 ### Phase 3 verification
 
-- [ ] `rg` finds none of the old configuration symbol names in source, templates,
+- [x] `rg` finds none of the old configuration symbol names in source, templates,
   or current docs except an explicit upgrade guide/changelog comparison.
-- [ ] `rg` finds no `i18n.interface` or `interfaceLocales` in current source.
-- [ ] `rg` finds no `serverURL` or `DEFAULT_SERVER_URL` in Byline configuration,
+- [x] `rg` finds no `i18n.interface` or `interfaceLocales` in current source.
+- [x] `rg` finds no `serverURL` or `DEFAULT_SERVER_URL` in Byline configuration,
   package source, or Byline templates except migration notes. Host-owned
   `serverUrl`/`VITE_SERVER_URL` may remain in application public configuration.
-- [ ] CLI route generation and static locale parsing tests pass.
-- [ ] Public/admin bundle boundary tests pass.
-- [ ] All four repositories typecheck and build against the same framework API.
+- [x] CLI route generation and static locale parsing tests pass.
+- [x] Public/admin bundle boundary tests pass.
+- [x] All four repositories typecheck and build against the same framework API.
 
 ---
 
@@ -531,22 +531,67 @@ Framework documentation to update includes at least:
 
 Tasks:
 
-- [ ] Land the documentation relevant to each delivery slice with that slice;
+- [x] Land the documentation relevant to each delivery slice with that slice;
   this phase is a completeness audit, not permission to defer contract docs
   until after code ships.
-- [ ] Explain the final three authored boundaries: static public host data,
+- [x] Explain the final three authored boundaries: static public host data,
   `AdminConfig`, and `ServerConfig`.
-- [ ] Explicitly state that `BaseConfig`, `AdminConfig`, `ServerConfig`, and
+- [x] Explicitly state that `BaseConfig`, `AdminConfig`, `ServerConfig`, and
   `CollectionDefinition` are live runtime contracts, not wire formats.
-- [ ] State that future HTTP/MCP manifests are allowlisted projections, not
+- [x] State that future HTTP/MCP manifests are allowlisted projections, not
   serialized runtime configuration.
-- [ ] Add a mechanical migration table for every renamed/deleted public symbol.
-- [ ] Update copied documentation in `bylinecms.app` if it is intentionally kept
+- [x] Add a mechanical migration table for every renamed/deleted public symbol.
+- [x] Update copied documentation in `bylinecms.app` if it is intentionally kept
   in sync with the framework documentation.
-- [ ] Add changesets for every affected published package. Keep changesets scoped
+- [x] Add changesets for every affected published package. Keep changesets scoped
   to packages whose public surface actually changed.
-- [ ] Determine merge/release order so no production branch temporarily consumes
+- [x] Determine merge/release order so no production branch temporarily consumes
   a mismatched framework version.
+
+---
+
+## Implementation record
+
+The three remaining unchecked Phase 1 items are deliberate follow-ups rather
+than release blockers: no public consumer currently needs a content-default
+export, and the Knip public-export report needs a reviewed allowlist before it
+can become useful CI signal.
+
+Branches:
+
+- `bylinecms.dev`: `feat/configuration-surface-cleanup`
+- all three downstream applications: `feat/byline-configuration-cleanup`
+
+The implementation used signed, independently scoped commits for serializer
+deletion, public-facade narrowing, compatibility removal, admin configuration
+renaming, admin i18n renaming, downstream migrations, copied documentation, and
+specification progress. Changesets schedule the fixed Byline package group for
+the coordinated 5.x major release.
+
+All four repositories were verified against the same locally linked, fully built
+Byline package graph. The primary repository passed generation, lint, typecheck,
+unit tests, production build, Knip, the non-blocking public-export audit,
+documentation checks, and changeset status. Each downstream passed generation,
+lint, typecheck, and production build; the repositories with tests passed their
+configured suites. Modulus also gained the missing Biome exclusion for its
+generated collection types after the final gate exposed a formatter/generator
+conflict.
+
+Release order:
+
+1. Merge the framework pull request and publish the coherent 5.x package set
+   from the committed changesets.
+2. Update each downstream package manifest and lockfile to the published 5.x
+   versions on its prepared migration branch.
+3. Rerun the downstream gates without local links, merge the downstream pull
+   requests, and deploy them independently.
+
+Do not merge a downstream migration while its manifest still resolves Byline
+4.x. The prepared source commits deliberately omit an unresolvable `^5.0.0`
+lockfile update before the packages exist.
+
+Pull request publication is pending a valid GitHub CLI login for the configured
+`58bits` account. The local branches and commits are complete and clean.
 
 ---
 
