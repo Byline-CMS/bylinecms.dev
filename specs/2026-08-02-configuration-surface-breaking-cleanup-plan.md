@@ -566,7 +566,9 @@ The implementation used signed, independently scoped commits for serializer
 deletion, public-facade narrowing, compatibility removal, admin configuration
 renaming, admin i18n renaming, downstream migrations, copied documentation, and
 specification progress. Changesets schedule the fixed Byline package group for
-the coordinated 5.x major release.
+the coordinated 4.12 minor release. This release intentionally includes the
+documented source-breaking cleanup because every production downstream is owned
+and migrated in the same release window.
 
 All four repositories were verified against the same locally linked, fully built
 Byline package graph. The primary repository passed generation, lint, typecheck,
@@ -579,15 +581,15 @@ conflict.
 
 Release order:
 
-1. Merge the framework pull request and publish the coherent 5.x package set
+1. Merge the framework pull request and publish the coherent 4.12 package set
    from the committed changesets.
-2. Update each downstream package manifest and lockfile to the published 5.x
+2. Update each downstream package manifest and lockfile to the published 4.12
    versions on its prepared migration branch.
 3. Rerun the downstream gates without local links, merge the downstream pull
    requests, and deploy them independently.
 
 Do not merge a downstream migration while its manifest still resolves Byline
-4.x. The prepared source commits deliberately omit an unresolvable `^5.0.0`
+4.11. The prepared source commits deliberately omit an unresolvable `^4.12.0`
 lockfile update before the packages exist.
 
 Published draft pull requests:
@@ -598,8 +600,8 @@ Published draft pull requests:
 - `infonomic/beta.forru.org#1`
 
 All implementation branches are pushed and clean. The three downstream pull
-requests remain drafts until the framework 5.x package set is published and
-their manifests and lockfiles can be updated from 4.x to the released versions.
+requests remain drafts until the framework 4.12 package set is published and
+their manifests and lockfiles can be updated from 4.11 to the released versions.
 
 ---
 

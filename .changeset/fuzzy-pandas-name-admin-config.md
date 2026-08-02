@@ -1,6 +1,6 @@
 ---
-'@byline/cli': major
-'@byline/core': major
+'@byline/cli': minor
+'@byline/core': minor
 '@byline/host-tanstack-start': minor
 ---
 

@@ -1,30 +1,30 @@
 ---
-title: "Upgrading from 4.x to 5.x"
-path: "upgrading-to-v5"
-summary: "Application migration guide for Byline 5.x: admin configuration naming, admin locale naming, host-owned site URLs, removed compatibility APIs, and coordinated package validation."
+title: "Upgrading from 4.11 to 4.12"
+path: "upgrading-to-v4-12"
+summary: "Application migration guide for Byline 4.12: admin configuration naming, admin locale naming, host-owned site URLs, removed compatibility APIs, and coordinated package validation."
 ---
 
-# Upgrading from 4.x to 5.x
+# Upgrading from 4.11 to 4.12
 
 Companions:
 - [Configuration](./03-configuration.md) — the current application-owned configuration files and runtime boundaries.
 - [Configuration API](../10-api-reference/01-configuration.md) — the exact `AdminConfig`, `ServerConfig`, and i18n contracts.
 - [Internationalization](../08-internationalization/index.md) — the separation between host-interface, Byline-admin, and content locales.
 
-Byline 5 removes compatibility APIs and gives the browser/SSR admin
+Byline 4.12 removes compatibility APIs and gives the browser/SSR admin
 configuration an unambiguous name. The migration changes application source,
 but it does not change stored documents, admin locale values, or database
 schemas.
 
-Update every published `@byline/*` dependency to major 5 together. Byline's
-packages share runtime singletons and cross-package types, so mixed majors are
-not supported.
+Update every published `@byline/*` dependency to 4.12 together. Byline's
+packages share runtime singletons and cross-package types, so a mixed 4.11 and
+4.12 installation is not supported.
 
 ## Rename the admin configuration API
 
 Rename these `@byline/core` imports and calls:
 
-| 4.x | 5.x |
+| 4.11 | 4.12 |
 |---|---|
 | `ClientConfig` | `AdminConfig` |
 | `ResolvedClientConfig` | `ResolvedAdminConfig` |
@@ -43,7 +43,7 @@ initial hydration and component rendering.
 
 Change Byline's admin-language configuration and APIs:
 
-| 4.x | 5.x |
+| 4.11 | 4.12 |
 |---|---|
 | `i18n.interface` | `i18n.admin` |
 | `interfaceLocales` | `adminLocales` |
