@@ -7,7 +7,7 @@
  */
 
 /**
- * Registers Byline's client-side config (collection admin UI configs,
+ * Registers Byline's admin config (collection admin UI configs,
  * field editors, i18n, routes) in the current module graph. The `_byline`
  * route registers it from two complementary points: a dynamic import in
  * `route.tsx` covers child loaders, while the side-effect import in
@@ -20,8 +20,8 @@
  * registration into the SSR render module graph.
  */
 
-import type { ClientConfig } from '@byline/core'
-import { defineClientConfig } from '@byline/core'
+import type { AdminConfig } from '@byline/core'
+import { defineAdminConfig } from '@byline/core'
 
 import { FAQBlockAdmin } from './blocks/faq-block.admin.js'
 import { PhotoBlockAdmin } from './blocks/photo-block.admin.js'
@@ -34,12 +34,9 @@ import { NewsCategoriesAdmin } from './collections/news-categories/admin.js'
 import { PagesAdmin } from './collections/pages/admin.js'
 import { LexicalRichTextAi } from './fields/richtext/lexical-richtext-ai.js'
 import { i18n } from './i18n.js'
-import { DEFAULT_SERVER_URL, routes } from './routes.js'
+import { routes } from './routes.js'
 
-const serverURL = import.meta.env.VITE_SERVER_URL || DEFAULT_SERVER_URL
-
-export const config: ClientConfig = {
-  serverURL,
+export const config: AdminConfig = {
   i18n,
   routes,
   collections,
@@ -106,4 +103,4 @@ export const config: ClientConfig = {
   },
 }
 
-defineClientConfig(config)
+defineAdminConfig(config)

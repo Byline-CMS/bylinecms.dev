@@ -188,12 +188,11 @@ describe('server hook attachment', () => {
     )
 
     const invalid: ServerConfig = {
-      serverURL: 'https://example.test',
       collections: [definition],
       db: {} as IDbAdapter,
       hooks: { collections: { documents: replacement } },
       i18n: {
-        interface: { defaultLocale: 'en', locales: ['en'] },
+        admin: { defaultLocale: 'en', locales: ['en'] },
         content: { defaultLocale: 'en', locales: [] },
       },
     }

@@ -1,18 +1,17 @@
-import { defineClientConfig } from '@byline/core'
+import { defineAdminConfig } from '@byline/core'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { resolveAdminCallbackPath, resolveAdminSignInRedirect } from './admin-path.js'
-import { configureSignInRoutePath, getSignInRoutePath } from './sign-in-path.js'
+import { getSignInRoutePath } from './sign-in-path.js'
 
 describe('admin authentication routes', () => {
   beforeEach(() => {
-    defineClientConfig({
-      serverURL: 'http://localhost:3000',
+    defineAdminConfig({
       routes: { admin: '/cms/', signIn: '/staff/login/' },
       collections: [],
       admin: [],
       i18n: {
-        interface: { defaultLocale: 'en', locales: [] },
+        admin: { defaultLocale: 'en', locales: [] },
         content: { defaultLocale: 'en', locales: [] },
       },
     })
@@ -30,10 +29,5 @@ describe('admin authentication routes', () => {
 
   it('shares routes.signIn between guard and sign-out consumers', () => {
     expect(getSignInRoutePath()).toBe('/staff/login')
-    expect(configureSignInRoutePath('/staff/login/')).toBe('/staff/login')
-  })
-
-  it('does not allow the deprecated layout override to silently diverge', () => {
-    expect(() => configureSignInRoutePath('/auth/login')).toThrow(/must match routes\.signIn/)
   })
 })

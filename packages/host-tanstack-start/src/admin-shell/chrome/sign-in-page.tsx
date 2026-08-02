@@ -8,19 +8,20 @@
 
 import { SignInForm } from '@byline/admin/auth/components/sign-in-form'
 import { BylineAdminServicesProvider } from '@byline/admin/services'
-import { getClientConfig } from '@byline/core'
+import { getAdminConfig } from '@byline/core'
 import type { LocaleCode } from '@byline/i18n'
 import { I18nProvider, LanguageMenu } from '@byline/i18n/react'
 import cx from 'clsx'
 
 import { buildLocaleDefinitions } from '../../i18n/locale-definitions.js'
 import { bylineAdminServices } from '../../integrations/byline-admin-services.js'
-import { setInterfaceLocaleFn } from '../../server-fns/i18n/index.js'
+import { setAdminLocaleFn } from '../../server-fns/i18n/index.js'
 import styles from './sign-in-page.module.css'
 
 interface SignInPageProps {
   redirectTo: string
   activeLocale: LocaleCode
+  homeUrl?: string
 }
 
 /**
@@ -33,32 +34,28 @@ interface SignInPageProps {
  * (the one that wraps the authenticated admin) doesn't apply here.
  * `<LanguageMenu>` lights up automatically when two or more interface
  * locales are configured. On change, the menu calls
- * `setInterfaceLocaleFn` which writes the cookie unconditionally and
+ * `setAdminLocaleFn` which writes the cookie unconditionally and
  * skips the DB write on the pre-auth path (the user has no admin
  * session yet). After sign-in succeeds, the `adminSignIn` server fn
  * reconciles the cookie locale into the user's
  * `admin_users.preferred_locale` so the pre-auth choice becomes
  * sticky across devices from day one.
  *
- * Threads the configured `serverURL` into the `SignInForm` as `homeUrl` so
- * the form's action row can render a plain "Home" link beside the submit
- * button.
+ * Threads an optional host-owned `homeUrl` into `SignInForm` so the form's
+ * action row can render a plain "Home" link beside the submit button.
  */
-export function SignInPage({ redirectTo, activeLocale }: SignInPageProps) {
-  const { i18n, serverURL } = getClientConfig()
-  const localeDefinitions = buildLocaleDefinitions(
-    i18n.interface.locales,
-    i18n.interface.localeDefinitions
-  )
+export function SignInPage({ redirectTo, activeLocale, homeUrl }: SignInPageProps) {
+  const { i18n } = getAdminConfig()
+  const localeDefinitions = buildLocaleDefinitions(i18n.admin.locales, i18n.admin.localeDefinitions)
   const handleSetLocale = async (next: LocaleCode) => {
-    await setInterfaceLocaleFn({ data: { locale: next } })
+    await setAdminLocaleFn({ data: { locale: next } })
     window.location.reload()
   }
   return (
     <I18nProvider
       bundle={i18n.translations ?? {}}
       activeLocale={activeLocale}
-      defaultLocale={i18n.interface.defaultLocale}
+      defaultLocale={i18n.admin.defaultLocale}
       localeDefinitions={localeDefinitions}
       setLocale={handleSetLocale}
     >
@@ -68,7 +65,7 @@ export function SignInPage({ redirectTo, activeLocale }: SignInPageProps) {
             <LanguageMenu />
           </div>
           <div className={cx('byline-sign-in-page-inner', styles.inner)}>
-            <SignInForm redirectTo={redirectTo} homeUrl={serverURL} />
+            <SignInForm redirectTo={redirectTo} homeUrl={homeUrl} />
           </div>
         </main>
       </BylineAdminServicesProvider>

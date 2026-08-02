@@ -8,7 +8,7 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import { getClientConfig } from '@byline/core'
+import { getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
@@ -20,7 +20,7 @@ export function createAdminDashboardRoute(path: string) {
   // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
   const Route: any = createFileRoute(path as never)({
     loader: async () => {
-      const { collections } = getClientConfig()
+      const { collections } = getAdminConfig()
       const statsMap: Record<string, CollectionStatusCount[]> = {}
 
       await Promise.all(

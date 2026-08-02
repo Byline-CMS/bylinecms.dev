@@ -13,15 +13,15 @@
  * pulls in the Lexical editor module graph) only run when an admin route is
  * actually visited — public routes stay clean.
  *
- * The `byline/admin.config` import below registers the client config in the
+ * The `byline/admin.config` import below registers the admin config in the
  * *client component graph* — it runs whenever this lazy module loads (component
  * render / initial hydration), where the sibling `route.tsx` `beforeLoad` does
  * NOT help: on initial hydration TanStack Start reuses the dehydrated SSR result
  * and does not re-run `beforeLoad`, yet the admin layout component still calls
- * `getClientConfig()` at render. The two registration points are complementary —
+ * `getAdminConfig()` at render. The two registration points are complementary —
  * `beforeLoad` (a dynamic import) covers the *loader* phase before any
  * `_byline/*` child loader; this import covers component render / hydration.
- * Both call `defineClientConfig` idempotently.
+ * Both call `defineAdminConfig` idempotently.
  *
  * If you also want to use the Byline UI components on your public site,
  * import the same stylesheets from your public layout route as well.
@@ -35,7 +35,7 @@ import { ToastProvider, ToastViewport } from '@byline/ui/react'
 import '@byline/ui/reset.css'
 import '@byline/ui/styles.css'
 
-// Register the Byline client config (component-render / hydration entry point —
+// Register the Byline admin config (component-render / hydration entry point —
 // see the file header). The sibling `route.tsx` `beforeLoad` covers the loader
 // phase. Lexical's module graph only loads when a `_byline/*` URL matches.
 import '../../../byline/admin.config'

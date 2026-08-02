@@ -13,7 +13,7 @@ import { useMemo, useState } from 'react'
 
 import { RelationPicker } from '@byline/admin/react'
 import type { CollectionDefinition } from '@byline/core'
-import { getClientConfig, getCollectionDefinition } from '@byline/core'
+import { getAdminConfig, getCollectionDefinition } from '@byline/core'
 import {
   Button,
   Checkbox,
@@ -102,7 +102,7 @@ export const LinkModal: React.FC<LinkModalProps> = ({
   data: dataFromProps,
 }) => {
   const linkable = useMemo<CollectionDefinition[]>(
-    () => getClientConfig().collections.filter((c) => c.linksInEditor === true),
+    () => getAdminConfig().collections.filter((c) => c.linksInEditor === true),
     []
   )
 

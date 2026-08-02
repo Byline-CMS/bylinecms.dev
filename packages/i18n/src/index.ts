@@ -28,14 +28,14 @@
 
 export { createFormatter } from './formatter.js'
 export { mergeTranslations } from './merge.js'
-export { resolveInterfaceLocale } from './resolve.js'
+export { resolveAdminLocale } from './resolve.js'
 export type {
   Formatter,
   FormatterOptions,
   MissingTranslationEvent,
 } from './formatter.js'
 export type { MergeOptions, TranslationCollision } from './merge.js'
-export type { ResolveInterfaceLocaleOptions } from './resolve.js'
+export type { ResolveAdminLocaleOptions } from './resolve.js'
 export type {
   LocaleCode,
   LocaleDefinition,

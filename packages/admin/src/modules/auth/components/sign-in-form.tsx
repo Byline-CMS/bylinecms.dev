@@ -25,7 +25,7 @@
 
 import { type FormEvent, useState } from 'react'
 
-import { getClientConfig } from '@byline/core'
+import { getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, Card, Input, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'clsx'
@@ -37,17 +37,15 @@ import styles from './sign-in-form.module.css'
 export interface SignInFormProps {
   /** Host-validated root-relative destination after successful sign-in. */
   redirectTo?: string
-  /** @deprecated Use `redirectTo`. */
-  callbackUrl?: string
   /**
    * Optional plain "Home" link rendered on the left of the action row.
-   * Typically the host's configured `serverURL` so signed-out admins can
-   * navigate back to the public site without typing the URL.
+   * Typically the host's client-safe canonical site URL so signed-out admins
+   * can navigate back to the public site without typing the URL.
    */
   homeUrl?: string
 }
 
-export function SignInForm({ redirectTo, callbackUrl, homeUrl }: SignInFormProps) {
+export function SignInForm({ redirectTo, homeUrl }: SignInFormProps) {
   const { adminSignIn } = useBylineAdminServices()
   const { t } = useTranslation('byline-admin')
   const [email, setEmail] = useState('')
@@ -63,11 +61,7 @@ export function SignInForm({ redirectTo, callbackUrl, homeUrl }: SignInFormProps
       return
     }
 
-    const destination = resolveSignInFormRedirect(
-      redirectTo,
-      callbackUrl,
-      getClientConfig().routes.admin
-    )
+    const destination = resolveSignInFormRedirect(redirectTo, getAdminConfig().routes.admin)
 
     setPending(true)
     setError(null)

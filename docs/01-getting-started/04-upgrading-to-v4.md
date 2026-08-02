@@ -94,10 +94,10 @@ Keep both client-config registration points under the pathless `_byline` route:
 - `route.lazy.tsx` imports `byline/admin.config` for initial hydration and
   component rendering.
 
-Legacy `signInPath` route-factory input and `SignInForm.callbackUrl` remain as
-deprecated compatibility paths. New code should read `routes.signIn` and pass
-the validated `redirectTo` form prop. Redirects are now limited to safe
-root-relative destinations inside the configured admin tree.
+Version 4 deprecated the `signInPath` route-factory input and
+`SignInForm.callbackUrl`; later breaking releases remove both. Read
+`routes.signIn` and pass the validated `redirectTo` form prop. Redirects are
+limited to safe root-relative destinations inside the configured admin tree.
 
 ## 3. Move server-only lifecycle hooks out of schemas
 
@@ -333,8 +333,8 @@ ReadContext cannot be reused across request authorities
 Inside `beforeRead` or `afterRead`, pass `ctx.readContext` verbatim to a nested
 client read as `_readContext`. Never create a replacement to avoid recursion
 guards, and never reuse a context across top-level HTTP requests. The old public
-`readContext.beforeReadCache` property is deprecated and ignored for security;
-do not inspect or mutate it.
+`readContext.beforeReadCache` property was deprecated and ignored for security.
+Later breaking releases remove the property entirely; do not inspect or mutate it.
 
 `beforeRead` predicates are now compiled in strict security mode. Invalid or
 unsupported predicates fail closed. Return `undefined` for no additional
@@ -359,8 +359,8 @@ These changes usually require test updates rather than application wiring:
   results, `total` is the authorized count for the returned page and facets are
   omitted rather than leaking provider-wide aggregates.
 - **Admin item presentation:** `CollectionAdminConfig.itemView` is the new name
-  for `picker`. The `picker` alias still works in v4 but is deprecated; rename it
-  while touching collection admin configs.
+  for `picker`. The compatibility alias was removed after v4; rename it before
+  upgrading to a later breaking release.
 - **Redirects:** sign-in callbacks are normalized and constrained to the
   configured admin tree. Tests that expected an external or protocol-relative
   callback to survive must now expect the safe admin fallback.

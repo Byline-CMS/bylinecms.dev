@@ -639,7 +639,7 @@ Editorial workflows usually want one extra capability: an admin should be able t
 | Surface | Location | Role |
 |---|---|---|
 | Drawer toggle (`Preview ON / OFF`) | `@byline/host-tanstack-start/admin-shell/chrome/preview-toggle` | Source-of-truth indicator above Account in the admin menu drawer. Always visible, always reversible. Reflects cookie state via `getPreviewStateFn`. |
-| `<PreviewLink>` | `@byline/host-tanstack-start/admin-shell/collections/preview-link` | Per-document external-link icon on the edit page header. On click: `enablePreviewModeFn()` then `window.open(url)`. Hides when `preview.url(doc)` returns `null`. |
+| `<PreviewLink>` | `@byline/host-tanstack-start/admin-shell/collections/preview-link` | Per-document preview icon on the edit page header. On click: `enablePreviewModeFn()` then `window.location.assign(url)`. Hides when `preview.url(doc)` returns `null`. |
 | `CollectionAdminConfig.preview` | `defineAdmin(...)` in your collection's `admin.tsx` | `{ url(doc, { locale }) }` — see [Collections § Preview URL](../04-collections/index.md#preview-url) for the full reference. |
 | ContentAdminBar pill | `apps/webapp/src/ui/components/content-admin-bar.tsx` | Public-side "Preview" pill + "Exit Preview" button when the cookie is set. Threaded down from the public layout loader (`getPreviewStateFn`). Calls `disablePreviewModeFn` then `router.invalidate()` on exit. |
 
@@ -651,7 +651,14 @@ Editorial workflows usually want one extra capability: an admin should be able t
 
 A stale cookie is therefore failure-mode-neutral: it never escalates a non-admin request, and it never breaks one either.
 
-**Editorial UX flow.** The three UX surfaces compose into one flow: an editor clicks `<PreviewLink>` on a document's edit page (which enables the cookie and opens the public URL in a new tab); every other public page in that browser session now surfaces drafts; the drawer toggle makes the state glanceable and reversible; and the public-side `ContentAdminBar` pill offers "Exit Preview" from any draft-rendering page. The two-step "enable cookie, then navigate" deliberately avoids a `/routes/draft?url=...&secret=...` redirect handler — `enablePreviewModeFn` is itself the gate (it requires a valid admin session before setting the cookie), so no shared secret needs to ride in the URL.
+**Editorial UX flow.** The three UX surfaces compose into one flow: an editor clicks `<PreviewLink>` on a document's edit page (which enables the cookie and navigates the current tab to the public URL); every other public page in that browser session now surfaces drafts; the drawer toggle makes the state glanceable and reversible; and the public-side `ContentAdminBar` pill offers "Exit Preview" from any draft-rendering page. The two-step "enable cookie, then navigate" deliberately avoids a `/routes/draft?url=...&secret=...` redirect handler — `enablePreviewModeFn` is itself the gate (it requires a valid admin session before setting the cookie), so no shared secret needs to ride in the URL.
+
+The same-origin flow is complete because the public routes receive the admin
+session and preview cookies set by the host. `CollectionAdminConfig.preview.url`
+may return an absolute URL, but navigation alone does not transfer those
+host-only cookies to another origin. A split-origin deployment needs an
+explicit authentication and preview-state handoff before it can preview drafts
+there.
 
 **Limits and notes:**
 
@@ -731,7 +738,7 @@ The same `_bypassBeforeRead: true` escape hatch on read options is available for
 
 Two collection-level hooks fire automatically through the SDK:
 
-- **`beforeRead`** — contributes a `QueryPredicate` whose strict adapter filters are ANDed with, but compiled separately from, caller `where`. It applies to ordinary reads, search candidates, editorial metadata, tree structure, relation targets, and richtext targets. The strict result compiles once per logical `ReadContext` + client security domain + collection definition + effective mode in private authority-bound state; invalid or unsupported clauses fail closed instead of disappearing. The deprecated caller-owned `beforeReadCache` property is ignored, reuse under another request id, locale, or actor authority rejects, and cyclic hook reads fail with `ERR_READ_RECURSION`. See [Authentication & Authorization § Read-side scoping](../07-auth-and-security/01-authn-authz.md#read-side-scoping-the-beforeread-hook) (the Quick Reference there carries six worked recipes).
+- **`beforeRead`** — contributes a `QueryPredicate` whose strict adapter filters are ANDed with, but compiled separately from, caller `where`. It applies to ordinary reads, search candidates, editorial metadata, tree structure, relation targets, and richtext targets. The strict result compiles once per logical `ReadContext` + client security domain + collection definition + effective mode in private authority-bound state; invalid or unsupported clauses fail closed instead of disappearing. Reuse under another request id, locale, or actor authority rejects, and cyclic hook reads fail with `ERR_READ_RECURSION`. See [Authentication & Authorization § Read-side scoping](../07-auth-and-security/01-authn-authz.md#read-side-scoping-the-beforeread-hook) (the Quick Reference there carries six worked recipes).
 - **`afterRead`** — runs on every returned materialisation, including historical versions, tree nodes, relation targets, and richtext targets, with the authenticated `RequestContext`. Mutations to `doc.fields` propagate into the shaped response; recursive access to a version still being processed fails closed.
 
 Hooks share the operation's `ReadContext` with relation and richtext population. Custom hooks must thread `_readContext` through nested SDK reads; richtext adapters must use the framework-provided secure target reader rather than direct adapter access.

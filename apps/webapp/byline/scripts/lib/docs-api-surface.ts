@@ -12,9 +12,9 @@
 
 import type { BylineClient, BylineClientConfig, CollectionHandle } from '@byline/client'
 import type {
+  AdminConfig,
   BlockAdminConfig,
   BylineCore,
-  ClientConfig,
   CollectionAdminConfig,
   CollectionDefinition,
   Field,
@@ -41,8 +41,7 @@ function completeValues<Value extends string>() {
   ): Values => values
 }
 
-const clientConfigKeys = completeKeys<ClientConfig>()([
-  'serverURL',
+const adminConfigKeys = completeKeys<AdminConfig>()([
   'i18n',
   'collections',
   'routes',
@@ -53,7 +52,6 @@ const clientConfigKeys = completeKeys<ClientConfig>()([
 ])
 
 const serverConfigKeys = completeKeys<ServerConfig>()([
-  'serverURL',
   'i18n',
   'collections',
   'routes',
@@ -110,7 +108,6 @@ const collectionAdminConfigKeys = completeKeys<CollectionAdminConfig>()([
   'defaultSort',
   'itemView',
   'itemViewSort',
-  'picker',
   'defaultColumns',
   'tabSets',
   'rows',
@@ -221,7 +218,7 @@ function unique(...groups: ReadonlyArray<readonly string[]>): string[] {
 export const DOCS_API_SURFACE_SPECS: readonly DocsApiSurfaceSpec[] = [
   {
     fileSuffix: '/docs/10-api-reference/01-configuration.md',
-    tokens: unique(clientConfigKeys, serverConfigKeys, bylineCoreKeys),
+    tokens: unique(adminConfigKeys, serverConfigKeys, bylineCoreKeys),
   },
   {
     fileSuffix: '/docs/10-api-reference/02-collections.md',

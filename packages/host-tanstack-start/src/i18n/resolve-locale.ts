@@ -9,7 +9,7 @@
 /**
  * Server-side locale resolution for the admin interface.
  *
- * Combines `@byline/i18n`'s pure `resolveInterfaceLocale` cascade with
+ * Combines `@byline/i18n`'s pure `resolveAdminLocale` cascade with
  * the host's request-scoped signals — the `byline_admin_lng` cookie, the
  * `Accept-Language` header, and (when an admin session is present)
  * `admin_users.preferred_locale` on the authenticated actor.
@@ -25,7 +25,7 @@ import { getRequestHeader } from '@tanstack/react-start/server'
 import { AuthError, AuthErrorCodes } from '@byline/auth'
 import { getAdminRequestContext } from '@byline/client/server'
 import type { LocaleCode } from '@byline/i18n'
-import { resolveInterfaceLocale } from '@byline/i18n'
+import { resolveAdminLocale } from '@byline/i18n'
 
 import { bylineCore } from '../integrations/byline-core.js'
 import { readAdminLocaleCookie } from './locale-cookie.js'
@@ -43,16 +43,16 @@ export async function resolveRequestLocale(options?: {
   skipActorLookup?: boolean
 }): Promise<LocaleCode> {
   const core = bylineCore()
-  const { interface: ifaceConfig } = core.config.i18n
+  const { admin: adminConfig } = core.config.i18n
 
   let preferred: string | null = null
   if (!options?.skipActorLookup) {
     preferred = await readPreferredLocaleFromActor()
   }
 
-  return resolveInterfaceLocale({
-    locales: ifaceConfig.locales,
-    defaultLocale: ifaceConfig.defaultLocale,
+  return resolveAdminLocale({
+    locales: adminConfig.locales,
+    defaultLocale: adminConfig.defaultLocale,
     preferred,
     cookie: readAdminLocaleCookie(),
     acceptLanguage: readAcceptLanguage(),

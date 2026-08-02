@@ -7,5 +7,5 @@
  */
 
 export { getActiveLocaleFn } from './get-active-locale.js'
-export { setInterfaceLocaleFn } from './set-locale.js'
-export type { SetInterfaceLocaleInput, SetInterfaceLocaleResult } from './set-locale.js'
+export { setAdminLocaleFn } from './set-locale.js'
+export type { SetAdminLocaleInput, SetAdminLocaleResult } from './set-locale.js'

@@ -91,7 +91,7 @@ export const adminSignIn = createServerFn({ method: 'POST' })
  *
  *   - The cookie is unset (the cascade falls through to the existing
  *     column / Accept-Language / default anyway).
- *   - The cookie carries a locale outside `i18n.interface.locales`
+ *   - The cookie carries a locale outside `i18n.admin.locales`
  *     (stale value pointing at a removed locale — let the resolver
  *     fall through cleanly).
  *   - No admin store is configured (headless tooling paths).
@@ -102,7 +102,7 @@ async function reconcileLocaleAfterSignIn(adminUserId: string): Promise<void> {
   if (cookieLocale == null) return
 
   const core = bylineCore()
-  const locales = core.config.i18n.interface.locales
+  const locales = core.config.i18n.admin.locales
   if (!locales.includes(cookieLocale)) return
 
   const adminStore = core.adminStore

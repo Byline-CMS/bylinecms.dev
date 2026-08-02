@@ -113,7 +113,7 @@ defineAdmin(News, { columns })
 
 ### 4. Set item-view columns
 
-When this collection is shown as a single item outside its own list — a relation picker row (e.g. `News.featureImage → Media`), a relation/`hasMany` tile, or a relation list-view cell — `itemView` columns give that row a tailored layout, typically narrower than the list view. Omit to fall back to `useAsTitle` + `path` on one line. (Formerly named `picker`, which still works as a deprecated alias.)
+When this collection is shown as a single item outside its own list — a relation picker row (e.g. `News.featureImage → Media`), a relation/`hasMany` tile, or a relation list-view cell — `itemView` columns give that row a tailored layout, typically narrower than the list view. Omit to fall back to `useAsTitle` + `path` on one line.
 
 **Edit:** `apps/webapp/byline/collections/<name>/admin.tsx`
 
@@ -348,7 +348,7 @@ export type ColumnFormatter<T = any> =
 
 **Formatter forms.** The plain-function form is fine for one-line transformations. The `{ component }` form gives you a real React component for the cell — hooks, context, conditional rendering all work. Built-ins like `DateTimeFormatter` and project-local components like `MediaThumbnail` use this form.
 
-**itemView columns.** When omitted, a document appearing as a relation target falls back to a single-line render of `useAsTitle` + `path`. Define `itemView` when you want a tailored row for one of your collections in that position — typically narrower than the list-view columns. The `picker` key is a deprecated alias for `itemView`, kept working for back-compatibility; `itemView` wins when both are present. See `apps/webapp/byline/collections/media/admin.tsx` for the canonical example.
+**itemView columns.** When omitted, a document appearing as a relation target falls back to a single-line render of `useAsTitle` + `path`. Define `itemView` when you want a tailored row for one of your collections in that position — typically narrower than the list-view columns. See `apps/webapp/byline/collections/media/admin.tsx` for the canonical example.
 
 ### Layout primitives
 
@@ -404,7 +404,11 @@ preview: {
 }
 ```
 
-Returned URLs may be relative (`/news/foo`) for same-origin hosts or absolute (`https://example.com/news/foo`) for hosts deployed separately from the admin.
+Returned URLs may be relative (`/news/foo`) for same-origin hosts or absolute
+(`https://example.com/news/foo`) when navigation must target another origin.
+An absolute URL does not transfer Byline's host-only admin and preview cookies;
+cross-origin draft preview therefore requires a separate authentication and
+preview-state handoff.
 
 **Default behaviour.** When `preview` is omitted, the preview link defaults to `/${collectionPath}/${doc.path}` — fine for collections whose public URL mirrors the collection path.
 
@@ -531,7 +535,7 @@ The two read hooks carry the security-sensitive behaviour, so they are worth rea
 **`beforeRead`** is the row-scoping hook. You return a `QueryPredicate`, and Byline ANDs it with the caller's filters — but the two compile through different paths, and the difference is the point:
 
 - Your caller's `where` goes through the ordinary query parser. Your hook predicate goes through the **strict security compiler**: an unsupported field or operator, or a malformed value, **throws** rather than being weakened or dropped. A scoping rule that cannot be honoured fails the read; it never silently widens it.
-- The strict result compiles once per logical read — keyed on `ReadContext`, collection, and effective read mode — in private, authority-bound state that concurrent populate branches share. Reusing a logical read across authorities fails closed, and the deprecated caller-owned `ReadContext.beforeReadCache` is ignored.
+- The strict result compiles once per logical read — keyed on `ReadContext`, collection, and effective read mode — in private, authority-bound state that concurrent populate branches share. Reusing a logical read across authorities fails closed.
 - Top-level `status` and `path` operators become document-column filters, applied consistently across list, detail, populate, count, history, and tree reads.
 - Coverage is end-to-end. Ordinary reads and counts, every immutable row in `history()` and `findByVersion()`, tree edges and hydration, search authorization, populated relations, and rich-text document and image targets all apply the target collection's ability and predicate. The one deliberate exception is `auditLog()`, which gates the document-grain log through the current document rather than applying a predicate to each audit row — see [Auditability](../07-auth-and-security/02-auditability.md).
 
@@ -595,7 +599,7 @@ Server-side **upload** hooks (`beforeStore` / `afterStore`) live on the field's 
 
 Collection schemas are [isomorphic](#the-schema-admin-split), so every static **or dynamic** import they contain is reachable from the browser build. A plain `() => import('./hooks.js')` is lazy loading, not a server boundary, and framework wrappers such as TanStack Start's `createServerOnlyFn` make the schema host-specific.
 
-Register hooks that import server-only code through `ServerConfig.hooks` instead. The registry is imported only by `byline/server.config.ts`; client configuration and schemas never reach it.
+Register hooks that import server-only code through `ServerConfig.hooks` instead. The registry is imported only by `byline/server.config.ts`; admin configuration and schemas never reach it.
 
 ```ts
 // collections/server-hooks.ts — server-only and host-framework agnostic

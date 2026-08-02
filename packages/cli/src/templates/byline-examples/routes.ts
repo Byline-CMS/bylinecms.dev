@@ -19,11 +19,3 @@ export const routes = resolveRoutes({
   api: '/api',
   signIn: '/sign-in',
 })
-
-/**
- * Fallback used by both server and admin entry points when no
- * `VITE_SERVER_URL` env var is set. Each entry resolves the env var
- * itself (Vite's `import.meta.env` on the client, Node's `process.env`
- * on the server) and falls back to this literal.
- */
-export const DEFAULT_SERVER_URL = 'http://localhost:5173/'

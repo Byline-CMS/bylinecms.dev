@@ -53,7 +53,7 @@ interface GroupFieldProps {
    * Per-child-field admin overrides (`components` slots, richtext `editor`),
    * keyed by dotted, index-free schema paths relative to this group
    * ('caption', 'faq.answer'). Threaded by `BlocksField` from the site-wide
-   * `ClientConfig.blockAdmin` registry (block children render through a
+   * `AdminConfig.blockAdmin` registry (block children render through a
    * synthesized group) and by `FieldRenderer` for plain schema groups, whose
    * map arrives pre-sliced from the collection admin config. Exact-name
    * entries apply to the child itself; deeper entries are re-sliced and

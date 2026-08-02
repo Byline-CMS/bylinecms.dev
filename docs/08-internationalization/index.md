@@ -8,7 +8,7 @@ summary: "Byline separates interface translation from content translation, and t
 
 Companions:
 - [Configuration](../01-getting-started/03-configuration.md) — how `locales.ts`, `i18n.ts`, and `public.ts` divide public-safe data from admin translation registration.
-- [Configuration API](../10-api-reference/01-configuration.md) — the exact `i18n.interface`, `i18n.content`, locale-definition, and translation-bundle properties.
+- [Configuration API](../10-api-reference/01-configuration.md) — the exact `i18n.admin`, `i18n.content`, locale-definition, and translation-bundle properties.
 - [Document paths](../04-collections/05-document-paths.md) — how source locale and path resolution interact.
 
 Byline's i18n grew out of a recurring requirement: sites where content is

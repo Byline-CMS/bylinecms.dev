@@ -56,7 +56,7 @@ describe('validateTranslations — structural errors', () => {
           fr: { 'byline-admin': { a: 'A' } },
         },
       })
-    ).toThrow(/defaultLocale 'de' is not in i18n\.interface\.locales/)
+    ).toThrow(/defaultLocale 'de' is not in i18n\.admin\.locales/)
   })
 
   it('throws when locales is non-empty but no translations bundle is registered', () => {

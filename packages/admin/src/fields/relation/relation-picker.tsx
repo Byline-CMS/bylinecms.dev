@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
-import { getCollectionAdminConfig, resolveItemViewColumns } from '@byline/core'
+import { getCollectionAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Button, CheckIcon, LoaderRing, Modal, Search } from '@byline/ui/react'
 import cx from 'clsx'
@@ -29,7 +29,7 @@ import styles from './relation-picker.module.css'
 
 /**
  * Row rendering strategy, in priority order:
- *   1. `CollectionAdminConfig.picker` — a ColumnDefinition[] from the target
+ *   1. `CollectionAdminConfig.itemView` — a ColumnDefinition[] from the target
  *      admin config. Each row renders the declared columns side-by-side,
  *      reusing any column formatters (thumbnail, date, etc).
  *   2. Explicit `displayField` prop on this component (forwarded from
@@ -138,7 +138,7 @@ export const RelationPicker = ({
 
   const targetAdminConfig: CollectionAdminConfig | null =
     getCollectionAdminConfig(targetCollectionPath)
-  const pickerColumns = resolveItemViewColumns(targetAdminConfig)
+  const pickerColumns = targetAdminConfig?.itemView
 
   // Reset local state each time the modal opens so prior queries don't leak.
   useEffect(() => {

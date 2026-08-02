@@ -18,8 +18,8 @@
  * setting.
  *
  * Locale write surface mirrors the chrome-bar `<LanguageMenu>` — both
- * route through `setInterfaceLocale` (the service) →
- * `setInterfaceLocaleFn` (the host server fn) → the shared
+ * route through `setAdminLocale` (the service) →
+ * `setAdminLocaleFn` (the host server fn) → the shared
  * cookie + `admin_users.preferred_locale` writes. The dropdown carries
  * an explicit "Use browser default" entry that maps to `null`
  * server-side, clearing the column and re-engaging the detection
@@ -36,7 +36,7 @@
 import { useMemo, useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
-import { getClientConfig } from '@byline/core'
+import { getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, LoaderEllipsis, Select } from '@byline/ui/react'
 import cx from 'clsx'
@@ -76,7 +76,7 @@ interface PreferencesProps {
 
 export function Preferences({ account, onClose, onSuccess }: PreferencesProps) {
   const { t } = useTranslation('byline-admin')
-  const { setInterfaceLocale } = useBylineAdminServices()
+  const { setAdminLocale } = useBylineAdminServices()
   const [formError, setFormError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
@@ -85,11 +85,11 @@ export function Preferences({ account, onClose, onSuccess }: PreferencesProps) {
   // ("Français" vs CLDR's lowercase "français"); when it's not set,
   // fall back to the raw code so the form still functions.
   const localeItems = useMemo(() => {
-    const { i18n } = getClientConfig()
+    const { i18n } = getAdminConfig()
     const definitionByCode = new Map(
-      (i18n.interface.localeDefinitions ?? []).map((d) => [d.code, d.nativeName])
+      (i18n.admin.localeDefinitions ?? []).map((d) => [d.code, d.nativeName])
     )
-    const items = i18n.interface.locales.map((code) => ({
+    const items = i18n.admin.locales.map((code) => ({
       value: code,
       label: definitionByCode.get(code) ?? code,
     }))
@@ -114,7 +114,7 @@ export function Preferences({ account, onClose, onSuccess }: PreferencesProps) {
         return
       }
       try {
-        const result = await setInterfaceLocale({ data: { locale: nextLocale } })
+        const result = await setAdminLocale({ data: { locale: nextLocale } })
         // Pre-auth path returns `account: null`; the form is only
         // reachable behind an admin session, so `account` should be
         // populated. Treat absence as a defensive no-op.

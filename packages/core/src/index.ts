@@ -27,14 +27,13 @@ export {
   registerCollectionAbilities,
 } from './auth/index.js'
 export {
-  defineClientConfig,
+  defineAdminConfig,
   defineServerConfig,
-  getClientConfig,
+  getAdminConfig,
   getCollectionAdminConfig,
   getCollectionDefinition,
   getServerConfig,
   orderByContentLocale,
-  resolveItemViewColumns,
 } from './config/config.js'
 export { resolveRoutes } from './config/routes.js'
 export {

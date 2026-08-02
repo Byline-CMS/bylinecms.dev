@@ -10,7 +10,7 @@
  * Leaf locale definitions — the host's two locale sets, as plain data with
  * **zero** runtime dependencies (no `@byline/*` imports, no translation
  * registry). `byline/i18n.ts` consumes these to assemble the
- * `defineServerConfig` / `defineClientConfig` payload.
+ * `defineServerConfig` / `defineAdminConfig` payload.
  *
  * Kept separate from `byline/i18n.ts` so `byline/public.ts` can expose the
  * locale arrays to a public frontend (or a collection schema file loaded
@@ -19,29 +19,32 @@
  * Importing `byline/i18n.ts` would; importing this won't — which keeps the lazy
  * admin/public bundle split (`src/routes/_byline/route.lazy.tsx`) intact.
  *
- * `interface` locales govern the CMS admin UI language; `content` locales
+ * `admin` locales govern the CMS admin UI language; `content` locales
  * govern the languages a document can be published in.
  */
 
 export interface LocaleDefinition {
   code: string
-  label: string
+  nativeName: string
 }
+
+export const defaultAdminLocale = 'en'
+export const defaultContentLocale = 'en'
 
 /** Locales available in the CMS admin interface. */
 // Every code listed here must have a matching bundle in `@byline/i18n/admin`
 // (or a third-party plugin merged in via `mergeTranslations(...)`).
 // `adminTranslations({ locales })` in `byline/i18n.ts` throws at boot if a
 // requested code is not bundled — `@byline/i18n/admin` ships English and French.
-export const interfaceLocales = [
-  { code: 'en', label: 'English' },
-  { code: 'fr', label: 'Français' },
+export const adminLocales = [
+  { code: 'en', nativeName: 'English' },
+  { code: 'fr', nativeName: 'Français' },
 ] as const satisfies readonly LocaleDefinition[]
 
 /** Locales a document can be published in. */
 export const contentLocales = [
-  { code: 'en', label: 'English' },
-  { code: 'fr', label: 'Français' },
-  { code: 'es', label: 'Español' },
-  { code: 'de', label: 'Deutsch' },
+  { code: 'en', nativeName: 'English' },
+  { code: 'fr', nativeName: 'Français' },
+  { code: 'es', nativeName: 'Español' },
+  { code: 'de', nativeName: 'Deutsch' },
 ] as const satisfies readonly LocaleDefinition[]

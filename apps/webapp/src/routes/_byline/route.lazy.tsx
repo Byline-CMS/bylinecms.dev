@@ -17,11 +17,11 @@
  * loads (component render / initial hydration), where the sibling `route.tsx`
  * `beforeLoad` does NOT help: on initial hydration TanStack Start reuses the
  * dehydrated SSR result and does not re-run `beforeLoad`, yet the admin layout
- * component still calls `getClientConfig()` at render. The two registration
+ * component still calls `getAdminConfig()` at render. The two registration
  * points are complementary — `beforeLoad` (a dynamic import) covers the
  * *loader* phase before any `_byline/*` child loader (closing the dev race
  * where the loader outran this module); this import covers component render /
- * hydration. Both call `defineClientConfig` idempotently.
+ * hydration. Both call `defineAdminConfig` idempotently.
  *
  * If you also want to use the Byline UI components on your public site,
  * import the stylesheets from your front-end's pathless layout instead

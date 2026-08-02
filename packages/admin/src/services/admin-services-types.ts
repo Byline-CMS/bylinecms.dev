@@ -67,7 +67,7 @@ export type UpdateAccountInput = UpdateAccountRequest
 /** Same shape as `ChangeAccountPasswordRequest` from `@byline/admin/admin-account`. */
 export type ChangeAccountPasswordInput = ChangeAccountPasswordRequest
 
-export interface SetInterfaceLocaleInput {
+export interface SetAdminLocaleInput {
   /** BCP 47 tag, or `null` to clear the preference and re-engage detection. */
   locale: string | null
 }
@@ -78,7 +78,7 @@ export interface SetInterfaceLocaleInput {
  * the account page); `null` on pre-auth surfaces (the sign-in page
  * locale dropdown) where the cookie write is the only effect.
  */
-export interface SetInterfaceLocaleResult {
+export interface SetAdminLocaleResult {
   ok: true
   locale: string | null
   account: AccountResponse | null
@@ -159,7 +159,7 @@ export interface BylineAdminServices {
   // Account self-service
   updateAccount: AdminServiceCall<UpdateAccountInput, AccountResponse>
   changeAccountPassword: AdminServiceCall<ChangeAccountPasswordInput, AccountResponse>
-  setInterfaceLocale: AdminServiceCall<SetInterfaceLocaleInput, SetInterfaceLocaleResult>
+  setAdminLocale: AdminServiceCall<SetAdminLocaleInput, SetAdminLocaleResult>
 
   // Admin user writes (page-container reads stay in the host for now)
   createAdminUser: AdminServiceCall<CreateAdminUserInput, AdminUserResponse>

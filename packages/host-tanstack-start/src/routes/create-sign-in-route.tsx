@@ -22,13 +22,23 @@ import type { LocaleCode } from '@byline/i18n'
 import { SignInPage } from '../admin-shell/chrome/sign-in-page.js'
 import { getActiveLocaleFn } from '../server-fns/i18n/index.js'
 import { resolveAdminCallbackPath, resolveAdminSignInRedirect } from './admin-path.js'
+import { resolveSignInHomeUrl } from './sign-in-home-url.js'
 
 interface SignInSearch {
   callbackUrl?: string
 }
 
-export function createSignInRoute(path: string) {
-  // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
+export interface CreateSignInRouteOptions {
+  /**
+   * Client-safe URL for the sign-in page's Home link. Defaults to `/`, which
+   * preserves the link for integrated hosts without requiring an absolute site
+   * origin. Pass an absolute URL when the public home is on another origin.
+   */
+  homeUrl?: string
+}
+
+export function createSignInRoute(path: string, { homeUrl }: CreateSignInRouteOptions = {}) {
+  const resolvedHomeUrl = resolveSignInHomeUrl(homeUrl)
   const Route: any = createFileRoute(path as never)({
     validateSearch: (search: Record<string, unknown>): SignInSearch => {
       const callbackUrl = resolveAdminCallbackPath(search.callbackUrl)
@@ -50,6 +60,7 @@ export function createSignInRoute(path: string) {
         <SignInPage
           redirectTo={resolveAdminSignInRedirect(callbackUrl)}
           activeLocale={activeLocale}
+          homeUrl={resolvedHomeUrl}
         />
       )
     },

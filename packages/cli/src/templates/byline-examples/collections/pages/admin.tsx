@@ -64,7 +64,7 @@ const listViewColumns: ColumnDefinition[] = [
  * target of a relation picker. Usually narrower than the list
  * view — just enough to identify the right item at a glance.
  */
-// const pickerViewColumns: ColumnDefinition[] = []
+// const itemViewColumns: ColumnDefinition[] = []
 
 export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
   /**
@@ -81,7 +81,7 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
    * Shape matches `ColumnDefinition` so formatters can be reused across list and item view.
    *
    * @example
-   * itemView: [{ fieldName: 'title', label: 'Title' }] // or defined above as `pickerViewColumns`
+   * itemView: [{ fieldName: 'title', label: 'Title' }] // or defined above as `itemViewColumns`
    */
   // itemView: [],
 
@@ -133,7 +133,7 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
     url: (doc, { locale }) => {
       const path = Pages.buildDocumentPath?.(doc, { collectionPath: Pages.path }) ?? null
       if (path == null) return null
-      const prefix = locale && locale !== i18n.interface.defaultLocale ? `/${locale}` : ''
+      const prefix = locale && locale !== i18n.admin.defaultLocale ? `/${locale}` : ''
       return `${prefix}${path}`
     },
   },

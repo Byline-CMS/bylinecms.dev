@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { normalizeRootRelativeRedirect } from '../utils/root-relative-redirect.js'
-import { defineClientConfig, getClientConfig } from './config.js'
+import { defineAdminConfig, getAdminConfig } from './config.js'
 import { resolveRoutes } from './routes.js'
 
 describe('resolveRoutes', () => {
@@ -114,13 +114,12 @@ describe('normalizeRootRelativeRedirect', () => {
 describe('route configuration boundary', () => {
   it('stores and exposes resolved routes independently of partial input', () => {
     const input = { admin: 'internal/cms/' }
-    const registered = defineClientConfig({
-      serverURL: 'https://example.test',
+    const registered = defineAdminConfig({
       routes: input,
       collections: [],
       admin: [],
       i18n: {
-        interface: { defaultLocale: 'en', locales: [] },
+        admin: { defaultLocale: 'en', locales: [] },
         content: { defaultLocale: 'en', locales: [] },
       },
     })
@@ -131,36 +130,34 @@ describe('route configuration boundary', () => {
       api: '/api',
       signIn: '/sign-in',
     })
-    expect(getClientConfig().routes).toBe(registered.routes)
+    expect(getAdminConfig().routes).toBe(registered.routes)
     expect(Object.isFrozen(registered.routes)).toBe(true)
   })
 
   it('prevents post-registration route mutation', () => {
-    const { routes } = defineClientConfig({
-      serverURL: 'https://example.test',
+    const { routes } = defineAdminConfig({
       routes: { admin: '/internal/cms' },
       collections: [],
       admin: [],
       i18n: {
-        interface: { defaultLocale: 'en', locales: [] },
+        admin: { defaultLocale: 'en', locales: [] },
         content: { defaultLocale: 'en', locales: [] },
       },
     })
     expect(() => {
       ;(routes as { admin: string }).admin = '/changed'
     }).toThrow(TypeError)
-    expect(getClientConfig().routes.admin).toBe('/internal/cms')
+    expect(getAdminConfig().routes.admin).toBe('/internal/cms')
   })
 
   it('rejects unsafe routes during registration', () => {
     expect(() =>
-      defineClientConfig({
-        serverURL: 'https://example.test',
+      defineAdminConfig({
         routes: { admin: '/cms?next=/account' },
         collections: [],
         admin: [],
         i18n: {
-          interface: { defaultLocale: 'en', locales: [] },
+          admin: { defaultLocale: 'en', locales: [] },
           content: { defaultLocale: 'en', locales: [] },
         },
       })

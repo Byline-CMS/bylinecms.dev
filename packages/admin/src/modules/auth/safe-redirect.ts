@@ -17,15 +17,12 @@ export function normalizeRootRelativeRedirect(value: string): string | undefined
   return `${url.pathname}${url.search}${url.hash}`
 }
 
-/** Resolve the new prop first, then the deprecated prop, then a trusted fallback. */
+/** Resolve the requested destination, then a trusted fallback. */
 export function resolveSignInFormRedirect(
   redirectTo: string | undefined,
-  callbackUrl: string | undefined,
   fallback: string | (() => string)
 ): string {
-  const requested =
-    (redirectTo ? normalizeRootRelativeRedirect(redirectTo) : undefined) ??
-    (callbackUrl ? normalizeRootRelativeRedirect(callbackUrl) : undefined)
+  const requested = redirectTo ? normalizeRootRelativeRedirect(redirectTo) : undefined
   if (requested) return requested
 
   const defaultPath = typeof fallback === 'function' ? fallback() : fallback

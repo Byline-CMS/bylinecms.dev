@@ -2,7 +2,6 @@ import type { RequestContext } from '@byline/auth'
 import type { CollectionDefinition } from '@byline/core'
 
 import type { DbErrorClassification } from '../lib/errors.js'
-import type { QueryPredicate } from './query-predicate.js'
 
 /**
  * Read mode for document queries.
@@ -65,11 +64,6 @@ export interface ReadContext {
    * (the cycle-stub path).
    */
   visited: Set<string>
-  /**
-   * @deprecated Ignored. `beforeRead` authorization state is module-private
-   * and authority-bound; this optional slot remains only for source compatibility.
-   */
-  beforeReadCache?: Map<string, QueryPredicate | null>
   /** Monotonic count of document materialisations; compared against `maxReads`. */
   readCount: number
   /** Hard ceiling on materialisations per request. Default 500. */

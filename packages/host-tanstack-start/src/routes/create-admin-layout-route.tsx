@@ -25,7 +25,7 @@ import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 import { applyStoredTheme } from '@byline/admin/admin-account/components/theme'
 import { BylineFieldServicesProvider } from '@byline/admin/react'
 import { BylineAdminServicesProvider } from '@byline/admin/services'
-import { getClientConfig } from '@byline/core'
+import { getAdminConfig } from '@byline/core'
 import type { LocaleCode } from '@byline/i18n'
 import { I18nProvider } from '@byline/i18n/react'
 import cx from 'clsx'
@@ -42,19 +42,13 @@ import { bylineAdminServices } from '../integrations/byline-admin-services.js'
 import { BylineAiAdminProvider } from '../integrations/byline-ai.js'
 import { bylineFieldServices } from '../integrations/byline-field-services.js'
 import { getCurrentAdminUser } from '../server-fns/auth/index.js'
-import { getActiveLocaleFn, setInterfaceLocaleFn } from '../server-fns/i18n/index.js'
-import { createSignInRoutePathResolver } from './sign-in-path.js'
+import { getActiveLocaleFn, setAdminLocaleFn } from '../server-fns/i18n/index.js'
+import { getSignInRoutePath } from './sign-in-path.js'
 
-interface AdminLayoutOpts {
-  /** @deprecated Configure `routes.signIn`; an override must resolve to the same path. */
-  signInPath?: string
-}
-
-export function createAdminLayoutRoute(path: string, opts: AdminLayoutOpts = {}) {
-  const resolveSignInPath = createSignInRoutePathResolver(opts.signInPath)
+export function createAdminLayoutRoute(path: string) {
   const Route: any = createFileRoute(path as never)({
     beforeLoad: async ({ location }: { location: { href: string } }) => {
-      const signInPath = resolveSignInPath()
+      const signInPath = getSignInRoutePath()
       try {
         const user = await getCurrentAdminUser()
         // Resolve the active interface locale once on the server so SSR
@@ -81,10 +75,10 @@ export function createAdminLayoutRoute(path: string, opts: AdminLayoutOpts = {})
         user: Awaited<ReturnType<typeof getCurrentAdminUser>>
         activeLocale: LocaleCode
       }
-      const { i18n } = getClientConfig()
+      const { i18n } = getAdminConfig()
       const localeDefinitions = buildLocaleDefinitions(
-        i18n.interface.locales,
-        i18n.interface.localeDefinitions
+        i18n.admin.locales,
+        i18n.admin.localeDefinitions
       )
       // Re-assert the admin user's stored theme when the shell mounts.
       // Byline shares the host's theme contract, but a host theme provider
@@ -93,18 +87,18 @@ export function createAdminLayoutRoute(path: string, opts: AdminLayoutOpts = {})
       useEffect(() => {
         applyStoredTheme()
       }, [])
-      // Cookie + DB write happen in setInterfaceLocaleFn; full reload
+      // Cookie + DB write happen in setAdminLocaleFn; full reload
       // re-runs beforeLoad so the provider re-renders with the new
       // bundle/locale (no in-place bundle swap needed for PR 1's scope).
       const handleSetLocale = async (next: LocaleCode) => {
-        await setInterfaceLocaleFn({ data: { locale: next } })
+        await setAdminLocaleFn({ data: { locale: next } })
         window.location.reload()
       }
       return (
         <I18nProvider
           bundle={i18n.translations ?? {}}
           activeLocale={activeLocale}
-          defaultLocale={i18n.interface.defaultLocale}
+          defaultLocale={i18n.admin.defaultLocale}
           localeDefinitions={localeDefinitions}
           setLocale={handleSetLocale}
         >

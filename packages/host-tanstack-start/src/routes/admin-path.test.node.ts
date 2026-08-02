@@ -1,4 +1,4 @@
-import { defineClientConfig } from '@byline/core'
+import { defineAdminConfig } from '@byline/core'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import {
@@ -11,13 +11,12 @@ import {
 } from './admin-path.js'
 
 function registerRoutes(admin?: string): void {
-  defineClientConfig({
-    serverURL: 'http://localhost:3000',
+  defineAdminConfig({
     routes: admin ? { admin } : undefined,
     collections: [],
     admin: [],
     i18n: {
-      interface: { defaultLocale: 'en', locales: [] },
+      admin: { defaultLocale: 'en', locales: [] },
       content: { defaultLocale: 'en', locales: [] },
     },
   })

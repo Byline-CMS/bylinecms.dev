@@ -8,4 +8,8 @@
 
 import { createSignInRoute } from '@byline/host-tanstack-start/routes'
 
-export const Route = createSignInRoute('/_byline/sign-in')
+import { getPublicConfig } from '../../config/index.js'
+
+export const Route = createSignInRoute('/_byline/sign-in', {
+  homeUrl: getPublicConfig().serverUrl,
+})

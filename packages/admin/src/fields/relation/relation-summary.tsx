@@ -7,7 +7,6 @@
  */
 
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
-import { resolveItemViewColumns } from '@byline/core'
 import cx from 'clsx'
 
 import { PickerCell, resolveFallbackDisplayField, resolveRowLabel } from './relation-display'
@@ -63,7 +62,7 @@ export function RelationSummary({
   value,
   cachedRecord,
 }: RelationSummaryProps) {
-  const pickerColumns = resolveItemViewColumns(targetAdminConfig)
+  const pickerColumns = targetAdminConfig?.itemView
 
   // Unresolved (deleted target).
   if (value._resolved === false) {

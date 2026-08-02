@@ -10,7 +10,7 @@
  * Leaf locale definitions — the host's two locale sets, as plain data
  * with **zero** runtime dependencies (no `@byline/*` imports, no
  * translation registry). `byline/i18n.ts` consumes these to assemble the
- * `defineServerConfig` / `defineClientConfig` payload.
+ * `defineServerConfig` / `defineAdminConfig` payload.
  *
  * Kept separate from `byline/i18n.ts` precisely so `byline/public.ts` can
  * expose the locale arrays to the public frontend without dragging the
@@ -20,7 +20,7 @@
  * That keeps the lazy-loaded admin/public split intact (see
  * `src/routes/_byline/route.lazy.tsx`).
  *
- * `interface` locales govern the CMS admin UI language; `content` locales
+ * `admin` locales govern the CMS admin UI language; `content` locales
  * govern the languages a document can be published in. Note these are a
  * *different* set from the host **frontend** interface locales
  * (`src/i18n/i18n-config.ts` → `en`/`fr`) — the admin chrome and the
@@ -29,30 +29,33 @@
 
 export interface LocaleDefinition {
   code: string
-  label: string
+  nativeName: string
 }
+
+export const defaultAdminLocale = 'en'
+export const defaultContentLocale = 'en'
 
 /** Locales available in the CMS admin interface. */
 // Every code listed here must have a matching bundle in @byline/i18n/admin
 // (or a third-party plugin merged in via `mergeTranslations(...)`).
 // `adminTranslations({ locales })` in `byline/i18n.ts` throws at boot if
 // the requested code is not bundled.
-export const interfaceLocales = [
-  { code: 'en', label: 'English' },
-  { code: 'fr', label: 'Français' },
-  { code: 'es', label: 'Español' },
-  { code: 'de', label: 'Deutsch' },
-  { code: 'it', label: 'Italiano' },
-  { code: 'zh-CN', label: '简体中文' },
-  { code: 'ko', label: '한국어' },
+export const adminLocales = [
+  { code: 'en', nativeName: 'English' },
+  { code: 'fr', nativeName: 'Français' },
+  { code: 'es', nativeName: 'Español' },
+  { code: 'de', nativeName: 'Deutsch' },
+  { code: 'it', nativeName: 'Italiano' },
+  { code: 'zh-CN', nativeName: '简体中文' },
+  { code: 'ko', nativeName: '한국어' },
 ] as const satisfies readonly LocaleDefinition[]
 
 /** Locales a document can be published in. */
 export const contentLocales = [
-  { code: 'en', label: 'English' },
-  { code: 'fr', label: 'Français' },
-  { code: 'es', label: 'Español' },
-  { code: 'de', label: 'Deutsch' },
-  { code: 'zh-CN', label: '中文' },
-  { code: 'th-TH', label: 'ไทย' },
+  { code: 'en', nativeName: 'English' },
+  { code: 'fr', nativeName: 'Français' },
+  { code: 'es', nativeName: 'Español' },
+  { code: 'de', nativeName: 'Deutsch' },
+  { code: 'zh-CN', nativeName: '中文' },
+  { code: 'th-TH', nativeName: 'ไทย' },
 ] as const satisfies readonly LocaleDefinition[]

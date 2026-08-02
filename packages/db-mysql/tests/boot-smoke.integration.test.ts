@@ -158,7 +158,6 @@ describe('MySQL end-to-end boot smoke (initBylineCore composition, live database
     // `packages/core/src/core.ts`.
     core = await initBylineCore({
       db,
-      serverURL: 'http://localhost:3000',
       i18n: {
         // Empty interface locale set — `validateTranslations()` (run
         // inside `initBylineCore()`) skips its translations-bundle
@@ -168,7 +167,7 @@ describe('MySQL end-to-end boot smoke (initBylineCore composition, live database
         // This suite exercises the document-lifecycle/adapter composition,
         // not the admin UI, so it deliberately doesn't mount one rather
         // than pulling in `@byline/i18n` just to satisfy the validator.
-        interface: { defaultLocale: 'en', locales: [] },
+        admin: { defaultLocale: 'en', locales: [] },
         content: { defaultLocale: 'en', locales: ['en'] },
       },
       collections: [definition],

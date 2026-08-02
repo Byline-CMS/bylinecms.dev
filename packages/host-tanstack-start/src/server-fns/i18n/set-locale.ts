@@ -15,7 +15,7 @@
  * is also updated so the choice follows the user across devices.
  *
  * Locale validation is host-side: the request locale must appear in
- * `config.i18n.interface.locales` (or be `null`, which clears the
+ * `config.i18n.admin.locales` (or be `null`, which clears the
  * cookie + column and re-engages the detection cascade). Validation
  * lives here rather than in the admin module so the rule stays close
  * to the host's i18n config.
@@ -35,12 +35,12 @@ import { getAdminRequestContext } from '@byline/client/server'
 import { clearAdminLocaleCookie, setAdminLocaleCookie } from '../../i18n/locale-cookie.js'
 import { bylineCore } from '../../integrations/byline-core.js'
 
-export interface SetInterfaceLocaleInput {
+export interface SetAdminLocaleInput {
   /** BCP 47 tag, or `null` to clear the preference. */
   locale: string | null
 }
 
-export interface SetInterfaceLocaleResult {
+export interface SetAdminLocaleResult {
   ok: true
   /** Echo of the persisted value. `null` means the column was cleared. */
   locale: string | null
@@ -53,17 +53,17 @@ export interface SetInterfaceLocaleResult {
   account: AccountResponse | null
 }
 
-export const setInterfaceLocaleFn = createServerFn({ method: 'POST' })
-  .validator((input: SetInterfaceLocaleInput) => input)
-  .handler(async ({ data }): Promise<SetInterfaceLocaleResult> => {
+export const setAdminLocaleFn = createServerFn({ method: 'POST' })
+  .validator((input: SetAdminLocaleInput) => input)
+  .handler(async ({ data }): Promise<SetAdminLocaleResult> => {
     const core = bylineCore()
-    const locales = core.config.i18n.interface.locales
+    const locales = core.config.i18n.admin.locales
 
     // Validate against the permitted set. `null` is always permitted —
     // it's the "use detection" signal.
     if (data.locale != null && !locales.includes(data.locale)) {
       throw new Error(
-        `[setInterfaceLocaleFn] locale '${data.locale}' is not in i18n.interface.locales [${locales.join(', ')}].`
+        `[setAdminLocaleFn] locale '${data.locale}' is not in i18n.admin.locales [${locales.join(', ')}].`
       )
     }
 

@@ -8,14 +8,14 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { resolveInterfaceLocale } from './resolve.js'
+import { resolveAdminLocale } from './resolve.js'
 
 const locales = ['en', 'fr', 'es']
 const defaultLocale = 'en'
 
-describe('resolveInterfaceLocale — tier 1 (preferred)', () => {
+describe('resolveAdminLocale — tier 1 (preferred)', () => {
   it('wins over every other signal when set and valid', () => {
-    const out = resolveInterfaceLocale({
+    const out = resolveAdminLocale({
       locales,
       defaultLocale,
       preferred: 'fr',
@@ -26,7 +26,7 @@ describe('resolveInterfaceLocale — tier 1 (preferred)', () => {
   })
 
   it('falls through when preferred is not in the permitted set', () => {
-    const out = resolveInterfaceLocale({
+    const out = resolveAdminLocale({
       locales,
       defaultLocale,
       preferred: 'de',
@@ -36,7 +36,7 @@ describe('resolveInterfaceLocale — tier 1 (preferred)', () => {
   })
 
   it('falls through when preferred is null', () => {
-    const out = resolveInterfaceLocale({
+    const out = resolveAdminLocale({
       locales,
       defaultLocale,
       preferred: null,
@@ -46,9 +46,9 @@ describe('resolveInterfaceLocale — tier 1 (preferred)', () => {
   })
 })
 
-describe('resolveInterfaceLocale — tier 2 (cookie)', () => {
+describe('resolveAdminLocale — tier 2 (cookie)', () => {
   it('wins over Accept-Language', () => {
-    const out = resolveInterfaceLocale({
+    const out = resolveAdminLocale({
       locales,
       defaultLocale,
       cookie: 'es',
@@ -58,7 +58,7 @@ describe('resolveInterfaceLocale — tier 2 (cookie)', () => {
   })
 
   it('falls through when cookie points at a removed locale', () => {
-    const out = resolveInterfaceLocale({
+    const out = resolveAdminLocale({
       locales,
       defaultLocale,
       cookie: 'de',
@@ -68,7 +68,7 @@ describe('resolveInterfaceLocale — tier 2 (cookie)', () => {
   })
 
   it('falls through when cookie is null', () => {
-    const out = resolveInterfaceLocale({
+    const out = resolveAdminLocale({
       locales,
       defaultLocale,
       cookie: null,
@@ -78,9 +78,9 @@ describe('resolveInterfaceLocale — tier 2 (cookie)', () => {
   })
 })
 
-describe('resolveInterfaceLocale — tier 3 (Accept-Language)', () => {
+describe('resolveAdminLocale — tier 3 (Accept-Language)', () => {
   it('picks the best match from the header', () => {
-    const out = resolveInterfaceLocale({
+    const out = resolveAdminLocale({
       locales,
       defaultLocale,
       acceptLanguage: 'fr-CA;q=0.9, fr;q=0.8, en;q=0.5',
@@ -89,7 +89,7 @@ describe('resolveInterfaceLocale — tier 3 (Accept-Language)', () => {
   })
 
   it('falls back to default when no header language is in the permitted set', () => {
-    const out = resolveInterfaceLocale({
+    const out = resolveAdminLocale({
       locales,
       defaultLocale,
       acceptLanguage: 'de;q=0.9, ja;q=0.5',
@@ -98,7 +98,7 @@ describe('resolveInterfaceLocale — tier 3 (Accept-Language)', () => {
   })
 
   it('handles malformed headers gracefully', () => {
-    const out = resolveInterfaceLocale({
+    const out = resolveAdminLocale({
       locales,
       defaultLocale,
       acceptLanguage: 'this-is-not-a-valid-header',
@@ -109,14 +109,14 @@ describe('resolveInterfaceLocale — tier 3 (Accept-Language)', () => {
   })
 })
 
-describe('resolveInterfaceLocale — tier 4 (default)', () => {
+describe('resolveAdminLocale — tier 4 (default)', () => {
   it('returns defaultLocale when every other tier produces nothing', () => {
-    const out = resolveInterfaceLocale({ locales, defaultLocale })
+    const out = resolveAdminLocale({ locales, defaultLocale })
     expect(out).toBe('en')
   })
 
   it('returns defaultLocale when every signal is empty', () => {
-    const out = resolveInterfaceLocale({
+    const out = resolveAdminLocale({
       locales,
       defaultLocale,
       preferred: null,

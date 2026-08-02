@@ -74,9 +74,9 @@ describe('routes planning', () => {
     expect(existsSync(ctx.resolve(`src/routes/_byline/${slug}/route.tsx`))).toBe(true)
     expect(readFileSync(ctx.resolve('byline/routes.ts'), 'utf8')).toContain(`admin: '${adminPath}'`)
     expect(existsSync(ctx.resolve('src/routes/_byline/sign-in.tsx'))).toBe(true)
-    expect(readFileSync(ctx.resolve('src/routes/_byline/sign-in.tsx'), 'utf8')).toContain(
-      "createSignInRoute('/_byline/sign-in')"
-    )
+    const signInRoute = readFileSync(ctx.resolve('src/routes/_byline/sign-in.tsx'), 'utf8')
+    expect(signInRoute).toContain("createSignInRoute('/_byline/sign-in')")
+    expect(signInRoute).toContain("The Home link defaults to '/'")
     expect(readFileSync(ctx.resolve('byline/routes.ts'), 'utf8')).toContain("signIn: '/sign-in'")
   })
 
@@ -227,7 +227,7 @@ describe('routes planning', () => {
     mkdirSync(localeCtx.resolve('byline'), { recursive: true })
     writeFileSync(
       localeCtx.resolve('byline/locales.ts'),
-      "export const contentLocales = [{ code: 'pt', label: 'Português' }]\n"
+      "export const contentLocales = [{ code: 'pt', nativeName: 'Português' }]\n"
     )
     expect(buildRoutesPlan(localeCtx).notes.join('\n')).toContain('conflicts')
 
@@ -240,7 +240,7 @@ describe('routes planning', () => {
     expect(buildRoutesPlan(signInCtx).notes.join('\n')).toContain('conflicts')
   })
 
-  it('ignores comments, unrelated values, and interface locale definitions', () => {
+  it('reads only contentLocales codes and ignores admin locales and display names', () => {
     const ctx = fixture({ adminPath: '/cms' })
     mkdirSync(ctx.resolve('byline'), { recursive: true })
     writeFileSync(
@@ -259,8 +259,8 @@ describe('routes planning', () => {
     writeFileSync(
       ctx.resolve('byline/locales.ts'),
       `
-        export const interfaceLocales = [{ code: 'cms', label: 'Ignored' }]
-        export const contentLocales = [{ code: 'en', label: translateAtRuntime() }] as const
+        export const adminLocales = [{ code: 'cms', nativeName: 'Ignored' }]
+        export const contentLocales = [{ code: 'en', nativeName: translateAtRuntime() }] as const
       `
     )
 
@@ -737,7 +737,10 @@ describe('routes planning', () => {
     const routesSource = readFileSync(`${ctx.templatesDir()}/byline/routes.ts`, 'utf8')
     const publicSource = readFileSync(`${ctx.templatesDir()}/byline/public.ts`, 'utf8')
     expect(routesSource).toContain("signIn: '/sign-in'")
+    expect(publicSource).toContain("export { contentLocales } from './locales.js'")
     expect(publicSource).toContain("export { routes } from './routes.js'")
+    expect(publicSource).not.toContain('adminLocales')
+    expect(publicSource).not.toContain('LocaleDefinition')
   })
 
   it('only patches an exact canonical runtime routes predecessor', () => {

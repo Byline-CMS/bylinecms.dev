@@ -1,13 +1,13 @@
 ---
-title: "Client-config registration"
+title: "Admin-config registration"
 path: "client-config-registration"
-summary: "Why the Byline client config is registered from two points on the _byline route, the root cause that blocks collapsing it to one eager point, and whether an eager single-point registration is even possible given that custom slot components need React context."
+summary: "Why the Byline admin config is registered from two points on the _byline route, the root cause that blocks collapsing it to one eager point, and whether an eager single-point registration is even possible given that custom slot components need React context."
 ---
 
-# Client-config registration
+# Admin-config registration
 
 Companions:
-- [Core Composition](../03-architecture/02-core-composition.md) — the *server* composition story (`initBylineCore()`); this doc is the *client* config analogue.
+- [Core Composition](../03-architecture/02-core-composition.md) — the *server* composition story (`initBylineCore()`); this document covers the complementary admin registration boundary.
 - [Rich Text](../04-collections/07-rich-text.md) — the richtext editor slot, which was the first heavy slot made lazy (the `lexicalEditor` factory; see also `@byline/richtext-lexical/config`).
 
 **The goal in one sentence:** keep Byline's **admin-area** JavaScript and
@@ -16,17 +16,17 @@ whole admin UI — from *leaking* into the **public surface** of the host
 application. A visitor loading a public page (a marketing route, a blog post)
 should never download the admin editor. Everything below is in service of that
 boundary: the admin graph stays code-split behind the `_byline` routes, and the
-client config that references it is registered carefully so the admin code is
+admin config that references it is registered carefully so the admin code is
 pulled in *only* on admin routes.
 
 This doc covers how `apps/webapp/byline/admin.config.ts` (the browser/SSR
-**client** config) is registered, why it's registered from **two** points
+**admin** config) is registered, why it's registered from **two** points
 today, the root cause that blocks collapsing those to a single eager point,
 and — the load-bearing question — whether an eager single-point registration is
 even possible given that custom slot components legitimately need React context.
 
 :::note[Summary]
-Byline registers the client config from two points today. Collapsing that to a
+Byline registers the admin config from two points today. Collapsing that to a
 single eager registration is *possible* but blocked from being worthwhile by the
 admin-presentation-barrel coupling described below — see the
 [verdict](#verdict-possible-context-safe-but-not-currently-worth-it).
@@ -34,14 +34,14 @@ admin-presentation-barrel coupling described below — see the
 
 ---
 
-## What the client config is
+## What the admin config is
 
-`byline/admin.config.ts` calls `defineClientConfig(config)` as a module
+`byline/admin.config.ts` calls `defineAdminConfig(config)` as a module
 side-effect. That config does **two structurally different jobs**:
 
 1. **Config *data* — React-free, lightweight.** Collection definitions, field
    types, column metadata (field name, label, sortable), resolved routes, the
-   i18n bundles. This is the part `getClientConfig()` consumers read at the
+   i18n bundles. This is the part `getAdminConfig()` consumers read at the
    loader phase.
 2. **Config *component bindings* — live React references.** The slots that hold
    actual components:
@@ -59,18 +59,18 @@ when they do.**
 
 ## Why registration wants to be eager
 
-`defineClientConfig` must have run before anything reads `getClientConfig()`.
+`defineAdminConfig` must have run before anything reads `getAdminConfig()`.
 On the `_byline` route two distinct lifecycle moments need it, and TanStack
 Start covers them differently:
 
 - **Loader phase.** A `_byline/*` child loader (e.g. the admin dashboard
-  loader) calls `getClientConfig()`. A parent route's `beforeLoad` resolves
+  loader) calls `getAdminConfig()`. A parent route's `beforeLoad` resolves
   before its children's loaders run, so registering there closes the race. On
   the client there is no server-config fallback, so an unregistered read throws
   *"Byline has not been configured yet."*
 - **Component render / initial hydration.** On initial hydration TanStack Start
   reuses the dehydrated SSR result and does **not** re-run `beforeLoad` (or
-  loaders), yet the admin layout component still calls `getClientConfig()` at
+  loaders), yet the admin layout component still calls `getAdminConfig()` at
   render.
 
 A *single* registration point can only cover both moments if it lives in a
@@ -84,7 +84,7 @@ it.
 
 Because the config graph is **not** light (next section), the config is kept
 code-split and registered from two complementary points on the `_byline` route,
-both importing `byline/admin.config` and both calling `defineClientConfig`
+both importing `byline/admin.config` and both calling `defineAdminConfig`
 idempotently (it evaluates once and is cached):
 
 | Point | File | Covers |
@@ -103,14 +103,14 @@ locale and route data through `byline/public.ts`; that facade re-exports the
 `routes` object, whose `admin`, `api`, and `signIn` properties were already
 resolved and frozen by `byline/routes.ts` without loading the admin config.
 Likewise, document route modules only declare their route factory; the factory
-reads content-locale config through `getClientConfig()` during its
+reads content-locale config through `getAdminConfig()` during its
 loader/component lifecycle, after the parent `beforeLoad` or lazy-module
 registration has run. Route construction therefore does not create an eager
 import path into `byline/i18n.ts`.
 
 Route resolution itself is not part of this loader/hydration timing problem.
-`defineClientConfig()` resolves and validates partial route input during config
-registration and exposes a `ResolvedClientConfig` whose `routes` properties are
+`defineAdminConfig()` resolves and validates partial route input during config
+registration and exposes a `ResolvedAdminConfig` whose `routes` properties are
 readonly and whose route object is frozen. `defineServerConfig()` applies the
 same boundary. Safe multi-segment admin and API trees are supported, the two
 trees may not overlap, and the configured sign-in path must remain outside both.

@@ -8,14 +8,14 @@
 
 /**
  * Shared i18n configuration — assembles the `defineServerConfig` /
- * `defineClientConfig` payload from the host's locale sets.
+ * `defineAdminConfig` payload from the host's locale sets.
  *
  * The locale arrays themselves live in `./locales.ts`, a dependency-free
  * leaf module exposed to public frontend code by `./public.ts`, without
  * pulling in the admin translation graph this file depends on. Re-exported
  * here for back-compat with existing `~/i18n` / `../i18n.js` importers.
  *
- * `interface` locales govern the CMS admin UI language.
+ * `admin` locales govern the CMS admin UI language.
  * `content` locales govern the languages a document can be published in.
  */
 
@@ -23,24 +23,36 @@ import { mergeTranslations } from '@byline/i18n'
 import { adminTranslations } from '@byline/i18n/admin'
 
 import { mediaAdminTranslations } from './collections/media/i18n/index.js'
-import { contentLocales, interfaceLocales, type LocaleDefinition } from './locales.js'
+import {
+  adminLocales,
+  contentLocales,
+  defaultAdminLocale,
+  defaultContentLocale,
+  type LocaleDefinition,
+} from './locales.js'
 
-export { contentLocales, interfaceLocales, type LocaleDefinition }
+export {
+  adminLocales,
+  contentLocales,
+  defaultAdminLocale,
+  defaultContentLocale,
+  type LocaleDefinition,
+}
 
-/** Derived config object — passed directly to defineServerConfig / defineClientConfig. */
+/** Derived config object — passed directly to defineServerConfig / defineAdminConfig. */
 export const i18n = {
-  interface: {
-    defaultLocale: 'en',
-    locales: interfaceLocales.map((l) => l.code),
+  admin: {
+    defaultLocale: defaultAdminLocale,
+    locales: adminLocales.map((l) => l.code),
     // Display names for the admin language switcher. The dropdown
     // shows these labels verbatim — keeping host-side authoring of
     // `Français` (vs CLDR's lowercase `français`) is the whole reason
     // this slot exists. Hosts that don't supply this fall back to
     // `Intl.DisplayNames` per code.
-    localeDefinitions: interfaceLocales.map((l) => ({ code: l.code, nativeName: l.label })),
+    localeDefinitions: adminLocales,
   },
   content: {
-    defaultLocale: 'en',
+    defaultLocale: defaultContentLocale,
     locales: contentLocales.map((l) => l.code),
     // Display names for the content locales a document can be published
     // in. Byline doesn't render these (content has no admin switcher) —
@@ -48,8 +60,8 @@ export const i18n = {
     // so a public frontend can label its content-language affordances
     // (hreflang, "read this in…", sitemap alternates) with author-authored
     // names instead of a parallel map. Same `Français` vs `français`
-    // rationale as the interface slot above.
-    localeDefinitions: contentLocales.map((l) => ({ code: l.code, nativeName: l.label })),
+    // rationale as the admin slot above.
+    localeDefinitions: contentLocales,
   },
   // Admin UI translations. `adminTranslations({...})` ships the
   // `byline-admin` namespace bundled into `@byline/i18n/admin`.
@@ -62,7 +74,7 @@ export const i18n = {
   // and last-writer-wins, so additional bundles can be appended in
   // any order.
   translations: mergeTranslations(
-    adminTranslations({ locales: interfaceLocales.map((l) => l.code) }),
-    mediaAdminTranslations({ locales: interfaceLocales.map((l) => l.code) })
+    adminTranslations({ locales: adminLocales.map((l) => l.code) }),
+    mediaAdminTranslations({ locales: adminLocales.map((l) => l.code) })
   ),
 }

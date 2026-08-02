@@ -14,7 +14,7 @@ import type {
   Field,
   GroupField as GroupFieldType,
 } from '@byline/core'
-import { getClientConfig } from '@byline/core'
+import { getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import {
   Card,
@@ -65,14 +65,14 @@ export const BlocksField = ({
 
   const availableBlocks = useMemo(() => field.blocks ?? [], [field.blocks])
 
-  // Site-wide per-block admin config (`ClientConfig.blockAdmin`), resolved by
+  // Site-wide per-block admin config (`AdminConfig.blockAdmin`), resolved by
   // blockType. Registry-based on purpose: blocks are cross-collection units,
   // so their admin config applies wherever the block renders — no threading
   // from the collection admin config is needed (mirrors how FieldRenderer
-  // resolves the global richText editor from client config).
+  // resolves the global richText editor from admin config).
   const blockAdminByType = useMemo(() => {
     const map = new Map<string, BlockAdminConfig>()
-    for (const entry of getClientConfig().blockAdmin ?? []) {
+    for (const entry of getAdminConfig().blockAdmin ?? []) {
       map.set(entry.blockType, entry)
     }
     return map

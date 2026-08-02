@@ -1007,7 +1007,7 @@ export interface FieldComponentSlots {
  *
  * Editor packages (e.g. `@byline/richtext-lexical`) expose a component
  * matching this shape, and the installation registers it as the
- * site-wide default via `ClientConfig.fields.richText.editor`.
+ * site-wide default via `AdminConfig.fields.richText.editor`.
  */
 export interface RichTextEditorProps {
   /** The field definition (label / helpText / optional / hooks / validate). */
@@ -1026,7 +1026,7 @@ export interface RichTextEditorProps {
 
 /**
  * Component shape an editor package must export to be plugged in via
- * `ClientConfig.fields.richText.editor`. Built on `SlotComponent` so the
+ * `AdminConfig.fields.richText.editor`. Built on `SlotComponent` so the
  * type stays React-agnostic at the `@byline/core` boundary.
  */
 export type RichTextEditorComponent = SlotComponent<RichTextEditorProps>

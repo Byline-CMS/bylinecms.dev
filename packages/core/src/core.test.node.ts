@@ -7,12 +7,11 @@ import type { IDbAdapter, ServerConfig } from './@types/index.js'
 
 function serverConfig(admin: string): ServerConfig {
   return {
-    serverURL: 'https://example.test',
     routes: { admin },
     collections: [],
     db: {} as IDbAdapter,
     i18n: {
-      interface: { defaultLocale: 'en', locales: [] },
+      admin: { defaultLocale: 'en', locales: [] },
       content: { defaultLocale: 'en', locales: [] },
     },
   }
@@ -23,7 +22,7 @@ describe('initBylineCore configuration registration', () => {
     const valid = defineServerConfig(serverConfig('/stable/admin'))
     const invalid = serverConfig('/replacement/admin')
     invalid.i18n = {
-      interface: { defaultLocale: 'en', locales: ['en'] },
+      admin: { defaultLocale: 'en', locales: ['en'] },
       content: { defaultLocale: 'en', locales: [] },
     }
 

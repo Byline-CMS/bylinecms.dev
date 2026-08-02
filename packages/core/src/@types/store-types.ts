@@ -6,8 +6,6 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { UnifiedFieldValue } from '../storage/storage-row-types.js'
-
 export interface BaseStore {
   field_path: string
   field_name: string
@@ -127,9 +125,3 @@ export function isNumericStore(fieldValue: FlattenedStore): fieldValue is Numeri
 export function isDateTimeStore(fieldValue: FlattenedStore): fieldValue is DateTimeStore {
   return ['datetime', 'date', 'time'].includes(fieldValue.field_type)
 }
-
-/**
- * @deprecated Use {@link UnifiedFieldValue} from '@byline/core' — same shape;
- * this alias remains for source compatibility.
- */
-export type UnionRowValue = UnifiedFieldValue

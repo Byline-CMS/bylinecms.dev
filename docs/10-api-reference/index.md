@@ -15,7 +15,7 @@ This section is the lookup surface for Byline's application-facing APIs. Use it 
 
 ## Core references
 
-- [Configuration API](./01-configuration.md) documents `BaseConfig`, `ClientConfig`, `ServerConfig`, `BylineCore`, configuration registration, and server client getters.
+- [Configuration API](./01-configuration.md) documents `BaseConfig`, `AdminConfig`, `ServerConfig`, `BylineCore`, configuration registration, and server client getters.
 - [Collections API](./02-collections.md) documents `CollectionDefinition`, `CollectionAdminConfig`, `BlockAdminConfig`, workflow configuration, and lifecycle hooks.
 - [Fields API](./03-fields.md) documents the common field contract, all 22 built-in field kinds, default values, validation, hooks, and admin field overrides.
 - [Client SDK API](./04-client-sdk.md) documents `BylineClientConfig`, `BylineClient`, every public `CollectionHandle` method, shared read and write options, and result envelopes.

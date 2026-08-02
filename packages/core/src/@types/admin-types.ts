@@ -186,7 +186,7 @@ export interface FieldAdminConfig {
    * Per-field rich-text editor component override. When set on a
    * `type: 'richText'` field's admin entry, the framework renders this
    * component instead of the globally registered
-   * `ClientConfig.fields.richText.editor`. Use to opt one specific field
+   * `AdminConfig.fields.richText.editor`. Use to opt one specific field
    * into an alternate editor (e.g. an AI-enabled wrapper around the
    * default Lexical field) without changing the site-wide registration.
    *
@@ -262,8 +262,6 @@ export interface CollectionAdminConfig<T = any> {
    * formatters are shared with the list view. Omit to fall back to a
    * single-line render of `useAsTitle` + `path`.
    *
-   * Resolve it through `resolveItemViewColumns(config)` rather than reading
-   * the field directly, so the deprecated `picker` alias keeps working.
    */
   itemView?: ColumnDefinition<T>[]
 
@@ -286,13 +284,6 @@ export interface CollectionAdminConfig<T = any> {
    * omitted.
    */
   itemViewSort?: ListDefaultSort<T>
-
-  /**
-   * @deprecated Renamed to {@link itemView}. Kept as a backwards-compatible
-   * alias — `itemView` wins when both are present. Read both via
-   * `resolveItemViewColumns(config)`. Will be removed in a future major.
-   */
-  picker?: ColumnDefinition<T>[]
 
   /** Default columns to show when no explicit column config is provided. */
   defaultColumns?: string[]
@@ -320,7 +311,7 @@ export interface CollectionAdminConfig<T = any> {
    * structure fields (`files.filesGroup.publicationFile`). Paths address
    * field *declarations*, never item instances (no `[0]` indices), and never
    * traverse a `blocks` field — blocks take their overrides from the
-   * blockType-keyed `ClientConfig.blockAdmin` registry instead.
+   * blockType-keyed `AdminConfig.blockAdmin` registry instead.
    * Placement is no longer expressed here — see the layout primitives above.
    */
   fields?: Record<string, FieldAdminConfig>
@@ -375,9 +366,11 @@ export interface CollectionAdminConfig<T = any> {
    * }
    * ```
    *
-   * Returned URLs may be relative (`/news/foo`) for same-origin hosts
-   * or absolute (`https://example.com/news/foo`) for hosts deployed
-   * separately from the admin.
+   * Returned URLs may be relative (`/news/foo`) for same-origin hosts or
+   * absolute (`https://example.com/news/foo`) for navigation to another
+   * origin. An absolute URL does not transfer Byline's host-only admin and
+   * preview cookies; cross-origin draft preview therefore requires a separate
+   * authentication and preview-state handoff.
    *
    * Future consideration — a per-collection `preview.populate` hint
    * (`PopulateSpec`) was prototyped and removed. The edit-view loader
@@ -460,7 +453,7 @@ export function defineAdmin<T = any>(
  * `CollectionAdminConfig`, carrying **rendering overrides only**.
  *
  * Linked to a `Block` by `blockType` matching the block's `blockType`, and
- * registered site-wide on `ClientConfig.blockAdmin`. Because blocks are
+ * registered site-wide on `AdminConfig.blockAdmin`. Because blocks are
  * cross-collection units (the same `defineBlock()` object is typically shared
  * by several collections, and codegen dedupes their contracts structurally),
  * a block's admin config applies wherever the block renders. If one

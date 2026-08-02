@@ -413,7 +413,7 @@ The **default projection** is the document row metadata that's always free (`doc
 
 **`useAsTitle` lives on `CollectionDefinition`.** The default projection is **schema-aware without a UI dependency**. `useAsTitle` was deliberately placed on `CollectionDefinition` (server-safe) rather than on `CollectionAdminConfig` (admin-only) so populate, `afterRead` consumers, and any future access-control consumer can read a document's identity without taking a UI runtime dependency. Django's `Model.__str__` is the analogue.
 
-`CollectionAdminConfig` carries a separate `itemView?: ColumnDefinition[]` slot that drives rich row rendering in the relation-picker modal (e.g. thumbnail + title + status for Media). It is distinct from `columns` (which drives list-view rendering); formatters are reusable across both. (`picker?` is a deprecated alias for `itemView`.) See [Collections § Columns and itemView](./index.md#columns-and-itemview).
+`CollectionAdminConfig` carries a separate `itemView?: ColumnDefinition[]` slot that drives rich row rendering in the relation-picker modal (e.g. thumbnail + title + status for Media). It is distinct from `columns` (which drives list-view rendering); formatters are reusable across both. See [Collections § Columns and itemView](./index.md#columns-and-itemview).
 
 ### Status awareness through populate
 
@@ -423,7 +423,7 @@ Populate honours the same `readMode` rule as direct reads. When a public reader 
 
 A populate walk that ignored the rest of the operation would cycle as soon as `afterRead` performed nested reads. Byline therefore threads one **operation-scoped `ReadContext`** through direct reads, relation and richtext population, and hook re-entry.
 
-Its public contract provides a depth clamp and read budget, plus the state needed to suppress relation cycles. Read authorization state is private: the deprecated `beforeReadCache` property is ignored, and reusing one logical context with another authority throws instead of sharing scope. Four safety rules follow:
+Its public contract provides a depth clamp and read budget, plus the state needed to suppress relation cycles. Read authorization state is private, and reusing one logical context with another authority throws instead of sharing scope. Four safety rules follow:
 
 1. **Populate cycles become stubs.** A target already reached on the active walk becomes `_cycle: true` instead of recursing.
 2. **The target-read budget is hard.** Materialising more than `maxReads` relation and richtext targets (default 500) throws `ERR_READ_BUDGET_EXCEEDED`; top-level result rows and tree hydration do not consume this counter. Requested populate depth is clamped by `maxDepth` (default 8).
@@ -606,7 +606,7 @@ indexed paths where `field_name` is the index segment).
 | `store_relation` schema | `packages/db-postgres/src/database/schema/index.ts` |
 | Zod schema for relation | `packages/core/src/schemas/zod/builder.ts` |
 | Relation field admin widgets | `packages/admin/src/fields/relation/{relation-field,relation-many-field,relation-picker,relation-summary,relation-display,relation-column-formatter}.tsx` |
-| `itemView` / `picker` resolver | `packages/core/src/config/config.ts` (`resolveItemViewColumns`) |
+| Relation item projection | `packages/core/src/services/relation-projection.ts` (`resolveRelationProjection`) |
 | Admin API preview depth selector | `apps/webapp/src/routes/_byline/<configured-admin-segment>/collections/$collection/$id/api.tsx` |
 | Admin `getDocument` server fn | `packages/host-tanstack-start/src/server-fns/collections/get.ts` |
 | `linksInEditor` flag | `packages/core/src/@types/collection-types.ts` (`CollectionDefinition.linksInEditor`) |

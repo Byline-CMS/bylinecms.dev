@@ -6,11 +6,11 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { getClientConfig, normalizeRootRelativeRedirect } from '@byline/core'
+import { getAdminConfig, normalizeRootRelativeRedirect } from '@byline/core'
 
 /** Build an admin URL or parameterized TanStack route from client-safe config. */
 export function getAdminRoutePath(...segments: ReadonlyArray<string | number>): string {
-  const configuredBase = getClientConfig().routes.admin
+  const configuredBase = getAdminConfig().routes.admin
   const normalizedBase = configuredBase.replace(/^\/+|\/+$/g, '')
   const base = normalizedBase ? `/${normalizedBase}` : '/'
   const suffix = segments

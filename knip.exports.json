@@ -1,0 +1,28 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "includeEntryExports": true,
+  "workspaces": {
+    "packages/*": {
+      "entry": ["src/*.{ts,tsx}"],
+      "project": ["src/**"]
+    }
+  },
+  "rules": {
+    "files": "off",
+    "dependencies": "off",
+    "devDependencies": "off",
+    "optionalPeerDependencies": "off",
+    "unlisted": "off",
+    "binaries": "off",
+    "unresolved": "off",
+    "exports": "warn",
+    "nsExports": "warn",
+    "types": "warn",
+    "nsTypes": "warn",
+    "enumMembers": "off",
+    "namespaceMembers": "off",
+    "duplicates": "off",
+    "catalog": "off",
+    "catalogReferences": "off"
+  }
+}

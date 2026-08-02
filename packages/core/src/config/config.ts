@@ -7,11 +7,10 @@ import { resolveRoutes } from './routes.js'
 import { validateAdminConfigs, validateBlockAdminConfigs } from './validate-admin-configs.js'
 import { validateCollections } from './validate-collections.js'
 import type {
-  ClientConfig,
+  AdminConfig,
   CollectionAdminConfig,
   CollectionDefinition,
-  ColumnDefinition,
-  ResolvedClientConfig,
+  ResolvedAdminConfig,
   ResolvedServerConfig,
   ServerConfig,
 } from '@/@types/index.js'
@@ -25,7 +24,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 const BYLINE_SERVER_CONFIG = Symbol.for('__byline_server_config__')
-const BYLINE_CLIENT_CONFIG = Symbol.for('__byline_client_config__')
+const BYLINE_ADMIN_CONFIG = Symbol.for('__byline_admin_config__')
 const BYLINE_CORE = Symbol.for('__byline_core__')
 const preparedHookAttachments = new WeakMap<object, readonly HookAttachmentOperation[]>()
 
@@ -36,11 +35,11 @@ function setServerConfigInstance(config: ResolvedServerConfig) {
   ;(globalThis as any)[BYLINE_SERVER_CONFIG] = config
 }
 
-function getClientConfigInstance(): ResolvedClientConfig | null {
-  return (globalThis as any)[BYLINE_CLIENT_CONFIG] ?? null
+function getAdminConfigInstance(): ResolvedAdminConfig | null {
+  return (globalThis as any)[BYLINE_ADMIN_CONFIG] ?? null
 }
-function setClientConfigInstance(config: ResolvedClientConfig) {
-  ;(globalThis as any)[BYLINE_CLIENT_CONFIG] = config
+function setAdminConfigInstance(config: ResolvedAdminConfig) {
+  ;(globalThis as any)[BYLINE_ADMIN_CONFIG] = config
 }
 
 function getBylineCoreInstance(): unknown | null {
@@ -58,42 +57,28 @@ function setBylineCoreInstance(core: unknown) {
  * without try/catch.
  *
  * If a caller genuinely *requires* a registered config to proceed, it
- * should reach for `getClientConfig()` / `getServerConfig()` — those
+ * should reach for `getAdminConfig()` / `getServerConfig()` — those
  * still throw the loud "Byline has not been configured" error.
  */
 export const getCollectionDefinition = (path: string): CollectionDefinition | null => {
-  const config = getServerConfigInstance() ?? getClientConfigInstance()
+  const config = getServerConfigInstance() ?? getAdminConfigInstance()
   if (config == null) return null
 
   return config.collections.find((collection) => collection.path === path) ?? null
 }
 
 export const getCollectionAdminConfig = (slug: string): CollectionAdminConfig | null => {
-  const clientConfig = getClientConfigInstance()
-  if (clientConfig == null) return null
-  return clientConfig.admin?.find((admin) => admin.slug === slug) ?? null
+  const adminConfig = getAdminConfigInstance()
+  if (adminConfig == null) return null
+  return adminConfig.admin?.find((admin) => admin.slug === slug) ?? null
 }
 
-/**
- * Resolve a collection's item-row/tile columns — the per-collection projection
- * + presentation contract used by the relation picker, relation/`hasMany`
- * tiles, and (planned) search-result rows.
- *
- * Prefers the canonical {@link CollectionAdminConfig.itemView}, falling back to
- * the deprecated `picker` alias. Always read item-view columns through this
- * helper rather than touching `config.picker` directly, so the alias keeps
- * working until it is removed.
- */
-export const resolveItemViewColumns = (
-  config: CollectionAdminConfig | null | undefined
-): ColumnDefinition[] | undefined => config?.itemView ?? config?.picker
-
-export function defineClientConfig(config: ClientConfig): ResolvedClientConfig {
+export function defineAdminConfig(config: AdminConfig): ResolvedAdminConfig {
   validateCollections(config.collections)
   validateAdminConfigs(config.admin, config.collections)
   validateBlockAdminConfigs(config.blockAdmin, config.collections)
   const resolved = { ...config, routes: resolveRoutes(config.routes) }
-  setClientConfigInstance(resolved)
+  setAdminConfigInstance(resolved)
   return resolved
 }
 
@@ -123,18 +108,18 @@ export function registerServerConfig<TAdminStore = unknown>(
   return config
 }
 
-export function getClientConfig(): ResolvedClientConfig {
-  const clientConfig = getClientConfigInstance()
-  if (clientConfig != null) {
-    return clientConfig
+export function getAdminConfig(): ResolvedAdminConfig {
+  const adminConfig = getAdminConfigInstance()
+  if (adminConfig != null) {
+    return adminConfig
   }
-  // During SSR the client entry has not run yet, but the server config
-  // carries the same collection definitions.  Return a compatible object
-  // so route loaders and components work in both contexts.
+  // During SSR the admin entry has not run yet, but the server config carries
+  // the shared i18n, route, collection, and slugifier values. Return a
+  // compatible object with empty admin presentation so route loaders and
+  // components work in both contexts without exposing the browser-only graph.
   const serverConfig = getServerConfigInstance()
   if (serverConfig != null) {
     return {
-      serverURL: serverConfig.serverURL,
       i18n: serverConfig.i18n,
       routes: serverConfig.routes,
       collections: serverConfig.collections,
@@ -146,7 +131,7 @@ export function getClientConfig(): ResolvedClientConfig {
     }
   }
   throw new Error(
-    'Byline has not been configured yet. Please call defineClientConfig in byline.config.ts first.'
+    'Byline has not been configured yet. Please call defineAdminConfig in byline.config.ts first.'
   )
 }
 
