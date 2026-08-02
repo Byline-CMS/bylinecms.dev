@@ -404,7 +404,11 @@ preview: {
 }
 ```
 
-Returned URLs may be relative (`/news/foo`) for same-origin hosts or absolute (`https://example.com/news/foo`) for hosts deployed separately from the admin.
+Returned URLs may be relative (`/news/foo`) for same-origin hosts or absolute
+(`https://example.com/news/foo`) when navigation must target another origin.
+An absolute URL does not transfer Byline's host-only admin and preview cookies;
+cross-origin draft preview therefore requires a separate authentication and
+preview-state handoff.
 
 **Default behaviour.** When `preview` is omitted, the preview link defaults to `/${collectionPath}/${doc.path}` — fine for collections whose public URL mirrors the collection path.
 

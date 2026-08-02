@@ -639,7 +639,7 @@ Editorial workflows usually want one extra capability: an admin should be able t
 | Surface | Location | Role |
 |---|---|---|
 | Drawer toggle (`Preview ON / OFF`) | `@byline/host-tanstack-start/admin-shell/chrome/preview-toggle` | Source-of-truth indicator above Account in the admin menu drawer. Always visible, always reversible. Reflects cookie state via `getPreviewStateFn`. |
-| `<PreviewLink>` | `@byline/host-tanstack-start/admin-shell/collections/preview-link` | Per-document external-link icon on the edit page header. On click: `enablePreviewModeFn()` then `window.open(url)`. Hides when `preview.url(doc)` returns `null`. |
+| `<PreviewLink>` | `@byline/host-tanstack-start/admin-shell/collections/preview-link` | Per-document preview icon on the edit page header. On click: `enablePreviewModeFn()` then `window.location.assign(url)`. Hides when `preview.url(doc)` returns `null`. |
 | `CollectionAdminConfig.preview` | `defineAdmin(...)` in your collection's `admin.tsx` | `{ url(doc, { locale }) }` — see [Collections § Preview URL](../04-collections/index.md#preview-url) for the full reference. |
 | ContentAdminBar pill | `apps/webapp/src/ui/components/content-admin-bar.tsx` | Public-side "Preview" pill + "Exit Preview" button when the cookie is set. Threaded down from the public layout loader (`getPreviewStateFn`). Calls `disablePreviewModeFn` then `router.invalidate()` on exit. |
 
@@ -651,7 +651,14 @@ Editorial workflows usually want one extra capability: an admin should be able t
 
 A stale cookie is therefore failure-mode-neutral: it never escalates a non-admin request, and it never breaks one either.
 
-**Editorial UX flow.** The three UX surfaces compose into one flow: an editor clicks `<PreviewLink>` on a document's edit page (which enables the cookie and opens the public URL in a new tab); every other public page in that browser session now surfaces drafts; the drawer toggle makes the state glanceable and reversible; and the public-side `ContentAdminBar` pill offers "Exit Preview" from any draft-rendering page. The two-step "enable cookie, then navigate" deliberately avoids a `/routes/draft?url=...&secret=...` redirect handler — `enablePreviewModeFn` is itself the gate (it requires a valid admin session before setting the cookie), so no shared secret needs to ride in the URL.
+**Editorial UX flow.** The three UX surfaces compose into one flow: an editor clicks `<PreviewLink>` on a document's edit page (which enables the cookie and navigates the current tab to the public URL); every other public page in that browser session now surfaces drafts; the drawer toggle makes the state glanceable and reversible; and the public-side `ContentAdminBar` pill offers "Exit Preview" from any draft-rendering page. The two-step "enable cookie, then navigate" deliberately avoids a `/routes/draft?url=...&secret=...` redirect handler — `enablePreviewModeFn` is itself the gate (it requires a valid admin session before setting the cookie), so no shared secret needs to ride in the URL.
+
+The same-origin flow is complete because the public routes receive the admin
+session and preview cookies set by the host. `CollectionAdminConfig.preview.url`
+may return an absolute URL, but navigation alone does not transfer those
+host-only cookies to another origin. A split-origin deployment needs an
+explicit authentication and preview-state handoff before it can preview drafts
+there.
 
 **Limits and notes:**
 

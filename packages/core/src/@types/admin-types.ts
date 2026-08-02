@@ -366,9 +366,11 @@ export interface CollectionAdminConfig<T = any> {
    * }
    * ```
    *
-   * Returned URLs may be relative (`/news/foo`) for same-origin hosts
-   * or absolute (`https://example.com/news/foo`) for hosts deployed
-   * separately from the admin.
+   * Returned URLs may be relative (`/news/foo`) for same-origin hosts or
+   * absolute (`https://example.com/news/foo`) for navigation to another
+   * origin. An absolute URL does not transfer Byline's host-only admin and
+   * preview cookies; cross-origin draft preview therefore requires a separate
+   * authentication and preview-state handoff.
    *
    * Future consideration — a per-collection `preview.populate` hint
    * (`PopulateSpec`) was prototyped and removed. The edit-view loader
