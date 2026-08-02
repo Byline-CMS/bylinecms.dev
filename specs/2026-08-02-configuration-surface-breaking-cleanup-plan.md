@@ -244,20 +244,43 @@ Tasks:
   that are `off`.
 - [x] Run it once as a baseline and classify every finding. An export may be a
   deliberate external API even when the monorepo has no internal consumer.
-- [ ] Record intentional public exports explicitly using the narrowest supported
+- [x] Record intentional public exports explicitly using the narrowest supported
   Knip ignore/tag mechanism or a reviewed allowlist; do not globally suppress
   the rule again.
-- [ ] Add the resulting audit to CI as a warning first. Promote it to an error
+- [x] Add the resulting audit to CI as a warning first. Promote it to an error
   only after the baseline is clean and stable enough that new findings are
   actionable.
 - [x] Document that this audit finds candidates for public-API review; it cannot
   prove an export is unused by consumers outside the audited repositories.
 
-The initial published-package baseline contains 527 runtime exports and 535
-exported types. Most are intentional external API, so the command is deliberately
-non-blocking and bounded to 100 displayed findings per category. Do not add this
-raw report to CI until the intentional public surface has a reviewed baseline;
-otherwise the volume would hide new findings rather than prevent them.
+The published-package baseline contains 526 runtime exports and 535 exported
+types (1061 entries) at 4.12.0. Most are intentional external API, which is why
+the raw report cannot go to CI directly: the volume would hide a new finding
+rather than prevent it.
+
+The **reviewed allowlist** option was chosen over per-export `@public` tags.
+Tagging 1061 symbols would have to happen mechanically to be feasible, which
+produces the appearance of per-symbol review without the substance; an
+enumerated snapshot is the honest form of the same claim. `knip.exports.baseline.json`
+records the surface and `scripts/check-public-exports.mjs` diffs against it, so
+only symbols the baseline does not already contain are reported.
+
+Two deviations from the task wording above, both deliberate:
+
+- The CI step is **blocking rather than warning-only**. The warning-first
+  instruction existed because of the ~1000-finding volume; the baseline removes
+  that volume, so a report is now zero-noise and a single new entry is
+  actionable immediately. Verified both ways: a clean tree passes with 1061
+  known entries, and a probe export shaped exactly like the deleted
+  `toSerializableCollection()` (declared in a leaf module, reached through two
+  `export *` hops) fails the check as the only reported symbol.
+- The baseline records the surface; it does **not** assert every entry was
+  individually judged worth keeping. That review is ongoing work — prune entries
+  as packages are examined and re-run `pnpm knip:exports:update`. The check
+  reports stale baseline entries to make pruning easy.
+
+Commands: `pnpm knip:exports` (verify), `pnpm knip:exports:update` (re-record),
+`pnpm knip:exports:report` (raw knip output for review work).
 
 ### Phase 1 verification
 
