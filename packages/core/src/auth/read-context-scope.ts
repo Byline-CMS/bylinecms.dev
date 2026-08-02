@@ -33,11 +33,6 @@ export function createHookReadContext(parent: ReadContextScope, entry: object): 
   const scoped = {} as ReadContext
   Object.defineProperties(scoped, {
     visited: { enumerable: true, get: () => root.visited, set: (value) => (root.visited = value) },
-    beforeReadCache: {
-      enumerable: true,
-      get: () => root.beforeReadCache,
-      set: (value) => (root.beforeReadCache = value),
-    },
     readCount: {
       enumerable: true,
       get: () => root.readCount,
