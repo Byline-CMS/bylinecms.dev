@@ -7,7 +7,7 @@ summary: "The seams Byline composes at boot: the database, storage, session, and
 # Core Composition
 
 Companions:
-- [Client Config Registration](../09-admin-ui/02-client-config-registration.md) — the client-side analogue of `initBylineCore()`, and why the admin config registers the way it does.
+- [Admin Config Registration](../09-admin-ui/02-admin-config-registration.md) — the complementary browser/SSR admin-registration boundary, and why the admin config registers the way it does.
 - [Transactions](./03-transactions.md) — the atomicity guarantees the database adapter must supply, and what the contract requires of a new adapter.
 - [Rich Text](../04-collections/07-rich-text.md) — the reference consumer of the field-level adapter slots described here.
 - [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md) — where document-collection enforcement happens, which is deliberately not through the command wrapper described here.
@@ -53,7 +53,6 @@ import {
 } from '@byline/richtext-lexical/server'
 
 const core = await initBylineCore<AdminStore>({
-  serverURL,
   i18n,
   routes,
   collections,
@@ -84,9 +83,9 @@ Collection abilities are registered automatically. Admin-subsystem abilities are
 
 ## Field-level adapter slots
 
-A field type that needs both a browser component and server-side behaviour registers them through mirrored slots: `ClientConfig.fields.*` for the React side, `ServerConfig.fields.*` for the server side. Rich text is the reference implementation, and any future field-level adapter should follow its shape.
+A field type that needs both a browser component and server-side behaviour registers them through mirrored slots: `AdminConfig.fields.*` for the React side, `ServerConfig.fields.*` for the server side. Rich text is the reference implementation, and any future field-level adapter should follow its shape.
 
-- **Client** — `ClientConfig.fields.richText.editor`: a render-only React component, registered via `lexicalEditor()` from `@byline/richtext-lexical`.
+- **Client** — `AdminConfig.fields.richText.editor`: a render-only React component, registered via `lexicalEditor()` from `@byline/richtext-lexical`.
 - **Server, write path** — `fields.richText.embed` (`RichTextEmbedFn`): called once per rich-text leaf the write path finds in an outgoing document, for every field whose effective `embedRelationsOnSave` is true (the default). It walks the editor tree at save time and refreshes embedded relation envelopes — for example composing `document.path` on internal-link nodes.
 - **Server, read path** — `fields.richText.populate` (`RichTextPopulateFn`): the mirror of `embed`, called once per rich-text leaf the read pipeline returns, for every field whose effective `populateRelationsOnRead` is true.
 - **Server, markdown** — `fields.richText.toMarkdown` (`RichTextToMarkdownFn`): one-way serialisation for the agent-readable export surface (`documentToMarkdown`, `.md` routes, `llms.txt`). Optional; synchronous and read-only.

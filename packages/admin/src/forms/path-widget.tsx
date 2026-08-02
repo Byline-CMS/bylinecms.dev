@@ -99,7 +99,7 @@ export const PathWidget = ({
 
   // The installation slugifier, or the built-in default. Server-side path
   // derivation uses `ServerConfig.slugifier`; this must be the same function
-  // (registered via `ClientConfig.slugifier`) or the preview will disagree
+  // (registered via `AdminConfig.slugifier`) or the preview will disagree
   // with what the server persists.
   const runSlugify = slugifier ?? slugify
 

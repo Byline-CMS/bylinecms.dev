@@ -13,7 +13,7 @@
 import type * as React from 'react'
 import { type Dispatch, useCallback, useEffect, useRef, useState } from 'react'
 
-import { getClientConfig } from '@byline/core'
+import { getAdminConfig } from '@byline/core'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { $findMatchingParent, mergeRegister } from '@lexical/utils'
 import {
@@ -70,7 +70,7 @@ function FloatingLinkEditor({
   })
   const [linkModalData, setLinkModalData] = useState<LinkData | undefined>(undefined)
   const [modalOpen, setModalOpen] = useState(false)
-  const adminRoute = getClientConfig().routes.admin
+  const adminRoute = getAdminConfig().routes.admin
 
   const $updateLinkEditor = useCallback(() => {
     const selection = $getSelection()

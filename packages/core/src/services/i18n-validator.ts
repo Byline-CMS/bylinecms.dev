@@ -74,7 +74,7 @@ export function validateTranslations(i18n: InterfaceI18nConfig): ValidateTransla
   if (translations == null) {
     errors.push(
       `i18n.interface.locales declares [${locales.join(', ')}] but no translations bundle is registered. ` +
-        `Pass one to defineClientConfig via i18n.translations — see @byline/i18n's adminTranslations() ` +
+        `Pass one to defineAdminConfig via i18n.translations — see @byline/i18n's adminTranslations() ` +
         `and mergeTranslations() helpers.`
     )
     if (errors.length > 0) {

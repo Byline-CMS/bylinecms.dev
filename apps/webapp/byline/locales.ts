@@ -10,7 +10,7 @@
  * Leaf locale definitions — the host's two locale sets, as plain data
  * with **zero** runtime dependencies (no `@byline/*` imports, no
  * translation registry). `byline/i18n.ts` consumes these to assemble the
- * `defineServerConfig` / `defineClientConfig` payload.
+ * `defineServerConfig` / `defineAdminConfig` payload.
  *
  * Kept separate from `byline/i18n.ts` precisely so `byline/public.ts` can
  * expose the locale arrays to the public frontend without dragging the

@@ -595,7 +595,7 @@ Server-side **upload** hooks (`beforeStore` / `afterStore`) live on the field's 
 
 Collection schemas are [isomorphic](#the-schema-admin-split), so every static **or dynamic** import they contain is reachable from the browser build. A plain `() => import('./hooks.js')` is lazy loading, not a server boundary, and framework wrappers such as TanStack Start's `createServerOnlyFn` make the schema host-specific.
 
-Register hooks that import server-only code through `ServerConfig.hooks` instead. The registry is imported only by `byline/server.config.ts`; client configuration and schemas never reach it.
+Register hooks that import server-only code through `ServerConfig.hooks` instead. The registry is imported only by `byline/server.config.ts`; admin configuration and schemas never reach it.
 
 ```ts
 // collections/server-hooks.ts — server-only and host-framework agnostic

@@ -29,9 +29,8 @@ import { localStorageProvider } from '@byline/storage-local'
 import { collections } from './collections/index.js'
 import { serverHooks } from './collections/server-hooks.js'
 import { i18n } from './i18n.js'
-import { DEFAULT_SERVER_URL, routes } from './routes.js'
+import { routes } from './routes.js'
 
-const serverURL = process.env.VITE_SERVER_URL || DEFAULT_SERVER_URL
 
 // HMR-safe singleton. Reusing the resolving Promise prevents development
 // reloads from orphaning MySQL pools and exhausting server connections.
@@ -84,7 +83,6 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   registerTanstackStartHostBridge()
 
   const core = await initBylineCore<AdminStore>({
-    serverURL,
     i18n,
     routes,
     collections,

@@ -8,7 +8,7 @@
 
 import { SignInForm } from '@byline/admin/auth/components/sign-in-form'
 import { BylineAdminServicesProvider } from '@byline/admin/services'
-import { getClientConfig } from '@byline/core'
+import { getAdminConfig } from '@byline/core'
 import type { LocaleCode } from '@byline/i18n'
 import { I18nProvider, LanguageMenu } from '@byline/i18n/react'
 import cx from 'clsx'
@@ -21,6 +21,7 @@ import styles from './sign-in-page.module.css'
 interface SignInPageProps {
   redirectTo: string
   activeLocale: LocaleCode
+  homeUrl?: string
 }
 
 /**
@@ -40,12 +41,11 @@ interface SignInPageProps {
  * `admin_users.preferred_locale` so the pre-auth choice becomes
  * sticky across devices from day one.
  *
- * Threads the configured `serverURL` into the `SignInForm` as `homeUrl` so
- * the form's action row can render a plain "Home" link beside the submit
- * button.
+ * Threads an optional host-owned `homeUrl` into `SignInForm` so the form's
+ * action row can render a plain "Home" link beside the submit button.
  */
-export function SignInPage({ redirectTo, activeLocale }: SignInPageProps) {
-  const { i18n, serverURL } = getClientConfig()
+export function SignInPage({ redirectTo, activeLocale, homeUrl }: SignInPageProps) {
+  const { i18n } = getAdminConfig()
   const localeDefinitions = buildLocaleDefinitions(
     i18n.interface.locales,
     i18n.interface.localeDefinitions
@@ -68,7 +68,7 @@ export function SignInPage({ redirectTo, activeLocale }: SignInPageProps) {
             <LanguageMenu />
           </div>
           <div className={cx('byline-sign-in-page-inner', styles.inner)}>
-            <SignInForm redirectTo={redirectTo} homeUrl={serverURL} />
+            <SignInForm redirectTo={redirectTo} homeUrl={homeUrl} />
           </div>
         </main>
       </BylineAdminServicesProvider>

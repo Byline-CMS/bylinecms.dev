@@ -1,7 +1,7 @@
 ---
 title: "Configuration API"
 path: "configuration-reference"
-summary: "Exact BaseConfig, ClientConfig, ServerConfig, BylineCore, route, registration, getter, and server-client contracts."
+summary: "Exact BaseConfig, AdminConfig, ServerConfig, BylineCore, route, registration, getter, and server-client contracts."
 ---
 
 # Configuration API
@@ -10,17 +10,16 @@ Companions:
 - [Configuration](../01-getting-started/03-configuration.md) — which application files own these objects and which runtime imports each one.
 - [Collections API](./02-collections.md) — the collection tuple and the server/client presentation registries configured here.
 - [Core composition](../03-architecture/02-core-composition.md) — initialization order, validation, adapters, and package boundaries.
-- [Client-config registration](../09-admin-ui/02-client-config-registration.md) — the dual admin registration path used by the TanStack Start host.
+- [Admin-config registration](../09-admin-ui/02-admin-config-registration.md) — the dual admin registration path used by the TanStack Start host.
 
 This is the exact application-facing configuration surface from `@byline/core` and the request-bound client getter surface from `@byline/client/server`. Use it when wiring `byline/server.config.ts`, `byline/admin.config.ts`, or server-side application reads.
 
 ## `BaseConfig`
 
-`BaseConfig` contains the configuration shared by the server and admin. The server and client configs extend it independently.
+`BaseConfig` contains the configuration shared by the server and admin. The server and admin configs extend it independently.
 
 ```ts
 interface BaseConfig {
-  serverURL: string
   i18n: I18nConfig
   collections: readonly CollectionDefinition[]
   routes?: RoutesConfigInput
@@ -29,7 +28,6 @@ interface BaseConfig {
 
 | Property | Required | Description |
 |---|---|---|
-| `serverURL` | Yes | Absolute origin used when Byline needs the configured host URL. The reference app reads `VITE_SERVER_URL` and falls back to `http://localhost:5173`. |
 | `i18n` | Yes | Admin-interface locales, content locales, display labels, and admin translation bundles. |
 | `collections` | Yes | Canonical readonly collection tuple. The server and admin must receive the same schema definitions. |
 | `routes` | No | Partial admin, API, and sign-in mount paths. `resolveRoutes()` supplies and validates defaults. |
@@ -94,12 +92,12 @@ export const routes = resolveRoutes({
 
 Changing this object does not rename the physical host route files. [Routing and API](../05-reading-and-delivery/02-routing-and-api.md) documents that coordination boundary.
 
-## `ClientConfig`
+## `AdminConfig`
 
-`ClientConfig` extends `BaseConfig` with admin presentation and browser-side adapter slots. It may contain React component references and must remain outside public route bundles.
+`AdminConfig` extends `BaseConfig` with admin presentation and browser-side adapter slots. It may contain React component references and must remain outside public route bundles.
 
 ```ts
-interface ClientConfig extends BaseConfig {
+interface AdminConfig extends BaseConfig {
   admin?: CollectionAdminConfig[]
   blockAdmin?: BlockAdminConfig[]
   slugifier?: SlugifierFn
@@ -117,10 +115,9 @@ interface ClientConfig extends BaseConfig {
 | `fields.richText.editor` | None | React editor component used for rich-text fields unless a per-field admin config overrides it. Rich-text fields in the admin require a registered editor. |
 
 ```ts
-import { type ClientConfig, defineClientConfig } from '@byline/core'
+import { type AdminConfig, defineAdminConfig } from '@byline/core'
 
-export const config: ClientConfig = {
-  serverURL,
+export const config: AdminConfig = {
   i18n,
   routes,
   collections,
@@ -129,24 +126,24 @@ export const config: ClientConfig = {
   fields: { richText: { editor: LexicalRichTextAi } },
 }
 
-defineClientConfig(config)
+defineAdminConfig(config)
 ```
 
-### `defineClientConfig(config)`
+### `defineAdminConfig(config)`
 
 ```ts
-function defineClientConfig(config: ClientConfig): ResolvedClientConfig
+function defineAdminConfig(config: AdminConfig): ResolvedAdminConfig
 ```
 
-Validates collection, collection-admin, and block-admin registrations; resolves `routes`; registers the client singleton in the current module graph; and returns the resolved object.
+Validates collection, collection-admin, and block-admin registrations; resolves `routes`; registers the admin singleton in the current module graph; and returns the resolved object.
 
-### `getClientConfig()`
+### `getAdminConfig()`
 
 ```ts
-function getClientConfig(): ResolvedClientConfig
+function getAdminConfig(): ResolvedAdminConfig
 ```
 
-Returns the registered client config. During server-side rendering, if only a server config is available, it returns a compatible fallback containing the shared configuration, `admin: []`, and the server slugifier. It throws when neither config exists.
+Returns the registered admin config. During server-side rendering, if only a server config is available, it returns a compatible fallback containing shared i18n, routes, collections, and the server slugifier, plus `admin: []`. It throws when neither config exists.
 
 ## `ServerConfig`
 
@@ -284,8 +281,8 @@ Returns the core registered by `initBylineCore()`. It throws in the browser or b
 
 | Function | Return | Behavior |
 |---|---|---|
-| `getCollectionDefinition(path)` | `CollectionDefinition \| null` | Reads the current server config, or client config when no server config exists, and finds a schema by path. |
-| `getCollectionAdminConfig(slug)` | `CollectionAdminConfig \| null` | Finds one client-side collection admin config by slug. Returns `null` when the client config is absent. |
+| `getCollectionDefinition(path)` | `CollectionDefinition \| null` | Reads the current server config, or admin config when no server config exists, and finds a schema by path. |
+| `getCollectionAdminConfig(slug)` | `CollectionAdminConfig \| null` | Finds one browser-safe collection admin config by slug. Returns `null` when the admin config is absent. |
 | `orderByContentLocale(codes)` | `string[]` | Returns a sorted copy using configured content-locale order, with unknown codes alphabetized at the end. It never filters codes. |
 
 ## Server client getters

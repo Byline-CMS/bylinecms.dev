@@ -59,7 +59,7 @@ field-level hooks and validation, localization per child field, relations
 | `Block` / `BlocksField` interfaces | `packages/core/src/@types/field-types.ts` |
 | `defineBlock`, `BlockFieldData`, `BlockData`, `BlocksUnion` | `packages/core/src/@types/collection-types.ts` |
 | `BlockAdminConfig`, `defineBlockAdmin` | `packages/core/src/@types/admin-types.ts` |
-| Registration | `ClientConfig.blockAdmin` (`packages/core/src/@types/site-config.ts`) |
+| Registration | `AdminConfig.blockAdmin` (`packages/core/src/@types/site-config.ts`) |
 | Boot validation | `validateBlockAdminConfigs` in `packages/core/src/config/validate-admin-configs.ts` |
 | Admin rendering | `packages/admin/src/fields/blocks/blocks-field.tsx` — each block instance renders through a synthesized `GroupField` → `FieldRenderer` per child |
 | Storage | flat EAV rows; item identity (`_id`, `_type`) in `store_meta` (UUIDv7) |
@@ -112,7 +112,7 @@ nesting.
 blockAdmin: [QuoteBlockAdmin, PhotoBlockAdmin],
 ```
 
-Registered site-wide on `ClientConfig.blockAdmin` and applied wherever the
+Registered site-wide on `AdminConfig.blockAdmin` and applied wherever the
 block renders — any collection, any nesting. Rationale for a registry over
 per-collection nesting:
 
@@ -125,7 +125,7 @@ per-collection nesting:
   `blockType`; a per-collection override layer can be added later without
   breaking this API.
 
-Boot validation (`validateBlockAdminConfigs`, run by `defineClientConfig`)
+Boot validation (`validateBlockAdminConfigs`, run by `defineAdminConfig`)
 walks all collections' fields collecting `blockType → Block` declaration
 sites and fails on unknown blockTypes, duplicate entries, or `fields` keys
 that don't resolve as schema paths within the block (an index-carrying key,
@@ -148,7 +148,7 @@ and its descendant entries are re-keyed with the prefix stripped
 on through `FieldRenderer` into the child's own `GroupField`/`ArrayField`.
 That is how a dotted key like `faq.answer` walks the widget tree to the
 right leaf, where the existing resolution
-(`editor ?? getClientConfig().fields.richText.editor`) lets the per-block
+(`editor ?? getAdminConfig().fields.richText.editor`) lets the per-block
 override beat the site-wide default.
 
 > **The three "group" concepts.** Byline has (1) the **structural `group`
@@ -279,7 +279,7 @@ media collection instead — the reference PhotoBlock relates to `media`.
 |---|---|
 | `defineBlock` + block data types | `packages/core/src/@types/collection-types.ts` |
 | `defineBlockAdmin` + `BlockAdminConfig` | `packages/core/src/@types/admin-types.ts` |
-| `blockAdmin` registration slot | `packages/core/src/@types/site-config.ts` (`ClientConfig`) |
+| `blockAdmin` registration slot | `packages/core/src/@types/site-config.ts` (`AdminConfig`) |
 | Boot validation + tests | `packages/core/src/config/validate-admin-configs{.ts,.test.node.ts}` |
 | BlocksField (picker, D&D, registry resolution) | `packages/admin/src/fields/blocks/blocks-field.tsx` |
 | GroupField `fieldAdmin` threading | `packages/admin/src/fields/group/group-field.tsx` |

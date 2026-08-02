@@ -6,7 +6,7 @@
  *
  */
 
-import { getClientConfig } from '@byline/core'
+import { getAdminConfig } from '@byline/core'
 import { addClassNamesToElement, isHTMLAnchorElement } from '@lexical/utils'
 import {
   $applyNodeReplacement,
@@ -33,7 +33,7 @@ import type { InternalLinkAttributes, LinkAttributes, SerializedLinkNode } from 
 function adminHref(attrs: LinkAttributes | null | undefined): string {
   if (attrs == null || attrs.linkType !== 'internal') return '#'
   const internal = attrs as InternalLinkAttributes
-  const { admin } = getClientConfig().routes
+  const { admin } = getAdminConfig().routes
   return `${admin}/collections/${internal.targetCollectionPath}/${internal.targetDocumentId}`
 }
 

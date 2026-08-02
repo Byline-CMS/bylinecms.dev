@@ -10,7 +10,7 @@
 
 import { useRouterState } from '@tanstack/react-router'
 
-import { getClientConfig } from '@byline/core'
+import { getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Button, Container, Section, Select, Table } from '@byline/ui/react'
 import cx from 'clsx'
@@ -79,7 +79,7 @@ export const ActivitySystemView = ({ data }: { data: SystemActivityResponse }) =
   }
 
   const entries = data?.entries ?? []
-  const collections = getClientConfig().collections
+  const collections = getAdminConfig().collections
 
   // Navigate with the changed filter merged into the URL search; clearing the
   // page so a filter change always lands on page 1. `_all` removes the filter.

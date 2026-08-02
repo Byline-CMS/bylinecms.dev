@@ -121,7 +121,7 @@ export function validateAdminConfigs(
 /**
  * Validate every block admin config in a configuration.
  *
- * Enforced rules (per `ClientConfig.blockAdmin` entry):
+ * Enforced rules (per `AdminConfig.blockAdmin` entry):
  *  1. Block pairing — `blockType` matches a block declared on at least one
  *     `type: 'blocks'` field across the registered collections (blocks have
  *     no global registry; the collections walk is the source of truth).

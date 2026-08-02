@@ -27,7 +27,12 @@ interface SignInSearch {
   callbackUrl?: string
 }
 
-export function createSignInRoute(path: string) {
+export interface CreateSignInRouteOptions {
+  /** Optional client-safe URL for the sign-in page's Home link. */
+  homeUrl?: string
+}
+
+export function createSignInRoute(path: string, options: CreateSignInRouteOptions = {}) {
   // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
   const Route: any = createFileRoute(path as never)({
     validateSearch: (search: Record<string, unknown>): SignInSearch => {
@@ -50,6 +55,7 @@ export function createSignInRoute(path: string) {
         <SignInPage
           redirectTo={resolveAdminSignInRedirect(callbackUrl)}
           activeLocale={activeLocale}
+          homeUrl={options.homeUrl}
         />
       )
     },

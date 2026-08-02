@@ -38,7 +38,7 @@ Default registration — every `richText` field gets the full feature set.
 ```ts
 import { RichTextField } from '@byline/richtext-lexical'
 
-defineClientConfig({
+defineAdminConfig({
   fields: {
     richText: { editor: RichTextField },
   },
@@ -56,7 +56,7 @@ Override placeholder / markdown shortcuts / debug — settings only, no extensio
 ```ts
 import { lexicalEditor } from '@byline/richtext-lexical'
 
-defineClientConfig({
+defineAdminConfig({
   fields: {
     richText: {
       editor: lexicalEditor((c) => {
@@ -81,7 +81,7 @@ Drop features the installation doesn't want. Toolbar items and floating UIs that
 ```ts
 import { lexicalEditor, TableExtension, AdmonitionExtension } from '@byline/richtext-lexical'
 
-defineClientConfig({
+defineAdminConfig({
   fields: {
     richText: {
       editor: lexicalEditor((c) => {
@@ -105,7 +105,7 @@ Pass config through to a wrapped extension — `TableExtension` here delegates t
 import { lexicalEditor } from '@byline/richtext-lexical'
 import { TableExtension as LexicalTableExtension } from '@lexical/table'
 
-defineClientConfig({
+defineAdminConfig({
   fields: {
     richText: {
       editor: lexicalEditor((c) => {
@@ -132,7 +132,7 @@ Site-wide enable for an external Lexical extension.
 import { lexicalEditor } from '@byline/richtext-lexical'
 import { MyCustomExtension } from '@my-org/lexical-myfeature'
 
-defineClientConfig({
+defineAdminConfig({
   fields: {
     richText: {
       editor: lexicalEditor((c) => c.extensions.add(MyCustomExtension)),
@@ -348,7 +348,7 @@ export const Pages = defineCollection({
 Six things compose the present surface:
 
 1. **The render-component contract** — `RichTextEditorComponent` in `@byline/core`.
-2. **The client-side slot** — `ClientConfig.fields.richText.editor`. Registered once in `apps/webapp/byline/admin.config.ts`.
+2. **The client-side slot** — `AdminConfig.fields.richText.editor`. Registered once in `apps/webapp/byline/admin.config.ts`.
 3. **The server-side embed contract** — `RichTextEmbedFn` in `@byline/core`. Framework-agnostic. Runs on every richtext write to refresh embedded relation envelopes ahead of persistence.
 4. **The server-side populate contract** — `RichTextPopulateFn` in `@byline/core`. Mirror of the embed contract; runs on the read path for fields that opted into populate. Both receive the authenticated operation context, effective read mode, and a framework-owned `readDocuments` function; adapters must use that reader for targets instead of accessing storage directly.
 5. **The server-side slots** — `ServerConfig.fields.richText.{ embed, populate }`. Registered once in `apps/webapp/byline/server.config.ts`. The bootstrap validator fail-fasts when either is missing for a field that requires it.
@@ -369,7 +369,7 @@ export type RichTextEditorComponent = SlotComponent<RichTextEditorProps>
 
 ```ts
 // packages/core/src/@types/site-config.ts (excerpt)
-export interface ClientConfig extends BaseConfig {
+export interface AdminConfig extends BaseConfig {
   admin?: CollectionAdminConfig[]
   fields?: {
     richText?: { editor: RichTextEditorComponent }
@@ -595,7 +595,7 @@ The two layouts differ for historical / Lexical-mechanics reasons (the link node
 
 Step 2 is the happy path post-walker. Step 3 is heal-on-write fallback for legacy nodes and picker-time-but-not-yet-walked sessions. Step 1 is the explicit unresolved-target signal (deleted, unpublished in the selected view, or row-hidden). Step 4 is the safety net. No two-slot ambiguity, no data migration required when adopting the new pipeline — every next save normalises the field.
 
-**Why the picker does not compose the path itself.** Step 3's generic compose is wrong for any collection whose public route differs from its collection path — `/publications/0000152` where the real route is `/library/0000152`. It is tempting to fix this by calling `buildDocumentPath` in the link picker, which is possible: collection *definitions* are registered in the browser via `ClientConfig.collections`, so the hook is reachable client-side. Two things argue against it.
+**Why the picker does not compose the path itself.** Step 3's generic compose is wrong for any collection whose public route differs from its collection path — `/publications/0000152` where the real route is `/library/0000152`. It is tempting to fix this by calling `buildDocumentPath` in the link picker, which is possible: collection *definitions* are registered in the browser via `AdminConfig.collections`, so the hook is reachable client-side. Two things argue against it.
 
 First, the value is not observable before save. No admin surface renders `document.path` — the floating link editor deliberately shows an admin edit URL (`floating-link-editor.tsx`), and the link modal shows the target's title. The only readers are the server-side walker, the markdown serializer, and the public renderer, all of which operate on saved or populated data.
 
@@ -736,7 +736,7 @@ No `featureAfterEditor` injection, no React-context registry hop — the extensi
 | Secure target-reader implementation | `packages/core/src/services/richtext-populate.ts` (`createRichTextDocumentReader`) |
 | `RichTextField.editorConfig` opaque slot | `packages/core/src/@types/field-types.ts` |
 | `embedRelationsOnSave` / `populateRelationsOnRead` flags | `packages/core/src/@types/field-types.ts` |
-| `ClientConfig.fields.richText.editor` slot | `packages/core/src/@types/site-config.ts` |
+| `AdminConfig.fields.richText.editor` slot | `packages/core/src/@types/site-config.ts` |
 | `ServerConfig.fields.richText.populate` slot | `packages/core/src/@types/site-config.ts` |
 | Renderer dispatch | `packages/admin/src/fields/field-renderer.tsx` (`case 'richText'`) |
 | Lexical editor package — UI entry | `packages/richtext-lexical/src/index.ts` |

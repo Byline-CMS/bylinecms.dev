@@ -24,7 +24,7 @@ import { type ReactNode, useContext } from 'react'
 import type { ErrorComponentProps, NotFoundRouteProps } from '@tanstack/react-router'
 import { useRouter } from '@tanstack/react-router'
 
-import { BylineError, ErrorCodes, getClientConfig } from '@byline/core'
+import { BylineError, ErrorCodes, getAdminConfig } from '@byline/core'
 import type { TranslationBundle } from '@byline/i18n'
 import type { UseTranslationReturn } from '@byline/i18n/react'
 import { I18nContext, I18nProvider, useTranslation } from '@byline/i18n/react'
@@ -76,7 +76,7 @@ function getErrorMessage(error: unknown, t: Translate): string {
  * Only when none is present (the error-boundary case) does it self-mount.
  *
  * Resilient by design (an error component that throws masks the real error):
- * if the client config can't be read, it falls back to an English-default
+ * if the admin config can't be read, it falls back to an English-default
  * provider with an empty bundle. With a provider always present,
  * `useTranslation` never throws; a missing key then renders as the raw key
  * rather than crashing (see `I18nProvider`'s `onMissing`).
@@ -90,7 +90,7 @@ function ErrorScreenI18nProvider({ children }: { children: ReactNode }) {
   let bundle: TranslationBundle = {}
   let locale = 'en'
   try {
-    const { i18n } = getClientConfig()
+    const { i18n } = getAdminConfig()
     bundle = i18n.translations ?? {}
     // No active provider, so render in the default locale — recovering the
     // per-user active locale isn't worth another lookup that could itself throw.

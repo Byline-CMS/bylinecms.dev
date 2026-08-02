@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { defineClientConfig, defineServerConfig, getCollectionDefinition } from './config.js'
+import { defineAdminConfig, defineServerConfig, getCollectionDefinition } from './config.js'
 import type { CollectionDefinition, IDbAdapter, ServerConfig } from '../@types/index.js'
 
 const SERVER_CONFIG = Symbol.for('__byline_server_config__')
@@ -30,12 +30,12 @@ const i18n = {
 }
 
 describe('collection definition config preference', () => {
-  it('uses client definitions when only client config is registered', () => {
+  it('uses client definitions when only admin config is registered', () => {
     const globals = globalThis as Record<PropertyKey, unknown>
     delete globals[SERVER_CONFIG]
     delete globals[CLIENT_CONFIG]
     const client = definition('client-only')
-    defineClientConfig({ serverURL: 'https://example.test', collections: [client], i18n })
+    defineAdminConfig({ collections: [client], i18n })
     expect(getCollectionDefinition('client-only')).toBe(client)
   })
 
@@ -46,9 +46,8 @@ describe('collection definition config preference', () => {
     const client = definition('docs')
     const server = definition('docs')
     const hooks = {}
-    defineClientConfig({ serverURL: 'https://example.test', collections: [client], i18n })
+    defineAdminConfig({ collections: [client], i18n })
     defineServerConfig({
-      serverURL: 'https://example.test',
       collections: [server],
       db: {} as IDbAdapter,
       hooks: { collections: { docs: hooks } },

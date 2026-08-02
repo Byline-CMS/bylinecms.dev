@@ -53,7 +53,6 @@ export interface RoutesConfigInput {
  * in-process runtime contract, not a JSON or transport representation.
  */
 export interface BaseConfig {
-  serverURL: string
   i18n: {
     interface: {
       defaultLocale: string
@@ -149,12 +148,12 @@ export type TranslationBundleShape = Readonly<{
 }>
 
 /**
- * Client-side configuration. Extends BaseConfig with admin UI presentation
+ * Admin configuration. Extends BaseConfig with admin UI presentation
  * config (React components, formatters, column definitions, etc.).
  *
- * Used by `defineClientConfig()` and consumed by admin UI routes.
+ * Used by `defineAdminConfig()` and consumed by admin UI routes.
  */
-export interface ClientConfig extends BaseConfig {
+export interface AdminConfig extends BaseConfig {
   /** Admin UI configuration for collections (client-side only). */
   admin?: CollectionAdminConfig[]
 
@@ -179,7 +178,7 @@ export interface ClientConfig extends BaseConfig {
    * back to the default `slugify` from `@byline/core` when not set — so
    * installations that keep the default slugifier need not set this at all.
    *
-   * Lives on `ClientConfig` because only the admin path widget consumes this
+   * Lives on `AdminConfig` because only the admin path widget consumes this
    * client-side copy. `ServerConfig` declares the authoritative server copy
    * separately.
    *
@@ -195,7 +194,7 @@ export interface ClientConfig extends BaseConfig {
    * ```ts
    * import { RichTextField } from '@byline/richtext-lexical'
    *
-   * defineClientConfig({
+   * defineAdminConfig({
    *   // ...
    *   fields: {
    *     richText: { editor: RichTextField },
@@ -213,8 +212,8 @@ export interface ClientConfig extends BaseConfig {
   }
 }
 
-/** Client config returned after boundary validation and canonicalization. */
-export type ResolvedClientConfig = Omit<ClientConfig, 'routes'> & { routes: RoutesConfig }
+/** Admin config returned after boundary validation and canonicalization. */
+export type ResolvedAdminConfig = Omit<AdminConfig, 'routes'> & { routes: RoutesConfig }
 
 /**
  * Server-only lifecycle hook registry. Collection keys are collection paths;
@@ -240,7 +239,7 @@ export interface ServerHooksConfig {
 
 /**
  * Server-side configuration. Extends BaseConfig with database and storage
- * adapters. Deliberately does NOT extend ClientConfig — the server has no
+ * adapters. Deliberately does NOT extend AdminConfig — the server has no
  * knowledge of React components or admin UI presentation logic.
  *
  * Generic over `TAdminStore` so installations can thread an adapter-built
@@ -290,8 +289,8 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    *
    * This is the **server-side** copy (the authoritative one — its output is
    * what gets persisted). For the admin path-widget's live preview to match,
-   * register the *same* function on `ClientConfig.slugifier` via
-   * `defineClientConfig`. See {@link ClientConfig.slugifier}.
+   * register the *same* function on `AdminConfig.slugifier` via
+   * `defineAdminConfig`. See {@link AdminConfig.slugifier}.
    */
   slugifier?: SlugifierFn
   /**
@@ -363,7 +362,7 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
   adminStore?: TAdminStore
   /**
    * Site-wide field-level server adapter slots. Mirrors
-   * `ClientConfig.fields` for the server side — each entry plugs an
+   * `AdminConfig.fields` for the server side — each entry plugs an
    * adapter package into a framework-managed read or write phase.
    *
    * @example

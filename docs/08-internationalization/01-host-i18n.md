@@ -184,7 +184,7 @@ export const contentLocales = [
 ```
 
 `byline/i18n.ts` consumes these to assemble the `defineServerConfig` /
-`defineClientConfig` payload; the public frontend's `src/i18n/i18n-config.ts`
+`defineAdminConfig` payload; the public frontend's `src/i18n/i18n-config.ts`
 imports `contentLocales` through `~/public` to build its `routableLocales` and
 label map. The host
 authors the display labels here once (`Français`, not CLDR's lowercase

@@ -23,7 +23,6 @@ describe('orderByContentLocale', () => {
     // Only `collections` is validated by `defineServerConfig`; the rest of
     // the shape is irrelevant to this helper, so a minimal cast is enough.
     defineServerConfig({
-      serverURL: 'http://test.local',
       i18n: {
         interface: { defaultLocale: 'en', locales: ['en'] },
         content: { defaultLocale: 'en', locales: ['en', 'fr', 'es', 'de'] },
@@ -70,7 +69,6 @@ describe('orderByContentLocale', () => {
 describe('orderByContentLocale — boundary robustness', () => {
   beforeAll(() => {
     defineServerConfig({
-      serverURL: 'http://test.local',
       i18n: {
         // Interface set (`en`, `de`) deliberately overlaps content only on `en`
         // — `de` is interface-only here, NOT a content locale.

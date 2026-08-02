@@ -438,7 +438,7 @@ fields: {
 }
 ```
 
-Lives on the admin side because it carries a React component reference, and schemas must stay tsx-loadable. Per-field `editor` takes precedence over the globally registered `ClientConfig.fields.richText.editor`. Ignored on non-`richText` fields.
+Lives on the admin side because it carries a React component reference, and schemas must stay tsx-loadable. Per-field `editor` takes precedence over the globally registered `AdminConfig.fields.richText.editor`. Ignored on non-`richText` fields.
 
 For *settings* differences only (placeholder, toolbar toggles, the inline-image upload collection), use a schema-side preset like `lexicalRichTextCompact` instead — that data is JSON-safe and rides along in `RichTextField.editorConfig`. See [Rich Text](./07-rich-text.md) for the full editor configuration story.
 
@@ -470,7 +470,7 @@ The override applies to that field in **every** item of the array — schema pat
 
 ### Per-block field admin config (`defineBlockAdmin`)
 
-Fields inside a block are addressed by the block-scoped counterpart, `defineBlockAdmin`: an admin config keyed by schema paths relative to the block root, registered site-wide on `ClientConfig.blockAdmin` and applied wherever the block renders — any collection, any nesting. Nested declarations inside the block use the same dotted keys (`faq.answer` — see `apps/webapp/byline/blocks/faq-block.admin.ts`, the reference).
+Fields inside a block are addressed by the block-scoped counterpart, `defineBlockAdmin`: an admin config keyed by schema paths relative to the block root, registered site-wide on `AdminConfig.blockAdmin` and applied wherever the block renders — any collection, any nesting. Nested declarations inside the block use the same dotted keys (`faq.answer` — see `apps/webapp/byline/blocks/faq-block.admin.ts`, the reference).
 
 ```ts
 // blocks/quote-block.admin.ts (admin-side — may carry React)
@@ -653,7 +653,7 @@ The fix is always the same: find or create a data-only subpath of the package (`
 
 ### Using `lexicalRichTextCompact` to enable AI
 
-`lexicalRichTextCompact` is schema-side; it customises `editorConfig` (data). It cannot swap the editor *component*. Use `aiRichTextAdmin()` admin-side for that, or — for site-wide AI — register `LexicalRichTextAi` as `ClientConfig.fields.richText.editor` in `admin.config.ts`.
+`lexicalRichTextCompact` is schema-side; it customises `editorConfig` (data). It cannot swap the editor *component*. Use `aiRichTextAdmin()` admin-side for that, or — for site-wide AI — register `LexicalRichTextAi` as `AdminConfig.fields.richText.editor` in `admin.config.ts`.
 
 ### Putting AI text-field slots in the schema
 

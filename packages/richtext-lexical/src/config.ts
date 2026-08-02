@@ -16,7 +16,7 @@
  * `EditorField` / `Nodes` or the heavy *content* extension classes
  * (Table, InlineImage, Admonition, …), all of which statically pull React
  * plugins, nodes, and the Lexical core. Import from here at registration
- * sites (e.g. an admin/client config that you want to evaluate eagerly)
+ * sites (e.g. an admin/admin config that you want to evaluate eagerly)
  * so referencing the editor doesn't drag the editor module graph into the
  * importing bundle.
  *

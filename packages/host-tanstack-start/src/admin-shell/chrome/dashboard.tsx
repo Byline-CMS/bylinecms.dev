@@ -7,7 +7,7 @@
  */
 
 import type { WorkflowStatus } from '@byline/core'
-import { getClientConfig, getWorkflowStatuses } from '@byline/core'
+import { getAdminConfig, getWorkflowStatuses } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Card, Container, Section } from '@byline/ui/react'
 import cx from 'clsx'
@@ -63,7 +63,7 @@ interface AdminDashboardProps {
 }
 
 export function AdminDashboard({ statsMap }: AdminDashboardProps) {
-  const config = getClientConfig()
+  const config = getAdminConfig()
   const { t } = useTranslation('byline-admin')
 
   return (

@@ -8,7 +8,7 @@
 
 /**
  * Shared i18n configuration — assembles the `defineServerConfig` /
- * `defineClientConfig` payload from the host's locale sets.
+ * `defineAdminConfig` payload from the host's locale sets.
  *
  * The locale arrays themselves live in `./locales.ts`, a dependency-free
  * leaf module exposed to public frontend code by `./public.ts`, without
@@ -27,7 +27,7 @@ import { contentLocales, interfaceLocales, type LocaleDefinition } from './local
 
 export { contentLocales, interfaceLocales, type LocaleDefinition }
 
-/** Derived config object — passed directly to defineServerConfig / defineClientConfig. */
+/** Derived config object — passed directly to defineServerConfig / defineAdminConfig. */
 export const i18n = {
   interface: {
     defaultLocale: 'en',

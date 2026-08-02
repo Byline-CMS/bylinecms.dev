@@ -7,7 +7,6 @@ import type { IDbAdapter, ServerConfig } from './@types/index.js'
 
 function serverConfig(admin: string): ServerConfig {
   return {
-    serverURL: 'https://example.test',
     routes: { admin },
     collections: [],
     db: {} as IDbAdapter,

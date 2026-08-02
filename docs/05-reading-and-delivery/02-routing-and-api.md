@@ -23,13 +23,13 @@ If you need to read or write Byline content from your own code today (a public f
 ## Byline-owned host route mounts
 
 Hosts configure Byline-owned URL paths through `BaseConfig.routes`. Inputs are
-partial. `defineClientConfig()` and `defineServerConfig()` resolve and validate
+partial. `defineAdminConfig()` and `defineServerConfig()` resolve and validate
 them when configuration is registered, before replacing the registered config:
 
 ```ts
 import {
-  defineClientConfig,
-  type ClientConfig,
+  defineAdminConfig,
+  type AdminConfig,
   type RoutesConfigInput,
 } from '@byline/core'
 
@@ -39,8 +39,8 @@ const routes: RoutesConfigInput = {
   signIn: '/staff/login',
 }
 
-export function registerClientConfig(config: ClientConfig) {
-  const registered = defineClientConfig({ ...config, routes })
+export function registerAdminConfig(config: AdminConfig) {
+  const registered = defineAdminConfig({ ...config, routes })
   return registered.routes // frozen canonical { admin, api, signIn }
 }
 ```

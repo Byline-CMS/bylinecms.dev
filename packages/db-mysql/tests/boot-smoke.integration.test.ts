@@ -158,7 +158,6 @@ describe('MySQL end-to-end boot smoke (initBylineCore composition, live database
     // `packages/core/src/core.ts`.
     core = await initBylineCore({
       db,
-      serverURL: 'http://localhost:3000',
       i18n: {
         // Empty interface locale set — `validateTranslations()` (run
         // inside `initBylineCore()`) skips its translations-bundle

@@ -1,12 +1,11 @@
-import { defineClientConfig } from '@byline/core'
+import { defineAdminConfig } from '@byline/core'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { getSignInRoutePath } from './sign-in-path.js'
 
 describe('sign-in route configuration', () => {
   beforeEach(() => {
-    defineClientConfig({
-      serverURL: 'http://localhost:3000',
+    defineAdminConfig({
       routes: { signIn: '/staff/login/' },
       collections: [],
       admin: [],

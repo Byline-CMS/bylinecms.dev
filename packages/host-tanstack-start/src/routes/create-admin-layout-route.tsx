@@ -25,7 +25,7 @@ import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 import { applyStoredTheme } from '@byline/admin/admin-account/components/theme'
 import { BylineFieldServicesProvider } from '@byline/admin/react'
 import { BylineAdminServicesProvider } from '@byline/admin/services'
-import { getClientConfig } from '@byline/core'
+import { getAdminConfig } from '@byline/core'
 import type { LocaleCode } from '@byline/i18n'
 import { I18nProvider } from '@byline/i18n/react'
 import cx from 'clsx'
@@ -75,7 +75,7 @@ export function createAdminLayoutRoute(path: string) {
         user: Awaited<ReturnType<typeof getCurrentAdminUser>>
         activeLocale: LocaleCode
       }
-      const { i18n } = getClientConfig()
+      const { i18n } = getAdminConfig()
       const localeDefinitions = buildLocaleDefinitions(
         i18n.interface.locales,
         i18n.interface.localeDefinitions

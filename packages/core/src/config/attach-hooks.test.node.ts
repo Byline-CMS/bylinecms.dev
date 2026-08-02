@@ -188,7 +188,6 @@ describe('server hook attachment', () => {
     )
 
     const invalid: ServerConfig = {
-      serverURL: 'https://example.test',
       collections: [definition],
       db: {} as IDbAdapter,
       hooks: { collections: { documents: replacement } },

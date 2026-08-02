@@ -18,7 +18,7 @@ import type {
   TabSetDefinition,
   WorkflowStatus,
 } from '@byline/core'
-import { getClientConfig } from '@byline/core'
+import { getAdminConfig } from '@byline/core'
 import type { DocumentPatch } from '@byline/core/patches'
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, ComboButton } from '@byline/ui/react'
@@ -249,7 +249,7 @@ const FormContent = ({
   // server-assigned `counter` or a read-only field, its value can't be
   // reproduced or changed through the form, so the widget suppresses its
   // source-derived preview and "Regenerate" affordance.
-  const pathSlugifier = getClientConfig().slugifier
+  const pathSlugifier = getAdminConfig().slugifier
   const pathSourceLocked = useMemo(() => {
     if (!useAsPath) return false
     const source = fields.find((f) => f.name === useAsPath)

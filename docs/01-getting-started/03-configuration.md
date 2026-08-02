@@ -7,10 +7,10 @@ summary: "A tour of the application-owned Byline files: which configuration belo
 # Configuration
 
 Companions:
-- [Configuration API reference](../10-api-reference/01-configuration.md) — every `BaseConfig`, `ClientConfig`, and `ServerConfig` property, including defaults and runtime requirements.
+- [Configuration API reference](../10-api-reference/01-configuration.md) — every `BaseConfig`, `AdminConfig`, and `ServerConfig` property, including defaults and runtime requirements.
 - [Collections](../04-collections/index.md) — how the collection tuple divides each content type into an isomorphic schema and an admin presentation config.
 - [Core composition](../03-architecture/02-core-composition.md) — how `initBylineCore()` validates and composes the server-side adapters registered here.
-- [Client-config registration](../09-admin-ui/02-client-config-registration.md) — why the admin config is registered from both the eager and lazy `_byline` route graphs.
+- [Admin-config registration](../09-admin-ui/02-admin-config-registration.md) — why the admin config is registered from both the eager and lazy `_byline` route graphs.
 
 Byline configuration is application-owned code that tells the CMS what content exists, how editors work with it, and which server implementations provide storage, authentication, search, and rich text. In the reference application, these files live under `apps/webapp/byline`.
 
@@ -42,7 +42,7 @@ The same collection schemas are imported by the server bootstrap and the browser
 | `blocks/*.ts` | Isomorphic schema | Defines reusable block schemas. |
 | `blocks/*.admin.tsx` | Admin module graph | Defines block-scoped field presentation. |
 | `server.config.ts` | Server bootstrap | Calls `initBylineCore()` with the database, storage, admin store, session provider, search provider, server hooks, and rich-text server adapters. |
-| `admin.config.ts` | Admin module graph | Calls `defineClientConfig()` with collection admin configs, block admin configs, field editors, routes, and i18n. |
+| `admin.config.ts` | Admin module graph | Calls `defineAdminConfig()` with collection admin configs, block admin configs, field editors, routes, and i18n. |
 | `locales.ts` | Public client safe | Declares the host's admin-interface and content locale sets as dependency-free data. |
 | `i18n.ts` | Shared configuration | Assembles locale sets and admin translation bundles for the server and admin configs. Do not import it into public browser code. |
 | `routes.ts` | Public client safe | Resolves the admin, API, and sign-in mount paths once for both configs and the host frontend. |
@@ -97,7 +97,7 @@ const client = getSystemBylineClient()
 - `route.tsx` dynamically imports it from `beforeLoad`, which protects child loaders.
 - `route.lazy.tsx` imports it for initial hydration and component rendering.
 
-Both paths call `defineClientConfig()` against their own Vite module graph. Keeping those imports under `_byline/*` prevents admin and editor code from entering public bundles.
+Both paths call `defineAdminConfig()` against their own Vite module graph. Keeping those imports under `_byline/*` prevents admin and editor code from entering public bundles.
 
 ### Public application code
 
@@ -118,7 +118,6 @@ The reference server config composes one installation-wide runtime:
 
 ```ts
 const core = await initBylineCore<AdminStore>({
-  serverURL,
   i18n,
   routes,
   collections,
@@ -145,11 +144,10 @@ The complete property contract is in the [Configuration API reference](../10-api
 
 ## Configure the admin
 
-The client config registers presentation and browser-side adapters over the same schema tuple:
+The admin config registers presentation and browser-side adapters over the same schema tuple:
 
 ```ts
-export const config: ClientConfig = {
-  serverURL,
+export const config: AdminConfig = {
   i18n,
   routes,
   collections,
@@ -160,12 +158,12 @@ export const config: ClientConfig = {
   },
 }
 
-defineClientConfig(config)
+defineAdminConfig(config)
 ```
 
-The server and client configs share `serverURL`, `i18n`, `routes`, and `collections`. They do not extend each other: server-only adapters belong only on `ServerConfig`, while React-bearing presentation belongs only on `ClientConfig`.
+The server and admin configs share `i18n`, `routes`, and `collections`. They do not extend each other: server-only adapters belong only on `ServerConfig`, while React-bearing presentation belongs only on `AdminConfig`. The host application's public configuration owns its canonical site origin; Byline configuration does not duplicate it.
 
-The complete property contract is in the [Configuration API reference](../10-api-reference/01-configuration.md#clientconfig).
+The complete property contract is in the [Configuration API reference](../10-api-reference/01-configuration.md#adminconfig).
 
 ## Add a collection
 

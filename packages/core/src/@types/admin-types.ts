@@ -186,7 +186,7 @@ export interface FieldAdminConfig {
    * Per-field rich-text editor component override. When set on a
    * `type: 'richText'` field's admin entry, the framework renders this
    * component instead of the globally registered
-   * `ClientConfig.fields.richText.editor`. Use to opt one specific field
+   * `AdminConfig.fields.richText.editor`. Use to opt one specific field
    * into an alternate editor (e.g. an AI-enabled wrapper around the
    * default Lexical field) without changing the site-wide registration.
    *
@@ -311,7 +311,7 @@ export interface CollectionAdminConfig<T = any> {
    * structure fields (`files.filesGroup.publicationFile`). Paths address
    * field *declarations*, never item instances (no `[0]` indices), and never
    * traverse a `blocks` field — blocks take their overrides from the
-   * blockType-keyed `ClientConfig.blockAdmin` registry instead.
+   * blockType-keyed `AdminConfig.blockAdmin` registry instead.
    * Placement is no longer expressed here — see the layout primitives above.
    */
   fields?: Record<string, FieldAdminConfig>
@@ -451,7 +451,7 @@ export function defineAdmin<T = any>(
  * `CollectionAdminConfig`, carrying **rendering overrides only**.
  *
  * Linked to a `Block` by `blockType` matching the block's `blockType`, and
- * registered site-wide on `ClientConfig.blockAdmin`. Because blocks are
+ * registered site-wide on `AdminConfig.blockAdmin`. Because blocks are
  * cross-collection units (the same `defineBlock()` object is typically shared
  * by several collections, and codegen dedupes their contracts structurally),
  * a block's admin config applies wherever the block renders. If one

@@ -30,10 +30,10 @@ import { adminTranslations, en } from '@byline/i18n/admin'
 
 ```ts
 // apps/your-app/byline/admin.config.ts
-import { defineClientConfig } from '@byline/core'
+import { defineAdminConfig } from '@byline/core'
 import { adminTranslations } from '@byline/i18n/admin'
 
-defineClientConfig({
+defineAdminConfig({
   i18n: {
     interface: {
       defaultLocale: 'en',
@@ -42,7 +42,7 @@ defineClientConfig({
     // … content locales as before
     translations: adminTranslations({ locales: ['en'] }),
   },
-  // … the rest of your client config
+  // … the rest of your admin config
 })
 ```
 
@@ -72,7 +72,7 @@ i18n: {
 
 ## Plugin contributions
 
-A plugin (richtext extension, custom field, AI tool, …) ships its own JSON files inside its own package and exposes a factory matching `adminTranslations`'s shape — takes `{ locales }`, returns a `TranslationBundle` for the plugin's own namespace. The host merges them in `defineClientConfig`:
+A plugin (richtext extension, custom field, AI tool, …) ships its own JSON files inside its own package and exposes a factory matching `adminTranslations`'s shape — takes `{ locales }`, returns a `TranslationBundle` for the plugin's own namespace. The host merges them in `defineAdminConfig`:
 
 ```ts
 import { mergeTranslations } from '@byline/i18n'

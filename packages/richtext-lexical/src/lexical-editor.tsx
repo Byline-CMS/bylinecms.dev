@@ -97,7 +97,7 @@ function loadEditorBundle(): Promise<EditorBundle> {
  * ```ts
  * import { lexicalEditor, TableExtension } from '@byline/richtext-lexical'
  *
- * defineClientConfig({
+ * defineAdminConfig({
  *   fields: {
  *     richText: {
  *       editor: lexicalEditor((c) => {

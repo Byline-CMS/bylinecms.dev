@@ -6,9 +6,9 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { getClientConfig } from '@byline/core'
+import { getAdminConfig } from '@byline/core'
 
 /** Read the canonical client-safe sign-in destination. */
 export function getSignInRoutePath(): string {
-  return getClientConfig().routes.signIn
+  return getAdminConfig().routes.signIn
 }

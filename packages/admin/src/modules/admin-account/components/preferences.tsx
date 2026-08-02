@@ -36,7 +36,7 @@
 import { useMemo, useState } from 'react'
 import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
-import { getClientConfig } from '@byline/core'
+import { getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, LoaderEllipsis, Select } from '@byline/ui/react'
 import cx from 'clsx'
@@ -85,7 +85,7 @@ export function Preferences({ account, onClose, onSuccess }: PreferencesProps) {
   // ("Français" vs CLDR's lowercase "français"); when it's not set,
   // fall back to the raw code so the form still functions.
   const localeItems = useMemo(() => {
-    const { i18n } = getClientConfig()
+    const { i18n } = getAdminConfig()
     const definitionByCode = new Map(
       (i18n.interface.localeDefinitions ?? []).map((d) => [d.code, d.nativeName])
     )

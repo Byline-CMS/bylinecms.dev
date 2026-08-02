@@ -27,9 +27,9 @@ export {
   registerCollectionAbilities,
 } from './auth/index.js'
 export {
-  defineClientConfig,
+  defineAdminConfig,
   defineServerConfig,
-  getClientConfig,
+  getAdminConfig,
   getCollectionAdminConfig,
   getCollectionDefinition,
   getServerConfig,

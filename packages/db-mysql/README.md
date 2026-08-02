@@ -74,7 +74,6 @@ const db = mysqlAdapter({
 })
 
 const core = await initBylineCore({
-  serverURL: process.env.VITE_SERVER_URL!,
   i18n,
   routes,
   collections,

@@ -11,7 +11,7 @@
  * extension definition (and any toolbar contribution) can reference them
  * without statically importing the drawer's React component graph. This
  * keeps `AiLexicalExtension` light enough to be referenced from an
- * eagerly-evaluated admin/client config.
+ * eagerly-evaluated admin/admin config.
  */
 
 import { createCommand } from 'lexical'

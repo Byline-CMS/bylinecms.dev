@@ -45,4 +45,7 @@ export { createCollectionCreateRoute } from './create-collection-create-route.js
 export { createCollectionEditRoute } from './create-collection-edit-route.js'
 export { createCollectionHistoryRoute } from './create-collection-history-route.js'
 export { createCollectionListRoute } from './create-collection-list-route.js'
-export { createSignInRoute } from './create-sign-in-route.js'
+export {
+  type CreateSignInRouteOptions,
+  createSignInRoute,
+} from './create-sign-in-route.js'

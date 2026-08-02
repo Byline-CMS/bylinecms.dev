@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { getClientConfig } from '@byline/core'
+import { getAdminConfig } from '@byline/core'
 
 import type { ContentLocaleOption } from '../admin-shell/collections/view-menu.js'
 
@@ -14,7 +14,7 @@ export function getContentLocaleRouteConfig(): {
   contentLocales: ContentLocaleOption[]
   defaultContentLocale: string
 } {
-  const content = getClientConfig().i18n.content
+  const content = getAdminConfig().i18n.content
   const labels = new Map(
     content.localeDefinitions?.map(({ code, nativeName }) => [code, nativeName]) ?? []
   )

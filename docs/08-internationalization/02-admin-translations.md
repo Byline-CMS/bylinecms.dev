@@ -44,15 +44,15 @@ work needed yet.
 **Edit:** `apps/webapp/byline/admin.config.ts`
 
 ```ts
-import { defineClientConfig } from '@byline/core'
+import { defineAdminConfig } from '@byline/core'
 import { adminTranslations } from '@byline/i18n/admin'
 
-defineClientConfig({
+defineAdminConfig({
   i18n: {
     interface: { defaultLocale: 'en', locales: ['en'] },
     translations: adminTranslations({ locales: ['en'] }),
   },
-  // … the rest of your client config
+  // … the rest of your admin config
 })
 ```
 
@@ -70,7 +70,7 @@ Every bundled translation lives in-package at
 is a one-file PR (drop a new JSON, add it to the bundle map).
 
 ```ts
-defineClientConfig({
+defineAdminConfig({
   i18n: {
     interface: { defaultLocale: 'en', locales: ['en', 'fr'] },
     translations: adminTranslations({ locales: ['en', 'fr'] }),
@@ -209,7 +209,7 @@ Six things compose the present surface:
    (`i18n.interface.locales`, `i18n.interface.defaultLocale`).
 2. **The translation registry** — a frozen map of
    `{ [locale]: { [namespace]: { [key]: string } } }` produced by
-   `defineClientConfig({ i18n: { translations } })`. Built once at startup,
+   `defineAdminConfig({ i18n: { translations } })`. Built once at startup,
    read-only thereafter.
 3. **The `t(key, values?)` formatter** — `intl-messageformat`-backed, identical
    signature on client and server.
@@ -272,7 +272,7 @@ Three ways to register, all converging on the same `TranslationBundle`:
 - **Ad-hoc inline**, for a small custom field or one-off override:
 
   ```ts
-  defineClientConfig({
+  defineAdminConfig({
     i18n: {
       translations: mergeTranslations(adminBundle, {
         en: { 'my-app': { 'banner.welcome': 'Welcome back' } },
@@ -547,6 +547,6 @@ namespace-then-key structure, cookie-as-persistence-medium, and
 | `byline_admin_lng` cookie helpers | `packages/host-tanstack-start/src/i18n/locale-cookie.ts` |
 | `byline_admin_users.preferred_locale` column + migration | `packages/db-postgres/src/database/schema/auth.ts` + migrations |
 | `preferred_locale` self-service write | `packages/admin/src/modules/admin-account/{commands,service,schemas}.ts` |
-| `ClientConfig.i18n.translations` slot | `packages/core/src/@types/site-config.ts` |
+| `AdminConfig.i18n.translations` slot | `packages/core/src/@types/site-config.ts` |
 | Boot-time validator | `packages/core/src/services/i18n-validator.ts` |
 | Reference registration | `apps/webapp/byline/i18n.ts` + `apps/webapp/byline/admin.config.ts` |
