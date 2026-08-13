@@ -11,7 +11,7 @@ Companions:
 - [Key architectural decisions](../03-architecture/index.md) — how the product goals described here become storage, versioning, configuration, and authorization boundaries.
 
 Before the APIs and the storage model, it helps to know what Byline is trying to
-be — and what it is reacting against. These two essays set the context for
+be — and what it is reacting against. These essays set the context for
 everything else in the documentation.
 
 - [Mission & Vision](./01-mission.md) — why Byline exists, the three pillars it
@@ -19,6 +19,10 @@ everything else in the documentation.
 - [Content Management in the Time of AI](./02-content-in-the-time-of-ai.md) — what
   changes when your content is consumed by language models and agents as readily
   as by browsers, and why that shaped Byline's design from the start.
+- [Byline for Collections](./03-byline-for-collections.md) — why immutable
+  versioning, definable workflow, and an atomic audit trail make Byline a strong
+  foundation for digital collections management, and how OAI-PMH, fixity, and
+  accession controls would build on it.
 
 If you would rather see it working first, start with
 [Getting Started](../01-getting-started/index.md); if you want the engineering
