@@ -1,7 +1,7 @@
 ---
 title: "Client SDK (@byline/client)"
 path: "client-sdk"
-summary: "The in-process @byline/client SDK above the storage primitives — find, create, update, populate, status-aware reads, plus the read and write hook contracts."
+summary: "The in-process @byline/client SDK above the storage primitives: find, create, update, populate, status-aware reads, plus the read and write hook contracts."
 ---
 
 # Client SDK (`@byline/client`)
@@ -23,7 +23,7 @@ Read this document when you are building a public frontend, a feed or sitemap, a
 
 Use the [Client SDK API](../10-api-reference/04-client-sdk.md) when you need an exhaustive method or option lookup. This document concentrates on runnable usage and the architectural rules behind the SDK.
 
-The distinction matters because Byline today is in an internal transport phase (see [Routing & API](./02-routing-and-api.md)). The admin UI is the only active client, TanStack Start server functions are the internal transport boundary, and stable/public HTTP transport is intentionally deferred until the first real non-admin client arrives. `@byline/client` fits that phase well — it lives in the same Node process as Byline Core, holds direct references to the configured DB and storage adapters, and does no network I/O of its own.
+The distinction matters because Byline today is in an internal transport phase (see [Routing & API](./02-routing-and-api.md)). The admin UI is the only active client, TanStack Start server functions are the internal transport boundary, and stable/public HTTP transport is intentionally deferred until the first real non-admin client arrives. `@byline/client` fits that phase well: it lives in the same Node process as Byline Core, holds direct references to the configured DB and storage adapters, and does no network I/O of its own.
 
 What this gives consumers in trusted runtimes:
 
@@ -48,10 +48,10 @@ Typed clients use the generated `CollectionFieldsByPath` map as their registry p
 
 The generated file (format 2) is a pair of TypeScript **declaration merges**, not a module of local exports:
 
-- Every emitted type lives inside a `declare module '@byline/generated-types'` block, so the published stub package `@byline/generated-types` is the one canonical import path — `import type { NewsFields } from '@byline/generated-types'` — from anywhere in the app. The stub itself is empty; the app's tsconfig `include` carrying the generated file into the program is what populates it. Imports are type-only and erased at runtime.
-- A second block registers the registry with the SDK: `declare module '@byline/client' { interface Register { collections: CollectionFieldsByPath } }`. Once merged, every **bare** `BylineClient` in the app's program — including `createBylineClient`'s default generic and the `@byline/client/server` getters below — resolves to `BylineClient<CollectionFieldsByPath>`: `client.collection('news')` autocompletes paths and returns generated field shapes with no explicit generics and no casts.
+- Every emitted type lives inside a `declare module '@byline/generated-types'` block, so the published stub package `@byline/generated-types` is the one canonical import path (`import type { NewsFields } from '@byline/generated-types'`) from anywhere in the app. The stub itself is empty; the app's tsconfig `include` carrying the generated file into the program is what populates it. Imports are type-only and erased at runtime.
+- A second block registers the registry with the SDK: `declare module '@byline/client' { interface Register { collections: CollectionFieldsByPath } }`. Once merged, every **bare** `BylineClient` in the app's program (including `createBylineClient`'s default generic and the `@byline/client/server` getters below) resolves to `BylineClient<CollectionFieldsByPath>`: `client.collection('news')` autocompletes paths and returns generated field shapes with no explicit generics and no casts.
 
-Exactly one application per TypeScript program can hold these augmentations (declaration merging is program-global); one app per tsconfig — the supported layout — is safe. Unaugmented programs (a package's own tests, a script compiled outside the app) fall back to the loose `CollectionRegistry`.
+Exactly one application per TypeScript program can hold these augmentations (declaration merging is program-global); one app per tsconfig (the supported layout) is safe. Unaugmented programs (a package's own tests, a script compiled outside the app) fall back to the loose `CollectionRegistry`.
 
 ### Server client getters (`@byline/client/server`)
 
@@ -67,17 +67,17 @@ import {
 } from '@byline/client/server'
 ```
 
-The subpath is host-framework agnostic: everything request-scoped bottoms out in the `HostRequestBridge` seam (`@byline/core`) — request identity, cookie read, cookie write — which a host adapter implements and registers at server boot (`registerTanstackStartHostBridge()` from `@byline/host-tanstack-start/integrations/host-bridge`, wired into the scaffolded `server.config.ts`). Application modules that read documents therefore never import the host framework, which is what keeps them portable across a future host migration. The subpath is server-only: the package's `browser` export condition resolves it to a stub that throws.
+The subpath is host-framework agnostic: everything request-scoped bottoms out in the `HostRequestBridge` seam (`@byline/core`; request identity, cookie read, cookie write), which a host adapter implements and registers at server boot (`registerTanstackStartHostBridge()` from `@byline/host-tanstack-start/integrations/host-bridge`, wired into the scaffolded `server.config.ts`). Application modules that read documents therefore never import the host framework, which is what keeps them portable across a future host migration. The subpath is server-only: the package's `browser` export condition resolves it to a stub that throws.
 
 ---
 
 ## Quick reference
 
-Each entry is the minimal SDK shape for one task — plain `client.collection(...)` calls, no host-framework wrappers. The link at the end of each entry points at the deeper architecture section. Host-adapter helpers (TanStack Start server fns, viewer client, preview-cookie plumbing) are framework concerns and live under [Preview mode](#preview-mode-admin-draft-viewing-on-the-public-host).
+Each entry is the minimal SDK shape for one task: plain `client.collection(...)` calls, no host-framework wrappers. The link at the end of each entry points at the deeper architecture section. Host-adapter helpers (TanStack Start server fns, viewer client, preview-cookie plumbing) are framework concerns and live under [Preview mode](#preview-mode-admin-draft-viewing-on-the-public-host).
 
 ### 1. Instantiate a client
 
-The standalone shape — pass an `IDbAdapter`, the collection definitions, optional storage, and a `requestContext`. No `initBylineCore()` required; the SDK runs equally well from a script, a test, or a host adapter.
+The standalone shape: pass an `IDbAdapter`, the collection definitions, optional storage, and a `requestContext`. No `initBylineCore()` required; the SDK runs equally well from a script, a test, or a host adapter.
 
 ```ts
 import { createBylineClient } from '@byline/client'
@@ -160,7 +160,7 @@ where: {
 }
 ```
 
-`status` and `path` are document metadata, not field filters — they resolve to direct outer-scope comparisons (`document_versions.status` and a `byline_document_paths` projection) and compose correctly inside combinators or nested relation hops. Caller `where` and strict `beforeRead` filters compile separately before their adapter filters are ANDed, so security-only metadata operators cannot be lost through the caller's top-level scalar channels.
+`status` and `path` are document metadata, not field filters: they resolve to direct outer-scope comparisons (`document_versions.status` and a `byline_document_paths` projection) and compose correctly inside combinators or nested relation hops. Caller `where` and strict `beforeRead` filters compile separately before their adapter filters are ANDed, so security-only metadata operators cannot be lost through the caller's top-level scalar channels.
 
 → [Filtering](#filtering)
 
@@ -179,7 +179,7 @@ where: { category: { slug: 'press' } }
 where: { category: { parent: { path: 'editorial' } } }
 ```
 
-`path` is locale-resolved against the target's `byline_document_paths` row; `status` resolves to `document_versions.status` on the relation hop. A target collection that declares a `path` or `status` *field* won't see those clauses resolve as field filters — rename the field (e.g. to `slug`) if it ever bites.
+`path` is locale-resolved against the target's `byline_document_paths` row; `status` resolves to `document_versions.status` on the relation hop. A target collection that declares a `path` or `status` *field* won't see those clauses resolve as field filters: rename the field (e.g. to `slug`) if it ever bites.
 
 Multi-target (`hasMany`) relations take the `$some` / `$every` / `$none` quantifiers over the target set (a plain sub-where is shorthand for `$some`; also valid on single relations):
 
@@ -232,7 +232,7 @@ await client.collection('news').find({
 })
 ```
 
-The default projection includes the target's `useAsTitle` field implicitly, so link labels keep working even if the caller didn't list it. Populate threads `readMode` through every hop — published-mode reads stay on `current_published_documents` all the way down.
+The default projection includes the target's `useAsTitle` field implicitly, so link labels keep working even if the caller didn't list it. Populate threads `readMode` through every hop: published-mode reads stay on `current_published_documents` all the way down.
 
 → [Population](#population) · [Relationships § Populate](../04-collections/03-relationships.md#the-populate-pipeline)
 
@@ -261,7 +261,7 @@ const result = await client.collection('news').find<NewsListFields>({
 result.docs[0]?.fields.category?.document?.fields.name // fully typed
 ```
 
-The wrapper composes — wrap once per populated relation. Type-level only: you still need a matching `populate` at the call site for the runtime envelope to actually be populated.
+The wrapper composes: wrap once per populated relation. Type-level only: you still need a matching `populate` at the call site for the runtime envelope to actually be populated.
 
 → [Typing populated relations](#typing-populated-relations)
 
@@ -289,7 +289,7 @@ The mode threads through populate, so a published-mode read of `news` populating
 
 ### 9. Create / update / delete
 
-Writes delegate to the corresponding `document-lifecycle` service. Collection hooks (`beforeCreate`, `afterUpdate`, etc.) fire the same way they do when the admin UI writes. `update` accepts whole-document `data` — patches are admin-UI internal.
+Writes delegate to the corresponding `document-lifecycle` service. Collection hooks (`beforeCreate`, `afterUpdate`, etc.) fire the same way they do when the admin UI writes. `update` accepts whole-document `data`: patches are admin-UI internal.
 
 ```ts
 const created = await client.collection('news').create(
@@ -335,7 +335,7 @@ and the deferred reference-safe cleanup design are documented in
 
 ### 10. Search
 
-Ranked full-text search, when a `SearchProvider` is registered (`ServerConfig.search`). Two entry points sharing one finishing pipeline — collection-scoped (homogeneous) and zone-scoped (heterogeneous, ranked together across every collection indexed into the zone):
+Ranked full-text search, when a `SearchProvider` is registered (`ServerConfig.search`). Two entry points sharing one finishing pipeline, collection-scoped (homogeneous) and zone-scoped (heterogeneous, ranked together across every collection indexed into the zone):
 
 ```ts
 // Collection-scoped
@@ -352,7 +352,7 @@ Both assert the collection `read` ability (zone search excludes collections the 
 
 ### 11. A standalone script
 
-Build a client, then read and write — no host application or `initBylineCore()` required. A minimal end-to-end run (connect → read → create → update → publish → read back):
+Build a client, then read and write: no host application or `initBylineCore()` required. A minimal end-to-end run (connect → read → create → update → publish → read back):
 
 ```ts
 // scripts/demo.ts — run with: pnpm tsx scripts/demo.ts
@@ -403,7 +403,7 @@ The advanced example below is a real maintenance job that iterates a collection,
 - runs the core upload service to re-derive variants, then `handle.update(...)` to point the document at the new `storedFile`;
 - walks the workflow ladder forward via `changeStatus` to restore each doc's original status (since `update` always stamps a new version with the workflow's default status).
 
-The full source — including orphan-file cleanup and the workflow-restore helper — lives at [`apps/webapp/byline/scripts/regenerate-media.ts`](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/apps/webapp/byline/scripts/regenerate-media.ts). The shape, condensed:
+The full source (including orphan-file cleanup and the workflow-restore helper) lives at [`apps/webapp/byline/scripts/regenerate-media.ts`](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/apps/webapp/byline/scripts/regenerate-media.ts). The shape, condensed:
 
 ```ts
 import 'dotenv/config'
@@ -443,7 +443,7 @@ for (const doc of allDocs) {
 }
 ```
 
-Run it with `pnpm tsx byline/scripts/regenerate-media.ts` (the script imports `byline/load-env.ts`, which loads `.env.local` + `.env` — no `--env-file` flag needed). The same pattern fits seeds, migrations, content imports, and one-shot maintenance jobs.
+Run it with `pnpm tsx byline/scripts/regenerate-media.ts` (the script imports `byline/load-env.ts`, which loads `.env.local` + `.env`; no `--env-file` flag needed). The same pattern fits seeds, migrations, content imports, and one-shot maintenance jobs.
 
 → [Construction](#construction) · [Write surface](#write-surface) · [Auth and the trust boundary](#auth-requestcontext-and-the-trust-boundary)
 
@@ -486,7 +486,7 @@ Run it with `pnpm tsx byline/scripts/regenerate-media.ts` (the script imports `b
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-The SDK does *not* sit at the same level as a future stable-HTTP client. Both can coexist — a future HTTP client would target the (yet-to-be-designed) public HTTP boundary; `@byline/client` continues to target adapters in-process.
+The SDK does *not* sit at the same level as a future stable-HTTP client. Both can coexist: a future HTTP client would target the (yet-to-be-designed) public HTTP boundary; `@byline/client` continues to target adapters in-process.
 
 ### Construction
 
@@ -543,9 +543,9 @@ where: { category: { status: 'draft' } }           // target version's `document
 where: { category: { parent: { path: 'news' } } }  // 2-hop, doc-column at depth 2
 ```
 
-The compiler emits `EXISTS` subqueries against the typed `store_*` tables for field filters, and depth-scoped nested `EXISTS` joins through `store_relation` for relation sub-wheres. All filter predicates respect the read mode — published-mode reads use `current_published_documents` even at the inner side of a relation join. Caller filters use this ordinary parser; `beforeRead` predicates use a separate strict pass, and the resulting adapter filters are appended with implicit AND.
+The compiler emits `EXISTS` subqueries against the typed `store_*` tables for field filters, and depth-scoped nested `EXISTS` joins through `store_relation` for relation sub-wheres. All filter predicates respect the read mode: published-mode reads use `current_published_documents` even at the inner side of a relation join. Caller filters use this ordinary parser; `beforeRead` predicates use a separate strict pass, and the resulting adapter filters are appended with implicit AND.
 
-Document-level reserved keys (`status`, `path`) inside a nested sub-clause are document metadata, not field filters — same precedence as the top level, with no field-shadow exception (a target collection that declares a `path` or `status` field will not see those clauses resolve as field filters; rename the field, e.g. to `slug`). `status` resolves to `document_versions.status` on the relation hop's target row; `path` resolves through a `byline_document_paths` subquery against the hop's `document_id` (locale-resolved through the request's fallback chain, ending at that document's source locale). In strict `beforeRead` predicates, top-level `status` supports `$eq` / `$ne` / `$in` / `$nin`, while `path` additionally supports `$contains`; these compile as document-column filters on every read shape. `query` (text search) is not supported inside a nested caller sub-clause and is silently dropped with a debug log; strict security predicates reject it.
+Document-level reserved keys (`status`, `path`) inside a nested sub-clause are document metadata, not field filters: same precedence as the top level, with no field-shadow exception (a target collection that declares a `path` or `status` field will not see those clauses resolve as field filters; rename the field, e.g. to `slug`). `status` resolves to `document_versions.status` on the relation hop's target row; `path` resolves through a `byline_document_paths` subquery against the hop's `document_id` (locale-resolved through the request's fallback chain, ending at that document's source locale). In strict `beforeRead` predicates, top-level `status` supports `$eq` / `$ne` / `$in` / `$nin`, while `path` additionally supports `$contains`; these compile as document-column filters on every read shape. `query` (text search) is not supported inside a nested caller sub-clause and is silently dropped with a debug log; strict security predicates reject it.
 
 ### Sorting
 
@@ -599,7 +599,7 @@ type NewsListFields = WithPopulated<
 await client.collection('news').find<NewsListFields>({ populate: { category: '*', featureImage: '*' } })
 ```
 
-The wrapper is purely at the type level — you still need a matching `populate: { … }` at the call site for the runtime envelope to actually be populated. `WithPopulated` makes the *type* match what populate gives you back.
+The wrapper is purely at the type level: you still need a matching `populate: { … }` at the call site for the runtime envelope to actually be populated. `WithPopulated` makes the *type* match what populate gives you back.
 
 ### Status awareness
 
@@ -608,7 +608,7 @@ status: 'published'             // default in @byline/client
 status: 'any'                   // admin / system code paths
 ```
 
-In `'published'` mode every ordinary read — including relation and richtext target population and `findByPath` resolution — hits `current_published_documents`. A document with a newer unpublished draft over a previously-published version keeps returning the published content; the new draft becomes visible only once it's itself published.
+In `'published'` mode every ordinary read (including relation and richtext target population and `findByPath` resolution) hits `current_published_documents`. A document with a newer unpublished draft over a previously-published version keeps returning the published content; the new draft becomes visible only once it's itself published.
 
 `status` selects the **source view**, not an exact-status filter. `where.status` is a literal column filter and composes orthogonally:
 
@@ -621,15 +621,15 @@ Editorial metadata reads are intentionally stricter: `count` / `countByStatus`, 
 
 ### Preview mode (admin draft viewing on the public host)
 
-Editorial workflows usually want one extra capability: an admin should be able to navigate the public host pages and see their **own in-progress drafts** rendered exactly as the published version would be — without changing routes, without rebuilding markup, and without leaking drafts to ordinary visitors. `@byline/client/server` ships a "viewer client" that layers preview-aware behaviour over the SDK without changing it, implemented against the `HostRequestBridge` seam a host adapter registers at boot.
+Editorial workflows usually want one extra capability: an admin should be able to navigate the public host pages and see their **own in-progress drafts** rendered exactly as the published version would be, without changing routes, without rebuilding markup, and without leaking drafts to ordinary visitors. `@byline/client/server` ships a "viewer client" that layers preview-aware behaviour over the SDK without changing it, implemented against the `HostRequestBridge` seam a host adapter registers at boot.
 
-**The plumbing splits into two layers** — a transport layer (cookie + viewer client + server fns) that decides what each request sees, and a UX layer (admin shell affordances) that lets editors flip the cookie and discover the resulting state.
+**The plumbing splits into two layers**: a transport layer (cookie + viewer client + server fns) that decides what each request sees, and a UX layer (admin shell affordances) that lets editors flip the cookie and discover the resulting state.
 
 **Transport layer:**
 
 | Piece | Location | Role |
 |---|---|---|
-| `byline_preview` cookie | `@byline/client/server` (`preview-cookies.ts`) | Session-level "I want to see drafts" flag. httpOnly. Mere presence is the signal — no payload to verify. |
+| `byline_preview` cookie | `@byline/client/server` (`preview-cookies.ts`) | Session-level "I want to see drafts" flag. httpOnly. Mere presence is the signal: no payload to verify. |
 | `getViewerBylineClient()` | `@byline/client/server` | Singleton `BylineClient` whose per-call `requestContext` factory upgrades to the admin actor when both the cookie and a valid admin session resolve. |
 | `isPreviewActive()` | same module | Async check that returns `true` only when the cookie is set **and** `getAdminRequestContext()` resolves an admin. |
 | `enablePreviewModeFn` / `disablePreviewModeFn` / `getPreviewStateFn` | `@byline/host-tanstack-start/server-fns/preview` | Toggle the cookie / read its current state. Enable requires a valid admin context; disable and state-read are unauthenticated. |
@@ -640,18 +640,18 @@ Editorial workflows usually want one extra capability: an admin should be able t
 |---|---|---|
 | Drawer toggle (`Preview ON / OFF`) | `@byline/host-tanstack-start/admin-shell/chrome/preview-toggle` | Source-of-truth indicator above Account in the admin menu drawer. Always visible, always reversible. Reflects cookie state via `getPreviewStateFn`. |
 | `<PreviewLink>` | `@byline/host-tanstack-start/admin-shell/collections/preview-link` | Per-document preview icon on the edit page header. On click: `enablePreviewModeFn()` then `window.location.assign(url)`. Hides when `preview.url(doc)` returns `null`. |
-| `CollectionAdminConfig.preview` | `defineAdmin(...)` in your collection's `admin.tsx` | `{ url(doc, { locale }) }` — see [Collections § Preview URL](../04-collections/index.md#preview-url) for the full reference. |
+| `CollectionAdminConfig.preview` | `defineAdmin(...)` in your collection's `admin.tsx` | `{ url(doc, { locale }) }`. See [Collections § Preview URL](../04-collections/index.md#preview-url) for the full reference. |
 | ContentAdminBar pill | `apps/webapp/src/ui/components/content-admin-bar.tsx` | Public-side "Preview" pill + "Exit Preview" button when the cookie is set. Threaded down from the public layout loader (`getPreviewStateFn`). Calls `disablePreviewModeFn` then `router.invalidate()` on exit. |
 
 **Trust model.** The cookie is a *flag*, not a credential. The actual safety check is layered:
 
 1. **Source-view selection is per-call.** The SDK's `resolveReadMode` defaults to `'published'` regardless of `RequestContext.readMode`, so a server fn must pass `status: 'any'` to surface drafts. There is no way to flip the source view through `RequestContext` alone.
 2. **`status: 'any'` requires an actor.** `assertActorCanPerform` only permits `actor: null` on `read` when `readMode === 'published'`. So a stray query string or stale cookie that reaches `status: 'any'` without a valid admin throws `ERR_UNAUTHENTICATED` rather than leaking drafts.
-3. **The viewer client elevates the actor only when the cookie *and* the session line up.** A signed-out browser carrying an old preview cookie still falls through to the anonymous + `'published'` context — worst case the cookie does nothing.
+3. **The viewer client elevates the actor only when the cookie *and* the session line up.** A signed-out browser carrying an old preview cookie still falls through to the anonymous + `'published'` context: worst case the cookie does nothing.
 
 A stale cookie is therefore failure-mode-neutral: it never escalates a non-admin request, and it never breaks one either.
 
-**Editorial UX flow.** The three UX surfaces compose into one flow: an editor clicks `<PreviewLink>` on a document's edit page (which enables the cookie and navigates the current tab to the public URL); every other public page in that browser session now surfaces drafts; the drawer toggle makes the state glanceable and reversible; and the public-side `ContentAdminBar` pill offers "Exit Preview" from any draft-rendering page. The two-step "enable cookie, then navigate" deliberately avoids a `/routes/draft?url=...&secret=...` redirect handler — `enablePreviewModeFn` is itself the gate (it requires a valid admin session before setting the cookie), so no shared secret needs to ride in the URL.
+**Editorial UX flow.** The three UX surfaces compose into one flow: an editor clicks `<PreviewLink>` on a document's edit page (which enables the cookie and navigates the current tab to the public URL); every other public page in that browser session now surfaces drafts; the drawer toggle makes the state glanceable and reversible; and the public-side `ContentAdminBar` pill offers "Exit Preview" from any draft-rendering page. The two-step "enable cookie, then navigate" deliberately avoids a `/routes/draft?url=...&secret=...` redirect handler: `enablePreviewModeFn` is itself the gate (it requires a valid admin session before setting the cookie), so no shared secret needs to ride in the URL.
 
 The same-origin flow is complete because the public routes receive the admin
 session and preview cookies set by the host. `CollectionAdminConfig.preview.url`
@@ -663,10 +663,10 @@ there.
 **Limits and notes:**
 
 - Preview is per-server-fn opt-in. A fn that does not pass `status: 'any'` always serves published content, even with the cookie set. This is deliberate: opt-in keeps the trust boundary visible in code.
-- The double resolution cost (cookie check + JWT verify) only happens in active preview sessions — the no-cookie path is a single cookie read.
-- Preview elevates `readMode` for the request, but it does **not** bypass `beforeRead` hooks. A multi-tenant or owner-only-drafts hook will still scope the rows the admin can see — preview just changes which version of those rows is returned.
-- The cookie has a 24-hour `maxAge` — preview is meant to be a short-lived editorial mode, not a permanent state. Re-enabling is a one-click action.
-- The same pattern works for any host fn — not just collection reads. Any server fn that wants the "promote to admin actor when preview is on" behaviour can compose `getViewerBylineClient` + `isPreviewActive` the same way.
+- The double resolution cost (cookie check + JWT verify) only happens in active preview sessions: the no-cookie path is a single cookie read.
+- Preview elevates `readMode` for the request, but it does **not** bypass `beforeRead` hooks. A multi-tenant or owner-only-drafts hook will still scope the rows the admin can see: preview just changes which version of those rows is returned.
+- The cookie has a 24-hour `maxAge`: preview is meant to be a short-lived editorial mode, not a permanent state. Re-enabling is a one-click action.
+- The same pattern works for any host fn, not just collection reads. Any server fn that wants the "promote to admin actor when preview is on" behaviour can compose `getViewerBylineClient` + `isPreviewActive` the same way.
 - **Front-end caching caveat.** Byline doesn't ship a built-in cache layer, but anything in front of your host must bypass shared caches for authenticated editor requests and active preview reads. Do not use `byline_preview` alone as the bypass signal: a stale preview cookie without a valid session still receives published content and is safe to cache. In application code, use `isPreviewActive()`; at the CDN boundary, bypass on the admin session cookies. See [Caching](./06-caching.md#why-byline-preview-is-not-a-bypass-signal) for the complete policy.
 
 ### Write surface
@@ -679,7 +679,7 @@ client.collection('news').changeStatus(id, nextStatus)
 client.collection('news').unpublish(id)
 ```
 
-Each method delegates to the corresponding `document-lifecycle` service. The handle resolves the collection id once, builds a `DocumentLifecycleContext`, and invokes the service — collection hooks (`beforeCreate`, `afterUpdate`, etc.) fire the same way they do when the admin UI writes.
+Each method delegates to the corresponding `document-lifecycle` service. The handle resolves the collection id once, builds a `DocumentLifecycleContext`, and invokes the service: collection hooks (`beforeCreate`, `afterUpdate`, etc.) fire the same way they do when the admin UI writes.
 
 **Delete has an explicit commit contract.** `delete(id)` resolves to
 `{ deletedVersionCount, outcome, sideEffectFailures }`. The transaction atomically tombstones all
@@ -704,7 +704,7 @@ a complete editorial restore lifecycle exists.
 
 ### Auth, `RequestContext`, and the trust boundary
 
-Every SDK read and write path runs `assertActorCanPerform` (for documents) or `assertActorCanPerform` plus the field-upload `create` gate (for uploads) before touching storage. This includes search, editorial counts and history, document-tree reads, relation targets, and richtext targets. The SDK resolves the `RequestContext` from the client's configured `requestContext` (static value or factory) on every call — there is no per-call context argument on the public methods. Standalone consumers configure it at construction:
+Every SDK read and write path runs `assertActorCanPerform` (for documents) or `assertActorCanPerform` plus the field-upload `create` gate (for uploads) before touching storage. This includes search, editorial counts and history, document-tree reads, relation targets, and richtext targets. The SDK resolves the `RequestContext` from the client's configured `requestContext` (static value or factory) on every call: there is no per-call context argument on the public methods. Standalone consumers configure it at construction:
 
 ```ts
 import { createSuperAdminContext } from '@byline/auth'
@@ -757,9 +757,9 @@ In all of these the trust boundary is the Node process itself; the SDK is a conv
 
 ## What the SDK does *not* trigger
 
-The presence (or growth) of `@byline/client` does **not** mean Byline now needs a stable/public HTTP API. Even adding write capability — including uploads from filesystem or stream sources in trusted Node code — keeps the SDK on the in-process side of the boundary.
+The presence (or growth) of `@byline/client` does **not** mean Byline now needs a stable/public HTTP API. Even adding write capability (including uploads from filesystem or stream sources in trusted Node code) keeps the SDK on the in-process side of the boundary.
 
-The trigger for a stable HTTP API is the arrival of the first real client that **cannot safely or practically** consume adapters in-process. Examples: a mobile app, a desktop app, a separately-deployed frontend, an external integration, a hosted remote Byline service. When that happens, uploads are not the only concern — the same boundary has to cover reads, list/find, create/update/delete, status transitions, version history, and auth. That is why the stable HTTP boundary is designed as a broader phase of work, not an accidental side-effect of the SDK gaining methods.
+The trigger for a stable HTTP API is the arrival of the first real client that **cannot safely or practically** consume adapters in-process. Examples: a mobile app, a desktop app, a separately-deployed frontend, an external integration, a hosted remote Byline service. When that happens, uploads are not the only concern: the same boundary has to cover reads, list/find, create/update/delete, status transitions, version history, and auth. That is why the stable HTTP boundary is designed as a broader phase of work, not an accidental side-effect of the SDK gaining methods.
 
 See [Routing & API § What triggers a stable HTTP boundary](./02-routing-and-api.md#what-triggers-a-stable-http-boundary) for the full discussion.
 
@@ -777,7 +777,7 @@ These are not the same package and should not be conflated. In-process SDK evolu
 - Continue evolving `@byline/client` as an in-process, server-side SDK.
 - Allow read-first, then write capabilities, inside trusted runtimes.
 - Use it freely for migrations, seeds, server-rendered pages, scheduled jobs, operational tooling.
-- Do not let SDK feature growth drag a public HTTP boundary forward — that boundary needs the broader transport-design pass.
+- Do not let SDK feature growth drag a public HTTP boundary forward: that boundary needs the broader transport-design pass.
 - Introduce stable HTTP only when a real external client makes the in-process model untenable.
 
 ## Code map

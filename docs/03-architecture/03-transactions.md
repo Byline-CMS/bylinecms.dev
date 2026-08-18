@@ -16,7 +16,7 @@ Companions:
 
 Byline needs several database writes to succeed or fail as a unit. A status change and its audit row must land together; deleting a node in a document tree must promote its children, remove its edge, and record every one of those in the audit log, or do none of it. This document states **what Byline guarantees to write atomically, what it deliberately does not, and what your database adapter must supply** to make the guarantee real.
 
-Read the first section if you consume Byline's API — the boundary it describes is visible in return types you have to handle. Read the rest if you are writing a database adapter.
+Read the first section if you consume Byline's API: the boundary it describes is visible in return types you have to handle. Read the rest if you are writing a database adapter.
 
 ## What is atomic, and what is not
 
@@ -26,7 +26,7 @@ The distinction that matters is between two writes to the database, and a write 
 
 Multiple database commands composed inside one `withTransaction` block commit together or roll back together. This covers:
 
-- A mutation and its audit row — a path edit, a status transition, a tree move or promotion, a delete.
+- A mutation and its audit row: a path edit, a status transition, a tree move or promotion, a delete.
 - A locked system-field snapshot and the write that depends on it.
 - A whole-document soft delete: every version tombstone and every path-row `deleted_at` marker.
 - A storage-level whole-document un-delete: every version and path row, including rollback when a
@@ -34,7 +34,7 @@ Multiple database commands composed inside one `withTransaction` block commit to
 - A tree document delete: the version/path soft delete, child promotion, edge removal, and every
   parent and child audit row.
 
-This is fully solved when the participating commands are transaction-aware capabilities. It is the property that makes auditability trustworthy — the unacceptable outcome for an audit feature is a change that succeeds while its audit row silently fails.
+This is fully solved when the participating commands are transaction-aware capabilities. It is the property that makes auditability trustworthy: the unacceptable outcome for an audit feature is a change that succeeds while its audit row silently fails.
 
 ### Database to an external side effect — not guaranteed
 
@@ -77,7 +77,7 @@ outbox for reported hooks remains deferred.
 
 `withTransaction` is **mandatory** on `IDbAdapter` in 4.x, not an optional capability. Services depend on `IDbAdapter.withTransaction(fn)` rather than on Postgres specifically, so a new adapter must provide equivalent atomic semantics. Pretending that `fn` is transactional when it is not is not an accepted degradation.
 
-It arrives alongside the rest of the accountability surface — `commands.audit`, `queries.audit`,
+It arrives alongside the rest of the accountability surface: `commands.audit`, `queries.audit`,
 `getDocumentSystemFieldsForUpdate`, and `promoteChildrenAndRemoveFromTree`.
 `IDocumentCommands.restoreSoftDeletedDocument` is also required: an adapter must reactivate all
 version and path tombstones atomically and let its live-path constraint roll the operation back on
@@ -96,15 +96,15 @@ support is validated at boot when any collection sets `tree: true`.
 
 ### Boundary ownership
 
-The adapter supplies the capability; **the service layer owns the boundary.** Each audited lifecycle service decides what spans a transaction by wrapping its mutation and `audit.append` in `db.withTransaction(...)`. Commands themselves stay transaction-agnostic — correct whether called standalone, where their statements run on the pool, or inside a `withTransaction`, where they join the ambient transaction.
+The adapter supplies the capability; **the service layer owns the boundary.** Each audited lifecycle service decides what spans a transaction by wrapping its mutation and `audit.append` in `db.withTransaction(...)`. Commands themselves stay transaction-agnostic: correct whether called standalone, where their statements run on the pool, or inside a `withTransaction`, where they join the ambient transaction.
 
 One consequence worth knowing: not every path is transaction-aware. Ordinary query-builder methods, audit reads, and counter commands still run on the raw pool, so a `withTransaction` block must not assume an arbitrary query or counter call participates. Only capabilities documented as transaction-scoped may be relied on inside the unit of work. `getDocumentSystemFieldsForUpdate` is the deliberate exception on the query side: it resolves through the ambient transaction so it can lock the logical document and return the authoritative snapshot the write and its audit row both depend on.
 
 ### Serverless and HTTP-gateway databases
 
-Interactive transactions require a **stateful session** bound to one connection for the life of the `withTransaction(fn)` callback — open a transaction, run application code that issues several statements, then commit or roll back.
+Interactive transactions require a **stateful session** bound to one connection for the life of the `withTransaction(fn)` callback: open a transaction, run application code that issues several statements, then commit or roll back.
 
-Serverless database services exposing only a per-request HTTP gateway — Neon's HTTP driver, Cloudflare D1, PlanetScale's HTTP driver — generally cannot offer this. They accept single queries or pre-batched arrays, not a callback with application logic interleaved. Drizzle reflects the split: `db.transaction(callback)` exists for session-capable drivers, including node-postgres, postgres.js, and Neon over WebSocket, and is absent or throws on pure-HTTP drivers.
+Serverless database services exposing only a per-request HTTP gateway (Neon's HTTP driver, Cloudflare D1, PlanetScale's HTTP driver) generally cannot offer this. They accept single queries or pre-batched arrays, not a callback with application logic interleaved. Drizzle reflects the split: `db.transaction(callback)` exists for session-capable drivers, including node-postgres, postgres.js, and Neon over WebSocket, and is absent or throws on pure-HTTP drivers.
 
 Byline's built-in `@byline/db-postgres` and `@byline/db-mysql` adapters use stateful pooled
 connections and support interactive transactions. A batching command buffer that flushed as one
@@ -150,7 +150,7 @@ await txManager.withTransaction(async () => {
 
 The audit write lives in the **service**, where the actor and the before/after values already are. The adapter only gains a `audit.append` command that inserts a row, so the storage layer never learns the word "audit".
 
-Both storage command-builder classes — `CollectionCommands` and `DocumentCommands` — resolve their executor through a `private get db()` getter that calls `dbManager.get()`. Every command-builder method therefore joins an ambient transaction with no call-site changes.
+Both storage command-builder classes (`CollectionCommands` and `DocumentCommands`) resolve their executor through a `private get db()` getter that calls `dbManager.get()`. Every command-builder method therefore joins an ambient transaction with no call-site changes.
 
 When `get()` already returns a transaction and a command opens its own `.transaction(...)`, Drizzle issues a **savepoint**: an inner failure rolls back to the savepoint, an outer failure rolls back everything. That is the correct nesting semantics, and `storage-transactions.test.ts` confirms both commit-together and roll-back-together across nested command transactions.
 

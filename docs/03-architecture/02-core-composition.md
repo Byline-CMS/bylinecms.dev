@@ -14,7 +14,7 @@ Companions:
 
 ## Overview
 
-Byline is a framework rather than a single application, so the way its packages plug together is part of its public surface. This document describes the **seams** — the points where you supply an implementation and Byline composes it at boot — and the rules that keep those seams stable across versions.
+Byline is a framework rather than a single application, so the way its packages plug together is part of its public surface. This document describes the **seams** (the points where you supply an implementation and Byline composes it at boot) and the rules that keep those seams stable across versions.
 
 Read it if you are wiring Byline into an application, writing an adapter (a database, storage provider, session provider, search driver, or rich-text editor), or trying to understand why `@byline/core` does not import any of the packages that provide those things.
 
@@ -75,18 +75,18 @@ const core = await initBylineCore<AdminStore>({
 **Composition validates before it does any database work.** `initBylineCore()` fails fast at boot rather than at request time when your configuration is unsatisfiable:
 
 - A collection with a `richText` field set to populate or embed on save, but no matching adapter slot registered.
-- A collection that opts into `search`, but no `SearchProvider` registered — indexing would otherwise silently no-op.
+- A collection that opts into `search`, but no `SearchProvider` registered: indexing would otherwise silently no-op.
 - A rich-text field with both relation flags off, which cannot render.
 - Missing or incomplete admin interface translation bundles.
 
-Collection abilities are registered automatically. Admin-subsystem abilities are opt-in — you call `registerAdminAbilities(core.abilities)` yourself — so that `@byline/core` never has to depend on `@byline/admin`.
+Collection abilities are registered automatically. Admin-subsystem abilities are opt-in (you call `registerAdminAbilities(core.abilities)` yourself) so that `@byline/core` never has to depend on `@byline/admin`.
 
 ## Field-level adapter slots
 
 A field type that needs both a browser component and server-side behaviour registers them through mirrored slots: `AdminConfig.fields.*` for the React side, `ServerConfig.fields.*` for the server side. Rich text is the reference implementation, and any future field-level adapter should follow its shape.
 
 - **Client** — `AdminConfig.fields.richText.editor`: a render-only React component, registered via `lexicalEditor()` from `@byline/richtext-lexical`.
-- **Server, write path** — `fields.richText.embed` (`RichTextEmbedFn`): called once per rich-text leaf the write path finds in an outgoing document, for every field whose effective `embedRelationsOnSave` is true (the default). It walks the editor tree at save time and refreshes embedded relation envelopes — for example composing `document.path` on internal-link nodes.
+- **Server, write path** — `fields.richText.embed` (`RichTextEmbedFn`): called once per rich-text leaf the write path finds in an outgoing document, for every field whose effective `embedRelationsOnSave` is true (the default). It walks the editor tree at save time and refreshes embedded relation envelopes, for example composing `document.path` on internal-link nodes.
 - **Server, read path** — `fields.richText.populate` (`RichTextPopulateFn`): the mirror of `embed`, called once per rich-text leaf the read pipeline returns, for every field whose effective `populateRelationsOnRead` is true.
 - **Server, markdown** — `fields.richText.toMarkdown` (`RichTextToMarkdownFn`): one-way serialisation for the agent-readable export surface (`documentToMarkdown`, `.md` routes, `llms.txt`). Optional; synchronous and read-only.
 - **Server, plain text** — `fields.richText.toText` (`RichTextToTextFn`): flattens a rich-text value to indexable plain text for `buildSearchDocument`. Required when any collection's `search.body` includes a rich-text field.
@@ -94,8 +94,8 @@ A field type that needs both a browser component and server-side behaviour regis
 Three properties of this design constrain any adapter you write against it:
 
 1. **Ship two entry points.** A package with both client and server pieces splits them by subpath so consumers of one do not bundle the other. `@byline/richtext-lexical` and `@byline/richtext-lexical/server` are the reference example.
-2. **The framework owns the walk.** Your adapter receives one leaf at a time with its context — `value`, `fieldPath`, `collectionPath`, `readContext`, `requestContext`, `readMode`, and `readDocuments`. It does not walk the containing document or fetch target documents itself. `collectRichTextLeaves` and `createRichTextDocumentReader` keep adapters inside the same read pipeline as ordinary SDK reads.
-3. **Security travels with the capability.** The `readDocuments` function you are handed asserts the target collection's `read` ability, applies its `beforeRead` predicate, uses the operation's effective source view, and runs the target's `afterRead` hooks. Reaching around it to `IDbAdapter` directly would create a second, weaker read boundary — so don't.
+2. **The framework owns the walk.** Your adapter receives one leaf at a time with its context: `value`, `fieldPath`, `collectionPath`, `readContext`, `requestContext`, `readMode`, and `readDocuments`. It does not walk the containing document or fetch target documents itself. `collectRichTextLeaves` and `createRichTextDocumentReader` keep adapters inside the same read pipeline as ordinary SDK reads.
+3. **Security travels with the capability.** The `readDocuments` function you are handed asserts the target collection's `read` ability, applies its `beforeRead` predicate, uses the operation's effective source view, and runs the target's `afterRead` hooks. Reaching around it to `IDbAdapter` directly would create a second, weaker read boundary, so don't.
 
 ## The database adapter contract
 
@@ -116,7 +116,7 @@ Three rules hold the boundaries in place. They are the reason the seams above st
 
 1. **Feature wiring lives in feature packages, not in `@byline/core`.** Byline composes; it does not own. A feature package ships its own composition factory and the integrating application wires it in. Core provides the `Registry` primitive and the `initBylineCore()` composition point, and imports no feature package.
 2. **Auth keys, not auth realms.** Commands take an ability expression, never an enumerated mode. The `AbilityRegistry` is the source of truth, and collections and plugins contribute their abilities at registration time, so the enforcement layer stays open to whatever they declare.
-3. **The adapter boundary is permanent.** `IDbAdapter`, `IStorageProvider`, `SessionProvider`, and `SearchProvider` are contracts. Feature code consumes them through the interface and never wires concrete dependencies — Drizzle pools, argon2, S3 clients — directly. This is what keeps "swap the adapter" a single-file change in `byline/server.config.ts`. Transaction machinery lives behind this boundary too: the mechanism sits in `@byline/db-postgres` while core declares the contract and owns the lifecycle boundaries.
+3. **The adapter boundary is permanent.** `IDbAdapter`, `IStorageProvider`, `SessionProvider`, and `SearchProvider` are contracts. Feature code consumes them through the interface and never wires concrete dependencies (Drizzle pools, argon2, S3 clients) directly. This is what keeps "swap the adapter" a single-file change in `byline/server.config.ts`. Transaction machinery lives behind this boundary too: the mechanism sits in `@byline/db-postgres` while core declares the contract and owns the lifecycle boundaries.
 
 ## Implementation notes
 
@@ -124,11 +124,11 @@ The two pieces below are internal machinery. You do not interact with them to us
 
 ### The registry
 
-`Registry` and `AsyncRegistry` (`packages/core/src/lib/registry.ts`) are a small typed dependency-injection container whose dependency graph is validated at compile time by TypeScript conditional types. `initBylineCore()` builds one, adds config, collections, the database adapter, and storage as values, adds the logger as a factory, and composes. There is no service-locator lookup at runtime — composition happens once, at boot.
+`Registry` and `AsyncRegistry` (`packages/core/src/lib/registry.ts`) are a small typed dependency-injection container whose dependency graph is validated at compile time by TypeScript conditional types. `initBylineCore()` builds one, adds config, collections, the database adapter, and storage as values, adds the logger as a factory, and composes. There is no service-locator lookup at runtime: composition happens once, at boot.
 
 ### `createCommand`
 
-Every admin operation in `@byline/admin` is declared with `createCommand` (`packages/admin/src/lib/create-command.ts`), which folds four steps — validate input, authorise, invoke, shape output — into one specification:
+Every admin operation in `@byline/admin` is declared with `createCommand` (`packages/admin/src/lib/create-command.ts`), which folds four steps (validate input, authorise, invoke, shape output) into one specification:
 
 ```ts
 export const listAdminUsersCommand = createCommand({
@@ -144,7 +144,7 @@ The wrapper runs Zod input parse → admin actor resolution → handler → Zod 
 
 The `auth` slot is a discriminated union. `{ ability: 'admin.users.read' }` is a full gate, delegating to `assertAdminActor` and inheriting the super-admin bypass. `{ authenticated: true }` is an identity gate only, used by `admin-account` self-service commands where the security property is "you may only mutate your own row," enforced structurally by taking the target id from `actor.id`.
 
-Document-collection operations — create, update, delete, status, upload — do **not** flow through `createCommand`. They are gated by `assertActorCanPerform` inside the `document-lifecycle` services in `@byline/core`. See [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md).
+Document-collection operations (create, update, delete, status, upload) do **not** flow through `createCommand`. They are gated by `assertActorCanPerform` inside the `document-lifecycle` services in `@byline/core`. See [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md).
 
 ## Code map
 

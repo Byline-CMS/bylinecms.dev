@@ -11,7 +11,7 @@ Companions:
 - [Key architectural decisions](../03-architecture/index.md) — how the product goals described here become storage, versioning, configuration, and authorization boundaries.
 
 Before the APIs and the storage model, it helps to know what Byline is trying to
-be — and what it is reacting against. These essays set the context for
+be, and what it is reacting against. These essays set the context for
 everything else in the documentation.
 
 - [Mission & Vision](./01-mission.md) — why Byline exists, the three pillars it

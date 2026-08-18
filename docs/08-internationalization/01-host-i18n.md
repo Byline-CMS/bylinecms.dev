@@ -14,7 +14,7 @@ Companions:
 
 This repo ships a worked, copy-and-adapt example of a host frontend that
 coordinates with Byline's content locales. It is a *reference*, not a turnkey
-module — SEO conventions, URL strategy, and routing differ per host and per
+module: SEO conventions, URL strategy, and routing differ per host and per
 framework, so Byline deliberately does not bake one opinion into the CMS.
 
 ## What the host owns
@@ -78,7 +78,7 @@ in the **server entry** (`src/server.ts` → `src/i18n/server-locale-redirect.ts
 not in the rewrite: the rewrite runs *before* route middleware, can't read
 cookies on the client, and has already hidden whether a URL arrived bare. (This
 arrangement replaced an earlier optional `{-$lng}` matcher plus per-locale route
-shims / virtual routes — the rewrite removes that machinery while keeping clean
+shims / virtual routes: the rewrite removes that machinery while keeping clean
 default-locale URLs.)
 
 ### The non-sticky rule
@@ -135,7 +135,7 @@ Three roles can be in play on one URL, even when the reference application's cur
   falls back to the **default** interface locale via `toInterfaceLocale()`.
 - **The preferred content locale** — passes a content URL locale through and maps an interface-only URL locale to the host's current default content locale before reads or search.
 
-`useInterfaceLocale()` is deliberately a **pure function of the URL locale** — it
+`useInterfaceLocale()` is deliberately a **pure function of the URL locale**: it
 does *not* consult the cookie or `Accept-Language`. This is a caching
 requirement: a content-only-locale page (`/zh-CN/about`) is keyed only by its URL
 on a shared proxy, so its chrome must be deterministic per URL. Resolving chrome
@@ -148,7 +148,7 @@ construction.
 > *default-locale* chrome on that page, reverting to French on their next
 > navigation (the `lng` cookie is untouched). A deployment that runs a
 > programmable edge and *wants* personalized chrome on these pages can instead
-> add a normalized interface-locale dimension to its CDN cache key — an ops-only
+> add a normalized interface-locale dimension to its CDN cache key, an ops-only
 > change that leaves the app deterministic-by-default.
 
 ## The single reach into Byline
@@ -210,7 +210,7 @@ export const contentLocales = [
 imports `contentLocales` through `~/public` to build its `routableLocales` and
 native-name map. The host authors the display names here once (`Français`, not CLDR's lowercase
 `français`), and the server-side consumers (sitemap / `getMeta`) read the same
-set via `getServerConfig().i18n.content.localeDefinitions` — one source of truth,
+set via `getServerConfig().i18n.content.localeDefinitions`: one source of truth,
 no parallel map.
 
 :::tip[Why not call Byline's config getters from the public client bundle?]
@@ -240,5 +240,5 @@ A worked TanStack-Start host, all under `apps/webapp/`:
 intersection `availableLocales ∩ _availableVersionLocales` (see
 [Advertising content locales](./03-content-locales.md#advertising-content-locales-availablelocales));
 `resolveAlternates(...)` turns it into `{ canonical, alternates, xDefaultPath }`,
-the single resolver that `hreflang` meta — and a `sitemap.xml` — both derive
+the single resolver that `hreflang` meta (and a `sitemap.xml`) both derive
 from, so the two can never drift.

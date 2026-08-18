@@ -63,7 +63,7 @@ The same rule applies across content locales within one provider. Language analy
 
 Two independent configurations decide multilingual quality, and they rarely match:
 
-- The host's [content locales](../08-internationalization/03-content-locales.md) decide which locales exist in the index — one row or engine document per published content locale.
+- The host's [content locales](../08-internationalization/03-content-locales.md) decide which locales exist in the index: one row or engine document per published content locale.
 - The provider decides which of those locales receive language-specific analysis. For a native engine this is engine-schema truth: the analyzers its schema artifact actually defines.
 
 The built-in SQL providers do not have this split: the portable analyzer applies the same NFKC normalization and ICU segmentation to every locale, so every content locale gets the same analysis floor. A native engine typically covers some locales with dedicated analyzers and the rest with a generic tokenizer.

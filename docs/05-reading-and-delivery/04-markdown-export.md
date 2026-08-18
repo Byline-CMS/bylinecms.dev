@@ -13,8 +13,8 @@ Companions:
 - [Routing & API](./02-routing-and-api.md) — why the `.md` routes are app-owned representations, not a transport boundary.
 
 The markdown export surface serves a **markdown representation of every published
-document at its canonical URL + `.md`** — `/docs/getting-started.md`,
-`/fr/news/foo.md` — plus an `llms.txt` site index ([llmstxt.org](https://llmstxt.org))
+document at its canonical URL + `.md`** (`/docs/getting-started.md`,
+`/fr/news/foo.md`), plus an `llms.txt` site index ([llmstxt.org](https://llmstxt.org))
 linking to those representations. It exists for AI agents and documentation
 tooling, which increasingly expect markdown over HTML; it is the cheapest,
 most concrete piece of "AI-first" Byline ships.
@@ -25,13 +25,13 @@ Three properties define the whole design:
    re-imported. Layout columns flatten to stacked sections, video embeds
    become links, underline/highlight inline formats drop. This is *not* the
    editor's markdown source toggle (which needs bidirectional, lossless
-   transformers — see [Dialects](#dialects) below).
+   transformers; see [Dialects](#dialects) below).
 2. **Published-only, preview-blind.** Every read goes through the *public*
    client with `status: 'published'`. Drafts never leak; editor preview never
    applies to an anonymous, cacheable agent surface (the same contract as the
-   sitemap — see the viewer-client header in `@byline/host-tanstack-start`).
+   sitemap; see the viewer-client header in `@byline/host-tanstack-start`).
 3. **The output is a contract surface.** Agents build on the shape, so the
-   format is pinned by contract tests in both packages — a change to an
+   format is pinned by contract tests in both packages: a change to an
    expected string in those tests is a consumer-visible format change and
    must be deliberate.
 
@@ -52,12 +52,12 @@ apps/webapp                .md routes · llms.txt · advertisement channels
 
 - **`lexicalToMarkdown`** (`packages/richtext-lexical/src/field/markdown/lexical-to-markdown.ts`,
   exported from `@byline/richtext-lexical/server`) walks the **stored**
-  `SerializedEditorState` JSON directly — no `@lexical/headless`, no DOM, no
+  `SerializedEditorState` JSON directly: no `@lexical/headless`, no DOM, no
   node registration. `lexicalEditorToMarkdownServer()` is the factory shaped
   for the config slot, the sibling of `lexicalEditorEmbedServer` /
   `lexicalEditorPopulateServer`.
-- **The seam** — `ServerConfig.fields.richText.toMarkdown`
-  (`RichTextToMarkdownFn`, `packages/core/src/@types/field-types.ts`) — keeps
+- **The seam**, `ServerConfig.fields.richText.toMarkdown`
+  (`RichTextToMarkdownFn`, `packages/core/src/@types/field-types.ts`), keeps
   `@byline/core` editor-agnostic, exactly like the `embed` / `populate` slots
   beside it. Synchronous and read-only.
 - **`documentToMarkdown`** (`packages/core/src/services/document-to-markdown.ts`)
@@ -69,7 +69,7 @@ apps/webapp                .md routes · llms.txt · advertisement channels
 - **The app layer** (`apps/webapp/src/lib/markdown.ts` + per-collection
   modules) owns loading, caching, URL building, and response shaping.
   Opt-in is by construction: a collection has a markdown surface when the
-  app writes a route for it — no schema flag.
+  app writes a route for it; there is no schema flag.
 
 ## The format contract
 
@@ -92,11 +92,11 @@ Flat YAML, fixed key order, strings double-quoted:
 - The `useAsTitle` field → `# H1` (never repeated as a section).
 - A field named `summary` → an unlabelled lead paragraph (the standfirst).
 - `richText` and `blocks` fields render their content **directly, with no
-  `## Label` heading** — they *are* the document body. Unknown block types
+  `## Label` heading**: they *are* the document body. Unknown block types
   are skipped.
 - Scalar fields (text, textArea, datetime, select, numbers) →
   `**Label:** value` lines.
-- `checkbox` / `boolean` / `json` / `object` render **nothing** — booleans
+- `checkbox` / `boolean` / `json` / `object` render **nothing**: booleans
   are almost always presentation toggles (`constrainedWidth`, `featured`)
   and json is machine-shaped. The export renders *content, not
   configuration*.
@@ -105,7 +105,7 @@ Flat YAML, fixed key order, strings double-quoted:
   (e.g. `media`); nothing when unresolved.
 - `image` / `file` → `![alt](url)`.
 - `group` → `## Label` + nested walk; `array` → `## Label` + items.
-- Empty values are skipped entirely — no empty headings.
+- Empty values are skipped entirely: no empty headings.
 
 ### Lexical node coverage
 
@@ -119,7 +119,7 @@ backtick runs), table (GFM pipes, first row as header), link / autolink
 highlight, sub/superscript drop), admonition, inline-image (+ nested caption
 editor flattened to an emphasized line), youtube / vimeo (→ links),
 layout-container / layout-item (flattened to stacked sections). Unknown node
-types serialize their children and emit a warning — new nodes degrade
+types serialize their children and emit a warning: new nodes degrade
 gracefully instead of disappearing.
 
 Internal links resolve through the node's embedded document envelope
@@ -144,7 +144,7 @@ Byline admonition title renders as a bold lead paragraph:
 This is a **deliberate asymmetry**: the editor's markdown source toggle
 (`BYLINE_TRANSFORMERS`) and the docs importer
 (`apps/webapp/byline/scripts/lib/parse-markdown.ts`) speak the Docusaurus
-`:::type[Title]` dialect, while the export emits GFM — because GFM alerts
+`:::type[Title]` dialect, while the export emits GFM, because GFM alerts
 are what GitHub, agents, and most renderers understand. The intended end
 state is *two accepted input dialects, one output dialect*: extend
 `parse-markdown.ts` to also accept GFM alerts (see
@@ -158,7 +158,7 @@ state is *two accepted input dialects, one output dialect*: extend
 
 ## Routes and URL surface
 
-One markdown variant **per content locale**, at the canonical URL + `.md` —
+One markdown variant **per content locale**, at the canonical URL + `.md`,
 the same cache-key dimension as the HTML page (see Caching):
 
 | URL | Route file | Collection |
@@ -191,10 +191,10 @@ Mechanics worth knowing (each cost a spike to learn):
   requests.
 - **Routes are pure server handlers** (no component) reaching their handler
   bodies through handler-local dynamic `import()` so the server-only chain
-  (Byline SDK, L1 cache → `node:dns`) stays out of the client graph — the
+  (Byline SDK, L1 cache → `node:dns`) stays out of the client graph: the
   `sitemap[.]xml.ts` pattern.
 - **Pages serve at any prefix, like their HTML siblings.** The HTML
-  loaders never enforce `area` — it drives link composition only — so a
+  loaders never enforce `area` (it drives link composition only), so a
   page is reachable at `/x`, `/about/x`, and `/legal/x` alike. The `.md`
   surface mirrors that exactly; the frontmatter `canonical` composes from
   the document's own `area`, independent of which URL shape was requested,
@@ -206,22 +206,22 @@ Agents discover the surface through three channels:
 
 1. **The `.md` URL convention** — append `.md` to any document URL.
 2. **`<link rel="alternate" type="text/markdown">`** in every detail page's
-   head — `getMeta`'s `markdownAlternatePath` option (`src/lib/meta.ts`),
+   head: `getMeta`'s `markdownAlternatePath` option (`src/lib/meta.ts`),
    passed by the five detail routes as `` `${canonical}.md` ``.
-3. **`Accept: text/markdown` content negotiation** on canonical HTML URLs —
+3. **`Accept: text/markdown` content negotiation** on canonical HTML URLs:
    a strict 302 in the server entry (`src/lib/markdown-negotiation.ts`,
    wired in `src/server.ts` beside the locale negotiation). Two deliberate
    choices: it is a **redirect, not a 200-with-`Vary`** (two bodies on one
    URL forces every cache layer to key on Accept; one misconfigured layer
-   poisons the HTML for browsers — the redirect keeps cache keys distinct),
+   poisons the HTML for browsers, so the redirect keeps cache keys distinct),
    and it **never fires for browsers** (only when Accept names
    `text/markdown` and not `text/html`, which browsers always lead with).
    The redirect carries `Cache-Control: no-store`.
 
 ## llms.txt and the shared published-URL index
 
-`/llms.txt` emits the llmstxt.org shape — H1 site name, blockquote
-description, H2 sections of `- [title](url.md): description` links — with
+`/llms.txt` emits the llmstxt.org shape (H1 site name, blockquote
+description, H2 sections of `- [title](url.md): description` links) with
 links pointing at the **markdown representations**, not the HTML.
 
 Both `llms.txt` and `sitemap.xml` consume the same per-collection
@@ -234,7 +234,7 @@ descriptions.
 ## Caching and invalidation
 
 - **L1**: serialized markdown is cached per `(collection, path, locale, URL
-  shape)` tagged with the document's **detail tag** — so the collection
+  shape)` tagged with the document's **detail tag**, so the collection
   hooks' per-document invalidation sweeps `.md` variants on every edit
   alongside the HTML reads, with zero extra wiring. The published-index
   scans carry the sitemap tags and are swept on structural changes

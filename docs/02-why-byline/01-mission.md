@@ -16,7 +16,7 @@ Byline grew out of a frustration that we suspect many projects share. In our
 experience, most content management systems struggle with at least one of three
 fundamental concerns: versioning, workflow, or content translation. Many
 struggle with all three. And when they try to support all three at the same
-time, they tend to break — sometimes obviously, or more commonly, in ways that
+time, they tend to break: sometimes obviously, or more commonly, in ways that
 don't surface until you're deep into a real project with real stakes.
 
 ## The three pillars
@@ -41,15 +41,15 @@ configuration.
 And these three concerns should all work together.
 
 What lets them work together is one architectural decision: Byline separates a
-document's **identity and placement** — its URL path, the content locales it
-advertises, and where it sits in a navigation tree — from its **versioned
+document's **identity and placement** (its URL path, the content locales it
+advertises, and where it sits in a navigation tree) from its **versioned
 content**. Identity and placement live at the *document level* and stay stable as
 content moves through drafts and revisions; content lives in an *immutable version
 stream*. Keeping the two apart is what stops them from fighting: renaming a slug,
 re-advertising a locale, or re-ordering a chapter is an immediate structural edit
 that never resets a document's workflow status or clutters its version history,
 while every change to the content itself remains a tracked, reviewable version. It
-is also why provenance holds end to end — versioning accounts for the content, and
+is also why provenance holds end to end: versioning accounts for the content, and
 an audit trail accounts for the structural changes that sit outside it. See
 [Document level vs version level](../03-architecture/index.md#3-document-level-vs-version-level)
 for the full picture.
@@ -87,7 +87,7 @@ top of other frameworks. Once our core model settled down, and following the
 'big leap' in AI coding assistants around December 2025, we have increasingly
 adopted a 'guided' approach to using LLM-based generative AI to design and
 plan phases of work. It's been a remarkable journey. The marginal cost of
-developing Byline has dropped significantly as a result — enough that, with
+developing Byline has dropped significantly as a result: enough that, with
 just a 2-person team, we've been able to ship through the 3.x line and into 4.x
 on our own.
 
@@ -96,6 +96,6 @@ content management system like Byline will remain a useful tool for our work
 and for the organisations we support. We're also excited by the potential for
 building higher-level AI-enabled services on top of Byline. It's hard to
 predict how this will all play out in a world of software development that is
-changing fast, though we believe the mission and vision above — along with our
-note on [Content Management in the Time of AI](./02-content-in-the-time-of-ai.md)
-— holds true. Time will tell whether we've guessed right, or not. ;-)
+changing fast, though we believe the mission and vision above (along with our
+note on [Content Management in the Time of AI](./02-content-in-the-time-of-ai.md))
+holds true. Time will tell whether we've guessed right, or not. ;-)

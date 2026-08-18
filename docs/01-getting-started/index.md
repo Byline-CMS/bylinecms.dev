@@ -13,9 +13,9 @@ Companions:
 
 The best way to get up to speed with Byline is to look at our working reference application in the main [GitHub repository](https://github.com/Byline-CMS/bylinecms.dev). The application is located in the `apps/webapp` directory, and is a fully configured Byline CMS instance built on TanStack Start. We've included several collection examples, options, and configuration settings that should give you a solid introduction to Byline.
 
-The heart of Byline is its configuration system. In the example application — and by convention — Byline's configuration lives in `apps/webapp/byline`. This is where content collections are defined, which ultimately shapes how editors enter and manage content.
+The heart of Byline is its configuration system. In the example application (and by convention), Byline's configuration lives in `apps/webapp/byline`. This is where content collections are defined, which ultimately shapes how editors enter and manage content.
 
-For a broader introduction that explains why Byline exists, and why we think it's special — see [Where to go next](#where-to-go-next) further below. To get started with a running instance of Byline, you have two options:
+For a broader introduction that explains why Byline exists, and why we think it's special, see [Where to go next](#where-to-go-next) further below. To get started with a running instance of Byline, you have two options:
 
 1. [CLI](./01-cli.md) — install Byline into an existing TanStack Start application with `byline init` (plus `setup` and `doctor`).
 2. [Development environment and reference application](./02-development-environment.md) — clone the main repo, provision PostgreSQL, seed the database, and run the example app (`apps/webapp`) in dev mode.

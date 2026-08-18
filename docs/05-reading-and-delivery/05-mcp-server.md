@@ -16,8 +16,8 @@ Companions:
 
 :::note[Planned]
 This document describes a planned subsystem. It sets out the intended shape of
-the MCP server so its dependencies — service-account auth, the shared operation
-layer, and relationship completeness — are settled first. Treat it as the design
+the MCP server so its dependencies (service-account auth, the shared operation
+layer, and relationship completeness) are settled first. Treat it as the design
 the implementation follows rather than a description of shipped code.
 :::
 
@@ -28,7 +28,7 @@ The [Model Context Protocol](https://modelcontextprotocol.io) lets an MCP host
 **tools**, read **resources**, and run **prompts** exposed by a server. An MCP
 server for Byline turns a Byline installation into a first-class participant in an
 agentic workflow: a model can query collections, draft documents, populate
-relationships, and move content through the publishing lifecycle — under a scoped
+relationships, and move content through the publishing lifecycle, under a scoped
 actor, gated by the same abilities the admin UI obeys.
 
 For an AI-first headless CMS, MCP provides an agent-native interface to Byline's
@@ -41,21 +41,21 @@ The MCP server is a **thin binding**, not a new subsystem, because the work is
 already done below the transport line:
 
 - **The SDK is the substrate.** A tool handler resolves a `RequestContext`, calls
-  one `CollectionHandle` / `document-lifecycle` method, and serializes — the same
+  one `CollectionHandle` / `document-lifecycle` method, and serializes: the same
   shape as a TanStack server fn or an HTTP route. Populate, status-aware reads,
   `beforeRead` row-scoping, and `afterRead` shaping all come for free.
 - **Zod schemas are tool schemas.** Byline already derives a Zod schema per
   collection (the schema builder). MCP tool `inputSchema` is JSON Schema. So tool
-  definitions are *derived from collection definitions* rather than hand-written —
-  most CMSes have no equivalent asset.
+  definitions are *derived from collection definitions* rather than hand-written.
+  Most CMSes have no equivalent asset.
 - **The workflow lifecycle is the safety model.** Immutable versioning +
   `defineWorkflow` give "AI drafts, humans publish" for free: the model creates a
   *draft version*; a human promotes it. No new safety machinery to invent.
 
 ## Scope discipline (the demo is mostly *not* Byline)
 
-The motivating demo — *Claude researches a topic, gathers content, publishes to
-several social channels, then publishes to a production Byline* — is Claude
+The motivating demo (*Claude researches a topic, gathers content, publishes to
+several social channels, then publishes to a production Byline*) is Claude
 orchestrating several MCP servers: a web/research MCP, social-channel MCPs, and
 Byline's. Byline is **one node** in that graph.
 
@@ -68,7 +68,7 @@ Byline's. Byline is **one node** in that graph.
                                                                                          (draft → review → publish)
 ```
 
-This is a feature — it showcases MCP composability — but it must not inflate
+This is a feature (it showcases MCP composability), but it must not inflate
 Byline's build scope. Byline's job is **one tight, safe MCP over its own SDK**,
 nothing more. The social and research nodes are other people's servers.
 
@@ -80,7 +80,7 @@ tools the model can reason about beats hundreds it must disambiguate:
 
 | Tool                  | Maps to                                  | Notes                                        |
 |-----------------------|------------------------------------------|----------------------------------------------|
-| `list_collections`    | config / collection registry             | discovery — what can I work with?            |
+| `list_collections`    | config / collection registry             | discovery: what can I work with?             |
 | `describe_collection` | future allowlisted `CollectionDescriptor` | returns the authenticated transport field shape |
 | `query_documents`     | `CollectionHandle.find` (where/sort/populate/depth) | status-aware; published-only by default |
 | `get_document`        | `findById` / `findByPath`                | optional `populate` / `depth` / `locale`     |
@@ -125,7 +125,7 @@ Two MCP affordances beyond tools are worth shipping:
 
 The shared **operation layer** from [Transports](./03-transports.md) means
 `create_document` and the HTTP `POST /api/posts` route invoke the *same*
-`OperationDefinition` — MCP differs only in binding (tool envelope, JSON-RPC over
+`OperationDefinition`: MCP differs only in binding (tool envelope, JSON-RPC over
 stdio / Streamable HTTP) rather than re-deciding what "create a post" means. Get
 this right and MCP is another binding; get it wrong and MCP is a fourth
 re-implementation of the contract.
@@ -139,23 +139,23 @@ machinery Byline already has:
    *draft* version. They cannot publish.
 2. **Publish is a separate, gated transition.** `publish_document` is a workflow
    `changeStatus` call, ability-gated, and ideally surfaced as the human-promotion
-   seam — the model proposes, a person disposes. The service account can be
+   seam: the model proposes, a person disposes. The service account can be
    provisioned *without* the publish ability entirely, so a misbehaving agent
    physically cannot push live content.
 3. **Validation feedback loop.** Bad input returns structured Zod errors (Byline's
-   stable validation codes), which the model reads and self-corrects against —
+   stable validation codes), which the model reads and self-corrects against,
    turning the schema into a guardrail rather than a wall.
 4. **Provenance.** Versions are immutable and attributable to the service-account
-   actor, so "what did the AI write, and when" is answerable after the fact — the
+   actor, so "what did the AI write, and when" is answerable after the fact: the
    [Content Management in the Time of AI](../02-why-byline/02-content-in-the-time-of-ai.md) thesis in action.
 
 ## Authentication
 
-MCP is non-interactive — there is no cookie, no login screen. It needs a
+MCP is non-interactive: there is no cookie, no login screen. It needs a
 **service-account token** model: a token mints a scoped `Actor` whose abilities are
 provisioned explicitly (e.g. `collections.posts.read`, `collections.posts.create`,
-but *not* `collections.posts.publish`). This is new auth work — today's auth is
-JWT-session, built for the admin UI — and it is shared with the HTTP API's
+but *not* `collections.posts.publish`). This is new auth work (today's auth is
+JWT-session, built for the admin UI) and it is shared with the HTTP API's
 bearer-token need (see [Transports](./03-transports.md) → the auth seam). The
 `SessionProvider` interface in `@byline/auth` is the extension point.
 
@@ -190,7 +190,7 @@ and relationship completeness (`hasMany`) is high on the TODO already. So:
 - Then build `packages/mcp` as a binding over that proven surface.
 
 Building MCP before the operation layer exists would mean inventing the contract
-inside the MCP package and re-inventing it again for HTTP — the precise drift
+inside the MCP package and re-inventing it again for HTTP: the precise drift
 Transports is structured to avoid.
 
 ## Code map

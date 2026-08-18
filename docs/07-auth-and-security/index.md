@@ -1,7 +1,7 @@
 ---
 title: "Auth & Security"
 path: "auth-and-security"
-summary: "How Byline controls who can do what, and how it records what was done — the actor and ability model, two-layer access control with read-side row scoping, and the version and document-level audit trails."
+summary: "How Byline controls who can do what, and how it records what was done: the actor and ability model, two-layer access control with read-side row scoping, and the version and document-level audit trails."
 ---
 
 # Auth & Security

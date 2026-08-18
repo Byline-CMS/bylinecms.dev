@@ -106,7 +106,7 @@ Both `@byline/client` and `@byline/db-postgres` use the same vitest config shape
 
 Both jobs skip when the head commit starts with `chore(release):` so version-bump pushes from `pnpm version-packages` don't trigger redundant runs. Tag pushes (`git push --tags`) and `gh release create` aren't listened to at all, so the local-only release flow stays silent.
 
-`concurrency: cancel-in-progress` cancels superseded runs on the same branch — quick fix-up pushes don't queue behind older builds.
+`concurrency: cancel-in-progress` cancels superseded runs on the same branch: quick fix-up pushes don't queue behind older builds.
 
 When branch protection is enabled in repo settings, CI becomes a hard gate with no workflow change required.
 
@@ -139,7 +139,7 @@ aggregate file to one case or suite with `-t`:
 pnpm vitest run --mode=integration -t "tampered"
 ```
 
-Watch mode (re-runs on file change) — a per-package script, run it from inside the package:
+Watch mode (re-runs on file change) is a per-package script; run it from inside the package:
 
 ```sh
 cd packages/core && pnpm test:watch
@@ -147,14 +147,14 @@ cd packages/core && pnpm test:watch
 
 ## Editor smoke suite (Playwright)
 
-:::note[Under review — paused]
+:::note[Under review: paused]
 Byline's browser-level end-to-end tests currently run on Playwright, and the two
 suites below are still present and runnable. Playwright itself is under review,
-and its use is paused for now — hold off on growing new reliance on it while that
+and its use is paused for now: hold off on growing new reliance on it while that
 review is open. The instructions below describe the suites as they stand today.
 :::
 
-Browser-level happy paths over the admin document editor — the regression net for the
+Browser-level happy paths over the admin document editor: the regression net for the
 surfaces unit tests structurally can't see (`@byline/admin` forms/fields, host-adapter
 server fns, richtext) and for Lexical / TanStack Start version bumps. Lives in
 `apps/webapp/e2e/` with `apps/webapp/playwright.config.ts`. Scope is ~10–15 happy-path
@@ -175,12 +175,12 @@ cd apps/webapp && pnpm test:e2e:ui          # headed UI mode
 ```
 
 The `setup` project signs in through the real form (keeping the sign-in flow itself under
-test — the surface the v3.5.1 form-GET leak lived on) and persists the session to
+test: the surface the v3.5.1 form-GET leak lived on) and persists the session to
 `e2e/.auth/admin.json` for the other projects. Tests that mutate documents create their
 own document first, so reruns stay clean against a long-lived dev database.
 
 **Hydration caveat:** interactions that land before React hydrates set native input values
-without reaching the form context, so the dirty-gated Save button never enables — and a
+without reaching the form context, so the dirty-gated Save button never enables, and a
 pre-hydration submit falls back to the native form post. The suite waits for hydration via
 React fiber keys (`waitForHydration` in `editor-smoke.spec.ts`) before interacting; new
 scenarios should do the same after any full page load.
@@ -191,7 +191,7 @@ The same Playwright run carries contract specs for the public agent-facing route
 alongside the editor smoke suite: `e2e/sitemap.spec.ts` (dynamic `sitemap.xml` with
 hreflang alternates), `e2e/markdown.spec.ts` (the `.md` document representations), and
 `e2e/llms.spec.ts` (the `llms.txt` index). These pin the served output of the markdown
-export surface — the format contract itself is documented in
+export surface. The format contract itself is documented in
 [Markdown Export](./05-reading-and-delivery/04-markdown-export.md) and unit-pinned in `packages/richtext-lexical`
 and `packages/core`; the e2e specs cover the route/negotiation layer on top (locale
 prefixing, caching headers, the `Accept: text/markdown` redirect). Same requirements as

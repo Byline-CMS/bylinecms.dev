@@ -15,7 +15,7 @@ Companions:
 ## Overview
 
 A block is a reusable, typed unit of structured content that editors compose
-inside a `type: 'blocks'` field — a quote, a photo with a caption, a code
+inside a `type: 'blocks'` field: a quote, a photo with a caption, a code
 sample. You reach for a block when a field needs to hold a mix-and-match
 sequence of these units rather than one fixed shape.
 
@@ -43,7 +43,7 @@ A collection consumes blocks through a normal field:
 { name: 'content', type: 'blocks', optional: true, blocks: [RichTextBlock, PhotoBlock, CodeBlock, QuoteBlock] }
 ```
 
-Stored data is a flat array of `{ _id, _type, ...fields }` items — `_type`
+Stored data is a flat array of `{ _id, _type, ...fields }` items: `_type`
 discriminates the union, `_id` (UUIDv7, held in `store_meta`) is the stable
 item identity that drag-reordering and the patch system key on.
 
@@ -61,10 +61,10 @@ field-level hooks and validation, localization per child field, relations
 | `BlockAdminConfig`, `defineBlockAdmin` | `packages/core/src/@types/admin-types.ts` |
 | Registration | `AdminConfig.blockAdmin` (`packages/core/src/@types/site-config.ts`) |
 | Boot validation | `validateBlockAdminConfigs` in `packages/core/src/config/validate-admin-configs.ts` |
-| Admin rendering | `packages/admin/src/fields/blocks/blocks-field.tsx` — each block instance renders through a synthesized `GroupField` → `FieldRenderer` per child |
+| Admin rendering | `packages/admin/src/fields/blocks/blocks-field.tsx`: each block instance renders through a synthesized `GroupField` → `FieldRenderer` per child |
 | Storage | flat EAV rows; item identity (`_id`, `_type`) in `store_meta` (UUIDv7) |
-| Type generation | `packages/core/src/codegen/index.ts` — structural dedup of block contracts across collections; emits `<X>BlockData` (+ `AllLocales`) discriminated on `_type`, inside `declare module '@byline/generated-types'` |
-| Frontend registry | `apps/webapp/src/ui/byline/render-blocks.tsx` — exhaustive `switch (block._type)` with a `never` guard |
+| Type generation | `packages/core/src/codegen/index.ts`: structural dedup of block contracts across collections; emits `<X>BlockData` (+ `AllLocales`) discriminated on `_type`, inside `declare module '@byline/generated-types'` |
+| Frontend registry | `apps/webapp/src/ui/byline/render-blocks.tsx`: exhaustive `switch (block._type)` with a `never` guard |
 | Reference blocks | `apps/webapp/byline/blocks/{richtext,photo,code,quote,faq}-block.ts` (+ `.admin.ts` where tailored; `faq-block.admin.ts` is the dotted schema-path reference) |
 
 ---
@@ -98,9 +98,9 @@ export function defineBlockAdmin<B extends Block>(
 override). Keys are **schema paths** relative to the block root: a top-level
 field name (`quoteText`, which the type parameter autocompletes) or a dotted,
 index-free path through the block's `group` / `array` structure
-(`faq.answer` — see [Schema paths vs instance paths](./01-fields.md#schema-paths-vs-instance-paths)).
+(`faq.answer`; see [Schema paths vs instance paths](./01-fields.md#schema-paths-vs-instance-paths)).
 A schema path addresses a field *declaration*, so one entry applies to that
-field in every array item. Paths never traverse a nested `blocks` field — an
+field in every array item. Paths never traverse a nested `blocks` field: an
 inner block resolves its own registry entry wherever it renders. The
 collection-level `fields{}` map speaks the same notation for non-block
 nesting.
@@ -113,10 +113,10 @@ blockAdmin: [QuoteBlockAdmin, PhotoBlockAdmin],
 ```
 
 Registered site-wide on `AdminConfig.blockAdmin` and applied wherever the
-block renders — any collection, any nesting. Rationale for a registry over
+block renders: any collection, any nesting. Rationale for a registry over
 per-collection nesting:
 
-- Blocks are cross-collection deduped units — codegen already treats the same
+- Blocks are cross-collection deduped units: codegen already treats the same
   block in `docs` and `pages` as one contract; a blockType-keyed registry gives
   it one admin identity to match.
 - Zero path-threading: `BlocksField` resolves by `item._type` wherever it
@@ -130,12 +130,12 @@ walks all collections' fields collecting `blockType → Block` declaration
 sites and fails on unknown blockTypes, duplicate entries, or `fields` keys
 that don't resolve as schema paths within the block (an index-carrying key,
 a path through a value field or a nested `blocks` field, or a leaf that
-isn't declared — checked against the union of declaration sites when the
+isn't declared, checked against the union of declaration sites when the
 same `blockType` appears in several collections).
 
 ### How the override reaches the widget
 
-`BlocksField` has no child-rendering machinery of its own — each block
+`BlocksField` has no child-rendering machinery of its own: each block
 instance renders by synthesizing a structural-group field object
 (`{ type: 'group', name: blockType, fields: block.fields }`) and handing it to
 `GroupField`, which loops the children through `FieldRenderer`. The admin
@@ -152,9 +152,9 @@ right leaf, where the existing resolution
 override beat the site-wide default.
 
 > **The three "group" concepts.** Byline has (1) the **structural `group`
-> field** (`type: 'group'` in a schema — shapes stored data; rendered by
+> field** (`type: 'group'` in a schema: shapes stored data; rendered by
 > `packages/admin/src/fields/group/group-field.tsx`), (2) the **admin layout
-> group primitive** (`groups:` in `CollectionAdminConfig` — pure visual
+> group primitive** (`groups:` in `CollectionAdminConfig`: pure visual
 > clustering of top-level fields; rendered by the presentation layer), and
 > (3) the **synthesized GroupField inside `BlocksField`** described above.
 > The `fieldAdmin` prop lands on the structural widget because blocks render
@@ -166,11 +166,11 @@ override beat the site-wide default.
 ### Arrays inside blocks — structural editing and sorting
 
 An `array` field renders its title, add-row, and per-item add-below / remove
-controls at **every** nesting depth — structural editing never depends on
+controls at **every** nesting depth: structural editing never depends on
 sortability. Drag-reordering is governed by a `disableSorting` flag threaded
 through the structural widgets: `BlocksField` passes `false` on its
 synthesized group, so arrays anywhere inside a block (directly or via a
-`group`) are fully drag-sortable — safe because each `DraggableSortable` is
+`group`) are fully drag-sortable, safe because each `DraggableSortable` is
 an independent dnd-kit `DndContext` with grip-scoped listeners, so an inner
 array's drags can't leak into the block-level context. Arrays inside plain
 top-level groups and arrays nested inside another array's items keep the
@@ -182,7 +182,7 @@ reloads against the reference FAQBlock).
 
 ### What block admin config never touches
 
-`defineBlock` / `BlockData` / serialization / codegen / storage / zod — admin
+`defineBlock` / `BlockData` / serialization / codegen / storage / zod: admin
 config never enters the schema graph. Adding or changing a block's admin
 entry changes no generated type and no stored byte.
 
@@ -212,7 +212,7 @@ every other richText field keeps it.
 FAQBlock (`faq-block{.ts,.admin.ts}`) extends the same pattern to a **nested**
 field: its answer editor's settings half is baked into the `answer` field
 inside the block's `faq` array, and the extension half is registered with the
-dotted schema-path key `faq.answer` — one entry that applies to the answer
+dotted schema-path key `faq.answer`, one entry that applies to the answer
 field of every FAQ item.
 
 ---
@@ -222,7 +222,7 @@ field of every FAQ item.
 Blocks are fully covered by `emitCollectionTypes` (see the generate script in
 `apps/webapp/byline/scripts/generate-types.ts`):
 
-- Block contracts are **structurally deduped across collections** — the same
+- Block contracts are **structurally deduped across collections**: the same
   block object (or two blocks with identical `blockType` + field signature)
   emits one exported alias (`QuoteBlockData` + `QuoteBlockDataAllLocales`).
 - A `blocks` field renders as `Array<A | B | …>` discriminated on `_type`,
@@ -230,7 +230,7 @@ Blocks are fully covered by `emitCollectionTypes` (see the generate script in
   guard work: register a block in any schema, regenerate, and the typecheck
   fails until a renderer exists.
 - Admin config, upload config, and `editorConfig` are **not** part of the
-  structural contract — per-collection block-factory instances (see below)
+  structural contract: per-collection block-factory instances (see below)
   share one generated type as long as `blockType` and field shapes match.
 
 ---
@@ -238,7 +238,7 @@ Blocks are fully covered by `emitCollectionTypes` (see the generate script in
 ## Blocks with inline uploads (`upload.location`)
 
 Blocks may carry their own `image`/`file` fields instead of relating to a
-media collection — right when the asset is document-owned (uploaded in place,
+media collection: right when the asset is document-owned (uploaded in place,
 never reused). Because the same block is typically consumed by several
 collections, write upload-carrying blocks as **factories** so each collection
 instantiates its own storage scope:
@@ -262,14 +262,14 @@ export const attachmentsBlock = (opts: { location: string }) =>
 // pages schema: attachmentsBlock({ location: 'pages/attachments' })
 ```
 
-`upload.location` is boot-validated plain data — see
+`upload.location` is boot-validated plain data; see
 [File / Media Uploads → Scope a field's storage location](./06-file-media-uploads.md).
 Factory instances dedupe to one generated block type (upload config is not
 part of the codegen contract). Keep the field *structure* identical across
-instances — structural drift forks the contract.
+instances: structural drift forks the contract.
 
 For library assets (reused, curated, own lifecycle) prefer a relation to a
-media collection instead — the reference PhotoBlock relates to `media`.
+media collection instead: the reference PhotoBlock relates to `media`.
 
 ---
 

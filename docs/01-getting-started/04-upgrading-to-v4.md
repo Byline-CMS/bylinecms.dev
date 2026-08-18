@@ -232,12 +232,12 @@ import {
 ```
 
 Delete the 3.21 `byline/client.server.ts` (the app-owned type-assertion shim)
-and point every consumer — route loaders, `*.server.ts` modules, lifecycle
-hooks, scripts — at `@byline/client/server` instead. The subpath is
+and point every consumer (route loaders, `*.server.ts` modules, lifecycle
+hooks, scripts) at `@byline/client/server` instead. The subpath is
 server-only: its `browser` export condition resolves to a stub that throws, so
 an accidental browser import fails loudly at bundle time.
 
-The getters are host-framework agnostic — they are implemented against the
+The getters are host-framework agnostic: they are implemented against the
 `HostRequestBridge` seam in `@byline/core`. The TanStack Start adapter
 registers the bridge at server boot; add the explicit registration to
 `byline/server.config.ts` (the v4 CLI scaffolds this):
@@ -274,9 +274,9 @@ module of local exports:
   `import type { NewsFields } from '@byline/generated-types'`. Add
   `@byline/generated-types` to the app's dependencies (the CLI installs it).
 - A second block registers the registry with `@byline/client`'s `Register`
-  interface, so every bare `BylineClient` — including the
+  interface, so every bare `BylineClient` (including the
   `@byline/client/server` getters and `createBylineClient` without an explicit
-  generic — resolves to the app's typed registry.
+  generic) resolves to the app's typed registry.
 
 Application read contracts should import canonical fields and blocks from
 `@byline/generated-types`. Direct `CollectionFieldData<typeof Schema>` aliases
@@ -388,7 +388,7 @@ These are required capabilities, not optional feature negotiation. See
 atomicity requirements.
 
 A non-TanStack host implements and registers the `HostRequestBridge` seam from
-`@byline/core` (request identity, cookie read, cookie write) — the entire
+`@byline/core` (request identity, cookie read, cookie write); the entire
 `@byline/client/server` stack, including request-stable `RequestContext`
 resolution, then works unchanged. The `ServerConfig.hooks` registry itself is
 framework-independent.

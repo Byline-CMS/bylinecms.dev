@@ -1,7 +1,7 @@
 ---
 title: "Routing & API"
 path: "routing-api"
-summary: "The current internal-transport phase — TanStack Start server functions per area — and why a stable public HTTP API is deferred until a second client arrives."
+summary: "The current internal-transport phase (TanStack Start server functions per area) and why a stable public HTTP API is deferred until a second client arrives."
 ---
 
 # Routing & API
@@ -16,7 +16,7 @@ Companions:
 
 Byline is in an **internal transport phase**. The only active client today is the admin UI inside `apps/webapp`, so document, upload, and admin-management operations are exposed through **TanStack Start server functions** rather than a stable, framework-agnostic HTTP API.
 
-This is deliberate. Byline avoids evolving ad-hoc HTTP endpoints one operation at a time while the admin UI is the only client — doing so would prematurely lock in a public API surface before the broader client requirements needed to design it coherently exist.
+This is deliberate. Byline avoids evolving ad-hoc HTTP endpoints one operation at a time while the admin UI is the only client: doing so would prematurely lock in a public API surface before the broader client requirements needed to design it coherently exist.
 
 If you need to read or write Byline content from your own code today (a public frontend, a script, a seed), the supported door is the in-process [Client SDK](./01-client-sdk.md), not an HTTP endpoint.
 
@@ -150,7 +150,7 @@ The architecture is four layers, top to bottom:
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-The contract between layers is sharp: server fns own transport (input validation, auth-context resolution, serialisation); core services own business logic; adapters own persistence. Each server fn is a thin wrapper — a typical handler is 30–60 lines and delegates to one core service call.
+The contract between layers is sharp: server fns own transport (input validation, auth-context resolution, serialisation); core services own business logic; adapters own persistence. Each server fn is a thin wrapper: a typical handler is 30–60 lines and delegates to one core service call.
 
 ## Current transport surface
 
@@ -169,7 +169,7 @@ Per-collection document operations against the universal storage layer. All of t
 | `delete.ts`   | `POST` | Soft-delete (lifecycle delete via the storage adapter).                                          |
 | `status.ts`   | `POST` | Workflow transition (`PATCH-shape`); validates against `defineWorkflow` config.                  |
 | `history.ts`  | `GET`  | Version history for a document.                                                                  |
-| `stats.ts`    | `GET`  | Document counts grouped by status — feeds the dashboard cards.                                   |
+| `stats.ts`    | `GET`  | Document counts grouped by status. Feeds the dashboard cards.                                    |
 | `upload.ts`   | `POST` | Field-level file upload; full pipeline documented in [File / Media Uploads](../04-collections/06-file-media-uploads.md). |
 | `utils.ts`    | —      | `serialise()` helpers shared across the above.                                                   |
 
@@ -185,7 +185,7 @@ The table above is the core document surface. Feature-specific operations ship a
 
 ### `admin-users/`, `admin-roles/`, `admin-permissions/`, `admin-account/`
 
-Administrative management of the auth subsystem. Each handler delegates to the matching command in `packages/admin/src/modules/admin-{users,roles,permissions,account}/commands.ts` and is gated by `assertAdminActor` inside the command — so the transport wrappers themselves carry no policy.
+Administrative management of the auth subsystem. Each handler delegates to the matching command in `packages/admin/src/modules/admin-{users,roles,permissions,account}/commands.ts` and is gated by `assertAdminActor` inside the command, so the transport wrappers themselves carry no policy.
 
 | Area                | Files                                                                                       |
 |---------------------|---------------------------------------------------------------------------------------------|
@@ -198,7 +198,7 @@ Administrative management of the auth subsystem. Each handler delegates to the m
 
 ## Anatomy of a server function
 
-A representative handler — `collections/get.ts`:
+A representative handler, `collections/get.ts`:
 
 ```ts
 const getDocumentFn = createServerFn({ method: 'GET' })
@@ -220,7 +220,7 @@ const getDocumentFn = createServerFn({ method: 'GET' })
 Three things to notice:
 
 1. **No business logic here.** The handler resolves config, picks a populate strategy, and delegates. The actual `findById` work happens inside `CollectionHandle` → `document-read.ts` → adapter.
-2. **Auth context is resolved per-call** via `getAdminRequestContext()` (write paths) — not at module load. This keeps the handler pure and lets the same wrapper run under different actors across requests.
+2. **Auth context is resolved per-call** via `getAdminRequestContext()` (write paths), not at module load. This keeps the handler pure and lets the same wrapper run under different actors across requests.
 3. **`serialise()`** turns dates and other non-JSON values into transport-safe shapes. The same helper is used across the `collections/` area.
 
 For writes the pattern adds `requestContext` threading:
@@ -238,11 +238,11 @@ const createDocumentFn = createServerFn({ method: 'POST' })
   })
 ```
 
-The `requestContext` is what `assertActorCanPerform` reads inside the `document-lifecycle/` services — the gate runs in the service, not in the transport. That keeps the policy enforcement on the same side of the wire as the business logic, so any future stable HTTP transport inherits the gate for free.
+The `requestContext` is what `assertActorCanPerform` reads inside the `document-lifecycle/` services: the gate runs in the service, not in the transport. That keeps the policy enforcement on the same side of the wire as the business logic, so any future stable HTTP transport inherits the gate for free.
 
 ## The `@byline/client` indirection
 
-Read paths in the admin webapp do not call the database adapter directly. They go through `@byline/client` (`CollectionHandle`) — the same in-process SDK a non-admin reader would use. This is intentional: it means admin reads exercise the same `beforeRead` hooks, the same `afterRead` shaping, and the same populate orchestration as future external clients. The transport layer is the only thing that changes when a stable HTTP boundary lands.
+Read paths in the admin webapp do not call the database adapter directly. They go through `@byline/client` (`CollectionHandle`), the same in-process SDK a non-admin reader would use. This is intentional: it means admin reads exercise the same `beforeRead` hooks, the same `afterRead` shaping, and the same populate orchestration as future external clients. The transport layer is the only thing that changes when a stable HTTP boundary lands.
 
 Writes go straight to the `document-lifecycle/` services. The client's write surface (`create` / `update` / `delete` / `changeStatus`) wraps the same lifecycle functions, so a future stable HTTP endpoint can be a thin shim around either path with no business-logic changes.
 
@@ -255,9 +255,9 @@ There is **no stable, public, framework-agnostic HTTP API contract today** for a
 - No OpenAPI / Swagger surface.
 - No SDKs published for external use beyond the in-process `@byline/client`.
 
-Everything goes through TanStack Start's server-function transport, which is conceptually closer to RPC than HTTP — the wire shape is an implementation detail of TanStack Start, not a contract Byline owns.
+Everything goes through TanStack Start's server-function transport, which is conceptually closer to RPC than HTTP: the wire shape is an implementation detail of TanStack Start, not a contract Byline owns.
 
-One adjacent surface ships today without being an API: the **markdown representations** of published documents — `.md` at every canonical URL, plus the `llms.txt` index (see [Markdown Export](./04-markdown-export.md)). These are app-owned, read-only representations with the same standing as the HTML pages and `sitemap.xml`, not a transport boundary, and they don't change the trigger calculus below. They do partially answer "where's the public API?" for the nearest-term external consumers — AI agents — which read the `.md` surface without any stable HTTP contract existing.
+One adjacent surface ships today without being an API: the **markdown representations** of published documents: `.md` at every canonical URL, plus the `llms.txt` index (see [Markdown Export](./04-markdown-export.md)). These are app-owned, read-only representations with the same standing as the HTML pages and `sitemap.xml`, not a transport boundary, and they don't change the trigger calculus below. They do partially answer "where's the public API?" for the nearest-term external consumers (AI agents), which read the `.md` surface without any stable HTTP contract existing.
 
 Introducing a stable HTTP transport now for just one operation (uploads, say, or `findById`) would create a misleading partial boundary: that operation would have a public transport shape while everything around it stayed internal RPC. The split would force a later redesign once the first external client appeared.
 
@@ -274,12 +274,12 @@ Once that happens, uploads will not be the only concern. The same client will ne
 
 The likely shape of that next phase:
 
-1. Define stable HTTP contracts for upload, read, list, create, update, status, and history operations — including auth, error envelopes, and pagination.
+1. Define stable HTTP contracts for upload, read, list, create, update, status, and history operations, including auth, error envelopes, and pagination.
 2. Implement those HTTP transports as thin wrappers around the existing core services (the same delegation pattern the TanStack Start handlers already use).
-3. Keep TanStack Start server functions for the admin UI if they remain useful internally — they're cheaper than a round-trip through the public HTTP layer.
+3. Keep TanStack Start server functions for the admin UI if they remain useful internally; they're cheaper than a round-trip through the public HTTP layer.
 4. Allow another host framework (Fastify, Hono, whatever) to expose the same HTTP contracts while still using `@byline/core` underneath. The `host-tanstack-start` package becomes one host among several rather than the only one.
 
-The package name **`@byline/server` is reserved for this phase** — a decision
+The package name **`@byline/server` is reserved for this phase**, a decision
 made during the v4.x client/server DX work. It was deliberately *not* used for
 the server-side client getters (those live at `@byline/client/server`) so that
 the transport package, when it arrives, can claim the obvious name and design

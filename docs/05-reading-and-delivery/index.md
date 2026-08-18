@@ -12,7 +12,7 @@ Companions:
 - [Client SDK API](../10-api-reference/04-client-sdk.md) — every public client and collection-handle method with its options and return shape.
 
 Modeling content is only half the job; the other half is getting it out to the
-things that read it — browsers, other services, and increasingly language models
+things that read it: browsers, other services, and increasingly language models
 and agents. This section covers every way content leaves Byline and how to serve
 it efficiently.
 

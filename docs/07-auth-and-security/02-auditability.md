@@ -36,11 +36,11 @@ bylinecms.app leads with auditability as a principle:
 > "Every document carries its history: **who wrote it, who changed it**, and
 > which version is the one you stand behind."
 
-The immutable version stream honours the *what* and *when* — versions, a
+The immutable version stream honours the *what* and *when*: versions, a
 History view, per-version diffs. The auditability subsystem honours the **who**,
 and records the two classes of change that sit outside the version stream
 (non-versioned document-level writes, in-place status transitions) plus
-deletions and — reserved — admin-module actions.
+deletions and (reserved) admin-module actions.
 
 ### Vocabulary — "audit", not "attribution"
 
@@ -48,22 +48,22 @@ Two words that sound adjacent but must not bleed in Byline:
 
 - **Attribution** is *public-facing*: copyright, author / publisher credit on
   **published** content (the "original, attributable, auditable" thesis aimed
-  at readers and the provenance story). It surfaces to the audience — e.g. a
-  media item's `Credit / Attribution` field.
+  at readers and the provenance story). It surfaces to the audience (e.g. a
+  media item's `Credit / Attribution` field).
 - **Auditability** is *internal*: which staff actor did what to a document or
   version, and when. A staff-accountability record inside the admin, never
   shown to readers.
 
 Everything in this domain is the second. The internal vocabulary is
 consistently **audit** (the record), **acting user / actor** (the who), and
-**auditability** (the property) — never "attribution", which is reserved for
+**auditability** (the property), never "attribution", which is reserved for
 the public credit concept. The stored column is the neutral `created_by`.
 
 ## The version audit trail (acting user + action)
 
 Answers "who wrote it, who changed it" for every content save. A content save
 is a new `document_versions` row, so the audit record on a version *is* its
-creator — there is no separate `updatedBy`.
+creator: there is no separate `updatedBy`.
 
 ### Write side
 
@@ -79,14 +79,14 @@ Every `createDocumentVersion` call site in
 | `restore.ts` | 1 | `restore` |
 | `copy-to-locale.ts` | 1 | `copy_to_locale` |
 
-No schema change was needed — `document_versions.created_by uuid NULL` already
+No schema change was needed: `document_versions.created_by uuid NULL` already
 existed, projected through the `current_documents` /
 `current_published_documents` views. Rows written before the wiring stay NULL
 (render as em-dash / "unknown"); there is nothing to backfill from.
 
-**Attribution requires a real persisted user id — a UUID** (`actorId()` in
+**Attribution requires a real persisted user id, a UUID** (`actorId()` in
 `document-lifecycle/internals.ts`). Internal-tooling callers either pass no
-`requestContext` (seeds, migrations — the documented escape hatch) **or** a
+`requestContext` (seeds, migrations: the documented escape hatch) **or** a
 synthetic super-admin context whose id is not a UUID
 (`createSuperAdminContext({ id: 'import-docs-script' })`); both yield NULL
 `created_by`. A non-UUID actor id is treated as "no attributable user" rather
@@ -96,7 +96,7 @@ than written to the `uuid` column, so script and seed writes never fail on it.
 
 - **Naming: plain `createdBy`, no underscore.** `created_by` is a raw column
   (not derived), so the read-surface underscore convention (leading `_` =
-  derived/computed) does not apply — `createdBy` is the exact sibling of
+  derived/computed) does not apply: `createdBy` is the exact sibling of
   `updatedAt`. UI labels remain free to read "Updated By" in list contexts;
   that's presentation.
 - `created_by` is surfaced per version through the history server fn
@@ -104,36 +104,36 @@ than written to the `uuid` column, so script and seed writes never fail on it.
   through `shapeDocument` (`packages/client/src/response.ts`) as `createdBy`
   (raw uuid) on `ClientDocument` / history rows.
 - **Display names are an admin-realm concern, resolved in the admin server
-  fns** — never a JOIN inside the document storage adapter (which must stay
+  fns**, never a JOIN inside the document storage adapter (which must stay
   ignorant of `byline_admin_users` for the future `UserAuth` writer realm).
   The fns batch-resolve ids via `AdminUsersRepository.getByIds(ids)` and return
   an `actors: Record<id, { label }>` map alongside the page; the UI joins by
   id (`resolveActorLabels`, `server-fns/collections/actors.ts`). Ids absent
-  from the map are deleted users — rendered as a "former user" tombstone.
+  from the map are deleted users, rendered as a "former user" tombstone.
 
 ### UI — the audit strip
 
 The audit record (acting user + action + time) renders in a framework-owned,
 muted colspan sub-row under each table row (the "audit strip") rather than as
-`listViewColumns` entries — `listViewColumns` is the collection author's
+`listViewColumns` entries: `listViewColumns` is the collection author's
 surface over **user-defined fields**, whereas audit metadata is a system
 concern that should be structurally present, not opt-in per collection.
 
 - Strip content, compact single line:
   `created by <label> · <action> · <when>`. NULL-`created_by` rows render an
   em-dash label.
-- Markup: a second `<tr>` per row — an empty spacer cell under the version
+- Markup: a second `<tr>` per row, an empty spacer cell under the version
   column, then a `<td colSpan>` carrying the strip (`@byline/ui` `Table.Cell`
   spreads `colSpan`, so no Table-primitive extension was needed).
 - The strip renders in the **History view** by default. It is not shown in the
-  **list view** — it roughly halves row density, and the density toggle
+  **list view**: it roughly halves row density, and the density toggle
   (per-collection admin config vs. a view-level control) is unresolved.
 
 ## The document-level audit log
 
 Records the changes the version stream deliberately does not: non-versioned
 document-level writes (`path`, `availableLocales`), explicit in-place status
-transitions, tree mutations, deletions, and — reserved — admin-module actions.
+transitions, tree mutations, deletions, and (reserved) admin-module actions.
 
 ### Table
 
@@ -152,20 +152,20 @@ byline_audit_log
 ```
 
 **One generic table, not a document-scoped one.** `document_id` is nullable
-and `action` is namespaced — `document.path.changed`, `document.locales.changed`,
+and `action` is namespaced (`document.path.changed`, `document.locales.changed`,
 `document.status.changed`, `document.deleted`, and
 `document.tree.{placed,reparented,reordered,removed}` today;
-`admin.user.created`, `admin.role.updated`, … reserved — so the system activity
+`admin.user.created`, `admin.role.updated`, … reserved), so the system activity
 area and any future
 admin-module auditing land in the same table without a second migration.
 `actor_realm` is `'admin' | 'user' | 'system'` (`'system'` for non-UUID
-synthetic / tooling actors). Deliberately **FK-free** — an audit row outlives
+synthetic / tooling actors). Deliberately **FK-free**: an audit row outlives
 the doc / collection / actor it names (a `document.deleted` row cannot
 cascade-delete itself). Indexes on `(document_id, id)`, `(actor_id, id)`,
 `(action, id)`.
 
 **The version stream stays the record for content.** Content saves are
-**never** double-written into the audit log — the activity area unions the two
+**never** double-written into the audit log: the activity area unions the two
 sources at read time. The audit log records only what the version stream
 cannot. Tree actions are first-class filter values; a tree-document delete that
 promotes children or removes an existing edge can therefore appear as a delete,
@@ -177,7 +177,7 @@ records only the deletion action.
 
 The mutation and its audit-log row **commit together**. The one unacceptable
 outcome for an auditability feature is a change that succeeds while its audit
-row silently fails to write — a silent gap in the record. So the audit insert
+row silently fails to write: a silent gap in the record. So the audit insert
 runs in the **same database transaction** as the mutation, not best-effort
 afterwards.
 
@@ -189,8 +189,8 @@ the same for structural state; deleting a tree document includes version and
 path-row soft deletion, direct-child promotion, edge removal, and every
 parent/child audit row in one unit. Path rows receive the same operation
 timestamp as version tombstones, so audit commit cannot leave version and path
-liveness out of sync. That mechanism — its AsyncLocalStorage propagation and
-the DB↔DB vs DB↔external distinction — is specified in
+liveness out of sync. That mechanism (its AsyncLocalStorage propagation and
+the DB↔DB vs DB↔external distinction) is specified in
 **[Transactions](../03-architecture/03-transactions.md)**.
 
 Collection after-hooks are outside the transaction. A hook failure rejects the
@@ -239,9 +239,9 @@ containment, not optional feature behavior.
 Inside the existing service entry points, under the existing auth gates (no new
 enforcement surface), each wrapping its mutation + audit append in
 `db.withTransaction(...)`. The shared helper (`document-lifecycle/audit.ts`)
-provides `requireAuditCapability(db)` — which throws `ERR_AUDIT_UNSUPPORTED`
+provides `requireAuditCapability(db)` (which throws `ERR_AUDIT_UNSUPPORTED`
 loudly if the adapter lacks `withTransaction` / `commands.audit` rather than
-recording a gap — plus `auditActor(ctx)` (UUID id → realm `'admin'`; synthetic
+recording a gap), plus `auditActor(ctx)` (UUID id → realm `'admin'`; synthetic
 → NULL + `'system'`) and the `AUDIT_ACTIONS` constants.
 
 - `updateDocumentSystemFields` (`document-lifecycle/system-fields.ts`) — path
@@ -306,7 +306,7 @@ events are required.
   `before` snapshot as a historical document. A gated-out document returns an
   empty log rather than leaked metadata.
 - **The system-wide activity area** is *not* reachable transitively from any
-  collection ability — it sits behind the separate `admin.activity.read`
+  collection ability: it sits behind the separate `admin.activity.read`
   ability. Admin-realm events (`document_id NULL`) appear only there.
 
 `_bypassBeforeRead` on the SDK history/audit options is reserved for trusted
@@ -343,7 +343,7 @@ the `byline-admin` bundle (EN/FR): `collections.history.tabs.*` and
 ## The system activity area
 
 A top-level admin area at `getAdminRoutePath('activity')` (default
-`/admin/activity`) — the installation-wide who-did-what feed.
+`/admin/activity`): the installation-wide who-did-what feed.
 
 - **Route**: `createAdminActivityRoute` factory in
   `@byline/host-tanstack-start/routes` (physical route at
@@ -354,8 +354,8 @@ A top-level admin area at `getAdminRoutePath('activity')` (default
 - **The report** is a filterable, paged feed over the **read-time union** of
   the version stream (content saves, surfaced as `document.created` /
   `document.updated` from `event_type` and attributed via `created_by`) and the
-  audit log (everything else). The two sources are disjoint — a delete mints no
-  version, a status change mutates the version row in place — so the union
+  audit log (everything else). The two sources are disjoint (a delete mints no
+  version, a status change mutates the version row in place), so the union
   double-counts nothing. Ordered by the normalised `occurred_at` (the
   per-source UUIDv7 ids are separate sequences). Backed by
   `IAuditQueries.findAuditLog` (`@byline/db-postgres` `AuditQueries`, a
@@ -367,7 +367,7 @@ A top-level admin area at `getAdminRoutePath('activity')` (default
   (`@byline/admin/admin-activity`, registered through `registerAdminAbilities`
   like `admin.users.*`) gates the host server fn `getSystemActivityLog` via
   `assertAdminActor`. Unlike the per-document modules it owns no AdminStore
-  command — it reads the document db adapter's `findAuditLog` directly — so the
+  command (it reads the document db adapter's `findAuditLog` directly), so the
   assertion lives in the host server fn. The ability is system-wide and **not**
   reachable transitively from any collection ability, so an auditor role gets
   activity visibility without content read/write.

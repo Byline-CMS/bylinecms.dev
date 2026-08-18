@@ -11,13 +11,13 @@ Companions:
 - [Blocks](./02-blocks.md) — `defineBlock` / `defineBlockAdmin`, the per-block schema/admin split, and block-tailored editors.
 - [Rich Text](./07-rich-text.md) — the Lexical adapter, its `EditorConfig`, and per-field overrides.
 - [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md) — auth + access-control subsystem, including six worked `beforeRead` row-scoping recipes (owner-only drafts, multi-tenant, soft-delete, …).
-- [Document Storage](../03-architecture/01-document-storage.md) — *document* versioning (the sibling pillar — this doc covers *schema* versioning).
+- [Document Storage](../03-architecture/01-document-storage.md) — *document* versioning (the sibling pillar: this doc covers *schema* versioning).
 - [Document Paths](./05-document-paths.md) — how `useAsPath` lands in `byline_document_paths`.
 - [Collections API](../10-api-reference/02-collections.md) — the exhaustive `CollectionDefinition`, `CollectionAdminConfig`, block, workflow, layout, and hook contracts.
 
 ## Overview
 
-A collection is the unit of authoring in Byline — one collection per content type, and every [document](../03-architecture/01-document-storage.md) is an instance of exactly one. Defining a collection is how you tell Byline what a content type contains and how editors work with it.
+A collection is the unit of authoring in Byline: one collection per content type, and every [document](../03-architecture/01-document-storage.md) is an instance of exactly one. Defining a collection is how you tell Byline what a content type contains and how editors work with it.
 
 You define it in two places, the way a Django model pairs with its `ModelAdmin`: a **schema** that declares what the collection *is* (`CollectionDefinition`, returned by `defineCollection`), and an **admin** config that declares how it *renders* in the dashboard (`CollectionAdminConfig`, returned by `defineAdmin`). The schema's `path` links the two.
 
@@ -155,7 +155,7 @@ defineAdmin(News, {
 
 ### 6. Compose layout: main + sidebar
 
-`layout` is the composition step — it places the named primitives (and bare schema field names) into the two render regions of the edit form.
+`layout` is the composition step: it places the named primitives (and bare schema field names) into the two render regions of the edit form.
 
 **Edit:** `apps/webapp/byline/collections/<name>/admin.tsx`
 
@@ -293,12 +293,12 @@ What you cannot do *yet*: ask the server to render that document against the his
 
 A collection lives in two files:
 
-- **Schema** (`collections/<name>/schema.ts`) — a `CollectionDefinition` returned by `defineCollection`. Pure data: `path`, `labels`, `fields[]`, `useAsTitle`, `useAsPath`, `workflow`, `hooks`, `search`, `showStats`, `linksInEditor`, `orderable`, `version`. **Must be tsx-loadable** — the server bootstrap in `apps/webapp/byline/server.config.ts` imports schemas directly so seeds and migrations can run outside Vite. No React. No CSS modules. No browser-only globals.
+- **Schema** (`collections/<name>/schema.ts`) — a `CollectionDefinition` returned by `defineCollection`. Pure data: `path`, `labels`, `fields[]`, `useAsTitle`, `useAsPath`, `workflow`, `hooks`, `search`, `showStats`, `linksInEditor`, `orderable`, `version`. **Must be tsx-loadable**: the server bootstrap in `apps/webapp/byline/server.config.ts` imports schemas directly so seeds and migrations can run outside Vite. No React. No CSS modules. No browser-only globals.
 
-  The schema is **isomorphic** — the same module is *also* pulled into the **client** admin bundle (the admin shell reads field config from it). So the constraint runs both ways: just as a schema must avoid browser-only globals (so the server bootstrap can load it), it must avoid **server-only** modules (so the client can bundle it without dragging Node built-ins or backend code into the browser). Declarative field data and isomorphic-safe field hooks satisfy both directions. Register lifecycle/upload hooks that reach server-only code through the [server-only hook registry](#server-only-hook-registry), outside the schema graph.
+  The schema is **isomorphic**: the same module is *also* pulled into the **client** admin bundle (the admin shell reads field config from it). So the constraint runs both ways: just as a schema must avoid browser-only globals (so the server bootstrap can load it), it must avoid **server-only** modules (so the client can bundle it without dragging Node built-ins or backend code into the browser). Declarative field data and isomorphic-safe field hooks satisfy both directions. Register lifecycle/upload hooks that reach server-only code through the [server-only hook registry](#server-only-hook-registry), outside the schema graph.
 - **Admin** (`collections/<name>/admin.tsx`) — a `CollectionAdminConfig` returned by `defineAdmin`. UI overrides: `columns`, `itemView`, `tabSets` / `rows` / `groups` / `layout`, `preview.url`, `listView`, `listActions`, `fields{}` (per-field admin), `group`. React, CSS modules, and Vite-managed imports are all fine.
 
-The split mirrors Django's `Model` / `ModelAdmin`. The same field names appear on both sides — the schema declares what the field *is*; the admin declares how it *renders*. The two halves are linked by the schema's `path` (`defineAdmin(schema, …)` sets `slug` from `schema.path` automatically). See [Fields](./01-fields.md) for the equivalent split at the field level.
+The split mirrors Django's `Model` / `ModelAdmin`. The same field names appear on both sides: the schema declares what the field *is*; the admin declares how it *renders*. The two halves are linked by the schema's `path` (`defineAdmin(schema, …)` sets `slug` from `schema.path` automatically). See [Fields](./01-fields.md) for the equivalent split at the field level.
 
 ### The `CollectionDefinition` surface
 
@@ -329,7 +329,7 @@ rules, callback signatures, and component props.
 
 ### Columns and itemView
 
-A `ColumnDefinition` maps a field name (or a top-level column like `status` / `updatedAt`) to a column header. The shape is the same for both `columns` (the list view) and `itemView` (how one document renders when it appears elsewhere — a relation picker row, a tile, a cell), so formatters and helpers are reusable across both.
+A `ColumnDefinition` maps a field name (or a top-level column like `status` / `updatedAt`) to a column header. The shape is the same for both `columns` (the list view) and `itemView` (how one document renders when it appears elsewhere: a relation picker row, a tile, a cell), so formatters and helpers are reusable across both.
 
 ```ts
 export interface ColumnDefinition<T = any> {
@@ -346,13 +346,13 @@ export type ColumnFormatter<T = any> =
   | { component: (props: FormatterProps<T>) => any }
 ```
 
-**Formatter forms.** The plain-function form is fine for one-line transformations. The `{ component }` form gives you a real React component for the cell — hooks, context, conditional rendering all work. Built-ins like `DateTimeFormatter` and project-local components like `MediaThumbnail` use this form.
+**Formatter forms.** The plain-function form is fine for one-line transformations. The `{ component }` form gives you a real React component for the cell: hooks, context, conditional rendering all work. Built-ins like `DateTimeFormatter` and project-local components like `MediaThumbnail` use this form.
 
-**itemView columns.** When omitted, a document appearing as a relation target falls back to a single-line render of `useAsTitle` + `path`. Define `itemView` when you want a tailored row for one of your collections in that position — typically narrower than the list-view columns. See `apps/webapp/byline/collections/media/admin.tsx` for the canonical example.
+**itemView columns.** When omitted, a document appearing as a relation target falls back to a single-line render of `useAsTitle` + `path`. Define `itemView` when you want a tailored row for one of your collections in that position, typically narrower than the list-view columns. See `apps/webapp/byline/collections/media/admin.tsx` for the canonical example.
 
 ### Layout primitives
 
-Layout primitives are *named* registries (`tabSets[]`, `rows[]`, `groups[]`) that compose into the form's two render regions via `layout.main` and `layout.sidebar`. Membership is owned by the primitive — fields list themselves once, inside the primitive's `fields[]` array.
+Layout primitives are *named* registries (`tabSets[]`, `rows[]`, `groups[]`) that compose into the form's two render regions via `layout.main` and `layout.sidebar`. Membership is owned by the primitive: fields list themselves once, inside the primitive's `fields[]` array.
 
 | Primitive | Accepts | Renders as |
 |---|---|---|
@@ -363,17 +363,17 @@ Layout primitives are *named* registries (`tabSets[]`, `rows[]`, `groups[]`) tha
 **Nesting rules** (enforced by the startup validator, not the type system):
 
 - `tabSets` only appear in `layout.main`.
-- Rows are leaves — no nested rows / groups / tabs.
+- Rows are leaves: no nested rows / groups / tabs.
 - Groups accept fields and rows, but no tabs and no nested groups.
 - Tabs accept fields, rows, and groups.
 
-**Tab visibility.** Each tab can carry an optional `condition: (data) => boolean`. The form re-evaluates on every keystroke (via the meta-subscribe loop) so tabs appear / disappear based on live data. Client-only — must not be placed on `CollectionDefinition`.
+**Tab visibility.** Each tab can carry an optional `condition: (data) => boolean`. The form re-evaluates on every keystroke (via the meta-subscribe loop) so tabs appear / disappear based on live data. Client-only: must not be placed on `CollectionDefinition`.
 
 **Composition.** `layout` is the entry point. `main` accepts tabSet, group, row, or schema-field names. `sidebar` accepts group, row, or schema-field names (no tabSets). When `layout` is omitted entirely, the renderer synthesises `{ main: <all schema field names in order> }` so trivial collections render with sensible defaults.
 
 **Name collisions are a startup error.** Names for tabSets, rows, and groups must be unique and must not collide with any schema field name. A name collision throws before the process accepts traffic.
 
-**The `path` widget.** Form chrome rendered structurally by the form renderer based on `useAsPath`. It is **not** addressable from `layout` — admin configs cannot reference `'path'`.
+**The `path` widget.** Form chrome rendered structurally by the form renderer based on `useAsPath`. It is **not** addressable from `layout`: admin configs cannot reference `'path'`.
 
 ### Preview URL
 
@@ -410,13 +410,13 @@ An absolute URL does not transfer Byline's host-only admin and preview cookies;
 cross-origin draft preview therefore requires a separate authentication and
 preview-state handoff.
 
-**Default behaviour.** When `preview` is omitted, the preview link defaults to `/${collectionPath}/${doc.path}` — fine for collections whose public URL mirrors the collection path.
+**Default behaviour.** When `preview` is omitted, the preview link defaults to `/${collectionPath}/${doc.path}` (fine for collections whose public URL mirrors the collection path).
 
-**Why no `preview.populate` hint.** Prototyped and removed. The edit-view loader already issues a depth-1 populate to render relation tiles, so any selective override would have to coexist with the picker projection (additive? overriding? both?) — extra surface area for a case no current collection needs. Revisit if a real use case emerges (deeper relation traversal, or a field outside the picker projection that the URL builder needs).
+**Why no `preview.populate` hint.** Prototyped and removed. The edit-view loader already issues a depth-1 populate to render relation tiles, so any selective override would have to coexist with the picker projection (additive? overriding? both?): extra surface area for a case no current collection needs. Revisit if a real use case emerges (deeper relation traversal, or a field outside the picker projection that the URL builder needs).
 
 ### Custom list view (`MediaListView` walkthrough)
 
-`listView` is the primary extensibility point for non-tabular layouts: card grids, kanban boards, calendar views. When provided, it completely replaces the default table-based `ListView` on the collection's index route. It receives a `ListViewComponentProps` and is responsible for rendering search, ordering, results, and pagination itself — no additional API parameters or endpoints needed.
+`listView` is the primary extensibility point for non-tabular layouts: card grids, kanban boards, calendar views. When provided, it completely replaces the default table-based `ListView` on the collection's index route. It receives a `ListViewComponentProps` and is responsible for rendering search, ordering, results, and pagination itself: no additional API parameters or endpoints needed.
 
 ```ts
 export interface ListViewComponentProps<TData = any> {
@@ -427,7 +427,7 @@ export interface ListViewComponentProps<TData = any> {
 
 The `data` shape mirrors the standard paginated API envelope (`AnyCollectionSchemaTypes['ListType']` in the webapp). It carries the paginated documents, pagination meta, and the `included` block with collection metadata. Search, ordering, and pagination flow through URL params (`?query=…`, `?order=…`, `?desc=…`, `?page=…`) and the component drives them via TanStack Router's `useNavigate` + `useRouterState`.
 
-**Worked example — `MediaListView`** (in `apps/webapp/byline/collections/media/components/media-list-view.tsx`). The Media collection ships a card-grid replacement for the table:
+**Worked example: `MediaListView`** (in `apps/webapp/byline/collections/media/components/media-list-view.tsx`). The Media collection ships a card-grid replacement for the table:
 
 ```tsx
 import { useRouterState } from '@tanstack/react-router'
@@ -485,11 +485,11 @@ export function MediaListView({
 
 **Key patterns:**
 
-- **URL is the source of truth for search / order / page.** The view reads the current values from `useRouterState().location.search`, and changes write back via `useNavigate({ search })`. No local state for these — refreshes and shareable links work for free.
+- **URL is the source of truth for search / order / page.** The view reads the current values from `useRouterState().location.search`, and changes write back via `useNavigate({ search })`. No local state for these: refreshes and shareable links work for free.
 - **Reset `page` on any other change.** A new search or new ordering should land on page 1; carrying over `?page=4` to a new query yields confused empty pages.
 - **Use the host wrappers for navigation.** Import `Link` / `useNavigate` from `admin-shell/chrome/loose-router` and build destinations with `getAdminRoutePath(...)`; never hard-code `/admin`, because the admin base path is configurable.
 - **Pagination via `RouterPager`** from `@byline/host-tanstack-start/admin-shell/chrome/router-pager`. It writes the `page` search parameter using the same control as the default list view.
-- **`columns` definitions are still importable** even when `listView` is set; they aren't *applied* automatically (that's the default `ListView`'s job), but a custom view can opt in — for example to render a togglable grid/table view from the same column schema.
+- **`columns` definitions are still importable** even when `listView` is set; they aren't *applied* automatically (that's the default `ListView`'s job), but a custom view can opt in, for example to render a togglable grid/table view from the same column schema.
 
 Register the view on the admin config:
 
@@ -499,7 +499,7 @@ defineAdmin(Media, { listView: MediaListView })
 
 ### Workflow
 
-Every collection has a sequential workflow — by default `draft` → `published` → `archived`. The transition validator allows ±1 step or reset-to-first. Customise per collection by passing `defineWorkflow(...)` on the schema:
+Every collection has a sequential workflow: by default `draft` → `published` → `archived`. The transition validator allows ±1 step or reset-to-first. Customise per collection by passing `defineWorkflow(...)` on the schema:
 
 ```ts
 import { defineWorkflow } from '@byline/core'
@@ -511,9 +511,9 @@ workflow: defineWorkflow({
 })
 ```
 
-`defineWorkflow` guarantees the three base statuses are present and correctly ordered. Bespoke statuses (e.g. `inReview`) can be added between the base ones. Workflow status `label` and `verb` are presentational and **excluded from the schema fingerprint** — see [Fingerprint](./08-collection-versioning.md#fingerprint).
+`defineWorkflow` guarantees the three base statuses are present and correctly ordered. Bespoke statuses (e.g. `inReview`) can be added between the base ones. Workflow status `label` and `verb` are presentational and **excluded from the schema fingerprint**; see [Fingerprint](./08-collection-versioning.md#fingerprint).
 
-Status changes mutate the existing version row in-place — they are lifecycle metadata, not content. The Zod schema builder derives the status enum dynamically from each collection's workflow.
+Status changes mutate the existing version row in-place: they are lifecycle metadata, not content. The Zod schema builder derives the status enum dynamically from each collection's workflow.
 
 ### Lifecycle hooks
 
@@ -532,12 +532,12 @@ Status changes mutate the existing version row in-place — they are lifecycle m
 
 The two read hooks carry the security-sensitive behaviour, so they are worth reading closely. The full reference and worked recipes live in [Authentication & Authorization — Read-side scoping](../07-auth-and-security/01-authn-authz.md#read-side-scoping-the-beforeread-hook); the summary is here.
 
-**`beforeRead`** is the row-scoping hook. You return a `QueryPredicate`, and Byline ANDs it with the caller's filters — but the two compile through different paths, and the difference is the point:
+**`beforeRead`** is the row-scoping hook. You return a `QueryPredicate`, and Byline ANDs it with the caller's filters, but the two compile through different paths, and the difference is the point:
 
 - Your caller's `where` goes through the ordinary query parser. Your hook predicate goes through the **strict security compiler**: an unsupported field or operator, or a malformed value, **throws** rather than being weakened or dropped. A scoping rule that cannot be honoured fails the read; it never silently widens it.
-- The strict result compiles once per logical read — keyed on `ReadContext`, collection, and effective read mode — in private, authority-bound state that concurrent populate branches share. Reusing a logical read across authorities fails closed.
+- The strict result compiles once per logical read (keyed on `ReadContext`, collection, and effective read mode) in private, authority-bound state that concurrent populate branches share. Reusing a logical read across authorities fails closed.
 - Top-level `status` and `path` operators become document-column filters, applied consistently across list, detail, populate, count, history, and tree reads.
-- Coverage is end-to-end. Ordinary reads and counts, every immutable row in `history()` and `findByVersion()`, tree edges and hydration, search authorization, populated relations, and rich-text document and image targets all apply the target collection's ability and predicate. The one deliberate exception is `auditLog()`, which gates the document-grain log through the current document rather than applying a predicate to each audit row — see [Auditability](../07-auth-and-security/02-auditability.md).
+- Coverage is end-to-end. Ordinary reads and counts, every immutable row in `history()` and `findByVersion()`, tree edges and hydration, search authorization, populated relations, and rich-text document and image targets all apply the target collection's ability and predicate. The one deliberate exception is `auditLog()`, which gates the document-grain log through the current document rather than applying a predicate to each audit row; see [Auditability](../07-auth-and-security/02-auditability.md).
 
 **`afterRead`** runs after populate, once per freshly materialized raw document, and lets you mutate what the read returns:
 
@@ -564,7 +564,7 @@ afterUpdate: async ({ documentId, path }) => {
 
 #### Advanced pattern: aggregate every side-effect failure
 
-Most hooks should prefer `Promise.all` for familiarity. If operations need both an attempt **and** complete failure reporting—for example, an operator must see that cache, CDN, and webhook delivery all failed—use a small application-owned `Promise.allSettled` helper:
+Most hooks should prefer `Promise.all` for familiarity. If operations need both an attempt **and** complete failure reporting (for example, an operator must see that cache, CDN, and webhook delivery all failed), use a small application-owned `Promise.allSettled` helper:
 
 ```ts
 /**
@@ -593,7 +593,7 @@ export async function runSideEffects(
 
 This is an optional reliability pattern, not part of Byline core. Keep it in application server code and use it only where aggregated diagnostics justify the extra abstraction.
 
-Server-side **upload** hooks (`beforeStore` / `afterStore`) live on the field's `upload` block — not on the collection — because they are field-scoped and field-aware. A collection with multiple image/file fields runs each field's pipeline independently.
+Server-side **upload** hooks (`beforeStore` / `afterStore`) live on the field's `upload` block, not on the collection, because they are field-scoped and field-aware. A collection with multiple image/file fields runs each field's pipeline independently.
 
 #### Server-only hook registry
 
@@ -638,15 +638,15 @@ Definition-attached inline hooks and loaders remain valid for implementations wh
 
 ### Orderable collections
 
-`orderable: true` is an opt-in fractional-index column on `byline_documents.order_key` that lets editors drag rows in a collection's list view to define a canonical order. Useful for short, finite, naturally ordered collections — bios, team members, FAQ items, news categories, navigation sections — where alphabetical or `createdAt` ordering doesn't tell the right story.
+`orderable: true` is an opt-in fractional-index column on `byline_documents.order_key` that lets editors drag rows in a collection's list view to define a canonical order. Useful for short, finite, naturally ordered collections (bios, team members, FAQ items, news categories, navigation sections) where alphabetical or `createdAt` ordering doesn't tell the right story.
 
 **Three rules anchor the model:**
 
 1. **Opt-in per collection.** `defineCollection({ orderable: true })`. Off by default; nothing changes for collections that don't opt in.
 2. **System metadata, not content.** `order_key` lives on the logical-document row (`byline_documents.order_key`), not on `documentVersions`. Reordering does **not** create a new document version, does **not** flow through patches, and does **not** trigger collection write hooks.
-3. **Fractional-index, no rebalancing.** Keys are base-62 strings that sort lexicographically (Greenspan's algorithm, [Observable article](https://observablehq.com/@dgreensp/implementing-fractional-indexing)). Inserting between two rows produces a new string strictly between their keys — no rebalancing pass, no global re-write.
+3. **Fractional-index, no rebalancing.** Keys are base-62 strings that sort lexicographically (Greenspan's algorithm, [Observable article](https://observablehq.com/@dgreensp/implementing-fractional-indexing)). Inserting between two rows produces a new string strictly between their keys: no rebalancing pass, no global re-write.
 
-`orderable` lives on the schema (not on `defineAdmin`) because it has structural consequences across layers — `document-lifecycle` appends a key on create, the reorder server fn gates on it, and the `@byline/client` SDK can sort by it without crossing into presentation config.
+`orderable` lives on the schema (not on `defineAdmin`) because it has structural consequences across layers: `document-lifecycle` appends a key on create, the reorder server fn gates on it, and the `@byline/client` SDK can sort by it without crossing into presentation config.
 
 **Effects when `orderable: true`:**
 
@@ -674,15 +674,15 @@ Definition-attached inline hooks and loaders remain valid for implementations wh
 - **Not EAV** — the EAV stores hold user-declared field values. `order_key` is system metadata, in the same category as `id` and `path` (which has its own table for locale variance).
 - **Not a sidecar table (yet)** — a sidecar makes sense only if multiple ordering scopes emerge ("homepage order" vs. "sidebar order"). No real ask on file. The column-now / sidecar-later path is clean: a future `document_orderings(document_id, scope, order_key)` table layers on top with the existing column as the default scope.
 
-**Backfill on adoption.** Existing rows in a newly-`orderable` collection start with `order_key = NULL`. The list-view sort is `ORDER BY order_key ASC NULLS LAST, created_at DESC`, so unkeyed rows fall to the bottom in a stable order until the editor drags them. No migration-time backfill needed — adoption is gradual and editor-driven.
+**Backfill on adoption.** Existing rows in a newly-`orderable` collection start with `order_key = NULL`. The list-view sort is `ORDER BY order_key ASC NULLS LAST, created_at DESC`, so unkeyed rows fall to the bottom in a stable order until the editor drags them. No migration-time backfill needed: adoption is gradual and editor-driven.
 
-**Drag-to-reorder semantics.** The admin list view uses `dnd-kit` with the vertical-list strategy. Each drop fires a single `reorderCollectionDocument` call carrying the dragged document and its new neighbours' IDs; the server resolves their `order_key`s in one query and writes a new key strictly between them via `generateKeyBetween(left, right)`. Drag is **disabled** when a search query is active, a status filter is active, or an explicit sort column other than `order_key` is selected — in any of those views the visible row order is not the canonical stored order, so "drop between A and B" would map to the wrong neighbour IDs. Reordering across pages is also disabled in this iteration — same-page drops only.
+**Drag-to-reorder semantics.** The admin list view uses `dnd-kit` with the vertical-list strategy. Each drop fires a single `reorderCollectionDocument` call carrying the dragged document and its new neighbours' IDs; the server resolves their `order_key`s in one query and writes a new key strictly between them via `generateKeyBetween(left, right)`. Drag is **disabled** when a search query is active, a status filter is active, or an explicit sort column other than `order_key` is selected: in any of those views the visible row order is not the canonical stored order, so "drop between A and B" would map to the wrong neighbour IDs. Reordering across pages is also disabled in this iteration: same-page drops only.
 
-**Auth.** `reorderCollectionDocument` runs through `assertActorCanPerform(requestContext, collectionPath, 'update')`. No new ability slug — reorder is a metadata-level update of the document, so the existing `collections.<path>.update` ability is what's enforced. `beforeRead` row-scoping applies to the list-view fetch the same way it does for any read (the reorder UI consumes whichever rows the actor is allowed to see), so a multi-tenant collection that scopes by `tenantId` keeps drag-to-reorder per-tenant.
+**Auth.** `reorderCollectionDocument` runs through `assertActorCanPerform(requestContext, collectionPath, 'update')`. No new ability slug: reorder is a metadata-level update of the document, so the existing `collections.<path>.update` ability is what's enforced. `beforeRead` row-scoping applies to the list-view fetch the same way it does for any read (the reorder UI consumes whichever rows the actor is allowed to see), so a multi-tenant collection that scopes by `tenantId` keeps drag-to-reorder per-tenant.
 
-**Orthogonality with `hasMany`.** `hasMany` relation arrays carry their own order in the field value (array positions inside `store_relation`). The drag-handle on a `hasMany` picker reorders array entries inside a single document's content — that's a content edit and mints a new document version. `orderable: true` is the orthogonal axis: the canonical sort of the **collection's documents** independent of any single field's value. Both can be used together: a `sections` collection can be `orderable: true` (root order) while each section document carries a `children: relation(hasMany)` field (per-section order).
+**Orthogonality with `hasMany`.** `hasMany` relation arrays carry their own order in the field value (array positions inside `store_relation`). The drag-handle on a `hasMany` picker reorders array entries inside a single document's content: that's a content edit and mints a new document version. `orderable: true` is the orthogonal axis: the canonical sort of the **collection's documents** independent of any single field's value. Both can be used together: a `sections` collection can be `orderable: true` (root order) while each section document carries a `children: relation(hasMany)` field (per-section order).
 
-**Reading from `@byline/client`.** The SDK does **not** auto-default to `order_key` ordering — request it explicitly:
+**Reading from `@byline/client`.** The SDK does **not** auto-default to `order_key` ordering. Request it explicitly:
 
 ```ts
 const sections = await client
@@ -694,10 +694,10 @@ Both `orderKey` and `order_key` are accepted (`DOCUMENT_SORT_COLUMNS` in `packag
 
 Two known gaps on the SDK path, both acceptable for the current implementation:
 
-- **No `NULLS LAST` qualifier.** `parseSort` emits a single `ORDER BY order_key <dir>`. On Postgres, `ASC` puts `NULL` last by default — backfilled-but-undragged rows sink, which matches admin-view intent. `DESC` would float `NULL`s to the top.
+- **No `NULLS LAST` qualifier.** `parseSort` emits a single `ORDER BY order_key <dir>`. On Postgres, `ASC` puts `NULL` last by default: backfilled-but-undragged rows sink, which matches admin-view intent. `DESC` would float `NULL`s to the top.
 - **Single sort key only.** `parseSort` reads only the first entry of the `sort` object, so a fallback tiebreaker (`{ orderKey: 'asc', createdAt: 'desc' }`) is silently dropped. Unkeyed rows therefore have no stable secondary order on the SDK path.
 
-If either becomes load-bearing for an external consumer, the fix lives in `parseSort` / the adapter's `ORDER BY` emission — at which point matching the admin's `order_key ASC NULLS LAST, created_at DESC` is the obvious target.
+If either becomes load-bearing for an external consumer, the fix lives in `parseSort` / the adapter's `ORDER BY` emission, at which point matching the admin's `order_key ASC NULLS LAST, created_at DESC` is the obvious target.
 
 **Intentionally NOT in scope:**
 

@@ -1,7 +1,7 @@
 ---
 title: "Internationalization (i18n)"
 path: "i18n"
-summary: "Byline separates interface translation from content translation, and treats both independently from the language a document is published in. An overview of the three i18n axes — host interface, admin interface, and content locales — and how they stay decoupled."
+summary: "Byline separates interface translation from content translation, and treats both independently from the language a document is published in. An overview of the three i18n axes (host interface, admin interface, and content locales) and how they stay decoupled."
 ---
 
 # Internationalization (i18n)
@@ -17,7 +17,7 @@ cleanly is one of the reasons Byline exists.
 
 The result **separates interface translations from content translations**. A
 site can present content in one or more translations that lie entirely *outside*
-its own interface translations — and it does so correctly: additionally-translated
+its own interface translations, and it does so correctly: additionally-translated
 pages get the right `hreflang`, canonical, and sitemap entries (everything needed
 to make a translated document discoverable) while preventing a content
 translation from becoming a "switched", unknown *interface* locale that sticks to

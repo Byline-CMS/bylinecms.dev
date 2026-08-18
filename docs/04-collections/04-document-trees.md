@@ -1,7 +1,7 @@
 ---
 title: "Document Trees"
 path: "document-tree"
-summary: "A document-level, single-parent, ordered hierarchy for self-referential collections: enable it with tree: true for a navigable table of contents, hierarchical URLs, breadcrumbs, and prev/next — all without versioning the structure."
+summary: "A document-level, single-parent, ordered hierarchy for self-referential collections: enable it with tree: true for a navigable table of contents, hierarchical URLs, breadcrumbs, and prev/next, all without versioning the structure."
 ---
 
 # Document Trees
@@ -15,13 +15,13 @@ Companions:
 
 A **document tree** turns a collection into a navigable hierarchy: an ordered,
 single-parent table of contents where every document knows its place. It is the
-structural backbone for documentation sites, handbooks, and books — anywhere a
+structural backbone for documentation sites, handbooks, and books: anywhere a
 set of documents needs a spine, breadcrumbs, and previous/next navigation. This
 very documentation site is a document tree.
 
 The tree is **metadata about position**, not content. Where a document sits in
 the table of contents says nothing about what the document *is*. So reordering,
-nesting, and re-parenting touch no content fields and mint no new versions — they
+nesting, and re-parenting touch no content fields and mint no new versions: they
 behave exactly like editing a document's `path`. The structure lives in its own
 table, at document level, outside the version stream. The tree edge is one of the
 three document-level system attributes (alongside `path` and `availableLocales`);
@@ -30,8 +30,8 @@ for why that distinction matters and how it relates to versioning and audit.
 
 ## Enabling a tree
 
-Opt in at the **collection definition** (schema) level, not in `defineAdmin` —
-the flag changes how the collection is stored and read, not merely how it
+Opt in at the **collection definition** (schema) level, not in `defineAdmin`.
+The flag changes how the collection is stored and read, not merely how it
 renders:
 
 ```ts
@@ -51,7 +51,7 @@ adapter that can lock, mutate, reconcile deletion, and append audit rows
 atomically. These are mandatory parts of the canonical 4.x `IDbAdapter`, not
 optional capabilities; the startup audit/delete-reconciliation check remains as
 a runtime guard for untyped JavaScript adapters. A tree collection
-owns its own ordering, so it cannot also be `orderable: true` — that combination
+owns its own ordering, so it cannot also be `orderable: true`. That combination
 is rejected at config validation. You do **not** add a `parent` relation field;
 the tree owns the parent edge.
 
@@ -86,7 +86,7 @@ update repair is covered by `afterCreate` / `afterUpdate`, not a second
   its direct children become roots, preserve their sibling order, and append
   after existing roots. Soft deletion, promotion, edge removal, and all related
   audit rows commit or roll back together.
-- **Per-parent ordering.** Sibling order is scoped to the parent — each parent is
+- **Per-parent ordering.** Sibling order is scoped to the parent: each parent is
   its own ordering keyspace, so reordering one branch never disturbs another.
 - **Locale-agnostic structure.** The tree references the logical document, so all
   locale variants of a document share one position. A localized documentation
@@ -96,7 +96,7 @@ update repair is covered by `afterCreate` / `afterUpdate`, not a second
 
 A tree collection swaps the default list view for a **tree list**: ordered rows
 with depth-indented children and an *Unplaced* group for any stragglers. The
-placed tree is drag-enabled — a grip handle drags a node together with its whole
+placed tree is drag-enabled: a grip handle drags a node together with its whole
 subtree, and the drag's horizontal offset projects the target depth and parent
 (the Notion-style indent gesture), clamped to what the neighbouring rows allow.
 Drops persist immediately and optimistically, reverting with a toast on failure.
@@ -128,9 +128,9 @@ on the `@byline/client` collection handle:
 | Method | Purpose |
 |---|---|
 | `getSubtree({ rootDocumentId, depth, status, … })` | Read a nested subtree (node + ordered children). A `null` root reads the whole tree from its roots. |
-| `getAncestors(documentId, { status, locale, … })` | Walk upward for breadcrumbs — an indexed single-collection lookup. |
+| `getAncestors(documentId, { status, locale, … })` | Walk upward for breadcrumbs (an indexed single-collection lookup). |
 | `getTreeParent(documentId, { status, locale, … })` | Distinguish *unplaced* from *root* from *child*, without leaking a hidden parent id. |
-| `placeTreeNode(documentId, { parentDocumentId, beforeDocumentId, afterDocumentId, reconcile })` | Place, reorder, or re-parent a node — they differ only in whether the parent changes. |
+| `placeTreeNode(documentId, { parentDocumentId, beforeDocumentId, afterDocumentId, reconcile })` | Place, reorder, or re-parent a node. They differ only in whether the parent changes. |
 | `removeFromTree(documentId, { reconcile })` | Remove a node's edge so it becomes unplaced (distinct from deleting the document). |
 
 ### Authoritative mutation contracts
@@ -232,7 +232,7 @@ A published parent can own a draft-only child. Status is therefore evaluated
 
 - **Public reads** (`status: 'published'`) drop any edge whose child has no
   published version. An unpublished node thus hides its **entire subtree** from
-  public navigation — even where individual descendants are published. This is
+  public navigation, even where individual descendants are published. This is
   the intended semantic: you have not published the chapter, so its topics are
   not yet navigable. Descendants are not re-promoted to fill the gap.
 - **Admin/preview reads** (`status: 'any'`) see the full tree.
@@ -262,7 +262,7 @@ is reached**.
 reordering, and nesting write only the tree table and never touch the path row.
 This is what keeps a document untouched by its position: moving a subtree never
 rewrites a single stored path. Storing tree-derived paths (`getting-started/cli`)
-is intentionally avoided — it would force a re-parent to rewrite the stored path
+is intentionally avoided: it would force a re-parent to rewrite the stored path
 of an entire subtree, reintroducing exactly the coupling the tree exists to
 remove.
 
@@ -323,7 +323,7 @@ splat treatment, so hierarchical URLs work for `Accept: text/markdown` consumers
 too.
 
 Because the leaf slug stays globally unique per collection, the ancestor segments
-are structural context rather than part of resolution — you cannot yet have
+are structural context rather than part of resolution: you cannot yet have
 `getting-started/install` and `advanced/install` coexist as distinct documents.
 A non-unique-leaf hierarchy (where the same slug lives under different parents)
 would require a composite-key resolver and is a separate concern, not part of the
@@ -397,7 +397,7 @@ attempted so one failure cannot suppress the other, but failures resolve as the
 committed-with-side-effect-failures outcome rather than rejecting. There is no
 durable retry/outbox yet.
 Cache/ISR and markdown consumers can subscribe here. Search reindexing is needed
-only if a provider stores tree-derived hierarchy — the reference docs app stores
+only if a provider stores tree-derived hierarchy: the reference docs app stores
 the flat leaf path and invalidates its tree-derived cache without reindexing.
 
 ## Rebuilding the docs tree from markdown
@@ -411,7 +411,7 @@ pnpm tsx apps/webapp/byline/scripts/import-docs.ts 'docs/**/*.md' --tree
 
 The importer is a plain path-based upsert. It updates a live document found at
 the imported path. If no live document owns the path, it creates a new logical
-document—even when one or more deleted documents retain that same path—and uses
+document (even when one or more deleted documents retain that same path) and uses
 the new document id for tree placement. The retired deleted-document `--force`
 flag is rejected as an unknown option; the importer does not call
 `restoreSoftDeletedDocument`.
@@ -442,7 +442,7 @@ operation.
 ## Choosing a hierarchy model
 
 The document tree is the right choice for an arbitrary-depth spine with a single
-canonical ordering — documentation, handbooks, books. Two adjacent shapes call
+canonical ordering: documentation, handbooks, books. Two adjacent shapes call
 for different tools:
 
 - **Multi-home topics** — a topic that belongs under several parents is a

@@ -13,7 +13,7 @@ Companions:
 
 ## Overview
 
-A document's **path** is its stable, human-readable address — the slug you put in a URL, such as `launch-2026`. It is a reserved system attribute and the cheapest path-resolution lookup in the system, used by `findByPath` and by relation filters. Storage lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)` with a unique constraint on `(collection_id, locale, path)`. See [Path uniqueness](#path-uniqueness) below for the full schema and lifecycle behaviour.
+A document's **path** is its stable, human-readable address: the slug you put in a URL, such as `launch-2026`. It is a reserved system attribute and the cheapest path-resolution lookup in the system, used by `findByPath` and by relation filters. Storage lives in a dedicated `byline_document_paths` table keyed by `(document_id, locale)` with a unique constraint on `(collection_id, locale, path)`. See [Path uniqueness](#path-uniqueness) below for the full schema and lifecycle behaviour.
 
 Read this document when you are choosing which field drives a collection's URLs, overriding a slug from a seed or import, or handling a path collision.
 
@@ -23,7 +23,7 @@ Three rules anchor the model:
 2. **`useAsPath?: string`** on `CollectionDefinition` names the source field whose slugified (URL safe) value initialises a document's `path` row. Parallel to `useAsTitle`. The named field must exist at the top level and be of a path-compatible type (`text`, `textArea`, `select`, `date`, `datetime`, `time`).
 3. **One canonical resource identifier per document.** It is stored under the document's `sourceLocale` (the default content locale on create); localised slugs (`/en/about` vs `/de/ueber-uns`) are deferred. Frontends can still prefix `/{locale}/{path}` over the single canonical path.
 
-This work was the first time a system attribute was promoted out of the user-defined field tree. It establishes a pattern for any future "system metadata that needs editing in the admin form": reserve the name, expose it via a directive, render it through a non-field widget, and persist it via a top-level lifecycle parameter — not a `field.set` patch.
+This work was the first time a system attribute was promoted out of the user-defined field tree. It establishes a pattern for any future "system metadata that needs editing in the admin form": reserve the name, expose it via a directive, render it through a non-field widget, and persist it via a top-level lifecycle parameter, not a `field.set` patch.
 
 ---
 
@@ -49,7 +49,7 @@ export const News = defineCollection({
 })
 ```
 
-`path` is sticky after creation — subsequent saves don't re-derive. Editors can re-anchor explicitly via the path widget's "Regenerate from {source}" action.
+`path` is sticky after creation: subsequent saves don't re-derive. Editors can re-anchor explicitly via the path widget's "Regenerate from {source}" action.
 
 → [Derivation cascade](#derivation-cascade)
 
@@ -57,7 +57,7 @@ export const News = defineCollection({
 
 Both `CollectionHandle.create` and `CollectionHandle.update` accept a top-level `path` parameter (separate from `data`). Useful for seeds, imports, and any caller that needs a specific URL slug.
 
-**Edit:** any write call site — typically a seed under `apps/webapp/byline/seeds/` or a one-off script.
+**Edit:** any write call site, typically a seed under `apps/webapp/byline/seeds/` or a one-off script.
 
 ```ts
 await client.collection('news').create({
@@ -72,13 +72,13 @@ await client.collection('news').update(id, {
 })
 ```
 
-On a non-source-locale (translation) update, `path` is dropped silently with a `logger.warn` — the canonical path belongs to the document's source locale.
+On a non-source-locale (translation) update, `path` is dropped silently with a `logger.warn`: the canonical path belongs to the document's source locale.
 
 → [Lifecycle wiring](#lifecycle-wiring)
 
 ### 3. Install a custom slugifier
 
-The default slugifier is pure, sync, Unicode-aware (NFC), CJK-preserving, and recognises ISO 8601 date prefixes. Override site-wide if you need stricter URL policies, a different transliteration, or a domain-specific format. The contract is **sync + pure** because the same function runs server-side at write time and client-side in the path widget's live preview — the two must agree.
+The default slugifier is pure, sync, Unicode-aware (NFC), CJK-preserving, and recognises ISO 8601 date prefixes. Override site-wide if you need stricter URL policies, a different transliteration, or a domain-specific format. The contract is **sync + pure** because the same function runs server-side at write time and client-side in the path widget's live preview: the two must agree.
 
 **Edit:** `apps/webapp/byline/server.config.ts`
 
@@ -139,21 +139,21 @@ policy.
 2. **`definition.useAsPath` set** → slugify (make URL safe) the source field's value in the **default content locale** using the installation slugifier.
 3. **Otherwise** → `crypto.randomUUID()`.
 
-The cascade applies only on first create. After that, `path` is **sticky** — `updateDocument` and `updateDocumentWithPatches` never re-derive. The previous version's `path` carries forward unchanged unless the caller supplies an explicit `params.path`. This protects inbound links and SEO from a title-edit accidentally invalidating a URL. The path widget surfaces a "Regenerate from {sourceField}" action for explicit re-anchoring.
+The cascade applies only on first create. After that, `path` is **sticky**: `updateDocument` and `updateDocumentWithPatches` never re-derive. The previous version's `path` carries forward unchanged unless the caller supplies an explicit `params.path`. This protects inbound links and SEO from a title-edit accidentally invalidating a URL. The path widget surfaces a "Regenerate from {sourceField}" action for explicit re-anchoring.
 
 ### Default-locale enforcement on first create
 
-A brand-new document MUST be created in the configured default content locale (`ServerConfig.i18n.content.defaultLocale`). Creating in any other locale throws `ERR_VALIDATION`. Subsequent localised versions of the same document inherit the existing `path` automatically — it never re-derives, regardless of locale.
+A brand-new document MUST be created in the configured default content locale (`ServerConfig.i18n.content.defaultLocale`). Creating in any other locale throws `ERR_VALIDATION`. Subsequent localised versions of the same document inherit the existing `path` automatically: it never re-derives, regardless of locale.
 
 ## The slugifier
 
 `packages/core/src/utils/slugify.ts`. Pure, synchronous, Unicode-aware (NFC), Thai-script and CJK preserving, HTML-stripping. Recognises ISO 8601 date prefixes and returns `yyyy-mm-dd` rather than slugifying the time portion. Exported as `slugify`, `formatTextValue`, `looksLikeISODate` plus the `SlugifierFn` / `SlugifyContext` types.
 
-The slugifier is intentionally trivial to swap. Installations with strict URL or security policies can supply their own `(value, ctx) => string` on `ServerConfig.slugifier`. The contract is **sync + pure** because the same function runs server-side at write time and client-side in the path widget for live preview — the two must agree.
+The slugifier is intentionally trivial to swap. Installations with strict URL or security policies can supply their own `(value, ctx) => string` on `ServerConfig.slugifier`. The contract is **sync + pure** because the same function runs server-side at write time and client-side in the path widget for live preview: the two must agree.
 
 ## Lifecycle wiring
 
-`packages/core/src/services/document-lifecycle/internals.ts` carries the `derivePath` helper (shared by the create / duplicate operation modules, not exported from the package) and `context.ts` threads `defaultLocale` + optional `slugifier` through `DocumentLifecycleContext`. All callers — admin server fns, the client SDK's `CollectionHandle.create/update`, and the upload service — populate these fields explicitly from `ServerConfig`.
+`packages/core/src/services/document-lifecycle/internals.ts` carries the `derivePath` helper (shared by the create / duplicate operation modules, not exported from the package) and `context.ts` threads `defaultLocale` + optional `slugifier` through `DocumentLifecycleContext`. All callers (admin server fns, the client SDK's `CollectionHandle.create/update`, and the upload service) populate these fields explicitly from `ServerConfig`.
 
 `createDocument` enforces the default-locale rule and runs the derivation cascade, then the storage primitive's `createDocumentVersion` upserts the corresponding row in `byline_document_paths`. `updateDocument` and `updateDocumentWithPatches` are sticky: when no `params.path` is supplied the path row is left untouched (no DB write), and when a `path` is supplied on a non-source-locale (translation) save it is dropped silently with a `logger.warn` rather than overwriting the source-locale row. All three accept an optional `params.path` for explicit override on source-locale operations.
 
@@ -172,7 +172,7 @@ The reserved name set is exported as `RESERVED_FIELD_NAMES` so the storage layer
 
 ## The path widget
 
-`packages/admin/src/forms/path-widget.tsx`. Rendered in the form sidebar, conceptually grouped with status and timestamps — `path` is identity metadata, not per-locale content.
+`packages/admin/src/forms/path-widget.tsx`. Rendered in the form sidebar, conceptually grouped with status and timestamps: `path` is identity metadata, not per-locale content.
 
 - Reads `useFieldValue(useAsPath)` to track the source field live.
 - Computes `livePreview = slugify(sourceValue)` using the same slugifier the server will apply.
@@ -180,7 +180,7 @@ The reserved name set is exported as `RESERVED_FIELD_NAMES` so the storage layer
 
 Behaviour:
 
-- **Edit mode** — input shows the persisted `byline_document_paths` row for the editing locale (resolved via the same `[requested, source]` fallback chain reads use). Editing writes a string override into the slot; clearing reverts to `null` (sticky from the previous version on save). When editing a translation, the input renders read-only — the canonical path belongs to the source locale, and the read-only state prevents the lifecycle's translation-locale warn from being hit through the admin form.
+- **Edit mode** — input shows the persisted `byline_document_paths` row for the editing locale (resolved via the same `[requested, source]` fallback chain reads use). Editing writes a string override into the slot; clearing reverts to `null` (sticky from the previous version on save). When editing a translation, the input renders read-only: the canonical path belongs to the source locale, and the read-only state prevents the lifecycle's translation-locale warn from being hit through the admin form.
 - **Create mode** — input is empty by default; placeholder shows the live-derived preview (`Will be saved as "..."`).
 - **"Regenerate from {source}" action** — small text-style link rendered right-aligned to the label when `livePreview !== systemPath`. Clicking writes the live preview into the override slot. Used to re-anchor a stale path against an updated title.
 - **Live validation hint** — typed values are slugified for comparison; if the typed value differs from its slugified form, an inline `Suggested: "..."` hint surfaces without blocking input.
@@ -191,7 +191,7 @@ On an existing document, a path edit in the admin is a **document-level, non-ver
 
 ## Server transport
 
-The **create** server fn (`.../collections/create.ts`) accepts an optional top-level `path` on the request payload (separate from `data`) and forwards it as `params.path` to the lifecycle — on create, `path` is part of the initial version write. **Editing** an existing document's `path` in the admin no longer rides the versioned update: it routes through a dedicated `updateCollectionDocumentSystemFields` server fn → `updateDocumentSystemFields` lifecycle service → `updateDocumentPath` storage command — an immediate write that mints no version and leaves status untouched. (`updateCollectionDocumentWithPatches` no longer carries `path`.) This still mirrors the `setDocumentStatus` precedent: system metadata is addressed via dedicated parameters, not field patches.
+The **create** server fn (`.../collections/create.ts`) accepts an optional top-level `path` on the request payload (separate from `data`) and forwards it as `params.path` to the lifecycle: on create, `path` is part of the initial version write. **Editing** an existing document's `path` in the admin no longer rides the versioned update: it routes through a dedicated `updateCollectionDocumentSystemFields` server fn → `updateDocumentSystemFields` lifecycle service → `updateDocumentPath` storage command, an immediate write that mints no version and leaves status untouched. (`updateCollectionDocumentWithPatches` no longer carries `path`.) This still mirrors the `setDocumentStatus` precedent: system metadata is addressed via dedicated parameters, not field patches.
 
 The admin server fn passes `reconcile: true`. If an earlier `afterSystemFieldsChange` failed after commit, repeating the same save therefore re-emits the hook with `reconciliation: true` but performs no second path write or audit append. Reconciliation is explicit lifecycle behavior, not an automatic retry loop.
 
@@ -199,7 +199,7 @@ The `@byline/client` SDK exposes `CreateOptions.path` and `UpdateOptions.path` o
 
 ## Patches stay admin-internal
 
-`path` is **not** addressable via `field.*` / `array.*` / `block.*` patches — it is system metadata, parallel to `status`. The widget writes to the separate `systemPath` slot; the submit payload sends it as a top-level field. This keeps the patch system aligned with UI intent (reordering, block insertion, field-level changes) and keeps system metadata out of the patch grammar.
+`path` is **not** addressable via `field.*` / `array.*` / `block.*` patches: it is system metadata, parallel to `status`. The widget writes to the separate `systemPath` slot; the submit payload sends it as a top-level field. This keeps the patch system aligned with UI intent (reordering, block insertion, field-level changes) and keeps system metadata out of the patch grammar.
 
 ## Path uniqueness
 
@@ -226,7 +226,7 @@ never write `alive` directly.
 
 `UNIQUE (document_id, locale)` remains unchanged. Soft deletion changes the existing row's
 liveness rather than creating path-history rows. Locale is modelled from day one even though the
-lifecycle writes only the document's source-locale row — the column is present so localized paths
+lifecycle writes only the document's source-locale row: the column is present so localized paths
 remain an additive future capability.
 
 ### Lifecycle behaviour
@@ -262,11 +262,11 @@ suffix.
 Once a document row is known, reads compose a fallback chain `[requested, source]`, deduplicated
 when both values match. The initial `findByPath` lookup cannot know that source locale yet, so it
 resolves `(collection_id, path)` against `[requested, configuredDefault]` via one ordered subquery
-— never a double round-trip — and requires `alive = true`. A deleted higher-priority locale is
+(never a double round-trip) and requires `alive = true`. A deleted higher-priority locale is
 skipped before a live fallback is selected. Projection helpers (`pathProjection`,
 `viewProjection`, `documentVersionsProjection`) remain unfiltered because they attach retained
 paths after a document id is already known, including for trusted history tooling. The
-`current_*` views deliberately do **not** project `path` — locale is request-scoped and lives in
+`current_*` views deliberately do **not** project `path`: locale is request-scoped and lives in
 the storage adapter's read functions, not in static view DDL.
 
 ### Where the source-locale value comes from
@@ -302,7 +302,7 @@ existing database.
 
 - **One path per document, under its source locale.** Translated paths
   (a different slug per locale) are not yet a CMS concern. This is a deliberate
-  simplification, not a structural limit — `byline_document_paths` is already
+  simplification, not a structural limit: `byline_document_paths` is already
   locale-keyed and known-document projections resolve through a `[requested, source]` chain, so a
   frontend can route `/{locale}/{path}` today and per-locale slugs can be added
   additively later. Most sites need nothing more.
@@ -325,8 +325,8 @@ existing database.
 | Lifecycle derivation + sticky update + locale rules | `packages/core/src/services/document-lifecycle/` (`internals.ts`, `create.ts`, `update.ts`) |
 | `ERR_PATH_CONFLICT` error type                      | `packages/core/src/lib/errors.ts`                                         |
 | `byline_document_paths` schema                      | `packages/db-postgres/src/database/schema/index.ts`; `packages/db-mysql/src/database/schema/index.ts` |
-| Storage adapters — locale-aware path resolution     | each adapter's `src/modules/storage/storage-queries.ts`                   |
-| Storage adapters — path write/delete/un-delete      | each adapter's `src/modules/storage/storage-commands.ts`                  |
+| Storage adapters: locale-aware path resolution      | each adapter's `src/modules/storage/storage-queries.ts`                   |
+| Storage adapters: path write/delete/un-delete       | each adapter's `src/modules/storage/storage-commands.ts`                  |
 | Existing-installation path-liveness upgrades        | `packages/db-postgres/sql/0006_soft_delete_path_liveness.sql`; `packages/db-mysql/sql/0001_soft_delete_path_liveness.sql` |
 | Adapter `defaultContentLocale` plumbing             | `packages/db-postgres/src/index.ts` (`pgAdapter`); `packages/db-mysql/src/index.ts` (`mysqlAdapter`) |
 | Client SDK options + locale defaults                | `packages/client/src/{types,collection-handle,client}.ts`                 |

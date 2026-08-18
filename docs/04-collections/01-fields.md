@@ -14,16 +14,16 @@ Companions:
 
 ## Overview
 
-A field is one piece of a collection's content — a title, a body, a publish date. You declare fields on two sides of a deliberate split, and knowing which side a thing belongs on is most of what this document teaches.
+A field is one piece of a collection's content: a title, a body, a publish date. You declare fields on two sides of a deliberate split, and knowing which side a thing belongs on is most of what this document teaches.
 
 - The **schema** side describes what the field *is*: its name, type, validation, defaults, and schema-level adapter config. It is pure data and must stay tsx-loadable.
 - The **admin** side describes how the field *renders* in the dashboard: slot-component overrides for the label, input, help text, and adornments, plus the per-field richtext editor swap. React lives here.
 
-Read this document when you are adding fields to a collection, reaching for a reusable field helper, or replacing part of a field's rendering. It is the working reference for both sides — how the split works, how to write helpers for each side, and how the field-level component slots compose.
+Read this document when you are adding fields to a collection, reaching for a reusable field helper, or replacing part of a field's rendering. It is the working reference for both sides: how the split works, how to write helpers for each side, and how the field-level component slots compose.
 
 Use the [Fields API](../10-api-reference/03-fields.md) when you need an exhaustive lookup of field discriminators and properties. This document concentrates on how field schemas and admin presentation compose in a real application.
 
-The split mirrors Django's `Model` / `ModelAdmin`. The same field name appears on both sides: the schema's `fields[]` array declares the data, and the admin's `fields{}` map attaches presentation, keyed by [schema path](#schema-paths-vs-instance-paths) — a top-level name, or a dotted path to a declaration nested in group or array structure.
+The split mirrors Django's `Model` / `ModelAdmin`. The same field name appears on both sides: the schema's `fields[]` array declares the data, and the admin's `fields{}` map attaches presentation, keyed by [schema path](#schema-paths-vs-instance-paths): a top-level name, or a dotted path to a declaration nested in group or array structure.
 
 ```
 fields: [                            fields: {
@@ -40,7 +40,7 @@ Each entry is the minimal shape for one task. The "Edit" line tells you which fi
 
 ### 1. Drop in a schema-side helper
 
-Use a pre-built field definition from `apps/webapp/byline/fields/`. Schema-side helpers are pure data — drop them in the schema's `fields[]` array.
+Use a pre-built field definition from `apps/webapp/byline/fields/`. Schema-side helpers are pure data: drop them in the schema's `fields[]` array.
 
 **Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
 
@@ -61,7 +61,7 @@ export const News = defineCollection({
 
 ### 2. Drop in an admin-side helper
 
-Use a pre-built `FieldAdminConfig` from `apps/webapp/byline/fields/`. Admin-side helpers can include React — drop them in the admin's `fields{}` map, keyed by the schema field's name.
+Use a pre-built `FieldAdminConfig` from `apps/webapp/byline/fields/`. Admin-side helpers can include React: drop them in the admin's `fields{}` map, keyed by the schema field's name.
 
 **Edit:** `apps/webapp/byline/collections/<name>/admin.tsx`
 
@@ -125,7 +125,7 @@ export const NewsAdmin = defineAdmin(News, {
 
 ### 5. Replace the help text
 
-Replace the default help-text line via `components.HelpText`. Reactive to form state — the slot can read live field values to render things like character counts.
+Replace the default help-text line via `components.HelpText`. Reactive to form state: the slot can read live field values to render things like character counts.
 
 **Edit:** `apps/webapp/byline/collections/<name>/admin.tsx`
 
@@ -169,7 +169,7 @@ fields: {
 
 ### 7. Per-field richtext editor override
 
-For `type: 'richText'` fields only — swap the editor component itself (not just its settings). Lives on the admin side because it carries a React reference. Site-wide override is in `admin.config.ts`; per-field override goes here.
+For `type: 'richText'` fields only: swap the editor component itself (not just its settings). Lives on the admin side because it carries a React reference. Site-wide override is in `admin.config.ts`; per-field override goes here.
 
 **Edit:** `apps/webapp/byline/collections/<name>/admin.tsx`
 
@@ -253,7 +253,7 @@ fields: {
 
 ### 11. Show a field conditionally (`condition`)
 
-Schema-side. When `condition` is present, the admin form renders the field only while the function returns `true` — re-evaluated on every form edit. `siblingData` is the field's immediate scope (the enclosing group / array item), so conditions inside array items observe their own item.
+Schema-side. When `condition` is present, the admin form renders the field only while the function returns `true`, re-evaluated on every form edit. `siblingData` is the field's immediate scope (the enclosing group / array item), so conditions inside array items observe their own item.
 
 **Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
 
@@ -274,7 +274,7 @@ fields: [
 
 ### 12. Write across fields from a field hook (`setFieldValue`)
 
-Schema-side. Field hooks receive `ctx.setFieldValue(path, value)` for cross-field behaviour — mutual exclusivity, clearing a dependent field when its driver changes. It's a raw store write: the target field's own hooks do not run, but the write emits a normal `field.set` patch, so it persists on save.
+Schema-side. Field hooks receive `ctx.setFieldValue(path, value)` for cross-field behaviour: mutual exclusivity, clearing a dependent field when its driver changes. It's a raw store write: the target field's own hooks do not run, but the write emits a normal `field.set` patch, so it persists on save.
 
 **Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
 
@@ -307,10 +307,10 @@ Schema-side. Field hooks receive `ctx.setFieldValue(path, value)` for cross-fiel
 
 A field lives in two places at once:
 
-- **Schema** (`collections/<name>/schema.ts`) — a `CollectionDefinition` returned by `defineCollection`. Pure data plus plain functions over data: field names, types, validation, defaults, schema-level adapter config (`editorConfig`, `embedRelationsOnSave`, `localized`, …), and the editor-behaviour hints that are functions of form data (`validate`, `condition`, client-side `hooks`). **Must be tsx-loadable** — the server bootstrap in `apps/webapp/byline/server.config.ts` imports schemas directly so seeds and migrations can run outside Vite. No React. No CSS modules. No browser-only globals.
+- **Schema** (`collections/<name>/schema.ts`) — a `CollectionDefinition` returned by `defineCollection`. Pure data plus plain functions over data: field names, types, validation, defaults, schema-level adapter config (`editorConfig`, `embedRelationsOnSave`, `localized`, …), and the editor-behaviour hints that are functions of form data (`validate`, `condition`, client-side `hooks`). **Must be tsx-loadable**: the server bootstrap in `apps/webapp/byline/server.config.ts` imports schemas directly so seeds and migrations can run outside Vite. No React. No CSS modules. No browser-only globals.
 - **Admin** (`collections/<name>/admin.tsx`) — a `CollectionAdminConfig` returned by `defineAdmin`. UI overrides: per-field slot components, the per-field editor swap, columns, layout, preview URL. React is allowed here. Pulled in by `admin.config.ts`, which the `_byline` route registers from `beforeLoad` for child loaders and from `route.lazy.tsx` for component render and hydration.
 
-The schema declares what the field *is*; the admin declares how it *renders*. The two cooperate at render time — schema declares `richText` and the admin attaches the editor component — and never collide because they target different layers of the pipeline.
+The schema declares what the field *is*; the admin declares how it *renders*. The two cooperate at render time (schema declares `richText` and the admin attaches the editor component) and never collide because they target different layers of the pipeline.
 
 **Why the split is strict.** The server-side bootstrap loads collection schemas under raw `tsx` for seeds, migrations, and ESM imports outside the Vite graph. The moment a schema file (or any of its imports, transitively) reaches React, CSS modules, or a Lexical runtime, that bootstrap breaks. The split forces React-bearing code onto the admin side, where it stays inside the Vite-managed admin module graph.
 
@@ -321,13 +321,13 @@ A schema-side helper is a factory that returns a typed field definition. The res
 **Rules of thumb.**
 - Return a typed schema field (`TextField`, `RichTextField`, `GroupField`, …). Type the return value so callers get autocomplete and `FieldData<typeof helper>` resolves correctly.
 - Accept `Options = Partial<Omit<TheFieldType, 'type'>>` so callers can override anything except the discriminant.
-- Keep imports data-only — `@byline/core` types, `defineField`, `defineCollection`, the project's i18n locale list. When unsure, ask "will this file load under raw `tsx`?"
+- Keep imports data-only: `@byline/core` types, `defineField`, `defineCollection`, the project's i18n locale list. When unsure, ask "will this file load under raw `tsx`?"
 
 **What's forbidden.**
 - React component references on schema fields.
 - Imports from `@byline/admin/react`, `@byline/ui/react`, `@byline/richtext-lexical` (the root barrel), `@byline/ai/plugins/*`, or any package whose evaluation pulls CSS modules or a Lexical runtime.
 
-**Data-only subpaths.** Some packages publish a separate entry point for the schema-relevant data — `@byline/richtext-lexical/server` re-exports `defaultEditorConfig` precisely so schema-side helpers can use it without dragging the React entry along. Import from those subpaths when they exist.
+**Data-only subpaths.** Some packages publish a separate entry point for the schema-relevant data: `@byline/richtext-lexical/server` re-exports `defaultEditorConfig` precisely so schema-side helpers can use it without dragging the React entry along. Import from those subpaths when they exist.
 
 **Two patterns:**
 
@@ -364,11 +364,11 @@ export interface FieldAdminConfig {
 ```
 
 **Rules of thumb.**
-- Return `FieldAdminConfig`. Don't widen the return type — callers should get the same shape `defineAdmin` expects.
-- React, hooks, CSS modules — all fine. This file is only evaluated in the admin module graph.
-- Slot components can use the form-context hooks (`useFieldValue`, `useFieldError`, `useFormContext`) — no need to plumb props in from the caller.
+- Return `FieldAdminConfig`. Don't widen the return type: callers should get the same shape `defineAdmin` expects.
+- React, hooks, CSS modules: all fine. This file is only evaluated in the admin module graph.
+- Slot components can use the form-context hooks (`useFieldValue`, `useFieldError`, `useFormContext`). No need to plumb props in from the caller.
 
-**Worked example — the AI text helper.** `aiTextFieldAdmin()` attaches two slot components: a `Label` replacement that adds an AI toggle button, and an `afterField` adornment that mounts the AI panel. Pairs with a plain `{ type: 'text' }` entry on the schema side.
+**Worked example: the AI text helper.** `aiTextFieldAdmin()` attaches two slot components: a `Label` replacement that adds an AI toggle button, and an `afterField` adornment that mounts the AI panel. Pairs with a plain `{ type: 'text' }` entry on the schema side.
 
 ```ts
 // apps/webapp/byline/fields/ai-text.ts
@@ -424,12 +424,12 @@ export function aiTextFieldAdmin(
 
 **Two important behaviours:**
 
-1. **`Field` *replaces* — not augments.** When a `Field` slot is provided, the default input is not rendered. The slot is responsible for calling `onChange` to commit changes back into the form store (the form hook pipeline runs from there).
-2. **Form-context hooks work everywhere.** Slot components can call `useFieldValue(path)`, `useFieldError(path)`, `useFormContext()` etc. directly — there's no need to plumb live data in through props. This is what makes the `CharacterCount` HelpText example one short component.
+1. **`Field` *replaces*, not augments.** When a `Field` slot is provided, the default input is not rendered. The slot is responsible for calling `onChange` to commit changes back into the form store (the form hook pipeline runs from there).
+2. **Form-context hooks work everywhere.** Slot components can call `useFieldValue(path)`, `useFieldError(path)`, `useFormContext()` etc. directly. There's no need to plumb live data in through props. This is what makes the `CharacterCount` HelpText example one short component.
 
 ### Per-field richtext editor
 
-For `type: 'richText'` fields only, `FieldAdminConfig.editor` swaps the entire editor *component* — not just its settings. Use it to opt one specific field into an alternate editor (e.g. an AI-enabled wrapper around the default Lexical field) without changing the site-wide registration.
+For `type: 'richText'` fields only, `FieldAdminConfig.editor` swaps the entire editor *component*, not just its settings. Use it to opt one specific field into an alternate editor (e.g. an AI-enabled wrapper around the default Lexical field) without changing the site-wide registration.
 
 ```ts
 // admin.tsx
@@ -440,20 +440,20 @@ fields: {
 
 Lives on the admin side because it carries a React component reference, and schemas must stay tsx-loadable. Per-field `editor` takes precedence over the globally registered `AdminConfig.fields.richText.editor`. Ignored on non-`richText` fields.
 
-For *settings* differences only (placeholder, toolbar toggles, the inline-image upload collection), use a schema-side preset like `lexicalRichTextCompact` instead — that data is JSON-safe and rides along in `RichTextField.editorConfig`. See [Rich Text](./07-rich-text.md) for the full editor configuration story.
+For *settings* differences only (placeholder, toolbar toggles, the inline-image upload collection), use a schema-side preset like `lexicalRichTextCompact` instead. That data is JSON-safe and rides along in `RichTextField.editorConfig`. See [Rich Text](./07-rich-text.md) for the full editor configuration story.
 
 ### Schema paths vs instance paths
 
 Byline addresses fields with two notations, and every config option takes exactly one of them. Which one depends on whether the thing being addressed is a *declaration* or a *value*.
 
-- **Schema paths** are dotted and **index-free**: `files.filesGroup.publicationFile`, `faq.answer`. They address a field *declaration*, so one entry names the field wherever it occurs — in every array item. A `blocks` field is followed by a block type (`content.photoBlock.alt`), which is what tells two blocks declaring the same field name apart. You write these in the admin `fields{}` maps and in the upload hook registry (`ServerConfig.hooks.uploads`, prefixed with the collection path); boot-validation errors quote them back to you.
-- **Instance paths** carry bracket selectors: `files[id=file-id].filesGroup.publicationFile`, `content[id=block-id].faq[id=item-id].answer`. They address a *value* in one item of one document. No block type here — the addressed item carries its own `_type`. The form and patch systems prefer stable `_id` selectors and retain positional `[2]` selectors for id-less compatibility data. These are what the patch system, the form store, field-hook `ctx.path`, and `setFieldValue` deal in; you rarely write one by hand.
+- **Schema paths** are dotted and **index-free**: `files.filesGroup.publicationFile`, `faq.answer`. They address a field *declaration*, so one entry names the field wherever it occurs: in every array item. A `blocks` field is followed by a block type (`content.photoBlock.alt`), which is what tells two blocks declaring the same field name apart. You write these in the admin `fields{}` maps and in the upload hook registry (`ServerConfig.hooks.uploads`, prefixed with the collection path); boot-validation errors quote them back to you.
+- **Instance paths** carry bracket selectors: `files[id=file-id].filesGroup.publicationFile`, `content[id=block-id].faq[id=item-id].answer`. They address a *value* in one item of one document. No block type here: the addressed item carries its own `_type`. The form and patch systems prefer stable `_id` selectors and retain positional `[2]` selectors for id-less compatibility data. These are what the patch system, the form store, field-hook `ctx.path`, and `setFieldValue` deal in; you rarely write one by hand.
 
 **Admin `fields{}` keys are the one deliberate exception**: they never traverse a `blocks` field at all, even with a block type. Fields inside a block take their overrides from the blockType-keyed `blockAdmin` registry instead, so that one registration applies wherever the block renders. Boot validation rejects a collection-level key that reaches into a block, and points at `blockAdmin`.
 
 Boot validation also rejects `fields{}` keys that carry a selector or don't resolve to a declaration, so a mixed-up notation fails at startup rather than silently at render time.
 
-See [Path Grammar](../03-architecture/04-path-grammar.md) for the full model — the shared segment AST behind both notations, the storage and patch formats, and why each is shaped the way it is.
+See [Path Grammar](../03-architecture/04-path-grammar.md) for the full model: the shared segment AST behind both notations, the storage and patch formats, and why each is shaped the way it is.
 
 ### Per-field admin config for nested fields
 
@@ -466,11 +466,11 @@ fields: {
 }
 ```
 
-The override applies to that field in **every** item of the array — schema paths address declarations, not items. The one boundary is `blocks`: a collection-level key never reaches into a block; that's `defineBlockAdmin`'s job below.
+The override applies to that field in **every** item of the array: schema paths address declarations, not items. The one boundary is `blocks`: a collection-level key never reaches into a block; that's `defineBlockAdmin`'s job below.
 
 ### Per-block field admin config (`defineBlockAdmin`)
 
-Fields inside a block are addressed by the block-scoped counterpart, `defineBlockAdmin`: an admin config keyed by schema paths relative to the block root, registered site-wide on `AdminConfig.blockAdmin` and applied wherever the block renders — any collection, any nesting. Nested declarations inside the block use the same dotted keys (`faq.answer` — see `apps/webapp/byline/blocks/faq-block.admin.ts`, the reference).
+Fields inside a block are addressed by the block-scoped counterpart, `defineBlockAdmin`: an admin config keyed by schema paths relative to the block root, registered site-wide on `AdminConfig.blockAdmin` and applied wherever the block renders: any collection, any nesting. Nested declarations inside the block use the same dotted keys (`faq.answer`; see `apps/webapp/byline/blocks/faq-block.admin.ts`, the reference).
 
 ```ts
 // blocks/quote-block.admin.ts (admin-side — may carry React)
@@ -487,7 +487,7 @@ export const QuoteBlockAdmin = defineBlockAdmin(QuoteBlock, {
 blockAdmin: [QuoteBlockAdmin],
 ```
 
-The same schema/admin split applies: `defineBlock()` files stay React-free; the `.admin.ts` companion imports the schema, never the reverse. Registration is keyed by `blockType` because blocks are cross-collection units — the same block object shared by several collections gets one admin identity (mirroring how type generation dedupes block contracts). Boot validation rejects unknown `blockType`s, duplicates, and `fields` keys that don't resolve as schema paths within the block. See [Blocks](./02-blocks.md) for the full design.
+The same schema/admin split applies: `defineBlock()` files stay React-free; the `.admin.ts` companion imports the schema, never the reverse. Registration is keyed by `blockType` because blocks are cross-collection units: the same block object shared by several collections gets one admin identity (mirroring how type generation dedupes block contracts). Boot validation rejects unknown `blockType`s, duplicates, and `fields` keys that don't resolve as schema paths within the block. See [Blocks](./02-blocks.md) for the full design.
 
 ### Mixing both layers
 
@@ -505,7 +505,7 @@ fields: {
 }
 ```
 
-At render time the field-renderer resolves the editor component admin-side first (the AI wrapper wins over the global registration), and that component reads `field.editorConfig` from the schema (the compact preset). The result is an AI-enabled editor running the compact toolbar — no special wiring required. The same applies across helper kinds — a schema-side `publishedOnField()` and a future `publishedOnAdmin()` would coexist the same way.
+At render time the field-renderer resolves the editor component admin-side first (the AI wrapper wins over the global registration), and that component reads `field.editorConfig` from the schema (the compact preset). The result is an AI-enabled editor running the compact toolbar, no special wiring required. The same applies across helper kinds: a schema-side `publishedOnField()` and a future `publishedOnAdmin()` would coexist the same way.
 
 ### Conditional visibility (`condition`)
 
@@ -515,23 +515,23 @@ Every field accepts an optional visibility predicate:
 condition?: (data: Record<string, any>, siblingData: Record<string, any>) => boolean
 ```
 
-When present, the admin form renders the field only while the function returns `true`. The predicate is re-evaluated on every form edit (the same meta-subscribe loop that drives tab-level `condition` functions), and the field only re-renders when the boolean actually flips — a stable condition costs one function call per edit.
+When present, the admin form renders the field only while the function returns `true`. The predicate is re-evaluated on every form edit (the same meta-subscribe loop that drives tab-level `condition` functions), and the field only re-renders when the boolean actually flips: a stable condition costs one function call per edit.
 
-**The two arguments.** `data` is the full live form data. `siblingData` is the field's *immediate scope* — the enclosing group or array item's values. For a field at `files[id=file-id].filesGroup.thumbnailPage`, `siblingData` is that item's `filesGroup` object, so a condition inside an array item observes its own item, not the document root (and not item 0). For root-level fields, `siblingData` is the same object as `data`. This scoping is what lets one field definition drive per-item behaviour across an entire array.
+**The two arguments.** `data` is the full live form data. `siblingData` is the field's *immediate scope*: the enclosing group or array item's values. For a field at `files[id=file-id].filesGroup.thumbnailPage`, `siblingData` is that item's `filesGroup` object, so a condition inside an array item observes its own item, not the document root (and not item 0). For root-level fields, `siblingData` is the same object as `data`. This scoping is what lets one field definition drive per-item behaviour across an entire array.
 
 **A rendering hint, not enforcement.** `condition` sits in the same family as `readOnly`: schema-side properties that shape the editing experience without any server-side effect. Consequences worth knowing:
 
 - **The hidden field's stored value is retained.** Hiding emits no clearing write; re-showing the field restores its last value (the widget re-seeds from the live form store, so an edit made before hiding is not visually reverted).
-- **Condition-hidden fields are exempt from client-side validation** — a field the editor cannot see must not block submit. Submit-time `beforeValidate` hooks are likewise skipped while hidden.
+- **Condition-hidden fields are exempt from client-side validation**: a field the editor cannot see must not block submit. Submit-time `beforeValidate` hooks are likewise skipped while hidden.
 - **Server-side schema validation knows nothing about conditions.** A required conditional field must still arrive with a value, so pair conditionally-hidden required fields with `optional: true` or a `defaultValue`.
 
-Conditions are plain functions over form data, so they are safe in the isomorphic schema — the same rule as inline field hooks (no server-only imports).
+Conditions are plain functions over form data, so they are safe in the isomorphic schema, the same rule as inline field hooks (no server-only imports).
 
-Tab-level conditions are the admin-side sibling of this feature: `TabDefinition.condition(data)` on a `CollectionAdminConfig` shows/hides an entire tab. Field-level `condition` lives on the schema because it is *data-dependent per item* — a condition inside an array item observes its own item's values, which a declaration-addressed admin override (one entry per schema path) has no way to express.
+Tab-level conditions are the admin-side sibling of this feature: `TabDefinition.condition(data)` on a `CollectionAdminConfig` shows/hides an entire tab. Field-level `condition` lives on the schema because it is *data-dependent per item*: a condition inside an array item observes its own item's values, which a declaration-addressed admin override (one entry per schema path) has no way to express.
 
 ### Field hooks and cross-field writes
 
-Fields accept two **client-side** hooks that run in the admin form while editing (distinct from collection lifecycle hooks, which run server-side — see [Collections](./index.md)):
+Fields accept two **client-side** hooks that run in the admin form while editing (distinct from collection lifecycle hooks, which run server-side; see [Collections](./index.md)):
 
 ```ts
 hooks: {
@@ -557,9 +557,9 @@ Both receive a `FieldHookContext`:
 }
 ```
 
-**`setFieldValue` semantics.** It writes *another* field's value in the form store. It is a **raw** write — the target field's own hooks do not run, which forecloses hook recursion — but it is otherwise a normal form edit: it emits a `field.set` patch (so the write persists on save), marks the form dirty, and store-subscribed widgets re-render immediately. Paths use the same dot + bracket notation as `ctx.path`.
+**`setFieldValue` semantics.** It writes *another* field's value in the form store. It is a **raw** write (the target field's own hooks do not run, which forecloses hook recursion), but it is otherwise a normal form edit: it emits a `field.set` patch (so the write persists on save), marks the form dirty, and store-subscribed widgets re-render immediately. Paths use the same dot + bracket notation as `ctx.path`.
 
-**Worked example — mutual exclusivity across array items.** A collection carries a `files` array where each item can request a generated thumbnail, but only *one* file may be the thumbnail source. Checking one item's box must uncheck the others. `ctx.path` carries the item's index, so the hook knows which item it is:
+**Worked example: mutual exclusivity across array items.** A collection carries a `files` array where each item can request a generated thumbnail, but only *one* file may be the thumbnail source. Checking one item's box must uncheck the others. `ctx.path` carries the item's index, so the hook knows which item it is:
 
 ```ts
 // schema.ts — inside the files array's item group
@@ -596,7 +596,7 @@ Both receive a `FieldHookContext`:
 
 The radio-group behaviour composes from the two features: checking a box unchecks its siblings (persisted patches) → each write re-evaluates conditions → the old item's `thumbnailPage` hides and the new item's appears.
 
-**Server-side backstop.** Client hooks are UI-only: API writes, seeds, and pre-existing documents can still arrive with several boxes checked. If the invariant matters beyond the editor, normalise it in the collection's server-side `beforeCreate` / `beforeUpdate` hooks. Prefer the item that was *not* checked in the previous version (the newly checked one); match items across versions by their stable `_id` (read-only use — never write `_id` yourself):
+**Server-side backstop.** Client hooks are UI-only: API writes, seeds, and pre-existing documents can still arrive with several boxes checked. If the invariant matters beyond the editor, normalise it in the collection's server-side `beforeCreate` / `beforeUpdate` hooks. Prefer the item that was *not* checked in the previous version (the newly checked one); match items across versions by their stable `_id` (read-only use; never write `_id` yourself):
 
 ```ts
 // hooks.ts (collection lifecycle hooks — server-side)
@@ -647,25 +647,25 @@ If a field needs a React swap, put it on the admin side via `FieldAdminConfig.ed
 
 ### Importing from a React-y barrel inside a schema-side helper
 
-A subtler version of the same trap. The factory's *output* is fine (data only), but its import statement reaches into a barrel that re-exports React components, triggering their evaluation when the schema module loads. Example: `import { defaultEditorConfig } from '@byline/richtext-lexical'` — `defaultEditorConfig` is data, but the root barrel re-exports `RichTextField` and friends, which loads CSS.
+A subtler version of the same trap. The factory's *output* is fine (data only), but its import statement reaches into a barrel that re-exports React components, triggering their evaluation when the schema module loads. Example: `import { defaultEditorConfig } from '@byline/richtext-lexical'`: `defaultEditorConfig` is data, but the root barrel re-exports `RichTextField` and friends, which loads CSS.
 
 The fix is always the same: find or create a data-only subpath of the package (`@byline/richtext-lexical/server` re-exports the schema-relevant data here) and import from there.
 
 ### Using `lexicalRichTextCompact` to enable AI
 
-`lexicalRichTextCompact` is schema-side; it customises `editorConfig` (data). It cannot swap the editor *component*. Use `aiRichTextAdmin()` admin-side for that, or — for site-wide AI — register `LexicalRichTextAi` as `AdminConfig.fields.richText.editor` in `admin.config.ts`.
+`lexicalRichTextCompact` is schema-side; it customises `editorConfig` (data). It cannot swap the editor *component*. Use `aiRichTextAdmin()` admin-side for that, or, for site-wide AI, register `LexicalRichTextAi` as `AdminConfig.fields.richText.editor` in `admin.config.ts`.
 
 ### Putting AI text-field slots in the schema
 
-`aiTextFieldAdmin()` / `aiTextAreaFieldAdmin()` attach `Label` and `afterField` slots — both React. They go in `admin.tsx`, not `schema.ts`. The schema entry stays a plain `{ name, type: 'text' }`.
+`aiTextFieldAdmin()` / `aiTextAreaFieldAdmin()` attach `Label` and `afterField` slots, both React. They go in `admin.tsx`, not `schema.ts`. The schema entry stays a plain `{ name, type: 'text' }`.
 
 ### Hiding a required field without a default
 
-A `condition` only hides the widget — server-side validation still expects the value. A required field that is hidden on first save (its condition starts `false`) arrives empty and fails the server's schema validation, even though the client skipped it. Give conditional required fields `optional: true` or a `defaultValue`.
+A `condition` only hides the widget: server-side validation still expects the value. A required field that is hidden on first save (its condition starts `false`) arrives empty and fails the server's schema validation, even though the client skipped it. Give conditional required fields `optional: true` or a `defaultValue`.
 
 ### Expecting `condition` to prune data
 
-Hiding a field does not clear it. The stored value rides along in every save while hidden (that's deliberate — re-showing restores it, and toggling a checkbox doesn't destroy a carefully chosen sibling value). If downstream code must not see the value while the condition is off, gate on the driving field server-side (e.g. ignore `thumbnailPage` when `generateThumbnail` is false) — don't assume absence.
+Hiding a field does not clear it. The stored value rides along in every save while hidden (that's deliberate: re-showing restores it, and toggling a checkbox doesn't destroy a carefully chosen sibling value). If downstream code must not see the value while the condition is off, gate on the driving field server-side (e.g. ignore `thumbnailPage` when `generateThumbnail` is false). Don't assume absence.
 
 ---
 

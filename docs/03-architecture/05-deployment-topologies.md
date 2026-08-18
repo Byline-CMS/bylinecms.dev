@@ -1,7 +1,7 @@
 ---
 title: "Deployment Topologies"
 path: "deployment-topologies"
-summary: "The deployment shapes Byline supports — a single integrated host today, and the progressively split admin / API / front-end topologies that a stable HTTP boundary unlocks."
+summary: "The deployment shapes Byline supports: a single integrated host today, and the progressively split admin / API / front-end topologies that a stable HTTP boundary unlocks."
 ---
 
 # Deployment Topologies
@@ -32,7 +32,7 @@ naming them before the diagrams:
 | Part | What it is |
 |---|---|
 | **Admin dashboard** | Byline's editor UI, served under the `_byline` route group. Operates in the `admin` auth realm. |
-| **Front-end application** | Your public site — the primary content consumer. Operates in the `public` auth realm. |
+| **Front-end application** | Your public site, the primary content consumer. Operates in the `public` auth realm. |
 | **`@byline/client`** | The Client SDK: read DSL, write surface, populate, and status modes. In-process in every scenario; what changes is *who* calls it. |
 | **Byline Core runtime** | Collections, immutable versioning, workflow, and the services the SDK delegates to, over a Postgres database of `store_*` tables. |
 
@@ -59,14 +59,14 @@ typed end to end against your generated collection types.
 
 The same single host additionally exposes a public HTTP API whose routes map
 1:1 onto the Client SDK surface. The front-end keeps calling the SDK
-in-process — it gains nothing from crossing the network to reach its own
-host — while mobile applications, other frameworks, and partner integrations
+in-process (it gains nothing from crossing the network to reach its own
+host) while mobile applications, other frameworks, and partner integrations
 reach Byline over HTTP.
 
 ![Integrated host with an exposed HTTP API: admin dashboard and front-end app on one clusterable host alongside an HTTP API that maps 1:1 to the Client SDK, serving other clients over the network.](./images/byline-deployment-2-integrated-with-api.svg)
 
 The 1:1 mapping is the important constraint. The HTTP layer is a transport over
-the SDK, not a second content API with its own semantics — so query behaviour,
+the SDK, not a second content API with its own semantics, so query behaviour,
 populate, and status modes stay identical whichever way a client arrives.
 
 ## Scenario 3 — Byline host with a separate front-end host
@@ -80,7 +80,7 @@ over the network.
 This is the first topology where the front-end pays a network cost per read,
 and therefore the first where caching stops being an optimisation and becomes
 part of the design. It suits teams who want to deploy and scale the public site
-on a different cadence — or a different platform — from the CMS.
+on a different cadence (or a different platform) from the CMS.
 
 ## Scenario 4 — Three dedicated hosts
 
@@ -92,7 +92,7 @@ one Postgres database.
 ![Three dedicated hosts: an HTTP API-only host and an admin-only host each running an in-process SDK and core runtime over a shared Postgres database, plus a front-end-only host consuming the API over HTTPS.](./images/byline-deployment-4-three-hosts.svg)
 
 Both Byline hosts run their own in-process SDK and core runtime against the
-shared database — consistent with the rule above that the SDK is never split
+shared database, consistent with the rule above that the SDK is never split
 from its runtime. The admin host exposing no HTTP surface is the point of this
 arrangement: the editor application can sit entirely inside a private network
 while the API host is the only publicly reachable Byline component.
@@ -103,7 +103,7 @@ Scenarios 2, 3, and 4 all require a stable public HTTP API, which Byline does
 not yet expose. The only client today is the admin UI, so collection operations
 are handled through TanStack Start server functions rather than
 framework-agnostic HTTP endpoints. That boundary is deferred until a second,
-non-admin client exists to design it against — see
+non-admin client exists to design it against; see
 [Routing & API](../05-reading-and-delivery/02-routing-and-api.md) for the
 reasoning, and [Transports](../05-reading-and-delivery/03-transports.md) for the
 layering that would carry it.

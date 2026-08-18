@@ -1,7 +1,7 @@
 ---
 title: "Authentication & Authorization"
 path: "authn-authz"
-summary: "How actors, abilities, and request context flow through Byline — plus six worked beforeRead recipes for row-level access control on document reads and populate."
+summary: "How actors, abilities, and request context flow through Byline, plus six worked beforeRead recipes for row-level access control on document reads and populate."
 ---
 
 # Authentication & Authorization
@@ -16,15 +16,15 @@ Companions:
 
 Byline ships an end-to-end authentication and authorization subsystem with three load-bearing properties:
 
-1. **Admin identity is a built-in subsystem, not a collection.** `admin_users`, `admin_roles`, `admin_role_admin_user`, and `admin_permissions` (live names carry the `byline_` prefix — `byline_admin_users`, …) are dedicated tables owned by `@byline/admin` (with the Postgres adapter in `@byline/db-postgres/admin`). Admin users are never localized, versioned, workflowed, or rendered by the collection runtime.
-2. **Two auth realms from day one — `AdminAuth` and `UserAuth`.** `Actor = AdminAuth | UserAuth | null`. Today only `AdminAuth` and the `null` (anonymous public) case are used at runtime; `UserAuth` is reserved in the type union so the contract does not have to grow a discriminator later.
+1. **Admin identity is a built-in subsystem, not a collection.** `admin_users`, `admin_roles`, `admin_role_admin_user`, and `admin_permissions` (live names carry the `byline_` prefix: `byline_admin_users`, …) are dedicated tables owned by `@byline/admin` (with the Postgres adapter in `@byline/db-postgres/admin`). Admin users are never localized, versioned, workflowed, or rendered by the collection runtime.
+2. **Two auth realms from day one: `AdminAuth` and `UserAuth`.** `Actor = AdminAuth | UserAuth | null`. Today only `AdminAuth` and the `null` (anonymous public) case are used at runtime; `UserAuth` is reserved in the type union so the contract does not have to grow a discriminator later.
 3. **Service-layer enforcement, not transport-layer enforcement.** Every gate runs *inside* `@byline/core` / `@byline/admin` services, so the same gate is active no matter which transport (admin server fn, in-process client, future stable HTTP) invokes it. Transport edges only resolve and pass `RequestContext`.
 
 The subsystem is split across two packages by concern:
 
 | Package         | Role                                                                                               |
 |-----------------|----------------------------------------------------------------------------------------------------|
-| `@byline/auth`  | Leaf package. Actor primitives (`AdminAuth`, `UserAuth`, `Actor`), the `RequestContext` shape, the `AbilityRegistry`, the `SessionProvider` interface, and the `AuthError` factories. No DB, no transport — types and small classes only. |
+| `@byline/auth`  | Leaf package. Actor primitives (`AdminAuth`, `UserAuth`, `Actor`), the `RequestContext` shape, the `AbilityRegistry`, the `SessionProvider` interface, and the `AuthError` factories. No DB, no transport: types and small classes only. |
 | `@byline/admin` | Concrete admin subsystem. Admin user / role / permission / account modules (each as `commands.ts` + `repository.ts` + `service.ts` + `dto.ts` + `schemas.ts` + `errors.ts` + `abilities.ts`), the built-in `JwtSessionProvider`, password hashing (argon2id), and the `AdminStore` aggregate. |
 
 Postgres-backed repositories ship as the `@byline/db-postgres/admin` subpath, plugged into `AdminStore`.
@@ -39,7 +39,7 @@ Each entry is the minimal shape for one task. The "Edit" line tells you which fi
 
 Abilities are flat dotted strings. Subsystems register them once at boot so the role-ability editor can enumerate them as a checkbox tree.
 
-**Edit:** the registering module — e.g. `packages/admin/src/modules/admin-users/abilities.ts` for built-in admin abilities, or `apps/webapp/byline/server.config.ts` after `initBylineCore()` returns for app-level additions.
+**Edit:** the registering module, e.g. `packages/admin/src/modules/admin-users/abilities.ts` for built-in admin abilities, or `apps/webapp/byline/server.config.ts` after `initBylineCore()` returns for app-level additions.
 
 ```ts
 import type { AbilityRegistry } from '@byline/auth'
@@ -60,15 +60,15 @@ export function registerMyPluginAbilities(registry: AbilityRegistry) {
 }
 ```
 
-Collection abilities (`collections.<path>.{read,create,update,delete,publish,changeStatus,reindex}`) are auto-registered by `initBylineCore()` — only plugins outside the collection runtime need to register manually.
+Collection abilities (`collections.<path>.{read,create,update,delete,publish,changeStatus,reindex}`) are auto-registered by `initBylineCore()`. Only plugins outside the collection runtime need to register manually.
 
 → [Abilities](#abilities)
 
 ### 2. Assert an ability at a service-layer call site
 
-Service-layer enforcement is the real boundary. UI cues are cosmetic. Every write entry point and every read entry point on `@byline/client` already routes through these helpers — you only call them directly when authoring a *new* service.
+Service-layer enforcement is the real boundary. UI cues are cosmetic. Every write entry point and every read entry point on `@byline/client` already routes through these helpers. You only call them directly when authoring a *new* service.
 
-**Edit:** the new service file — e.g. `packages/core/src/services/<your-service>.ts` (collection scope) or `packages/admin/src/modules/<module>/commands.ts` (admin scope).
+**Edit:** the new service file, e.g. `packages/core/src/services/<your-service>.ts` (collection scope) or `packages/admin/src/modules/<module>/commands.ts` (admin scope).
 
 ```ts
 // Collection-scope service — gates `verb` on `collections.<path>.<verb>`.
@@ -88,7 +88,7 @@ const actor = assertAdminActor(requestContext, 'admin.users.create')
 
 ### 3. Resolve `RequestContext` in a script or seed
 
-Seeds, migrations, and one-off scripts need a `RequestContext` to call `@byline/client` or any service-layer entry point. Use `createSuperAdminContext` — the super-admin path is *explicit* in the code, never ambient.
+Seeds, migrations, and one-off scripts need a `RequestContext` to call `@byline/client` or any service-layer entry point. Use `createSuperAdminContext`: the super-admin path is *explicit* in the code, never ambient.
 
 **Edit:** `apps/webapp/byline/seeds/<your-seed>.ts` (or any script that imports `byline/server.config.ts`).
 
@@ -102,7 +102,7 @@ const client = getBylineClient({ requestContext: context })
 await client.collection('pages').create({ title: 'Hello world' })
 ```
 
-Inside admin server functions, use `getAdminRequestContext()` instead — see [Actors and `RequestContext`](#actors-and-requestcontext).
+Inside admin server functions, use `getAdminRequestContext()` instead (see [Actors and `RequestContext`](#actors-and-requestcontext)).
 
 → [Actors and `RequestContext`](#actors-and-requestcontext)
 
@@ -110,7 +110,7 @@ Inside admin server functions, use `getAdminRequestContext()` instead — see [A
 
 Anyone with `read` sees published documents. Authors additionally see their own drafts. Editors with a broader ability see everything.
 
-**Edit:** the collection schema — e.g. `apps/webapp/byline/collections/posts/schema.ts`.
+**Edit:** the collection schema, e.g. `apps/webapp/byline/collections/posts/schema.ts`.
 
 ```ts
 import { defineCollection } from '@byline/core'
@@ -132,13 +132,13 @@ export const Posts = defineCollection({
 })
 ```
 
-The fallback `'__none__'` collapses cleanly when `actor` is absent — anonymous readers get the published-only branch.
+The fallback `'__none__'` collapses cleanly when `actor` is absent: anonymous readers get the published-only branch.
 
 → [Read-side scoping — `beforeRead`](#read-side-scoping-the-beforeread-hook)
 
 ### 5. Recipe — multi-tenant scoping
 
-Every document belongs to a tenant. Every read clamps to the actor's tenant — full stop, no ability needed. Deny-by-default.
+Every document belongs to a tenant. Every read clamps to the actor's tenant: full stop, no ability needed. Deny-by-default.
 
 **Edit:** the collection schema.
 
@@ -150,7 +150,7 @@ hooks: {
 }
 ```
 
-Anonymous readers see nothing, because no tenant matches `'__none__'`. If a tenant has a public storefront, expose it through a separate collection or a dedicated `published-and-public` flag rather than relaxing this predicate — tenant scoping should never have a forgotten escape hatch.
+Anonymous readers see nothing, because no tenant matches `'__none__'`. If a tenant has a public storefront, expose it through a separate collection or a dedicated `published-and-public` flag rather than relaxing this predicate. Tenant scoping should never have a forgotten escape hatch.
 
 → [Read-side scoping — `beforeRead`](#read-side-scoping-the-beforeread-hook)
 
@@ -169,7 +169,7 @@ hooks: {
 }
 ```
 
-The predicate compares against `publishAt` at query time, so each request reads "now" — caching layers above this need to be cache-key-aware of time, or the embargo lifts late.
+The predicate compares against `publishAt` at query time, so each request reads "now". Caching layers above this need to be cache-key-aware of time, or the embargo lifts late.
 
 → [Read-side scoping — `beforeRead`](#read-side-scoping-the-beforeread-hook)
 
@@ -206,7 +206,7 @@ hooks: {
 }
 ```
 
-When `departmentIds` is empty, `$in: []` returns no rows — deny by default. If the actor's department list is loaded asynchronously, make the hook `async`; the same operation context is threaded through direct reads and populate.
+When `departmentIds` is empty, `$in: []` returns no rows: deny by default. If the actor's department list is loaded asynchronously, make the hook `async`; the same operation context is threaded through direct reads and populate.
 
 → [Read-side scoping — `beforeRead`](#read-side-scoping-the-beforeread-hook)
 
@@ -232,7 +232,7 @@ The reserved `id` key resolves to the logical document id. If your user model li
 
 ### 10. Mask or redact a field on read (`afterRead`)
 
-Field-level visibility — masking, hashing, omitting — lives in `afterRead`. The hook receives the materialised document and can mutate `doc.fields` in place; mutations propagate through the response.
+Field-level visibility (masking, hashing, omitting) lives in `afterRead`. The hook receives the materialised document and can mutate `doc.fields` in place; mutations propagate through the response.
 
 **Edit:** the collection schema.
 
@@ -264,7 +264,7 @@ const allDocs = await client.collection('posts').find({
 })
 ```
 
-Use only from internal tooling. Never inside application code paths — the whole point of `beforeRead` is to apply uniformly.
+Use only from internal tooling. Never inside application code paths: the whole point of `beforeRead` is to apply uniformly.
 
 → [The documented escape hatches](#the-documented-escape-hatches)
 
@@ -272,7 +272,7 @@ Use only from internal tooling. Never inside application code paths — the whol
 
 Sessions are pluggable behind `SessionProvider`. The built-in `JwtSessionProvider` is fully featured (15-min access, 30-day refresh, rotation, replay detection, argon2id), but Lucia, better-auth, WorkOS, Clerk, or institutional SSO can drop in by implementing the interface.
 
-A provider implements five methods. The load-bearing one is **`resolveActor`** — it turns an admin-user id into the runtime `AdminAuth` (the actor id plus its flat ability set) that every access check reads. Credential verification and token storage are yours to wire to whatever identity service you use; this example delegates credentials to an external IdP and issues short-lived JWT access tokens:
+A provider implements five methods. The load-bearing one is **`resolveActor`**: it turns an admin-user id into the runtime `AdminAuth` (the actor id plus its flat ability set) that every access check reads. Credential verification and token storage are yours to wire to whatever identity service you use; this example delegates credentials to an external IdP and issues short-lived JWT access tokens:
 
 ```ts
 // byline-session-mycustom/src/provider.ts
@@ -355,7 +355,7 @@ const core = await initBylineCore<AdminStore>({
 })
 ```
 
-`getAdminRequestContext()` calls `verifyAccessToken` on every admin request, so the `AdminAuth` your `resolveActor` returns is exactly what `assertAbility` / `assertActorCanPerform` check downstream. The `capabilities` flags drive which affordances the admin UI renders — a provider without `passwordChange` hides the password-change form rather than failing the call.
+`getAdminRequestContext()` calls `verifyAccessToken` on every admin request, so the `AdminAuth` your `resolveActor` returns is exactly what `assertAbility` / `assertActorCanPerform` check downstream. The `capabilities` flags drive which affordances the admin UI renders: a provider without `passwordChange` hides the password-change form rather than failing the call.
 
 → [Sessions — `SessionProvider`](#sessions-sessionprovider-interface)
 
@@ -419,7 +419,7 @@ admin.permissions.read
 admin.activity.read
 ```
 
-The flat-string choice is deliberate: it is what the role editor renders as a checkbox tree, what `assertAbility` checks, and what `admin_permissions` stores as one row per (role, ability) grant. CASL-style structured `{ subject, action }` pairs were considered and rejected — they complicate the role editor without payoff at this scope.
+The flat-string choice is deliberate: it is what the role editor renders as a checkbox tree, what `assertAbility` checks, and what `admin_permissions` stores as one row per (role, ability) grant. CASL-style structured `{ subject, action }` pairs were considered and rejected: they complicate the role editor without payoff at this scope.
 
 **The `AbilityRegistry`.** `AbilityRegistry` (`packages/auth/src/abilities.ts`) is the single load-bearing abstraction. Every subsystem that wants to gate behaviour behind a permission registers its abilities at `initBylineCore()` time. Two consumers feed off it:
 
@@ -432,13 +432,13 @@ Collections auto-contribute their abilities at registration time:
 collections.<path>.{ read, create, update, delete, publish, changeStatus, reindex }
 ```
 
-`@byline/admin` registers its own abilities (`admin.users.*`, `admin.roles.*`, `admin.permissions.*`, and the read-only `admin.activity.read` that gates the [system activity area](./02-auditability.md#the-system-activity-area)) the same way — via `register*Abilities()` exports. Future plugins follow the same pattern: register at init time, assert at call sites. The core knows nothing plugin-specific while still rendering a complete admin UI.
+`@byline/admin` registers its own abilities (`admin.users.*`, `admin.roles.*`, `admin.permissions.*`, and the read-only `admin.activity.read` that gates the [system activity area](./02-auditability.md#the-system-activity-area)) the same way, via `register*Abilities()` exports. Future plugins follow the same pattern: register at init time, assert at call sites. The core knows nothing plugin-specific while still rendering a complete admin UI.
 
 ### Two-layer access control
 
-**Layer 1 — flat abilities.** Coarse-grained, table-stored, role-editable from the UI. Sufficient for "can this actor call this verb on this collection at all." Asserted at the service-layer entry point.
+**Layer 1: flat abilities.** Coarse-grained, table-stored, role-editable from the UI. Sufficient for "can this actor call this verb on this collection at all." Asserted at the service-layer entry point.
 
-**Layer 2 — conditional rules in hooks.** Per-collection, in code, with full access to the document and the actor. The hook machinery is where ownership, state-gated, locale-masked, and tenant-scoped rules live:
+**Layer 2: conditional rules in hooks.** Per-collection, in code, with full access to the document and the actor. The hook machinery is where ownership, state-gated, locale-masked, and tenant-scoped rules live:
 
 - `CollectionHooks.beforeRead` — contributes a `QueryPredicate` AND-merged into the SQL query. Owner-only, tenant-scoped, soft-delete-hide.
 - `CollectionHooks.afterRead` — observes the materialised document and the actor; can mask fields, redact values, or tag rows.
@@ -450,7 +450,7 @@ The six Quick Reference recipes above cover the common Layer-2 patterns end-to-e
 
 ### The enforcement boundary
 
-UI cues (hiding buttons, disabling menu items) are **cosmetic and explicitly untrusted**. An attacker can call the server function directly, drive `@byline/client` from a script, or hit a future HTTP endpoint. The real boundary is the service layer — every caller is forced through it.
+UI cues (hiding buttons, disabling menu items) are **cosmetic and explicitly untrusted**. An attacker can call the server function directly, drive `@byline/client` from a script, or hit a future HTTP endpoint. The real boundary is the service layer: every caller is forced through it.
 
 Two helpers, one per realm:
 
@@ -459,7 +459,7 @@ Two helpers, one per realm:
 | `assertActorCanPerform` | Document collections                      | `packages/core/src/auth/assert-actor-can-perform.ts`      |
 | `assertAdminActor`      | Admin user / role / permission management | `packages/admin/src/lib/assert-admin-actor.ts`            |
 
-**`assertActorCanPerform` — document collections.** Policy:
+**`assertActorCanPerform` (document collections).** Policy:
 
 - No `requestContext` → `ERR_UNAUTHENTICATED`.
 - `actor: null` → permitted **only** when `verb === 'read'` and `readMode === 'published'`. Any other null-actor call throws `ERR_UNAUTHENTICATED`.
@@ -473,19 +473,19 @@ Call sites:
 - `@byline/client` on every read path: ordinary finds, collection and zone search, status counts, history/version reads, audit-log access gates, document-tree reads, relation populate, and richtext target hydration.
 - Every admin webapp document-collection server fn (`packages/host-tanstack-start/src/server-fns/collections/`). Writes thread `requestContext` into `DocumentLifecycleContext`; ordinary reads delegate to the admin `BylineClient` so the same collection and row gates run.
 
-**`assertAdminActor` — admin management.** Policy:
+**`assertAdminActor` (admin management).** Policy:
 
-- Always requires a present `AdminAuth` actor — no anonymous path.
+- Always requires a present `AdminAuth` actor, no anonymous path.
 - Asserts the specific module ability: `admin.users.*`, `admin.roles.*`, `admin.permissions.*`, `admin.activity.read`.
 
-Called inside every `*Command` in `@byline/admin/admin-{users,roles,permissions,account}`. The transport wrappers (the matching server fns under `packages/host-tanstack-start/src/server-fns/admin-{users,roles,permissions,account}/`) carry no policy — they resolve `RequestContext` and delegate. The exception is `admin.activity.read`: the activity area owns no AdminStore command (it reads the document db adapter's `findAuditLog` directly), so its `assertAdminActor` call lives in the host server fn `getSystemActivityLog` rather than in an `@byline/admin` command.
+Called inside every `*Command` in `@byline/admin/admin-{users,roles,permissions,account}`. The transport wrappers (the matching server fns under `packages/host-tanstack-start/src/server-fns/admin-{users,roles,permissions,account}/`) carry no policy: they resolve `RequestContext` and delegate. The exception is `admin.activity.read`: the activity area owns no AdminStore command (it reads the document db adapter's `findAuditLog` directly), so its `assertAdminActor` call lives in the host server fn `getSystemActivityLog` rather than in an `@byline/admin` command.
 
 ### The documented escape hatches
 
 Two intentional bypasses exist, each on a single, well-marked seam:
 
 - **`db.commands.*` / `db.queries.*` direct calls** bypass both helpers. Reserved for seeds, migrations, and internal tooling that need to bootstrap the system without an actor.
-- **`_bypassBeforeRead: true`** on `@byline/client` read options skips `beforeRead` predicate application. Reserved for the same class of caller — admin tooling that needs to see everything regardless of scoping rules.
+- **`_bypassBeforeRead: true`** on `@byline/client` read options skips `beforeRead` predicate application. Reserved for the same class of caller: admin tooling that needs to see everything regardless of scoping rules.
 
 These are deliberate, narrow exits. There is no ambient bypass and no environment variable.
 
@@ -512,12 +512,12 @@ interface SessionProvider {
 }
 ```
 
-The capability flags are how the admin UI decides which affordances to render — a provider without `passwordChange` hides the password-change form rather than failing the call.
+The capability flags are how the admin UI decides which affordances to render: a provider without `passwordChange` hides the password-change form rather than failing the call.
 
 **Built-in `JwtSessionProvider`** (`packages/admin/src/modules/auth/jwt-session-provider.ts` and friends):
 
 - **15-minute access tokens.** Short enough that revocation propagates without a heavy real-time check on every request.
-- **30-day refresh tokens** stored in `admin_refresh_tokens` for revocation. DB-backed rather than short-lived-only — short-lived-only would have no way to force-sign-out a compromised account.
+- **30-day refresh tokens** stored in `admin_refresh_tokens` for revocation. DB-backed rather than short-lived-only, because short-lived-only would have no way to force-sign-out a compromised account.
 - **Rotation on every refresh.** The old refresh token is invalidated when a new pair is issued.
 - **Replay detection.** Reusing a rotated refresh token revokes the entire session lineage, on the assumption that a rotation collision means the attacker now has a token the legitimate client also held.
 - **argon2id password hashing** (`packages/admin/src/modules/auth/password.ts`). The full PHC string is stored in `admin_users.password`.
@@ -536,7 +536,7 @@ beforeRead?: (ctx: {
 }) => QueryPredicate | void | Promise<QueryPredicate | void>
 ```
 
-The hook runs for collection reads and for target collections reached through relation or richtext population. It receives the actor and read context and returns a `QueryPredicate`. Caller `where` and hook security predicates compile separately: caller input uses the ordinary parser, while the hook uses strict validation and compiles wholly to adapter `DocumentFilter`s. Those two filter lists are then **AND**ed. Callers never see the scope — it is invisible, query-level, and applies even when no `where` was specified. Returning `void` (or `undefined`) means "no scoping for this actor" — typically the admin / superuser path.
+The hook runs for collection reads and for target collections reached through relation or richtext population. It receives the actor and read context and returns a `QueryPredicate`. Caller `where` and hook security predicates compile separately: caller input uses the ordinary parser, while the hook uses strict validation and compiles wholly to adapter `DocumentFilter`s. Those two filter lists are then **AND**ed. Callers never see the scope: it is invisible, query-level, and applies even when no `where` was specified. Returning `void` (or `undefined`) means "no scoping for this actor", typically the admin / superuser path.
 
 The predicate language is the security-checked subset of `WhereClause`: scalar equality, `$eq` / `$ne` / `$gt` / `$gte` / `$lt` / `$lte` / `$contains` / `$in` / `$nin`, relation sub-clauses and quantifiers, and `$and` / `$or` combinators. Field names resolve through `field-store-map`. Reserved `id`, `status`, and `path` keys compile as document-column filters at the correct relation depth. For top-level security clauses, `status` accepts `$eq` / `$ne` / `$in` / `$nin`; `path` accepts those plus `$contains`. Because strict security compilation no longer passes through caller-only top-level scalar handling, these operators are enforced consistently on list, detail, populate, count, history, version, and tree reads.
 
@@ -549,7 +549,7 @@ Wired into:
 
 **Composition rules:**
 
-- **Hook predicate AND user `where`.** The adapter applies the separately compiled filter lists with implicit AND. A user passing `where: { status: 'draft' }` against Recipe 1 (owner-only drafts) sees only their own drafts — both clauses apply.
+- **Hook predicate AND user `where`.** The adapter applies the separately compiled filter lists with implicit AND. A user passing `where: { status: 'draft' }` against Recipe 1 (owner-only drafts) sees only their own drafts: both clauses apply.
 - **Compilation stays separate.** Permissive caller parsing cannot weaken, drop, or pre-seed strict hook filters; only the final adapter filter lists are combined.
 - **`void` means "no scoping".** Use it for the superuser / unconditional-read branch. Do not return an empty object `{}`; strict security-predicate parsing rejects it.
 - **Deny with an empty set, not an invalid UUID or an exception.** When the actor cannot read anything in a collection, return `{ id: { $in: [] } }`. It compiles to an always-false predicate without asking Postgres to cast a sentinel string to UUID; throwing would collapse list endpoints instead of producing the natural empty result.
@@ -558,7 +558,7 @@ Wired into:
 
 **What `beforeRead` is *not* for:**
 
-- **Field-level redaction.** Use `afterRead` to mutate `doc.fields` — see [the next section](#field-level-redaction-with-afterread). `beforeRead` is row-level only.
+- **Field-level redaction.** Use `afterRead` to mutate `doc.fields` (see [the next section](#field-level-redaction-with-afterread)). `beforeRead` is row-level only.
 - **Computed-field filters.** The predicate compiles against EAV store columns and the reserved document keys `status`, `path`, and `id`. Synthesise a real field if you need to filter on something derived.
 - **Write-side checks.** `assertActorCanPerform` already gates every write path. Don't try to enforce mutation rules from a read hook.
 
@@ -602,21 +602,21 @@ Host integrations pass the already-validated destination to `SignInForm` as `red
 | `account/`        | Self-service profile + password change.                                                     |
 | `users/`          | List / create / edit / enable / disable admin users; assign roles; set password.            |
 | `roles/`          | List / create / edit / reorder admin roles; member assignment.                              |
-| `permissions/`    | Read-only inspector — registered abilities, role-ability matrix, who-has-what lookup.       |
+| `permissions/`    | Read-only inspector: registered abilities, role-ability matrix, who-has-what lookup.        |
 | `collections/`    | Per-collection list / create / edit / history / status. Standard CMS surface.               |
 
 The role-ability editor (under `roles/`) is the primary control-plane UI: a checkbox tree driven by `listAbilities()`, grouped by ability `group`. Every checkbox toggle round-trips through `admin-permissions.setRoleAbilities` (gated on `admin.permissions.update`).
 
-The `permissions/` inspector is **read-only by design** — it surfaces what is registered and who holds it, but never edits. File-based config stays primary for anything schema-shaped (collections, fields, workflows, registered abilities). Drupal's structural mistake — making every schema-shaped decision live-editable from the UI — fragmented its source of truth between database rows and config files. Byline holds the line: file-based config is primary, the UI is an inspector for registered state, and only genuinely runtime concerns (feature flags, SMTP, branding) are ever live-editable.
+The `permissions/` inspector is **read-only by design**: it surfaces what is registered and who holds it, but never edits. File-based config stays primary for anything schema-shaped (collections, fields, workflows, registered abilities). Drupal's structural mistake (making every schema-shaped decision live-editable from the UI) fragmented its source of truth between database rows and config files. Byline holds the line: file-based config is primary, the UI is an inspector for registered state, and only genuinely runtime concerns (feature flags, SMTP, branding) are ever live-editable.
 
-UI ability cues — hiding Create / Publish / Delete buttons, disabling menu items — are cosmetic. The `useAbility()` hook and `<RequireAbility>` wrapper exist for UX, not security. The real gates run in the service layer per `assertActorCanPerform` and `assertAdminActor`.
+UI ability cues (hiding Create / Publish / Delete buttons, disabling menu items) are cosmetic. The `useAbility()` hook and `<RequireAbility>` wrapper exist for UX, not security. The real gates run in the service layer per `assertActorCanPerform` and `assertAdminActor`.
 
 ### Data model
 
 :::note[Table names]
 Tables below are shown unprefixed for readability. Live names carry the
 `byline_` prefix (`byline_admin_users`, `byline_admin_roles`, …) per
-the Postgres adapter's namespacing convention — see
+the Postgres adapter's namespacing convention. See
 `packages/db-postgres/src/database/schema/auth.ts`.
 :::
 
@@ -666,7 +666,7 @@ admin_refresh_tokens                       -- JwtSessionProvider only
   id, admin_user_id, token_hash, issued_at, expires_at, revoked_at, replaced_by, ...
 ```
 
-`admin_users.is_super_admin === true` short-circuits all ability checks at runtime — a super-admin's `AdminAuth` carries every registered ability synthetically. The flag is not a substitute for granting abilities to roles; it is the bootstrap and break-glass mechanism.
+`admin_users.is_super_admin === true` short-circuits all ability checks at runtime: a super-admin's `AdminAuth` carries every registered ability synthetically. The flag is not a substitute for granting abilities to roles; it is the bootstrap and break-glass mechanism.
 
 The seed under `apps/webapp/byline/seeds/admin.ts` creates one super-admin user and one `super-admin` role on a fresh install.
 

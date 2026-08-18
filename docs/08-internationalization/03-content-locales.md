@@ -40,17 +40,17 @@ exist in?" is an *emergent* property of which value rows happen to exist.
 Historically Byline had a locale fallback chain for **paths** but not for
 **field values**. A request for `/de/news/foo` on an untranslated document would
 *resolve the path* (initial `findByPath` falls back `de → configured default`) but return *empty*
-localized fields — the UI rendered the slug as a placeholder title over an empty
+localized fields: the UI rendered the slug as a placeholder title over an empty
 body. Resolution closes that gap with three rules:
 
 1. **Resolution is per-document, never per-field.** A read picks *one* effective
-   locale for the whole document and renders every field in it — never
+   locale for the whole document and renders every field in it, never
    mixed-locale ("German title, English body") output.
 2. **In fallback mode, a requested locale resolves through a chain that terminates
    at the document's source locale** (the configured default for new documents,
    and the legacy fallback when old data has no source marker). A
    read returns *something*, and only 404s when the document does not
-   exist *at all* — never merely because a translation is missing.
+   exist *at all*, never merely because a translation is missing.
 3. **"Available in locale L" is a version-level fact** — a property of a document
    *version's* content, computed once at write time and frozen on the immutable
    version. Keying it to the version (not the document) is what keeps it correct
@@ -66,7 +66,7 @@ rows, and the result is stored on the version (in the
 `byline_document_version_locales` ledger). Two edges fall straight out of the
 rule:
 
-- **A document with no localized fields at all** is trivially *locale-agnostic* —
+- **A document with no localized fields at all** is trivially *locale-agnostic*:
   it renders identically everywhere, so it is treated as available in *any*
   requested locale (and surfaces `_localeAgnostic: true` with an empty available
   set).
@@ -78,7 +78,7 @@ rule:
 Because availability is recorded status-blind and keyed by version, **status
 composes at read time for free**: a published read resolves the current
 *published* version and checks *its* frozen locale set, so a draft `de`
-translation stays invisible until the draft is published — at which point the
+translation stays invisible until the draft is published, at which point the
 status flip alone lights `de` up for published reads, with zero extra writes.
 
 ## The fallback chain and `onMissingLocale`
@@ -96,7 +96,7 @@ read option:
 
 | Value | Detail read | List read |
 |---|---|---|
-| **`'empty'`** | restore the *requested* locale exactly — localized fields empty where untranslated. **This is the admin edit view** (empty fields are the signal to use "Copy to Locale"). | render each row in the requested locale exactly. |
+| **`'empty'`** | restore the *requested* locale exactly: localized fields empty where untranslated. **This is the admin edit view** (empty fields are the signal to use "Copy to Locale"). | render each row in the requested locale exactly. |
 | **`'fallback'`** | resolve the effective locale via the chain and restore **all** fields in that one locale. Never 404s on a missing translation. | include every matching document; render each in *its own* effective locale. |
 | **`'omit'`** | return `null` (→ caller 404) when the requested locale isn't available. | include only documents available in the requested locale (a cheap indexed check, so pagination / `total` stay correct). |
 
@@ -126,7 +126,7 @@ intermediate hops (`de → fr → source`, or regional variants
 ## Advertising content locales (`availableLocales`)
 
 Resolution decides what is *renderable*. **Advertising** is the separate,
-editorial decision of what is *promoted* — which content-locale URLs appear in
+editorial decision of what is *promoted*: which content-locale URLs appear in
 `hreflang`, the sitemap, and the per-page "Also available in…" menu. A document
 can be *renderable* in `de` via fallback yet not *promoted* as a German page
 (placeholder copy, mid-edit, legal review).
@@ -150,7 +150,7 @@ the intersection**:
 advertised = availableLocales (editorial)  ∩  _availableVersionLocales (ledger)
 ```
 
-This handles both failure modes — *complete-but-not-blessed* (editorial off ⇒
+This handles both failure modes: *complete-but-not-blessed* (editorial off ⇒
 out) and *blessed-but-no-longer-complete* (ledger drops it ⇒ out). The host
 computes this intersection (`advertisedLocalesFor` in
 `apps/webapp/src/lib/alternates.ts`).
@@ -159,7 +159,7 @@ computes this intersection (`advertisedLocalesFor` in
 
 When a collection opts in, Byline renders an **available-locales** widget in the
 editor sidebar (directly below the path widget). It shows, per content locale,
-the structural ledger fact beside the editor's toggle — so the editor is deciding
+the structural ledger fact beside the editor's toggle, so the editor is deciding
 *advertise / hold back* at exactly the moment the information is in front of them,
 rather than reacting to a passive boot/save warning:
 
@@ -170,14 +170,14 @@ rather than reacting to a passive boot/save warning:
 | ✗ incomplete | off | nothing to do |
 | ✗ incomplete | on | ⚠ *advertising an incomplete locale* |
 
-The reconciliation is expressed purely through the checkbox's **intent colour** —
-no per-row text:
+The reconciliation is expressed purely through the checkbox's **intent colour**
+(no per-row text):
 
 - **green / enabled** when the locale is complete in the ledger (the editor can
   toggle it on to advertise);
 - **neutral / disabled** when the locale is not yet complete (nothing to
   advertise);
-- **amber / enabled** for the ⚠ case — advertised but no longer complete — so the
+- **amber / enabled** for the ⚠ case (advertised but no longer complete), so the
   editor can uncheck to resolve.
 
 That green checkbox is the visible output of the **"locale ready" detection**:
@@ -185,7 +185,7 @@ the completeness rule above, which inspects every localized field for a saved
 value in that locale at write time and records the result on the version. The
 widget never re-derives it in the browser; it reads `_availableVersionLocales`
 off the edit payload and lights the row green when the locale is present. The
-policy is **opt-in** — nothing is advertised until the editor checks a green
+policy is **opt-in**: nothing is advertised until the editor checks a green
 locale.
 
 > For the widget to render the ledger column, the admin edit response preserves
@@ -194,7 +194,7 @@ locale.
 
 ## Saving advertised locales is immediate and non-versioned
 
-`availableLocales` is **document-level** — it lives in
+`availableLocales` is **document-level**: it lives in
 `byline_document_available_locales` keyed by logical document, sticky across
 versions (the same shape as `path`). Editing it is therefore **not** part of the
 version workflow: an explicit array (including `[]`) means “replace this set” and
@@ -215,7 +215,7 @@ With `reconcile: true`, an otherwise no-op retry re-runs that post-commit hook
 without another write or audit row.
 
 The admin form keeps a single **Save** button but partitions *why* it is dirty
-into four states — `none`, `content` (versioned), `direct-write` (immediate
+into four states: `none`, `content` (versioned), `direct-write` (immediate
 system-field write), and `both` (each through its own path). When a save involves
 a `direct-write`, the editor first confirms a modal that spells out the immediate,
 non-workflow nature of the change (tailored by whether a published version is
@@ -233,14 +233,14 @@ for them is the job of the document-level
 history.
 
 > **Why not gate it behind publish?** A document-level field can't honestly be
-> "pending publish" — there is no per-version copy of it to stage. Coupling it to
+> "pending publish": there is no per-version copy of it to stage. Coupling it to
 > the version workflow (the pre-decoupling behaviour) reset the document to draft
 > and *implied* gating that never existed: the editorial write already landed at
 > save time. The decoupled write makes the data model and the UX agree.
 
 ## What core surfaces on a read
 
-Per read, core emits the facts and stops there — the host turns them into URLs
+Per read, core emits the facts and stops there; the host turns them into URLs
 and tags:
 
 | Field | Meaning |
@@ -248,14 +248,14 @@ and tags:
 | `availableLocales` | the editorial advertised set (document-level, stored). |
 | `_availableVersionLocales` | the structural completeness ledger for the resolved version (derived, read-only, sorted). |
 | `_localeAgnostic` | `true` for a document with no localized content ("renders everywhere"); a per-document affordance should render no menu. |
-| `sourceLocale` | the document's content anchor — see [Administering content locales](./04-administering-locales.md). |
+| `sourceLocale` | the document's content anchor (see [Administering content locales](./04-administering-locales.md)). |
 | (the effective locale) | which content locale the document actually resolved to, driven by `onMissingLocale`. |
 
 Because `@byline/client` defaults to `status: 'published'` and the ledger
 resolves against the current *published* version, `_availableVersionLocales` on a
-normal read is the **published-available** set — exactly what a public consumer
-should advertise. These fields unify three host consumers — `hreflang`,
-`sitemap.xml`, and the "Also available in…" menu — on **one** source, so they
+normal read is the **published-available** set, exactly what a public consumer
+should advertise. These fields unify three host consumers (`hreflang`,
+`sitemap.xml`, and the "Also available in…" menu) on **one** source, so they
 cannot drift.
 
 ## Code map (content locales)

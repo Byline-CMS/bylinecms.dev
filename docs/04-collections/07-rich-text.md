@@ -17,11 +17,11 @@ Companions:
 
 ## Overview
 
-A `richText` field gives an editor a full document editing surface — headings, links, inline images, tables, code, admonitions. Byline's richtext is pluggable through a deliberately small adapter contract, and today the project ships one editor: `@byline/richtext-lexical`, built on Lexical. The cross-editor contract (a client render component and a server populate function) stays minimal so a future TipTap or markdown adapter can fit the same shape. On top of that, the Lexical adapter exposes a **BYO-extension surface** built on Lexical's [Extensions API](https://lexical.dev/docs/extensions/intro) — you register Lexical extensions through a chainable list and contribute toolbar and floating-UI items through typed peer dependencies on `BylineToolbarExtension` and `BylineFloatingUIExtension`.
+A `richText` field gives an editor a full document editing surface: headings, links, inline images, tables, code, admonitions. Byline's richtext is pluggable through a deliberately small adapter contract, and today the project ships one editor: `@byline/richtext-lexical`, built on Lexical. The cross-editor contract (a client render component and a server populate function) stays minimal so a future TipTap or markdown adapter can fit the same shape. On top of that, the Lexical adapter exposes a **BYO-extension surface** built on Lexical's [Extensions API](https://lexical.dev/docs/extensions/intro): you register Lexical extensions through a chainable list and contribute toolbar and floating-UI items through typed peer dependencies on `BylineToolbarExtension` and `BylineFloatingUIExtension`.
 
 Read this document when you are registering the editor, turning built-in features on or off, contributing a toolbar or floating-UI item, or wiring the server adapters that embedded relations and search indexing depend on.
 
-`@byline/ui` no longer depends on Lexical at all. `@byline/richtext-lexical` ships two entry points: the default export is the React render surface, and `@byline/richtext-lexical/server` carries the server-side factories — `lexicalEditorEmbedServer` and `lexicalEditorPopulateServer` (the write- and read-path visitor pipeline), plus `lexicalEditorToMarkdownServer` and `lexicalEditorToTextServer` (the [markdown export](../05-reading-and-delivery/04-markdown-export.md) and [search configuration](../06-search/01-configuration.md) serializers).
+`@byline/ui` no longer depends on Lexical at all. `@byline/richtext-lexical` ships two entry points: the default export is the React render surface, and `@byline/richtext-lexical/server` carries the server-side factories: `lexicalEditorEmbedServer` and `lexicalEditorPopulateServer` (the write- and read-path visitor pipeline), plus `lexicalEditorToMarkdownServer` and `lexicalEditorToTextServer` (the [markdown export](../05-reading-and-delivery/04-markdown-export.md) and [search configuration](../06-search/01-configuration.md) serializers).
 
 ---
 
@@ -31,7 +31,7 @@ Each entry is the minimal shape for one task. The "Edit" line tells you which fi
 
 ### 1. Register the editor
 
-Default registration — every `richText` field gets the full feature set.
+Default registration: every `richText` field gets the full feature set.
 
 **Edit:** `apps/webapp/byline/admin.config.ts`
 
@@ -49,7 +49,7 @@ defineAdminConfig({
 
 ### 2. Configure editor settings (site-wide)
 
-Override placeholder / markdown shortcuts / debug — settings only, no extension changes.
+Override placeholder / markdown shortcuts / debug: settings only, no extension changes.
 
 **Edit:** `apps/webapp/byline/admin.config.ts`
 
@@ -97,7 +97,7 @@ defineAdminConfig({
 
 ### 4. Configure a built-in extension
 
-Pass config through to a wrapped extension — `TableExtension` here delegates to `@lexical/table` and accepts its `hasCellMerge` / `hasCellBackgroundColor` knobs.
+Pass config through to a wrapped extension: `TableExtension` here delegates to `@lexical/table` and accepts its `hasCellMerge` / `hasCellBackgroundColor` knobs.
 
 **Edit:** `apps/webapp/byline/admin.config.ts`
 
@@ -147,7 +147,7 @@ defineAdminConfig({
 
 Extension authors declare a peer dependency on `BylineToolbarExtension` and supply an `items` array. Built-ins and third parties use the same contract.
 
-**Edit:** the extension author's own package — for the Byline AI plugin this is `packages/ai/src/plugins/lexical/extension.tsx`.
+**Edit:** the extension author's own package. For the Byline AI plugin this is `packages/ai/src/plugins/lexical/extension.tsx`.
 
 ```tsx
 import {
@@ -270,7 +270,7 @@ The factory imports `defaultEditorConfig` from `@byline/richtext-lexical/server`
 
 ### 10. Embed-on-save / populate-on-read field flags
 
-Per-field policy for relation-bearing nodes (internal links, inline images). Defaults to **snapshot** (`embedRelationsOnSave: true`) — every save runs the server-side embed walker to refresh embedded `{ title, path, … }` envelopes before persistence.
+Per-field policy for relation-bearing nodes (internal links, inline images). Defaults to **snapshot** (`embedRelationsOnSave: true`): every save runs the server-side embed walker to refresh embedded `{ title, path, … }` envelopes before persistence.
 
 **Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
 
@@ -314,7 +314,7 @@ await initBylineCore({
 
 ### 12. Per-collection link path composition
 
-Define how a document's persisted slug composes into a renderable root-relative path. Read by the server-side richtext embed walker (to canonicalise `document.path` on internal links) and by `CollectionAdminConfig.preview.url`. Optional — when omitted, the embed walker falls back to `/${collectionPath}/${slug}`.
+Define how a document's persisted slug composes into a renderable root-relative path. Read by the server-side richtext embed walker (to canonicalise `document.path` on internal links) and by `CollectionAdminConfig.preview.url`. Optional: when omitted, the embed walker falls back to `/${collectionPath}/${slug}`.
 
 **Edit:** `apps/webapp/byline/collections/<name>/schema.ts`
 
@@ -389,7 +389,7 @@ export interface ServerConfig<TAdminStore = unknown> {
 
 `@byline/richtext-lexical` exports both `RichTextField` (component matching `RichTextEditorComponent` directly) and `lexicalEditor()` (a registration factory that bakes settings + extensions in via a closure). Either form satisfies the slot. Alternative editor packages (`@byline/richtext-tiptap`, `@byline/richtext-md`, …) only need a component matching `RichTextEditorComponent`.
 
-**Renderer dispatch.** `packages/admin/src/fields/field-renderer.tsx` reads the configured editor at render time and throws if none is registered. The throw is the failure mode by design — a `richText` field with no editor is unusable, and loud first-render feedback beats a silent textarea fallback.
+**Renderer dispatch.** `packages/admin/src/fields/field-renderer.tsx` reads the configured editor at render time and throws if none is registered. The throw is the failure mode by design: a `richText` field with no editor is unusable, and loud first-render feedback beats a silent textarea fallback.
 
 **Per-field override precedence.** `FieldComponentSlots.Field` overrides win over the site-wide default. `FieldAdminConfig.editor` (recipe 8) is the typed convenience for "this field needs a different editor entirely."
 
@@ -418,15 +418,15 @@ c.extensions.configure(extension, config)         // re-wrap with configExtensio
 c.extensions.has(extension)                       // boolean test by name
 ```
 
-Comparison is by extension `name` (Lexical's own dedup key), so a bare `LinkExtension` and `configExtension(LinkExtension, {...})` are treated as the same entry. Adding two extensions with the same name throws at composer-build time — replace built-ins via `remove(...)` + `add(yours)`, not by name collision.
+Comparison is by extension `name` (Lexical's own dedup key), so a bare `LinkExtension` and `configExtension(LinkExtension, {...})` are treated as the same entry. Adding two extensions with the same name throws at composer-build time: replace built-ins via `remove(...)` + `add(yours)`, not by name collision.
 
 ### Markdown source toggle and transformers
 
-A document-level "view as markdown source" toggle, opt-in per installation via the `markdownToggle` editor setting (default `false`; recipe 2 enables it). When on, a capital-**M** button sits at the right of the toolbar; clicking it flips the editing surface between the WYSIWYG editor and a single markdown `CodeNode` holding the document's raw markdown — and back.
+A document-level "view as markdown source" toggle, opt-in per installation via the `markdownToggle` editor setting (default `false`; recipe 2 enables it). When on, a capital-**M** button sits at the right of the toolbar; clicking it flips the editing surface between the WYSIWYG editor and a single markdown `CodeNode` holding the document's raw markdown, and back.
 
 - **Patch-aware.** The editor is bound to a Byline form field that accumulates `DocumentPatch[]`. While in source mode, keystrokes are suppressed from the form's `OnChangePlugin` via a synchronous `markdownModeRef` guard, so the transient source view never leaks into the patch stream. A no-edit round-trip (WYSIWYG → markdown → WYSIWYG with no changes) restores the *exact* captured `EditorState`, so the form records **no patch**; edits made in source emit a single field change on toggle-back (**one patch**). Mode state lives in `MarkdownModeProvider` (`field/context/markdown-mode-context.tsx`); the conversion + root-shape guard live in the `useMarkdownToggle` hook (`field/hooks/use-markdown-toggle.ts`).
-- **Transformers.** Conversion runs through `BYLINE_TRANSFORMERS` (`field/markdown/transformers.ts`) — the stock `@lexical/markdown` `TRANSFORMERS` extended with custom handlers: GFM pipe **tables** (adapted from the Lexical playground) and Docusaurus-style `:::type[Title] … :::` **admonitions** (`note` / `tip` / `warning` / `danger`). Admonition bodies use an inline-only transformer set because the node's nested editor (a bare `createEditor()`) holds only paragraphs + inline formatting. The same `BYLINE_TRANSFORMERS` array is wired into the inline `MarkdownShortcutPlugin` so typed shortcuts and the source view stay consistent.
-- **Lossy nodes (known gap).** Custom nodes without a transformer — **layout** columns and **inline images** — are dropped/flattened on a markdown round-trip. A guard to disable the toggle (or warn) when an un-round-trippable node is present is planned alongside extending the transformer set.
+- **Transformers.** Conversion runs through `BYLINE_TRANSFORMERS` (`field/markdown/transformers.ts`), the stock `@lexical/markdown` `TRANSFORMERS` extended with custom handlers: GFM pipe **tables** (adapted from the Lexical playground) and Docusaurus-style `:::type[Title] … :::` **admonitions** (`note` / `tip` / `warning` / `danger`). Admonition bodies use an inline-only transformer set because the node's nested editor (a bare `createEditor()`) holds only paragraphs + inline formatting. The same `BYLINE_TRANSFORMERS` array is wired into the inline `MarkdownShortcutPlugin` so typed shortcuts and the source view stay consistent.
+- **Lossy nodes (known gap).** Custom nodes without a transformer (**layout** columns and **inline images**) are dropped/flattened on a markdown round-trip. A guard to disable the toggle (or warn) when an un-round-trippable node is present is planned alongside extending the transformer set.
 - **Distinct from server-side export.** This toggle is the *bidirectional, lossless* browser path for a single richtext field. Serving a markdown representation of a whole published document at its route is a separate, one-way concern; see [Markdown Export](../05-reading-and-delivery/04-markdown-export.md).
 
 ### The toolbar registry
@@ -451,11 +451,11 @@ export interface BylineToolbarItem {
 - `id` convention: `<extension-name>/<purpose>`.
 - The contributed `node` renders inside `ToolbarActiveEditorProvider`, so `useToolbarActiveEditor()` returns the editor that owns the current selection (root editor, or a nested composer like an inline-image caption). For built-in insert items the toolbar suppresses the Insert dropdown when the active editor isn't the root.
 
-**Suppression by removal.** When you `c.extensions.remove(LinkExtension)`, the link toolbar items disappear automatically — Lexical only delivers peer contributions from extensions that are actually in the graph. The block-format dropdown similarly hides Bullet/Numbered list, Check List, and Code Block entries when the relevant extension isn't present (`useOptionalExtensionDependency` gating).
+**Suppression by removal.** When you `c.extensions.remove(LinkExtension)`, the link toolbar items disappear automatically: Lexical only delivers peer contributions from extensions that are actually in the graph. The block-format dropdown similarly hides Bullet/Numbered list, Check List, and Code Block entries when the relevant extension isn't present (`useOptionalExtensionDependency` gating).
 
 ### The floating-UI registry
 
-Sibling of the toolbar registry: `BylineFloatingUIExtension` collects every floating UI mounted under the editor's shared anchor (`anchorElem` = the inner `.editor` div). `Editor.tsx` reads the merged list and renders every contributor — built-in and third-party alike.
+Sibling of the toolbar registry: `BylineFloatingUIExtension` collects every floating UI mounted under the editor's shared anchor (`anchorElem` = the inner `.editor` div). `Editor.tsx` reads the merged list and renders every contributor, built-in and third-party alike.
 
 ```ts
 export interface BylineFloatingUIProps {
@@ -475,17 +475,17 @@ export interface BylineFloatingUIItem {
 |---|---|---|
 | `LinkExtension` | `FloatingLinkEditorPlugin` | Edit / unlink popover above a link node. |
 | `TableExtension` | `TableActionMenuPlugin` | Reads `hasCellMerge` from upstream `LexicalTableExtension`. |
-| `FloatingTextFormatExtension` | `FloatingTextFormatToolbarPlugin` | Standalone — owns the selection format popover. |
+| `FloatingTextFormatExtension` | `FloatingTextFormatToolbarPlugin` | Standalone: owns the selection format popover. |
 
 **Suppression by removal.** Remove the contributing extension and the floating UI disappears with it. There are no per-floating-UI boolean toggles. To hide the selection format popover specifically, `c.extensions.remove(FloatingTextFormatExtension)`.
 
-**Table cell-merge.** `TableActionMenuPlugin` reads `hasCellMerge` from the upstream `LexicalTableExtension.config` via `useExtensionDependency`. Override it with `c.extensions.configure(LexicalTableExtension, { hasCellMerge: false })` — the action menu UI follows automatically.
+**Table cell-merge.** `TableActionMenuPlugin` reads `hasCellMerge` from the upstream `LexicalTableExtension.config` via `useExtensionDependency`. Override it with `c.extensions.configure(LexicalTableExtension, { hasCellMerge: false })`; the action menu UI follows automatically.
 
 **The toolbar plugin** (the fixed row above the content-editable) is a *consumer* of `BylineToolbarExtension`, not a contributor. It needs a fixed DOM position the decorator slot can't express, so it lives in `Editor.tsx` directly. Moving it under the extension graph later is possible via an Output Component pattern; it is not currently a pain point.
 
 ### Relations — embed and populate
 
-The link and inline-image nodes are the editor's two relation-bearing node types — the first non-form consumers of Byline's `DocumentRelation` envelope. They have a per-field policy for how target document data flows in and out.
+The link and inline-image nodes are the editor's two relation-bearing node types: the first non-form consumers of Byline's `DocumentRelation` envelope. They have a per-field policy for how target document data flows in and out.
 
 **Two phases, paired per field, both server-side:**
 
@@ -494,7 +494,7 @@ The link and inline-image nodes are the editor's two relation-bearing node types
 | **Embed** | On every save, a write-time walker refreshes embedded `{ title, path, … }` envelopes against targets visible in the operation before the row is persisted. Marks links as `_resolved: false` when a target cannot be resolved. | `embedRelationsOnSave` | `true` |
 | **Populate** | On every read, the framework refreshes embedded data by calling the registered server adapter. | `populateRelationsOnRead` | `!embedRelationsOnSave` |
 
-The modal-time picker writes a tentative `{ title, path }` envelope so the in-editor display has a label immediately, but it is **not** the authoritative shape — the server walker rewrites it (or marks it unresolved) on save. Both save-time refresh and read-time population resolve targets in the originating actor's context. The framework asserts the target collection's `read` ability, applies its strict `beforeRead` predicate, runs `afterRead`, and preserves the inherited read mode; embed refreshes deliberately use the published view.
+The modal-time picker writes a tentative `{ title, path }` envelope so the in-editor display has a label immediately, but it is **not** the authoritative shape: the server walker rewrites it (or marks it unresolved) on save. Both save-time refresh and read-time population resolve targets in the originating actor's context. The framework asserts the target collection's `read` ability, applies its strict `beforeRead` predicate, runs `afterRead`, and preserves the inherited read mode; embed refreshes deliberately use the published view.
 
 **Four meaningful states:**
 
@@ -503,7 +503,7 @@ The modal-time picker writes a tentative `{ title, path }` envelope so the in-ed
 | `true` (default) | `false` (default-derived) | **Snapshot.** Walker fires on save, rendered as embedded; reads return the persisted envelope verbatim. Cheapest reads; accept staleness between saves. |
 | `false` | `true` (default-derived) | **Storage-thin.** Save skips the walker (relation primary keys only land on disk); populate runs on every read. Always fresh; highest read cost. |
 | `true` (explicit) | `true` (explicit) | **Belt-and-braces.** Walker fires on save *and* on read. Snapshot is the fallback if populate is ever skipped. |
-| `false` | `false` | **Invalid.** `initBylineCore()` throws — the field would be unrenderable. |
+| `false` | `false` | **Invalid.** `initBylineCore()` throws: the field would be unrenderable. |
 
 `initBylineCore()` fail-fasts on:
 - Any field with effective `embedRelationsOnSave === true` and no `ServerConfig.fields.richText.embed` registered.
@@ -511,7 +511,7 @@ The modal-time picker writes a tentative `{ title, path }` envelope so the in-ed
 
 Loud at boot beats a silent broken renderer at request time.
 
-**Internal link path composition — `buildDocumentPath`.** The link walker composes `document.path` through a per-collection hook on `CollectionDefinition`. The hook returns a **locale-agnostic root-relative path** (leading slash, no host, no locale prefix); the renderer composes the final URL at request time. When the hook is not defined, the walker falls back to the generic `/${collectionPath}/${slug}`.
+**Internal link path composition: `buildDocumentPath`.** The link walker composes `document.path` through a per-collection hook on `CollectionDefinition`. The hook returns a **locale-agnostic root-relative path** (leading slash, no host, no locale prefix); the renderer composes the final URL at request time. When the hook is not defined, the walker falls back to the generic `/${collectionPath}/${slug}`.
 
 ```ts
 // packages/core/src/@types/collection-types.ts
@@ -521,22 +521,22 @@ buildDocumentPath?: (
 ) => string | null
 ```
 
-This is the single source of truth for how a document addresses publicly. `CollectionAdminConfig.preview.url` should delegate to it (see `apps/webapp/byline/collections/pages/admin.tsx` for the pattern). The walker calls `buildDocumentPath` inside a `try` — if it throws, the walker logs at `info` level and leaves the previous `document.path` untouched (branch A).
+This is the single source of truth for how a document addresses publicly. `CollectionAdminConfig.preview.url` should delegate to it (see `apps/webapp/byline/collections/pages/admin.tsx` for the pattern). The walker calls `buildDocumentPath` inside a `try`: if it throws, the walker logs at `info` level and leaves the previous `document.path` untouched (branch A).
 
 **Three save-time branches, per link node.**
 
 | Branch | Trigger | Effect on `document` |
 |---|---|---|
 | **Found** | Target resolved; `buildDocumentPath` (or generic fallback) returned a string | `title` ← `target.fields[useAsTitle]`; `path` ← canonical leading-slash path; any prior `_resolved` flag cleared |
-| **A — hook threw** | `buildDocumentPath` raised | Log at `info`; leave `document.path` and `_resolved` untouched. Renderer's fallback chain copes |
-| **B — target unresolved** | Batch fetch did not return the target id (deleted, unpublished in the selected view, or hidden by row scope) | Log at `warn`; delete `title` / `path`; set `_resolved: false`. Persisted relation identity remains so the editor can re-link |
+| **A: hook threw** | `buildDocumentPath` raised | Log at `info`; leave `document.path` and `_resolved` untouched. Renderer's fallback chain copes |
+| **B: target unresolved** | Batch fetch did not return the target id (deleted, unpublished in the selected view, or hidden by row scope) | Log at `warn`; delete `title` / `path`; set `_resolved: false`. Persisted relation identity remains so the editor can re-link |
 
-Branch C — DB unreachable or transport-level failures — bubbles up to `embedRichTextFields`, which catches per-leaf and logs at `error`. The persisted state for that leaf stays as the editor submitted it; the rest of the document continues.
+Branch C (DB unreachable or transport-level failures) bubbles up to `embedRichTextFields`, which catches per-leaf and logs at `error`. The persisted state for that leaf stays as the editor submitted it; the rest of the document continues.
 
 **What the embed envelope carries:**
 
 - **Internal link** — `{ title?, path?, _resolved?: false }`. `title` from the target's `useAsTitle` field; `path` either canonical-with-leading-slash (set by the walker) or a bare slug (picker-time only, healed on next save). `_resolved: false` means the target was not resolvable or visible in that operation.
-- **Inline image** — `{ title, altText, image, sizes }`. `image` is the source media's `StoredFileValue`; `sizes` is `deriveImageSizes(image.variants)` flattened into a renderer-friendly `{ name, url, width, height, format }[]`. Top-level `src` / `width` / `height` / `altText` are also persisted on the inline-image node — Lexical needs them to render in the admin editor, and they remain a usable fallback when populate hasn't run.
+- **Inline image** — `{ title, altText, image, sizes }`. `image` is the source media's `StoredFileValue`; `sizes` is `deriveImageSizes(image.variants)` flattened into a renderer-friendly `{ name, url, width, height, format }[]`. Top-level `src` / `width` / `height` / `altText` are also persisted on the inline-image node: Lexical needs them to render in the admin editor, and they remain a usable fallback when populate hasn't run.
 
 **Persisted shapes.** Two slightly different on-disk layouts, same envelope:
 
@@ -584,24 +584,24 @@ export type SerializedInlineImageNode = Spread<
 >
 ```
 
-The two layouts differ for historical / Lexical-mechanics reasons (the link node extends `ElementNode` and wraps its custom attrs in `attributes`; the inline-image node spreads them flat). Both carry the same `DocumentRelation` envelope — the visitor abstraction in `lexical-populate-shared.ts` papers over the difference. The `document` payload is **advisory** in either layout — renderers must tolerate it being absent.
+The two layouts differ for historical / Lexical-mechanics reasons (the link node extends `ElementNode` and wraps its custom attrs in `attributes`; the inline-image node spreads them flat). Both carry the same `DocumentRelation` envelope: the visitor abstraction in `lexical-populate-shared.ts` papers over the difference. The `document` payload is **advisory** in either layout: renderers must tolerate it being absent.
 
 **Renderer fallback chain (internal links).** The host-side serializer reads `document.path` with a four-step preference (`apps/webapp/src/ui/byline/components/link/link-lexical.tsx`):
 
 1. `document._resolved === false` → strip the `<a>` wrapper, render children as plain text.
 2. `document.path` starts with `/` → use as-is (canonicalised by the walker).
 3. `document.path` is a bare slug + `targetCollectionPath` present → generic compose `/${targetCollectionPath}/${path}`.
-4. Neither — strip wrapper, render children.
+4. Neither: strip wrapper, render children.
 
-Step 2 is the happy path post-walker. Step 3 is heal-on-write fallback for legacy nodes and picker-time-but-not-yet-walked sessions. Step 1 is the explicit unresolved-target signal (deleted, unpublished in the selected view, or row-hidden). Step 4 is the safety net. No two-slot ambiguity, no data migration required when adopting the new pipeline — every next save normalises the field.
+Step 2 is the happy path post-walker. Step 3 is heal-on-write fallback for legacy nodes and picker-time-but-not-yet-walked sessions. Step 1 is the explicit unresolved-target signal (deleted, unpublished in the selected view, or row-hidden). Step 4 is the safety net. No two-slot ambiguity, no data migration required when adopting the new pipeline: every next save normalises the field.
 
-**Why the picker does not compose the path itself.** Step 3's generic compose is wrong for any collection whose public route differs from its collection path — `/publications/0000152` where the real route is `/library/0000152`. It is tempting to fix this by calling `buildDocumentPath` in the link picker, which is possible: collection *definitions* are registered in the browser via `AdminConfig.collections`, so the hook is reachable client-side. Two things argue against it.
+**Why the picker does not compose the path itself.** Step 3's generic compose is wrong for any collection whose public route differs from its collection path: `/publications/0000152` where the real route is `/library/0000152`. It is tempting to fix this by calling `buildDocumentPath` in the link picker, which is possible: collection *definitions* are registered in the browser via `AdminConfig.collections`, so the hook is reachable client-side. Two things argue against it.
 
-First, the value is not observable before save. No admin surface renders `document.path` — the floating link editor deliberately shows an admin edit URL (`floating-link-editor.tsx`), and the link modal shows the target's title. The only readers are the server-side walker, the markdown serializer, and the public renderer, all of which operate on saved or populated data.
+First, the value is not observable before save. No admin surface renders `document.path`: the floating link editor deliberately shows an admin edit URL (`floating-link-editor.tsx`), and the link modal shows the target's title. The only readers are the server-side walker, the markdown serializer, and the public renderer, all of which operate on saved or populated data.
 
-Second, `record.fields` at pick time is only what `resolveSelectFields` asked the listing endpoint for (picker columns + `useAsTitle` + `displayField`). A hook reading anything outside that projection — like the `pages` hook's `area` — sees `undefined` and composes a confidently wrong path rather than an obviously generic one. That is a worse failure mode for a value the walker overwrites on the next save anyway.
+Second, `record.fields` at pick time is only what `resolveSelectFields` asked the listing endpoint for (picker columns + `useAsTitle` + `displayField`). A hook reading anything outside that projection (like the `pages` hook's `area`) sees `undefined` and composes a confidently wrong path rather than an obviously generic one. That is a worse failure mode for a value the walker overwrites on the next save anyway.
 
-This calculus would change if a host rendered unsaved editor state in a live preview pane. The prerequisite would be a way for a collection to declare which fields its `buildDocumentPath` needs, so the picker can request them — `extraSelectFields` is the existing mechanism, but nothing declarative feeds it today.
+This calculus would change if a host rendered unsaved editor state in a live preview pane. The prerequisite would be a way for a collection to declare which fields its `buildDocumentPath` needs, so the picker can request them: `extraSelectFields` is the existing mechanism, but nothing declarative feeds it today.
 
 ### Server-side embed and populate
 
@@ -646,14 +646,14 @@ export type RichTextEmbedFn = (ctx: RichTextEmbedContext) => Promise<void>
 
 `readContext` is the same operation context the relation populate primitive uses. Adapter visitors must request target documents through `readDocuments`; direct DB access or an independently constructed client would bypass the target collection's ability, `beforeRead`, read-mode, and `afterRead` contracts.
 
-**What the factories actually do.** Each composes every Lexical plugin's visitor into a single function. The package ships two visitors today — one per relation-bearing node type, shared between the two trigger points:
+**What the factories actually do.** Each composes every Lexical plugin's visitor into a single function. The package ships two visitors today, one per relation-bearing node type, shared between the two trigger points:
 
 | Visitor | File | On `apply()` (target found) | On `applyMissing()` (target unresolved) |
 |---|---|---|---|
 | `linkVisitor` | `extensions/link/populate.ts` | Refreshes `attributes.document.title` from `useAsTitle`, composes `attributes.document.path` via `buildDocumentPath` (or generic fallback), clears any stale `_resolved` | Deletes `title` / `path`, sets `_resolved: false` |
-| `inlineImageVisitor` | `extensions/inline-image/populate.ts` | Refreshes `node.document` with `{ title, altText, image, sizes }` | No-op (no explicit miss handler — node keeps its picker-time envelope) |
+| `inlineImageVisitor` | `extensions/inline-image/populate.ts` | Refreshes `node.document` with `{ title, altText, image, sizes }` | No-op (no explicit miss handler; node keeps its picker-time envelope) |
 
-Both visitors are pure / framework-agnostic — no React, no DOM, no Lexical runtime. They live next to the plugin's UI code so each plugin's write-time embed and read-time populate stay in lockstep, but only the visitor module is reachable from the package's `server` entry. The shared driver (`runLexicalPopulate`) walks the value's Lexical tree once per call and dispatches across every visitor in a single pass. Pending target ids are batched per source collection and handed to core's secure reader.
+Both visitors are pure / framework-agnostic: no React, no DOM, no Lexical runtime. They live next to the plugin's UI code so each plugin's write-time embed and read-time populate stay in lockstep, but only the visitor module is reachable from the package's `server` entry. The shared driver (`runLexicalPopulate`) walks the value's Lexical tree once per call and dispatches across every visitor in a single pass. Pending target ids are batched per source collection and handed to core's secure reader.
 
 **Multi-locale write caveat.** `restoreDocumentVersion` and `duplicateDocument` write with `locale: 'all'`, producing a multi-locale `{ <locale>: lexicalJson }` shape per localized richtext leaf. The Lexical adapter's `getLexicalRoot` can't parse that map as a single tree, so the embed walker silently no-ops for localized rich-text leaves on those paths. Non-localized leaves still refresh. The persisted state carries whatever the source had, and the renderer's fallback chain copes. Tracked as a deliberate future refinement (per-locale walking).
 
@@ -709,7 +709,7 @@ export const LexicalRichTextAi = lexicalEditor((c) => {
 })
 ```
 
-No `featureAfterEditor` injection, no React-context registry hop — the extension graph does both jobs. The toolbar button arrives via the peer-dependency contract; the drawer arrives via `ReactExtension.decorators`. The same shape is what every third-party extension follows.
+No `featureAfterEditor` injection, no React-context registry hop: the extension graph does both jobs. The toolbar button arrives via the peer-dependency contract; the drawer arrives via `ReactExtension.decorators`. The same shape is what every third-party extension follows.
 
 ---
 
@@ -739,8 +739,8 @@ No `featureAfterEditor` injection, no React-context registry hop — the extensi
 | `AdminConfig.fields.richText.editor` slot | `packages/core/src/@types/site-config.ts` |
 | `ServerConfig.fields.richText.populate` slot | `packages/core/src/@types/site-config.ts` |
 | Renderer dispatch | `packages/admin/src/fields/field-renderer.tsx` (`case 'richText'`) |
-| Lexical editor package — UI entry | `packages/richtext-lexical/src/index.ts` |
-| Lexical editor package — server entry | `packages/richtext-lexical/src/server.ts` |
+| Lexical editor package: UI entry | `packages/richtext-lexical/src/index.ts` |
+| Lexical editor package: server entry | `packages/richtext-lexical/src/server.ts` |
 | `lexicalEditor()` registration factory | `packages/richtext-lexical/src/lexical-editor.tsx` |
 | `lexicalEditorEmbedServer()` / `lexicalEditorPopulateServer()` factories | `packages/richtext-lexical/src/server.ts` |
 | Default editor settings (server-safe) | `packages/richtext-lexical/src/field/config/default.ts` |

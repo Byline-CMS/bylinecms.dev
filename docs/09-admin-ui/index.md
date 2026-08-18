@@ -1,7 +1,7 @@
 ---
 title: "Admin UI"
 path: "admin-ui"
-summary: "The building blocks of Byline's admin interface — the framework-agnostic UI Kit it is built from, and how the admin/editor configuration is registered into a host application without leaking into its public bundles."
+summary: "The building blocks of Byline's admin interface: the framework-agnostic UI Kit it is built from, and how the admin/editor configuration is registered into a host application without leaking into its public bundles."
 ---
 
 # Admin UI

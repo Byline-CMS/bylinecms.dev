@@ -103,7 +103,7 @@ The adapter performs a plain-text tree walk. It does not emit markdown or HTML.
 ## Collection search options
 
 `search` is declared inline on `CollectionDefinition`, and each `body` or
-`facets` entry is a `SearchFieldDecl` — either a bare field name or a field name
+`facets` entry is a `SearchFieldDecl`, either a bare field name or a field name
 with a ranking boost:
 
 ```ts

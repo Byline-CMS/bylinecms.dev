@@ -19,7 +19,7 @@ translations. This is the `@byline/i18n` package.
 
 - **`@byline/i18n`** (root) — React-free: the `TranslationBundle` types,
   `mergeTranslations`, the ICU formatter, and locale resolution. Safe in server
-  contexts. Depends on `@byline/core` only — a leaf package.
+  contexts. Depends on `@byline/core` only, a leaf package.
 - **`@byline/i18n/react`** — the single React barrel: `I18nProvider`,
   `useTranslation`, `LanguageMenu`.
 - **`@byline/i18n/admin`** — the built-in `byline-admin` namespace bundle (EN/FR)
@@ -58,7 +58,7 @@ defineAdminConfig({
 
 `adminTranslations({ locales })` reads bundled JSON files in
 `@byline/i18n/src/admin/` and returns the `byline-admin` namespace for each
-requested code. Skipping it is a hard error at startup — the validator refuses to
+requested code. Skipping it is a hard error at startup: the validator refuses to
 mount the admin without at least one registered locale.
 
 ## 2. Add a second locale
@@ -78,16 +78,16 @@ defineAdminConfig({
 })
 ```
 
-The `interface` block stays separate from the content-locale list — admin UI in
+The `interface` block stays separate from the content-locale list: admin UI in
 French does not force document content into French.
 `adminTranslations({ locales: ['xx'] })` throws at config time when the requested
 code is not bundled.
 
-**Authoring a translation for a new locale — what to watch.** Key parity is
+**Authoring a translation for a new locale: what to watch.** Key parity is
 enforced mechanically: a unit test asserts every bundled locale carries the exact
 same key set as `en.json`, and the boot validator (`initBylineCore()`) fails fast
-on a missing bundle and warns on key drift. So a *missing* string fails loudly —
-the part that needs human care is *quality*, and three things repay attention
+on a missing bundle and warns on key drift. So a *missing* string fails loudly.
+The part that needs human care is *quality*, and three things repay attention
 beyond word choice:
 
 - **Plural categories are locale-specific.** ICU plural rules come from CLDR, and
@@ -96,13 +96,13 @@ beyond word choice:
   the *authored* branches must match the target language, not English. English and
   the Romance languages distinguish `one` / `other`; Chinese, Japanese, Korean, and
   Thai have **only `other`**. Don't copy English's `one {…} other {…}` shape
-  mechanically into those locales — author a single `other` branch (e.g.
+  mechanically into those locales: author a single `other` branch (e.g.
   `{count, plural, other {# 개의 항목}}`). Parity is enforced on the top-level *keys*,
-  not on the plural branches inside a value, so you are free — and expected — to
+  not on the plural branches inside a value, so you are free (and expected) to
   shape each value the way its language actually works.
 
 - **Grammar around interpolated values.** Several strings interpolate a noun whose
-  surrounding grammar depends on that noun — e.g. `"Edit {section}"`,
+  surrounding grammar depends on that noun, e.g. `"Edit {section}"`,
   `"…collection \"{target}\"."`. Languages with grammatical particles or case
   marking (Korean 을/를, 이/가; and similar elsewhere) change the attached particle
   based on the interpolated word, which isn't known until runtime. Handle it the
@@ -111,7 +111,7 @@ beyond word choice:
   rather than a verb phrase). A naive translation that hard-codes one particle reads
   as machine-generated half the time.
 
-- **Length and rendering.** Translated UI is not the same length as English —
+- **Length and rendering.** Translated UI is not the same length as English:
   German commonly runs ~30% longer (watch buttons and fixed-width labels for
   truncation), and CJK scripts need a real visual check for font coverage,
   line-height, and ellipsis handling. Always **render the locale in the actual admin
@@ -147,7 +147,7 @@ own package (or host), plus a factory matching `adminTranslations`'s
 
 ## 5. ICU formatting (plurals, dates, numbers)
 
-ICU MessageFormat works inline — the same syntax the host i18n already uses.
+ICU MessageFormat works inline: the same syntax the host i18n already uses.
 
 ```ts
 // translations
@@ -222,8 +222,8 @@ Six things compose the present surface:
    Updates the admin user record (if authenticated) AND the `byline_admin_lng`
    cookie. Cookie-only when no actor is present (e.g. the login page).
 
-`TranslationBundle` is intentionally just JSON — no functions, no React, no
-per-key metadata — which keeps the file format diff-friendly, importable by every
+`TranslationBundle` is intentionally just JSON (no functions, no React, no
+per-key metadata), which keeps the file format diff-friendly, importable by every
 translation tool that round-trips JSON, and easy for a third-party plugin to ship
 inside its own package:
 
@@ -245,7 +245,7 @@ function useTranslation<NS extends Namespace>(namespace: NS): {
 ```
 
 The hook reads the registry off context, looks up `namespace`, and returns a `t`
-bound to it. The returned `t` always returns a `string` — never `undefined`,
+bound to it. The returned `t` always returns a `string`: never `undefined`,
 never a React element. Components that need rich-text interpolation (e.g. an `<a>`
 inside a translated paragraph) use a separate `<Trans>` component wrapping the
 same formatter. The hook throws if mounted outside `<I18nProvider>`; the provider
@@ -283,7 +283,7 @@ Three ways to register, all converging on the same `TranslationBundle`:
   ```
 
 **Why explicit merge rather than side-effect registration.** Side-effect
-registration creates load-order dependencies — the plugin must be imported before
+registration creates load-order dependencies: the plugin must be imported before
 any UI renders *and* its import side-effect must actually run (which dead-code
 elimination can defeat). The explicit-merge model mirrors what `RichTextField`
 registration already does: the host's `admin.config.ts` is the one file that
@@ -319,13 +319,13 @@ i18n: {
 ```
 
 `localeDefinitions` is the host's chance to override what `Intl.DisplayNames`
-produces — most commonly to capitalize romance-language names (`Français` rather
+produces, most commonly to capitalize romance-language names (`Français` rather
 than CLDR's `français`). Per-code resolution is: explicit `localeDefinitions`
 entry → `Intl.DisplayNames(code).of(code)` → the raw code. Partial coverage is
 fine.
 
 The **content** dimension accepts the same optional `localeDefinitions` slot.
-Byline itself never renders it — the content-locale set has no admin switcher —
+Byline itself never renders it (the content-locale set has no admin switcher),
 but it travels through `getServerConfig().i18n.content.localeDefinitions` so a
 host frontend can label its own content-language affordances (`hreflang`
 clusters, "read this in…" links, sitemap alternates) with author-controlled
@@ -336,7 +336,7 @@ names. The same resolution order applies, via the exported
 `initBylineCore()` validates at boot: every locale in `admin.locales` has at
 least one namespace in `translations` (missing → fail fast with a pointer to
 `adminTranslations({ locales })`); `defaultLocale` is in `admin.locales`; and
-key-set drift between locales surfaces as a *warning* — partial translations are
+key-set drift between locales surfaces as a *warning*: partial translations are
 fine, but contributors see the gap.
 
 ## Lookup and fallback
@@ -390,16 +390,16 @@ A namespace is a flat string:
   flattened).
 
 Hierarchical keys inside a namespace are dot-separated
-(`chrome.sidebar.collapse`, `forms.validation.required`). Convention only — the
+(`chrome.sidebar.collapse`, `forms.validation.required`). Convention only: the
 runtime treats keys as opaque strings.
 
 ## Message formatting
 
-`intl-messageformat` is the floor — the same library the host already uses.
+`intl-messageformat` is the floor, the same library the host already uses.
 Supports plurals (`{count, plural, one {# message} other {# messages}}`), selects
 (`{gender, select, …}`), dates/times/numbers (`{date, date, medium}`,
 `{n, number, ::percent}`), and nesting. The formatter is built once per
-`(locale, namespace, key)` and cached for the registry's lifetime — the parse
+`(locale, namespace, key)` and cached for the registry's lifetime: the parse
 step is the expensive part, and the registry is immutable, so the cache is safe.
 
 ## Validation messages
@@ -408,7 +408,7 @@ Schemas in `@byline/core/validation` emit stable **codes** (e.g.
 `password.tooShort`) instead of free-form English; the
 `translateValidationError(t, message)` helper in `@byline/admin/react` maps the
 codes onto the active locale at render time. This keeps `@byline/core`
-i18n-agnostic — codes from core, mapping in admin. Form-level Zod defaults
+i18n-agnostic: codes from core, mapping in admin. Form-level Zod defaults
 (`min`/`max`/regex) are translated via the schema-inside-component +
 `useMemo([t])` pattern used across the drawer forms.
 
@@ -417,7 +417,7 @@ i18n-agnostic — codes from core, mapping in admin. Form-level Zod defaults
 Every locale's bundle is part of the initial admin JS payload (~5 kB
 gzipped per locale of flat key→string JSON). Because the bundle map uses static
 `import enJson from './en.json'` statements, the bundler sees a fixed-size set at
-build time. This payload is admin-only — it never reaches the public bundle,
+build time. This payload is admin-only: it never reaches the public bundle,
 because the admin graph is code-split out via the `_byline` lazy route. Past
 roughly five locales, lazy locale loading (async loaders in place of the eager
 static-import map) becomes worth the added complexity.
@@ -426,7 +426,7 @@ static-import map) becomes worth the added complexity.
 
 The webapp's media collection ships a custom `listView` that replaces the default
 table with a card grid. It doubles as the canonical worked example for the i18n
-extension surface — every moving part of the registration API exercised in a
+extension surface: every moving part of the registration API exercised in a
 setting that does not touch `@byline/admin`'s internals.
 
 ```
@@ -437,8 +437,8 @@ apps/webapp/byline/collections/media/i18n/
               ← also exports MEDIA_ADMIN_NAMESPACE ('webapp-media-admin')
 ```
 
-The factory mirrors `adminTranslations()` — same shape, same validation, same
-`TranslationBundle` output:
+The factory mirrors `adminTranslations()` (same shape, same validation, same
+`TranslationBundle` output):
 
 ```ts
 // apps/webapp/byline/collections/media/i18n/index.ts
@@ -511,13 +511,13 @@ export function MediaListView({ data }: ListViewComponentProps) {
 `mergeTranslations` is associative and last-writer-wins at the
 `(locale, namespace, key)` granularity, with a dev-mode collision warning. Using
 a distinct namespace (the recommended pattern) avoids collisions entirely. A
-third-party plugin in a separate package follows the exact same shape — exporting
+third-party plugin in a separate package follows the exact same shape, exporting
 its own `{ locales }` factory the host imports and merges in `byline/i18n.ts`.
 
 ## Why not adopt the host i18n outright?
 
-The host pattern in `apps/webapp/src/i18n/` is close to the admin system —
-`intl-messageformat`, a namespaced bundle, a React provider, a cookie — but it is
+The host pattern in `apps/webapp/src/i18n/` is close to the admin system
+(`intl-messageformat`, a namespaced bundle, a React provider, a cookie), but it is
 not the right thing to *ship* as the admin system:
 
 - **It targets the front-end site, not the admin.** The host's `lng` cookie

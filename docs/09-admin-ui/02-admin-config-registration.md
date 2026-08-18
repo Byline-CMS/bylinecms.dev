@@ -11,8 +11,8 @@ Companions:
 - [Rich Text](../04-collections/07-rich-text.md) — the richtext editor slot, which was the first heavy slot made lazy (the `lexicalEditor` factory; see also `@byline/richtext-lexical/config`).
 
 **The goal in one sentence:** keep Byline's **admin-area** JavaScript and
-bundles — the document editor, field widgets, the richtext/AI editors, the
-whole admin UI — from *leaking* into the **public surface** of the host
+bundles (the document editor, field widgets, the richtext/AI editors, the
+whole admin UI) from *leaking* into the **public surface** of the host
 application. A visitor loading a public page (a marketing route, a blog post)
 should never download the admin editor. Everything below is in service of that
 boundary: the admin graph stays code-split behind the `_byline` routes, and the
@@ -22,13 +22,13 @@ pulled in *only* on admin routes.
 This doc covers how `apps/webapp/byline/admin.config.ts` (the browser/SSR
 **admin** config) is registered, why it's registered from **two** points
 today, the root cause that blocks collapsing those to a single eager point,
-and — the load-bearing question — whether an eager single-point registration is
+and (the load-bearing question) whether an eager single-point registration is
 even possible given that custom slot components legitimately need React context.
 
 :::note[Summary]
 Byline registers the admin config from two points today. Collapsing that to a
 single eager registration is *possible* but blocked from being worthwhile by the
-admin-presentation-barrel coupling described below — see the
+admin-presentation-barrel coupling described below; see the
 [verdict](#verdict-possible-context-safe-but-not-currently-worth-it).
 :::
 
@@ -75,7 +75,7 @@ Start covers them differently:
 
 A *single* registration point can only cover both moments if it lives in a
 module that is evaluated in **both** the loader-phase graph and the
-component/hydration graph — i.e. an **eager** top-level import in the route
+component/hydration graph, i.e. an **eager** top-level import in the route
 tree, evaluated before the router processes matches. That only works if the
 imported module's static graph is light; otherwise every public route pays for
 it.
@@ -89,10 +89,10 @@ idempotently (it evaluates once and is cached):
 
 | Point | File | Covers |
 |---|---|---|
-| `beforeLoad` (dynamic `import()`) | `src/routes/_byline/route.tsx` | Loader phase — runs before any `_byline/*` child loader reads the config |
-| side-effect `import` | `src/routes/_byline/route.lazy.tsx` | Component render / initial hydration — where `beforeLoad` is not re-run |
+| `beforeLoad` (dynamic `import()`) | `src/routes/_byline/route.tsx` | Loader phase: runs before any `_byline/*` child loader reads the config |
+| side-effect `import` | `src/routes/_byline/route.lazy.tsx` | Component render / initial hydration: where `beforeLoad` is not re-run |
 
-This is **correct and robust** — both guarantees hold reliably, and the dynamic/
+This is **correct and robust**: both guarantees hold reliably, and the dynamic/
 lazy imports keep the heavy admin/editor graph out of public-route bundles. It
 is only *awkward*: two entry points for one logical registration. There is **no
 correctness bug** here; the eager single point is an elegance/maintenance goal,
@@ -129,15 +129,15 @@ Two layers, only one of which is solved:
 `RichTextField` / `EditorField` / `Nodes` / every extension). **Shipped fix:**
 the `@byline/richtext-lexical/config` subpath exports only `lexicalEditor` (a
 factory that *dynamic-imports* the editor on first mount), the built-in
-extension *names*, and the light toolbar-authoring primitives — no editor
-runtime. `@byline/ai`'s `AiLexicalExtension` was likewise made statically
+extension *names*, and the light toolbar-authoring primitives (no editor
+runtime). `@byline/ai`'s `AiLexicalExtension` was likewise made statically
 light (the AI drawer loads via dynamic import only). So **referencing the
 editor no longer pulls it.**
 
 ### 2. The admin-presentation barrel (the actual blocker)
 
 Every collection admin config statically imports presentation components from
-`@byline/admin/react` — e.g. `DateTimeFormatter` (in *every* collection), and
+`@byline/admin/react`, e.g. `DateTimeFormatter` (in *every* collection), and
 `MediaListView` → `LocalDateTime`. `@byline/admin/react` is a **single,
 deliberately indivisible barrel**. Its own header explains why:
 
@@ -146,17 +146,17 @@ deliberately indivisible barrel**. Its own header explains why:
 > provider mounted on one Context identity and a hook reading another. A single
 > specifier eliminates the trap structurally.*
 
-The barrel `export *`s the whole admin **document-editor** surface — the four
+The barrel `export *`s the whole admin **document-editor** surface: the four
 React contexts (`FormContext`, `FieldServicesContext`, `AdminServicesContext`,
 `NavigationGuardContext`), `FormRenderer`, `FieldRenderer`, every field widget,
 `DiffModal`. The column formatters are held as **live references** by the
 config objects (`columns[].formatter = DateTimeFormatter`), so they can't be
 tree-shaken away. Therefore **eager-importing `admin.config` drags the entire
-admin editing interface into public-route bundles** — the exact regression the
+admin editing interface into public-route bundles**: the exact regression the
 dual registration exists to avoid.
 
 This generalises: **any** admin component wired into a column view or custom
-slot has this effect whenever it comes from — or transitively imports —
+slot has this effect whenever it comes from (or transitively imports)
 `@byline/admin/react`. Light formatters that render off `@byline/core` types
 only (e.g. `FeaturedFormatter`, `MediaThumbnail`) do *not*; the determining
 factor is "does this slot's import graph reach `@byline/admin/react`?", not
@@ -164,8 +164,8 @@ factor is "does this slot's import graph reach `@byline/admin/react`?", not
 
 ## The wrong framing (and why "extract light components" fails)
 
-The tempting fix — "extract the formatters into a light subpath so the config
-can reference them without the editor surface" — does **not** work for real
+The tempting fix ("extract the formatters into a light subpath so the config
+can reference them without the editor surface") does **not** work for real
 slots, and this is exactly the concern that motivated this doc: **custom slot
 components legitimately want React context.** `MediaListView` needs i18n,
 `LocalDateTime`, the pager, and the field-services Context; a custom field
@@ -180,7 +180,7 @@ So "package the slot components lighter" is a dead end for anything non-trivial.
 
 The key insight: **lazy loading changes when a component module evaluates; it
 does not change where the component renders in the React tree, nor which
-contexts it can read.** A slot component — however its code is loaded — renders
+contexts it can read.** A slot component (however its code is loaded) renders
 where its slot is mounted: inside the admin shell, inside `FormProvider` /
 `FieldServicesProvider` / `AdminServicesProvider` / the i18n provider. It still
 imports its hooks from the same single `@byline/admin/react` specifier, which
@@ -195,7 +195,7 @@ That decouples the two concerns cleanly:
   modules; the single-specifier rule still holds.
 
 So the answer to *"is this even possible, given slot components need
-context?"* is **yes** — because the fix isn't to strip context from slot
+context?"* is **yes**, because the fix isn't to strip context from slot
 components, it's to stop *eagerly evaluating their code at registration time*.
 Context access at render time is unaffected.
 
@@ -219,7 +219,7 @@ as one shared chunk the first time any admin route renders a deferred slot.
 Cost: the admin render layer must wrap slot rendering in `Suspense` (the list
 cell / slot host), and the authoring API gains a wrapper. Note the dynamic
 `import('@byline/admin/react')` deliberately pulls the *whole* barrel as one
-chunk — correct for context identity, and acceptable because it only loads on
+chunk: correct for context identity, and acceptable because it only loads on
 admin routes.
 
 **B. Descriptor / registry tokens.** The config carries a React-free token
@@ -230,7 +230,7 @@ the admin-route registry (`registerFormatter('media-thumb', () => import('./medi
 Strongest separation, largest API change.
 
 **C. Split registration by realm.** Register the React-free config *data*
-eagerly (single point — race + hydration gap gone for the part that the loader
+eagerly (single point: race + hydration gap gone for the part that the loader
 phase actually reads), and register the component *bindings* from inside the
 `_byline/admin` subtree (lazy, where the barrel is already loaded). This mirrors
 the existing schema-vs-`defineAdmin` split, taken one level further: admin
@@ -246,11 +246,11 @@ An eager single-point registration **is** achievable without breaking context
 access. But weigh it honestly:
 
 - **Benefit:** removes two import statements that already work correctly. No
-  correctness or robustness gain — the dual registration's guarantees are
+  correctness or robustness gain: the dual registration's guarantees are
   reliable.
 - **Cost:** reworks the formatter/`listView`/editor *authoring* API for
   deferral, adds `Suspense` plumbing across the admin list/slot render layer,
-  and touches every collection admin config — for a DX regression (slots become
+  and touches every collection admin config, for a DX regression (slots become
   thunks/tokens instead of plain imports).
 
 That trade is poor today. **Recommendation: keep the dual registration; defer
@@ -258,7 +258,7 @@ the eager single point until a concrete driver makes eager-light config
 genuinely *necessary*** rather than merely tidier. Candidate drivers:
 
 - A non-admin/public or SSR surface needs client-config data that cannot be
-  represented by the plain `byline/public.ts` boundary — at which point
+  represented by the plain `byline/public.ts` boundary, at which point
   eager-light registration stops being elegance and becomes a requirement.
 - The loader/hydration registration ever proves flaky in practice (it has not).
 - The slot/formatter API is being reworked anyway for another reason, making

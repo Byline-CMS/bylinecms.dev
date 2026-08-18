@@ -1,7 +1,7 @@
 ---
 title: "Transports"
 path: "transports"
-summary: "The pluggable transport family — a single framework-agnostic operation contract bound to many runtimes (Nitro, Fastify, Hono) plus MCP as a peer transport. The concrete shape of the stable boundary Routing & API defers."
+summary: "The pluggable transport family: a single framework-agnostic operation contract bound to many runtimes (Nitro, Fastify, Hono) plus MCP as a peer transport. The concrete shape of the stable boundary Routing & API defers."
 ---
 
 # Transports
@@ -24,9 +24,9 @@ follows rather than a description of shipped code.
 ## Overview
 
 A **transport** is a binding that exposes Byline's operations to a particular kind
-of caller. Byline already has one transport — the in-process `@byline/client` SDK
-— and one internal-only transport — the TanStack Start server functions in
-`@byline/host-tanstack-start`. This note describes the family that completes the
+of caller. Byline already has one transport (the in-process `@byline/client` SDK)
+and one internal-only transport (the TanStack Start server functions in
+`@byline/host-tanstack-start`). This note describes the family that completes the
 picture: a stable, framework-agnostic HTTP contract bound to multiple runtimes,
 plus MCP as a peer.
 
@@ -41,7 +41,7 @@ framework" layout gets wrong:
 
 If each framework package re-implements the contract, the surfaces drift, and the
 create / update / read / list / status / upload / auth surface gets maintained N
-times — exactly the "misleading partial boundary / later redesign" cost
+times: exactly the "misleading partial boundary / later redesign" cost
 [Routing & API](./02-routing-and-api.md) warns about, multiplied by framework count. So
 the contract is declarative and shared (the same instinct as the
 [store manifest](../03-architecture/01-document-storage.md)); bindings only know how to iterate
@@ -108,13 +108,13 @@ export function registerByline(app: FastifyInstance, ops: OperationDefinition[])
 ```
 
 `http-nitro` is the same loop against h3; `http-hono` the same against Hono. The
-contract — paths, schemas, abilities, error envelope — lives once in
+contract (paths, schemas, abilities, error envelope) lives once in
 `packages/http`. This is the property the store manifest gives storage: positional
 / surface drift becomes structurally impossible because there is only one source.
 
 ## The auth seam
 
-Transports carry **no policy** — `assertActorCanPerform` (documents) and
+Transports carry **no policy**: `assertActorCanPerform` (documents) and
 `assertAdminActor` (admin management) run inside the core/admin services, so every
 transport inherits the gate for free (see [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md)). The
 one thing that genuinely varies per transport is *how an incoming request becomes a
@@ -123,12 +123,12 @@ one thing that genuinely varies per transport is *how an incoming request become
 | Transport            | Context resolver reads…                              |
 |----------------------|------------------------------------------------------|
 | TanStack server fns  | cookie + `JwtSessionProvider` (interactive admin)    |
-| HTTP API (any binding)| `Authorization: Bearer` — API key / token actor      |
+| HTTP API (any binding)| `Authorization: Bearer` (API key / token actor)      |
 | MCP                  | service-account token → scoped `Actor` (see MCP Server)  |
 | in-process client    | caller passes `RequestContext` directly              |
 
-So the operation layer defines a single `ContextResolver` interface — "give me a
-`RequestContext` from this request" — and each transport supplies its own. The
+So the operation layer defines a single `ContextResolver` interface ("give me a
+`RequestContext` from this request") and each transport supplies its own. The
 bearer/API-key actor model and the MCP service-account model are **new auth work**
 and the real prerequisite for any non-cookie transport; today's auth is
 JWT-session, built for an interactive UI.
@@ -171,7 +171,7 @@ The transport family is exactly the four deployment shapes in the
 ```
 
 The elegant part of **scenario 2**: the all-in-one host *already runs on Nitro/h3*
-(TanStack Start's server). So `http-nitro` is not "stand up an API server" — it is
+(TanStack Start's server). So `http-nitro` is not "stand up an API server": it is
 "register a route module into the server you already deploy." Zero new
 infrastructure, and the cheapest possible real proof of the contract layer.
 
@@ -210,7 +210,7 @@ gated by real demand:
 ## Relationship to Routing & API
 
 [Routing & API](./02-routing-and-api.md) describes the *current* phase (server fns are the
-only transport; stable HTTP deferred) and lists what triggers the next phase — "the
+only transport; stable HTTP deferred) and lists what triggers the next phase: "the
 arrival of the first real non-admin client." This note is that next phase, designed
 ahead of the trigger so it is not improvised one endpoint at a time. The rule from
 that doc still holds and is reinforced here: **the HTTP boundary is designed across

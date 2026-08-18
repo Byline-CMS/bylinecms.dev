@@ -126,17 +126,17 @@ Registering a different search provider is a configuration change with index-wid
 
 To switch:
 
-1. provision the new provider's schema — `migrate(pool)` for the SQL providers, or the engine's own schema artifact for an external engine;
+1. provision the new provider's schema: `migrate(pool)` for the SQL providers, or the engine's own schema artifact for an external engine;
 2. register the new provider in `ServerConfig.search`; and
 3. rebuild every searchable collection with `client.collection(path).reindex()`.
 
-Until every rebuild completes, queries against the new provider return incomplete results — empty for any collection that has not been rebuilt yet.
+Until every rebuild completes, queries against the new provider return incomplete results: empty for any collection that has not been rebuilt yet.
 
 :::warning[No dual-write or atomic cutover]
-Byline registers exactly one active search provider. There is no mechanism that writes to two providers at once, migrates index rows between providers, or switches atomically. A zero-downtime provider change needs orchestration outside Byline — for example a second application deployment configured with the new provider, cut over after its rebuild completes.
+Byline registers exactly one active search provider. There is no mechanism that writes to two providers at once, migrates index rows between providers, or switches atomically. A zero-downtime provider change needs orchestration outside Byline: for example, a second application deployment configured with the new provider, cut over after its rebuild completes.
 :::
 
-A provider change can also change the capability report, so application code gated on `provider.capabilities` — matching controls, facets, highlights — may behave differently after the switch. [Native search engines and backend portability](./08-native-engine-providers.md) explains which behavior is guaranteed across providers and which is legitimately provider-specific.
+A provider change can also change the capability report, so application code gated on `provider.capabilities` (matching controls, facets, highlights) may behave differently after the switch. [Native search engines and backend portability](./08-native-engine-providers.md) explains which behavior is guaranteed across providers and which is legitimately provider-specific.
 
 ## Add the admin rebuild action
 

@@ -20,12 +20,12 @@ Byline stores every document in a general-purpose model that needs no
 per-collection tables and no migrations when a collection's shape changes. It
 resembles an entity-attribute-value store, partitioned by primitive type: typed
 `store_*` tables give proper column types, indexability, and full-text / GIN
-indexing — a meaningful advantage over a single JSONB-per-document blob. A custom
+indexing, a meaningful advantage over a single JSONB-per-document blob. A custom
 path notation (`content.1.photoBlock.display`) addresses each value, and the
 storage layer flattens documents into rows on write and reconstructs them on
 read.
 
-For the full treatment — data model, benchmarks, and risks — see
+For the full treatment (data model, benchmarks, and risks), see
 [Document Storage](./01-document-storage.md). The path notation above is one of
 two: values in a document are addressed by *instance* path, field declarations
 in the schema by *declaration* path. See [Path Grammar](./04-path-grammar.md).
@@ -46,10 +46,10 @@ was authored against.
 Not everything about a document changes at the same rate, and Byline stores state
 at two distinct levels to match:
 
-- **Version level — content.** Every field value lives in the version stream.
+- **Version level: content.** Every field value lives in the version stream.
   Editing content mints a new immutable `documentVersions` row (decision 2);
   nothing is overwritten.
-- **Document level — identity and placement.** A few system attributes belong to
+- **Document level: identity and placement.** A few system attributes belong to
   the *logical document* rather than to any one version, and are **sticky across
   versions**:
   - `path` — the document's URL slug (`byline_document_paths`); see
@@ -68,28 +68,28 @@ across every version of the document.
 
 The reason is that these attributes describe *where a document is and how it's
 reached*, not *what it says*. A path, a tree position, or an advertised-locale set
-cannot honestly be "pending publish" — there is no per-version copy to stage.
+cannot honestly be "pending publish": there is no per-version copy to stage.
 Coupling them to the publish workflow would reset the document to draft on a
 purely structural move and imply a staging step that never existed: the editorial
 write already lands at save time. Keeping them at document level makes the data
-model and the UX agree — re-parenting a document, fixing a slug, or toggling a
+model and the UX agree: re-parenting a document, fixing a slug, or toggling a
 locale is an immediate metadata edit, much like renaming a file.
 
 | Concern | Level | Storage | Written by | In version history? |
 |---|---|---|---|---|
 | Field content | version | `store_*` | `createDocumentVersion` | ✅ each edit is a version |
-| Workflow status | version (in place) | `documentVersions.status` | `changeDocumentStatus` | partial — current value only |
+| Workflow status | version (in place) | `documentVersions.status` | `changeDocumentStatus` | partial (current value only) |
 | `path` | document | `byline_document_paths` | `updateDocumentPath` | ❌ non-versioned |
 | `availableLocales` | document | `byline_document_available_locales` | `setDocumentAvailableLocales` | ❌ non-versioned |
 | tree edge (parent + order) | document | `byline_document_relationships` | `placeTreeNode` | ❌ non-versioned |
 
 **This split is the architectural reason the audit log exists.** Versioning
-already makes *content* changes fully accountable — each is an immutable, diffable
+already makes *content* changes fully accountable: each is an immutable, diffable
 version. But document-level writes (and in-place status transitions) deliberately
 sit outside the version stream, so they leave no version to point at.
 Accountability for them is the job of the document-level
 [audit log](../07-auth-and-security/02-auditability.md): every non-versioned
-mutation records who changed what, when, and from→to — written in the *same*
+mutation records who changed what, when, and from→to, written in the *same*
 transaction as the change itself (see [Transactions](./03-transactions.md)) so a
 change can never commit without its audit row. Versioning covers the content; the
 audit log covers everything that changes outside it. Together they make *every*
@@ -98,8 +98,8 @@ change accountable.
 ## 4. Patch-based updates
 
 The admin client accumulates a `DocumentPatch[]` and applies it server-side
-against the reconstructed document. Three patch families — field, array, and
-block — cover the essential operations, and the patch model is a foundation for
+against the reconstructed document. Three patch families (field, array, and
+block) cover the essential operations, and the patch model is a foundation for
 future collaborative editing (OT/CRDT).
 
 Patches are admin-form internal; public writes go whole-document. See
@@ -182,7 +182,7 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
 :::note[Schema-level fields]
 `useAsTitle`, `search`, and `workflow` live on the schema (not the admin
 config) because they describe the document itself, not how it's rendered.
-`useAsTitle` names the field that represents a document's identity — used
+`useAsTitle` names the field that represents a document's identity, used
 by the relation picker summary, populate's default projection, and any
 other server-side consumer. It is analogous to Django's `Model.__str__`.
 :::
@@ -195,7 +195,7 @@ The split pays off in several ways:
   components stay in admin config. The schema remains serializable, testable,
   and publishable as an API contract.
 - Admin config can use real JSX and real imports, because it is explicitly a
-  client (or RSC) module — no string indirection.
+  client (or RSC) module: no string indirection.
 - The schema can be consumed by other frontends (mobile, CLI tools, external
   APIs) without dragging admin UI dependencies along.
 - Type-safety improves: `defineAdmin(Pages, …)` infers field names from the
@@ -205,7 +205,7 @@ The cost:
 
 - Two files instead of one (or two declarations in one file).
 - A linking step so the framework knows which admin config belongs to which
-  schema — `defineAdmin(schema, …)`, which sets the admin config's slug from
+  schema: `defineAdmin(schema, …)`, which sets the admin config's slug from
   `schema.path` automatically.
 - It is harder to see the whole picture of a single collection at a glance.
 
@@ -218,7 +218,7 @@ level (component slots, helper factories, the per-field richtext editor swap).
 
 This mirrors a pattern several mature frameworks settled on independently:
 
-- **Django** separates models (schema) from `ModelAdmin` (admin presentation) —
+- **Django** separates models (schema) from `ModelAdmin` (admin presentation),
   one of its most praised decisions.
 - **Rails** ActiveAdmin / Administrate separate resource definitions from their
   admin dashboard configuration.
@@ -233,16 +233,16 @@ Service-layer enforcement asserts collection abilities on the write side, and th
 `beforeRead` collection hook AND-merges a per-actor `QueryPredicate` into the same
 SQL machinery the public client uses.
 
-For the full story — including six worked `beforeRead` recipes (owner-only
+For the full story, including six worked `beforeRead` recipes (owner-only
 drafts, multi-tenant scoping, embargo, soft-delete hide, department visibility,
-self-only) — see [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md).
+self-only), see [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md).
 
 ## 7. Deployment topologies
 
 Byline runs today as a single host with the admin dashboard, the front-end, and
 an in-process Client SDK co-located over one database. The architecture is kept
-honest against three progressively split arrangements — an exposed HTTP API, a
-separate front-end host, and three dedicated hosts — each of which depends on
+honest against three progressively split arrangements (an exposed HTTP API, a
+separate front-end host, and three dedicated hosts), each of which depends on
 the stable HTTP boundary that is deliberately deferred.
 
 See [Deployment Topologies](./05-deployment-topologies.md) for the four shapes,

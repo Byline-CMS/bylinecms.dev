@@ -17,9 +17,9 @@ Companions:
 
 ## Overview
 
-A relation is a typed reference from one document to another — a news article pointing at its category, or at the media item it uses as a feature image. Relations are first-class in two places: the storage layer (`store_relation` is one of the seven typed `store_*` tables) and the field model (`RelationField`). Every relation carries the target's logical id and collection id, plus optional link metadata (`relationship_type`, `cascade_delete`).
+A relation is a typed reference from one document to another: a news article pointing at its category, or at the media item it uses as a feature image. Relations are first-class in two places: the storage layer (`store_relation` is one of the seven typed `store_*` tables) and the field model (`RelationField`). Every relation carries the target's logical id and collection id, plus optional link metadata (`relationship_type`, `cascade_delete`).
 
-Read this document when you are declaring a relation field, reading related documents back, or filtering a query by a relation's target. Most of the surface area is about *populate* — turning a stored reference into the target document at read time.
+Read this document when you are declaring a relation field, reading related documents back, or filtering a query by a relation's target. Most of the surface area is about *populate*: turning a stored reference into the target document at read time.
 
 Today's surface is intentionally focused:
 
@@ -34,7 +34,7 @@ Three things round out the picture in code:
 2. **`ReadContext`** — operation-scoped recursion guard, read budget, and depth clamp shared by nested populate walks, richtext target reads, and `afterRead` hook re-entry.
 3. **Relation envelope** — a single shape that every relation leaf narrows through, regardless of whether it's unpopulated, populated, unresolved, or cycle-suppressed.
 
-The first production consumer is `News → featureImage → Media` (`apps/webapp/byline/collections/news/schema.ts`). The full pipeline — picker → patch → write → reconstruct → populate → API preview — exercises end-to-end any time an editor sets a feature image.
+The first production consumer is `News → featureImage → Media` (`apps/webapp/byline/collections/news/schema.ts`). The full pipeline (picker → patch → write → reconstruct → populate → API preview) exercises end-to-end any time an editor sets a feature image.
 
 ---
 
@@ -86,7 +86,7 @@ export const Pages = defineCollection({
 })
 ```
 
-A single boolean on the collection rather than an `allowedCollections` list per richtext field — simpler, and revisitable if a real use case ever needs per-editor restriction.
+A single boolean on the collection rather than an `allowedCollections` list per richtext field: simpler, and revisitable if a real use case ever needs per-editor restriction.
 
 → [Richtext document links](#richtext-document-links)
 
@@ -110,13 +110,13 @@ where: { category: { slug: 'press' } }
 where: { $or: [{ author: { id: actor.id } }, { status: 'published' }] }
 ```
 
-`status` / `path` inside a nested sub-clause resolve as document metadata at the inner depth (via `DocumentColumnFilter`), not as field filters — so a target collection that declares a `path` field will not see those clauses resolve there; rename to `slug` if that ever bites.
+`status` / `path` inside a nested sub-clause resolve as document metadata at the inner depth (via `DocumentColumnFilter`), not as field filters, so a target collection that declares a `path` field will not see those clauses resolve there; rename to `slug` if that ever bites.
 
 → [Relation filters](#relation-filters)
 
 ### 4. Read with `populate: true` (default projection)
 
-`populate: true` walks every relation field and applies the default projection — document-row metadata (`document_id`, `path`, `status`, `created_at`, `updated_at`) plus the schema-declared `useAsTitle` field. Depth defaults to 1 when a populate map is present.
+`populate: true` walks every relation field and applies the default projection: document-row metadata (`document_id`, `path`, `status`, `created_at`, `updated_at`) plus the schema-declared `useAsTitle` field. Depth defaults to 1 when a populate map is present.
 
 **Edit:** any read call site.
 
@@ -132,7 +132,7 @@ Cheap, predictable, no per-relation configuration.
 
 ### 5. Read with `populate: '*'` (full projection, recursive)
 
-`'*'` returns the full target document (every field), and it **propagates** — every relation reached by the walk is also fully populated, up to `depth`.
+`'*'` returns the full target document (every field), and it **propagates**: every relation reached by the walk is also fully populated, up to `depth`.
 
 **Edit:** any read call site.
 
@@ -195,7 +195,7 @@ Programmatic cap is 8 (clamped by `ReadContext.maxDepth`); admin API preview cap
 
 ### 8. Handle the four envelope states
 
-Every relation leaf — pre-populate, post-populate, missing target, cycle — narrows through the same base shape. Discriminate on `_resolved` and `_cycle`.
+Every relation leaf (pre-populate, post-populate, missing target, cycle) narrows through the same base shape. Discriminate on `_resolved` and `_cycle`.
 
 **Edit:** any consumer rendering relation values.
 
@@ -217,7 +217,7 @@ with `getAdminRoutePath('collections', targetCollectionPath,
 rel.targetDocumentId)`; do not infer it from `targetCollectionId`, which is the
 storage UUID.
 
-Link metadata (`relationship_type`, `cascade_delete`) survives population — it stays on the envelope after the target is attached.
+Link metadata (`relationship_type`, `cascade_delete`) survives population: it stays on the envelope after the target is attached.
 
 → [The relation envelope — four states, one shape](#the-relation-envelope-four-states-one-shape)
 
@@ -246,13 +246,13 @@ await client.collection('news').find<NewsListFields>({
 })
 ```
 
-The wrapper is purely at the type level — a matching `populate: { … }` at the call site is still required for the runtime envelope to actually be populated.
+The wrapper is purely at the type level: a matching `populate: { … }` at the call site is still required for the runtime envelope to actually be populated.
 
 → [Client SDK — Typing populated relations](../05-reading-and-delivery/01-client-sdk.md#typing-populated-relations)
 
 ### 10. Status awareness through populate
 
-Populate honours the same `readMode` rule as direct reads. A public reader (`@byline/client`, defaulting to `readMode: 'published'`) sees populated targets through `current_published_documents` — a draft over a previously-published target *does not* leak through populate. Before adapter access, each target collection also passes its own `read` ability gate and strict `beforeRead` predicate. That security predicate compiles separately from caller filters and only once per logical `ReadContext` + target collection + effective mode. A row-hidden target becomes `_resolved: false`; lacking the target collection ability rejects the operation. Admin code paths use `readMode: 'any'` and see the latest visible version regardless of status.
+Populate honours the same `readMode` rule as direct reads. A public reader (`@byline/client`, defaulting to `readMode: 'published'`) sees populated targets through `current_published_documents`: a draft over a previously-published target *does not* leak through populate. Before adapter access, each target collection also passes its own `read` ability gate and strict `beforeRead` predicate. That security predicate compiles separately from caller filters and only once per logical `ReadContext` + target collection + effective mode. A row-hidden target becomes `_resolved: false`; lacking the target collection ability rejects the operation. Admin code paths use `readMode: 'any'` and see the latest visible version regardless of status.
 
 **Edit:** the server-fn (the status / preview gate is per call).
 
@@ -270,7 +270,7 @@ await client.collection('news').find({
 })
 ```
 
-This applies through every depth level — a populated target is itself read through the same source view as the calling document.
+This applies through every depth level: a populated target is itself read through the same source view as the calling document.
 
 → [Status awareness through populate](#status-awareness-through-populate)
 
@@ -341,7 +341,7 @@ The flatten/reconstruct pipeline (`storage-flatten.ts` and `storage-restore.ts` 
 
 ### The relation envelope — four states, one shape
 
-Every relation leaf — pre-populate, post-populate, missing target, cycle — narrows through the same base shape (`RelatedDocumentValue`). The discriminators `_resolved` / `_cycle` / `document` identify which of the four states the leaf is in:
+Every relation leaf (pre-populate, post-populate, missing target, cycle) narrows through the same base shape (`RelatedDocumentValue`). The discriminators `_resolved` / `_cycle` / `document` identify which of the four states the leaf is in:
 
 ```ts
 // Unpopulated — no populate pass ran, or this leaf wasn't in scope
@@ -360,9 +360,9 @@ Every relation leaf — pre-populate, post-populate, missing target, cycle — n
 Two rules fall out of this shape:
 
 - **Same narrowing logic everywhere.** `if (v._cycle) { … } else if (v._resolved === false) { … } else if (v._resolved && v.document) { … } else { /* raw ref */ }` works at every relation leaf, no matter where it sits in the document tree.
-- **Link metadata survives population.** `relationship_type` and `cascade_delete` stay on the envelope after the target is attached — not thrown away on success.
+- **Link metadata survives population.** `relationship_type` and `cascade_delete` stay on the envelope after the target is attached, not thrown away on success.
 
-The unresolved-target shape and the cycle shape stay distinct so callers can tell "not fetched because deleted" from "not fetched because of cycle" — the failure mode and the recovery affordance are different.
+The unresolved-target shape and the cycle shape stay distinct so callers can tell "not fetched because deleted" from "not fetched because of cycle": the failure mode and the recovery affordance are different.
 
 ### The populate pipeline
 
@@ -384,17 +384,17 @@ export async function populateDocuments(opts: {
 
 Mutates `documents` in place. `find*` results are freshly-shaped copies, so this never aliases storage state. Production SDK callers always supply `requestContext`; calling this low-level service without one omits target authorization and is reserved for controlled internal/test use.
 
-**Algorithm — batch-by-depth.** For every depth level:
+**Algorithm: batch-by-depth.** For every depth level:
 
 1. **Walk** each document's `fields` against its `CollectionDefinition`, recursing through `group` / `array` / `blocks` to collect every relation leaf that matches the populate map.
 2. **Group** the collected leaves by `target_collection_id`.
-3. **Authorize and batch fetch** each target collection on authenticated SDK paths: assert its collection `read` ability, reuse or compile its strict `beforeRead` filters, then call `IDocumentQueries.getDocumentsByDocumentIds()` with that scope — *one DB round-trip per target collection per depth level*. Strict filters are private, authority-bound state keyed by logical `ReadContext`, target collection, and effective mode; caller-owned cache properties are not trusted. Selective field loading projects only the fields the populate map asked for, plus the target collection's `useAsTitle` field (falling back to its first text field).
+3. **Authorize and batch fetch** each target collection on authenticated SDK paths: assert its collection `read` ability, reuse or compile its strict `beforeRead` filters, then call `IDocumentQueries.getDocumentsByDocumentIds()` with that scope: *one DB round-trip per target collection per depth level*. Strict filters are private, authority-bound state keyed by logical `ReadContext`, target collection, and effective mode; caller-owned cache properties are not trusted. Selective field loading projects only the fields the populate map asked for, plus the target collection's `useAsTitle` field (falling back to its first text field).
 4. **Replace** each leaf in place with the populated, unresolved, or cycle-marked envelope.
 5. **Recurse** to the next depth if `depth > 1`, using the populate map's nested `populate: { ... }` as the next level's spec.
 
-The batch-per-target-collection-per-depth shape is what keeps populate cheap. A 20-document × 3-relation × 2-depth fan-out is six total DB round-trips, not 120 — see the [storage benchmark](../03-architecture/01-document-storage.md#indicative-benchmarks) where `populateDocuments` depth-2 stays flat at ~3 ms across all scales.
+The batch-per-target-collection-per-depth shape is what keeps populate cheap. A 20-document × 3-relation × 2-depth fan-out is six total DB round-trips, not 120. See the [storage benchmark](../03-architecture/01-document-storage.md#indicative-benchmarks) where `populateDocuments` depth-2 stays flat at ~3 ms across all scales.
 
-**The populate DSL — two axes.** Populate options compose two orthogonal axes: **scope** (which relations to walk) and **projection** (what fields to return per target).
+**The populate DSL: two axes.** Populate options compose two orthogonal axes: **scope** (which relations to walk) and **projection** (what fields to return per target).
 
 ```ts
 // Scope at the top level:
@@ -409,7 +409,7 @@ populate: { featureImage: { select: ['title', 'altText'] } }  // explicit
 populate: { author: { populate: { department: true } } }      // deeper level
 ```
 
-The **default projection** is the document row metadata that's always free (`document_id`, `path`, `status`, `created_at`, `updated_at`) plus the schema-declared `useAsTitle` field (fallback: first text field). `'*'` wins when any leaf in a batch requests it — projection composes across leaves of the same target collection.
+The **default projection** is the document row metadata that's always free (`document_id`, `path`, `status`, `created_at`, `updated_at`) plus the schema-declared `useAsTitle` field (fallback: first text field). `'*'` wins when any leaf in a batch requests it: projection composes across leaves of the same target collection.
 
 **`useAsTitle` lives on `CollectionDefinition`.** The default projection is **schema-aware without a UI dependency**. `useAsTitle` was deliberately placed on `CollectionDefinition` (server-safe) rather than on `CollectionAdminConfig` (admin-only) so populate, `afterRead` consumers, and any future access-control consumer can read a document's identity without taking a UI runtime dependency. Django's `Model.__str__` is the analogue.
 
@@ -417,7 +417,7 @@ The **default projection** is the document row metadata that's always free (`doc
 
 ### Status awareness through populate
 
-Populate honours the same `readMode` rule as direct reads. When a public reader (`@byline/client`, defaulting to `readMode: 'published'`) populates a relation, the target is fetched through `current_published_documents` — so a draft over a previously-published target *does not* leak through populate. The target collection's `read` ability and `beforeRead` scope still apply in either mode. Admin code paths explicitly use `readMode: 'any'` and see the latest visible version regardless of status. See Quick Reference recipe 10 for the call-site idiom.
+Populate honours the same `readMode` rule as direct reads. When a public reader (`@byline/client`, defaulting to `readMode: 'published'`) populates a relation, the target is fetched through `current_published_documents`, so a draft over a previously-published target *does not* leak through populate. The target collection's `read` ability and `beforeRead` scope still apply in either mode. Admin code paths explicitly use `readMode: 'any'` and see the latest visible version regardless of status. See Quick Reference recipe 10 for the call-site idiom.
 
 ### `ReadContext` — recursion safety
 
@@ -434,13 +434,13 @@ Top-level SDK reads create the context. Hooks that issue nested reads must pass 
 
 ### Relation filters
 
-Relations are queryable. The `where` clause supports nested-object sub-wheres against a relation field's target — see Quick Reference recipe 3 for the call-site shape.
+Relations are queryable. The `where` clause supports nested-object sub-wheres against a relation field's target. See Quick Reference recipe 3 for the call-site shape.
 
 The compiler in `packages/core/src/query/parse-where.ts` recognises nested-object sub-wheres on relation fields and emits `RelationFilter` entries with recursive `nested: DocumentFilter[]`. The Postgres adapter's `buildFilterExists` dispatches on filter `kind` and emits a depth-scoped nested EXISTS through `store_relation` joined to the target's `current(_published)_documents` view.
 
 Two consequences worth flagging:
 
-- **`readMode` propagates through the filter predicate.** A public-reader query for `where: { author: { id: 'X' } }` only matches when there is a *published* version of the author — no draft leaks at the target side either.
+- **`readMode` propagates through the filter predicate.** A public-reader query for `where: { author: { id: 'X' } }` only matches when there is a *published* version of the author: no draft leaks at the target side either.
 - **Reserved metadata operators keep their meaning.** `status` and `path` clauses, including supported operator objects, compile as document-column filters at the correct relation depth. The same rule applies when those clauses come from strict `beforeRead` security predicates.
 - **A relation filter is not target population.** It constrains the source query but does not independently invoke the target collection's `beforeRead` hook. If the existence or fields of a related row are themselves sensitive, express that restriction in the source collection's `beforeRead` predicate rather than relying on the target hook.
 - **Nested-object DSL was chosen over Payload-style dot notation** (`'author.id': 'X'`). Dot notation collides with Byline's internal EAV path notation and doesn't absorb the future `hasMany` quantifiers (`some`, `every`, `none`).
@@ -454,7 +454,7 @@ Editing a relation field uses the components in `packages/admin/src/fields/relat
 - **`relation-picker.tsx`** — the modal that opens on Select / Change / Add. Lists documents from the `targetCollection` via the host's `getCollectionDocuments` server fn, with search and pagination.
 - **`relation-column-formatter.tsx`** — renders a relation cell in list views as the target's `useAsTitle` (single) or "A, B, +N more" (`hasMany`).
 
-Selection flows through the standard `setFieldValue` → `FieldSetPatch` pipeline — no new patch family. The patch contract is `field.set` with `value = { target_document_id, target_collection_id }`; `field.clear` on Remove. Both already supported by `setFieldValue`.
+Selection flows through the standard `setFieldValue` → `FieldSetPatch` pipeline, no new patch family. The patch contract is `field.set` with `value = { target_document_id, target_collection_id }`; `field.clear` on Remove. Both already supported by `setFieldValue`.
 
 **Display-field resolution** inside the picker: `field.displayField` → first top-level `text` field on the resolved target definition → `path` → `document_id`.
 
@@ -471,13 +471,13 @@ z.object({
 }).nullable()
 ```
 
-The old `z.any()` catch-all is gone — the picker's contract is enforced at form-validate time.
+The old `z.any()` catch-all is gone: the picker's contract is enforced at form-validate time.
 
 ### Richtext document links
 
 A second application of the relationship primitive: links to other Byline documents *inside* a richtext field value, plus inline-image references to media documents. Two paired Lexical plugins consume the same `DocumentRelation` envelope this doc defines.
 
-The full present-state strategy — how the link and inline-image modals embed picked targets at picker time, the on-save server walker that canonicalises `document.path` via `CollectionDefinition.buildDocumentPath`, the persisted Lexical JSON shapes, the `embedRelationsOnSave` / `populateRelationsOnRead` field-level flags, and the embed / populate adapter contracts — lives in **[Rich Text → Relations — embed and populate](./07-rich-text.md#relations-embed-and-populate)**.
+The full present-state strategy (how the link and inline-image modals embed picked targets at picker time, the on-save server walker that canonicalises `document.path` via `CollectionDefinition.buildDocumentPath`, the persisted Lexical JSON shapes, the `embedRelationsOnSave` / `populateRelationsOnRead` field-level flags, and the embed / populate adapter contracts) lives in **[Rich Text → Relations — embed and populate](./07-rich-text.md#relations-embed-and-populate)**.
 
 One eligibility flag stays here because it lives on `CollectionDefinition`, not on the editor adapter:
 
@@ -489,11 +489,11 @@ export const Pages: CollectionDefinition = {
 }
 ```
 
-A collection becomes pickable from *every* richtext editor's link picker when its definition declares `linksInEditor: true`. Deliberately a single boolean on the collection rather than an `allowedCollections` list per richtext field — simpler, and revisitable if a real use case ever needs per-editor restriction.
+A collection becomes pickable from *every* richtext editor's link picker when its definition declares `linksInEditor: true`. Deliberately a single boolean on the collection rather than an `allowedCollections` list per richtext field: simpler, and revisitable if a real use case ever needs per-editor restriction.
 
 ### Admin API preview depth selector
 
-The admin "API" view at `apps/webapp/src/routes/_byline/<configured-admin-segment>/collections/$collection/$id/api.tsx` ships a depth selector (0–3) in the ViewMenu. Changing it threads `?depth=N` through `loaderDeps`, so route loading treats each depth as distinct state. The user-facing cap is **3** — strict enough to prevent a curious editor from accidentally DOSing the preview on a wide graph; the programmatic client cap is **8** (`ReadContext.maxDepth`).
+The admin "API" view at `apps/webapp/src/routes/_byline/<configured-admin-segment>/collections/$collection/$id/api.tsx` ships a depth selector (0–3) in the ViewMenu. Changing it threads `?depth=N` through `loaderDeps`, so route loading treats each depth as distinct state. The user-facing cap is **3**: strict enough to prevent a curious editor from accidentally DOSing the preview on a wide graph; the programmatic client cap is **8** (`ReadContext.maxDepth`).
 
 The admin server fn (`packages/host-tanstack-start/src/server-fns/collections/get.ts`) delegates to `CollectionHandle.findById`; the handle owns relation population, target authorization, `beforeRead`, and `afterRead` for this path.
 
@@ -512,7 +512,7 @@ The first production relation is in the News collection (`apps/webapp/byline/col
 }
 ```
 
-…and the seeded News documents in `apps/webapp/byline/seeds/docs.ts` reference existing Media items. Editing a news item shows the picker; saving writes through the standard form-state pipeline; reloading the API preview at depth 1 shows the populated Media envelope (including the file's `variants` array — see [File / Media Uploads](./06-file-media-uploads.md)); depth 2 walks into Media's own field set; deleting the referenced Media item and reloading at depth 1 shows the `_resolved: false` placeholder rather than a crash.
+…and the seeded News documents in `apps/webapp/byline/seeds/docs.ts` reference existing Media items. Editing a news item shows the picker; saving writes through the standard form-state pipeline; reloading the API preview at depth 1 shows the populated Media envelope (including the file's `variants` array; see [File / Media Uploads](./06-file-media-uploads.md)); depth 2 walks into Media's own field set; deleting the referenced Media item and reloading at depth 1 shows the `_resolved: false` placeholder rather than a crash.
 
 ---
 
@@ -527,7 +527,7 @@ references instead of a single one (with optional `minItems` / `maxItems`):
 
 It is modelled as an array of relation values: each item flattens to its own
 `store_relation` row at an indexed path (`authors.0`, `authors.1`, …) and
-reconstructs in order — no new storage column or migration (the
+reconstructs in order: no new storage column or migration (the
 `unique(version, field_path, locale)` constraint already permits it since each
 index is a distinct path). `populate` resolves **each** element into its own
 envelope, yielding an ordered array of populated values; a deleted target
@@ -539,7 +539,7 @@ Items are identified by `targetDocumentId` (a target may appear at most once);
 each edit writes the whole array back as a coalesced `field.set` patch. The
 picker opens in **multi-select mode** for `hasMany` fields: rows toggle a check
 state, already-added targets render as disabled "already added" rows, and the
-confirm action ("Add selected (n)") appends the whole batch in pick order —
+confirm action ("Add selected (n)") appends the whole batch in pick order,
 several picks in one trip. See
 `apps/webapp/byline/collections/pages/schema.ts` (`gallery`) for a reference field.
 Use `WithPopulatedMany<F, K, Target>` (`@byline/client`) to type the populated
@@ -569,17 +569,17 @@ reserved keys, `$and` / `$or`, further relation hops). Semantics notes:
 
 - **Unresolvable targets are ignored.** A target that doesn't resolve in the
   selected read view (deleted, or unpublished under `status: 'published'`
-  reads) drops out of all three quantifiers — the same visibility rule
+  reads) drops out of all three quantifiers, the same visibility rule
   populate applies.
 - **`$every` is vacuously true** for a document with no (resolving) targets,
   matching Prisma's `every` semantics. Compose with `$some: {}` ("has at
   least one target") when emptiness should exclude.
-- Quantifiers also work on **single** relation fields (a set of ≤ 1) — e.g.
+- Quantifiers also work on **single** relation fields (a set of ≤ 1): e.g.
   `{ category: { $none: {} } }` matches documents with no category.
 
 Compilation: the parser emits a `RelationFilter` carrying `quantifier` +
 `hasMany`; the adapter compiles `$some` to the existing relation `EXISTS`,
-`$none` to `NOT EXISTS`, and `$every` to `NOT EXISTS (… AND NOT (nested))` —
+`$none` to `NOT EXISTS`, and `$every` to `NOT EXISTS (… AND NOT (nested))`,
 a failing-row scan. hasMany rows match on `parent_path` (items are stored at
 indexed paths where `field_name` is the index segment).
 
