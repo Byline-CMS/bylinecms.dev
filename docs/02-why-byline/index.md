@@ -21,8 +21,8 @@ everything else in the documentation.
   as by browsers, and why that shaped Byline's design from the start.
 - [Byline for Collections](./03-byline-for-collections.md) — why immutable
   versioning, definable workflow, and an atomic audit trail make Byline a strong
-  foundation for digital collections management, and how OAI-PMH, fixity, and
-  accession controls would build on it.
+  foundation for digital collections management, and how OAI-PMH, fixity,
+  accession controls, and standards-based discovery would build on it.
 
 If you would rather see it working first, start with
 [Getting Started](../01-getting-started/index.md); if you want the engineering

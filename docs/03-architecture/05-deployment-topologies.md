@@ -21,8 +21,8 @@ Byline, or assessing whether a topology you eventually need is one the
 architecture can reach.
 
 Only the first scenario is available today. The other three depend on a stable
-public HTTP API, which is deliberately deferred — see
-[Not yet shipped](#not-yet-shipped) at the end of this document.
+public HTTP API, which is deliberately deferred; see
+[Status](#status) at the end of this document.
 
 ## What stays constant
 
@@ -97,7 +97,7 @@ from its runtime. The admin host exposing no HTTP surface is the point of this
 arrangement: the editor application can sit entirely inside a private network
 while the API host is the only publicly reachable Byline component.
 
-## Not yet shipped
+## Status
 
 Scenarios 2, 3, and 4 all require a stable public HTTP API, which Byline does
 not yet expose. The only client today is the admin UI, so collection operations

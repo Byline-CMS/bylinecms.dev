@@ -1,7 +1,7 @@
 ---
 title: "Attachment extraction for search"
 path: "search-attachment-extraction"
-summary: "The planned boundary for extracting text from PDFs and other attachments before published documents enter the search index."
+summary: "The planned reusable boundary for extracting text from PDFs and other attachments before published documents enter the search index, and the production experience informing it."
 ---
 
 # Attachment extraction for search
@@ -12,7 +12,13 @@ Companions:
 - [Portable multilingual analysis](./05-portable-analysis.md) — extracted plain text enters the same locale-aware analyzer as authored content.
 - [File and media uploads](../04-collections/06-file-media-uploads.md) — uploaded files and storage lifecycle are the source inputs for extraction.
 
-Attachment extraction is planned and is not part of the shipped search packages. The intended design runs Tika, Docling, OCR, or a vision-model service before indexing, persists the result, and lets every search provider consume the same plain text.
+Attachment extraction is not part of the shipped Byline search packages, but it is not an
+unimplemented idea. A production institutional deployment already extracts and indexes
+attachment text through an out-of-process Tika service, persists artifacts in PostgreSQL, and
+joins locale-aware text into either Solr or PostgreSQL search without re-extracting during a
+reindex. The reusable boundary described on this page is under development: it lets Tika,
+Docling, OCR, or a vision-model service produce the same normalized artifact for any capable
+search provider.
 
 ## Why extraction is separate
 
@@ -43,7 +49,7 @@ interface ExtractionArtifact {
 }
 ```
 
-The exact public contract has not shipped. The important boundary is stable: extraction produces content; search indexes content.
+The exact public contract is under development. The boundary itself is stable: extraction produces content; search indexes content.
 
 An implementation is expected to be a TypeScript adapter over an external service:
 
@@ -114,9 +120,9 @@ published document -----------+
 
 Per-locale indexing needs an explicit rule for attachment language. An artifact may carry a declared or detected language that does not equal the owning document's locale, and unknown-language text still needs a documented home. The upstream contract must define whether artifacts join only a matching locale, fall back to the document or installation default, or contribute to a script-neutral companion projection.
 
-## Not yet shipped
+## Under development
 
-The following work remains:
+The remaining work for the reusable capability:
 
 - public extraction-provider types;
 - persistence schema and migration ownership;
@@ -128,4 +134,6 @@ The following work remains:
 - the search-document join; and
 - reference adapters for selected external services.
 
-Until this exists, applications may extract files in their own workflow and copy the resulting plain text into a normal configured body field.
+Until this exists, applications may extract files in their own workflow and copy the resulting
+plain text into a normal configured body field. The production deployment described above
+provides the implementation experience that is expected to inform this reusable boundary.

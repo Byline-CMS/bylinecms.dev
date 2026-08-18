@@ -11,6 +11,7 @@ Companions:
 - [Collections](../04-collections/index.md) — each searchable collection declares the fields, weights, and zones that feed its search projection.
 - [Authentication and authorization](../07-auth-and-security/01-authn-authz.md) — collection abilities and `beforeRead` predicates still apply after the provider ranks search candidates.
 - [Content locales](../08-internationalization/03-content-locales.md) — the search index stores one projection for each published content locale.
+- [Semantic discovery and institutional standards](./09-semantic-discovery-and-institutional-standards.md) — the measured path from today's lexical foundation to structured, hybrid, relationship-aware, and standards-based discovery.
 
 Byline search is a ranked retrieval subsystem for the public applications you build on top of the CMS. It is designed for installations that want useful full-text search without adding a separate search server, while keeping a provider boundary for deployments that later need Solr or another dedicated engine.
 
@@ -98,7 +99,17 @@ Both built-in providers support:
 
 The current built-in SQL providers do not implement typo tolerance, spelling suggestions, semantic or vector retrieval, BM25 as a portable guarantee, facet aggregation, or structured `where` filtering. Facet and filter values are already present in the projection, but the query implementations do not use them yet. Check `provider.capabilities` before exposing an optional feature.
 
-Attachment extraction is also separate and not yet shipped. Tika, Docling, OCR, or a vision model should produce a persisted extraction artifact before search indexing. The index then consumes that text like any other body field, without coupling extraction cost to every rebuild.
+Beyond that floor, two capabilities are under development. A Solr provider (BM25 ranking and
+facet aggregation) is running against a production institutional deployment and is expected
+to upstream once it meets the conformance bar described in
+[Native search engines and backend portability](./08-native-engine-providers.md). Attachment
+extraction is on the same path: the deployment already extracts attachment text, persists the
+artifact, and indexes it like any other body field, without coupling extraction cost to every
+rebuild; Tika, Docling, OCR, and vision models fit behind the
+[planned reusable boundary](./07-attachment-extraction.md). Semantic, vector, and
+cross-lingual retrieval are under active research and development for a future hybrid
+provider. None of this changes the built-in providers until it ships and declares its
+capabilities.
 
 ## Read this section
 
@@ -108,5 +119,6 @@ Attachment extraction is also separate and not yet shipped. Tika, Docling, OCR, 
 - [Provider contract](./04-provider-contract.md) documents `SearchProvider`, `SearchDocument`, capabilities, and conformance requirements for another adapter.
 - [Portable multilingual analysis](./05-portable-analysis.md) explains logical terms, locale resolution, identifiers, expansion plug-ins, phrase plans, highlighting, and fingerprints.
 - [PostgreSQL and MySQL providers](./06-postgres-and-mysql.md) compares the two physical implementations and their operational behavior.
-- [Attachment extraction](./07-attachment-extraction.md) records the planned boundary for Tika, Docling, OCR, and vision-model services.
+- [Attachment extraction](./07-attachment-extraction.md) records the boundary, under development, for Tika, Docling, OCR, and vision-model services.
 - [Native search engines and backend portability](./08-native-engine-providers.md) explains how portable and native analysis divide responsibility, which behavior is guaranteed across providers, and what a provider change does and does not do.
+- [Semantic discovery and institutional standards](./09-semantic-discovery-and-institutional-standards.md) describes how Byline can support institutional repositories and collections through explicit capability layers and domain-appropriate standards profiles.
