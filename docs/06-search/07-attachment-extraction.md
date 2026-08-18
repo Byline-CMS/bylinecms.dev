@@ -96,9 +96,9 @@ Tika is a practical default where broad format support matters. Docling is appro
 
 ## Joining extracted text into search
 
-The join belongs before `SearchProvider.upsert()`, while Byline assembles `SearchDocument`. Extracted plain text should become another configured body contribution, normally at a lower weight than title and authored summary.
+The join belongs before `SearchProvider.upsert()`, while Byline assembles or decorates the `SearchDocument`. Extracted plain text should become another configured body contribution, normally at a lower weight than title and authored summary.
 
-This keeps the provider contract unchanged:
+The exact extension point is not settled. A core assembly hook keeps all projection inputs together; a provider decorator can prove the boundary downstream without changing core. Either design must preserve the provider contract and keep reindexing independent from extraction.
 
 ```text
 file -> extraction service -> persisted artifact
@@ -106,13 +106,13 @@ file -> extraction service -> persisted artifact
 published document -----------+
                               |
                               v
-                    buildSearchDocument()
+             SearchDocument assembly or decoration
                               |
                               v
                     SearchProvider.upsert()
 ```
 
-Per-locale indexing needs an explicit rule for attachment language. The extraction artifact should carry a declared or detected language so text enters the correct locale row.
+Per-locale indexing needs an explicit rule for attachment language. An artifact may carry a declared or detected language that does not equal the owning document's locale, and unknown-language text still needs a documented home. The upstream contract must define whether artifacts join only a matching locale, fall back to the document or installation default, or contribute to a script-neutral companion projection.
 
 ## Not yet shipped
 
@@ -121,11 +121,11 @@ The following work remains:
 - public extraction-provider types;
 - persistence schema and migration ownership;
 - file-to-document ownership queries;
-- job scheduling, retries, and progress;
+- durable job scheduling, retries, and progress;
 - per-collection routing policy;
 - re-extraction and backfill commands;
 - locale assignment;
-- the `buildSearchDocument()` join; and
+- the search-document join; and
 - reference adapters for selected external services.
 
 Until this exists, applications may extract files in their own workflow and copy the resulting plain text into a normal configured body field.

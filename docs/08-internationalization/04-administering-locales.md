@@ -74,3 +74,13 @@ operation is **idempotent and resumable** — and `--dry-run` reports the would-
 outcome plus the backlog. The `skipped-incomplete` report *is* your
 outstanding-translation list.
 
+## Search after changing the default
+
+Changing the default is safe for stored documents, but it can change the content-locale slice a host searches. A common host policy maps interface-only URLs to the current default content locale. After an `en → th` change, those searches therefore move from the English index slice to the Thai slice.
+
+Ordinary reads and search then have intentionally different reach:
+
+- a read prefers Thai and can still render an untranslated document through its per-document English `source_locale` floor;
+- search returns only documents with a published Thai projection, because indexing uses `onMissingLocale: 'omit'` and does not create fallback copies.
+
+Before changing the default, assess translation coverage for the content users must be able to find. Either complete those translations, provide an explicit content-locale selector and scoped empty-state recovery, or accept that fallback-rendered documents remain absent from the new default's search results. Re-anchoring and fallback-aware search are separate concerns: re-anchoring changes the durable document floor, while fallback-aware search is not currently a shipped capability.

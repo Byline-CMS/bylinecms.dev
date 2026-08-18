@@ -31,6 +31,8 @@ For every locale, it performs one of two provider operations:
 - `upsert(SearchDocument)` when a published locale view exists;
 - `remove({ collectionPath, documentId, locale })` when it does not.
 
+Each locale slice therefore contains genuine published translations only. Byline does not copy a document's source-locale fallback text into every missing locale: doing so would create duplicate projections and run source-language text through the wrong language analyzer. The consequence is deliberate but visible: a document that an ordinary read can render through `source_locale` may still be absent from search in the requested content locale.
+
 The same idempotent path handles a first publish, an edit over an existing publication, an unpublish, a newer draft over an older published version, and a translation becoming available or unavailable. Draft-only content does not enter the built-in index.
 
 Index maintenance bypasses `beforeRead` because the shared index must contain every published candidate. Actor-specific row visibility is applied after ranking when a reader searches.
@@ -117,6 +119,24 @@ Use a complete rebuild:
 - to remove orphan rows after a missed delete side effect.
 
 Reindexing is synchronous and uses pages of 100 published documents. This is appropriate for small and medium collections. Large corpora need a background job with progress, throttling, and durable retry.
+
+## Switching providers
+
+Registering a different search provider is a configuration change with index-wide consequences. Each provider owns its physical analysis and storage, so the same published content produces different index data under each provider, and the previous provider's rows are useless to the new one.
+
+To switch:
+
+1. provision the new provider's schema — `migrate(pool)` for the SQL providers, or the engine's own schema artifact for an external engine;
+2. register the new provider in `ServerConfig.search`; and
+3. rebuild every searchable collection with `client.collection(path).reindex()`.
+
+Until every rebuild completes, queries against the new provider return incomplete results — empty for any collection that has not been rebuilt yet.
+
+:::warning[No dual-write or atomic cutover]
+Byline registers exactly one active search provider. There is no mechanism that writes to two providers at once, migrates index rows between providers, or switches atomically. A zero-downtime provider change needs orchestration outside Byline — for example a second application deployment configured with the new provider, cut over after its rebuild completes.
+:::
+
+A provider change can also change the capability report, so application code gated on `provider.capabilities` — matching controls, facets, highlights — may behave differently after the switch. [Native search engines and backend portability](./08-native-engine-providers.md) explains which behavior is guaranteed across providers and which is legitimately provider-specific.
 
 ## Add the admin rebuild action
 

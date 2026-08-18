@@ -8,6 +8,7 @@ summary: "Reference for collection and zone search, matching options, ranked hit
 
 Companions:
 - [Client SDK](../05-reading-and-delivery/01-client-sdk.md) — search uses the same configured `BylineClient` and request context as other reads.
+- [The host i18n system](../08-internationalization/01-host-i18n.md) — hosts map URL and interface locales into content-locale preferences.
 - [Portable multilingual analysis](./05-portable-analysis.md) — the analyzer interprets matching policy and converts query text into portable concepts.
 - [Authentication and authorization](../07-auth-and-security/01-authn-authz.md) — collection abilities and `beforeRead` predicates finish provider results.
 - [PostgreSQL and MySQL providers](./06-postgres-and-mysql.md) — both built-in providers implement the matching and highlighting behavior described here.
@@ -78,6 +79,27 @@ The collection and zone entry points share these options:
 | `hydrate` | `boolean` | `false` | Attach a document read through the normal pipeline |
 
 `status: 'any'` relaxes the provider filter, but the standard lifecycle indexes only published views. It does not expose drafts unless a custom indexing path has written them.
+
+## Result locale and query language
+
+`locale` is the **result content locale**: it selects one exact locale slice from the index. It is not the host interface language, and it does not promise that Byline understands or translates the language in which the visitor typed the query.
+
+:::warning[`locale` must resolve to a content locale]
+The index stores one row per published [content locale](../08-internationalization/03-content-locales.md), and search applies no read-style locale fallback. When a frontend's interface languages differ from its content locales, the host must map URL or interface context to a content-locale preference before calling `search()`. A common policy passes configured content locales through and maps an interface-only locale to the installation's current default content locale. Passing the interface locale verbatim can filter on rows that never exist and return zero hits. The client default used when `locale` is omitted must likewise be a content locale.
+:::
+
+The current provider contract couples two jobs to this one value:
+
+1. providers filter indexed rows by content locale; and
+2. the built-in SQL providers pass the same value to portable query analysis, while native providers commonly use it to select a language-specific query field.
+
+The language or scripts present in the query are a separate concern. A visitor can type Thai text while asking for English documents, and one query can contain several scripts. Byline does not currently expose an independent query-language hint. Literal mixed-script recall is provider-dependent and is not yet covered by the conformance contract. Searching for a translated concept in another language requires a separate, explicitly advertised translation or semantic capability.
+
+### Locale-scoped search user interfaces
+
+When interface and content locales differ, make the result scope visible. A selector labelled **Content language**, **Results in**, or **Search documents in** should list configured content locales rather than interface locales. Default it to the URL locale when that is a content locale and otherwise to the installation's default content locale. Changing it should not change the surrounding interface language.
+
+A zero result establishes only that the selected content-locale slice contains no lexical match under the current provider and matching policy. Prefer wording such as **No matching documents were found in Thai** over an unqualified **No results**. A host may offer explicit searches in other content locales, but should present independently ranked locale groups rather than blend scores from different analyzers into one unexplained ordering.
 
 ## Matching policy
 

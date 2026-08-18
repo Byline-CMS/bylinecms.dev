@@ -50,6 +50,8 @@ Spanish-language admin chrome routinely edits English, French, and German
 content; a visitor reading the English public site can be handed one Japanese
 article without the site flipping into Japanese around them.
 
+Search adds a fourth input without creating a fourth locale configuration: the language or scripts in the visitor's query text. The host still selects a result **content locale** for `SearchQuery.locale`; that scope does not have to match the interface locale or the query language, and it does not imply query translation or cross-lingual retrieval. See [Search API](../06-search/03-search-api.md#result-locale-and-query-language).
+
 :::note[Reference-app note]
 The example app keeps its public host interface to `en`/`fr`. Its Byline admin
 interface enables `en`, `fr`, `es`, `de`, `it`, `zh-CN`, and `ko`; its content

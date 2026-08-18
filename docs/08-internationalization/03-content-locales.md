@@ -108,6 +108,14 @@ untranslated locale leaves fields empty rather than pre-filling them with
 source-locale text. **Populate always forces `'fallback'`** regardless of the
 outer policy, so a populated relation tree never has holes.
 
+### The host supplies a content-locale preference
+
+The read API accepts a locale string, but it cannot know whether that value came from a public interface locale, a URL prefix, an editor selection, or another host concern. Hosts whose interface and content locale sets differ should map request context to a configured content locale before ordinary reads.
+
+A common policy passes a content locale through and maps an interface-only locale to the installation's current default content locale. The resulting chain remains `[preferred content locale, source locale]`: mapping establishes a consistent site preference without removing the document's durable fallback floor. Passing an interface-only locale raw leaves the preferred slot ineffective, so a list can render each document in its own source locale after an operational default change.
+
+Search does not use this read chain. Its `locale` selects one exact index slice; see [Result locale and query language](../06-search/03-search-api.md#result-locale-and-query-language).
+
 ## Named fallback chains (planned)
 
 The shipped `[requested, source]` chain delivers the core guarantee. Named

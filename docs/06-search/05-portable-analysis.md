@@ -40,6 +40,14 @@ A provider with strong native language analyzers may use `nativeAnalysis` instea
 
 The analyzer limits queries to 1,024 UTF-16 code units before normalization and identifier extraction.
 
+## Declared locale and mixed-script text
+
+A valid declared locale currently wins before script detection. Search providers pass `SearchQuery.locale` as that declaration, so the selected result content locale also supplies the query analyzer's locale. Script detection runs only when the declaration is absent or unusable.
+
+`Intl.Segmenter` can tokenize many scripts even when its locale hint names another language, and exact portable tokens are preserved. That makes some mixed-script literal matches work in practice, such as Thai text embedded in an English document. It is not yet a provider-neutral guarantee: language expanders still follow the resolved locale, and a native engine's English field can tokenize the same Thai run differently from the portable analyzer.
+
+Until mixed-script cases are added to `@byline/search-conformance`, treat their recall as unspecified and test representative corpus text against the registered provider. This is distinct from cross-lingual retrieval: portable analysis does not translate a query or equate differently worded concepts across languages.
+
 ## Configure the analyzer
 
 ```ts

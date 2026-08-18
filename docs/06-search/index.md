@@ -69,6 +69,18 @@ The boundary is deliberate:
 
 The provider never reads Byline's typed EAV storage tables. It receives a complete projection and can therefore live in the application database or in an external engine without changing the document read path.
 
+## Multilingual search is several capabilities
+
+"Multilingual search" is not one guarantee. Byline separates five related capabilities so hosts and providers can state exactly what they support:
+
+- **Multilingual indexes** store published projections for several configured content locales.
+- **Locale-scoped results** restrict a query to documents available in one content locale.
+- **Mixed-language lexical matching** finds literal text whose language or script differs from the document's declared content locale.
+- **Fallback-aware discovery** finds documents that ordinary reads can render only through their per-document source-locale floor.
+- **Cross-lingual retrieval** finds equivalent meaning across languages through query translation, multilingual semantic retrieval, or another explicit mechanism.
+
+The first two ship. Mixed-language literal recall is not yet a provider-conformance guarantee, and fallback-aware or cross-lingual retrieval does not ship. A translated interface does not imply any of the latter three capabilities.
+
 ## What ships
 
 Both built-in providers support:
@@ -97,3 +109,4 @@ Attachment extraction is also separate and not yet shipped. Tika, Docling, OCR, 
 - [Portable multilingual analysis](./05-portable-analysis.md) explains logical terms, locale resolution, identifiers, expansion plug-ins, phrase plans, highlighting, and fingerprints.
 - [PostgreSQL and MySQL providers](./06-postgres-and-mysql.md) compares the two physical implementations and their operational behavior.
 - [Attachment extraction](./07-attachment-extraction.md) records the planned boundary for Tika, Docling, OCR, and vision-model services.
+- [Native search engines and backend portability](./08-native-engine-providers.md) explains how portable and native analysis divide responsibility, which behavior is guaranteed across providers, and what a provider change does and does not do.

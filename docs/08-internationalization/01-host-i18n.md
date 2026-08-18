@@ -46,7 +46,7 @@ The key design idea on the host side is that the set of locales a URL can
 *resolve* is wider than the set it *promotes*:
 
 ```
-routableLocales = adminLocales ∪ contentLocales
+routableLocales = interfaceLocales ∪ contentLocales
 ```
 
 The required `$lng` route segment resolves any routable locale, so a
@@ -105,16 +105,35 @@ The net effect is exactly the property called out in the introduction: a content
 translation is discoverable and linkable, but it never silently switches and
 sticks as an interface locale.
 
+### Map one URL locale into separate domains
+
+A routable URL locale is not automatically valid in every locale domain. A content-only URL needs an interface-locale fallback for chrome; symmetrically, an interface-only URL needs a content-locale preference for data reads and search.
+
+The host owns both mappings because Byline does not know the public interface-locale set. A common policy is:
+
+```ts
+const interfaceLocale = isInterfaceLocale(urlLocale)
+  ? urlLocale
+  : defaultInterfaceLocale
+
+const contentLocale = isContentLocale(urlLocale)
+  ? urlLocale
+  : defaultContentLocale
+```
+
+`contentLocale` fills the preferred slot in ordinary reads; each document's `sourceLocale` remains the fallback floor. It is load-bearing for search because `SearchQuery.locale` is an exact index-slice filter with no read-style fallback. The URL locale remains separate for route construction, canonical URLs, and any output whose links embed that prefix.
+
+Search adds another independent input: the language or scripts in the query text. Mapping an interface-only URL to a content locale selects which document translations may be returned; it does not translate the query or guarantee cross-lingual retrieval. See [Search API](../06-search/03-search-api.md#result-locale-and-query-language).
+
 ### Content locale vs interface locale (chrome), and why chrome is deterministic
 
-Two locales are in play on any URL, exposed as two hooks:
+Three roles can be in play on one URL, even when the reference application's current locale sets happen to overlap:
 
-- **`useLocale()`** — the *path / content* locale (may be a content-only locale
-  like `zh-CN`). Drives content rendering, meta, canonical, and the per-page
-  content-language affordance's active state.
+- **`useLocale()`** — the raw path / URL locale. It may be interface-only or content-only and drives route construction and URL identity.
 - **`useInterfaceLocale()`** — the *chrome* locale (nav, menus, labels). On an
   interface-locale URL it equals the path locale; on a **content-only** URL it
   falls back to the **default** interface locale via `toInterfaceLocale()`.
+- **The preferred content locale** — passes a content URL locale through and maps an interface-only URL locale to the host's current default content locale before reads or search.
 
 `useInterfaceLocale()` is deliberately a **pure function of the URL locale** — it
 does *not* consult the cookie or `Accept-Language`. This is a caching
@@ -205,7 +224,7 @@ A worked TanStack-Start host, all under `apps/webapp/`:
 
 | Concern | Location |
 |---|---|
-| Routable-locale config, `isInterfaceLocale` / `isRoutableLocale`, `toInterfaceLocale` | `src/i18n/i18n-config.ts` |
+| Routable-locale config and URL/interface locale guards | `src/i18n/i18n-config.ts` |
 | Client-safe route data used by public host code | `byline/routes.ts`, re-exported by `byline/public.ts` |
 | Isomorphic locale URL rewrite (clean default-locale URLs; configured route exclusions) | `src/i18n/locale-rewrite.ts` (wired in `src/router.tsx`) + `locale-rewrite.test.ts` + `locale-rewrite-custom-admin.test.ts` |
 | Server-entry negotiation + `/en/…` canonicalisation (non-sticky for content locales) | `src/i18n/server-locale-redirect.ts` (called from `src/server.ts`) |
