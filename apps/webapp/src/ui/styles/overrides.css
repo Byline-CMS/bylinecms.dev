@@ -17,6 +17,10 @@
 .prose table {
   min-width: 40rem;
 
+  td:first-child {
+    overflow-wrap: normal;
+  }
+
   td:first-child code {
     white-space: nowrap;
     overflow-wrap: normal;
