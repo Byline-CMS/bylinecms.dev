@@ -1,5 +1,14 @@
 # @byline/search-postgres
 
+## 4.13.1
+
+### Patch Changes
+
+- fixed **`@byline/richtext-lexical`** inline-image previews serving a stale URL in the editor after an upload was re-keyed or regenerated
+- Updated dependencies
+  - @byline/core@4.13.1
+  - @byline/search-analysis@4.13.1
+
 ## 4.13.0
 
 ### Minor Changes

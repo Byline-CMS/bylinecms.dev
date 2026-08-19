@@ -1,5 +1,16 @@
 # @infonomic/ai
 
+## 4.13.1
+
+### Patch Changes
+
+- fixed **`@byline/richtext-lexical`** inline-image previews serving a stale URL in the editor after an upload was re-keyed or regenerated
+- Updated dependencies
+- Updated dependencies [1fd20b6]
+  - @byline/core@4.13.1
+  - @byline/richtext-lexical@4.13.1
+  - @byline/ui@4.13.1
+
 ## 4.13.0
 
 ### Minor Changes

@@ -1,5 +1,19 @@
 # @byline/host-tanstack-start
 
+## 4.13.1
+
+### Patch Changes
+
+- fixed **`@byline/richtext-lexical`** inline-image previews serving a stale URL in the editor after an upload was re-keyed or regenerated
+- Updated dependencies
+  - @byline/admin@4.13.1
+  - @byline/ai@4.13.1
+  - @byline/auth@4.13.1
+  - @byline/client@4.13.1
+  - @byline/core@4.13.1
+  - @byline/i18n@4.13.1
+  - @byline/ui@4.13.1
+
 ## 4.13.0
 
 ### Minor Changes

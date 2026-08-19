@@ -1,5 +1,17 @@
 # @byline/richtext-lexical
 
+## 4.13.1
+
+### Patch Changes
+
+- fixed **`@byline/richtext-lexical`** inline-image previews serving a stale URL in the editor after an upload was re-keyed or regenerated
+- 1fd20b6: refresh the inline-image editor preview (src, width and height) from the resolved upload document, selecting the same position-aware variant the picker uses, and leaving all three untouched when the target, image or URL is unavailable
+- Updated dependencies
+  - @byline/admin@4.13.1
+  - @byline/client@4.13.1
+  - @byline/core@4.13.1
+  - @byline/ui@4.13.1
+
 ## 4.13.0
 
 ### Minor Changes
