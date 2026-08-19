@@ -42,6 +42,7 @@ import es from './es.json'
 import fr from './fr.json'
 import it from './it.json'
 import ko from './ko.json'
+import th from './th.json'
 import zhCN from './zh-CN.json'
 
 /**
@@ -60,6 +61,7 @@ const BUNDLES: Readonly<Record<LocaleCode, NamespaceTranslations>> = {
   it: it as NamespaceTranslations,
   'zh-CN': zhCN as NamespaceTranslations,
   ko: ko as NamespaceTranslations,
+  th: th as NamespaceTranslations,
 }
 
 /** Locale codes for which this extension ships a translation in-tree. */

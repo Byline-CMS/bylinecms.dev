@@ -1,0 +1,15 @@
+{
+  "header.uploadAriaLabel": "อัปโหลดสื่อใหม่",
+  "toolbar.searchPlaceholder": "ค้นหาสื่อ…",
+  "toolbar.orderByLabel": "เรียงตาม",
+  "toolbar.pagerTopAriaLabel": "ตัวแบ่งหน้าด้านบน",
+  "toolbar.pagerBottomAriaLabel": "ตัวแบ่งหน้าด้านล่าง",
+  "order.recentlyUpdated": "อัปเดตล่าสุด",
+  "order.oldestUpdated": "อัปเดตเก่าสุด",
+  "order.titleAsc": "ชื่อเรื่อง A–Z",
+  "order.titleDesc": "ชื่อเรื่อง Z–A",
+  "order.newestCreated": "สร้างใหม่สุด",
+  "order.oldestCreated": "สร้างเก่าสุด",
+  "empty": "ไม่พบรายการสื่อ",
+  "card.noImage": "ไม่มีรูปภาพ"
+}

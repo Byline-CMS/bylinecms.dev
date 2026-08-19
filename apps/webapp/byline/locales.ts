@@ -48,6 +48,7 @@ export const adminLocales = [
   { code: 'it', nativeName: 'Italiano' },
   { code: 'zh-CN', nativeName: '简体中文' },
   { code: 'ko', nativeName: '한국어' },
+  { code: 'th', nativeName: 'ไทย' },
 ] as const satisfies readonly LocaleDefinition[]
 
 /** Locales a document can be published in. */

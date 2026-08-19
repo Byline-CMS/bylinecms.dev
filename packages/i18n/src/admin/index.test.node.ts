@@ -17,6 +17,7 @@ import {
   fr,
   it as itBundle,
   ko,
+  th,
   zhCN,
 } from './index.js'
 
@@ -44,6 +45,7 @@ describe('bundled locale data', () => {
     ['it', itBundle],
     ['zh-CN', zhCN],
     ['ko', ko],
+    ['th', th],
   ])('exports the %s bundle with the same key set as en (no drift)', (_code, bundle) => {
     expect(new Set(Object.keys(bundle))).toEqual(new Set(Object.keys(en)))
   })
@@ -63,7 +65,7 @@ describe('bundled locale data', () => {
       'collections.list.treeRefreshFailedDescription',
       'collections.edit.deletedWithWarningsDescription',
     ] as const
-    const nonEnglishBundles = { fr, es, de, it: itBundle, 'zh-CN': zhCN, ko } as const
+    const nonEnglishBundles = { fr, es, de, it: itBundle, 'zh-CN': zhCN, ko, th } as const
 
     expect(Object.keys(nonEnglishBundles)).toEqual(
       bundledLocales.filter((locale) => locale !== 'en')
