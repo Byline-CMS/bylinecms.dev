@@ -38,8 +38,14 @@ const FINISH_EXIT_MS = 350
 type Phase = 'idle' | 'visible' | 'finishing'
 
 export function RouteProgressBar() {
+  // `isLoading` is the whole navigation-in-flight signal: router-core derives
+  // it as `status === 'pending'`, set when a navigation starts and cleared in
+  // the same batch that commits the new matches. TanStack Router 1.170.30
+  // (router-core 1.171.25) removed `isTransitioning` from `RouterState` —
+  // Transitioner now uses the standalone `React.startTransition`, which has no
+  // pending flag — so there is nothing further to OR in here.
   const isNavigating = useRouterState({
-    select: (s) => s.isLoading || s.isTransitioning,
+    select: (s) => s.isLoading,
   })
   const [phase, setPhase] = useState<Phase>('idle')
   const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
