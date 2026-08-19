@@ -1,5 +1,12 @@
 # @byline/generated-types
 
+## 4.13.0
+
+### Minor Changes
+
+- added a bundled Thai (`th`) admin interface locale to **`@byline/i18n`**
+  fixed the admin route progress bar against TanStack Router's removal of `isTransitioning`
+
 ## 4.12.0
 
 ## 4.11.2

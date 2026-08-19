@@ -1,5 +1,18 @@
 # @byline/search-postgres
 
+## 4.13.0
+
+### Minor Changes
+
+- added a bundled Thai (`th`) admin interface locale to **`@byline/i18n`**
+  fixed the admin route progress bar against TanStack Router's removal of `isTransitioning`
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@4.13.0
+  - @byline/search-analysis@4.13.0
+
 ## 4.12.0
 
 ### Patch Changes
