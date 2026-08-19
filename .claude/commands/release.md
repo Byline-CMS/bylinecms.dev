@@ -5,7 +5,7 @@ allowed-tools: AskUserQuestion, Bash, Read, Write
 argument-hint: [optional bump level: patch|minor|major]
 ---
 
-Drive the full release loop for the `@byline/*` lockstep set, end to end. The publishable packages listed under `fixed` in `.changeset/config.json` (currently 15) always move together to the same version. Always read the set from that file — it has grown before.
+Drive the full release loop for the `@byline/*` lockstep set, end to end. The publishable packages listed under `fixed` in `.changeset/config.json` (18 at the time of writing) always move together to the same version. Always read the current set from that file rather than trusting that number — the set has grown before, and this count has gone stale before.
 
 ## What this command does
 
@@ -27,7 +27,7 @@ Before any visible action, verify all of these. If any fails, stop and explain w
 
 1. **`gh` is installed and authenticated** — `gh auth status` shows a logged-in account with `repo` scope.
 2. **Working tree is clean** — `git status --porcelain` is empty. (Otherwise the release commit would sweep up unrelated work.)
-3. **Both `develop` and `main` exist locally and on origin**, and both are up to date with their tracking branches (`git fetch origin && git rev-list --left-right --count <branch>...origin/<branch>` shows `0 0`).
+3. **Both `develop` and `main` exist locally and on origin, and neither is behind its tracking branch.** Run `git fetch origin && git rev-list --left-right --count <branch>...origin/<branch>` for each; the **right-hand number must be `0`**. The release branch is normally *ahead* (left-hand number > 0) — those are the commits being released, and Step 6 pushes them. Only a non-zero right-hand count is a blocker: it means unpulled remote work would be excluded from the release. Stop and reconcile before continuing.
 4. **You are on a branch where the release should land** — normally `develop`. If on `main` or a feature branch, confirm with the user before proceeding.
 5. **Read the *current* version** from `packages/core/package.json` and stash it as `PREV_VERSION`. This is the "before" anchor for the bump-level check.
 
@@ -81,29 +81,25 @@ This text goes verbatim into the changeset markdown body, where `pnpm version-pa
 
 Pick a slug — `release-<timestamp>` is fine (e.g. `release-2026-05-22-1545`). Write `.changeset/<slug>.md` with frontmatter listing every package in the fixed group, all at the chosen bump level, followed by the summary derived in Step 2:
 
-The list below is a snapshot for shape only — generate the real one from
-`fixed[0]`, never by copying this:
+The block below shows the *shape* only — it is deliberately abridged so it cannot
+go stale. Generate the real list from `fixed[0]`, never by copying this:
 
 ```markdown
 ---
 "@byline/admin": <level>
 "@byline/ai": <level>
-"@byline/auth": <level>
-"@byline/cli": <level>
-"@byline/client": <level>
-"@byline/core": <level>
-"@byline/db-postgres": <level>
-"@byline/generated-types": <level>
-"@byline/host-tanstack-start": <level>
-"@byline/i18n": <level>
-"@byline/richtext-lexical": <level>
-"@byline/search-postgres": <level>
-"@byline/storage-local": <level>
-"@byline/storage-s3": <level>
+… one line for every package in `fixed[0]`, all at the same <level> …
 "@byline/ui": <level>
 ---
 
-<user-supplied summary>
+<summary derived in Step 2>
+```
+
+Generate the frontmatter from the config rather than typing it, so the list can
+never drift from `fixed[0]`:
+
+```sh
+node -e "console.log(require('./.changeset/config.json').fixed[0].map(p=>JSON.stringify(p)+': minor').join('\n'))"
 ```
 
 The package list must match `fixed[0]` in `.changeset/config.json` — re-read it rather than hard-coding, so it stays in sync if the set changes.
