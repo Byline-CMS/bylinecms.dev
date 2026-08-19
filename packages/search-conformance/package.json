@@ -19,9 +19,9 @@
     "@byline/search-analysis": "workspace:*"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.6",
-    "@types/node": "^26.1.2",
+    "@biomejs/biome": "2.5.9",
+    "@types/node": "^26.2.0",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }
