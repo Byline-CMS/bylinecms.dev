@@ -11,16 +11,40 @@
  * framework-agnostic — imported only from the package's `server` entry.
  *
  * Refreshes `node.document` with `{ title, altText, image, sizes }` from
- * the source media document. Does not touch the inline-image node's
- * top-level `src` / `width` / `height` / `altText` — those are Lexical
- * render state and survive untouched, providing a usable fallback when
- * populate hasn't run.
+ * the source media document. Also refreshes the node's top-level `src` /
+ * `width` / `height` — Lexical's admin-editor preview state — from the
+ * resolved image, so a re-keyed or regenerated upload stops serving a
+ * stale URL to the editor.
+ *
+ * That preview is position-aware: `getPreferredSize` picks the same
+ * variant the picker chose at insert time (`left`/`right` → `card`,
+ * `wide` → `desktop`, otherwise `tablet`, with the original as the
+ * fallback), so the refresh must go through it rather than assigning
+ * `image.storageUrl` directly — otherwise every save would swap the
+ * variant for the full-size original and leave the variant's dimensions
+ * describing different bytes. Missing targets, missing images, and
+ * blank URLs leave all three fields untouched: the visitor never leaves
+ * a node emptier than it found it.
  */
 
 import type { StoredFileValue } from '@byline/core'
 
-import { deriveImageSizes } from './utils'
+import { deriveImageSizes, getPreferredSize } from './utils'
 import type { LexicalNodeLike, LexicalNodeVisitor } from '../../lexical-populate-shared'
+import type { Position } from './node-types'
+
+/**
+ * The inline-image node's own fields, spread flat onto the Lexical node
+ * alongside the shared relation envelope. Narrowed here rather than on
+ * `LexicalNodeLike` — each visitor knows its own shape, and the shared
+ * type stays free of per-plugin fields.
+ */
+interface InlineImageNodeLike extends LexicalNodeLike {
+  src?: string
+  position?: Position
+  width?: number | string
+  height?: number | string
+}
 
 export const inlineImageVisitor: LexicalNodeVisitor = {
   match(node: LexicalNodeLike) {
@@ -28,6 +52,7 @@ export const inlineImageVisitor: LexicalNodeVisitor = {
     const collectionPath = node.targetCollectionPath
     const documentId = node.targetDocumentId
     if (!collectionPath || !documentId) return null
+    const imageNode = node as InlineImageNodeLike
     return {
       node,
       collectionPath,
@@ -42,6 +67,13 @@ export const inlineImageVisitor: LexicalNodeVisitor = {
         if (image != null) next.image = image
         if (sizes.length > 0) next.sizes = sizes
         node.document = next
+        const preferred = getPreferredSize(imageNode.position, image)
+        const url = preferred?.url?.trim()
+        if (url) {
+          imageNode.src = url
+          if (preferred?.width != null) imageNode.width = preferred.width
+          if (preferred?.height != null) imageNode.height = preferred.height
+        }
       },
     }
   },

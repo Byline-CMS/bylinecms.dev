@@ -13,7 +13,7 @@ This README is a navigation aid only. The full reference and authoring contract 
 | `floating-text-format/` | Standalone extension that contributes the selection-format pop-over to `BylineFloatingUIExtension`. |
 | `link/` | `LinkExtension`, `AutoLinkExtension`, link node + paste handling + `FloatingLinkEditorPlugin` (contributed back via peer dep), and the link populate visitor. |
 | `table/` | `TableExtension` (Byline wrapper over `@lexical/table`), the table modal, and the `TableActionMenuPlugin` (contributed to the floating-UI registry). |
-| `inline-image/` | `InlineImageExtension`, node + decorator + modal, picker-time embed, and the populate visitor for `{ title, altText, image, sizes }`. |
+| `inline-image/` | `InlineImageExtension`, node + decorator + modal, picker-time embed, and the populate visitor for `{ title, altText, image, sizes }` plus the position-aware editor preview (`src` / `width` / `height`). |
 | `layout/` | `LayoutExtension`, columns layout node + modal. |
 | `admonition/` | `AdmonitionExtension`, admonition node + modal. |
 | `auto-embed/` | `AutoEmbedExtension` — paste-to-embed UX shared by the YouTube/Vimeo embedders. |
