@@ -17,32 +17,33 @@ workflow, and translation still matter?
 
 We think it matters more, not less. Here's why.
 
-AI is good at producing content. It is getting better at translating it. But
-producing content and *managing* content are different problems. When
-organisations begin using AI to generate or assist with content at scale, the
-result is more content, produced faster, in more languages, by more authors
-(both human and machine). Each of those pieces still needs to move through a
-review process. Each version still needs to be tracked. And the relationship
-between a source document, its translations, and their respective approval
-states still needs to be correct and auditable.
+AI is already quite capable of producing content, and it is getting better at
+translating it. Producing content and *managing* content, however, remain
+different problems. As organisations begin using AI to generate or assist with
+content at scale, the likely result is more content, produced faster, in more
+languages, by more authors (both human and machine). That content may still
+need to move through a review process. Its versions may still need to be
+tracked. And the relationship between a source document, its translations,
+and their respective approval states still needs to be correct and auditable.
 
-AI solves the blank page problem. It does not solve the question of what state
-a piece of content is in, who approved it, which version is canonical, or how
-it relates to its translations. If anything, the volume and velocity that AI
-introduces makes those questions harder to answer without a sound structural
-foundation.
+AI can certainly help with the blank page problem. It does not, by itself,
+answer the question of what state a piece of content is in, who approved it,
+which version is canonical, or how it relates to its translations. If
+anything, we suspect the volume and velocity that AI introduces may make those
+questions harder to answer without a sound structural foundation.
 
 There is a trust dimension here as well. As AI-generated content becomes more
 common, we suspect that provenance will matter more, not less. Organisations
 will increasingly need to demonstrate that content was reviewed through a
 defined process and approved at a specific point in time. Immutable versioning
-and auditable workflow are not just engineering concerns in that context. They
-are trust infrastructure.
+and auditable workflow begin to look like more than engineering concerns in
+that context. They also become part of the infrastructure through which trust
+can be established.
 
-We also believe that the CMS managing AI-assisted content needs better
-architecture than one managing purely human-authored content, precisely because
-the volume is higher, the review burden is greater, and the consequences of
-publishing something incorrect or unapproved are amplified.
+We also believe that AI-assisted content is likely to place greater demands on
+the architecture of a CMS, precisely because the volume may be higher, the
+review burden greater, and the consequences of publishing something incorrect
+or unapproved amplified.
 
 None of this is certain. But it reflects what we've observed and what we think
 is coming. Byline is being built with these assumptions in mind.

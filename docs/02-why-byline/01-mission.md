@@ -13,30 +13,31 @@ Companions:
 ## Why Byline exists
 
 Byline grew out of a frustration that we suspect many projects share. In our
-experience, most content management systems struggle with at least one of three
-fundamental concerns: versioning, workflow, or content translation. Many
+experience, many content management systems struggle with at least one of three
+fundamental concerns: versioning, workflow, or content translation. Some
 struggle with all three. And when they try to support all three at the same
-time, they tend to break: sometimes obviously, or more commonly, in ways that
-don't surface until you're deep into a real project with real stakes.
+time, the points of tension do not always become obvious until you're deep into
+a real project with real stakes.
 
 ## The three pillars
 
-We believe that content management rests on three pillars, and that these
-pillars can coexist without creating mutually exclusive states or trade-offs
-between one and another.
+We think about content management in terms of three pillars. We also
+believe these pillars can coexist without creating mutually exclusive states
+or unnecessary trade-offs between one and another.
 
-**Content translation is not interface translation.** The language you write
-your content in is not the same as the language you administer your system in.
-Most CMS platforms conflate these concerns. Byline separates them at the data
-model level.
+**Content translation is not the same as interface translation.** The language
+you write your content in may not be the language you administer your system
+in. CMS platforms can conflate these concerns; Byline separates them at the
+data-model level.
 
-**Versioning should be immutable and enabled by default.** Every change creates
-a new version. The current state of a document is a pointer, not a mutation.
-Versioning is not a feature; it's foundational.
+**Versioning should be immutable and enabled by default.** In Byline,
+every change creates a new version. The current state of a document is a
+pointer, not a mutation. We treat versioning as part of the foundation rather
+than as an optional feature.
 
-**Workflow should be enabled by default.** Editorial workflow should be a
-first-class concern, not an afterthought bolted on through plugins or
-configuration.
+**Workflow should be enabled by default.** Editorial workflow is more
+useful when treated as a first-class concern rather than as an afterthought
+added through plugins or configuration.
 
 And these three concerns should all work together.
 
@@ -57,7 +58,7 @@ for the full picture.
 ## Data ownership
 
 We believe that if you create and store content, you should be able to get it
-back out. Not through an export plugin that sort of works. Not through an API
+back out (as obvious as that may sound). Not through an export plugin that sort of works. Not through an API
 that gives you 80% of what you stored. Your data should be portable,
 extractable, and workable in full and at any time.
 
@@ -66,7 +67,7 @@ enough organisations who've been locked into platforms, or who've lost content
 in migrations, or who've discovered too late that their CMS stored things in a
 way that made extraction painful and lossy.
 
-We're not trying to be the next WordPress or the next Contentful. We're not
+We're not trying to be the next WordPress. We're not
 building a platform that does everything for everyone. And we're not pretending
 we have all the answers. Byline ships as a stable 4.x release, with meaningful
 work still ahead.
@@ -98,4 +99,4 @@ building higher-level AI-enabled services on top of Byline. It's hard to
 predict how this will all play out in a world of software development that is
 changing fast, though we believe the mission and vision above (along with our
 note on [Content Management in the Time of AI](./02-content-in-the-time-of-ai.md))
-holds true. Time will tell whether we've guessed right, or not. ;-)
+hold true. Time will tell whether we've guessed right, or not. ;-)

@@ -13,17 +13,19 @@ Companions:
 - [Portable multilingual search analysis](./05-portable-analysis.md) — the Unicode, locale, identifier, and query-planning foundation that both built-in SQL providers use.
 - [Attachment extraction for search](./07-attachment-extraction.md) — the derived-artifact boundary, under development, for PDF, office-document, OCR, and vision extraction.
 
-Institutional discovery is broader than matching words in a web page. A researcher may know an
-alternate transliteration but not the catalogue's preferred name. An archivist may need to
-combine an agent, place, date range, and record hierarchy. A biodiversity collection may need
-to connect a local species record to a recognised taxon. A museum may need to retrieve objects
-through the people, places, events, and concepts associated with them.
+Institutional discovery likely involves more than matching words in a web page. A
+researcher, for example, may know an alternate transliteration but not the catalogue's
+preferred name. An archivist may need to combine an agent, place, date range, and record
+hierarchy. A biodiversity collection may need to connect a local species record to a
+recognised taxon. And a museum may want to retrieve objects through the people, places,
+events, and concepts associated with them.
 
 Byline does not yet claim to solve all of these problems. It does provide a practical search
 and content foundation on which they can be developed: typed collection schemas,
 relationships, multilingual content, immutable versions, an auditable lifecycle, and one
-provider-neutral search projection. Our direction is to add institutional discovery in
-explicit, testable layers rather than label ordinary full-text search as “semantic.”
+provider-neutral search projection. Our preference is to develop institutional discovery in
+explicit, testable layers, and to be reasonably careful about describing ordinary full-text
+search as “semantic.”
 
 ## What Byline provides today
 
@@ -38,11 +40,11 @@ The built-in PostgreSQL and MySQL providers ship:
 - rebuildable indexes with analyzer fingerprints; and
 - authorization and optional hydration through Byline's normal read pipeline.
 
-This is multilingual lexical search. It is not cross-lingual semantic retrieval: an interface
-translation, a multilingual index, and a query that finds equivalent meaning in another
-language are separate capabilities.
+This gives Byline multilingual lexical search. It does not, by itself, provide cross-lingual
+semantic retrieval: an interface translation, a multilingual index, and a query that finds
+equivalent meaning in another language are separate capabilities.
 
-The built-in providers do **not** yet implement facet aggregation, structured search
+The built-in providers do not yet implement facet aggregation, structured search
 filtering, typo tolerance, semantic or vector retrieval, a portable BM25 guarantee, attachment
 extraction, or graph traversal. The public contract reserves several of these shapes so a
 provider can add them without bypassing Byline's authorization and hydration boundaries.
@@ -59,8 +61,8 @@ registered provider declares it.
 
 ### Structured discovery
 
-The next practical layer is not an AI model. It is the ability to combine text with reliable
-metadata:
+For us, the next practical layer may not be an AI model at all. It may simply be the ability
+to combine text with metadata that an institution already knows it can trust:
 
 - facet aggregation over authority and relationship fields;
 - typed filters for dates, identifiers, status, places, and other declared values;
@@ -69,20 +71,20 @@ metadata:
 - bounded relationship queries over paths an institution has deliberately modelled.
 
 The production Solr deployment noted above already demonstrates this layer. Byline's
-provider-neutral projection retains configured facet and filter values today, and bringing
-their query behaviour to the built-in providers is the near-term step: existing metadata
-becomes an institutional discovery surface without a graph database or a general ontology
-reasoner.
+provider-neutral projection retains configured facet and filter values today. This suggests a
+fairly pragmatic near-term step: bring their query behaviour to the built-in providers, so
+that existing metadata can become an institutional discovery surface without first requiring
+a graph database or a general ontology reasoner.
 
 ### Extracted and hybrid retrieval
 
 Institutional knowledge often lives inside PDFs, office documents, scans, and images.
 Byline's extraction boundary, under development, treats extracted text as persisted, versioned
-derived data rather than work performed during every index rebuild. Embeddings should follow the same
-pattern: associate them with the source content hash, locale, model, and model version, then
-let a capable search provider consume them.
+derived data rather than work performed during every index rebuild. We think embeddings are
+likely to benefit from the same pattern: associate them with the source content hash, locale,
+model, and model version, then let a capable search provider consume them.
 
-A hybrid provider is under active research and development. It would combine:
+A hybrid provider is under active research and development. It will combine:
 
 - lexical ranking for names, identifiers, quotations, and rare terminology;
 - multilingual vector retrieval for broader conceptual recall;
@@ -90,31 +92,33 @@ A hybrid provider is under active research and development. It would combine:
 - structured filters and facets; and
 - an explicit fusion policy with relevance tests.
 
-Embeddings do not make authority work obsolete. Low-resource languages, specialist
-terminology, and culturally sensitive names require representative evaluation and, where
-identity matters, curator-confirmed records. Byline should advertise cross-lingual retrieval
-only for languages and domains it has tested with human relevance judgments.
+We would not expect embeddings to make authority work obsolete. Low-resource languages,
+specialist terminology, and culturally sensitive names still require representative
+evaluation and, where identity matters, curator-confirmed records. We would therefore want
+Byline to advertise cross-lingual retrieval only for languages and domains it has tested with
+human relevance judgments.
 
 ### Relationship-aware and AI-facing access
 
-Some questions require traversal rather than similarity: publications connected to one field
-site and taxon, objects associated with one person through several events, or records beneath
-one archival series. Known query shapes can often be implemented with ordinary relational
-tables and joins. A dedicated graph or RDF store becomes relevant only if open-ended traversal,
-reasoning, scale, or external query requirements justify its additional operational cost.
+Some questions are better approached through traversal than similarity: publications
+connected to one field site and taxon, objects associated with one person through several
+events, or records beneath one archival series. Known query shapes can often be implemented
+with ordinary relational tables and joins. A dedicated graph or RDF store may become relevant
+when open-ended traversal, reasoning, scale, or external query requirements justify its
+additional operational cost.
 
-Natural-language answers and agent access come after reliable retrieval. A future RAG or MCP
-surface should preserve permissions and return citations to canonical Byline records. GraphRAG
-is useful only where graph traversal measurably improves representative questions; MCP is an
-access interface, not a substitute for search quality.
+We would prefer to approach natural-language answers and agent access only after the
+underlying retrieval is reliable. A future RAG or MCP surface should preserve permissions and
+return citations to canonical Byline records. GraphRAG would be useful where graph traversal
+measurably improves representative questions; MCP, meanwhile, is an access interface rather
+than a substitute for search quality.
 
 ## Institutional standards are profiles, not badges
 
-Different institutions describe different things for different purposes. Byline should not
-force all collections into one universal ontology. Its contribution can instead be a profile
-pattern: typed collection schemas and authority records for editorial work, accompanied by
-validated mappings to the standards an institution needs for exchange, aggregation, or
-preservation workflows.
+Different institutions describe different things for different purposes. We do not think
+Byline should force all collections into one universal ontology. A more useful contribution is likely to come from a profile pattern: typed collection schemas and authority records for editorial work,
+accompanied by validated mappings to the standards an institution needs for exchange,
+aggregation, or preservation workflows.
 
 The following table is a signpost, not a list of built-in compliance claims:
 
@@ -143,9 +147,10 @@ existing identity, versioning and soft-deletion foundations.
 ## What Byline can contribute
 
 Large semantic-web and repository platforms already serve institutions with deep modelling
-requirements. Byline's opportunity is different: provide an affordable editorial and
-publishing foundation, then add the standards and discovery layers each institution can
-justify without making every installation operate the same specialist infrastructure.
+requirements. We see a somewhat different opportunity for Byline: to provide an affordable
+editorial and publishing foundation, and then add the standards and discovery layers each
+institution can justify without requiring every installation to operate the same specialist
+infrastructure.
 
 That contribution rests on several existing boundaries:
 
@@ -158,8 +163,8 @@ That contribution rests on several existing boundaries:
 - authorization and hydration remain in the ordinary Byline read path.
 
 These properties do not themselves constitute linked-data, ontology, or semantic-search
-support. They make those features more credible to add because the institutional record
-remains authoritative, reviewable, and portable.
+support. What they may provide is a more credible foundation for adding those features while
+the institutional record remains authoritative, reviewable, and portable.
 
 ## A capability-led roadmap
 
@@ -171,15 +176,17 @@ remains authoritative, reviewable, and portable.
 | Actively researched | Embedding artifacts, hybrid lexical/vector retrieval, cross-lingual evaluation, and selected standards profiles | Rebuild and deletion tests, model/version tracking, profile validation, and human relevance judgments for each claimed language and domain. |
 | Future, where justified | Relationship traversal, richer linked-data projections, cited natural-language answers, and MCP tools | A real partner use case, permission-safe retrieval, measurable improvement over simpler approaches, and an operational maintenance plan. |
 
-The sequence is intentional. Structured metadata and confirmed identities improve both lexical
-and semantic retrieval. Extraction makes the collection searchable before it makes it
-answerable. Hybrid search should earn its place against a measured baseline. Agent interfaces
-should expose proven retrieval rather than conceal weak retrieval behind fluent text.
+This is how we currently view the problem. Structured metadata and
+confirmed identities can improve both lexical and semantic retrieval. Extraction can make a
+collection searchable before we try to make it answerable. We want hybrid search to
+demonstrate its value against a measured baseline, and agent interfaces to expose retrieval we
+have tested rather than risk concealing weak results behind fluent text.
 
 ## Working with institutions
 
-The most useful next step is not to promise every standard in the table. It is to choose one
-collection and one exchange or discovery problem with an institutional partner:
+For now, it is arguably more practical (and honest) to avoid promising every standard in the table
+and instead choose one collection and one exchange or discovery problem with an institutional
+partner:
 
 1. identify the questions users actually ask;
 2. select the smallest relevant metadata and authority profile;
@@ -195,7 +202,7 @@ environment for taxonomic reconciliation and biodiversity queries. One deploymen
 itself, validate museum-event modelling, archival standards, or CIDOC-CRM claims. Those
 directions need partners from the relevant communities.
 
-Byline's intended signal is therefore measured but serious: we understand the standards and
-retrieval problems institutional collections face; the architecture already reserves useful
-boundaries for them; and we want to develop affordable, verifiable support with institutions
-rather than announce an ontology platform before one exists.
+What we hope this signals is a measured but serious direction. We understand the
+standards and retrieval problems institutional collections face; the architecture already
+reserves useful boundaries for them; and our goal is to develop affordable and verifiable
+support with institutions rather than announce an ontology platform before one exists.
