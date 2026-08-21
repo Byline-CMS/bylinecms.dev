@@ -786,6 +786,7 @@
     "packages/i18n/src/admin/index.ts|export|fr",
     "packages/i18n/src/admin/index.ts|export|it",
     "packages/i18n/src/admin/index.ts|export|ko",
+    "packages/i18n/src/admin/index.ts|export|th",
     "packages/i18n/src/admin/index.ts|export|zhCN",
     "packages/i18n/src/admin/index.ts|type|AdminNamespaceTranslations",
     "packages/i18n/src/index.ts|type|Formatter",
