@@ -7,11 +7,17 @@
  */
 
 import type { CollectionDefinition, WorkflowStatus } from '@byline/core'
-import { getAdminConfig, getWorkflowStatuses, groupCollectionsForAdmin } from '@byline/core'
+import {
+  filterReadableCollections,
+  getAdminConfig,
+  getWorkflowStatuses,
+  groupCollectionsForAdmin,
+} from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Card, Container, Section } from '@byline/ui/react'
 import cx from 'clsx'
 
+import { useAbilities } from '../../integrations/abilities.jsx'
 import { getAdminRoutePath } from '../../routes/admin-path.js'
 import styles from './dashboard.module.css'
 import { Link } from './loose-router.js'
@@ -127,11 +133,24 @@ interface AdminDashboardProps {
 
 export function AdminDashboard({ statsMap }: AdminDashboardProps) {
   const config = getAdminConfig()
-  const buckets = groupCollectionsForAdmin(
-    config.collections,
-    config.admin,
-    config.collectionGroups
-  )
+  const { t } = useTranslation('byline-admin')
+  const { isSuperAdmin, abilities } = useAbilities()
+
+  // Filter before bucketing. A group left with no readable members arrives at
+  // `groupCollectionsForAdmin` empty and is skipped, so its heading disappears
+  // along with it — there is no group-level ability concept anywhere.
+  const visible = filterReadableCollections(config.collections, { isSuperAdmin, abilities })
+  const buckets = groupCollectionsForAdmin(visible, config.admin, config.collectionGroups)
+
+  if (buckets.length === 0) {
+    return (
+      <Section>
+        <Container>
+          <p className="muted">{t('dashboard.noCollections')}</p>
+        </Container>
+      </Section>
+    )
+  }
 
   return (
     <Section>

@@ -122,6 +122,7 @@
   "account.changePassword.errors.couldNotChange": "无法更改密码，请重试。",
   "account.changePassword.feedback.updated": "密码已更新。",
   "dashboard.collectionDescription": "{label}集合",
+  "dashboard.noCollections": "您没有任何集合的访问权限。请联系管理员授予读取权限。",
   "dashboard.totalCount": "共 {count, number} 项",
   "adminUsers.list.title": "管理员用户",
   "adminUsers.list.columns.givenName": "名",

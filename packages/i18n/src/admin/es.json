@@ -122,6 +122,7 @@
   "account.changePassword.errors.couldNotChange": "No se pudo cambiar la contraseña. Inténtalo de nuevo.",
   "account.changePassword.feedback.updated": "Contraseña actualizada.",
   "dashboard.collectionDescription": "Colección {label}",
+  "dashboard.noCollections": "No tienes acceso a ninguna colección. Pide a un administrador que te conceda acceso de lectura.",
   "dashboard.totalCount": "{count, number} en total",
   "adminUsers.list.title": "Usuarios administradores",
   "adminUsers.list.columns.givenName": "Nombre",

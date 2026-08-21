@@ -8,7 +8,7 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import { getAdminConfig } from '@byline/core'
+import { filterReadableCollections, getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
@@ -19,12 +19,27 @@ import { getAdminRoutePath } from './admin-path.js'
 export function createAdminDashboardRoute(path: string) {
   // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
   const Route: any = createFileRoute(path as never)({
-    loader: async () => {
+    loader: async ({
+      context,
+    }: {
+      context: { user: { is_super_admin: boolean; abilities: string[] } }
+    }) => {
       const { collections } = getAdminConfig()
+
+      // Only fetch counts for collections this administrator can read. Without
+      // the filter, `getCollectionStats` fires for every collection and the
+      // ones it cannot read throw inside `countByStatus`, get swallowed, and
+      // land as an empty array — rendering every status tile as zero, which is
+      // indistinguishable from a genuinely empty collection.
+      const visible = filterReadableCollections(collections, {
+        isSuperAdmin: context.user.is_super_admin,
+        abilities: context.user.abilities,
+      })
+
       const statsMap: Record<string, CollectionStatusCount[]> = {}
 
       await Promise.all(
-        collections
+        visible
           .filter((c) => c.showStats === true)
           .map(async (c) => {
             try {

@@ -122,6 +122,7 @@
   "account.changePassword.errors.couldNotChange": "ไม่สามารถเปลี่ยนรหัสผ่านได้ กรุณาลองอีกครั้ง",
   "account.changePassword.feedback.updated": "อัปเดตรหัสผ่านแล้ว",
   "dashboard.collectionDescription": "คอลเลกชัน {label}",
+  "dashboard.noCollections": "คุณไม่มีสิทธิ์เข้าถึงคอลเลกชันใด ๆ โปรดติดต่อผู้ดูแลระบบเพื่อขอสิทธิ์การอ่าน",
   "dashboard.totalCount": "ทั้งหมด {count, number} รายการ",
   "adminUsers.list.title": "ผู้ใช้ผู้ดูแลระบบ",
   "adminUsers.list.columns.givenName": "ชื่อ",
