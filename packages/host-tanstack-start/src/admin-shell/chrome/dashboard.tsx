@@ -72,7 +72,12 @@ function CollectionCard({
   stats: CollectionStatusCount[] | undefined
 }) {
   const { t } = useTranslation('byline-admin')
-  const total = stats?.reduce((sum, s) => sum + s.count, 0) ?? 0
+  // `stats` is undefined when the collection opted out of counts (no
+  // `showStats: true` on the definition) — the dashboard loader only fetches
+  // them for collections that opted in. Falling back to a total of zero there
+  // would read as "this collection is empty", so the count is omitted along
+  // with the status tiles.
+  const total = stats !== undefined ? stats.reduce((sum, s) => sum + s.count, 0) : undefined
   const workflowStatuses = getWorkflowStatuses(collection)
 
   return (
@@ -88,9 +93,11 @@ function CollectionCard({
               <span className={cx('byline-dashboard-title-text', styles.titleText)}>
                 {collection.labels.plural}
               </span>
-              <span className={cx('muted byline-dashboard-title-meta', styles.titleMeta)}>
-                {t('dashboard.totalCount', { count: total })}
-              </span>
+              {total !== undefined && (
+                <span className={cx('muted byline-dashboard-title-meta', styles.titleMeta)}>
+                  {t('dashboard.totalCount', { count: total })}
+                </span>
+              )}
             </Card.Title>
             <Card.Description className="muted">
               {t('dashboard.collectionDescription', { label: collection.labels.plural })}
