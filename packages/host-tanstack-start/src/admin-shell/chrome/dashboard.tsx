@@ -6,12 +6,18 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { WorkflowStatus } from '@byline/core'
-import { getAdminConfig, getWorkflowStatuses } from '@byline/core'
+import type { CollectionDefinition, WorkflowStatus } from '@byline/core'
+import {
+  filterReadableCollections,
+  getAdminConfig,
+  getWorkflowStatuses,
+  groupCollectionsForAdmin,
+} from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Card, Container, Section } from '@byline/ui/react'
 import cx from 'clsx'
 
+import { useAbilities } from '../../integrations/abilities.jsx'
 import { getAdminRoutePath } from '../../routes/admin-path.js'
 import styles from './dashboard.module.css'
 import { Link } from './loose-router.js'
@@ -58,6 +64,69 @@ function StatTile({
   )
 }
 
+function CollectionCard({
+  collection,
+  stats,
+}: {
+  collection: CollectionDefinition
+  stats: CollectionStatusCount[] | undefined
+}) {
+  const { t } = useTranslation('byline-admin')
+  const total = stats?.reduce((sum, s) => sum + s.count, 0) ?? 0
+  const workflowStatuses = getWorkflowStatuses(collection)
+
+  return (
+    <Card>
+      <Link
+        to={getAdminRoutePath('collections', '$collection')}
+        params={{ collection: collection.path }}
+        className={cx('byline-dashboard-card-link', styles.cardLink)}
+      >
+        <Card.Header>
+          <div className={cx('byline-dashboard-card-header', styles.cardHeader)}>
+            <Card.Title className={cx('byline-dashboard-card-title', styles.cardTitle)}>
+              <span className={cx('byline-dashboard-title-text', styles.titleText)}>
+                {collection.labels.plural}
+              </span>
+              <span className={cx('muted byline-dashboard-title-meta', styles.titleMeta)}>
+                {t('dashboard.totalCount', { count: total })}
+              </span>
+            </Card.Title>
+            <Card.Description className="muted">
+              {t('dashboard.collectionDescription', { label: collection.labels.plural })}
+            </Card.Description>
+          </div>
+        </Card.Header>
+      </Link>
+      <Card.Content>
+        {stats !== undefined ? (
+          <div className={cx('byline-dashboard-stat-grid', styles.statGrid)}>
+            {workflowStatuses.map((ws) => {
+              const entry = stats.find((s) => s.status === ws.name)
+              return (
+                <StatTile
+                  key={ws.name}
+                  ws={ws}
+                  count={entry?.count ?? 0}
+                  collectionPath={collection.path}
+                />
+              )
+            })}
+          </div>
+        ) : (
+          <Link
+            to={getAdminRoutePath('collections', '$collection')}
+            params={{ collection: collection.path }}
+            className={cx('byline-dashboard-empty-link', styles.emptyLink)}
+          >
+            <p>{t('dashboard.collectionDescription', { label: collection.labels.plural })}</p>
+          </Link>
+        )}
+      </Card.Content>
+    </Card>
+  )
+}
+
 interface AdminDashboardProps {
   statsMap: Record<string, CollectionStatusCount[]>
 }
@@ -65,70 +134,48 @@ interface AdminDashboardProps {
 export function AdminDashboard({ statsMap }: AdminDashboardProps) {
   const config = getAdminConfig()
   const { t } = useTranslation('byline-admin')
+  const { isSuperAdmin, abilities } = useAbilities()
+
+  // Filter before bucketing. A group left with no readable members arrives at
+  // `groupCollectionsForAdmin` empty and is skipped, so its heading disappears
+  // along with it — there is no group-level ability concept anywhere.
+  const visible = filterReadableCollections(config.collections, { isSuperAdmin, abilities })
+  const buckets = groupCollectionsForAdmin(visible, config.admin, config.collectionGroups)
+
+  if (buckets.length === 0) {
+    return (
+      <Section>
+        <Container>
+          <p className="muted">{t('dashboard.noCollections')}</p>
+        </Container>
+      </Section>
+    )
+  }
 
   return (
     <Section>
       <Container>
-        <div className={cx('byline-dashboard-grid', styles.grid)}>
-          {config.collections.map((collection) => {
-            const stats = statsMap[collection.path]
-            const total = stats?.reduce((sum, s) => sum + s.count, 0) ?? 0
-            const workflowStatuses = getWorkflowStatuses(collection)
-
-            return (
-              <Card key={collection.path}>
-                <Link
-                  to={getAdminRoutePath('collections', '$collection')}
-                  params={{ collection: collection.path }}
-                  className={cx('byline-dashboard-card-link', styles.cardLink)}
-                >
-                  <Card.Header>
-                    <div className={cx('byline-dashboard-card-header', styles.cardHeader)}>
-                      <Card.Title className={cx('byline-dashboard-card-title', styles.cardTitle)}>
-                        <span className={cx('byline-dashboard-title-text', styles.titleText)}>
-                          {collection.labels.plural}
-                        </span>
-                        <span className={cx('muted byline-dashboard-title-meta', styles.titleMeta)}>
-                          {t('dashboard.totalCount', { count: total })}
-                        </span>
-                      </Card.Title>
-                      <Card.Description className="muted">
-                        {t('dashboard.collectionDescription', { label: collection.labels.plural })}
-                      </Card.Description>
-                    </div>
-                  </Card.Header>
-                </Link>
-                <Card.Content>
-                  {stats !== undefined ? (
-                    <div className={cx('byline-dashboard-stat-grid', styles.statGrid)}>
-                      {workflowStatuses.map((ws) => {
-                        const entry = stats.find((s) => s.status === ws.name)
-                        return (
-                          <StatTile
-                            key={ws.name}
-                            ws={ws}
-                            count={entry?.count ?? 0}
-                            collectionPath={collection.path}
-                          />
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <Link
-                      to={getAdminRoutePath('collections', '$collection')}
-                      params={{ collection: collection.path }}
-                      className={cx('byline-dashboard-empty-link', styles.emptyLink)}
-                    >
-                      <p>
-                        {t('dashboard.collectionDescription', { label: collection.labels.plural })}
-                      </p>
-                    </Link>
-                  )}
-                </Card.Content>
-              </Card>
-            )
-          })}
-        </div>
+        {buckets.map((bucket) => (
+          <section
+            key={bucket.name ?? '__ungrouped__'}
+            className={cx('byline-dashboard-group', styles.group)}
+          >
+            {bucket.label !== null && (
+              <h2 className={cx('byline-dashboard-group-heading', styles.groupHeading)}>
+                {bucket.label}
+              </h2>
+            )}
+            <div className={cx('byline-dashboard-grid', styles.grid)}>
+              {bucket.collections.map((collection) => (
+                <CollectionCard
+                  key={collection.path}
+                  collection={collection}
+                  stats={statsMap[collection.path]}
+                />
+              ))}
+            </div>
+          </section>
+        ))}
       </Container>
     </Section>
   )

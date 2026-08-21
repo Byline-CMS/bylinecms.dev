@@ -86,6 +86,8 @@ const itemViewColumns: ColumnDefinition[] = [
 ]
 
 export const MediaAdmin: CollectionAdminConfig = defineAdmin(Media, {
+  /** Dashboard group — see `collectionGroups` in `byline/admin.config.ts`. */
+  group: 'media',
   /**
    * Column definitions for the default table-based list view.
    * Controls which fields appear as columns, their labels, sort behaviour, and formatters.

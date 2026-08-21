@@ -17,6 +17,7 @@
 
 export * from './@types/index.js'
 export {
+  type ActorAbilitySnapshot,
   applyBeforeRead,
   assertActorCanPerform,
   bindReadContextAuthority,
@@ -24,6 +25,7 @@ export {
   type CollectionAbilityVerb,
   collectionAbilityKey,
   compileBeforeReadFilters,
+  filterReadableCollections,
   registerCollectionAbilities,
 } from './auth/index.js'
 export {
@@ -35,10 +37,15 @@ export {
   getServerConfig,
   orderByContentLocale,
 } from './config/config.js'
+export {
+  type CollectionGroupBucket,
+  groupCollectionsForAdmin,
+} from './config/group-collections.js'
 export { resolveRoutes } from './config/routes.js'
 export {
   validateAdminConfigs,
   validateBlockAdminConfigs,
+  validateCollectionGroups,
 } from './config/validate-admin-configs.js'
 export { RESERVED_FIELD_NAMES } from './config/validate-collections.js'
 export { type BylineCore, getBylineCore, initBylineCore } from './core.js'

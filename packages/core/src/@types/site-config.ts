@@ -10,7 +10,11 @@ import type { SessionProvider } from '@byline/auth'
 
 import type { SlugifierFn } from '../utils/slugify.js'
 import type { FilenameSlugifierFn } from '../utils/slugify-filename.js'
-import type { BlockAdminConfig, CollectionAdminConfig } from './admin-types.js'
+import type {
+  BlockAdminConfig,
+  CollectionAdminConfig,
+  CollectionGroupDefinition,
+} from './admin-types.js'
 import type {
   CollectionDefinition,
   CollectionHooks,
@@ -156,6 +160,21 @@ export type TranslationBundleShape = Readonly<{
 export interface AdminConfig extends BaseConfig {
   /** Admin UI configuration for collections (client-side only). */
   admin?: CollectionAdminConfig[]
+
+  /**
+   * Ordered registry of dashboard collection groups. Array order is display
+   * order. A collection joins a group by setting `CollectionAdminConfig.group`
+   * to an entry's `name`.
+   *
+   * Omit entirely to keep the flat, ungrouped dashboard grid — this property is
+   * purely additive and changes nothing when absent.
+   *
+   * Boot-validated by `validateAdminConfigs`: duplicate names, blank names or
+   * labels, and references to undeclared names all throw.
+   *
+   * @see CollectionGroupDefinition
+   */
+  collectionGroups?: CollectionGroupDefinition[]
 
   /**
    * Admin UI configuration for blocks, keyed by `blockType` — the block-scoped

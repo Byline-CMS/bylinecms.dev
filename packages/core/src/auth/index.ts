@@ -13,6 +13,10 @@ export {
 } from './apply-before-read.js'
 export { assertActorCanPerform } from './assert-actor-can-perform.js'
 export {
+  type ActorAbilitySnapshot,
+  filterReadableCollections,
+} from './filter-readable-collections.js'
+export {
   COLLECTION_ABILITY_VERBS,
   type CollectionAbilityVerb,
   collectionAbilityKey,

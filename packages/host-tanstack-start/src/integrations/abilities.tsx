@@ -71,12 +71,13 @@ export function useAbilities(): {
   has: (ability: string) => boolean
   hasAny: (abilities: readonly string[]) => boolean
   isSuperAdmin: boolean
+  abilities: readonly string[]
 } {
   const { user } = useAbilityRouteContext()
   const has = (ability: string): boolean => user.is_super_admin || user.abilities.includes(ability)
   const hasAny = (abilities: readonly string[]): boolean =>
     user.is_super_admin || abilities.some((key) => user.abilities.includes(key))
-  return { has, hasAny, isSuperAdmin: user.is_super_admin }
+  return { has, hasAny, isSuperAdmin: user.is_super_admin, abilities: user.abilities }
 }
 
 /**

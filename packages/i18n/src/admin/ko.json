@@ -122,6 +122,7 @@
   "account.changePassword.errors.couldNotChange": "비밀번호를 변경할 수 없습니다. 다시 시도해 주세요.",
   "account.changePassword.feedback.updated": "비밀번호가 업데이트되었습니다.",
   "dashboard.collectionDescription": "{label} 컬렉션",
+  "dashboard.noCollections": "접근할 수 있는 컬렉션이 없습니다. 관리자에게 읽기 권한을 요청하세요.",
   "dashboard.totalCount": "총 {count, number}개",
   "adminUsers.list.title": "관리자 사용자",
   "adminUsers.list.columns.givenName": "이름",

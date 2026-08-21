@@ -200,6 +200,32 @@ export interface FieldAdminConfig {
 }
 
 /**
+ * One labelled group of collections on the admin dashboard.
+ *
+ * Declared in display order on `AdminConfig.collectionGroups` and referenced by
+ * `name` from `CollectionAdminConfig.group`. Array order is the order headings
+ * appear on the dashboard; a group with no member collections is not rendered
+ * at all, so no heading ever sits above an empty section.
+ */
+export interface CollectionGroupDefinition {
+  /**
+   * Stable key referenced by `CollectionAdminConfig.group`. Boot-validated —
+   * a reference to an undeclared name throws at startup rather than silently
+   * producing an extra heading.
+   */
+  name: string
+  /**
+   * Heading text rendered above this group's collections.
+   *
+   * A plain string, deliberately not translated: `CollectionDefinition.labels`
+   * are themselves rendered untranslated on the dashboard, so translating group
+   * headings alone would put a localised heading above English card titles.
+   * Translated headings belong to a later, uniform collection-label i18n pass.
+   */
+  label: string
+}
+
+/**
  * Minimal document shape passed to `CollectionAdminConfig.preview.url`.
  *
  * Inlined here (rather than importing `ClientDocument` from `@byline/client`)
@@ -227,7 +253,15 @@ export interface CollectionAdminConfig<T = any> {
   /** Must match the `path` of the corresponding `CollectionDefinition`. */
   slug: string
 
-  /** Group name for organising collections in the admin sidebar. */
+  /**
+   * Dashboard group this collection belongs to. Must name an entry in
+   * `AdminConfig.collectionGroups`; an unknown name throws at startup.
+   *
+   * Omit to place the collection in the leading ungrouped band, which renders
+   * above the first group heading with no heading of its own.
+   *
+   * @see CollectionGroupDefinition
+   */
   group?: string
 
   /** Column definitions for the collection list view. */

@@ -2,7 +2,10 @@
  * AdminDashboard — collection-summary cards on /admin.
  *
  * Override handles:
- *   .byline-dashboard-grid             — outer auto-fit card grid
+ *   .byline-dashboard-grid             — auto-fit card grid inside each group
+ *   .byline-dashboard-group            — one section per group (and the
+ *                                        heading-less ungrouped band)
+ *   .byline-dashboard-group-heading    — the group's heading
  *   .byline-dashboard-card-header      — header row of each card
  *   .byline-dashboard-card-title       — flex row inside the header
  *   .byline-dashboard-title-text       — collection plural-name label
@@ -21,7 +24,11 @@
 .grid,
 :global(.byline-dashboard-grid) {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  /* `auto-fill` rather than `auto-fit`: each group owns its own grid, so a
+     group holding a single collection would stretch that card across the full
+     row under `auto-fit`. `auto-fill` keeps the empty tracks, so cards are the
+     same width in every group regardless of how many the group holds. */
+  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
   gap: 1.5rem;
 }
 
@@ -242,4 +249,37 @@
 .emptyLink,
 :global(.byline-dashboard-empty-link) {
   display: block;
+}
+
+/* Group sections — one per dashboard collection group, plus the leading
+   ungrouped band, which renders with no heading. */
+
+.group,
+:global(.byline-dashboard-group) {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.group + .group,
+:global(.byline-dashboard-group) + :global(.byline-dashboard-group) {
+  margin-top: 2.5rem;
+}
+
+.groupHeading,
+:global(.byline-dashboard-group-heading) {
+  margin: 0;
+  padding-bottom: 0.5rem;
+  border-bottom: var(--border-width-thin) var(--border-style-solid) var(--gray-200);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--gray-600);
+}
+
+:is([data-theme="dark"], :global(.dark)) .groupHeading,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-dashboard-group-heading) {
+  border-bottom-color: var(--gray-700);
+  color: var(--gray-400);
 }

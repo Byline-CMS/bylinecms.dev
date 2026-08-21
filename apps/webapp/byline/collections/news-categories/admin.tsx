@@ -73,6 +73,8 @@ const itemViewColumns: ColumnDefinition[] = [
 ]
 
 export const NewsCategoriesAdmin: CollectionAdminConfig = defineAdmin(NewsCategories, {
+  /** Dashboard group — see `collectionGroups` in `byline/admin.config.ts`. */
+  group: 'taxonomy',
   columns: listViewColumns,
   itemView: itemViewColumns,
 })

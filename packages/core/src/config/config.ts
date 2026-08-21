@@ -75,7 +75,7 @@ export const getCollectionAdminConfig = (slug: string): CollectionAdminConfig | 
 
 export function defineAdminConfig(config: AdminConfig): ResolvedAdminConfig {
   validateCollections(config.collections)
-  validateAdminConfigs(config.admin, config.collections)
+  validateAdminConfigs(config.admin, config.collections, config.collectionGroups)
   validateBlockAdminConfigs(config.blockAdmin, config.collections)
   const resolved = { ...config, routes: resolveRoutes(config.routes) }
   setAdminConfigInstance(resolved)

@@ -125,6 +125,7 @@ not transfer Byline's host-only session or preview cookies across origins.
 ```ts
 interface AdminConfig extends BaseConfig {
   admin?: CollectionAdminConfig[]
+  collectionGroups?: CollectionGroupDefinition[]
   blockAdmin?: BlockAdminConfig[]
   slugifier?: SlugifierFn
   fields?: {
@@ -136,6 +137,7 @@ interface AdminConfig extends BaseConfig {
 | Property | Default | Description |
 |---|---|---|
 | `admin` | `[]` | Collection presentation configs registered by `defineAdmin()`. Each `slug` must match a collection `path`. |
+| `collectionGroups` | `[]` | Ordered registry of dashboard collection groups, each `{ name, label }`. Array order is display order. A collection joins a group by setting `CollectionAdminConfig.group` to an entry's `name`. Omit for a flat dashboard. |
 | `blockAdmin` | `[]` | Site-wide block presentation configs registered by `defineBlockAdmin()`, keyed by `blockType`. |
 | `slugifier` | `slugify` | Client copy used by the admin path widget for live previews. Register the same pure synchronous function on `ServerConfig.slugifier`. |
 | `fields.richText.editor` | None | React editor component used for rich-text fields unless a per-field admin config overrides it. Rich-text fields in the admin require a registered editor. |
@@ -148,6 +150,7 @@ export const config: AdminConfig = {
   routes,
   collections,
   admin: [DocsAdmin, NewsAdmin, PagesAdmin],
+  collectionGroups: [{ name: 'media', label: 'Media' }],
   blockAdmin: [QuoteBlockAdmin, PhotoBlockAdmin],
   fields: { richText: { editor: LexicalRichTextAi } },
 }

@@ -122,6 +122,7 @@
   "account.changePassword.errors.couldNotChange": "Impossible de modifier le mot de passe. Veuillez réessayer.",
   "account.changePassword.feedback.updated": "Mot de passe mis à jour.",
   "dashboard.collectionDescription": "Collection {label}",
+  "dashboard.noCollections": "Vous n'avez accès à aucune collection. Demandez à un administrateur de vous accorder un accès en lecture.",
   "dashboard.totalCount": "{count, number} au total",
   "adminUsers.list.title": "Utilisateurs admin",
   "adminUsers.list.columns.givenName": "Prénom",
