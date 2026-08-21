@@ -35,6 +35,10 @@ export {
   getServerConfig,
   orderByContentLocale,
 } from './config/config.js'
+export {
+  type CollectionGroupBucket,
+  groupCollectionsForAdmin,
+} from './config/group-collections.js'
 export { resolveRoutes } from './config/routes.js'
 export {
   validateAdminConfigs,
