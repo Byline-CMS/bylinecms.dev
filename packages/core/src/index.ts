@@ -17,6 +17,7 @@
 
 export * from './@types/index.js'
 export {
+  type ActorAbilitySnapshot,
   applyBeforeRead,
   assertActorCanPerform,
   bindReadContextAuthority,
@@ -24,6 +25,7 @@ export {
   type CollectionAbilityVerb,
   collectionAbilityKey,
   compileBeforeReadFilters,
+  filterReadableCollections,
   registerCollectionAbilities,
 } from './auth/index.js'
 export {
