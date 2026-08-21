@@ -1,5 +1,16 @@
 # @byline/admin
 
+## 4.14.1
+
+### Patch Changes
+
+- fixed the admin dashboard showing a zero total for collections with stats turned off, and pinned the admin menu drawer so it stays in view while the admin area scrolls
+- Updated dependencies
+  - @byline/auth@4.14.1
+  - @byline/core@4.14.1
+  - @byline/i18n@4.14.1
+  - @byline/ui@4.14.1
+
 ## 4.14.0
 
 ### Minor Changes

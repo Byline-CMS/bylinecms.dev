@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 4.14.1
+
+### Patch Changes
+
+- fixed the admin dashboard showing a zero total for collections with stats turned off, and pinned the admin menu drawer so it stays in view while the admin area scrolls
+
 ## 4.14.0
 
 ### Minor Changes
