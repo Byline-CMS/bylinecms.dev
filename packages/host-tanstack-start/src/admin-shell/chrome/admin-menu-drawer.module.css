@@ -47,10 +47,16 @@
   overflow: hidden;
 }
 
+/* Pinned under the fixed app bar (45px) for the whole scroll of the page.
+   `align-self: flex-start` keeps the sticky box from being stretched to the
+   full height of the flex row — a stretched sticky item has no room to move
+   and never pins. */
 .asideDesktop,
 :global(.byline-admin-menu-drawer-aside-desktop) {
-  position: relative;
-  align-self: stretch;
+  position: sticky;
+  top: 45px;
+  align-self: flex-start;
+  height: calc(100vh - 45px);
   flex-shrink: 0;
 }
 
@@ -64,12 +70,13 @@
   width: 60px;
 }
 
+/* The aside owns the viewport-height box; the nav just fills it and scrolls
+   internally when the menu is longer than the drawer. */
 .nav,
 :global(.byline-admin-menu-drawer) {
-  position: sticky;
-  top: 0;
+  flex: 1 1 auto;
+  min-height: 0;
   margin: 0;
-  max-height: calc(100vh - 60px);
   overflow-y: auto;
 }
 
