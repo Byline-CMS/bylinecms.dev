@@ -39,6 +39,7 @@ export { resolveRoutes } from './config/routes.js'
 export {
   validateAdminConfigs,
   validateBlockAdminConfigs,
+  validateCollectionGroups,
 } from './config/validate-admin-configs.js'
 export { RESERVED_FIELD_NAMES } from './config/validate-collections.js'
 export { type BylineCore, getBylineCore, initBylineCore } from './core.js'

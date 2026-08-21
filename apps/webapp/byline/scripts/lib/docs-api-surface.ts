@@ -46,6 +46,7 @@ const adminConfigKeys = completeKeys<AdminConfig>()([
   'collections',
   'routes',
   'admin',
+  'collectionGroups',
   'blockAdmin',
   'slugifier',
   'fields',

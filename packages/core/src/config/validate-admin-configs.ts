@@ -16,6 +16,7 @@ import type {
   BlockAdminConfig,
   CollectionAdminConfig,
   CollectionDefinition,
+  CollectionGroupDefinition,
   Field,
 } from '../@types/index.js'
 
@@ -74,6 +75,63 @@ function validateFieldAdminKeys(
 }
 
 /**
+ * Validate the dashboard collection-group registry and every reference to it.
+ *
+ * Enforced rules:
+ *  1. Each `collectionGroups` entry has a non-blank `name` and `label`.
+ *  2. No two entries share a `name`.
+ *  3. Every `CollectionAdminConfig.group` names a declared entry. This single
+ *     rule covers both a typographical error and the case where `group` was set
+ *     but the registry was never declared.
+ *
+ * Throws a plain `Error` for the same reason the rest of this module does —
+ * configuration validation runs at startup, before the logger and error
+ * registry are necessarily wired up.
+ */
+export function validateCollectionGroups(
+  collectionGroups: readonly CollectionGroupDefinition[] | undefined,
+  admins: readonly CollectionAdminConfig[] | undefined
+): void {
+  const declared = new Set<string>()
+
+  for (const group of collectionGroups ?? []) {
+    const name = typeof group.name === 'string' ? group.name.trim() : ''
+    const label = typeof group.label === 'string' ? group.label.trim() : ''
+
+    if (name === '') {
+      throw new Error(
+        'A `collectionGroups` entry has a blank `name`. Each entry needs a non-empty key for `CollectionAdminConfig.group` to reference.'
+      )
+    }
+    if (label === '') {
+      throw new Error(
+        `Collection group "${name}" has a blank \`label\`. The label is the heading rendered above the group on the dashboard.`
+      )
+    }
+    if (declared.has(name)) {
+      throw new Error(
+        `Collection group "${name}" is declared more than once in \`collectionGroups\`. Group names must be unique.`
+      )
+    }
+    declared.add(name)
+  }
+
+  for (const admin of admins ?? []) {
+    if (admin.group == null) continue
+    if (declared.has(admin.group)) continue
+
+    const known =
+      declared.size === 0
+        ? '`collectionGroups` was not declared, or is empty'
+        : `declared groups: ${[...declared].map((name) => `"${name}"`).join(', ')}`
+
+    throw new Error(
+      `Collection "${admin.slug}": \`group: '${admin.group}'\` does not name a declared collection group (${known}). Add it to \`AdminConfig.collectionGroups\`, or remove the \`group\` property.`
+    )
+  }
+}
+
+/**
  * Validate every admin config in a configuration.
  *
  * Enforced rules (per admin config):
@@ -97,6 +155,9 @@ function validateFieldAdminKeys(
  *     direction (when given) is `asc` | `desc`, and the option is rejected
  *     on `orderable: true` collections (manual ordering owns their default
  *     sort and the drag-to-reorder canonical-view check assumes it).
+ *  8. Collection groups — the `collectionGroups` registry is well-formed
+ *     (non-blank, unique names) and every `admin.group` names a declared
+ *     entry. See `validateCollectionGroups`.
  *
  * Throws a plain `Error` (not a `BylineError`) because configuration
  * validation runs at startup, before the logger and error registry are
@@ -104,8 +165,13 @@ function validateFieldAdminKeys(
  */
 export function validateAdminConfigs(
   admins: readonly CollectionAdminConfig[] | undefined,
-  collections: readonly CollectionDefinition[]
+  collections: readonly CollectionDefinition[],
+  collectionGroups?: readonly CollectionGroupDefinition[]
 ): void {
+  // Registry sanity runs before the early return below, so a malformed registry
+  // still fails fast in an installation that declares no admin configs.
+  validateCollectionGroups(collectionGroups, admins)
+
   if (admins == null || admins.length === 0) return
 
   const collectionsByPath = new Map<string, CollectionDefinition>()

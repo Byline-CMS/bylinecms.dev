@@ -592,3 +592,81 @@ describe('validateBlockAdminConfigs', () => {
     ).not.toThrow()
   })
 })
+
+describe('validateAdminConfigs — collection groups', () => {
+  const groups = [
+    { name: 'media', label: 'Media' },
+    { name: 'taxonomy', label: 'Taxonomies' },
+  ]
+
+  it('accepts a valid registry and a valid reference', () => {
+    expect(() =>
+      validateAdminConfigs([{ slug: 'news', group: 'media' }], [collection], groups)
+    ).not.toThrow()
+  })
+
+  it('accepts a collection with no group when a registry is declared', () => {
+    expect(() => validateAdminConfigs([{ slug: 'news' }], [collection], groups)).not.toThrow()
+  })
+
+  it('is a no-op when no registry and no group references are present', () => {
+    expect(() => validateAdminConfigs([{ slug: 'news' }], [collection])).not.toThrow()
+  })
+
+  it('rejects a duplicate group name', () => {
+    expect(() =>
+      validateAdminConfigs(
+        [{ slug: 'news' }],
+        [collection],
+        [
+          { name: 'media', label: 'Media' },
+          { name: 'media', label: 'Media Library' },
+        ]
+      )
+    ).toThrow(/declared more than once/)
+  })
+
+  it('rejects a blank group name', () => {
+    expect(() =>
+      validateAdminConfigs([{ slug: 'news' }], [collection], [{ name: '  ', label: 'Media' }])
+    ).toThrow(/blank `name`/)
+  })
+
+  it('rejects a blank group label', () => {
+    expect(() =>
+      validateAdminConfigs([{ slug: 'news' }], [collection], [{ name: 'media', label: '' }])
+    ).toThrow(/blank `label`/)
+  })
+
+  it('rejects a group reference that names no declared group', () => {
+    expect(() =>
+      validateAdminConfigs([{ slug: 'news', group: 'medai' }], [collection], groups)
+    ).toThrow(/does not name a declared collection group/)
+  })
+
+  it('names the declared groups in the unresolved-reference error', () => {
+    expect(() =>
+      validateAdminConfigs([{ slug: 'news', group: 'medai' }], [collection], groups)
+    ).toThrow(/"media", "taxonomy"/)
+  })
+
+  it('rejects a group reference when no registry was declared at all', () => {
+    expect(() => validateAdminConfigs([{ slug: 'news', group: 'media' }], [collection])).toThrow(
+      /was not declared/
+    )
+  })
+
+  // Registry sanity must not be skipped by the `admins` early return.
+  it('validates the registry even when there are no admin configs', () => {
+    expect(() =>
+      validateAdminConfigs(
+        [],
+        [collection],
+        [
+          { name: 'media', label: 'Media' },
+          { name: 'media', label: 'Media Library' },
+        ]
+      )
+    ).toThrow(/declared more than once/)
+  })
+})
