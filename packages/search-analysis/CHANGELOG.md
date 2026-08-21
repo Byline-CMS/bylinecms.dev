@@ -1,5 +1,17 @@
 # @byline/search-analysis
 
+## 4.14.0
+
+### Minor Changes
+
+- added admin dashboard collection groups — an ordered `AdminConfig.collectionGroups` registry that collections join by key via `CollectionAdminConfig.group`, boot-validated and additive (omit it and the dashboard is unchanged)
+  fixed the dashboard showing collections the administrator cannot read, which previously rendered every status tile as zero and was indistinguishable from an empty collection
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@4.14.0
+
 ## 4.13.1
 
 ### Patch Changes
