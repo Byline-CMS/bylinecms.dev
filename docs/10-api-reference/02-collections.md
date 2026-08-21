@@ -129,7 +129,7 @@ export const ArticlesAdmin = defineAdmin(Articles, {
 | Property | Required or default | Description |
 |---|---|---|
 | `slug` | Required; set by `defineAdmin()` | Must equal the corresponding collection `path`. |
-| `group` | None | Admin navigation group label. |
+| `group` | None | Dashboard group this collection belongs to. Names an entry in `AdminConfig.collectionGroups` — a key, not a heading. Omit to place the collection in the leading ungrouped band. Boot-validated. |
 | `columns` | Synthesized defaults | Columns for the collection's default list view. |
 | `defaultSort` | `createdAt desc` | Initial list sort when the URL has no explicit order. Invalid on `orderable` collections. |
 | `itemView` | `useAsTitle` plus `path` | Compact row/tile projection and presentation used by relation pickers and relation summaries. |
