@@ -47,8 +47,8 @@
     "dist"
   ],
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1113.0",
-    "@aws-sdk/lib-storage": "^3.1113.0",
+    "@aws-sdk/client-s3": "^3.1115.0",
+    "@aws-sdk/lib-storage": "^3.1115.0",
     "@byline/core": "workspace:*",
     "uuid": "^14.0.2"
   },

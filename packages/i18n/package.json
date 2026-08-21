@@ -67,7 +67,7 @@
     "@formatjs/intl-localematcher": "^0.8.13",
     "clsx": "^2.1.1",
     "intl-messageformat": "^11.2.14",
-    "negotiator": "^1.0.0"
+    "negotiator": "^1.1.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",
@@ -81,13 +81,13 @@
     "@types/node": "^26.2.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
-    "@vitejs/plugin-react": "^6.0.5",
+    "@vitejs/plugin-react": "^6.1.0",
     "npm-run-all": "^4.1.5",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "rimraf": "^6.1.3",
     "typescript": "^7.0.2",
-    "vite": "^8.2.1",
+    "vite": "^8.2.2",
     "vitest": "^4.1.11"
   },
   "publishConfig": {
