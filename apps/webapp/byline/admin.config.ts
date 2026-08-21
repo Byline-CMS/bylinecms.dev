@@ -40,6 +40,13 @@ export const config: AdminConfig = {
   i18n,
   routes,
   collections,
+  // Dashboard grouping. `docs`, `news`, and `pages` deliberately declare no
+  // group — they render in the leading ungrouped band above these headings,
+  // which is what an installation gets while it is adopting groups gradually.
+  collectionGroups: [
+    { name: 'media', label: 'Media' },
+    { name: 'taxonomy', label: 'Taxonomies' },
+  ],
   admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, NewsCategoriesAdmin],
   // Per-block admin config, keyed by blockType — applies wherever the block
   // renders. Quote/Photo opt a block richtext field into the minimal

@@ -24,7 +24,11 @@
 .grid,
 :global(.byline-dashboard-grid) {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  /* `auto-fill` rather than `auto-fit`: each group owns its own grid, so a
+     group holding a single collection would stretch that card across the full
+     row under `auto-fit`. `auto-fill` keeps the empty tracks, so cards are the
+     same width in every group regardless of how many the group holds. */
+  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
   gap: 1.5rem;
 }
 

@@ -21,3 +21,6 @@ integrating it into their own app.
 - [Admin-config registration](./02-admin-config-registration.md) — how the
   admin/editor configuration is registered on the client, why it is code-split
   away from public routes, and the trade-offs behind the current approach.
+- [Collection groups](./03-collection-groups.md) — arranging dashboard
+  collections into labelled groups, and filtering cards to the collections an
+  administrator is allowed to read.
