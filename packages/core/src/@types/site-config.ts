@@ -467,7 +467,7 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    * exposed as `BylineCore.recurringTasks` for `runDueTasks()` /
    * `startBylineScheduler()` to consume; nothing here starts a timer.
    */
-  recurringTasks?: RecurringTaskDefinition[]
+  recurringTasks?: readonly RecurringTaskDefinition[]
 }
 
 /** Server config returned after boundary validation and canonicalization. */

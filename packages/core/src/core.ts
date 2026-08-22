@@ -152,8 +152,19 @@ export const initBylineCore = async <TAdminStore = unknown>(
   // adapter that does not implement the optional scheduler capability would
   // silently never run. Fail-fast at boot, same posture as search above. This
   // only validates and gates — it does not start anything.
-  const recurringTasks = resolvedConfig.recurringTasks ?? []
-  validateSchedulerConfig({ tasks: recurringTasks, adapter: composed.db })
+  validateSchedulerConfig({ tasks: resolvedConfig.recurringTasks ?? [], adapter: composed.db })
+
+  // Freeze a snapshot of the validated task set: a new array of new, frozen
+  // objects, then freeze the array itself. Without this, `core.recurringTasks`
+  // would hold the caller's own array and definition objects, so a caller
+  // could `push()` a task or mutate `intervalMs` after `initBylineCore()`
+  // returns and bypass validation entirely. Both `core.recurringTasks` and
+  // the resolved config's `recurringTasks` are assigned this same snapshot so
+  // no path exposes the caller's originals.
+  const recurringTasks = Object.freeze(
+    (resolvedConfig.recurringTasks ?? []).map((task) => Object.freeze({ ...task }))
+  )
+  resolvedConfig.recurringTasks = recurringTasks
 
   // Tree edges are unversioned metadata and may only run on adapters that can
   // lock, mutate, and append audit rows in one transaction.
