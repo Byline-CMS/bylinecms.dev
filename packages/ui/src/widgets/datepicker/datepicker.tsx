@@ -59,6 +59,14 @@ export interface DatePickerProps extends React.InputHTMLAttributes<HTMLInputElem
    * A caller that needs a cutoff finer than a day has to enforce it itself.
    */
   minDate?: Date
+  /**
+   * Latest selectable day, the mirror of `minDate`: days after it are disabled
+   * and the month navigation will not go forward past its month. Takes
+   * precedence over `yearsInFuture`, which otherwise sets the upper bound.
+   *
+   * Day granularity only, on the same terms as `minDate`.
+   */
+  maxDate?: Date
   yearsInFuture?: number
   yearsInPast?: number
   variant?: Variant
@@ -96,6 +104,7 @@ export function DatePicker({
   initialValue,
   mode = 'datetime',
   minDate,
+  maxDate,
   yearsInFuture = 1,
   yearsInPast = 10,
   variant,
@@ -162,6 +171,15 @@ export function DatePicker({
     if (onWallTimeChange == null) return
     onWallTimeChange(day == null ? null : { date: format(day, 'yyyy-MM-dd'), time: clock })
   }
+
+  // Two separate matchers, never one `{ before, after }` object: that shape is
+  // react-day-picker's DateInterval and matches the days *between* the two
+  // bounds — the exact inverse of an allowed window. An array of matchers is
+  // OR'd, so each bound disables its own side.
+  const disabledDays = [
+    ...(minDate == null ? [] : [{ before: minDate }]),
+    ...(maxDate == null ? [] : [{ after: maxDate }]),
+  ]
 
   const handleOnKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'ArrowDown') {
@@ -293,12 +311,12 @@ export function DatePicker({
                         emitWallTime(day, time)
                       }
                     }}
-                    disabled={minDate == null ? undefined : { before: minDate }}
-                    // Clamp the navigable range to `minDate`'s month as well as
-                    // disabling the days, so the editor is not offered months
+                    disabled={disabledDays.length > 0 ? disabledDays : undefined}
+                    // Clamp the navigable range to the bounds as well as
+                    // disabling the days, so the caller is not offered months
                     // in which nothing can be picked.
                     startMonth={minDate ?? new Date(new Date().getFullYear() - yearsInPast, 0)}
-                    endMonth={new Date(new Date().getFullYear() + yearsInFuture, 0)}
+                    endMonth={maxDate ?? new Date(new Date().getFullYear() + yearsInFuture, 0)}
                   />
                 </div>
                 {mode === 'datetime' && (
