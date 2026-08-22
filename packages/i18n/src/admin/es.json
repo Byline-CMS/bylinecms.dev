@@ -578,6 +578,8 @@
   "scheduledPublication.list.schedulerWarningTitle": "El programador de publicaciones requiere atención",
   "scheduledPublication.list.schedulerWarningBody": "Estado del programador: {status}. Los documentos programados siguen protegidos, pero la publicación automática puede retrasarse.",
   "scheduledPublication.list.filters.allStates": "Todos los estados",
+  "scheduledPublication.list.filters.state": "Estado",
+  "scheduledPublication.list.filters.authorizerHelp": "Pega un id de cuenta para encontrar todas las programaciones que sigue autorizando.",
   "scheduledPublication.list.filters.authorizer": "ID del último autorizador",
   "scheduledPublication.list.filters.apply": "Aplicar filtros",
   "scheduledPublication.list.filters.clear": "Borrar filtros",

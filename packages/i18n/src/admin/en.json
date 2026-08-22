@@ -578,6 +578,8 @@
   "scheduledPublication.list.schedulerWarningTitle": "The publication scheduler needs attention",
   "scheduledPublication.list.schedulerWarningBody": "Scheduler status: {status}. Scheduled documents remain safe, but automatic publication may be delayed.",
   "scheduledPublication.list.filters.allStates": "All states",
+  "scheduledPublication.list.filters.state": "State",
+  "scheduledPublication.list.filters.authorizerHelp": "Paste an account id to find every schedule it still authorizes.",
   "scheduledPublication.list.filters.authorizer": "Last authorizer ID",
   "scheduledPublication.list.filters.apply": "Apply filters",
   "scheduledPublication.list.filters.clear": "Clear filters",

@@ -578,6 +578,8 @@
   "scheduledPublication.list.schedulerWarningTitle": "ตัวกำหนดเวลาเผยแพร่ต้องได้รับการตรวจสอบ",
   "scheduledPublication.list.schedulerWarningBody": "สถานะตัวกำหนดเวลา: {status} เอกสารที่กำหนดเวลาไว้ยังปลอดภัย แต่การเผยแพร่อัตโนมัติอาจล่าช้า",
   "scheduledPublication.list.filters.allStates": "ทุกสถานะ",
+  "scheduledPublication.list.filters.state": "สถานะ",
+  "scheduledPublication.list.filters.authorizerHelp": "วาง ID บัญชีเพื่อค้นหากำหนดการทั้งหมดที่บัญชีนั้นยังอนุมัติอยู่",
   "scheduledPublication.list.filters.authorizer": "ID ผู้อนุมัติล่าสุด",
   "scheduledPublication.list.filters.apply": "ใช้ตัวกรอง",
   "scheduledPublication.list.filters.clear": "ล้างตัวกรอง",

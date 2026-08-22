@@ -108,19 +108,25 @@
 .help,
 .validation,
 .warningText {
-  margin: var(--spacing-8) 0 0;
   font-size: var(--font-size-sm);
 }
 
-/* Standing guidance, not a warning about anything that has happened yet — so
-   it reads as muted help text alongside the time zone note, rather than
-   claiming an alert colour the rest of the admin does not use here. */
-.help,
+/* Belongs to the field above it — the zone qualifies every time shown in the
+   picker, so it sits tight under the input and reads at full strength rather
+   than as an aside. */
+.help {
+  margin: var(--spacing-4) 0 0;
+}
+
+/* Standing guidance, not a warning about anything that has happened yet, so it
+   is muted rather than claiming an alert colour. */
 .warningText {
+  margin: var(--spacing-12) 0 0;
   color: var(--gray-500);
 }
 
 .validation {
+  margin: var(--spacing-8) 0 0;
   color: var(--red-600);
 }
 

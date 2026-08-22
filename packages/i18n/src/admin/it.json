@@ -578,6 +578,8 @@
   "scheduledPublication.list.schedulerWarningTitle": "Il pianificatore delle pubblicazioni richiede attenzione",
   "scheduledPublication.list.schedulerWarningBody": "Stato del pianificatore: {status}. I documenti programmati restano protetti, ma la pubblicazione automatica potrebbe subire ritardi.",
   "scheduledPublication.list.filters.allStates": "Tutti gli stati",
+  "scheduledPublication.list.filters.state": "Stato",
+  "scheduledPublication.list.filters.authorizerHelp": "Incolla un id account per trovare tutte le programmazioni che autorizza ancora.",
   "scheduledPublication.list.filters.authorizer": "ID dell'ultima autorizzazione",
   "scheduledPublication.list.filters.apply": "Applica filtri",
   "scheduledPublication.list.filters.clear": "Cancella filtri",

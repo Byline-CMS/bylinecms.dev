@@ -578,6 +578,8 @@
   "scheduledPublication.list.schedulerWarningTitle": "Der Veröffentlichungsplaner benötigt Aufmerksamkeit",
   "scheduledPublication.list.schedulerWarningBody": "Planerstatus: {status}. Geplante Dokumente bleiben geschützt, die automatische Veröffentlichung kann sich jedoch verzögern.",
   "scheduledPublication.list.filters.allStates": "Alle Zustände",
+  "scheduledPublication.list.filters.state": "Status",
+  "scheduledPublication.list.filters.authorizerHelp": "Fügen Sie eine Konto-ID ein, um alle noch von ihr autorisierten Planungen zu finden.",
   "scheduledPublication.list.filters.authorizer": "ID der letzten Autorisierung",
   "scheduledPublication.list.filters.apply": "Filter anwenden",
   "scheduledPublication.list.filters.clear": "Filter löschen",

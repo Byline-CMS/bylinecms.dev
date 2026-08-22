@@ -578,6 +578,8 @@
   "scheduledPublication.list.schedulerWarningTitle": "Le planificateur de publication nécessite une intervention",
   "scheduledPublication.list.schedulerWarningBody": "État du planificateur : {status}. Les documents planifiés restent protégés, mais leur publication automatique peut être retardée.",
   "scheduledPublication.list.filters.allStates": "Tous les états",
+  "scheduledPublication.list.filters.state": "État",
+  "scheduledPublication.list.filters.authorizerHelp": "Collez un identifiant de compte pour trouver toutes les planifications qu’il autorise encore.",
   "scheduledPublication.list.filters.authorizer": "ID du dernier autorisateur",
   "scheduledPublication.list.filters.apply": "Appliquer les filtres",
   "scheduledPublication.list.filters.clear": "Effacer les filtres",
