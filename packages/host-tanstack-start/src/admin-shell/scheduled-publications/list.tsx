@@ -260,13 +260,18 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
                       </Table.Cell>
                       <Table.Cell>
                         <Button
-                          size="sm"
+                          size="xs"
                           type="button"
-                          variant="text"
+                          intent="danger"
                           disabled={cancelling === schedule.documentId}
+                          // The column header already says Actions and the row
+                          // is a schedule, so the short label carries here —
+                          // unlike the editor's menu, where "Cancel schedule"
+                          // has to distinguish itself from cancelling an edit.
+                          aria-label={t('scheduledPublication.actions.cancel')}
                           onClick={() => cancel(schedule.collectionPath, schedule.documentId)}
                         >
-                          {t('scheduledPublication.actions.cancel')}
+                          {t('common.actions.cancel')}
                         </Button>
                       </Table.Cell>
                     </Table.Row>
