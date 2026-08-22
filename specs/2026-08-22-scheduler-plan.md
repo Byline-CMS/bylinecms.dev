@@ -898,7 +898,7 @@ Behaviour is proved in Task 5, not here — the conformance suite is the gate.
 
 ### Task 5: Shared conformance suite
 
-The eleven behaviours the spec pins. This suite is the artifact that makes the later MySQL pass
+The twelve behaviours the spec pins. This suite is the artifact that makes the later MySQL pass
 mechanical, so it must talk only to `ISchedulerStore` — never to Drizzle, `pg`, or any
 adapter-internal handle.
 
@@ -936,7 +936,7 @@ Create `packages/db-conformance/src/suites/scheduler.ts`. Structure it as one to
 whose `beforeAll` calls `hooks.truncate()` then `hooks.createSchedulerStore!()`. Each test
 reconciles the definitions it needs with a unique name prefix so tests do not collide.
 
-The eleven behaviours, one `it` each:
+The twelve behaviours, one `it` each:
 
 1. **Two simultaneous claims produce one winner.** Reconcile a task with a 60s interval, force it
    due, then `await Promise.all([store.claim(...), store.claim(...)])`. Exactly one result is
@@ -1008,6 +1008,14 @@ away, so re-reconcile at `intervalMs: 1` between failures to make the row claima
 assert the backoff by reading `health()` rather than by waiting for it.
 
 Do **not** issue raw SQL to manipulate `next_run_at` — that would couple the suite to one adapter.
+
+**Two fixture requirements that decide whether this suite catches real defects.** The
+"stale token" cases must use a token that is **not a well-formed UUID** — Postgres stores
+`lease_token` as `uuid` and MySQL as `char(36)`, so a random-but-valid UUID would exercise
+neither backend's failure path, and a suite that only ever passes valid UUIDs cannot tell a
+store that returns `false` from one that raises a type error. And the `health()` cases must
+cover all four argument shapes — omitted, one name, several names, and an empty array —
+because array binding is where adapter SQL generation most commonly breaks.
 Do **not** relax `MIN_INTERVAL_MS` or `MIN_LEASE_MS`; they are definition-level and correct.
 
 Behaviours 2 and 11 need a lease that expires inside a test, and they can have one:
