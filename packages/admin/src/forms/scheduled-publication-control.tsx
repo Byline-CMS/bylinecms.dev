@@ -409,6 +409,9 @@ function ScheduleModal({
   // already authorized, or a lead time from now — so seeding it never has to
   // construct a `Date` from a wall time.
   const [seedInstant] = useState<Date>(() => seedScheduleInstant(schedule))
+  // Held, not recomputed per render, so the calendar's disabled range does not
+  // shift under the editor while the modal is open.
+  const [today] = useState<Date>(() => new Date())
   const [wall, setWall] = useState<ScheduledPublicationWallTime>(() =>
     wallTimeInZone(seedInstant, timeZone)
   )
@@ -505,6 +508,11 @@ function ScheduleModal({
               label={t('scheduledPublication.form.dateTime')}
               mode="datetime"
               inputSize="sm"
+              // Today is the earliest selectable day. Deliberately day-grained:
+              // a later slot today is a perfectly good schedule, so the day
+              // stays open and the submit-time check below is what rejects an
+              // hour that has already gone.
+              minDate={today}
               yearsInPast={0}
               yearsInFuture={5}
               initialValue={seedInstant}

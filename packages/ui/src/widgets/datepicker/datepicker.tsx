@@ -50,6 +50,15 @@ export interface DatePickerProps extends React.InputHTMLAttributes<HTMLInputElem
   required?: boolean
   initialValue?: Date | null
   mode?: 'date' | 'datetime'
+  /**
+   * Earliest selectable day. Days before it are disabled in the calendar and
+   * the month navigation will not go back past its month.
+   *
+   * Day granularity only — the day containing `minDate` stays selectable in
+   * full, and in `datetime` mode every slot in the time list remains offered.
+   * A caller that needs a cutoff finer than a day has to enforce it itself.
+   */
+  minDate?: Date
   yearsInFuture?: number
   yearsInPast?: number
   variant?: Variant
@@ -86,6 +95,7 @@ export function DatePicker({
   required,
   initialValue,
   mode = 'datetime',
+  minDate,
   yearsInFuture = 1,
   yearsInPast = 10,
   variant,
@@ -283,13 +293,12 @@ export function DatePicker({
                         emitWallTime(day, time)
                       }
                     }}
-                    startMonth={new Date(new Date().getFullYear() - yearsInPast, 0)}
+                    disabled={minDate == null ? undefined : { before: minDate }}
+                    // Clamp the navigable range to `minDate`'s month as well as
+                    // disabling the days, so the editor is not offered months
+                    // in which nothing can be picked.
+                    startMonth={minDate ?? new Date(new Date().getFullYear() - yearsInPast, 0)}
                     endMonth={new Date(new Date().getFullYear() + yearsInFuture, 0)}
-                    // TODO: add props
-                    // disabled={(date) =>
-                    //   Number(date) < Date.now() - 1000 * 60 * 60 * 24 ||
-                    //   Number(date) > Date.now() + 1000 * 60 * 60 * 24 * 30
-                    // }
                   />
                 </div>
                 {mode === 'datetime' && (
