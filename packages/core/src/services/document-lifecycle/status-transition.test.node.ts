@@ -135,7 +135,7 @@ describe('commitDocumentStatusTransition', () => {
     expect(harness.order).toEqual(['transaction-start', 'transaction-rollback'])
   })
 
-  it('rolls the status, auto-archive, and audit back when the after contribution throws', async () => {
+  it('propagates an after-contribution failure so the transaction rolls back', async () => {
     const harness = createTransitionHarness()
     const error = new Error('schedule deletion failed')
 
