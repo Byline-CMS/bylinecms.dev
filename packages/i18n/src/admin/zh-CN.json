@@ -580,11 +580,6 @@
   "scheduledPublication.list.schedulerWarningBody": "调度器状态：{status}。已安排的文档仍然安全，但自动发布可能延迟。",
   "scheduledPublication.list.filters.allStates": "所有状态",
   "scheduledPublication.list.filters.state": "状态",
-  "scheduledPublication.list.filters.authorizerHelp": "粘贴账户 ID 以查找它仍在授权的所有排期。",
-  "scheduledPublication.list.filters.authorizerInvalid": "这不是账户 ID。请从管理员用户中粘贴完整的 ID。",
-  "scheduledPublication.list.filters.authorizer": "最后授权者 ID",
-  "scheduledPublication.list.filters.apply": "应用筛选条件",
-  "scheduledPublication.list.filters.clear": "清除筛选条件",
   "scheduledPublication.list.states.armed": "已就绪",
   "scheduledPublication.list.states.needsReconfirm": "需要重新确认",
   "scheduledPublication.list.states.overdue": "已逾期",
@@ -594,6 +589,7 @@
   "scheduledPublication.list.columns.publishAt": "发布时间",
   "scheduledPublication.list.columns.state": "状态",
   "scheduledPublication.list.columns.authorizer": "最后授权者",
+  "scheduledPublication.list.authorizerMissing": "该账户已不存在，显示其 ID。",
   "scheduledPublication.list.columns.attempt": "尝试次数 / 最后错误",
   "scheduledPublication.list.columns.actions": "操作"
 }

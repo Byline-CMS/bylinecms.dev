@@ -580,11 +580,6 @@
   "scheduledPublication.list.schedulerWarningBody": "Estado del programador: {status}. Los documentos programados siguen protegidos, pero la publicación automática puede retrasarse.",
   "scheduledPublication.list.filters.allStates": "Todos los estados",
   "scheduledPublication.list.filters.state": "Estado",
-  "scheduledPublication.list.filters.authorizerHelp": "Pega un id de cuenta para encontrar todas las programaciones que sigue autorizando.",
-  "scheduledPublication.list.filters.authorizerInvalid": "Eso no es un id de cuenta. Pega el id completo desde Usuarios.",
-  "scheduledPublication.list.filters.authorizer": "ID del último autorizador",
-  "scheduledPublication.list.filters.apply": "Aplicar filtros",
-  "scheduledPublication.list.filters.clear": "Borrar filtros",
   "scheduledPublication.list.states.armed": "Preparada",
   "scheduledPublication.list.states.needsReconfirm": "Requiere nueva confirmación",
   "scheduledPublication.list.states.overdue": "Atrasada",
@@ -594,6 +589,7 @@
   "scheduledPublication.list.columns.publishAt": "Hora de publicación",
   "scheduledPublication.list.columns.state": "Estado",
   "scheduledPublication.list.columns.authorizer": "Última autorización por",
+  "scheduledPublication.list.authorizerMissing": "Esta cuenta ya no existe; se muestra su id.",
   "scheduledPublication.list.columns.attempt": "Intentos / último error",
   "scheduledPublication.list.columns.actions": "Acciones"
 }

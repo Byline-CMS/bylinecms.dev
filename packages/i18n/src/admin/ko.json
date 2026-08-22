@@ -580,11 +580,6 @@
   "scheduledPublication.list.schedulerWarningBody": "스케줄러 상태: {status}. 예약된 문서는 안전하지만 자동 게시가 지연될 수 있습니다.",
   "scheduledPublication.list.filters.allStates": "모든 상태",
   "scheduledPublication.list.filters.state": "상태",
-  "scheduledPublication.list.filters.authorizerHelp": "계정 ID를 붙여넣어 해당 계정이 여전히 승인 중인 모든 예약을 찾으세요.",
-  "scheduledPublication.list.filters.authorizerInvalid": "계정 ID가 아닙니다. 관리자 사용자에서 전체 ID를 붙여넣으세요.",
-  "scheduledPublication.list.filters.authorizer": "마지막 승인자 ID",
-  "scheduledPublication.list.filters.apply": "필터 적용",
-  "scheduledPublication.list.filters.clear": "필터 지우기",
   "scheduledPublication.list.states.armed": "준비됨",
   "scheduledPublication.list.states.needsReconfirm": "재확인 필요",
   "scheduledPublication.list.states.overdue": "기한 경과",
@@ -594,6 +589,7 @@
   "scheduledPublication.list.columns.publishAt": "게시 시간",
   "scheduledPublication.list.columns.state": "상태",
   "scheduledPublication.list.columns.authorizer": "마지막 승인자",
+  "scheduledPublication.list.authorizerMissing": "이 계정은 더 이상 존재하지 않아 ID를 표시합니다.",
   "scheduledPublication.list.columns.attempt": "시도 / 마지막 오류",
   "scheduledPublication.list.columns.actions": "작업"
 }

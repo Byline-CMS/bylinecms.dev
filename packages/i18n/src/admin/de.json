@@ -580,11 +580,6 @@
   "scheduledPublication.list.schedulerWarningBody": "Planerstatus: {status}. Geplante Dokumente bleiben geschützt, die automatische Veröffentlichung kann sich jedoch verzögern.",
   "scheduledPublication.list.filters.allStates": "Alle Zustände",
   "scheduledPublication.list.filters.state": "Status",
-  "scheduledPublication.list.filters.authorizerHelp": "Fügen Sie eine Konto-ID ein, um alle noch von ihr autorisierten Planungen zu finden.",
-  "scheduledPublication.list.filters.authorizerInvalid": "Das ist keine Konto-ID. Fügen Sie die vollständige ID aus der Benutzerverwaltung ein.",
-  "scheduledPublication.list.filters.authorizer": "ID der letzten Autorisierung",
-  "scheduledPublication.list.filters.apply": "Filter anwenden",
-  "scheduledPublication.list.filters.clear": "Filter löschen",
   "scheduledPublication.list.states.armed": "Aktiviert",
   "scheduledPublication.list.states.needsReconfirm": "Erneute Bestätigung erforderlich",
   "scheduledPublication.list.states.overdue": "Überfällig",
@@ -594,6 +589,7 @@
   "scheduledPublication.list.columns.publishAt": "Veröffentlichungszeit",
   "scheduledPublication.list.columns.state": "Zustand",
   "scheduledPublication.list.columns.authorizer": "Zuletzt autorisiert von",
+  "scheduledPublication.list.authorizerMissing": "Dieses Konto existiert nicht mehr; die ID wird angezeigt.",
   "scheduledPublication.list.columns.attempt": "Versuche / letzter Fehler",
   "scheduledPublication.list.columns.actions": "Aktionen"
 }

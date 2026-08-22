@@ -61,6 +61,7 @@
 }
 
 .tableWrap {
+  margin-top: 0.75rem;
   overflow-x: auto;
 }
 

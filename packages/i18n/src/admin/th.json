@@ -580,11 +580,6 @@
   "scheduledPublication.list.schedulerWarningBody": "สถานะตัวกำหนดเวลา: {status} เอกสารที่กำหนดเวลาไว้ยังปลอดภัย แต่การเผยแพร่อัตโนมัติอาจล่าช้า",
   "scheduledPublication.list.filters.allStates": "ทุกสถานะ",
   "scheduledPublication.list.filters.state": "สถานะ",
-  "scheduledPublication.list.filters.authorizerHelp": "วาง ID บัญชีเพื่อค้นหากำหนดการทั้งหมดที่บัญชีนั้นยังอนุมัติอยู่",
-  "scheduledPublication.list.filters.authorizerInvalid": "นี่ไม่ใช่ ID บัญชี โปรดวาง ID แบบเต็มจากผู้ดูแลระบบ",
-  "scheduledPublication.list.filters.authorizer": "ID ผู้อนุมัติล่าสุด",
-  "scheduledPublication.list.filters.apply": "ใช้ตัวกรอง",
-  "scheduledPublication.list.filters.clear": "ล้างตัวกรอง",
   "scheduledPublication.list.states.armed": "พร้อมทำงาน",
   "scheduledPublication.list.states.needsReconfirm": "ต้องยืนยันอีกครั้ง",
   "scheduledPublication.list.states.overdue": "เลยเวลา",
@@ -594,6 +589,7 @@
   "scheduledPublication.list.columns.publishAt": "เวลาเผยแพร่",
   "scheduledPublication.list.columns.state": "สถานะ",
   "scheduledPublication.list.columns.authorizer": "อนุมัติล่าสุดโดย",
+  "scheduledPublication.list.authorizerMissing": "บัญชีนี้ไม่มีอยู่แล้ว จึงแสดง ID แทน",
   "scheduledPublication.list.columns.attempt": "จำนวนครั้ง / ข้อผิดพลาดล่าสุด",
   "scheduledPublication.list.columns.actions": "การดำเนินการ"
 }

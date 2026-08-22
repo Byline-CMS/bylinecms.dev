@@ -580,11 +580,6 @@
   "scheduledPublication.list.schedulerWarningBody": "État du planificateur : {status}. Les documents planifiés restent protégés, mais leur publication automatique peut être retardée.",
   "scheduledPublication.list.filters.allStates": "Tous les états",
   "scheduledPublication.list.filters.state": "État",
-  "scheduledPublication.list.filters.authorizerHelp": "Collez un identifiant de compte pour trouver toutes les planifications qu’il autorise encore.",
-  "scheduledPublication.list.filters.authorizerInvalid": "Ceci n’est pas un identifiant de compte. Collez l’identifiant complet depuis Utilisateurs.",
-  "scheduledPublication.list.filters.authorizer": "ID du dernier autorisateur",
-  "scheduledPublication.list.filters.apply": "Appliquer les filtres",
-  "scheduledPublication.list.filters.clear": "Effacer les filtres",
   "scheduledPublication.list.states.armed": "Armée",
   "scheduledPublication.list.states.needsReconfirm": "Nouvelle confirmation requise",
   "scheduledPublication.list.states.overdue": "En retard",
@@ -594,6 +589,7 @@
   "scheduledPublication.list.columns.publishAt": "Heure de publication",
   "scheduledPublication.list.columns.state": "État",
   "scheduledPublication.list.columns.authorizer": "Dernière autorisation par",
+  "scheduledPublication.list.authorizerMissing": "Ce compte n’existe plus ; son identifiant est affiché.",
   "scheduledPublication.list.columns.attempt": "Tentatives / dernière erreur",
   "scheduledPublication.list.columns.actions": "Actions"
 }

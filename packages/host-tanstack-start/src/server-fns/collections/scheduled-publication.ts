@@ -68,6 +68,14 @@ export interface ScheduledPublicationListItem extends SerializedDocumentPublishS
   collectionPath: string
   collectionLabel: string
   documentPath: string | null
+  /**
+   * Display name for `lastAuthorizedBy` — full name, or email when the account
+   * has no name set. `null` when the account no longer exists, which is a real
+   * state rather than an error: the authorizer column is not a foreign key, so
+   * a schedule outlives the account that authorized it. Callers fall back to
+   * showing the id.
+   */
+  lastAuthorizedByName: string | null
 }
 
 export interface ScheduledPublicationListResponse {
@@ -205,6 +213,30 @@ export const listScheduledPublications = createServerFn({ method: 'GET' })
         return [record.collectionId, definition] as const
       })
     )
+    // Resolve authorizer names in one query for the whole page rather than one
+    // per row. `last_authorized_by` is deliberately not a foreign key — deleting
+    // an admin account must not revoke a schedule it authorized — so an id here
+    // may simply have no user row left, and the caller falls back to the id.
+    const authorizerIds = [
+      ...new Set(
+        result.schedules
+          .map((schedule) => schedule.lastAuthorizedBy)
+          .filter((id): id is string => id != null)
+      ),
+    ]
+    const authorizerNames = new Map<string, string>()
+    // `adminStore` is optional on core — an installation can run without the
+    // admin subsystem — so a missing store simply means no names to resolve and
+    // the column falls back to ids.
+    const adminUsers = core.adminStore?.adminUsers
+    if (authorizerIds.length > 0 && adminUsers != null) {
+      const users = await adminUsers.getByIds(authorizerIds)
+      for (const user of users) {
+        const fullName = [user.given_name, user.family_name].filter(Boolean).join(' ').trim()
+        authorizerNames.set(user.id, fullName.length > 0 ? fullName : user.email)
+      }
+    }
+
     const schedules = await Promise.all(
       result.schedules.map(async (schedule): Promise<ScheduledPublicationListItem> => {
         const definition = collections.get(schedule.collectionId)
@@ -217,6 +249,10 @@ export const listScheduledPublications = createServerFn({ method: 'GET' })
           collectionPath: definition?.path ?? schedule.collectionId,
           collectionLabel: definition?.labels.plural ?? definition?.path ?? schedule.collectionId,
           documentPath,
+          lastAuthorizedByName:
+            schedule.lastAuthorizedBy == null
+              ? null
+              : (authorizerNames.get(schedule.lastAuthorizedBy) ?? null),
         }
       })
     )
