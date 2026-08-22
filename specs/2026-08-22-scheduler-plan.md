@@ -733,6 +733,11 @@ The claim/fencing protocol. Every statement derives time from the database via `
 - Create: `packages/db-postgres/src/modules/scheduler/scheduler-store.ts`
 - Modify: `packages/db-postgres/src/index.ts` (attach `scheduler` to the adapter)
 
+**Note:** `interval_ms` and `last_duration_ms` are `bigint`. The `pg` driver returns bigint as a
+**string** by default. The store must coerce to `number` on read (values are guaranteed safe
+integers by boot validation) so `RecurringTaskHealth.intervalMs` and `lastDurationMs` are numbers,
+not strings. This is the single most likely defect in this task.
+
 **Interfaces:**
 - Consumes: `ISchedulerStore`, `ClaimedRecurringTask`, `RecurringTaskHealth`, `ReconcileTaskInput`,
   `MAX_BACKOFF_MS` (Tasks 1–2); the `recurringTasks` table (Task 3).
@@ -783,6 +788,15 @@ WHERE name = $1
 RETURNING name, lease_token, next_run_at AS scheduled_for, now() AS database_now
 ```
 
+The claim must also report **`recoveredExpiredLease`** — true when it took over a lease that had
+expired (a previous runner died mid-execution), false when it claimed an unleased row. The runner
+logs a distinct `recovered-expired-lease` event for the former. Capture it in the same statement
+rather than with a second read: add `(lease_expires_at IS NOT NULL) AS recovered_expired_lease` to
+the `RETURNING` list — because `lease_expires_at` is in the SET list, `RETURNING` on it would give
+the NEW value, so read it via an expression evaluated against the old row, or restructure as an
+`UPDATE ... FROM (SELECT ...)` if the driver makes that cleaner. Whichever form is used, the
+returned flag must describe the row's state **before** this claim.
+
 Return `null` when zero rows changed. Competing instances affect zero rows and do nothing. Note
 `scheduled_for` is the pre-update `next_run_at`, which Postgres `RETURNING` gives from the old row
 only if selected before assignment — since `next_run_at` is not in the SET list, `RETURNING
@@ -796,7 +810,10 @@ SET lease_expires_at = now() + make_interval(secs => $3 / 1000.0), updated_at = 
 WHERE name = $1 AND lease_token = $2
 ```
 
-**`complete({ name, leaseToken, intervalMs, durationMs, workRemaining })`** — token-matched:
+**`complete({ name, leaseToken, durationMs, workRemaining })`** — token-matched. Note there is
+**no `intervalMs` parameter**: `next_run_at` derives from the row's own persisted `interval_ms`,
+so a runner holding a lease across a rolling deploy cannot write a stale cadence over a newly
+reconciled one.
 
 ```sql
 UPDATE byline_recurring_tasks SET
@@ -808,11 +825,14 @@ UPDATE byline_recurring_tasks SET
   lease_token = NULL,
   lease_owner = NULL,
   lease_expires_at = NULL,
-  next_run_at = CASE WHEN $5 THEN now()
-                     ELSE now() + make_interval(secs => $3 / 1000.0) END,
+  next_run_at = CASE WHEN $4 THEN now()
+                     ELSE now() + make_interval(secs => interval_ms / 1000.0) END,
   updated_at = now()
 WHERE name = $1 AND lease_token = $2
 ```
+
+`interval_ms` in the `CASE` is the row's own column — Postgres evaluates SET expressions against
+the OLD row, so this is the persisted cadence, which is exactly the intent.
 
 **`fail({ name, leaseToken, durationMs, error })`** — token-matched, with the bounded backoff of
 1, 2, 4, 8, then at most 15 minutes, computed from the incremented failure count:
