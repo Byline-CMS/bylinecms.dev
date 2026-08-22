@@ -186,7 +186,13 @@ class SchedulerStore implements ISchedulerStore {
     return affectedRowCount(result) === 1
   }
 
-  /** Complete a token-matched run and schedule from the persisted cadence. */
+  /**
+   * Complete a token-matched run and schedule from the persisted cadence.
+   * `interval_ms` is read but not assigned here, so assignment order is
+   * currently irrelevant. If a future change adds it to this SET list, keep
+   * that assignment after `next_run_at` so the persisted pre-update cadence is
+   * retained; see `fail()` for MySQL's left-to-right assignment rule.
+   */
   async complete(params: {
     name: string
     leaseToken: string
