@@ -113,4 +113,28 @@ runAdapterConformanceSuite({
       pool.off('release', onRelease)
     }
   },
+
+  async observePublishScheduleContention<T>(operation: () => Promise<T>) {
+    const { pool } = setupTestDB([])
+    let activeConnections = 0
+    let maxConcurrentConnections = 0
+
+    const onAcquire = () => {
+      activeConnections++
+      maxConcurrentConnections = Math.max(maxConcurrentConnections, activeConnections)
+    }
+    const onRelease = () => {
+      activeConnections--
+    }
+
+    pool.on('acquire', onAcquire)
+    pool.on('release', onRelease)
+    try {
+      const result = await operation()
+      return { result, maxConcurrentConnections }
+    } finally {
+      pool.off('acquire', onAcquire)
+      pool.off('release', onRelease)
+    }
+  },
 })
