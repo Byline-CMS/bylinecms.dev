@@ -6,7 +6,7 @@
   "engines": {
     "node": ">=20.9.0"
   },
-  "description": "Byline CMS admin subsystem — admin users, roles, permissions, account self-service, and the built-in JWT session provider",
+  "description": "Byline CMS admin subsystem \u2014 admin users, roles, permissions, account self-service, and the built-in JWT session provider",
   "keywords": [
     "cms",
     "headless cms",
@@ -33,9 +33,11 @@
     "build": "rslib build",
     "clean": "node scripts/clean.js node_modules dist build .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
-    "test": "vitest run --mode=node",
+    "test": "vitest run --mode=jsdom && vitest run --mode=node",
     "test:watch": "vitest --mode=node",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:jsdom": "vitest run --mode=jsdom",
+    "test:node": "vitest run --mode=node"
   },
   "sideEffects": [
     "**/*.css"
@@ -198,6 +200,8 @@
     "@types/node": "^26.2.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "rimraf": "^6.1.3",

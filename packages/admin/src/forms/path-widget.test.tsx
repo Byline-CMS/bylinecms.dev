@@ -8,6 +8,8 @@
 
 import { act } from 'react'
 
+import { adminTranslations } from '@byline/i18n/admin'
+import { I18nProvider } from '@byline/i18n/react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -112,15 +114,25 @@ describe('PathWidget', () => {
   ) => {
     act(() => {
       root.render(
-        <PathWidget
-          useAsPath={props.useAsPath ?? 'title'}
-          collectionPath="pages"
+        // The real English admin bundle rather than a stubbed `t`, so the
+        // assertions below check the strings an editor actually sees. A stub
+        // would let a key be renamed or deleted without the test noticing.
+        <I18nProvider
+          bundle={adminTranslations({ locales: ['en'] })}
+          activeLocale="en"
           defaultLocale="en"
-          activeLocale={props.activeLocale ?? 'en'}
-          mode={props.mode ?? 'create'}
-          slugifier={props.slugifier}
-          sourceLocked={props.sourceLocked}
-        />
+          localeDefinitions={[{ code: 'en', nativeName: 'English' }]}
+        >
+          <PathWidget
+            useAsPath={props.useAsPath ?? 'title'}
+            collectionPath="pages"
+            defaultLocale="en"
+            activeLocale={props.activeLocale ?? 'en'}
+            mode={props.mode ?? 'create'}
+            slugifier={props.slugifier}
+            sourceLocked={props.sourceLocked}
+          />
+        </I18nProvider>
       )
     })
   }
