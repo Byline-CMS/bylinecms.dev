@@ -764,36 +764,9 @@ const FormContent = ({
   )
 }
 
-export const FormRenderer = ({
-  mode,
-  fields,
-  onSubmit,
-  onCancel,
-  onStatusChange,
-  onUnpublish,
-  onDelete,
-  onDuplicate,
-  onCopyToLocale,
-  onDeleteLocale,
-  contentLocales,
-  nextStatus,
-  workflowStatuses,
-  publishedVersion,
-  initialData,
-  adminConfig,
-  useAsTitle,
-  useAsPath,
-  advertiseLocales,
-  tree,
-  headingLabel,
-  headerSlot,
-  collectionPath,
-  initialLocale,
-  onLocaleChange,
-  defaultLocale,
-  useNavigationGuard,
-  restoreWarnings,
-}: FormRendererProps) => {
+export const FormRenderer = (props: FormRendererProps) => {
+  const { mode, initialData, initialLocale, collectionPath } = props
+
   // Persists per-tab-set active tab across locale-change remounts of FormContent.
   // useRef so mutations never trigger a re-render of FormRenderer itself.
   const savedTabsRef = useRef<Record<string, string>>({})
@@ -805,35 +778,12 @@ export const FormRenderer = ({
       documentId={mode === 'edit' && typeof initialData?.id === 'string' ? initialData.id : null}
       collectionPath={collectionPath ?? null}
     >
+      {/* Forwarded wholesale. An enumerated prop list here silently dropped
+          every prop added to FormRendererProps but not copied down — which is
+          how the scheduled-publication handlers reached FormContent as
+          `undefined` and the control never rendered. */}
       <FormContent
-        mode={mode}
-        fields={fields}
-        onSubmit={onSubmit}
-        onCancel={onCancel}
-        onStatusChange={onStatusChange}
-        onUnpublish={onUnpublish}
-        onDelete={onDelete}
-        onDuplicate={onDuplicate}
-        onCopyToLocale={onCopyToLocale}
-        onDeleteLocale={onDeleteLocale}
-        contentLocales={contentLocales}
-        nextStatus={nextStatus}
-        workflowStatuses={workflowStatuses}
-        publishedVersion={publishedVersion}
-        initialData={initialData}
-        adminConfig={adminConfig}
-        useAsTitle={useAsTitle}
-        useAsPath={useAsPath}
-        advertiseLocales={advertiseLocales}
-        tree={tree}
-        headingLabel={headingLabel}
-        headerSlot={headerSlot}
-        collectionPath={collectionPath}
-        initialLocale={initialLocale}
-        onLocaleChange={onLocaleChange}
-        defaultLocale={defaultLocale}
-        useNavigationGuard={useNavigationGuard}
-        restoreWarnings={restoreWarnings}
+        {...props}
         _activeTabBySet={savedTabsRef.current}
         _onTabChange={(tabSetName, tabName) => {
           savedTabsRef.current = { ...savedTabsRef.current, [tabSetName]: tabName }
