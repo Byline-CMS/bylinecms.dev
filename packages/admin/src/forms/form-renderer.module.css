@@ -101,6 +101,11 @@
   justify-content: center;
 }
 
+.status-details,
+:global(.byline-form-status-details) {
+  min-width: 0;
+}
+
 .status-meta,
 :global(.byline-form-status-meta) {
   display: flex;
