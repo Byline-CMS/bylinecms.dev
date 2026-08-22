@@ -885,3 +885,33 @@ export {
   adminUsers,
   adminUsersRelations,
 } from './auth.js'
+
+// ---------------------------------------------------------------------------
+// Recurring-task scheduler — byline_recurring_tasks
+// ---------------------------------------------------------------------------
+
+// Recurring-task scheduler (specs/2026-08-22-scheduler.md).
+// Code-registered definitions are authoritative; rows for definitions removed
+// from code are retained as dormant history and never executed.
+export const recurringTasks = pgTable('byline_recurring_tasks', {
+  name: varchar('name', { length: 255 }).primaryKey(),
+  interval_ms: integer('interval_ms').notNull(),
+  next_run_at: timestamp('next_run_at', { withTimezone: true }).notNull(),
+  // A token unique to one claim — not a stable machine id. Every health and
+  // schedule write is conditional on it, so a slow runner whose lease expired
+  // cannot overwrite a newer run.
+  lease_token: uuid('lease_token'),
+  // Bounded, non-secret diagnostic label (machine id + pid). Correctness never
+  // depends on owner uniqueness.
+  lease_owner: varchar('lease_owner', { length: 255 }),
+  lease_expires_at: timestamp('lease_expires_at', { withTimezone: true }),
+  last_started_at: timestamp('last_started_at', { withTimezone: true }),
+  last_succeeded_at: timestamp('last_succeeded_at', { withTimezone: true }),
+  last_failed_at: timestamp('last_failed_at', { withTimezone: true }),
+  last_duration_ms: integer('last_duration_ms'),
+  consecutive_failures: integer('consecutive_failures').notNull().default(0),
+  last_status: varchar('last_status', { length: 32 }).notNull().default('never_run'),
+  // Sanitized message, capped at 2 KiB by the store. Full stacks go to the logger.
+  last_error: text('last_error'),
+  ...timestamps,
+})
