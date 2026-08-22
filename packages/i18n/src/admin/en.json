@@ -549,6 +549,7 @@
   "scheduledPublication.status.authorizedFor": "Authorized for {dateTime}.",
   "scheduledPublication.form.invalid": "Enter a valid date and time.",
   "scheduledPublication.form.nonexistent": "{wallTime} does not exist — the clocks change that day. Choose another time.",
+  "scheduledPublication.form.notFuture": "{wallTime} has already passed. Choose a time in the future.",
   "scheduledPublication.form.ambiguous": "{wallTime} occurs twice that day, once before the clocks change and once after. Choose the intended UTC offset.",
   "scheduledPublication.form.scheduleTitle": "Schedule publication",
   "scheduledPublication.form.rescheduleTitle": "Reschedule publication",

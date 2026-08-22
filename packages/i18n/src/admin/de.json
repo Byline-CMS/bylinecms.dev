@@ -549,6 +549,7 @@
   "scheduledPublication.status.authorizedFor": "Autorisiert für {dateTime}.",
   "scheduledPublication.form.invalid": "Geben Sie ein gültiges Datum und eine gültige Uhrzeit ein.",
   "scheduledPublication.form.nonexistent": "{wallTime} existiert nicht — an diesem Tag wird die Uhr umgestellt. Wählen Sie eine andere Uhrzeit.",
+  "scheduledPublication.form.notFuture": "{wallTime} liegt bereits in der Vergangenheit. Wählen Sie eine Uhrzeit in der Zukunft.",
   "scheduledPublication.form.ambiguous": "{wallTime} tritt an diesem Tag zweimal auf, einmal vor und einmal nach der Zeitumstellung. Wählen Sie den gewünschten UTC-Offset.",
   "scheduledPublication.form.scheduleTitle": "Veröffentlichung planen",
   "scheduledPublication.form.rescheduleTitle": "Veröffentlichung neu planen",

@@ -455,6 +455,20 @@ function ScheduleModal({
 
     const publishAtIso = selectedInstant || resolution.choices[0]?.iso
     if (publishAtIso == null) return
+
+    // Checked on the resolved instant rather than the wall time, because an
+    // ambiguous overlap has two instants an hour apart and only one of them may
+    // still be ahead.
+    //
+    // This is an affordance, not the guarantee. The server compares against
+    // database time and refuses `publish_at_not_future` regardless of what the
+    // browser's clock believes — catching it here just replaces a raw server
+    // error in a danger toast with a message next to the field that caused it.
+    if (Date.parse(publishAtIso) <= Date.now()) {
+      setValidationError(t('scheduledPublication.form.notFuture', { wallTime: offending }))
+      return
+    }
+
     await onSubmit({ publishAt: publishAtIso })
   }
 

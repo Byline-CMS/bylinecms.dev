@@ -549,6 +549,7 @@
   "scheduledPublication.status.authorizedFor": "Autorizzata per il {dateTime}.",
   "scheduledPublication.form.invalid": "Inserisci una data e un'ora valide.",
   "scheduledPublication.form.nonexistent": "{wallTime} non esiste: quel giorno l’ora cambia. Scegli un altro orario.",
+  "scheduledPublication.form.notFuture": "{wallTime} è già passato. Scegli un orario futuro.",
   "scheduledPublication.form.ambiguous": "{wallTime} si verifica due volte in quel giorno, prima e dopo il cambio dell’ora. Scegli il fuso UTC previsto.",
   "scheduledPublication.form.scheduleTitle": "Programma pubblicazione",
   "scheduledPublication.form.rescheduleTitle": "Riprogramma pubblicazione",

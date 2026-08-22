@@ -549,6 +549,7 @@
   "scheduledPublication.status.authorizedFor": "已授权于 {dateTime}。",
   "scheduledPublication.form.invalid": "请输入有效的日期和时间。",
   "scheduledPublication.form.nonexistent": "{wallTime} 不存在——当天时钟会调整。请选择其他时间。",
+  "scheduledPublication.form.notFuture": "{wallTime} 已经过去。请选择将来的时间。",
   "scheduledPublication.form.ambiguous": "{wallTime} 当天出现两次，分别在时钟调整前后。请选择目标 UTC 偏移量。",
   "scheduledPublication.form.scheduleTitle": "安排发布",
   "scheduledPublication.form.rescheduleTitle": "重新安排发布",

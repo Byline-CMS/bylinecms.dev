@@ -124,6 +124,24 @@ local time does not exist" appears to be rejecting the time on screen. It now re
 options `Earlier` and `Later` alongside the offset, because which side of a transition a bare
 `UTC-04:00` falls on is not something an editor should have to work out.
 
+## Times in the past
+
+The lifecycle already refuses a past instant — `publish_at_not_future`, compared against database
+time rather than anything the browser reports — so a backdated schedule was never at risk of
+firing on the next sweep. What it did was surface a raw server error string in a danger toast,
+some distance from the field that caused it.
+
+The modal now checks before submitting and reports it inline instead. Deliberately an affordance
+rather than a guarantee: the browser's clock is not authoritative, so the server check stays
+exactly as it is and remains the thing that decides. The check runs on the resolved instant, not
+the wall time, because an ambiguous overlap has two instants an hour apart and only one of them
+may still be ahead.
+
+The calendar itself still lets a past day be selected. Disabling it would need a `minDate` on the
+shared `DatePicker`, and would only half-solve the problem — the 15-minute time grid would still
+offer every slot on today's date, including ones that have passed. The inline message covers both
+cases; narrowing the picker is a possible follow-up, not a substitute.
+
 ## Unsaved changes
 
 Scheduling, rescheduling and re-confirming all authorize a specific reviewed version, so each is
