@@ -670,24 +670,39 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
       const holdPublication = new Promise<void>((resolve) => {
         releasePublication = resolve
       })
-      const publication = adapter.withTransaction(async () => {
-        const guarded = await adapter.commands.documents.publishSchedules.lockClaim({
-          documentId: publicationWins.documentId,
-          executionToken: publicationClaim.executionToken,
+      const publicationObservation = await observeContention(async () => {
+        const publication = adapter.withTransaction(async () => {
+          const guarded = await adapter.commands.documents.publishSchedules.lockClaim({
+            documentId: publicationWins.documentId,
+            executionToken: publicationClaim.executionToken,
+          })
+          expect(guarded).not.toBeNull()
+          signalPublicationLock?.()
+          await holdPublication
+          return adapter.commands.documents.publishSchedules.deleteClaim({
+            documentId: publicationWins.documentId,
+            executionToken: publicationClaim.executionToken,
+          })
         })
-        expect(guarded).not.toBeNull()
-        signalPublicationLock?.()
-        await holdPublication
-        return adapter.commands.documents.publishSchedules.deleteClaim({
-          documentId: publicationWins.documentId,
-          executionToken: publicationClaim.executionToken,
+
+        await publicationLocked
+        let signalCancellationTransaction: (() => void) | undefined
+        const cancellationTransactionStarted = new Promise<void>((resolve) => {
+          signalCancellationTransaction = resolve
         })
+        const losingCancellation = adapter.withTransaction(() => {
+          signalCancellationTransaction?.()
+          return adapter.commands.documents.publishSchedules.cancel({
+            documentId: publicationWins.documentId,
+            collectionId: primary.id,
+          })
+        })
+        await cancellationTransactionStarted
+        releasePublication?.()
+        await expect(publication).resolves.toBe(true)
+        await expect(losingCancellation).resolves.toBeNull()
       })
-      await publicationLocked
-      const losingCancellation = cancel(publicationWins)
-      releasePublication?.()
-      await expect(publication).resolves.toBe(true)
-      await expect(losingCancellation).resolves.toBeNull()
+      expect(publicationObservation.maxConcurrentConnections).toBeGreaterThan(1)
 
       const cancellationWins = await createDocument(primary)
       scheduledOrThrow(
@@ -712,25 +727,37 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
       const holdCancellation = new Promise<void>((resolve) => {
         releaseCancellation = resolve
       })
-      const cancellation = adapter.withTransaction(async () => {
-        const deleted = await adapter.commands.documents.publishSchedules.cancel({
-          documentId: cancellationWins.documentId,
-          collectionId: primary.id,
+      const cancellationObservation = await observeContention(async () => {
+        const cancellation = adapter.withTransaction(async () => {
+          const deleted = await adapter.commands.documents.publishSchedules.cancel({
+            documentId: cancellationWins.documentId,
+            collectionId: primary.id,
+          })
+          signalCancellationLock?.()
+          await holdCancellation
+          return deleted
         })
-        signalCancellationLock?.()
-        await holdCancellation
-        return deleted
+
+        await cancellationLocked
+        let signalPublicationTransaction: (() => void) | undefined
+        const publicationTransactionStarted = new Promise<void>((resolve) => {
+          signalPublicationTransaction = resolve
+        })
+        const losingPublication = adapter.withTransaction(() => {
+          signalPublicationTransaction?.()
+          return adapter.commands.documents.publishSchedules.lockClaim({
+            documentId: cancellationWins.documentId,
+            executionToken: cancelledClaim.executionToken,
+          })
+        })
+        await publicationTransactionStarted
+        releaseCancellation?.()
+        await expect(cancellation).resolves.toMatchObject({
+          documentId: cancellationWins.documentId,
+        })
+        await expect(losingPublication).resolves.toBeNull()
       })
-      await cancellationLocked
-      const losingPublication = adapter.withTransaction(() =>
-        adapter.commands.documents.publishSchedules.lockClaim({
-          documentId: cancellationWins.documentId,
-          executionToken: cancelledClaim.executionToken,
-        })
-      )
-      releaseCancellation?.()
-      await expect(cancellation).resolves.toMatchObject({ documentId: cancellationWins.documentId })
-      await expect(losingPublication).resolves.toBeNull()
+      expect(cancellationObservation.maxConcurrentConnections).toBeGreaterThan(1)
     })
 
     it('8. every lifecycle-facing write enlists in and rolls back with the ambient transaction', async () => {
