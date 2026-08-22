@@ -205,7 +205,10 @@ export function DatePicker({
           <span className="sr-only">Select date</span>
         </Popover.Trigger>
         <Popover.Portal>
-          <Popover.Positioner sideOffset={5}>
+          <Popover.Positioner
+            sideOffset={5}
+            className={cx('byline-datepicker-positioner', styles.positioner)}
+          >
             <Popover.Popup
               className={cx('byline-datepicker-content', styles.content, contentClassName)}
             >
