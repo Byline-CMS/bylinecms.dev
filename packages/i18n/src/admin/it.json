@@ -532,7 +532,7 @@
   "validation.password.tooShort": "La password deve contenere almeno 8 caratteri.",
   "validation.password.tooLong": "La password non deve superare i 128 caratteri.",
   "validation.password.complexity": "La password deve contenere almeno una lettera maiuscola, una lettera minuscola, un numero e uno dei seguenti caratteri: #?!@$%^&*-",
-  "chrome.menu.scheduledPublications": "Pubblicazioni programmate",
+  "chrome.menu.scheduledPublications": "Programmate",
   "scheduledPublication.actions.schedule": "Programma pubblicazione",
   "scheduledPublication.actions.scheduleMenuItem": "Programma",
   "scheduledPublication.actions.confirm": "Conferma programmazione",

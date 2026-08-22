@@ -532,7 +532,7 @@
   "validation.password.tooShort": "Password must be at least 8 characters long.",
   "validation.password.tooLong": "Password must not exceed 128 characters.",
   "validation.password.complexity": "Password must contain at least one uppercase letter, one lowercase letter, one number, and one character from the following: #?!@$%^&*-",
-  "chrome.menu.scheduledPublications": "Scheduled Publications",
+  "chrome.menu.scheduledPublications": "Scheduled",
   "scheduledPublication.actions.schedule": "Schedule publication",
   "scheduledPublication.actions.scheduleMenuItem": "Schedule",
   "scheduledPublication.actions.confirm": "Confirm schedule",

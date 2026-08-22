@@ -532,7 +532,7 @@
   "validation.password.tooShort": "密码长度至少为 8 个字符。",
   "validation.password.tooLong": "密码不得超过 128 个字符。",
   "validation.password.complexity": "密码必须至少包含一个大写字母、一个小写字母、一个数字，以及以下字符之一：#?!@$%^&*-",
-  "chrome.menu.scheduledPublications": "定时发布",
+  "chrome.menu.scheduledPublications": "已安排",
   "scheduledPublication.actions.schedule": "安排发布",
   "scheduledPublication.actions.scheduleMenuItem": "安排发布",
   "scheduledPublication.actions.confirm": "确认计划",

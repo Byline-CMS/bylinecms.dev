@@ -532,7 +532,7 @@
   "validation.password.tooShort": "รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร",
   "validation.password.tooLong": "รหัสผ่านต้องมีไม่เกิน 128 ตัวอักษร",
   "validation.password.complexity": "รหัสผ่านต้องมีตัวอักษรพิมพ์ใหญ่อย่างน้อยหนึ่งตัว ตัวอักษรพิมพ์เล็กหนึ่งตัว ตัวเลขหนึ่งตัว และอักขระหนึ่งตัวจากรายการต่อไปนี้: #?!@$%^&*-",
-  "chrome.menu.scheduledPublications": "การเผยแพร่ตามกำหนดเวลา",
+  "chrome.menu.scheduledPublications": "กำหนดเวลา",
   "scheduledPublication.actions.schedule": "กำหนดเวลาเผยแพร่",
   "scheduledPublication.actions.scheduleMenuItem": "กำหนดเวลา",
   "scheduledPublication.actions.confirm": "ยืนยันกำหนดเวลา",
