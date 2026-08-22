@@ -31,7 +31,7 @@ afterEach(() => {
 })
 
 describe.each<DatabaseAdapterId>(['postgres', 'mysql'])('bundled %s baseline', (dialect) => {
-  it('matches the adapter source as one complete runtime migration', () => {
+  it('matches the adapter source as one complete runtime migration bundle', () => {
     expect(() =>
       assertBaselineContract(adapterSources[dialect], baselineDir(templates, dialect))
     ).not.toThrow()
@@ -55,28 +55,20 @@ it('rejects a partial bundle when the source contains a second migration', () =>
   writeFileSync(resolve(bundled, 'meta/_journal.json'), journal)
 
   expect(() => assertBaselineContract(source, bundled)).toThrow(
-    'source must contain exactly one SQL migration'
+    'source and bundle SQL inventories differ'
   )
 })
 
 function assertBaselineContract(source: string, bundled: string): void {
   const sourceSql = sqlFiles(source)
   const bundledSql = sqlFiles(bundled)
-  if (sourceSql.length !== 1) {
-    throw new Error(`source must contain exactly one SQL migration; found ${sourceSql.length}`)
-  }
-  if (bundledSql.length !== 1) {
-    throw new Error(`bundle must contain exactly one SQL migration; found ${bundledSql.length}`)
-  }
+  if (sourceSql.length === 0) throw new Error('source must contain at least one SQL migration')
   if (JSON.stringify(sourceSql) !== JSON.stringify(bundledSql)) {
     throw new Error(
       `source and bundle SQL inventories differ: ${sourceSql.join(', ')} != ${bundledSql.join(', ')}`
     )
   }
-  const sqlName = sourceSql[0]
-  if (!sqlName) throw new Error('source SQL inventory unexpectedly became empty')
-
-  const expectedInventory = [sqlName, 'meta/_journal.json'].sort()
+  const expectedInventory = [...sourceSql, 'meta/_journal.json'].sort()
   const bundledInventory = fileInventory(bundled)
   if (JSON.stringify(bundledInventory) !== JSON.stringify(expectedInventory)) {
     throw new Error(
@@ -84,22 +76,33 @@ function assertBaselineContract(source: string, bundled: string): void {
     )
   }
 
-  const sourceJournal = readFileSync(resolve(source, 'meta/_journal.json'), 'utf8')
-  const bundledJournal = readFileSync(resolve(bundled, 'meta/_journal.json'), 'utf8')
-  if (sourceJournal !== bundledJournal) throw new Error('source and bundle journals differ')
-
-  const journal = JSON.parse(sourceJournal) as { entries?: Array<{ tag?: string }> }
-  if (!Array.isArray(journal.entries) || journal.entries.length !== 1) {
-    throw new Error('journal must contain exactly one entry')
+  const sourceJournal = JSON.parse(readFileSync(resolve(source, 'meta/_journal.json'), 'utf8')) as {
+    entries?: Array<{ tag?: string }>
   }
-  const expectedTag = sqlName.slice(0, -'.sql'.length)
-  if (journal.entries[0]?.tag !== expectedTag) {
-    throw new Error(`journal tag does not match SQL migration: ${journal.entries[0]?.tag}`)
+  const bundledJournal = JSON.parse(
+    readFileSync(resolve(bundled, 'meta/_journal.json'), 'utf8')
+  ) as { entries?: Array<{ tag?: string }> }
+  if (JSON.stringify(sourceJournal) !== JSON.stringify(bundledJournal)) {
+    throw new Error('source and bundle journals differ')
   }
 
-  const sourceSqlText = readFileSync(resolve(source, sqlName), 'utf8')
-  const bundledSqlText = readFileSync(resolve(bundled, sqlName), 'utf8')
-  if (sourceSqlText !== bundledSqlText) throw new Error('source and bundle SQL differ')
+  const journal = sourceJournal
+  if (!Array.isArray(journal.entries) || journal.entries.length !== sourceSql.length) {
+    throw new Error('journal must contain exactly one entry per SQL migration')
+  }
+
+  for (const [index, sqlName] of sourceSql.entries()) {
+    const expectedTag = sqlName.slice(0, -'.sql'.length)
+    if (journal.entries[index]?.tag !== expectedTag) {
+      throw new Error(`journal tag does not match SQL migration: ${journal.entries[index]?.tag}`)
+    }
+
+    const sourceSqlText = readFileSync(resolve(source, sqlName), 'utf8')
+    const bundledSqlText = readFileSync(resolve(bundled, sqlName), 'utf8')
+    if (sourceSqlText !== bundledSqlText) {
+      throw new Error(`source and bundle SQL differ: ${sqlName}`)
+    }
+  }
 }
 
 function sqlFiles(root: string): string[] {
