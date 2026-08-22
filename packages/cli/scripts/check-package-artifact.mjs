@@ -26,12 +26,16 @@ try {
 
   const expected = adapters.flatMap((adapter) => {
     const directory = resolve(migrationsRoot, adapter)
-    const sql = readdirSync(directory).filter((name) => name.endsWith('.sql'))
-    if (sql.length !== 1) {
-      fail(`expected one bundled ${adapter} SQL baseline, found ${sql.length}`)
+    // Release baselines are normally squashed to one SQL file, but a
+    // development branch may add migrations before the release squash.
+    const sql = readdirSync(directory)
+      .filter((name) => name.endsWith('.sql'))
+      .sort()
+    if (sql.length === 0) {
+      fail(`no bundled ${adapter} SQL baseline found`)
     }
     return [
-      `package/dist/templates/migrations/${adapter}/${sql[0]}`,
+      ...sql.map((name) => `package/dist/templates/migrations/${adapter}/${name}`),
       `package/dist/templates/migrations/${adapter}/meta/_journal.json`,
     ]
   })
