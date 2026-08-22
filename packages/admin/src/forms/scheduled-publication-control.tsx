@@ -252,9 +252,15 @@ function useInstantFormatter(timeZone: string) {
 
 /**
  * One metadata cell for the form's status bar, matching the Status /
- * Last modified / Created cells in scale and structure. Renders only for an
- * armed schedule — every other state is carried by the notice instead, so the
- * two never say the same thing twice.
+ * Last modified / Created cells in scale, sitting immediately after the status
+ * cell — an armed schedule says where the document is headed, which continues
+ * what Status says about it rather than belonging with the timestamps.
+ *
+ * Written as a single phrase in the success colour rather than the label/value
+ * pair its neighbours use: it is the one cell reporting something pending
+ * rather than something already true, and it should read that way at a glance.
+ * Only an armed schedule appears here; every other state is carried by the
+ * notice instead, so the two never say the same thing twice.
  */
 export function ScheduledPublicationCell({
   state,
@@ -269,17 +275,14 @@ export function ScheduledPublicationCell({
   if (state.kind !== 'armed' || state.publishAt == null) return null
 
   return (
-    <div
-      className={cx('byline-form-status-cell', 'byline-scheduled-publication-cell', styles.cell)}
+    <time
+      className={cx('byline-scheduled-publication-cell', styles.cell)}
+      dateTime={state.publishAt.toISOString()}
     >
-      <span className={cx('byline-form-status-muted', styles['cell-label'])}>
-        {t('scheduledPublication.status.cellLabel')}
-      </span>
-      <span className={cx('byline-scheduled-publication-cell-value', styles['cell-value'])}>
-        <time dateTime={state.publishAt.toISOString()}>{format.format(state.publishAt)}</time>{' '}
-        <span className={styles.zone}>({timeZone})</span>
-      </span>
-    </div>
+      {t('scheduledPublication.status.cellText', {
+        dateTime: `${format.format(state.publishAt)} (${timeZone})`,
+      })}
+    </time>
   )
 }
 
@@ -319,48 +322,56 @@ export function ScheduledPublicationNotice({
       : t('scheduledPublication.status.overdue')
 
   return (
-    <Alert
-      className={cx('byline-scheduled-publication-notice', styles.notice)}
-      intent={state.tone === 'danger' ? 'danger' : 'warning'}
-      icon={true}
-      close={false}
-      title={title}
-    >
-      <p className={styles['notice-body']}>
-        {state.kind === 'needs_reconfirm'
-          ? t('scheduledPublication.status.contentChanged')
-          : t('scheduledPublication.status.overdueBody')}
-      </p>
-      <p className={styles['notice-instant']}>
-        {t('scheduledPublication.status.authorizedFor', { dateTime: instant })}
-        {state.kind === 'needs_reconfirm' && state.isPastDue && (
-          <> {t('scheduledPublication.status.pastDueNote')}</>
-        )}
-      </p>
-      {state.attemptCount > 0 && (
-        <p className={styles['notice-attempts']}>
-          {t('scheduledPublication.status.attempts', { count: state.attemptCount })}
+    // A landmark rather than a live region: the toast already announces the
+    // change assertively when it happens, and announcing the same thing twice
+    // helps nobody. What the notice needs is to stay *findable* afterwards,
+    // which a named region gives a screen-reader user.
+    <div role="region" aria-label={title}>
+      <Alert
+        className={cx('byline-scheduled-publication-notice', styles.notice)}
+        intent={state.tone === 'danger' ? 'danger' : 'warning'}
+        icon={true}
+        close={false}
+        title={title}
+      >
+        <p className={styles['notice-body']}>
+          {state.kind === 'needs_reconfirm'
+            ? t('scheduledPublication.status.contentChanged')
+            : t('scheduledPublication.status.overdueBody')}
         </p>
-      )}
-      {state.lastError != null && <p className={styles['notice-error']}>{state.lastError}</p>}
-      <div className={cx('byline-scheduled-publication-notice-actions', styles['notice-actions'])}>
-        {state.actions.confirm && (
-          <Button size="sm" type="button" intent="success" disabled={busy} onClick={onConfirm}>
-            {t('scheduledPublication.actions.confirm')}
-          </Button>
+        <p className={styles['notice-instant']}>
+          {t('scheduledPublication.status.authorizedFor', { dateTime: instant })}
+          {state.kind === 'needs_reconfirm' && state.isPastDue && (
+            <> {t('scheduledPublication.status.pastDueNote')}</>
+          )}
+        </p>
+        {state.attemptCount > 0 && (
+          <p className={styles['notice-attempts']}>
+            {t('scheduledPublication.status.attempts', { count: state.attemptCount })}
+          </p>
         )}
-        {state.actions.reschedule && (
-          <Button size="sm" type="button" intent="info" disabled={busy} onClick={onReschedule}>
-            {t('scheduledPublication.actions.reschedule')}
-          </Button>
-        )}
-        {state.actions.cancel && (
-          <Button size="sm" type="button" variant="text" disabled={busy} onClick={onCancel}>
-            {t('scheduledPublication.actions.cancel')}
-          </Button>
-        )}
-      </div>
-    </Alert>
+        {state.lastError != null && <p className={styles['notice-error']}>{state.lastError}</p>}
+        <div
+          className={cx('byline-scheduled-publication-notice-actions', styles['notice-actions'])}
+        >
+          {state.actions.confirm && (
+            <Button size="sm" type="button" intent="success" disabled={busy} onClick={onConfirm}>
+              {t('scheduledPublication.actions.confirm')}
+            </Button>
+          )}
+          {state.actions.reschedule && (
+            <Button size="sm" type="button" intent="info" disabled={busy} onClick={onReschedule}>
+              {t('scheduledPublication.actions.reschedule')}
+            </Button>
+          )}
+          {state.actions.cancel && (
+            <Button size="sm" type="button" variant="text" disabled={busy} onClick={onCancel}>
+              {t('scheduledPublication.actions.cancel')}
+            </Button>
+          )}
+        </div>
+      </Alert>
+    </div>
   )
 }
 

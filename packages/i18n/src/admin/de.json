@@ -545,7 +545,7 @@
   "scheduledPublication.status.pastDueNote": "Dieser Zeitpunkt liegt bereits in der Vergangenheit.",
   "scheduledPublication.status.attempts": "Bisherige Veröffentlichungsversuche: {count}.",
   "scheduledPublication.status.scheduled": "Zur Veröffentlichung geplant",
-  "scheduledPublication.status.cellLabel": "Geplant:",
+  "scheduledPublication.status.cellText": "Geplant für {dateTime}",
   "scheduledPublication.status.authorizedFor": "Autorisiert für {dateTime}.",
   "scheduledPublication.form.invalid": "Geben Sie ein gültiges Datum und eine gültige Uhrzeit ein.",
   "scheduledPublication.form.nonexistent": "{wallTime} existiert nicht — an diesem Tag wird die Uhr umgestellt. Wählen Sie eine andere Uhrzeit.",

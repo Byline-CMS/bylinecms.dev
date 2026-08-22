@@ -595,7 +595,7 @@ const FormContent = ({
             workflowStatuses={workflowStatuses}
             publishedVersion={publishedVersion}
             onUnpublish={onUnpublish}
-            extraCells={
+            afterStatusCells={
               <ScheduledPublicationCell state={scheduling.state} timeZone={scheduling.timeZone} />
             }
           />

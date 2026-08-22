@@ -545,7 +545,7 @@
   "scheduledPublication.status.pastDueNote": "เวลาดังกล่าวผ่านไปแล้ว",
   "scheduledPublication.status.attempts": "จำนวนครั้งที่พยายามเผยแพร่: {count}",
   "scheduledPublication.status.scheduled": "กำหนดเวลาเผยแพร่แล้ว",
-  "scheduledPublication.status.cellLabel": "กำหนดเวลา:",
+  "scheduledPublication.status.cellText": "กำหนดเผยแพร่ {dateTime}",
   "scheduledPublication.status.authorizedFor": "อนุมัติสำหรับ {dateTime}",
   "scheduledPublication.form.invalid": "ป้อนวันที่และเวลาที่ถูกต้อง",
   "scheduledPublication.form.nonexistent": "{wallTime} ไม่มีอยู่จริง เนื่องจากมีการเปลี่ยนเวลาในวันนั้น โปรดเลือกเวลาอื่น",

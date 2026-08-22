@@ -14,25 +14,39 @@
    schedule reads as one more fact about the document, not as a control.
    --------------------------------------------------------------------------- */
 
+/* Sits inside the status cell, continuing the line that starts "Status: Draft".
+   The success colour carries the meaning: among facts reporting what the
+   document already is, this is the one reporting what it is about to do.
+   `--text-success` is defined for both themes, so no dark-mode override.
+
+   Wraps rather than ellipsizing — the instant and its IANA zone are the whole
+   message, and half a zone name is worse than a second line. */
 .cell {
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-  gap: var(--spacing-4);
+  /* Own line while the meta row is stacked. Sharing one line with the status
+     value at narrow widths starved it — the ellipsis fell on "Draft" itself,
+     which is the last thing that should be abbreviated. */
+  flex-basis: 100%;
+  color: var(--text-success);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
-.cell-label {
-  white-space: nowrap;
-}
+@media (min-width: 66rem) {
+  /* Once the meta row lays out horizontally there is room to sit on the same
+     line as the status, continuing its sentence. */
+  .cell {
+    flex-basis: auto;
+    margin-left: var(--spacing-4);
+  }
 
-.cell-value {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.zone {
-  color: var(--gray-500);
+  /* When the phrase runs to a second line, "Status: Draft" belongs level with
+     its first line — centring leaves the label floating against the middle of
+     a two-line block. Scoped with :has so the timestamp cells, which never
+     wrap, keep their existing alignment. */
+  :global(.byline-form-status-cell):has(> .cell) {
+    align-items: flex-start;
+  }
 }
 
 /* ---------------------------------------------------------------------------

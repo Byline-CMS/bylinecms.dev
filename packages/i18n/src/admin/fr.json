@@ -545,7 +545,7 @@
   "scheduledPublication.status.pastDueNote": "Cette heure est déjà passée.",
   "scheduledPublication.status.attempts": "Tentatives de publication à ce jour : {count}.",
   "scheduledPublication.status.scheduled": "Publication planifiée",
-  "scheduledPublication.status.cellLabel": "Planifiée :",
+  "scheduledPublication.status.cellText": "Publication planifiée le {dateTime}",
   "scheduledPublication.status.authorizedFor": "Autorisée pour le {dateTime}.",
   "scheduledPublication.form.invalid": "Saisissez une date et une heure valides.",
   "scheduledPublication.form.nonexistent": "{wallTime} n’existe pas : les horloges changent ce jour-là. Choisissez une autre heure.",

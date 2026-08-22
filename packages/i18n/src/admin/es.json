@@ -545,7 +545,7 @@
   "scheduledPublication.status.pastDueNote": "Esa hora ya ha pasado.",
   "scheduledPublication.status.attempts": "Intentos de publicación hasta ahora: {count}.",
   "scheduledPublication.status.scheduled": "Programada para publicación",
-  "scheduledPublication.status.cellLabel": "Programada:",
+  "scheduledPublication.status.cellText": "Programada para el {dateTime}",
   "scheduledPublication.status.authorizedFor": "Autorizada para el {dateTime}.",
   "scheduledPublication.form.invalid": "Introduce una fecha y hora válidas.",
   "scheduledPublication.form.nonexistent": "{wallTime} no existe: ese día cambia la hora. Elige otra hora.",

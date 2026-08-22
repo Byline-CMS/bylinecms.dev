@@ -27,19 +27,21 @@ export const FormStatusDisplay = ({
   workflowStatuses,
   publishedVersion,
   onUnpublish,
-  extraCells,
+  afterStatusCells,
 }: {
   initialData?: Record<string, any>
   workflowStatuses?: WorkflowStatus[]
   publishedVersion?: PublishedVersionInfo | null
   onUnpublish?: () => Promise<void>
   /**
-   * Additional metadata cells appended to the status / modified / created row.
-   * Used by scheduled publication to present an armed schedule at the same
-   * scale as the other document facts. Each child is expected to carry
-   * `.byline-form-status-cell` so it inherits the row's spacing.
+   * Rendered inside the status cell, directly after the status value, so it
+   * reads as a continuation of the same sentence: "Status: Draft — Scheduled
+   * for …". Scheduled publication uses this because an armed schedule is a
+   * statement about the document's lifecycle, not a timestamp to file beside
+   * Created. Falls back to standing alone when the workflow is single-status
+   * and no status cell is drawn.
    */
-  extraCells?: React.ReactNode
+  afterStatusCells?: React.ReactNode
 }) => {
   const { t } = useTranslation('byline-admin')
   const statusCode = initialData?.status
@@ -59,8 +61,10 @@ export const FormStatusDisplay = ({
             <span className={cx('byline-form-status-trunc', styles['status-trunc'])}>
               {statusLabel}
             </span>
+            {afterStatusCells}
           </div>
         )}
+        {!showStatusCell && afterStatusCells}
 
         {initialData?.updatedAt != null && (
           <div className={cx('byline-form-status-cell', styles['status-cell'])}>
@@ -83,8 +87,6 @@ export const FormStatusDisplay = ({
             </span>
           </div>
         )}
-
-        {extraCells}
       </div>
 
       {publishedVersion != null && (

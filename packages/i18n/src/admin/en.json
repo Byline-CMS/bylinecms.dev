@@ -545,7 +545,7 @@
   "scheduledPublication.status.pastDueNote": "That time has already passed.",
   "scheduledPublication.status.attempts": "Publication attempts so far: {count}.",
   "scheduledPublication.status.scheduled": "Scheduled for publication",
-  "scheduledPublication.status.cellLabel": "Scheduled:",
+  "scheduledPublication.status.cellText": "Scheduled for {dateTime}",
   "scheduledPublication.status.authorizedFor": "Authorized for {dateTime}.",
   "scheduledPublication.form.invalid": "Enter a valid date and time.",
   "scheduledPublication.form.nonexistent": "{wallTime} does not exist — the clocks change that day. Choose another time.",

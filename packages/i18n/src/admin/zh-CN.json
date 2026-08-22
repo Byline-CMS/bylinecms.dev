@@ -545,7 +545,7 @@
   "scheduledPublication.status.pastDueNote": "该时间已经过去。",
   "scheduledPublication.status.attempts": "至今的发布尝试次数：{count}。",
   "scheduledPublication.status.scheduled": "已安排发布",
-  "scheduledPublication.status.cellLabel": "已安排：",
+  "scheduledPublication.status.cellText": "已安排于 {dateTime} 发布",
   "scheduledPublication.status.authorizedFor": "已授权于 {dateTime}。",
   "scheduledPublication.form.invalid": "请输入有效的日期和时间。",
   "scheduledPublication.form.nonexistent": "{wallTime} 不存在——当天时钟会调整。请选择其他时间。",

@@ -126,7 +126,16 @@
   .status-meta,
   :global(.byline-form-status-meta) {
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: center;
+    /* Wrapping rather than truncating. Every cell here sets `min-width: 0` so
+       it can ellipsize, which works while the row holds three short facts and
+       fails once a fourth (a scheduled instant with its IANA zone) joins them —
+       the row starts shaving every cell at once, down to "Status: D…". Letting
+       it wrap keeps each fact whole and costs a line only when one is needed.
+       The row gap is explicit because the shared `gap` collapses the line-height
+       override above into an unreadably tight second row. */
+    row-gap: 0.35rem;
   }
 }
 
@@ -140,6 +149,7 @@
 .status-cell,
 :global(.byline-form-status-cell) {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.25rem;
   min-width: 0;
