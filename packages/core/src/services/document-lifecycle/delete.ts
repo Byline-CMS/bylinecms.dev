@@ -17,6 +17,10 @@ import {
   requireTreeAuditCapability,
 } from './audit.js'
 import { invokeHook } from './internals.js'
+import {
+  appendPublishScheduleCancellationAudit,
+  cancelPublishScheduleInTransaction,
+} from './publish-schedule-consistency.js'
 import { firePromoteTreeChange, reconcileTreeOnDeleteInTransaction } from './tree.js'
 import type { TreeDeleteMutationResult } from '../../@types/index.js'
 import type { DocumentLifecycleContext } from './context.js'
@@ -139,6 +143,7 @@ export async function deleteDocument(
       let deletedVersionCount = 0
       let treeResult: TreeDeleteMutationResult | undefined
       await audit.withTransaction(async () => {
+        const cancelledSchedule = await cancelPublishScheduleInTransaction(ctx, params.documentId)
         deletedVersionCount = await db.commands.documents.softDeleteDocument({
           document_id: params.documentId,
         })
@@ -152,6 +157,12 @@ export async function deleteDocument(
         if (treeAudit != null) {
           treeResult = await reconcileTreeOnDeleteInTransaction(ctx, params.documentId, treeAudit)
         }
+        await appendPublishScheduleCancellationAudit({
+          ctx,
+          audit,
+          schedule: cancelledSchedule,
+          reason: 'soft_deleted',
+        })
       })
 
       // Everything below is post-commit. Each operation and the logger get an

@@ -265,6 +265,9 @@ function createHarness(
   const db = {
     commands: {
       documents: {
+        publishSchedules: {
+          cancel: vi.fn(async () => null),
+        },
         placeTreeNode: place,
         removeFromTree: remove,
         promoteChildrenAndRemoveFromTree: promote,

@@ -21,6 +21,11 @@ export {
 } from './define-recurring-task.js'
 export { type RunDueTasksOptions, type RunDueTasksSummary, runDueTasks } from './run-due-tasks.js'
 export {
+  runScheduledPublicationSweep,
+  type ScheduledPublicationSweepOptions,
+  type ScheduledPublicationSweepResult,
+} from './scheduled-publication.js'
+export {
   type SchedulerController,
   type SchedulerOptions,
   startBylineScheduler,

@@ -13,7 +13,12 @@ import { withLogContext } from '../../lib/logger.js'
 import { getWorkflow, validateStatusTransition } from '../../workflow/workflow.js'
 import { AUDIT_ACTIONS, auditActor, requireAuditCapability } from './audit.js'
 import { invokeHook } from './internals.js'
+import {
+  appendPublishScheduleCancellationAudit,
+  cancelPublishScheduleInTransaction,
+} from './publish-schedule-consistency.js'
 import { commitDocumentStatusTransition } from './status-transition.js'
+import type { DocumentPublishSchedule } from '../../@types/index.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface ChangeStatusResult {
@@ -122,6 +127,8 @@ export async function changeDocumentStatus(
       //      record. Status mutates the version row rather than minting a new
       //      version, so the version stream never captures *who* changed it —
       //      the audit log is its only accountability home (docs/07-auth-and-security/02-auditability.md).
+      const transitionAudit = requireAuditCapability(db)
+      let cancelledSchedule: DocumentPublishSchedule | null = null
       await commitDocumentStatusTransition({
         db,
         documentId: params.documentId,
@@ -130,6 +137,18 @@ export async function changeDocumentStatus(
         previousStatus: currentStatus,
         nextStatus: params.nextStatus,
         actor: auditActor(ctx),
+        contributions: {
+          beforeStatusWrite: async () => {
+            cancelledSchedule = await cancelPublishScheduleInTransaction(ctx, params.documentId)
+          },
+          afterAuditAppend: () =>
+            appendPublishScheduleCancellationAudit({
+              ctx,
+              audit: transitionAudit,
+              schedule: cancelledSchedule,
+              reason: 'status_changed',
+            }),
+        },
       })
 
       // 6. afterStatusChange hook.
@@ -188,6 +207,7 @@ export async function unpublishDocument(
       const audit = requireAuditCapability(db)
       const actor = auditActor(ctx)
       const archivedCount = await audit.withTransaction(async () => {
+        const cancelledSchedule = await cancelPublishScheduleInTransaction(ctx, params.documentId)
         const count = await db.commands.documents.archivePublishedVersions({
           document_id: params.documentId,
         })
@@ -203,6 +223,12 @@ export async function unpublishDocument(
             after: 'archived',
           })
         }
+        await appendPublishScheduleCancellationAudit({
+          ctx,
+          audit,
+          schedule: cancelledSchedule,
+          reason: 'unpublished',
+        })
         return count
       })
 

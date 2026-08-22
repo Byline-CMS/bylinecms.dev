@@ -65,6 +65,7 @@ const serverConfigKeys = completeKeys<ServerConfig>()([
   'adminStore',
   'fields',
   'search',
+  'scheduledPublication',
   'recurringTasks',
 ])
 

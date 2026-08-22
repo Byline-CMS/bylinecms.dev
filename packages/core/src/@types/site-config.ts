@@ -257,6 +257,16 @@ export interface ServerHooksConfig {
   uploads?: Record<string, UploadHooks | UploadHooksLoader>
 }
 
+/** Installation-wide switch for Byline's scheduled-publication subsystem. */
+export interface ScheduledPublicationConfig {
+  /**
+   * Register the built-in `documents.publish-scheduled` recurring task and
+   * signal host/admin integrations to expose the feature. Registration
+   * remains inert until the host explicitly starts the scheduler.
+   */
+  enabled: boolean
+}
+
 /**
  * Server-side configuration. Extends BaseConfig with database and storage
  * adapters. Deliberately does NOT extend AdminConfig — the server has no
@@ -460,6 +470,12 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    * ```
    */
   search?: SearchProvider
+  /**
+   * Optional delayed-publication subsystem. Enabling it contributes the
+   * built-in recurring task to `BylineCore.recurringTasks`; it never starts a
+   * timer during `initBylineCore()`.
+   */
+  scheduledPublication?: ScheduledPublicationConfig
   /**
    * Recurring background tasks (`defineRecurringTask()`), validated and gated
    * against the configured adapter's optional scheduler capability by

@@ -17,18 +17,24 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { BylineError, DbErrorCodes, ErrorCodes } from '../lib/errors.js'
 import {
+  cancelDocumentScheduledPublish,
   changeDocumentStatus,
+  confirmDocumentScheduledPublish,
   copyToLocale,
   createDocument,
   deleteDocument,
+  deleteLocale,
   duplicateDocument,
+  listDocumentPublishSchedules,
   restoreDocumentVersion,
+  scheduleDocumentPublish,
   unpublishDocument,
   updateDocument,
   updateDocumentSystemFields,
   updateDocumentWithPatches,
 } from './document-lifecycle/index.js'
-import type { CollectionDefinition, IDbAdapter } from '../@types/index.js'
+import type { CollectionDefinition, DocumentPublishSchedule, IDbAdapter } from '../@types/index.js'
+import type { BylineCore } from '../core.js'
 import type { BylineLogger } from '../lib/logger.js'
 import type { DocumentLifecycleContext } from './document-lifecycle/index.js'
 
@@ -58,6 +64,33 @@ const numericCollection: CollectionDefinition = {
   ],
 }
 
+function publishScheduleRow(
+  overrides: Partial<DocumentPublishSchedule> = {}
+): DocumentPublishSchedule {
+  const now = new Date('2026-08-22T12:00:00.000Z')
+  return {
+    documentId: 'doc-1',
+    collectionId: 'col-1',
+    targetVersionId: 'ver-1',
+    publishAt: new Date('2026-08-23T12:00:00.000Z'),
+    state: 'armed',
+    suspendedAt: null,
+    suspendedReason: null,
+    scheduledBy: TEST_ACTOR_ID,
+    lastAuthorizedBy: TEST_ACTOR_ID,
+    lastAuthorizedAt: now,
+    scheduledAt: now,
+    updatedAt: now,
+    executionToken: null,
+    executionExpiresAt: null,
+    lastAttemptAt: null,
+    nextAttemptAt: new Date('2026-08-23T12:00:00.000Z'),
+    attemptCount: 0,
+    lastError: null,
+    ...overrides,
+  }
+}
+
 /** Build a mock IDbAdapter. Returns the adapter plus individual mock fns. */
 function createMockDb() {
   const createDocumentVersion = vi.fn().mockResolvedValue({
@@ -67,10 +100,22 @@ function createMockDb() {
   const setDocumentStatus = vi.fn().mockResolvedValue(undefined)
   const archivePublishedVersions = vi.fn().mockResolvedValue(0)
   const softDeleteDocument = vi.fn().mockResolvedValue(1)
+  const deleteDocumentLocale = vi.fn().mockResolvedValue({ newVersionId: 'ver-2' })
   const getDocumentById = vi.fn().mockResolvedValue(null)
   const getDocumentSystemFieldsForUpdate = vi.fn().mockResolvedValue(null)
   const getCurrentVersionMetadata = vi.fn().mockResolvedValue(null)
   const getCurrentPath = vi.fn().mockResolvedValue('current-path')
+  const publishSchedule = vi.fn().mockResolvedValue({ status: 'document_not_found' })
+  const confirmPublishSchedule = vi.fn().mockResolvedValue({ status: 'schedule_not_found' })
+  const cancelPublishSchedule = vi.fn().mockResolvedValue(null)
+  const suspendPublishSchedule = vi.fn().mockResolvedValue({ status: 'schedule_not_found' })
+  const claimDuePublishSchedules = vi.fn().mockResolvedValue([])
+  const lockPublishScheduleClaim = vi.fn().mockResolvedValue(null)
+  const deletePublishScheduleClaim = vi.fn().mockResolvedValue(false)
+  const suspendPublishScheduleClaim = vi.fn().mockResolvedValue(false)
+  const releasePublishScheduleClaim = vi.fn().mockResolvedValue(false)
+  const getPublishSchedule = vi.fn().mockResolvedValue(null)
+  const listPublishSchedules = vi.fn().mockResolvedValue({ schedules: [], total: 0 })
   // Audit capability (docs/07-auth-and-security/02-auditability.md — W2). `withTransaction` is a passthrough
   // in unit tests (runs the unit of work immediately, no real tx); `append`
   // records the calls so write-point tests can assert the audit rows emitted.
@@ -99,7 +144,17 @@ function createMockDb() {
         delete: vi.fn(),
       },
       documents: {
-        publishSchedules: {} as any,
+        publishSchedules: {
+          schedule: publishSchedule,
+          confirm: confirmPublishSchedule,
+          cancel: cancelPublishSchedule,
+          suspendForContentEdit: suspendPublishSchedule,
+          claimDue: claimDuePublishSchedules,
+          lockClaim: lockPublishScheduleClaim,
+          deleteClaim: deletePublishScheduleClaim,
+          suspendClaimForContentEdit: suspendPublishScheduleClaim,
+          releaseClaim: releasePublishScheduleClaim,
+        },
         createDocumentVersion,
         updateDocumentPath: vi.fn().mockResolvedValue(undefined) as any,
         setDocumentAvailableLocales: vi.fn().mockResolvedValue(undefined) as any,
@@ -107,7 +162,7 @@ function createMockDb() {
         archivePublishedVersions,
         softDeleteDocument,
         restoreSoftDeletedDocument: vi.fn(),
-        deleteDocumentLocale: vi.fn() as any,
+        deleteDocumentLocale: deleteDocumentLocale as any,
         setOrderKey: vi.fn() as any,
         placeTreeNode: vi.fn() as any,
         removeFromTree: vi.fn() as any,
@@ -137,7 +192,10 @@ function createMockDb() {
         getCollectionById: vi.fn(),
       },
       documents: {
-        publishSchedules: {} as any,
+        publishSchedules: {
+          get: getPublishSchedule,
+          list: listPublishSchedules,
+        },
         getDocumentSystemFieldsForUpdate,
         getDocumentById,
         getCurrentVersionMetadata,
@@ -178,10 +236,22 @@ function createMockDb() {
     setDocumentStatus,
     archivePublishedVersions,
     softDeleteDocument,
+    deleteDocumentLocale,
     getDocumentById,
     getDocumentSystemFieldsForUpdate,
     getCurrentVersionMetadata,
     getCurrentPath,
+    publishSchedule,
+    confirmPublishSchedule,
+    cancelPublishSchedule,
+    suspendPublishSchedule,
+    claimDuePublishSchedules,
+    lockPublishScheduleClaim,
+    deletePublishScheduleClaim,
+    suspendPublishScheduleClaim,
+    releasePublishScheduleClaim,
+    getPublishSchedule,
+    listPublishSchedules,
     auditAppend,
     withTransaction,
   }
@@ -1023,6 +1093,261 @@ describe('Document lifecycle service', () => {
         quantity: 7,
         score: 2.75,
         price: '8.500',
+      })
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // scheduled publication lifecycle
+  // -----------------------------------------------------------------------
+  describe('scheduled publication lifecycle', () => {
+    const metadataRow = {
+      document_version_id: 'ver-1',
+      document_id: 'doc-1',
+      collection_id: 'col-1',
+      status: 'draft',
+      created_at: new Date(),
+      updated_at: new Date(),
+    }
+
+    it('requires both workflow abilities and records an atomic schedule audit', async () => {
+      const { db, getCurrentVersionMetadata, publishSchedule, auditAppend } = createMockDb()
+      const schedule = publishScheduleRow()
+      getCurrentVersionMetadata.mockResolvedValue(metadataRow)
+      publishSchedule.mockResolvedValue({ status: 'scheduled', schedule, previous: null })
+      const ctx = buildCtx(db)
+
+      await expect(
+        scheduleDocumentPublish(ctx, {
+          documentId: 'doc-1',
+          expectedVersionId: 'ver-1',
+          publishAt: schedule.publishAt.toISOString(),
+        })
+      ).resolves.toEqual(schedule)
+      expect(publishSchedule).toHaveBeenCalledWith(
+        expect.objectContaining({
+          documentId: 'doc-1',
+          collectionId: 'col-1',
+          expectedVersionId: 'ver-1',
+          actorId: TEST_ACTOR_ID,
+          publishAt: schedule.publishAt,
+        })
+      )
+      expect(auditAppend).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'document.publish.scheduled' })
+      )
+
+      const restricted = buildCtx(db)
+      restricted.requestContext = createRequestContext({
+        actor: new AdminAuth({
+          id: TEST_ACTOR_ID,
+          abilities: ['collections.articles.changeStatus'],
+        }),
+      })
+      await expect(
+        scheduleDocumentPublish(restricted, {
+          documentId: 'doc-1',
+          expectedVersionId: 'ver-1',
+          publishAt: schedule.publishAt.toISOString(),
+        })
+      ).rejects.toMatchObject({ code: AuthErrorCodes.FORBIDDEN })
+    })
+
+    it('maps a database-time past instant and a stale version to domain errors', async () => {
+      const { db, getCurrentVersionMetadata, publishSchedule } = createMockDb()
+      getCurrentVersionMetadata.mockResolvedValue(metadataRow)
+      publishSchedule.mockResolvedValue({ status: 'publish_at_not_future' })
+
+      await expect(
+        scheduleDocumentPublish(buildCtx(db), {
+          documentId: 'doc-1',
+          expectedVersionId: 'ver-1',
+          publishAt: new Date(Date.now() + 60_000).toISOString(),
+        })
+      ).rejects.toMatchObject({ code: ErrorCodes.VALIDATION })
+
+      getCurrentVersionMetadata.mockResolvedValue({
+        ...metadataRow,
+        document_version_id: 'ver-2',
+      })
+      await expect(
+        scheduleDocumentPublish(buildCtx(db), {
+          documentId: 'doc-1',
+          expectedVersionId: 'ver-1',
+          publishAt: new Date(Date.now() + 60_000).toISOString(),
+        })
+      ).rejects.toMatchObject({ code: ErrorCodes.CONFLICT })
+    })
+
+    it('rejects date strings that are valid to JavaScript but are not ISO instants', async () => {
+      const { db, getCurrentVersionMetadata, publishSchedule } = createMockDb()
+      getCurrentVersionMetadata.mockResolvedValue(metadataRow)
+
+      await expect(
+        scheduleDocumentPublish(buildCtx(db), {
+          documentId: 'doc-1',
+          expectedVersionId: 'ver-1',
+          publishAt: 'August 23, 2026 12:00:00 UTC',
+        })
+      ).rejects.toMatchObject({ code: ErrorCodes.VALIDATION })
+      expect(publishSchedule).not.toHaveBeenCalled()
+    })
+
+    it('re-confirms and explicitly cancels through audited lifecycle operations', async () => {
+      const {
+        db,
+        getCurrentVersionMetadata,
+        confirmPublishSchedule,
+        cancelPublishSchedule,
+        auditAppend,
+      } = createMockDb()
+      const suspended = publishScheduleRow({
+        state: 'needs_reconfirm',
+        suspendedAt: new Date(),
+        suspendedReason: 'content_edited',
+      })
+      const confirmed = publishScheduleRow()
+      getCurrentVersionMetadata.mockResolvedValue(metadataRow)
+      confirmPublishSchedule.mockResolvedValue({
+        status: 'confirmed',
+        schedule: confirmed,
+        previousTargetVersionId: 'ver-0',
+      })
+      cancelPublishSchedule.mockResolvedValue(confirmed)
+
+      await expect(
+        confirmDocumentScheduledPublish(buildCtx(db), {
+          documentId: 'doc-1',
+          expectedVersionId: 'ver-1',
+        })
+      ).resolves.toEqual(confirmed)
+      await expect(
+        cancelDocumentScheduledPublish(buildCtx(db), { documentId: 'doc-1' })
+      ).resolves.toEqual(confirmed)
+      expect(auditAppend).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'document.publish.reconfirmed' })
+      )
+      expect(auditAppend).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'document.publish.schedule.cancelled' })
+      )
+      expect(suspended.state).toBe('needs_reconfirm')
+    })
+
+    it('suspends an armed schedule atomically when an update creates a version', async () => {
+      const { db, getDocumentById, suspendPublishSchedule, auditAppend } = createMockDb()
+      const schedule = publishScheduleRow({
+        state: 'needs_reconfirm',
+        suspendedAt: new Date(),
+        suspendedReason: 'content_edited',
+      })
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'ver-0',
+        document_id: 'doc-1',
+        path: 'current-path',
+        source_locale: 'en',
+        fields: { title: 'Before' },
+      })
+      suspendPublishSchedule.mockResolvedValue({ status: 'suspended', schedule })
+
+      await updateDocument(buildCtx(db), {
+        documentId: 'doc-1',
+        data: { title: 'After' },
+      })
+
+      expect(suspendPublishSchedule).toHaveBeenCalledWith({
+        documentId: 'doc-1',
+        collectionId: 'col-1',
+      })
+      expect(auditAppend).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'document.publish.schedule.suspended' })
+      )
+    })
+
+    it('treats deleting a locale as a version-creating edit that suspends the schedule', async () => {
+      const { db, deleteDocumentLocale, getDocumentById, suspendPublishSchedule, auditAppend } =
+        createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'ver-1',
+        document_id: 'doc-1',
+        path: 'current-path',
+        _availableVersionLocales: ['en', 'fr'],
+        fields: { title: 'Bonjour' },
+      })
+      suspendPublishSchedule.mockResolvedValue({
+        status: 'suspended',
+        schedule: publishScheduleRow({
+          state: 'needs_reconfirm',
+          suspendedAt: new Date(),
+          suspendedReason: 'content_edited',
+        }),
+      })
+
+      await deleteLocale(buildCtx(db), { documentId: 'doc-1', locale: 'fr' })
+
+      expect(deleteDocumentLocale).toHaveBeenCalledOnce()
+      expect(suspendPublishSchedule).toHaveBeenCalledWith({
+        documentId: 'doc-1',
+        collectionId: 'col-1',
+      })
+      expect(auditAppend).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'document.publish.schedule.suspended' })
+      )
+    })
+
+    it('cancels an active schedule as an effect of an ordinary status transition', async () => {
+      const { db, getCurrentVersionMetadata, cancelPublishSchedule, auditAppend } = createMockDb()
+      getCurrentVersionMetadata.mockResolvedValue(metadataRow)
+      cancelPublishSchedule.mockResolvedValue(publishScheduleRow())
+
+      await changeDocumentStatus(buildCtx(db), {
+        documentId: 'doc-1',
+        nextStatus: 'published',
+      })
+
+      expect(cancelPublishSchedule).toHaveBeenCalledWith({
+        documentId: 'doc-1',
+        collectionId: 'col-1',
+      })
+      expect(auditAppend).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'document.publish.schedule.cancelled' })
+      )
+    })
+
+    it('resolves cross-collection visibility above storage into a collection-id allowlist', async () => {
+      const { db, listPublishSchedules } = createMockDb()
+      const secret: CollectionDefinition = {
+        ...minimalCollection,
+        path: 'secret',
+        labels: { singular: 'Secret', plural: 'Secrets' },
+      }
+      const core = {
+        collections: [minimalCollection, secret],
+        db,
+        getCollectionRecord: (path: string) => ({
+          collectionId: path === 'articles' ? 'col-1' : 'col-2',
+          version: 1,
+          schemaHash: 'test',
+        }),
+      } as unknown as BylineCore
+      const requestContext = createRequestContext({
+        actor: new AdminAuth({
+          id: TEST_ACTOR_ID,
+          abilities: [
+            'collections.articles.changeStatus',
+            'collections.articles.publish',
+            'collections.secret.changeStatus',
+          ],
+        }),
+      })
+
+      await listDocumentPublishSchedules(core, requestContext, { page: 1, pageSize: 20 })
+
+      expect(listPublishSchedules).toHaveBeenCalledWith({
+        collectionIds: ['col-1'],
+        states: undefined,
+        lastAuthorizedBy: undefined,
+        page: 1,
+        pageSize: 20,
       })
     })
   })

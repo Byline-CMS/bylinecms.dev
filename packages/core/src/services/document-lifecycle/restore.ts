@@ -18,6 +18,7 @@ import {
   extractVersionId,
   invokeHook,
 } from './internals.js'
+import { commitContentVersionWithScheduleSuspension } from './publish-schedule-consistency.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface RestoreVersionResult {
@@ -163,17 +164,22 @@ export async function restoreDocumentVersion(
       //
       // No `path` is passed: restore does not change the document's path
       // (the existing byline_document_paths row stays as-is — sticky).
-      const result = await db.commands.documents.createDocumentVersion({
+      const result = await commitContentVersionWithScheduleSuspension({
+        ctx,
         documentId: params.documentId,
-        collectionId,
-        collectionVersion: ctx.collectionVersion,
-        collectionConfig: definition,
-        action: 'restore',
-        documentData: sourceFields,
-        status: getDefaultStatus(definition),
-        locale: 'all',
-        previousVersionId: currentMeta.document_version_id,
-        createdBy: actorId(ctx),
+        write: () =>
+          db.commands.documents.createDocumentVersion({
+            documentId: params.documentId,
+            collectionId,
+            collectionVersion: ctx.collectionVersion,
+            collectionConfig: definition,
+            action: 'restore',
+            documentData: sourceFields,
+            status: getDefaultStatus(definition),
+            locale: 'all',
+            previousVersionId: currentMeta.document_version_id,
+            createdBy: actorId(ctx),
+          }),
       })
 
       const documentId = extractDocumentId(result.document) || params.documentId

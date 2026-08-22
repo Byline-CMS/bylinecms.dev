@@ -47,6 +47,28 @@ describe('initBylineCore scheduler wiring', () => {
     await expect(initBylineCore(config, {} as PinoLogger)).rejects.toThrow(/analytics\.rollup/)
   })
 
+  it('gates scheduled publication on the scheduler capability and contributes its built-in task', async () => {
+    const unsupported = serverConfig({} as IDbAdapter)
+    unsupported.scheduledPublication = { enabled: true }
+    await expect(initBylineCore(unsupported, {} as PinoLogger)).rejects.toThrow(
+      /documents\.publish-scheduled/
+    )
+
+    const capable = serverConfig({ scheduler: {} as ISchedulerStore } as IDbAdapter)
+    capable.scheduledPublication = { enabled: true }
+    capable.recurringTasks = [task]
+    const core = await initBylineCore(capable, {} as PinoLogger)
+
+    expect(core.recurringTasks.map((definition) => definition.name)).toEqual([
+      'analytics.rollup',
+      'documents.publish-scheduled',
+    ])
+    expect(core.recurringTasks[1]).toMatchObject({
+      intervalMs: 60_000,
+      leaseMs: 300_000,
+    })
+  })
+
   it('populates core.recurringTasks with the registered set when the adapter is capable', async () => {
     const db = { scheduler: {} as ISchedulerStore } as IDbAdapter
     const config = serverConfig(db)

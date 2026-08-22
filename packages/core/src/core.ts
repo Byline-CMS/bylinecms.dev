@@ -24,6 +24,11 @@ import {
 } from './config/config.js'
 import { type BylineLogger, createBylineLogger, defineLogger } from './lib/logger.js'
 import { Registry } from './lib/registry.js'
+import {
+  SCHEDULED_PUBLICATION_INTERVAL_MS,
+  SCHEDULED_PUBLICATION_LEASE_MS,
+  SCHEDULED_PUBLICATION_TASK_NAME,
+} from './scheduler/scheduled-publication-constants.js'
 import { validateSchedulerConfig } from './scheduler/validate-scheduler-config.js'
 import { type CollectionRecord, ensureCollections } from './services/collection-bootstrap.js'
 import { discoverCounterGroups } from './services/discover-counter-groups.js'
@@ -131,6 +136,7 @@ export const initBylineCore = async <TAdminStore = unknown>(
     .addFactory('logger', createBylineLogger)
 
   const composed = registry.compose({ pinoLogger })
+  let initializedCore: BylineCore<TAdminStore> | undefined
 
   // Validate richText field flags against the registered server adapter
   // before any DB work. Fail-fast surfaces unrenderable configurations
@@ -152,7 +158,29 @@ export const initBylineCore = async <TAdminStore = unknown>(
   // adapter that does not implement the optional scheduler capability would
   // silently never run. Fail-fast at boot, same posture as search above. This
   // only validates and gates — it does not start anything.
-  validateSchedulerConfig({ tasks: resolvedConfig.recurringTasks ?? [], adapter: composed.db })
+  const configuredTasks: RecurringTaskDefinition[] = [...(resolvedConfig.recurringTasks ?? [])]
+  if (resolvedConfig.scheduledPublication?.enabled === true) {
+    configuredTasks.push({
+      name: SCHEDULED_PUBLICATION_TASK_NAME,
+      intervalMs: SCHEDULED_PUBLICATION_INTERVAL_MS,
+      leaseMs: SCHEDULED_PUBLICATION_LEASE_MS,
+      run: async (context) => {
+        if (initializedCore === undefined) {
+          throw new Error('scheduled publication task ran before Byline core initialization')
+        }
+        const { runScheduledPublicationSweep } = await import(
+          './scheduler/scheduled-publication.js'
+        )
+        const result = await runScheduledPublicationSweep(initializedCore, {
+          signal: context.signal,
+          heartbeat: context.heartbeat,
+          logger: context.logger,
+        })
+        return { workRemaining: result.workRemaining }
+      },
+    })
+  }
+  validateSchedulerConfig({ tasks: configuredTasks, adapter: composed.db })
 
   // Freeze a snapshot of the validated task set: a new array of new, frozen
   // objects, then freeze the array itself. Without this, `core.recurringTasks`
@@ -161,9 +189,7 @@ export const initBylineCore = async <TAdminStore = unknown>(
   // returns and bypass validation entirely. Both `core.recurringTasks` and
   // the resolved config's `recurringTasks` are assigned this same snapshot so
   // no path exposes the caller's originals.
-  const recurringTasks = Object.freeze(
-    (resolvedConfig.recurringTasks ?? []).map((task) => Object.freeze({ ...task }))
-  )
+  const recurringTasks = Object.freeze(configuredTasks.map((task) => Object.freeze({ ...task })))
   resolvedConfig.recurringTasks = recurringTasks
 
   // Tree edges are unversioned metadata and may only run on adapters that can
@@ -269,6 +295,7 @@ export const initBylineCore = async <TAdminStore = unknown>(
     adminStore: composed.config.adminStore,
     recurringTasks,
   }
+  initializedCore = core
 
   // Commit globals only after the replacement core has fully initialized. A
   // failed reinitialization leaves the prior config, logger, and core intact.
