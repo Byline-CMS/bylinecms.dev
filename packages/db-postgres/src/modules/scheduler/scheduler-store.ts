@@ -38,6 +38,9 @@ type DatabaseConnection = NodePgDatabase<typeof schema>
 /** Doc comment on `ISchedulerStore.fail`: 2048 characters, never a stack trace. */
 const LAST_ERROR_MAX_LENGTH = 2048
 
+/** Doc comment on `ISchedulerStore.health`: `lease_owner` capped at 255 characters. */
+const LEASE_OWNER_MAX_LENGTH = 255
+
 /** `MAX_BACKOFF_MS` is milliseconds; `make_interval(secs => ...)` wants seconds. */
 const MAX_BACKOFF_SECONDS = MAX_BACKOFF_MS / 1000
 
@@ -115,6 +118,7 @@ export class SchedulerStore implements ISchedulerStore {
     leaseMs: number
     owner: string
   }): Promise<ClaimedRecurringTask | null> {
+    const truncatedOwner = params.owner.slice(0, LEASE_OWNER_MAX_LENGTH)
     const result = await this.db.execute<ClaimRow>(sql`
       WITH old_row AS (
         SELECT name, lease_expires_at
@@ -126,7 +130,7 @@ export class SchedulerStore implements ISchedulerStore {
       )
       UPDATE byline_recurring_tasks t SET
         lease_token = gen_random_uuid(),
-        lease_owner = ${params.owner},
+        lease_owner = ${truncatedOwner},
         lease_expires_at = now() + make_interval(secs => ${params.leaseMs} / 1000.0),
         last_started_at = now(),
         last_status = 'running',
