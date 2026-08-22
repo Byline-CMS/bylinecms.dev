@@ -13,6 +13,7 @@ import { withLogContext } from '../../lib/logger.js'
 import { getWorkflow, validateStatusTransition } from '../../workflow/workflow.js'
 import { AUDIT_ACTIONS, auditActor, requireAuditCapability } from './audit.js'
 import { invokeHook } from './internals.js'
+import { commitDocumentStatusTransition } from './status-transition.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface ChangeStatusResult {
@@ -121,29 +122,14 @@ export async function changeDocumentStatus(
       //      record. Status mutates the version row rather than minting a new
       //      version, so the version stream never captures *who* changed it —
       //      the audit log is its only accountability home (docs/07-auth-and-security/02-auditability.md).
-      const audit = requireAuditCapability(db)
-      const actor = auditActor(ctx)
-      await audit.withTransaction(async () => {
-        await db.commands.documents.setDocumentStatus({
-          document_version_id: documentVersionId,
-          status: params.nextStatus,
-        })
-        if (params.nextStatus === 'published') {
-          await db.commands.documents.archivePublishedVersions({
-            document_id: params.documentId,
-            excludeVersionId: documentVersionId,
-          })
-        }
-        await audit.append({
-          documentId: params.documentId,
-          collectionId,
-          actorId: actor.actorId,
-          actorRealm: actor.actorRealm,
-          action: AUDIT_ACTIONS.statusChanged,
-          field: 'status',
-          before: currentStatus,
-          after: params.nextStatus,
-        })
+      await commitDocumentStatusTransition({
+        db,
+        documentId: params.documentId,
+        documentVersionId,
+        collectionId,
+        previousStatus: currentStatus,
+        nextStatus: params.nextStatus,
+        actor: auditActor(ctx),
       })
 
       // 6. afterStatusChange hook.
