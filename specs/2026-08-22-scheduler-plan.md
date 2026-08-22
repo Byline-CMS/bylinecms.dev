@@ -733,10 +733,28 @@ The claim/fencing protocol. Every statement derives time from the database via `
 - Create: `packages/db-postgres/src/modules/scheduler/scheduler-store.ts`
 - Modify: `packages/db-postgres/src/index.ts` (attach `scheduler` to the adapter)
 
-**Note:** `interval_ms` and `last_duration_ms` are `bigint`. The `pg` driver returns bigint as a
+**Note — two coercion traps, both confirmed in production code.** `db.execute` does not give you
+the driver's normal type parsing:
+
+1. `interval_ms` and `last_duration_ms` are `bigint`. The `pg` driver returns bigint as a
 **string** by default. The store must coerce to `number` on read (values are guaranteed safe
 integers by boot validation) so `RecurringTaskHealth.intervalMs` and `lastDurationMs` are numbers,
-not strings. This is the single most likely defect in this task.
+not strings.
+
+2. **Timestamps come back as strings too, and this one is counter-intuitive.**
+`drizzle-orm/node-postgres/session.js` overrides `getTypeParser` for `TIMESTAMPTZ`, `TIMESTAMP`,
+`DATE`, and `INTERVAL` with an identity function on the `rawQueryConfig` that `db.execute` uses.
+So a `timestamptz` column does **not** arrive as a `Date` — it arrives as ISO text. Every `Date`
+field the contract declares (`ClaimedRecurringTask.scheduledFor`, `.databaseNow`, and
+`RecurringTaskHealth.nextRunAt`, `.lastStartedAt`, `.lastSucceededAt`, `.lastFailedAt`,
+`.databaseNow`) must be coerced at the method boundary, and the row types should be declared as
+`string` so TypeScript models reality rather than the assumption.
+
+This one shipped past three separate static reviews — one of which explicitly reasoned that
+"timestamps are `timestamptz` → `Date` natively", which is true for the query builder and false
+for `db.execute`. Only the live conformance suite caught it. A second adapter implementing this
+interface should expect the same trap in whatever driver it uses, and the conformance suite now
+asserts `toBeInstanceOf(Date)` so it cannot recur silently.
 
 **Interfaces:**
 - Consumes: `ISchedulerStore`, `ClaimedRecurringTask`, `RecurringTaskHealth`, `ReconcileTaskInput`,
