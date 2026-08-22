@@ -1199,6 +1199,7 @@ function claimed(name: string): ClaimedRecurringTask {
     leaseToken: `token-${name}`,
     scheduledFor: new Date('2026-08-22T00:00:00Z'),
     databaseNow: new Date('2026-08-22T00:00:00Z'),
+    recoveredExpiredLease: false,
   }
 }
 
@@ -1357,7 +1358,15 @@ Required behaviour:
 - On resolve, call `store.complete` with `workRemaining` from the result (defaulting to `false`)
   and the measured duration.
 - On reject, call `store.fail` with the error message truncated to 2048 characters and the measured
-  duration. **Never rethrow** — one task's failure must not abort the pass.
+  duration. The persisted message is a sanitized single line; the full error remains in the
+  configured logger. **Never rethrow** — one task's failure must not abort the pass.
+- A heartbeat that returns `false` proves the lease token was fenced. Abort the handler signal
+  before rejecting `heartbeat()`, count the run as failed, and do **not** call `store.fail` or
+  `store.complete` with the known-stale token. Apply the same no-finalization rule after the
+  incoming shutdown signal aborts an active run. A heartbeat store rejection also aborts and
+  leaves the lease to expire because ownership is then uncertain.
+- A `false` return from `complete` is a lost-lease outcome, not a successful run. Count it as
+  failed, log the distinct lost-lease event, and do not attempt `fail` afterward.
 - Wrap every store call so a store-level rejection is logged and counted, not thrown.
 - Honour an incoming `signal`: stop claiming further tasks once it aborts.
 - Log structured start, success, failure, and lost-lease events with name, duration, and owner.
@@ -1366,7 +1375,9 @@ Required behaviour:
 - [ ] **Step 4: Run it to verify it passes**
 
 Run: `cd packages/core && pnpm vitest run --mode=node src/scheduler/run-due-tasks.test.node.ts`
-Expected: PASS, 7 tests.
+Expected: PASS. The focused suite additionally pins the public core-only task source, bounded
+concurrency, shutdown ordering, all four store-call rejection paths, error sanitization, expired
+lease recovery logging, and the rule that a known-lost token is never finalized.
 
 - [ ] **Step 5: Export it and commit**
 
