@@ -328,6 +328,7 @@ function activityFeedSuite(hooks: ConformanceHooks): void {
     it('unions version-stream + audit-log rows, newest first', async () => {
       const page = await adapter.queries.audit.findAuditLog({})
       expect(page.meta.total).toBe(5) // 3 version rows + 2 audit rows
+      expect(page.entries.every((entry) => entry.occurredAt instanceof Date)).toBe(true)
 
       // Audit rows were appended after every version row, so they lead;
       // version rows follow by occurred_at DESC (docA update, docB create,

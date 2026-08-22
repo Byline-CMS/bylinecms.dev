@@ -39,10 +39,19 @@ function toEntry(row: AuditRow): AuditLogEntry {
   }
 }
 
+function parseRawTimestamp(value: string): Date {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`audit queries: failed to parse '${value}' as a timestamp`)
+  }
+  return date
+}
+
 /**
- * One activity row off the UNION — same columns as `byline_audit_log`, but
- * `before` / `after` come back as already-parsed JSON from the pg driver and
- * `occurred_at` as a `Date`, so the shape matches `AuditRow` for `toEntry`.
+ * One raw activity row off the UNION. Drizzle's `db.execute` path returns
+ * timestamp columns as text rather than applying the query builder's pg type
+ * parser, so `occurred_at` is modelled as a string and parsed at the adapter
+ * boundary below. JSON columns still arrive already parsed.
  */
 type ActivityRow = {
   id: string
@@ -54,7 +63,22 @@ type ActivityRow = {
   field: string | null
   before: unknown
   after: unknown
-  occurred_at: Date
+  occurred_at: string
+}
+
+function toActivityEntry(row: ActivityRow): AuditLogEntry {
+  return {
+    id: row.id,
+    documentId: row.document_id,
+    collectionId: row.collection_id,
+    actorId: row.actor_id,
+    actorRealm: row.actor_realm,
+    action: row.action,
+    field: row.field,
+    before: row.before,
+    after: row.after,
+    occurredAt: parseRawTimestamp(row.occurred_at),
+  }
 }
 
 export class AuditQueries implements IAuditQueries {
@@ -171,7 +195,7 @@ export class AuditQueries implements IAuditQueries {
     )
 
     return {
-      entries: result.rows.map((row) => toEntry(row as AuditRow)),
+      entries: result.rows.map(toActivityEntry),
       meta: { total, page, pageSize, totalPages },
     }
   }
