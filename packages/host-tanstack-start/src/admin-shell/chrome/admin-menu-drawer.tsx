@@ -13,9 +13,11 @@ import { ADMIN_ACTIVITY_ABILITIES } from '@byline/admin/admin-activity'
 import { ADMIN_PERMISSIONS_ABILITIES } from '@byline/admin/admin-permissions'
 import { ADMIN_ROLES_ABILITIES } from '@byline/admin/admin-roles'
 import { ADMIN_USERS_ABILITIES } from '@byline/admin/admin-users'
+import { collectionAbilityKey, getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import {
   ActivityIcon,
+  CalendarIcon,
   HomeIcon,
   RolesIcon,
   SettingsSlidersIcon,
@@ -75,7 +77,11 @@ function MenuItem({ to, label, icon, pathname, compact }: MenuItemProps) {
   )
 }
 
-export function AdminMenuDrawer(): React.JSX.Element | null {
+export function AdminMenuDrawer({
+  scheduledPublicationEnabled = false,
+}: {
+  scheduledPublicationEnabled?: boolean
+}): React.JSX.Element | null {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { mobile, drawerOpen, closeDrawer } = useAdminMenu()
   const { t } = useTranslation('byline-admin')
@@ -90,6 +96,13 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
   const canReadRoles = has(ADMIN_ROLES_ABILITIES.read)
   const canReadPermissions = has(ADMIN_PERMISSIONS_ABILITIES.read)
   const canReadActivity = has(ADMIN_ACTIVITY_ABILITIES.read)
+  const canSeeScheduledPublications =
+    scheduledPublicationEnabled &&
+    getAdminConfig().collections.some(
+      (collection) =>
+        has(collectionAbilityKey(collection.path, 'changeStatus')) &&
+        has(collectionAbilityKey(collection.path, 'publish'))
+    )
   const showAdminSection = canReadUsers || canReadRoles || canReadPermissions || canReadActivity
 
   const handlers = useSwipeable({
@@ -130,6 +143,15 @@ export function AdminMenuDrawer(): React.JSX.Element | null {
             pathname={pathname}
             compact={compact}
           />
+          {canSeeScheduledPublications && (
+            <MenuItem
+              to={getAdminRoutePath('scheduled-publications')}
+              label={t('chrome.menu.scheduledPublications')}
+              icon={<CalendarIcon width="20px" height="20px" />}
+              pathname={pathname}
+              compact={compact}
+            />
+          )}
           {showAdminSection && (
             <>
               <li className="menu-separator" />
