@@ -6,7 +6,7 @@
 //   - `./zod-schemas`, `./logger`, `./package.json` — published
 //   - `./patches`, `./workflow`, `./services`, `./scheduler` — NOT published
 //
-// The three unpublished subpaths are in-monorepo boundaries used by
+// The four unpublished subpaths are in-monorepo boundaries used by
 // the admin server fns and the `@byline/client` SDK. They are
 // registered in the main `exports` map (so workspace consumers and
 // `tsc` can resolve them) but deliberately omitted from

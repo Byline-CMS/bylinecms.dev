@@ -8,6 +8,7 @@
 
 import type { SessionProvider } from '@byline/auth'
 
+import type { RecurringTaskDefinition } from '../scheduler/types.js'
 import type { SlugifierFn } from '../utils/slugify.js'
 import type { FilenameSlugifierFn } from '../utils/slugify-filename.js'
 import type {
@@ -459,6 +460,14 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    * ```
    */
   search?: SearchProvider
+  /**
+   * Recurring background tasks (`defineRecurringTask()`), validated and gated
+   * against the configured adapter's optional scheduler capability by
+   * `initBylineCore()`. Registration is not execution — the validated set is
+   * exposed as `BylineCore.recurringTasks` for `runDueTasks()` /
+   * `startBylineScheduler()` to consume; nothing here starts a timer.
+   */
+  recurringTasks?: RecurringTaskDefinition[]
 }
 
 /** Server config returned after boundary validation and canonicalization. */
