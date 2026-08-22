@@ -17,6 +17,7 @@ import { DBManagerImpl, TXManagerImpl } from './lib/db-manager.js'
 import { createAuditCommands } from './modules/audit/audit-commands.js'
 import { createAuditQueries } from './modules/audit/audit-queries.js'
 import { createCounterCommands } from './modules/counters/counters-commands.js'
+import { createSchedulerStore } from './modules/scheduler/scheduler-store.js'
 import { classifyError } from './modules/storage/classify-error.js'
 import { createCommandBuilders } from './modules/storage/storage-commands.js'
 import { createQueryBuilders } from './modules/storage/storage-queries.js'
@@ -169,6 +170,7 @@ export const mysqlAdapter = ({
   const counterCommands = createCounterCommands(pool)
   const auditCommands = createAuditCommands(dbManager)
   const auditQueries = createAuditQueries(db)
+  const schedulerStore = createSchedulerStore(db)
 
   // Boot check: run lazily on the pool's first physical connection rather
   // than eagerly here, because `mysqlAdapter` is synchronous (mirroring
@@ -229,6 +231,7 @@ export const mysqlAdapter = ({
       audit: auditQueries,
     },
     withTransaction: (fn) => txManager.withTransaction(fn),
+    scheduler: schedulerStore,
     classifyError,
     drizzle: db,
     pool,

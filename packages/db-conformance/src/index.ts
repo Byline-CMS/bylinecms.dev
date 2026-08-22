@@ -20,6 +20,7 @@ import { documentTreeSuite } from './suites/document-tree.js'
 import { documentTreeAuditSuite } from './suites/document-tree-audit.js'
 import { fieldTypesSuite } from './suites/field-types.js'
 import { localeFallbackSuite } from './suites/locale-fallback.js'
+import { publishSchedulesSuite } from './suites/publish-schedules.js'
 import { restoreSuite } from './suites/restore.js'
 import { schedulerSuite } from './suites/scheduler.js'
 import { systemFieldsDirectWriteSuite } from './suites/system-fields-direct-write.js'
@@ -119,6 +120,13 @@ export interface ConformanceHooks {
    * tests are otherwise vacuous against a pool limited to one connection.
    */
   observeSchedulerContention?: SchedulerContentionObserver
+
+  /**
+   * Observe physical connection overlap during scheduled-publication claim
+   * races. Required by `publishSchedulesSuite`; separate from the scheduler
+   * observer so neither suite silently depends on an incidental hook name.
+   */
+  observePublishScheduleContention?: SchedulerContentionObserver
 }
 
 export interface SchedulerContentionObservation<T> {
@@ -172,4 +180,5 @@ export function runAdapterConformanceSuite(hooks: ConformanceHooks): void {
   if (hooks.createSchedulerStore) {
     schedulerSuite(hooks)
   }
+  publishSchedulesSuite(hooks)
 }

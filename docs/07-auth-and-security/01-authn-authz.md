@@ -154,9 +154,9 @@ Anonymous readers see nothing, because no tenant matches `'__none__'`. If a tena
 
 → [Read-side scoping — `beforeRead`](#read-side-scoping-the-beforeread-hook)
 
-### 6. Recipe — embargo / scheduled publish
+### 6. Recipe — embargoed visibility
 
-Documents go live at a specific timestamp. Non-editors must not see them before then; editors should see them in preview.
+Documents remain published but hidden from ordinary readers until a specific timestamp. Editors should still see them in preview.
 
 **Edit:** the collection schema.
 
@@ -170,6 +170,10 @@ hooks: {
 ```
 
 The predicate compares against `publishAt` at query time, so each request reads "now". Caching layers above this need to be cache-key-aware of time, or the embargo lifts late.
+
+This recipe is a visibility embargo, not Byline's scheduled publication lifecycle. It does not change a document's workflow status, run publication hooks, or append a publication audit. Use the first-class scheduled publication operations when a draft must transition to `published` at a future instant.
+
+Scheduled publication requires both `collections.<path>.changeStatus` and `collections.<path>.publish` when an editor schedules, reschedules, or re-confirms a document. Byline records that authorization in `last_authorized_by` and does not re-check the editor's current abilities when the recurring task fires. This retained-authorization policy means that disabling or deleting an admin account does not revoke schedules that the account already authorized. Account offboarding must therefore include reviewing the Scheduled Publications admin listing, filtering by that account ID, and cancelling any pending schedules that should no longer run. The publication itself still uses the normal status lifecycle, including workflow validation, hooks, automatic archival, and audit.
 
 → [Read-side scoping — `beforeRead`](#read-side-scoping-the-beforeread-hook)
 

@@ -8,10 +8,11 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { getAdminBylineClient } from '@byline/client/server'
+import { getAdminBylineClient, getAdminRequestContext } from '@byline/client/server'
 import {
   BylineError,
   buildRelationSummaryPopulateMap,
+  collectionAbilityKey,
   ERR_NOT_FOUND,
   ErrorCodes,
   getCollectionAdminConfig,
@@ -165,6 +166,25 @@ const getDocumentFn = createServerFn({ method: 'GET' })
       | string[]
       | undefined
 
+    // Scheduled publication is editorial system metadata, not authored
+    // content. Do not join it into ordinary client reads: that would leak
+    // timing to public callers or make every read require publish abilities.
+    // The authenticated admin loader adds it only when the installation is
+    // enabled and this actor holds both schedule abilities for this collection.
+    const scheduledPublicationEnabled = getServerConfig().scheduledPublication?.enabled === true
+    let canSchedulePublication = false
+    let scheduledPublish: Awaited<ReturnType<typeof handle.getScheduledPublish>> = null
+    if (scheduledPublicationEnabled) {
+      const actor = (await getAdminRequestContext()).actor
+      canSchedulePublication =
+        actor?.hasAbility(collectionAbilityKey(path, 'changeStatus')) === true &&
+        actor.hasAbility(collectionAbilityKey(path, 'publish'))
+      if (canSchedulePublication) {
+        scheduledPublish = await handle.getScheduledPublish(id)
+      }
+    }
+    const serializedSchedule = scheduledPublish == null ? null : serialise(scheduledPublish)
+
     return {
       ...(parsed as Record<string, any>),
       _publishedVersion: publishedVersion,
@@ -175,6 +195,15 @@ const getDocumentFn = createServerFn({ method: 'GET' })
       ...(Array.isArray(availableVersionLocales)
         ? { _availableVersionLocales: availableVersionLocales }
         : {}),
+      _scheduledPublicationEnabled: scheduledPublicationEnabled,
+      _canSchedulePublication: canSchedulePublication,
+      _scheduledPublish: serializedSchedule,
+      ...(serializedSchedule == null
+        ? {}
+        : {
+            scheduledPublishAt: serializedSchedule.publishAt,
+            scheduledPublishVersionId: serializedSchedule.targetVersionId,
+          }),
     }
   })
 

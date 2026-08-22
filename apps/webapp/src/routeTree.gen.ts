@@ -35,6 +35,7 @@ import { Route as BylineAdminAccountIndexRouteImport } from './routes/_byline/ad
 import { Route as BylineAdminActivityIndexRouteImport } from './routes/_byline/admin/activity/index'
 import { Route as BylineAdminPermissionsIndexRouteImport } from './routes/_byline/admin/permissions/index'
 import { Route as BylineAdminRolesIndexRouteImport } from './routes/_byline/admin/roles/index'
+import { Route as BylineAdminScheduledPublicationsIndexRouteImport } from './routes/_byline/admin/scheduled-publications/index'
 import { Route as BylineAdminUsersIndexRouteImport } from './routes/_byline/admin/users/index'
 import { Route as BylineAdminCollectionsCollectionIndexRouteImport } from './routes/_byline/admin/collections/$collection/index'
 import { Route as BylineAdminCollectionsCollectionCreateRouteImport } from './routes/_byline/admin/collections/$collection/create'
@@ -179,6 +180,12 @@ const BylineAdminRolesIndexRoute = BylineAdminRolesIndexRouteImport.update({
   path: '/roles/',
   getParentRoute: () => BylineAdminRouteRoute,
 } as any)
+const BylineAdminScheduledPublicationsIndexRoute =
+  BylineAdminScheduledPublicationsIndexRouteImport.update({
+    id: '/scheduled-publications/',
+    path: '/scheduled-publications/',
+    getParentRoute: () => BylineAdminRouteRoute,
+  } as any)
 const BylineAdminUsersIndexRoute = BylineAdminUsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
@@ -251,6 +258,7 @@ export interface FileRoutesByFullPath {
   '/admin/activity/': typeof BylineAdminActivityIndexRoute
   '/admin/permissions/': typeof BylineAdminPermissionsIndexRoute
   '/admin/roles/': typeof BylineAdminRolesIndexRoute
+  '/admin/scheduled-publications/': typeof BylineAdminScheduledPublicationsIndexRoute
   '/admin/users/': typeof BylineAdminUsersIndexRoute
   '/admin/collections/$collection/create': typeof BylineAdminCollectionsCollectionCreateRoute
   '/admin/collections/$collection/': typeof BylineAdminCollectionsCollectionIndexRoute
@@ -283,6 +291,7 @@ export interface FileRoutesByTo {
   '/admin/activity': typeof BylineAdminActivityIndexRoute
   '/admin/permissions': typeof BylineAdminPermissionsIndexRoute
   '/admin/roles': typeof BylineAdminRolesIndexRoute
+  '/admin/scheduled-publications': typeof BylineAdminScheduledPublicationsIndexRoute
   '/admin/users': typeof BylineAdminUsersIndexRoute
   '/admin/collections/$collection/create': typeof BylineAdminCollectionsCollectionCreateRoute
   '/admin/collections/$collection': typeof BylineAdminCollectionsCollectionIndexRoute
@@ -320,6 +329,7 @@ export interface FileRoutesById {
   '/_byline/admin/activity/': typeof BylineAdminActivityIndexRoute
   '/_byline/admin/permissions/': typeof BylineAdminPermissionsIndexRoute
   '/_byline/admin/roles/': typeof BylineAdminRolesIndexRoute
+  '/_byline/admin/scheduled-publications/': typeof BylineAdminScheduledPublicationsIndexRoute
   '/_byline/admin/users/': typeof BylineAdminUsersIndexRoute
   '/_byline/admin/collections/$collection/create': typeof BylineAdminCollectionsCollectionCreateRoute
   '/_byline/admin/collections/$collection/': typeof BylineAdminCollectionsCollectionIndexRoute
@@ -357,6 +367,7 @@ export interface FileRouteTypes {
     | '/admin/activity/'
     | '/admin/permissions/'
     | '/admin/roles/'
+    | '/admin/scheduled-publications/'
     | '/admin/users/'
     | '/admin/collections/$collection/create'
     | '/admin/collections/$collection/'
@@ -389,6 +400,7 @@ export interface FileRouteTypes {
     | '/admin/activity'
     | '/admin/permissions'
     | '/admin/roles'
+    | '/admin/scheduled-publications'
     | '/admin/users'
     | '/admin/collections/$collection/create'
     | '/admin/collections/$collection'
@@ -425,6 +437,7 @@ export interface FileRouteTypes {
     | '/_byline/admin/activity/'
     | '/_byline/admin/permissions/'
     | '/_byline/admin/roles/'
+    | '/_byline/admin/scheduled-publications/'
     | '/_byline/admin/users/'
     | '/_byline/admin/collections/$collection/create'
     | '/_byline/admin/collections/$collection/'
@@ -626,6 +639,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BylineAdminRolesIndexRouteImport
       parentRoute: typeof BylineAdminRouteRoute
     }
+    '/_byline/admin/scheduled-publications/': {
+      id: '/_byline/admin/scheduled-publications/'
+      path: '/scheduled-publications'
+      fullPath: '/admin/scheduled-publications/'
+      preLoaderRoute: typeof BylineAdminScheduledPublicationsIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
+    }
     '/_byline/admin/users/': {
       id: '/_byline/admin/users/'
       path: '/users'
@@ -754,6 +774,7 @@ interface BylineAdminRouteRouteChildren {
   BylineAdminActivityIndexRoute: typeof BylineAdminActivityIndexRoute
   BylineAdminPermissionsIndexRoute: typeof BylineAdminPermissionsIndexRoute
   BylineAdminRolesIndexRoute: typeof BylineAdminRolesIndexRoute
+  BylineAdminScheduledPublicationsIndexRoute: typeof BylineAdminScheduledPublicationsIndexRoute
   BylineAdminUsersIndexRoute: typeof BylineAdminUsersIndexRoute
   BylineAdminCollectionsCollectionCreateRoute: typeof BylineAdminCollectionsCollectionCreateRoute
   BylineAdminCollectionsCollectionIndexRoute: typeof BylineAdminCollectionsCollectionIndexRoute
@@ -770,6 +791,8 @@ const BylineAdminRouteRouteChildren: BylineAdminRouteRouteChildren = {
   BylineAdminActivityIndexRoute: BylineAdminActivityIndexRoute,
   BylineAdminPermissionsIndexRoute: BylineAdminPermissionsIndexRoute,
   BylineAdminRolesIndexRoute: BylineAdminRolesIndexRoute,
+  BylineAdminScheduledPublicationsIndexRoute:
+    BylineAdminScheduledPublicationsIndexRoute,
   BylineAdminUsersIndexRoute: BylineAdminUsersIndexRoute,
   BylineAdminCollectionsCollectionCreateRoute:
     BylineAdminCollectionsCollectionCreateRoute,

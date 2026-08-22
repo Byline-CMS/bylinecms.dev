@@ -512,3 +512,60 @@ describe('schema pins — document-paths case-sensitive collation (project-owner
     expect(pathColumn?.getSQLType()).toBe('varchar(255) COLLATE utf8mb4_bin')
   })
 })
+
+describe('schema pins — scheduled publication', () => {
+  const cfg = getTableConfig(coreSchema.documentPublishSchedules)
+
+  it('pins one row per document and exactly the three lifecycle ownership foreign keys', () => {
+    const documentId = cfg.columns.find((column) => column.name === 'document_id')
+    expect(documentId?.primary).toBe(true)
+
+    const references = cfg.foreignKeys.map((foreignKey) => ({
+      name: foreignKey.getName(),
+      local: foreignKey.reference().columns.map((column) => column.name),
+      onDelete: foreignKey.onDelete,
+    }))
+    expect(references).toEqual([
+      {
+        name: 'fk_publish_schedules_document',
+        local: ['document_id'],
+        onDelete: 'cascade',
+      },
+      {
+        name: 'fk_publish_schedules_collection',
+        local: ['collection_id'],
+        onDelete: 'cascade',
+      },
+      {
+        name: 'fk_publish_schedules_target_version',
+        local: ['target_version_id'],
+        onDelete: 'cascade',
+      },
+    ])
+  })
+
+  it('pins the bounded state and suspension-reason constraints', () => {
+    expect(cfg.checks.map((constraint) => constraint.name).sort()).toEqual([
+      'check_publish_schedules_state',
+      'check_publish_schedules_suspended_reason',
+    ])
+  })
+
+  it('pins state as the MySQL due-index discriminator and execution-expiry recovery', () => {
+    const due = cfg.indexes.find(
+      (candidate) => candidate.config.name === 'idx_document_publish_schedules_due'
+    )
+    expect(due?.config.columns.map((column) => ('name' in column ? column.name : null))).toEqual([
+      'state',
+      'next_attempt_at',
+      'publish_at',
+    ])
+
+    const expiry = cfg.indexes.find(
+      (candidate) => candidate.config.name === 'idx_document_publish_schedules_execution_expiry'
+    )
+    expect(expiry?.config.columns.map((column) => ('name' in column ? column.name : null))).toEqual(
+      ['execution_expires_at']
+    )
+  })
+})

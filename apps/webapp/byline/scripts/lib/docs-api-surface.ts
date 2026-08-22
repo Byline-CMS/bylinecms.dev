@@ -65,6 +65,7 @@ const serverConfigKeys = completeKeys<ServerConfig>()([
   'adminStore',
   'fields',
   'search',
+  'scheduledPublication',
   'recurringTasks',
 ])
 
@@ -194,6 +195,10 @@ const collectionHandleKeys = completeKeys<CollectionHandle>()([
   'create',
   'update',
   'changeStatus',
+  'schedulePublish',
+  'confirmScheduledPublish',
+  'cancelScheduledPublish',
+  'getScheduledPublish',
   'unpublish',
   'restoreVersion',
   'delete',

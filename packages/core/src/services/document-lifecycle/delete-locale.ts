@@ -12,6 +12,7 @@ import { ERR_NOT_FOUND, ERR_VALIDATION } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
 import { actorId, invokeHook } from './internals.js'
+import { commitContentVersionWithScheduleSuspension } from './publish-schedule-consistency.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface DeleteLocaleResult {
@@ -112,19 +113,25 @@ export async function deleteLocale(
         deleteLocale: deleteLocaleMarker,
       })
 
-      const result = await db.commands.documents.deleteDocumentLocale({
+      const result = await commitContentVersionWithScheduleSuspension({
+        ctx,
         documentId: params.documentId,
-        locale: params.locale,
-        status: getDefaultStatus(definition),
-        createdBy: actorId(ctx),
+        write: async () => {
+          const deleted = await db.commands.documents.deleteDocumentLocale({
+            documentId: params.documentId,
+            locale: params.locale,
+            status: getDefaultStatus(definition),
+            createdBy: actorId(ctx),
+          })
+          if (deleted == null) {
+            throw ERR_NOT_FOUND({
+              message: 'document not found',
+              details: { documentId: params.documentId, collectionPath },
+            }).log(ctx.logger)
+          }
+          return deleted
+        },
       })
-
-      if (result == null) {
-        throw ERR_NOT_FOUND({
-          message: 'document not found',
-          details: { documentId: params.documentId, collectionPath },
-        }).log(ctx.logger)
-      }
 
       await invokeHook(hooks?.afterUpdate, {
         data: originalData,

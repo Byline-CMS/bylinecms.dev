@@ -527,7 +527,235 @@ export interface TreeDeleteMutationResult {
   promoted: TreePromotionChange[]
 }
 
+/** Durable state of one document-grain scheduled-publication intent. */
+export type DocumentPublishScheduleState = 'armed' | 'needs_reconfirm'
+
+/** Why an armed schedule stopped being executable. */
+type DocumentPublishScheduleSuspendedReason = 'content_edited'
+
+/**
+ * Adapter-neutral representation of `byline_document_publish_schedules`.
+ *
+ * Dates are always real `Date` instances. Canonical adapters must normalize
+ * raw driver strings before returning this shape; callers must never need to
+ * know whether the backing engine uses `timestamptz` or `datetime(6)`.
+ */
+export interface DocumentPublishSchedule {
+  documentId: string
+  collectionId: string
+  targetVersionId: string
+  publishAt: Date
+  state: DocumentPublishScheduleState
+  suspendedAt: Date | null
+  suspendedReason: DocumentPublishScheduleSuspendedReason | null
+  /** Historical creator. Preserved across reschedule and re-confirmation. */
+  scheduledBy: string | null
+  /** Actor whose authorization the currently armed intent rests on. */
+  lastAuthorizedBy: string | null
+  lastAuthorizedAt: Date
+  scheduledAt: Date
+  updatedAt: Date
+  executionToken: string | null
+  executionExpiresAt: Date | null
+  lastAttemptAt: Date | null
+  nextAttemptAt: Date
+  attemptCount: number
+  /** Sanitized, stack-free, and capped at 2 KiB by the adapter. */
+  lastError: string | null
+}
+
+/** A due schedule successfully fenced for one sweep execution. */
+export interface ClaimedDocumentPublishSchedule extends DocumentPublishSchedule {
+  executionToken: string
+  executionExpiresAt: Date
+  lastAttemptAt: Date
+  /** Database time used for the claim, exposed for diagnostics and tests. */
+  databaseNow: Date
+  /** True when this claim replaced an execution token whose lease had expired. */
+  recoveredExpiredClaim: boolean
+}
+
+export type ScheduleDocumentPublishResult =
+  | {
+      status: 'scheduled'
+      schedule: DocumentPublishSchedule
+      /** Null on first creation; the locked prior row on a reschedule. */
+      previous: DocumentPublishSchedule | null
+    }
+  | {
+      status:
+        | 'document_not_found'
+        | 'version_mismatch'
+        | 'publish_at_not_future'
+        | 'execution_in_progress'
+    }
+
+export type ConfirmDocumentPublishScheduleResult =
+  | {
+      status: 'confirmed'
+      schedule: DocumentPublishSchedule
+      previousTargetVersionId: string
+    }
+  | { status: 'schedule_not_found' | 'not_suspended' | 'version_mismatch' }
+
+export type SuspendDocumentPublishScheduleResult =
+  | { status: 'suspended'; schedule: DocumentPublishSchedule }
+  | { status: 'schedule_not_found' | 'already_suspended' }
+
+export interface DocumentPublishSchedulePage {
+  schedules: DocumentPublishSchedule[]
+  total: number
+}
+
+/**
+ * Transaction-aware scheduled-publication writes attached to the document
+ * command surface. They are storage primitives, not lifecycle or public SDK
+ * operations: core owns abilities, workflow validation, hooks, and audit.
+ */
+export interface IDocumentPublishScheduleCommands {
+  /**
+   * Create or reschedule one document's intent.
+   *
+   * The command locks the logical document and any existing schedule. It
+   * succeeds only when `expectedVersionId` is the current live version for
+   * `documentId`/`collectionId`, and when `publishAt` is strictly later than
+   * database time. A live execution claim returns `execution_in_progress`;
+   * an expired claim may be replaced by the reschedule.
+   *
+   * First creation stamps both actor columns. Rescheduling preserves
+   * `scheduledBy`, rewrites `lastAuthorizedBy`/`lastAuthorizedAt`, returns the
+   * row to `armed`, and clears all suspension, attempt, error, and execution
+   * state. `nextAttemptAt` becomes `publishAt`.
+   *
+   * Call inside `IDbAdapter.withTransaction` so the row and lifecycle audit
+   * append share the ambient transaction. The canonical adapters' tests pin
+   * that rollback behaviour.
+   */
+  schedule(params: {
+    documentId: string
+    collectionId: string
+    expectedVersionId: string
+    publishAt: Date
+    actorId: string | null
+  }): Promise<ScheduleDocumentPublishResult>
+
+  /**
+   * Re-authorize a `needs_reconfirm` row against the current live version.
+   * Preserves `publishAt` and `scheduledBy`, including when `publishAt` is now
+   * in the past; rewrites the current authorization and clears suspension,
+   * attempt, error, and execution state. `nextAttemptAt` becomes `publishAt`.
+   * Must run inside the caller's ambient transaction.
+   */
+  confirm(params: {
+    documentId: string
+    collectionId: string
+    expectedVersionId: string
+    actorId: string | null
+  }): Promise<ConfirmDocumentPublishScheduleResult>
+
+  /**
+   * Lock and delete the document's row regardless of whether it currently
+   * carries an execution token. Cancellation and token-guarded publication
+   * therefore have one database-lock winner. Returns the deleted snapshot or
+   * null. Must run inside the caller's ambient transaction.
+   */
+  cancel(params: {
+    documentId: string
+    collectionId: string
+  }): Promise<DocumentPublishSchedule | null>
+
+  /**
+   * Move an armed row to `needs_reconfirm` after a content-version write,
+   * preserving its pinned target and authorization while clearing any claim.
+   * Repeated edits of an already-suspended row report `already_suspended`.
+   * Must run inside the version write's ambient transaction.
+   */
+  suspendForContentEdit(params: {
+    documentId: string
+    collectionId: string
+  }): Promise<SuspendDocumentPublishScheduleResult>
+
+  /**
+   * Atomically claim up to `batchSize` due rows, oldest `publishAt` first.
+   * Eligibility is derived only from database time: `armed`, both
+   * `publishAt` and `nextAttemptAt` due, and no live execution claim. Each
+   * winner receives its own fresh token; claim records database-now in
+   * `lastAttemptAt`, increments `attemptCount`, and sets the expiry.
+   * Concurrent callers skip locked rows rather than serializing the batch.
+   * This operation owns its short claim transaction and must not be wrapped
+   * in a lifecycle transaction.
+   */
+  claimDue(params: {
+    batchSize: number
+    leaseMs: number
+  }): Promise<ClaimedDocumentPublishSchedule[]>
+
+  /**
+   * Lock and return a token-matched row inside the publication transition's
+   * ambient transaction. Expiry alone does not invalidate a still-matching
+   * token: it becomes stale only when another claimant replaces it. A
+   * malformed or stale token returns null, never a driver error.
+   */
+  lockClaim(params: {
+    documentId: string
+    executionToken: string
+  }): Promise<DocumentPublishSchedule | null>
+
+  /**
+   * Delete a token-matched row inside the caller's ambient transaction.
+   * Returns false for malformed or stale tokens without mutating the row.
+   */
+  deleteClaim(params: { documentId: string; executionToken: string }): Promise<boolean>
+
+  /**
+   * Token-matched form of edit suspension for the fire-time version race.
+   * Clears the execution claim and attempt/error state. Returns false for a
+   * stale token without mutating the newer claimant's row.
+   */
+  suspendClaimForContentEdit(params: {
+    documentId: string
+    executionToken: string
+  }): Promise<boolean>
+
+  /**
+   * Release a failed token-matched attempt. Clears the execution claim,
+   * stores a sanitized error capped at 2 KiB, and sets `nextAttemptAt` from
+   * database time using the already-incremented `attemptCount`: 1, 2, 4, 8,
+   * then 15 minutes for the fifth and later attempts. Returns false for a
+   * malformed or stale token without overwriting a newer claimant.
+   */
+  releaseClaim(params: {
+    documentId: string
+    executionToken: string
+    error: string
+  }): Promise<boolean>
+}
+
+/** Actor-agnostic scheduled-publication reads attached to document queries. */
+export interface IDocumentPublishScheduleQueries {
+  /** Return one collection-scoped schedule, or null. */
+  get(params: { documentId: string; collectionId: string }): Promise<DocumentPublishSchedule | null>
+
+  /**
+   * Return a deterministic page ordered by `publishAt`, then `documentId`.
+   * The adapter must enforce `collectionIds` with `IN (...)`; an empty
+   * allowlist returns `{ schedules: [], total: 0 }` without issuing SQL.
+   * Optional state/authorizer filters are storage predicates only—ability
+   * resolution remains in core.
+   */
+  list(params: {
+    collectionIds: readonly string[]
+    states?: readonly DocumentPublishScheduleState[]
+    lastAuthorizedBy?: string
+    page: number
+    pageSize: number
+  }): Promise<DocumentPublishSchedulePage>
+}
+
 export interface IDocumentCommands {
+  /** Scheduled-publication storage primitives; lifecycle rules remain in core. */
+  publishSchedules: IDocumentPublishScheduleCommands
+
   createDocumentVersion(params: {
     documentId?: string
     collectionId: string
@@ -750,6 +978,9 @@ export interface ICollectionQueries {
 }
 
 export interface IDocumentQueries {
+  /** Scheduled-publication reads; callers resolve collection abilities above storage. */
+  publishSchedules: IDocumentPublishScheduleQueries
+
   /**
    * Lock a logical document as the transaction mutex for its non-versioned
    * system fields, then return their authoritative current values. Must be

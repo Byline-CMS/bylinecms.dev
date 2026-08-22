@@ -42,6 +42,7 @@ import { bylineAdminServices } from '../integrations/byline-admin-services.js'
 import { BylineAiAdminProvider } from '../integrations/byline-ai.js'
 import { bylineFieldServices } from '../integrations/byline-field-services.js'
 import { getCurrentAdminUser } from '../server-fns/auth/index.js'
+import { getScheduledPublicationRuntime } from '../server-fns/collections/index.js'
 import { getActiveLocaleFn, setAdminLocaleFn } from '../server-fns/i18n/index.js'
 import { getSignInRoutePath } from './sign-in-path.js'
 
@@ -58,7 +59,8 @@ export function createAdminLayoutRoute(path: string) {
         // `@tanstack/react-start/server` out of the client bundle — the
         // same pattern `getCurrentAdminUser` uses for `getAdminRequestContext`.
         const activeLocale = await getActiveLocaleFn()
-        return { user, activeLocale }
+        const scheduledPublicationRuntime = await getScheduledPublicationRuntime()
+        return { user, activeLocale, scheduledPublicationRuntime }
       } catch {
         // `getCurrentAdminUser` (via `getAdminRequestContext`) throws
         // `ERR_UNAUTHENTICATED` or a related auth error when no valid
@@ -71,9 +73,10 @@ export function createAdminLayoutRoute(path: string) {
       }
     },
     component: function AdminLayoutComponent() {
-      const { user, activeLocale } = Route.useRouteContext() as {
+      const { user, activeLocale, scheduledPublicationRuntime } = Route.useRouteContext() as {
         user: Awaited<ReturnType<typeof getCurrentAdminUser>>
         activeLocale: LocaleCode
+        scheduledPublicationRuntime: Awaited<ReturnType<typeof getScheduledPublicationRuntime>>
       }
       const { i18n } = getAdminConfig()
       const localeDefinitions = buildLocaleDefinitions(
@@ -109,7 +112,9 @@ export function createAdminLayoutRoute(path: string) {
                   <RouteProgressBar />
                   <AdminAppBar user={user} />
                   <main className={cx('byline-admin-layout-main', layoutStyles.main)}>
-                    <AdminMenuDrawer />
+                    <AdminMenuDrawer
+                      scheduledPublicationEnabled={scheduledPublicationRuntime.enabled}
+                    />
                     <Content>
                       <Outlet />
                     </Content>

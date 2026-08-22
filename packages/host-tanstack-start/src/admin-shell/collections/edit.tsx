@@ -10,7 +10,12 @@ import { useState } from 'react'
 
 import { FormRenderer } from '@byline/admin/react'
 import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
-import { getDefaultStatus, getWorkflowStatuses } from '@byline/core'
+import {
+  getDefaultStatus,
+  getWorkflow,
+  getWorkflowStatuses,
+  validateStatusTransition,
+} from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { useTranslation } from '@byline/i18n/react'
 import { Container, Section, useToastManager } from '@byline/ui/react'
@@ -18,11 +23,14 @@ import { Container, Section, useToastManager } from '@byline/ui/react'
 import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { clearListReturnState } from '../../routes/list-return-storage.js'
 import {
+  cancelCollectionDocumentScheduledPublish,
+  confirmCollectionDocumentScheduledPublish,
   copyDocumentToLocale,
   deleteDocument,
   deleteDocumentLocale,
   duplicateCollectionDocument,
   hasDeleteSideEffectFailures,
+  scheduleCollectionDocumentPublish,
   unpublishDocument,
   updateCollectionDocumentSystemFields,
   updateCollectionDocumentWithPatches,
@@ -31,6 +39,7 @@ import {
 import { useNavigate } from '../chrome/loose-router.js'
 import { useTanStackNavigationGuard } from './tanstack-navigation-guard.js'
 import { ViewMenu } from './view-menu.js'
+import type { SerializedDocumentPublishSchedule } from '../../server-fns/collections/index.js'
 import type { ContentLocaleOption } from './view-menu.js'
 
 type EditState = {
@@ -76,6 +85,30 @@ export const EditView = ({
     currentIndex !== -1 && currentIndex < workflowStatuses.length - 1
       ? workflowStatuses[currentIndex + 1]
       : undefined
+  const scheduledPublicationEnabled =
+    // biome-ignore lint/suspicious/noExplicitAny: host-only loader metadata
+    (initialData as any)?._scheduledPublicationEnabled === true
+  const canSchedulePublication =
+    // biome-ignore lint/suspicious/noExplicitAny: host-only loader metadata
+    (initialData as any)?._canSchedulePublication === true
+  // biome-ignore lint/suspicious/noExplicitAny: host-only loader metadata
+  const scheduledPublication = ((initialData as any)?._scheduledPublish ??
+    null) as SerializedDocumentPublishSchedule | null
+  const publishTransitionValid =
+    currentStatus !== 'published' &&
+    getWorkflowStatuses(collectionDefinition).length > 1 &&
+    validateStatusTransition(getWorkflow(collectionDefinition), currentStatus, 'published').valid
+  const canArmSchedule =
+    scheduledPublicationEnabled && canSchedulePublication && publishTransitionValid
+
+  const notifyScheduleSuspended = () => {
+    if (scheduledPublication?.state !== 'armed') return
+    toastManager.add({
+      title: t('scheduledPublication.toast.suspendedTitle'),
+      description: t('scheduledPublication.toast.suspendedDescription'),
+      data: { intent: 'warning', iconType: 'warning', icon: true, close: true },
+    })
+  }
 
   const handleLocaleChange = (newLocale: string) => {
     navigate({
@@ -124,6 +157,96 @@ export const EditView = ({
         },
       })
       setEditState({ status: 'failed', message: description })
+    }
+  }
+
+  const reloadDocument = () => {
+    navigate({
+      to: getAdminRoutePath('collections', '$collection', '$id'),
+      params: { collection: path, id: String(initialData.id) },
+      search: (prev: Record<string, unknown>) => ({ ...prev }),
+    })
+  }
+
+  const handleSchedulePublication = async ({ publishAt }: { publishAt: string }) => {
+    try {
+      await scheduleCollectionDocumentPublish({
+        data: {
+          collection: path,
+          id: String(initialData.id),
+          publishAt,
+          expectedVersionId: String(initialData.versionId),
+        },
+      })
+      toastManager.add({
+        title: t('scheduledPublication.toast.scheduledTitle'),
+        description: t('scheduledPublication.toast.scheduledDescription'),
+        data: { intent: 'success', iconType: 'success', icon: true, close: true },
+      })
+      reloadDocument()
+    } catch (err) {
+      toastManager.add({
+        title: t('scheduledPublication.toast.failedTitle'),
+        description: (err as Error).message,
+        data: { intent: 'danger', iconType: 'danger', icon: true, close: true },
+      })
+      throw err
+    }
+  }
+
+  const handleConfirmScheduledPublication = async () => {
+    try {
+      await confirmCollectionDocumentScheduledPublish({
+        data: {
+          collection: path,
+          id: String(initialData.id),
+          expectedVersionId: String(initialData.versionId),
+        },
+      })
+      toastManager.add({
+        title: t('scheduledPublication.toast.confirmedTitle'),
+        description: t('scheduledPublication.toast.confirmedDescription'),
+        data: { intent: 'success', iconType: 'success', icon: true, close: true },
+      })
+      reloadDocument()
+    } catch (err) {
+      toastManager.add({
+        title: t('scheduledPublication.toast.failedTitle'),
+        description: (err as Error).message,
+        data: { intent: 'danger', iconType: 'danger', icon: true, close: true },
+      })
+      throw err
+    }
+  }
+
+  const handleCancelScheduledPublication = async () => {
+    try {
+      const result = await cancelCollectionDocumentScheduledPublish({
+        data: { collection: path, id: String(initialData.id) },
+      })
+      const cancelled = result.status === 'cancelled'
+      toastManager.add({
+        title: cancelled
+          ? t('scheduledPublication.toast.cancelledTitle')
+          : t('scheduledPublication.toast.cancelLostTitle'),
+        description: cancelled
+          ? t('scheduledPublication.toast.cancelledDescription')
+          : t('scheduledPublication.toast.cancelLostDescription'),
+        data: {
+          intent: cancelled ? 'success' : 'warning',
+          iconType: cancelled ? 'success' : 'warning',
+          icon: true,
+          close: true,
+        },
+      })
+      reloadDocument()
+    } catch (err) {
+      toastManager.add({
+        title: t('scheduledPublication.toast.failedTitle'),
+        description: (err as Error).message,
+        data: { intent: 'danger', iconType: 'danger', icon: true, close: true },
+      })
+      throw err
     }
   }
 
@@ -269,6 +392,7 @@ export const EditView = ({
           close: true,
         },
       })
+      notifyScheduleSuspended()
       setEditState({
         status: 'success',
         message: t('collections.edit.copiedSuccessMessage', {
@@ -327,6 +451,7 @@ export const EditView = ({
           close: true,
         },
       })
+      notifyScheduleSuspended()
       setEditState({ status: 'success', message: description })
       // The deleted locale may be the one being viewed — land on the default
       // locale (which always survives) so the loader re-fetches a valid view.
@@ -457,6 +582,10 @@ export const EditView = ({
         })
       }
 
+      if (contentDirty && scheduledPublication?.state === 'armed') {
+        notifyScheduleSuspended()
+      }
+
       const description = t('collections.edit.updatedDescription', { label: singularLower })
       toastManager.add({
         title: t('collections.edit.updateTitle', { label: singular }),
@@ -531,6 +660,16 @@ export const EditView = ({
           }
           onStatusChange={handleStatusChange}
           onUnpublish={publishedVersion ? handleUnpublish : undefined}
+          scheduledPublication={scheduledPublication}
+          onSchedulePublication={canArmSchedule ? handleSchedulePublication : undefined}
+          onConfirmScheduledPublication={
+            canArmSchedule && scheduledPublication?.state === 'needs_reconfirm'
+              ? handleConfirmScheduledPublication
+              : undefined
+          }
+          onCancelScheduledPublication={
+            scheduledPublication != null ? handleCancelScheduledPublication : undefined
+          }
           onDelete={handleDelete}
           onDuplicate={handleDuplicate}
           onCopyToLocale={handleCopyToLocale}

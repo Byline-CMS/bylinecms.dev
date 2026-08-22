@@ -15,6 +15,7 @@ import type {
   DeleteDocumentResult,
   DocumentFilter,
   DocumentLifecycleContext,
+  DocumentPublishSchedule,
   PopulateSpec,
   ReadContext,
   ReadMode,
@@ -26,12 +27,15 @@ import {
   applyAfterRead,
   assertActorCanPerform,
   buildSearchDocument,
+  cancelDocumentScheduledPublish,
   changeDocumentStatus,
+  confirmDocumentScheduledPublish,
   createDocument,
   createReadContext,
   createRichTextDocumentReader,
   deleteDocument,
   ERR_VALIDATION,
+  getDocumentScheduledPublish,
   type PopulateMap,
   parseSort,
   parseWhere,
@@ -41,6 +45,7 @@ import {
   removeFromTree as removeFromTreeLifecycle,
   resolveIdentityField,
   restoreDocumentVersion,
+  scheduleDocumentPublish,
   unpublishDocument,
   updateDocument,
 } from '@byline/core'
@@ -58,7 +63,9 @@ import type {
   ClientDocument,
   ClientSearchResults,
   CollectionSearchOptions,
+  ConfirmScheduledPublishOptions,
   CreateOptions,
+  DocumentPublishScheduleInfo,
   FindByIdOptions,
   FindByPathOptions,
   FindByVersionOptions,
@@ -72,10 +79,20 @@ import type {
   PlaceTreeNodeOptions,
   ReindexResult,
   RemoveFromTreeOptions,
+  SchedulePublishOptions,
   TreeNode,
   TreeParentResult,
   UpdateOptions,
 } from './types.js'
+
+function toScheduleInfo(schedule: DocumentPublishSchedule): DocumentPublishScheduleInfo {
+  const {
+    executionToken: _executionToken,
+    executionExpiresAt: _executionExpiresAt,
+    ...info
+  } = schedule
+  return info
+}
 
 /**
  * A handle scoped to a single collection. Provides read (and eventually write)
@@ -604,6 +621,46 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   async changeStatus(documentId: string, nextStatus: string): Promise<ChangeStatusResult> {
     const ctx = await this.buildLifecycleContext()
     return changeDocumentStatus(ctx, { documentId, nextStatus })
+  }
+
+  /**
+   * Arm or reschedule publication of the exact current version the caller
+   * reviewed. The lifecycle requires both `changeStatus` and `publish` and
+   * validates the instant against database time.
+   */
+  async schedulePublish(
+    documentId: string,
+    options: SchedulePublishOptions
+  ): Promise<DocumentPublishScheduleInfo> {
+    const ctx = await this.buildLifecycleContext()
+    return toScheduleInfo(await scheduleDocumentPublish(ctx, { documentId, ...options }))
+  }
+
+  /** Re-authorize a content-edited schedule against the reviewed version. */
+  async confirmScheduledPublish(
+    documentId: string,
+    options: ConfirmScheduledPublishOptions
+  ): Promise<DocumentPublishScheduleInfo> {
+    const ctx = await this.buildLifecycleContext()
+    return toScheduleInfo(await confirmDocumentScheduledPublish(ctx, { documentId, ...options }))
+  }
+
+  /**
+   * Cancel the active schedule. A null result means no schedule remained when
+   * the cancellation transaction acquired the row lock; callers must not
+   * report that outcome as a successful cancellation.
+   */
+  async cancelScheduledPublish(documentId: string): Promise<DocumentPublishScheduleInfo | null> {
+    const ctx = await this.buildLifecycleContext()
+    const schedule = await cancelDocumentScheduledPublish(ctx, { documentId })
+    return schedule == null ? null : toScheduleInfo(schedule)
+  }
+
+  /** Read the active document-grain schedule under the same two abilities. */
+  async getScheduledPublish(documentId: string): Promise<DocumentPublishScheduleInfo | null> {
+    const ctx = await this.buildLifecycleContext()
+    const schedule = await getDocumentScheduledPublish(ctx, { documentId })
+    return schedule == null ? null : toScheduleInfo(schedule)
   }
 
   /**

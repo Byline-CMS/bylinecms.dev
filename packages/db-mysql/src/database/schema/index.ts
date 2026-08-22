@@ -10,6 +10,7 @@ import { eq, relations, sql } from 'drizzle-orm'
 import {
   bigint,
   boolean,
+  check,
   date,
   datetime,
   decimal,
@@ -160,6 +161,67 @@ export const documentVersions = mysqlTable(
     index('idx_documents_created_at').on(table.created_at),
     // Ensure logical document belongs to only one collection
     index('idx_documents_document_collection').on(table.document_id, table.collection_id),
+  ]
+)
+
+// Scheduled publication — one active intent row per logical document.
+// This is document lifecycle metadata, not authored/versioned content. The
+// target version is pinned until a later content write suspends the row for
+// explicit re-confirmation. See specs/2026-08-22-scheduled-publish.md.
+export const documentPublishSchedules = mysqlTable(
+  'byline_document_publish_schedules',
+  {
+    document_id: uuidChar('document_id').primaryKey(),
+    collection_id: uuidChar('collection_id').notNull(),
+    target_version_id: uuidChar('target_version_id').notNull(),
+    publish_at: datetime('publish_at', { fsp: 6 }).notNull(),
+    state: varchar('state', { length: 32 }).notNull().default('armed'),
+    suspended_at: datetime('suspended_at', { fsp: 6 }),
+    suspended_reason: varchar('suspended_reason', { length: 32 }),
+    // Historical and current authorizers are deliberately not foreign keys:
+    // deleting an admin account must not revoke an already-authorized schedule.
+    scheduled_by: uuidChar('scheduled_by'),
+    last_authorized_by: uuidChar('last_authorized_by'),
+    last_authorized_at: datetime('last_authorized_at', { fsp: 6 }).notNull(),
+    scheduled_at: datetime('scheduled_at', { fsp: 6 }).notNull().default(sql`CURRENT_TIMESTAMP(6)`),
+    updated_at: datetime('updated_at', { fsp: 6 }).notNull().default(sql`CURRENT_TIMESTAMP(6)`),
+    execution_token: uuidChar('execution_token'),
+    execution_expires_at: datetime('execution_expires_at', { fsp: 6 }),
+    last_attempt_at: datetime('last_attempt_at', { fsp: 6 }),
+    next_attempt_at: datetime('next_attempt_at', { fsp: 6 }).notNull(),
+    attempt_count: int('attempt_count').notNull().default(0),
+    // Sanitized by the storage command and capped at 2 KiB; never stores a
+    // stack or document content.
+    last_error: text('last_error'),
+  },
+  (table) => [
+    foreignKey({
+      name: 'fk_publish_schedules_document',
+      columns: [table.document_id],
+      foreignColumns: [documents.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'fk_publish_schedules_collection',
+      columns: [table.collection_id],
+      foreignColumns: [collections.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'fk_publish_schedules_target_version',
+      columns: [table.target_version_id],
+      foreignColumns: [documentVersions.id],
+    }).onDelete('cascade'),
+    check('check_publish_schedules_state', sql`${table.state} IN ('armed', 'needs_reconfirm')`),
+    check(
+      'check_publish_schedules_suspended_reason',
+      sql`${table.suspended_reason} IS NULL OR ${table.suspended_reason} = 'content_edited'`
+    ),
+    // MySQL has no partial indexes, so state is the leading discriminator.
+    index('idx_document_publish_schedules_due').on(
+      table.state,
+      table.next_attempt_at,
+      table.publish_at
+    ),
+    index('idx_document_publish_schedules_execution_expiry').on(table.execution_expires_at),
   ]
 )
 
@@ -1074,6 +1136,39 @@ export const auditLog = mysqlTable(
     index('idx_audit_log_action').on(table.action, table.id),
   ]
 )
+
+// ---------------------------------------------------------------------------
+// Recurring-task scheduler — byline_recurring_tasks
+// ---------------------------------------------------------------------------
+
+// Recurring-task scheduler (specs/2026-08-22-scheduler.md).
+// Code-registered definitions are authoritative; rows for definitions removed
+// from code are retained as dormant history and never executed.
+export const recurringTasks = mysqlTable('byline_recurring_tasks', {
+  name: varchar('name', { length: 255 }).primaryKey(),
+  // bigint: MySQL INT tops out at ~24.9 days in milliseconds, and a 30-day
+  // interval is a legitimate configuration. `mode: 'number'` is safe because
+  // boot-time validation guarantees every millisecond value is a JS safe integer.
+  interval_ms: bigint('interval_ms', { mode: 'number' }).notNull(),
+  next_run_at: datetime('next_run_at', { fsp: 6 }).notNull(),
+  // A token unique to one claim — not a stable machine id. Every health and
+  // schedule write is conditional on it, so a slow runner whose lease expired
+  // cannot overwrite a newer run.
+  lease_token: uuidChar('lease_token'),
+  // Bounded, non-secret diagnostic label (machine id + pid). Correctness never
+  // depends on owner uniqueness.
+  lease_owner: varchar('lease_owner', { length: 255 }),
+  lease_expires_at: datetime('lease_expires_at', { fsp: 6 }),
+  last_started_at: datetime('last_started_at', { fsp: 6 }),
+  last_succeeded_at: datetime('last_succeeded_at', { fsp: 6 }),
+  last_failed_at: datetime('last_failed_at', { fsp: 6 }),
+  last_duration_ms: bigint('last_duration_ms', { mode: 'number' }),
+  consecutive_failures: int('consecutive_failures').notNull().default(0),
+  last_status: varchar('last_status', { length: 32 }).notNull().default('never_run'),
+  // Sanitized message, capped at 2 KiB by the store. Full stacks go to the logger.
+  last_error: text('last_error'),
+  ...timestamps,
+})
 
 // ---------------------------------------------------------------------------
 // Auth schema — byline_admin_users, byline_admin_roles, etc.

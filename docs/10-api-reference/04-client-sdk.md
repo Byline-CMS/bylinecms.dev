@@ -128,6 +128,10 @@ Both use a per-client cache. Lifecycle writes use the version to stamp `collecti
 | `create(data, options?)` | `Promise<CreateDocumentResult>` | Creates a logical document and first immutable version. |
 | `update(id, data, options?)` | `Promise<UpdateDocumentResult>` | Full-document replacement that creates a new immutable version. |
 | `changeStatus(id, nextStatus)` | `Promise<ChangeStatusResult>` | Applies one valid workflow transition. |
+| `schedulePublish(id, options)` | `Promise<DocumentPublishScheduleInfo>` | Arms or reschedules publication of one reviewed current version. |
+| `confirmScheduledPublish(id, options)` | `Promise<DocumentPublishScheduleInfo>` | Re-authorizes a suspended schedule against the reviewed current version. |
+| `cancelScheduledPublish(id)` | `Promise<DocumentPublishScheduleInfo \| null>` | Cancels a pending schedule and reports the actual transaction winner. |
+| `getScheduledPublish(id)` | `Promise<DocumentPublishScheduleInfo \| null>` | Reads the document's active or suspended schedule. |
 | `unpublish(id)` | `Promise<UnpublishResult>` | Archives the currently published version or versions. |
 | `restoreVersion(id, sourceVersionId)` | `Promise<RestoreVersionResult>` | Copies historical content into a new current version. |
 | `delete(id)` | `Promise<DeleteDocumentResult>` | Soft-deletes the document and reconciles associated structural state. |
@@ -363,6 +367,43 @@ handle.restoreVersion(
 ```
 
 `changeStatus()` accepts a valid adjacent transition or reset to the first workflow status. Publishing archives other published versions of the same document. `restoreVersion()` copies all-locale historical content into a new version and defaults its status to the first workflow status; it never silently republishes.
+
+### Scheduled publication
+
+```ts
+interface SchedulePublishOptions {
+  publishAt: string
+  expectedVersionId: string
+}
+
+interface ConfirmScheduledPublishOptions {
+  expectedVersionId: string
+}
+
+handle.schedulePublish(
+  documentId: string,
+  options: SchedulePublishOptions
+): Promise<DocumentPublishScheduleInfo>
+
+handle.confirmScheduledPublish(
+  documentId: string,
+  options: ConfirmScheduledPublishOptions
+): Promise<DocumentPublishScheduleInfo>
+
+handle.cancelScheduledPublish(
+  documentId: string
+): Promise<DocumentPublishScheduleInfo | null>
+
+handle.getScheduledPublish(
+  documentId: string
+): Promise<DocumentPublishScheduleInfo | null>
+```
+
+All four methods require both the collection's `changeStatus` and `publish` abilities. `publishAt` must be an ISO instant with an explicit offset or `Z` and must be later than database time. `expectedVersionId` binds the authorization to the exact current version the caller reviewed. A later content edit preserves the schedule but moves it to `needs_reconfirm`; confirmation targets the new current version while preserving the original publication instant. Ordinary status changes, unpublishing, and deletion cancel the pending intent through their normal lifecycle transactions.
+
+`cancelScheduledPublish()` returns `null` when no schedule remained after its transaction acquired the row lock. Callers should report that result as a lost cancellation race, not as a successful cancellation. `getScheduledPublish()` returns either `armed` or `needs_reconfirm` state. The `DocumentPublishScheduleInfo` result includes editorial timing, authorization, suspension, attempt, and bounded error metadata; it deliberately omits the sweep's execution token and lease expiry.
+
+The subsystem is optional and never authorizes publication. `changeStatus(documentId, 'published')` continues to work without a schedule row, including for an external orchestrator. When a row does exist, publication removes it as transactional consistency cleanup—schedule state is an effect of publishing, never an input to it.
 
 ### `delete(id)`
 

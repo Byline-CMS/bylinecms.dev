@@ -24,6 +24,7 @@ import {
   resolvePathForUpdate,
   rethrowPathConflict,
 } from './internals.js'
+import { commitContentVersionWithScheduleSuspension } from './publish-schedule-consistency.js'
 import { selfHealTreePlacement } from './tree.js'
 import type { DocumentPatch } from '../../patches/index.js'
 import type { DocumentLifecycleContext } from './context.js'
@@ -131,24 +132,27 @@ export async function updateDocument(
 
       await applyRichTextEmbed(ctx, data)
 
-      const result = await db.commands.documents
-        .createDocumentVersion({
-          documentId: params.documentId,
-          collectionId,
-          collectionVersion: ctx.collectionVersion,
-          collectionConfig: definition,
-          action: 'update',
-          documentData: data,
-          path: pathForCommand,
-          availableLocales: params.availableLocales,
-          status: defaultStatus,
-          locale: requestLocale,
-          previousVersionId: originalData.document_version_id as string | undefined,
-          createdBy: actorId(ctx),
-        })
-        .catch((err: unknown) =>
-          rethrowPathConflict(db, err, pathForCommand ?? '', sourceLocale, 'update')
-        )
+      const result = await commitContentVersionWithScheduleSuspension({
+        ctx,
+        documentId: params.documentId,
+        write: () =>
+          db.commands.documents.createDocumentVersion({
+            documentId: params.documentId,
+            collectionId,
+            collectionVersion: ctx.collectionVersion,
+            collectionConfig: definition,
+            action: 'update',
+            documentData: data,
+            path: pathForCommand,
+            availableLocales: params.availableLocales,
+            status: defaultStatus,
+            locale: requestLocale,
+            previousVersionId: originalData.document_version_id as string | undefined,
+            createdBy: actorId(ctx),
+          }),
+      }).catch((err: unknown) =>
+        rethrowPathConflict(db, err, pathForCommand ?? '', sourceLocale, 'update')
+      )
 
       const documentId = extractDocumentId(result.document) || params.documentId
       const documentVersionId = extractVersionId(result.document)
@@ -303,24 +307,27 @@ export async function updateDocumentWithPatches(
 
       await applyRichTextEmbed(ctx, nextData)
 
-      const result = await db.commands.documents
-        .createDocumentVersion({
-          documentId: params.documentId,
-          collectionId,
-          collectionVersion: ctx.collectionVersion,
-          collectionConfig: definition,
-          action: 'update',
-          documentData: nextData,
-          path: pathForCommand,
-          availableLocales: params.availableLocales,
-          status: defaultStatus,
-          locale: requestLocale,
-          previousVersionId: originalData.document_version_id as string | undefined,
-          createdBy: actorId(ctx),
-        })
-        .catch((err: unknown) =>
-          rethrowPathConflict(db, err, pathForCommand ?? '', sourceLocale, 'update')
-        )
+      const result = await commitContentVersionWithScheduleSuspension({
+        ctx,
+        documentId: params.documentId,
+        write: () =>
+          db.commands.documents.createDocumentVersion({
+            documentId: params.documentId,
+            collectionId,
+            collectionVersion: ctx.collectionVersion,
+            collectionConfig: definition,
+            action: 'update',
+            documentData: nextData,
+            path: pathForCommand,
+            availableLocales: params.availableLocales,
+            status: defaultStatus,
+            locale: requestLocale,
+            previousVersionId: originalData.document_version_id as string | undefined,
+            createdBy: actorId(ctx),
+          }),
+      }).catch((err: unknown) =>
+        rethrowPathConflict(db, err, pathForCommand ?? '', sourceLocale, 'update')
+      )
 
       const documentId = extractDocumentId(result.document) || params.documentId
       const documentVersionId = extractVersionId(result.document)

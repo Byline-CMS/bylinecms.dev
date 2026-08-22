@@ -30,6 +30,13 @@ export { deleteDocument } from './delete.js'
 export { deleteLocale } from './delete-locale.js'
 export { duplicateDocument } from './duplicate.js'
 export { restoreDocumentVersion } from './restore.js'
+export {
+  cancelDocumentScheduledPublish,
+  confirmDocumentScheduledPublish,
+  getDocumentScheduledPublish,
+  listDocumentPublishSchedules,
+  scheduleDocumentPublish,
+} from './scheduled-publish.js'
 export { changeDocumentStatus, unpublishDocument } from './status.js'
 export { updateDocumentSystemFields } from './system-fields.js'
 export { placeTreeNode, promoteChildrenAndRemove, removeFromTree } from './tree.js'

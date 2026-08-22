@@ -18,10 +18,23 @@ import '../byline/server.config.ts'
 
 import handler, { createServerEntry } from '@tanstack/react-start/server-entry'
 
+import { getBylineCore } from '@byline/core'
+import { type SchedulerController, startBylineScheduler } from '@byline/core/scheduler'
 import { serveUploads } from '@byline/host-tanstack-start/integrations/serve-uploads'
 
 import { negotiateLocaleRedirect } from '@/i18n/server-locale-redirect'
 import { negotiateMarkdownRedirect } from '@/lib/markdown-negotiation'
+
+declare global {
+  // biome-ignore lint: globalThis augmentation requires `var` rather than `let`
+  var __bylineSchedulerController__: SchedulerController | undefined
+}
+
+// The host owns ticker lifetime explicitly. Keeping this outside
+// `initBylineCore()` and outside `byline/server.config.ts` means importing the
+// server config from a seed or migration remains inert. The global survives
+// Vite HMR so reloads do not accumulate competing local timers.
+globalThis.__bylineSchedulerController__ ??= startBylineScheduler(getBylineCore())
 
 // The server entry is the lowest app-owned request chokepoint — it runs on
 // the original, un-rewritten request before the router (and therefore before

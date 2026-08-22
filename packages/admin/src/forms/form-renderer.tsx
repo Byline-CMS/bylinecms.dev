@@ -38,6 +38,10 @@ import styles from './form-renderer.module.css'
 import { FormStatusDisplay } from './form-status-display'
 import { useNavigationGuardAdapter } from './navigation-guard'
 import { PathWidget } from './path-widget'
+import {
+  ScheduledPublicationControl,
+  type ScheduledPublicationInfo,
+} from './scheduled-publication-control'
 import { computeStatusTransitions } from './status-transitions'
 import { TreePlacementWidget } from './tree-placement-widget'
 import { executeUploadsWithProgress } from './upload-executor'
@@ -79,6 +83,10 @@ export interface FormRendererProps {
   onCancel: () => void
   onStatusChange?: (nextStatus: string) => Promise<void>
   onUnpublish?: () => Promise<void>
+  scheduledPublication?: ScheduledPublicationInfo | null
+  onSchedulePublication?: (input: { publishAt: string }) => Promise<void>
+  onConfirmScheduledPublication?: () => Promise<void>
+  onCancelScheduledPublication?: () => Promise<void>
   onDelete?: () => Promise<void>
   /**
    * Called when the editor confirms the duplicate modal in
@@ -176,6 +184,10 @@ const FormContent = ({
   onCancel,
   onStatusChange,
   onUnpublish,
+  scheduledPublication,
+  onSchedulePublication,
+  onConfirmScheduledPublication,
+  onCancelScheduledPublication,
   onDelete,
   onDuplicate,
   onCopyToLocale,
@@ -563,12 +575,24 @@ const FormContent = ({
         {headerSlot}
       </div>
       <div className={cx('byline-form-status-bar', styles['status-bar'])}>
-        <FormStatusDisplay
-          initialData={initialData}
-          workflowStatuses={workflowStatuses}
-          publishedVersion={publishedVersion}
-          onUnpublish={onUnpublish}
-        />
+        <div className={cx('byline-form-status-details', styles['status-details'])}>
+          <FormStatusDisplay
+            initialData={initialData}
+            workflowStatuses={workflowStatuses}
+            publishedVersion={publishedVersion}
+            onUnpublish={onUnpublish}
+          />
+          {(scheduledPublication != null || onSchedulePublication != null) && (
+            <ScheduledPublicationControl
+              schedule={scheduledPublication ?? null}
+              onSchedule={onSchedulePublication}
+              onConfirm={onConfirmScheduledPublication}
+              onCancel={onCancelScheduledPublication}
+              hasUnsavedChanges={hasChanges}
+              onUnsavedChanges={() => setShowUnsavedModal(true)}
+            />
+          )}
+        </div>
         <div className={cx('byline-form-actions', styles.actions)}>
           <Button
             className={cx('byline-form-actions-button', styles['actions-button'])}

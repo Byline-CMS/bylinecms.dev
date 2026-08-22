@@ -65,6 +65,7 @@ import {
   documentVersions,
   metaStore,
 } from '../../database/schema/index.js'
+import { DocumentPublishScheduleQueries } from './publish-schedules.js'
 import type * as schema from '../../database/schema/index.js'
 import type { DBManager } from '../../lib/db-manager.js'
 
@@ -150,6 +151,7 @@ export class CollectionQueries implements ICollectionQueries {
  * DocumentQueries
  */
 export class DocumentQueries implements IDocumentQueries {
+  readonly publishSchedules: DocumentPublishScheduleQueries
   private db: DatabaseConnection
   private transactionDb: DBManager
   private collections: readonly CollectionDefinition[]
@@ -162,6 +164,7 @@ export class DocumentQueries implements IDocumentQueries {
     defaultContentLocale: string,
     transactionDb: DBManager
   ) {
+    this.publishSchedules = new DocumentPublishScheduleQueries(db)
     this.db = db
     this.transactionDb = transactionDb
     this.collections = collections
