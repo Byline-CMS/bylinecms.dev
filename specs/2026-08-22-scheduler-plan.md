@@ -802,12 +802,20 @@ Return `null` when zero rows changed. Competing instances affect zero rows and d
 only if selected before assignment — since `next_run_at` is not in the SET list, `RETURNING
 next_run_at` is the unchanged value and is correct here.
 
-**`renew({ name, leaseToken, leaseMs })`** — token-matched, returns `rowCount === 1`:
+**`renew({ name, leaseToken, leaseMs })`** — token-matched, returns `rowCount === 1`.
+
+**All three token-matched writes compare `lease_token::text`, never the bare column.**
+`lease_token` is a `uuid` column, so `lease_token = $2` makes Postgres parse the bound string as a
+UUID *before* comparing — a malformed token then raises `22P02` instead of matching zero rows,
+violating the contract's "returns `false`, never throws". Casting to text costs nothing here
+because the predicate is already anchored on `name`, the primary key. MySQL's `char(36)` has no
+such problem, which is exactly why a conformance test written once would pass there and throw
+here.
 
 ```sql
 UPDATE byline_recurring_tasks
 SET lease_expires_at = now() + make_interval(secs => $3 / 1000.0), updated_at = now()
-WHERE name = $1 AND lease_token = $2
+WHERE name = $1 AND lease_token::text = $2
 ```
 
 **`complete({ name, leaseToken, durationMs, workRemaining })`** — token-matched. Note there is
@@ -828,7 +836,7 @@ UPDATE byline_recurring_tasks SET
   next_run_at = CASE WHEN $4 THEN now()
                      ELSE now() + make_interval(secs => interval_ms / 1000.0) END,
   updated_at = now()
-WHERE name = $1 AND lease_token = $2
+WHERE name = $1 AND lease_token::text = $2
 ```
 
 Bindings are `$1` name, `$2` leaseToken, `$3` durationMs, `$4` workRemaining. Watch the numbering:
@@ -857,7 +865,7 @@ UPDATE byline_recurring_tasks SET
     900
   )),
   updated_at = now()
-WHERE name = $1 AND lease_token = $2
+WHERE name = $1 AND lease_token::text = $2
 ```
 
 Truncate `error` to 2048 characters before binding it. Never bind a stack trace.
@@ -872,6 +880,18 @@ SELECT name, interval_ms, next_run_at, last_status, last_started_at, last_succee
 FROM byline_recurring_tasks
 WHERE ($1::text[] IS NULL OR name = ANY($1))
 ORDER BY name
+```
+
+**Bind the name list with `sql.param(nameList)`, not a bare `${nameList}`.** Drizzle's `sql` tag
+tests `Array.isArray` before its `Param` branch and expands a bare array into a parenthesised row
+constructor, so only the no-argument path works: one name yields `22P02 malformed array literal`,
+several yields `42846 cannot cast type record to text[]`, and an empty array is a syntax error.
+The same trap is already documented in this package at
+`packages/db-postgres/src/modules/storage/storage-queries.ts:2377` — the other `= ANY` call sites
+avoid it. Wrap **both** occurrences:
+
+```ts
+WHERE (${sql.param(nameList)}::text[] IS NULL OR name = ANY(${sql.param(nameList)}))
 ```
 
 - [ ] **Step 2: Attach it to the adapter**
@@ -973,11 +993,15 @@ The twelve behaviours, one `it` each:
     and assert an already-due run stays due.
 11. **Reconcile during a live lease updates the cadence but not the schedule.** Reconcile a task,
     claim it (so a live lease is held), then reconcile the same name with a *different* interval.
-    Assert `health()` shows the new `intervalMs` while `nextRunAt` and the lease are unchanged.
-    Then `complete` the still-held claim with `workRemaining: false` and assert the resulting
-    `next_run_at` reflects the **new** interval, not the one in force when the claim was taken.
-    This is the case that proves why `complete()` reads the persisted column instead of accepting
-    an interval from the runner — it is the rolling-deploy scenario in miniature.
+    Assert through `health()` that `intervalMs` is now the new value while `nextRunAt` is
+    unchanged — reconcile updates the cadence of a leased row but does not reschedule it.
+    `RecurringTaskHealth` exposes no lease columns (only `leaseExpired`), so lease preservation
+    is proved **behaviourally**: `complete` the still-held claim using the **original** token and
+    assert it returns `true`. That is a stronger proof than reading a column, because it exercises
+    the contract rather than the storage. Finally assert the resulting `next_run_at` reflects the
+    **new** interval, not the one in force when the claim was taken. This is the case that proves
+    why `complete()` reads the persisted column instead of accepting an interval from the runner —
+    the rolling-deploy scenario in miniature.
 12. **Health reports a currently expired lease.** Claim with the shortest permitted lease, wait
     past expiry without completing, and assert the health row has `leaseExpired: true` and
     `lastStatus: 'running'`.
@@ -1018,7 +1042,7 @@ cover all four argument shapes — omitted, one name, several names, and an empt
 because array binding is where adapter SQL generation most commonly breaks.
 Do **not** relax `MIN_INTERVAL_MS` or `MIN_LEASE_MS`; they are definition-level and correct.
 
-Behaviours 2 and 11 need a lease that expires inside a test, and they can have one:
+Behaviours 2 and 12 need a lease that expires inside a test, and they can have one:
 **`MIN_LEASE_MS` constrains task *definitions*, not store calls.** `validateRecurringTasks` enforces
 the 60-second floor at boot, but `ISchedulerStore.claim` takes `leaseMs` as an ordinary parameter
 and does not validate it. A conformance test therefore calls `store.claim({ name, leaseMs: 100,
