@@ -196,6 +196,7 @@ interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
     }
   }
   search?: SearchProvider
+  scheduledPublication?: { enabled: boolean }
   recurringTasks?: readonly RecurringTaskDefinition[]
 }
 ```
@@ -214,7 +215,10 @@ interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
 | `fields.richText.toMarkdown` | Optional | Synchronous one-way serializer used by markdown document export, `.md` routes, and `llms.txt`. |
 | `fields.richText.toText` | Conditional | Plain-text extractor required when a collection search body includes a rich-text field. |
 | `search` | Conditional | Search provider required when any collection declares `search`. |
+| `scheduledPublication` | Disabled | Set `{ enabled: true }` to register the built-in `documents.publish-scheduled` recurring task and expose the feature to host/admin integrations. The database adapter must implement both scheduler and document-schedule capabilities. Registration is inert: `initBylineCore()` does not start a timer. |
 | `recurringTasks` | `[]` | Definitions created with `defineRecurringTask()`. Registration does not start a timer. When this list is non-empty, `db` must implement the optional scheduler capability; `initBylineCore()` validates and snapshots the definitions for the scheduler runner. |
+
+The host owns execution lifetime. A long-running server may call `startBylineScheduler(core)` from `@byline/core/scheduler`; an externally orchestrated installation may call `runDueTasks(core)` instead. Importing server configuration from a seed, migration, or maintenance script therefore never acquires a lease or keeps that process alive. Scheduled publication remains optional convenience: ordinary `CollectionHandle.changeStatus()` publication neither requires nor consults a schedule row.
 
 ### `ServerHooksConfig`
 
