@@ -10,9 +10,10 @@ import { MIN_INTERVAL_MS, MIN_LEASE_MS } from './define-recurring-task.js'
 import type { RecurringTaskDefinition } from './types.js'
 
 function assertDuration(value: number, label: string, minimum: number, taskName: string): void {
-  if (!Number.isFinite(value)) {
+  if (!Number.isSafeInteger(value)) {
     throw new Error(
-      `recurring task '${taskName}': ${label} must be a finite number of milliseconds`
+      `recurring task '${taskName}': ${label} must be a whole number of milliseconds ` +
+        `(received ${value})`
     )
   }
   if (value < minimum) {

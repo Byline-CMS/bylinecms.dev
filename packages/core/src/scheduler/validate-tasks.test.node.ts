@@ -50,6 +50,14 @@ describe('validateRecurringTasks', () => {
     )
   })
 
+  it('rejects a fractional interval', () => {
+    expect(() => validateRecurringTasks([{ ...ok, intervalMs: 60_000.5 }])).toThrow(/whole number/i)
+  })
+
+  it('accepts a large, valid interval (30 days)', () => {
+    expect(() => validateRecurringTasks([{ ...ok, intervalMs: 30 * 86_400_000 }])).not.toThrow()
+  })
+
   it('rejects a missing run function', () => {
     expect(() => validateRecurringTasks([{ ...ok, run: undefined as never }])).toThrow(/run/i)
   })
