@@ -50,6 +50,15 @@ Every task's requirements implicitly include these.
   `Co-Authored-By`, no AI attribution, no others.
 - **Biome only.** Run `pnpm lint` from the repo root to auto-fix. Never add ESLint or Prettier.
   2-space indent, single quotes, no semicolons, 100-char lines.
+- **Two migration streams, and this plan produces both.** Drizzle is the **development** stream:
+  you edit `src/database/schema/index.ts`, run `drizzle:generate`, and work against the generated
+  migration. It is not what ships to existing installations. When the adapter's feature work is
+  complete, a **hand-written, Drizzle-independent** upgrade script is added to
+  `packages/db-postgres/sql/` (and `packages/db-mysql/sql/` when the MySQL pass lands). At release
+  time the Drizzle migrations are squashed into the fresh-install baseline bundled by
+  `@byline/cli`, the migration key is reset, and the hand-written scripts remain the upgrade path
+  for deployed databases. Read `packages/db-postgres/sql/README.md` before writing one — Task 8
+  depends on it.
 - **Integration tests need Postgres.** `cd postgres && ./postgres.sh up -d`, and a one-time
   `pnpm db:init:test` to create `byline_test`.
 
@@ -80,6 +89,8 @@ Every task's requirements implicitly include these.
 
 - `packages/db-postgres/src/modules/scheduler/scheduler-store.ts` — the Postgres store.
 - `packages/db-conformance/src/suites/scheduler.ts` — the shared behavioural suite.
+- `packages/db-postgres/sql/0007_add-recurring-tasks.sql` — the hand-written, Drizzle-independent
+  upgrade script for deployed databases (Task 8, written last).
 
 Tests live beside their source as `*.test.node.ts` in core (vitest node mode); the adapter's
 behavioural proof lives entirely in the conformance suite rather than in adapter-local tests.
@@ -623,7 +634,11 @@ git commit -s -m "feat(scheduler): added the optional adapter capability and boo
 
 ---
 
-### Task 3: Postgres schema for `byline_recurring_tasks`
+### Task 3: Postgres schema for `byline_recurring_tasks` (development stream)
+
+This task produces the **Drizzle** schema and generated migration, which is what development and
+the test database run against. It is not the artifact that upgrades a deployed installation — that
+is Task 8, written once the adapter work is proven.
 
 **Files:**
 - Modify: `packages/db-postgres/src/database/schema/index.ts`
@@ -695,6 +710,9 @@ pnpm lint
 git add packages/db-postgres/src/database
 git commit -s -m "feat(scheduler): added the byline_recurring_tasks table to the postgres adapter"
 ```
+
+Do **not** write anything into `packages/db-postgres/sql/` yet. That script is written against the
+finished, conformance-proven schema, so that it never has to be amended — see Task 8.
 
 ---
 
@@ -1270,6 +1288,75 @@ git commit -s -m "feat(scheduler): added the in-process ticker with jitter and n
 
 ---
 
+### Task 8: Hand-written Postgres upgrade script
+
+The Drizzle-independent upgrade path for deployed databases. Written last, against the schema the
+conformance suite has already proven, so it never needs amending.
+
+**Files:**
+- Create: `packages/db-postgres/sql/0007_add-recurring-tasks.sql`
+
+**Interfaces:**
+- Consumes: the finished `byline_recurring_tasks` schema (Tasks 3–5).
+- Produces: nothing consumed by code. This is a shipped artifact for operators.
+
+- [ ] **Step 1: Read the conventions**
+
+Read `packages/db-postgres/sql/README.md` in full, and open `0005_add-admin-user-preferences.sql`
+as the closest existing example — it also adds to the schema rather than backfilling data.
+
+- [ ] **Step 2: Confirm the script number**
+
+Run: `ls packages/db-postgres/sql/`
+Expected: the highest existing number is `0006`. Use `0007`. If something has landed since this
+plan was written and `0007` is taken, take the next free number and say so in the hand-off.
+
+- [ ] **Step 3: Write the script**
+
+Requirements, all of them non-negotiable and taken from the README:
+
+- **Idempotent.** `CREATE TABLE IF NOT EXISTS`. An operator who runs it twice must see no error and
+  no change on the second run.
+- **Wrapped in a single transaction.** `BEGIN;` … `COMMIT;`.
+- **Must end with the ownership guard**, immediately before `COMMIT`, copied **verbatim** from any
+  existing script that creates a table. Do not adapt it, do not name the new table in it — it names
+  no table by design and converges all mis-owned public objects to the database owner. This is
+  CI-enforced: `src/database/ownership-guard.test.node.ts` fails the build if a script containing
+  `CREATE TABLE` lacks the `-- byline:ownership-guard` marker or the reassignment statement.
+- **Column definitions must match the Drizzle schema exactly** — same types, same nullability, same
+  defaults. A drift between the two streams produces a database that passes migration and then
+  fails at runtime on one deployment path only.
+- **Header comment** naming what the script adds and which Byline feature it belongs to, in the
+  style of the existing scripts.
+
+- [ ] **Step 4: Verify it applies to a clean database**
+
+```bash
+createdb byline_sqlcheck
+psql byline_sqlcheck -f packages/db-postgres/sql/0007_add-recurring-tasks.sql
+psql byline_sqlcheck -f packages/db-postgres/sql/0007_add-recurring-tasks.sql
+psql byline_sqlcheck -c '\d byline_recurring_tasks'
+dropdb byline_sqlcheck
+```
+Expected: both applications succeed (the second changing nothing), and the printed table structure
+matches the Drizzle definition column for column. Paste the `\d` output into the hand-off — that
+is the evidence the two streams agree.
+
+- [ ] **Step 5: Run the ownership-guard test**
+
+Run: `cd packages/db-postgres && pnpm vitest run --mode=node src/database/ownership-guard.test.node.ts`
+Expected: PASS, with the new script included in what it checks.
+
+- [ ] **Step 6: Commit**
+
+```bash
+pnpm lint
+git add packages/db-postgres/sql
+git commit -s -m "feat(scheduler): added the hand-written postgres upgrade script for recurring tasks"
+```
+
+---
+
 ## Review checkpoints
 
 Two of the spec's acceptance criteria are structural rather than testable, and are checked by
@@ -1287,8 +1374,12 @@ review rather than by an assertion:
 
 Named so nobody adds them speculatively:
 
-- **MySQL store.** A second pass runs the same conformance suite; the suite is the deliverable that
-  makes it mechanical.
+- **MySQL store, and its hand-written script.** A second pass runs the same conformance suite; the
+  suite is the deliverable that makes it mechanical. `packages/db-mysql/sql/` gets its own numbered
+  script at the end of that pass, following `packages/db-mysql/sql/README.md`.
+- **The release squash.** Collapsing the Drizzle migrations into the CLI's fresh-install baseline
+  and resetting the migration key is release process, not feature work. Task 8 exists so that
+  squash is safe: deployed installations upgrade by the hand-written script, not by the baseline.
 - **`startBylineScheduler()` host wiring.** Calling it from `apps/webapp/src/server.ts` belongs with
   the first real consumer, not with the primitive.
 - **Any recurring task.** Analytics rollup and scheduled publication are separate specs. This plan
