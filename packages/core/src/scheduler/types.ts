@@ -172,8 +172,10 @@ export interface ISchedulerStore {
    * plus `leaseMs`. Every write here and below is conditioned on
    * `lease_token = params.leaseToken` — a stale runner whose lease has since
    * been reclaimed by another instance cannot successfully renew, complete,
-   * or fail the row. Returns `false` (never throws) when the token does not
-   * match — i.e. the lease had already been lost.
+   * or fail the row. Expiry alone does not invalidate a still-matching token:
+   * a runner may renew after the deadline provided no other claimant has
+   * replaced its token. Returns `false` (never throws) only when the token does
+   * not match — i.e. the lease has actually been lost.
    */
   renew(params: { name: string; leaseToken: string; leaseMs: number }): Promise<boolean>
 

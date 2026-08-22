@@ -196,7 +196,9 @@ export class SchedulerStore implements ISchedulerStore {
 
   /**
    * Token-matched lease extension. `false` (never throws) when the token no
-   * longer matches.
+   * longer matches. There is intentionally no expiry predicate: expiry makes
+   * the row claimable, but the existing runner may still renew until another
+   * claimant replaces its token.
    *
    * `lease_token` is a `uuid` column; comparing it against `$N` directly
    * would resolve the parameter as `uuid`, so Postgres parses the bound text

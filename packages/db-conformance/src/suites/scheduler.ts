@@ -179,6 +179,48 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
         store.renew({ name: liveName, leaseToken: holderClaim.leaseToken, leaseMs: 60_000 })
       ).resolves.toBe(true)
 
+      // A true return is not enough to prove heartbeat semantics: a
+      // token-matched no-op UPDATE also reports one changed row. Renew a short
+      // lease, wait beyond its original expiry, and prove a competing claim is
+      // still excluded by the extended lease window.
+      const renewalName = taskName('lease-renewal')
+      await makeDue(renewalName)
+      const renewalClaim = await claimOrThrow({
+        name: renewalName,
+        leaseMs: 300,
+        owner: 'heartbeat-holder',
+      })
+      await sleep(150)
+      await expect(
+        store.renew({ name: renewalName, leaseToken: renewalClaim.leaseToken, leaseMs: 1_000 })
+      ).resolves.toBe(true)
+      await sleep(250)
+      await expect(
+        store.claim({ name: renewalName, leaseMs: 60_000, owner: 'post-heartbeat-thief' })
+      ).resolves.toBeNull()
+
+      // Expiry makes the row claimable; it does not itself invalidate the
+      // token. Until another claimant replaces that token, the original
+      // runner may recover from a pause by renewing even after its deadline.
+      const lateRenewalName = taskName('lease-late-renewal')
+      await makeDue(lateRenewalName)
+      const lateRenewalClaim = await claimOrThrow({
+        name: lateRenewalName,
+        leaseMs: 100,
+        owner: 'late-heartbeat-holder',
+      })
+      await sleep(150)
+      await expect(
+        store.renew({
+          name: lateRenewalName,
+          leaseToken: lateRenewalClaim.leaseToken,
+          leaseMs: 60_000,
+        })
+      ).resolves.toBe(true)
+      await expect(
+        store.claim({ name: lateRenewalName, leaseMs: 60_000, owner: 'late-heartbeat-thief' })
+      ).resolves.toBeNull()
+
       const expiringName = taskName('lease-expiring')
       await makeDue(expiringName)
       const shortLived = await claimOrThrow({
@@ -275,7 +317,13 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
       await makeDue(name)
 
       const failedClaim = await claimOrThrow({ name, leaseMs: 60_000, owner: 'suite' })
-      await store.fail({ name, leaseToken: failedClaim.leaseToken, durationMs: 5, error: 'boom' })
+      const oversizedError = 'x'.repeat(3_000)
+      await store.fail({
+        name,
+        leaseToken: failedClaim.leaseToken,
+        durationMs: 17,
+        error: oversizedError,
+      })
 
       // The Date-ness of the typed timestamp columns matters as much as
       // their value — this is exactly the class of defect a store could
@@ -284,6 +332,9 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
       const failedRow = await healthOf(name)
       expect(failedRow.lastStartedAt).toBeInstanceOf(Date)
       expect(failedRow.lastFailedAt).toBeInstanceOf(Date)
+      expect(failedRow.lastStatus).toBe('failed')
+      expect(failedRow.lastDurationMs).toBe(17)
+      expect(failedRow.lastError).toBe('x'.repeat(2_048))
 
       // Pull the row due again, then widen to a realistic cadence before the
       // successful claim so `complete`'s persisted-interval math is
@@ -485,6 +536,18 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
       const immediateRow = await healthOf(immediateName)
       assertClose(immediateRow.nextRunAt, immediateRow.databaseNow.getTime(), 'workRemaining:true')
 
+      // Re-arming the schedule is useful only if completion also released the
+      // lease. Reclaim with a new token immediately; `recoveredExpiredLease`
+      // must be false because success cleared the old lease rather than
+      // leaving it to expire.
+      const rearmedClaim = await claimOrThrow({
+        name: immediateName,
+        leaseMs: 60_000,
+        owner: 'suite-rearmed',
+      })
+      expect(rearmedClaim.leaseToken).not.toBe(immediateClaim.leaseToken)
+      expect(rearmedClaim.recoveredExpiredLease).toBe(false)
+
       const deferredName = taskName('work-remaining-false')
       await makeDue(deferredName)
       const deferredClaim = await claimOrThrow({
@@ -511,8 +574,11 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
       const name = taskName('clock-skew')
       await makeDue(name)
 
+      const beforeClaim = await healthOf(name)
       const claim = await claimOrThrow({ name, leaseMs: 60_000, owner: 'suite' })
+      expect(claim.name).toBe(name)
       expect(claim.databaseNow).toBeInstanceOf(Date)
+      expect(claim.scheduledFor.getTime()).toBe(beforeClaim.nextRunAt.getTime())
       // The claim only succeeded because the store's own notion of "now"
       // judged the row due — the contract exposes that value directly
       // rather than asking the caller to trust `Date.now()`.
@@ -523,7 +589,14 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
       // `claim` must say so. Without this, "decisions follow database
       // time" was never checked against a task that ISN'T due.
       const futureName = taskName('clock-skew-not-due')
-      await store.reconcile([{ name: futureName, intervalMs: 3_600_000 }])
+      const futureInterval = 3_600_000
+      await store.reconcile([{ name: futureName, intervalMs: futureInterval }])
+      const futureRow = await healthOf(futureName)
+      assertClose(
+        futureRow.nextRunAt,
+        futureRow.databaseNow.getTime() + futureInterval,
+        'initial next_run_at'
+      )
       await expect(
         store.claim({ name: futureName, leaseMs: 60_000, owner: 'suite' })
       ).resolves.toBeNull()
