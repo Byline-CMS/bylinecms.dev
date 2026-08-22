@@ -133,11 +133,6 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
         <div className={styles.controls}>
           <div className={styles.filters}>
             <div className={styles.filter}>
-              <Label
-                id="scheduled-publication-state-label"
-                htmlFor="scheduled-publication-state"
-                label={t('scheduledPublication.list.filters.state')}
-              />
               <Select<string>
                 id="scheduled-publication-state"
                 name="scheduled-publication-state"

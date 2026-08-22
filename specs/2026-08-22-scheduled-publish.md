@@ -472,9 +472,9 @@ security review: an editor offboarded on Thursday still publishes content on Fri
 follow, and all three are requirements rather than advice. The behaviour is documented in
 `docs/07-auth-and-security/` alongside the rest of the authorization model, not only here.
 `last_authorized_by` records whose authorization each pending publication rests on. And revoking an
-account's access must include an operational step that lists and cancels that account's pending
-schedules — the admin listing below is what makes that step possible, which is part of why it is
-required for v1.
+account's access must include an operational review of the active schedule queue so any pending
+publications attributed to that account can be cancelled. The listing identifies the authorizer on
+each row; v1 does not require a separate authorizer filter.
 
 ## Failure behaviour
 
@@ -532,16 +532,17 @@ before it will publish.
 A dismissed notice is not a durable signal, so the admin must also expose schedules away from the
 document that produced them: a cross-collection listing of active and suspended schedules,
 reachable from the admin area. This listing is what turns "the editor did not notice" from silent
-non-publication into a visible queue, and it is the same surface an administrator uses to find and
-cancel an offboarded account's pending schedules. It is required for v1, not deferred.
+non-publication into a visible queue, and it is the same surface an administrator reviews when
+offboarding an account. It is required for v1, not deferred.
 
 Because it spans collections, it must be filtered per row rather than gated once. Abilities in
 Byline are collection-scoped (`collections.<path>.changeStatus`, `collections.<path>.publish`), so
 the listing shows a schedule only when the viewing actor holds both abilities for that schedule's
 own collection. A single page-level permission check would leak the existence, paths, and timing of
 scheduled content in collections the viewer cannot otherwise see. The listing shows
-`last_authorized_by` for each row, since finding one account's pending schedules is one of its two
-reasons to exist.
+the current authorizer for each row as a resolved display name where the account still exists, with
+`last_authorized_by` as the fallback for a deleted account. An authorizer-specific queue filter is
+not required for v1.
 
 **The filtering is computed above the storage layer, not inside it.** The database adapters stay
 actor- and ability-agnostic, as they are everywhere else in Byline. The core service resolves the
