@@ -94,12 +94,17 @@ export interface ReconcileTaskInput {
  * A MySQL (or any third) adapter implementing this interface should be able to
  * do so from the doc comments below without reading the design spec — every
  * method states exactly which columns it reads and writes.
+ *
+ * One rule holds across every method and is not repeated below: every
+ * successful mutation — `reconcile`, `claim`, `renew`, `complete`, `fail` —
+ * also sets `updated_at` from database time, in addition to the per-method
+ * column lists that follow.
  */
 export interface ISchedulerStore {
   /**
    * Insert rows for unknown names and update `interval_ms` for known ones,
-   * preserving health history and any live lease. Must be safe to run
-   * concurrently from several instances — a deploy restarts them together.
+   * preserving health history. Must be safe to run concurrently from several
+   * instances — a deploy restarts them together.
    *
    * A brand-new row's `next_run_at` is database-now **plus** the task's
    * `intervalMs` — a task never fires at module evaluation or immediately on
@@ -115,9 +120,18 @@ export interface ISchedulerStore {
    *   longer interval. The new cadence takes effect starting from the next
    *   time the row completes successfully (see `complete` below).
    *
-   * A row carrying a live lease (`lease_expires_at` in the future) is never
-   * disturbed by reconcile — the in-flight claim owns the row until it
-   * completes, fails, or the lease expires.
+   * `interval_ms` is always updated, including on a row carrying a live
+   * lease (`lease_expires_at` in the future) — the lease protects
+   * `next_run_at` and the lease columns themselves (`lease_token`,
+   * `lease_owner`, `lease_expires_at`), which are left untouched while a
+   * lease is live, but not `interval_ms`. This matters because `complete`
+   * derives `next_run_at` from the row's persisted `interval_ms` rather than
+   * from a caller-supplied value (see `complete` below); if reconcile
+   * skipped leased rows entirely, a newly deployed cadence would not take
+   * effect until the in-flight lease released, which would partially defeat
+   * the reason `complete` stopped accepting an interval from the runner. A
+   * rolling deploy is exactly the moment both a reconcile and a live lease
+   * are likely to coincide.
    *
    * Rows for names no longer present in the registered task set are retained
    * as dormant history: reconcile neither executes them nor deletes them.
