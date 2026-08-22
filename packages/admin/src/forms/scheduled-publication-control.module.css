@@ -116,6 +116,14 @@
   margin-top: var(--spacing-12);
 }
 
+/* The offset chooser only appears for a daylight-saving overlap, and its two
+   options carry the whole decision — give it room to show them rather than
+   collapsing to a bare chevron. */
+.choice-select {
+  min-width: 16rem;
+  max-width: 100%;
+}
+
 :is([data-theme="dark"], :global(.dark)) {
   .warningText {
     background: color-mix(in srgb, var(--orange-500, #f97316) 14%, transparent);

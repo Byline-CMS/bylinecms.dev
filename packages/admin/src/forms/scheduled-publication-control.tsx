@@ -79,6 +79,29 @@ function browserTimeZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 }
 
+/**
+ * Render a wall time for display without turning it into an instant.
+ *
+ * The calendar day is formatted through a UTC-noon stand-in, which is safe
+ * because only the day's name and number are taken from it; the clock reading
+ * is appended verbatim, since the whole point is to show the reading the editor
+ * chose rather than one a `Date` would have normalized it to.
+ */
+function formatWallTime(wall: ScheduledPublicationWallTime, locale: string): string {
+  const [year, month, day] = wall.date.split('-').map(Number)
+  if (year == null || month == null || day == null) {
+    return `${wall.date} ${wall.time}`
+  }
+  if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) {
+    return `${wall.date} ${wall.time}`
+  }
+  const dayLabel = new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(year, month - 1, day, 12)))
+  return `${dayLabel}, ${wall.time}`
+}
+
 function seedScheduleInstant(schedule: ScheduledPublicationInfo | null): Date {
   if (schedule != null) return new Date(schedule.publishAt)
   const seed = new Date(Date.now() + DEFAULT_LEAD_MS)
@@ -370,7 +393,7 @@ function ScheduleModal({
   onDismiss: () => void
   busy: boolean
 }) {
-  const { t } = useTranslation('byline-admin')
+  const { t, locale } = useTranslation('byline-admin')
   // The instant the picker opens on. Always a real instant — either the one
   // already authorized, or a lead time from now — so seeding it never has to
   // construct a `Date` from a wall time.
@@ -400,8 +423,14 @@ function ScheduleModal({
       setValidationError(t('scheduledPublication.form.invalid'))
       return
     }
+    // Name the wall time in both daylight-saving messages. The picker's own
+    // field cannot be trusted to show it: having normalized the selection, it
+    // displays 03:30 for a 02:30 that does not exist, so a message that just
+    // said "that time" would appear to be rejecting the time on screen.
+    const offending = formatWallTime(wall, locale)
+
     if (resolution.status === 'nonexistent') {
-      setValidationError(t('scheduledPublication.form.nonexistent'))
+      setValidationError(t('scheduledPublication.form.nonexistent', { wallTime: offending }))
       return
     }
     if (
@@ -409,7 +438,7 @@ function ScheduleModal({
       !resolution.choices.some((c) => c.iso === selectedInstant)
     ) {
       setInstantChoices(resolution.choices)
-      setValidationError(t('scheduledPublication.form.ambiguous'))
+      setValidationError(t('scheduledPublication.form.ambiguous', { wallTime: offending }))
       return
     }
 
@@ -473,11 +502,22 @@ function ScheduleModal({
                 id="scheduled-publication-offset"
                 name="scheduled-publication-offset"
                 ariaLabel={t('scheduledPublication.form.offset')}
+                containerClassName={styles['choice-select']}
+                placeholder={t('scheduledPublication.form.offsetPlaceholder')}
                 size="sm"
                 value={selectedInstant}
-                items={instantChoices.map((choice) => ({
+                // The resolver returns the overlap's instants in chronological
+                // order, so the two can be named by when they happen. A bare
+                // "UTC-04:00" asks the editor to know which side of the
+                // transition that is; "Earlier" and "Later" do not.
+                items={instantChoices.map((choice, index) => ({
                   value: choice.iso,
-                  label: choice.offsetLabel,
+                  label: t(
+                    index === 0
+                      ? 'scheduledPublication.form.offsetEarlier'
+                      : 'scheduledPublication.form.offsetLater',
+                    { offset: choice.offsetLabel }
+                  ),
                 }))}
                 onValueChange={(value) => {
                   setSelectedInstant(value ?? '')
