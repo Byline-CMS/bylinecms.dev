@@ -819,7 +819,7 @@ reconciled one.
 UPDATE byline_recurring_tasks SET
   last_succeeded_at = now(),
   last_status = 'succeeded',
-  last_duration_ms = $4,
+  last_duration_ms = $3,
   consecutive_failures = 0,
   last_error = NULL,
   lease_token = NULL,
@@ -830,6 +830,11 @@ UPDATE byline_recurring_tasks SET
   updated_at = now()
 WHERE name = $1 AND lease_token = $2
 ```
+
+Bindings are `$1` name, `$2` leaseToken, `$3` durationMs, `$4` workRemaining. Watch the numbering:
+an earlier revision of this plan carried `intervalMs` as `$3`, and removing it without renumbering
+left `$4` bound to both the duration and the boolean — which fails at runtime on every successful
+completion.
 
 `interval_ms` in the `CASE` is the row's own column — Postgres evaluates SET expressions against
 the OLD row, so this is the persisted cadence, which is exactly the intent.
@@ -966,7 +971,14 @@ The eleven behaviours, one `it` each:
 10. **Interval decrease clamps an unleased next run; increase does not postpone.** Reconcile at one
     hour, then at 60s; assert `next_run_at` moved in to within a minute. Reconcile back to one hour
     and assert an already-due run stays due.
-11. **Health reports a currently expired lease.** Claim with the shortest permitted lease, wait
+11. **Reconcile during a live lease updates the cadence but not the schedule.** Reconcile a task,
+    claim it (so a live lease is held), then reconcile the same name with a *different* interval.
+    Assert `health()` shows the new `intervalMs` while `nextRunAt` and the lease are unchanged.
+    Then `complete` the still-held claim with `workRemaining: false` and assert the resulting
+    `next_run_at` reflects the **new** interval, not the one in force when the claim was taken.
+    This is the case that proves why `complete()` reads the persisted column instead of accepting
+    an interval from the runner — it is the rolling-deploy scenario in miniature.
+12. **Health reports a currently expired lease.** Claim with the shortest permitted lease, wait
     past expiry without completing, and assert the health row has `leaseExpired: true` and
     `lastStatus: 'running'`.
 
