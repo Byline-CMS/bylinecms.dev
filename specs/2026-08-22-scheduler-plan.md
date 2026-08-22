@@ -64,8 +64,11 @@ Every task's requirements implicitly include these.
   `packages/db-postgres/sql/` (and `packages/db-mysql/sql/` when the MySQL pass lands). At release
   time the Drizzle migrations are squashed into the fresh-install baseline bundled by
   `@byline/cli`, the migration key is reset, and the hand-written scripts remain the upgrade path
-  for deployed databases. Read `packages/db-postgres/sql/README.md` before writing one — Task 8
-  depends on it.
+  for deployed databases. Before that squash, every generated development migration and the
+  journal are copied into the CLI's fresh-install bundle so `pnpm test` and new development
+  installations see the current schema. The baseline-drift contract accepts one or more files but
+  requires the source and bundle inventories, journal entries, and SQL contents to match exactly.
+  Read `packages/db-postgres/sql/README.md` before writing one — Task 8 depends on it.
 - **Integration tests need Postgres.** `cd postgres && ./postgres.sh up -d`, and a one-time
   `pnpm db:init:test` to create `byline_test`.
 
@@ -704,7 +707,22 @@ Expected: the new table with `name` as primary key, `interval_ms` and `next_run_
 generator produced anything else — a dropped column elsewhere, an unrelated diff — stop and report
 rather than editing the migration by hand.
 
-- [ ] **Step 4: Apply it to the test database**
+- [ ] **Step 4: Synchronize the CLI fresh-install bundle**
+
+Copy every new generated SQL migration plus `meta/_journal.json` into
+`packages/cli/src/templates/migrations/postgres/`. Do not copy Drizzle snapshots; the runtime
+migrator consumes the SQL files and journal. Run:
+
+```bash
+cd packages/cli
+pnpm vitest run src/lib/baseline-drift.test.ts
+```
+
+Expected: the Postgres and MySQL bundles both match their adapter source inventories. During
+feature development the Postgres bundle may contain multiple migrations; the release squash later
+reduces it to one without weakening this exact-inventory guard.
+
+- [ ] **Step 5: Apply it to the test database**
 
 ```bash
 cd postgres && ./postgres.sh up -d
@@ -712,11 +730,12 @@ cd ../packages/db-postgres && pnpm drizzle:migrate
 ```
 Expected: migration applies without error.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 pnpm lint
-git add packages/db-postgres/src/database
+git add packages/db-postgres/src/database packages/cli/src/templates/migrations/postgres \
+  packages/cli/src/lib/baseline.ts packages/cli/src/lib/baseline-drift.test.ts
 git commit -s -m "feat(scheduler): added the byline_recurring_tasks table to the postgres adapter"
 ```
 
@@ -820,7 +839,10 @@ Return `null` when zero rows changed. Competing instances affect zero rows and d
 only if selected before assignment — since `next_run_at` is not in the SET list, `RETURNING
 next_run_at` is the unchanged value and is correct here.
 
-**`renew({ name, leaseToken, leaseMs })`** — token-matched, returns `rowCount === 1`.
+**`renew({ name, leaseToken, leaseMs })`** — token-matched, returns `rowCount === 1`. Do not add an
+expiry predicate: expiry makes a row claimable but does not invalidate the current token by itself.
+A runner that resumes after its deadline may still renew provided another claimant has not replaced
+that token.
 
 **All three token-matched writes compare `lease_token::text`, never the bare column.**
 `lease_token` is a `uuid` column, so `lease_token = $2` makes Postgres parse the bound string as a
@@ -948,7 +970,9 @@ adapter-internal handle.
 **Interfaces:**
 - Consumes: `ISchedulerStore` (Task 1); the Postgres store (Task 4).
 - Produces: `schedulerSuite(hooks: ConformanceHooks): void`;
-  `ConformanceHooks.createSchedulerStore?(): Promise<ISchedulerStore>`.
+  `ConformanceHooks.createSchedulerStore?(): Promise<ISchedulerStore>`;
+  `ConformanceHooks.observeSchedulerContention?` for adapter-owned physical-connection
+  instrumentation during the two race tests.
 
 - [ ] **Step 1: Add the optional hook**
 
@@ -960,8 +984,19 @@ In `packages/db-conformance/src/index.ts`, add to `ConformanceHooks`, mirroring 
    * Construct the adapter's `ISchedulerStore` against the same test database.
    * Optional — an adapter without scheduler support omits it and the scheduler
    * suite is not registered at all, so it never appears as skipped.
+   * An adapter that supplies this hook must also supply
+   * `observeSchedulerContention` below.
    */
   createSchedulerStore?(): Promise<ISchedulerStore>
+
+  /**
+   * Run `operation` while observing the adapter's physical connection
+   * lifecycle. The scheduler race tests require a peak greater than one so a
+   * one-connection pool cannot turn them into silently serialized non-tests.
+   */
+  observeSchedulerContention?: <T>(
+    operation: () => Promise<T>
+  ) => Promise<{ result: T; maxConcurrentConnections: number }>
 ```
 
 Export the suite alongside the others: `export { schedulerSuite } from './suites/scheduler.js'`.
@@ -971,23 +1006,32 @@ In `runAdapterConformanceSuite`, register it only when the hook is present, the 
 - [ ] **Step 2: Write the suite**
 
 Create `packages/db-conformance/src/suites/scheduler.ts`. Structure it as one top-level `describe`
-whose `beforeAll` calls `hooks.truncate()` then `hooks.createSchedulerStore!()`. Each test
-reconciles the definitions it needs with a unique name prefix so tests do not collide.
+whose `beforeAll` calls `hooks.truncate()` then `hooks.createSchedulerStore!()` and rejects a
+scheduler-capable hook that omitted `observeSchedulerContention`. Each test reconciles the
+definitions it needs with a unique name prefix so tests do not collide.
 
 The twelve behaviours, one `it` each:
 
 1. **Two simultaneous claims produce one winner.** Reconcile a task with a 60s interval, force it
-   due, then `await Promise.all([store.claim(...), store.claim(...)])`. Exactly one result is
-   non-null.
+   due, then make several claims through `observeSchedulerContention`. Exactly one result is
+   non-null and `maxConcurrentConnections` is greater than one; the latter assertion is what makes
+   this a database-contention test rather than a test of sequential calls through one connection.
 2. **A live lease cannot be stolen; an expired lease can.** Claim with a long lease, assert a
    second claim returns null. Then claim with the shortest lease the store permits, wait past
-   expiry, assert a further claim succeeds and returns a *different* `leaseToken`.
+   expiry, assert a further claim succeeds and returns a *different* `leaseToken`. Also prove that
+   `renew` has an effect rather than merely returning `true`: renew a short lease before it expires,
+   wait beyond the original expiry but within the renewed window, and assert a competing claim is
+   still excluded. Finally, let another short lease expire without reclaiming it and assert its
+   still-matching token can renew successfully; expiry makes the row claimable, but only a new
+   token fences the old runner.
 3. **A stale token cannot heartbeat, complete, fail, or overwrite a newer run.** Claim (token A),
    let it expire, re-claim (token B), then assert `renew`, `complete`, and `fail` with token A all
    return `false` and leave the token-B row unchanged.
-4. **Success advances from database time and clears failure state.** Fail once, then claim and
-   complete; assert `consecutive_failures` is 0, `last_error` is null, `last_status` is
-   `'succeeded'`, and `next_run_at` is approximately `databaseNow + intervalMs`.
+4. **Success advances from database time and clears failure state.** Fail once with a distinctive
+   duration and an error longer than 2048 characters; immediately assert `last_status`,
+   `last_duration_ms`, `last_failed_at`, and the truncated error. Then claim and complete; assert
+   `consecutive_failures` is 0, `last_error` is null, `last_status` is `'succeeded'`, and
+   `next_run_at` is approximately `databaseNow + intervalMs`.
 5. **Failure applies the bounded backoff and a later success resets it.** Fail three times in
    succession, asserting `next_run_at` advances by roughly 1, then 2, then 4 minutes, and that the
    delay never exceeds 15 minutes however many failures accumulate. Then succeed and assert the
@@ -996,16 +1040,19 @@ The twelve behaviours, one `it` each:
    Reconcile, complete a run, reconcile again with the same input; assert `last_succeeded_at`
    survives. Reconcile a *smaller* set; assert the omitted task's row still exists and is
    unchanged.
-7. **Concurrent reconciliation converges.** `await Promise.all` of five identical `reconcile` calls
-   from what the store treats as independent callers; assert no rejection and exactly one row per
-   name, with the registered interval.
+7. **Concurrent reconciliation converges.** Run five identical `reconcile` calls through
+   `observeSchedulerContention`; assert a peak greater than one, no rejection, and exactly one row
+   per name with the registered interval.
 8. **`workRemaining` becomes due immediately.** Using a task whose interval is well above the tick
    cadence (e.g. one hour), complete with `workRemaining: true` and assert `next_run_at` is
-   approximately `databaseNow`; complete another with `workRemaining: false` and assert it is
+   approximately `databaseNow`, then immediately reclaim it with a fresh ordinary token to prove
+   completion cleared the old lease. Complete another with `workRemaining: false` and assert it is
    approximately `databaseNow + 3_600_000`.
-9. **Process-clock skew does not change decisions.** Assert `claim` and `health` both return a
-   `databaseNow`, and that due-ness follows the values the store returns rather than
-   `Date.now()`. Do not attempt to change the process clock; assert the contract instead.
+9. **Process-clock skew does not change decisions.** For a new row, assert its first `next_run_at`
+   is approximately `databaseNow + intervalMs` and that it cannot yet be claimed. For a due row,
+   compare the returned `scheduledFor` exactly with the pre-claim health row's `nextRunAt`, and
+   assert `claim` and `health` return live `databaseNow` values. Do not attempt to change the
+   process clock; assert the contract through its database-time results.
 10. **Interval decrease clamps an unleased next run; increase does not postpone.** Reconcile at one
     hour, then at 60s; assert `next_run_at` moved in to within a minute. Reconcile back to one hour
     and assert an already-due run stays due.

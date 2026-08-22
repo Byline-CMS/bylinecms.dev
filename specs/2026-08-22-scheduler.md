@@ -373,6 +373,10 @@ The optional scheduler store supports:
 - read health rows;
 - return database time as part of claim/health results where needed for deterministic decisions.
 
+Lease expiry makes a row eligible for another claim but does not independently invalidate its
+token. A runner may renew after expiry while its token still matches; renewal fails only after a
+new claimant has fenced it by replacing that token.
+
 The shared Postgres/MySQL conformance suite pins:
 
 1. Two simultaneous claims produce one winner.
