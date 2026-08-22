@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { AdminAuth, isAdminAuth, isUserAuth, UserAuth } from '../src/actor.js'
 import { AuthError, AuthErrorCodes } from '../src/errors.js'
@@ -161,5 +161,27 @@ describe('isAdminAuth / isUserAuth', () => {
     expect(isUserAuth(user)).toBe(true)
     expect(isUserAuth(admin)).toBe(false)
     expect(isUserAuth(null)).toBe(false)
+  })
+
+  it('recognizes actors created by an earlier module generation', async () => {
+    vi.resetModules()
+    const earlier = await import('../src/actor.js')
+    vi.resetModules()
+    const current = await import('../src/actor.js')
+
+    // Prove this exercises two class identities rather than accidentally
+    // passing through one cached module instance.
+    expect(earlier.AdminAuth).not.toBe(current.AdminAuth)
+    expect(earlier.UserAuth).not.toBe(current.UserAuth)
+
+    const admin = new earlier.AdminAuth({ id: 'admin-from-earlier-module', abilities: [] })
+    const user = new earlier.UserAuth({ id: 'user-from-earlier-module' })
+
+    expect(admin).not.toBeInstanceOf(current.AdminAuth)
+    expect(user).not.toBeInstanceOf(current.UserAuth)
+    expect(current.isAdminAuth(admin)).toBe(true)
+    expect(current.isAdminAuth(user)).toBe(false)
+    expect(current.isUserAuth(user)).toBe(true)
+    expect(current.isUserAuth(admin)).toBe(false)
   })
 })

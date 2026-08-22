@@ -35,6 +35,19 @@
 import { ERR_FORBIDDEN } from './errors.js'
 
 /**
+ * Process-wide realm markers.
+ *
+ * `Symbol.for` is deliberate: a development server can retain an actor made
+ * by one module generation while hot reload installs another. Class identity
+ * changes across those generations, so `instanceof` rejects the still-valid
+ * actor. The global symbol registry gives every generation the same marker
+ * without weakening the admin/user distinction to a structural property such
+ * as `id` or `abilities`, which both realms share.
+ */
+const ADMIN_AUTH_MARKER = Symbol.for('@byline/auth/AdminAuth')
+const USER_AUTH_MARKER = Symbol.for('@byline/auth/UserAuth')
+
+/**
  * Admin-realm identity. Constructed by the session provider's
  * `resolveActor()` method, which joins roles → permissions into the
  * flat ability set.
@@ -43,6 +56,7 @@ import { ERR_FORBIDDEN } from './errors.js'
  * `is_super_admin` flag on the `admin_users` row (see Phase 2 schema).
  */
 export class AdminAuth {
+  public readonly [ADMIN_AUTH_MARKER] = true
   public readonly id: string
   public readonly abilities: ReadonlySet<string>
   public readonly isSuperAdmin: boolean
@@ -103,6 +117,7 @@ export class AdminAuth {
  * then, assume no call path constructs a `UserAuth` instance in practice.
  */
 export class UserAuth {
+  public readonly [USER_AUTH_MARKER] = true
   public readonly id: string
   public readonly abilities: ReadonlySet<string>
 
@@ -133,10 +148,10 @@ export type Actor = AdminAuth | UserAuth | null
 
 /** Narrow an `Actor` to the admin realm. */
 export function isAdminAuth(actor: Actor): actor is AdminAuth {
-  return actor instanceof AdminAuth
+  return actor != null && ADMIN_AUTH_MARKER in actor && actor[ADMIN_AUTH_MARKER] === true
 }
 
 /** Narrow an `Actor` to the end-user realm. */
 export function isUserAuth(actor: Actor): actor is UserAuth {
-  return actor instanceof UserAuth
+  return actor != null && USER_AUTH_MARKER in actor && actor[USER_AUTH_MARKER] === true
 }
