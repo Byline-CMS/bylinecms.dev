@@ -100,9 +100,35 @@ export interface ConformanceHooks {
    * Construct the adapter's `ISchedulerStore` against the same test database.
    * Optional — an adapter without scheduler support omits it and the scheduler
    * suite is not registered at all, so it never appears as skipped.
+   *
+   * An adapter that provides this hook must also provide
+   * `observeSchedulerContention`. The scheduler suite uses that observer to
+   * prove its claim and reconciliation races exercised more than one physical
+   * database connection instead of passing through a one-connection pool by
+   * accidental serialization.
    */
   createSchedulerStore?(): Promise<ISchedulerStore>
+
+  /**
+   * Run one scheduler operation while observing the adapter's physical
+   * database-connection lifecycle. `maxConcurrentConnections` is the peak
+   * number of simultaneously checked-out connections during `operation`.
+   *
+   * This is test-harness instrumentation, not a production adapter API. It is
+   * required whenever `createSchedulerStore` is present because the two race
+   * tests are otherwise vacuous against a pool limited to one connection.
+   */
+  observeSchedulerContention?: SchedulerContentionObserver
 }
+
+export interface SchedulerContentionObservation<T> {
+  result: T
+  maxConcurrentConnections: number
+}
+
+export type SchedulerContentionObserver = <T>(
+  operation: () => Promise<T>
+) => Promise<SchedulerContentionObservation<T>>
 
 /**
  * Register the full storage conformance suite against `hooks`. Each suite is

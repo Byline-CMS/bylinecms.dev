@@ -10,7 +10,7 @@ import type { ClaimedRecurringTask, ISchedulerStore, RecurringTaskHealth } from 
 import { v4 as uuidv4 } from 'uuid'
 import { beforeAll, describe, expect, it } from 'vitest'
 
-import type { ConformanceHooks } from '../index.js'
+import type { ConformanceHooks, SchedulerContentionObserver } from '../index.js'
 
 /**
  * Proves the claim-and-fence protocol described on `ISchedulerStore`
@@ -45,18 +45,16 @@ import type { ConformanceHooks } from '../index.js'
  * `MIN_INTERVAL_MS` (which gates task *definitions*, not this store-level
  * fixture).
  *
- * Behaviours 1 and 7 rely on the hook's own connection pool to prove real
- * concurrent contention (several claims/reconciles genuinely in flight at
- * once, not serialised one after another). `db-postgres`'s hook happens to
- * run against a `max: 4` pool (`setupTestDB`); a hook backed by a
- * single-connection pool (e.g. a MySQL `connectionLimit: 1`) would silently
- * serialise these calls and the tests would still pass without ever
- * exercising real concurrency. Behaviour 1 uses 8 concurrent claims rather
- * than 2 for the same reason — more callers than a small pool can
- * accidentally get right by serialising two of them in request order.
+ * Behaviours 1 and 7 use `hooks.observeSchedulerContention` to prove that
+ * several claims/reconciles were genuinely in flight on more than one
+ * physical database connection. A hook backed by a single-connection pool
+ * therefore fails loudly instead of silently serialising the calls into
+ * non-tests. Behaviour 1 uses 8 concurrent claims rather than 2 so the race
+ * also exercises pool queuing under a deliberately small test pool.
  */
 export function schedulerSuite(hooks: ConformanceHooks): void {
   let store: ISchedulerStore
+  let observeContention: SchedulerContentionObserver
 
   const ts = Date.now()
   let counter = 0
@@ -136,7 +134,14 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
       if (!createStore) {
         throw new Error('schedulerSuite requires hooks.createSchedulerStore')
       }
+      const observe = hooks.observeSchedulerContention
+      if (!observe) {
+        throw new Error(
+          'schedulerSuite requires hooks.observeSchedulerContention to prove real database contention'
+        )
+      }
       store = await createStore()
+      observeContention = observe
     })
 
     it('1. two simultaneous claims on the same due task produce exactly one winner', async () => {
@@ -146,13 +151,16 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
       // 8 concurrent attempts, not 2 — see the module doc comment on why a
       // small number of callers can accidentally serialise through a small
       // pool and pass without proving real contention.
-      const attempts = await Promise.all(
-        Array.from({ length: 8 }, (_, i) =>
-          store.claim({ name, leaseMs: 60_000, owner: `suite-${i}` })
+      const observation = await observeContention(() =>
+        Promise.all(
+          Array.from({ length: 8 }, (_, i) =>
+            store.claim({ name, leaseMs: 60_000, owner: `suite-${i}` })
+          )
         )
       )
 
-      const winners = attempts.filter((claim) => claim !== null)
+      expect(observation.maxConcurrentConnections).toBeGreaterThan(1)
+      const winners = observation.result.filter((claim) => claim !== null)
       expect(winners).toHaveLength(1)
     })
 
@@ -505,14 +513,13 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
     it('7. concurrent reconciliation of the same task converges to one row', async () => {
       const name = taskName('concurrent-reconcile')
 
-      // Same pool-size caveat as behaviour 1 (see the module doc comment):
-      // a hook backed by a single-connection pool would silently serialise
-      // these and this test would pass without proving anything about real
-      // concurrent reconciliation.
-      await Promise.all(
-        Array.from({ length: 5 }, () => store.reconcile([{ name, intervalMs: 3_600_000 }]))
+      const observation = await observeContention(() =>
+        Promise.all(
+          Array.from({ length: 5 }, () => store.reconcile([{ name, intervalMs: 3_600_000 }]))
+        )
       )
 
+      expect(observation.maxConcurrentConnections).toBeGreaterThan(1)
       const rows = await store.health([name])
       expect(rows).toHaveLength(1)
       expect(firstOrThrow(rows, name).intervalMs).toBe(3_600_000)
