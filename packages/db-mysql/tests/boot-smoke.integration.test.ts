@@ -149,6 +149,9 @@ describe('MySQL end-to-end boot smoke (initBylineCore composition, live database
       collections: [definition],
       defaultContentLocale: 'en',
     })
+    // Pin the production adapter composition, not only the conformance hook:
+    // configured recurring tasks must see this capability during core boot.
+    expect(db.scheduler).toBeDefined()
 
     // The actual boot sequence — not a hand-rolled approximation. Runs
     // `ensureCollections()` (creates the `boot-smoke-*` collection row —
