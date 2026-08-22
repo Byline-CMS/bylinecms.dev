@@ -112,6 +112,21 @@ export class SchedulerStore implements ISchedulerStore {
    * `recovered_expired_lease` correctly describes the row's state *before*
    * this claim: null means an ordinary claim of an unleased row, non-null
    * means this claim took over a lease that had expired.
+   *
+   * Precondition: the "loser blocks, re-checks, returns null" behaviour
+   * above depends on running at Postgres's default **READ COMMITTED**
+   * isolation level (Byline's connection pool never overrides this). Under
+   * REPEATABLE READ or SERIALIZABLE, a blocked `FOR UPDATE` raises `40001
+   * could not serialize access due to concurrent update` instead of
+   * filtering, so `claim` would throw where the contract says it returns
+   * `null`.
+   *
+   * Precondition: call `claim` (and `reconcile`) *outside* a
+   * `withTransaction` boundary. Inside one, `now()` is pinned to
+   * transaction-start time — due-ness and expiry checks stop reflecting
+   * real elapsed time — and the row lock this statement takes would be held
+   * for the whole enclosing transaction, convoying every other instance's
+   * claim attempt for the same task name until that transaction commits.
    */
   async claim(params: {
     name: string
@@ -157,13 +172,28 @@ export class SchedulerStore implements ISchedulerStore {
     }
   }
 
-  /** Token-matched lease extension. `false` (never throws) when the token no longer matches. */
+  /**
+   * Token-matched lease extension. `false` (never throws) when the token no
+   * longer matches.
+   *
+   * `lease_token` is a `uuid` column; comparing it against `$N` directly
+   * would resolve the parameter as `uuid`, so Postgres parses the bound text
+   * *before* comparing and a non-UUID `leaseToken` raises `22P02 invalid
+   * input syntax for type uuid` instead of matching zero rows. The contract
+   * requires "never throws" here, and the conformance suite is
+   * backend-neutral — a MySQL `char(36)` column would just fail to match and
+   * return `false` for the same input, so this cast keeps Postgres behaving
+   * the same way. Casting the column to `text` rather than the parameter to
+   * `uuid` forfeits any index on `lease_token`, but the predicate is already
+   * anchored on `name` (the primary key), so this is a filter over exactly
+   * one row and costs nothing.
+   */
   async renew(params: { name: string; leaseToken: string; leaseMs: number }): Promise<boolean> {
     const result = await this.db.execute(sql`
       UPDATE byline_recurring_tasks
       SET lease_expires_at = now() + make_interval(secs => ${params.leaseMs} / 1000.0),
           updated_at = now()
-      WHERE name = ${params.name} AND lease_token = ${params.leaseToken}
+      WHERE name = ${params.name} AND lease_token::text = ${params.leaseToken}
     `)
     return result.rowCount === 1
   }
@@ -196,7 +226,7 @@ export class SchedulerStore implements ISchedulerStore {
           ELSE now() + make_interval(secs => interval_ms / 1000.0)
         END,
         updated_at = now()
-      WHERE name = ${params.name} AND lease_token = ${params.leaseToken}
+      WHERE name = ${params.name} AND lease_token::text = ${params.leaseToken}
     `)
     return result.rowCount === 1
   }
@@ -231,12 +261,24 @@ export class SchedulerStore implements ISchedulerStore {
           ${MAX_BACKOFF_SECONDS}
         )),
         updated_at = now()
-      WHERE name = ${params.name} AND lease_token = ${params.leaseToken}
+      WHERE name = ${params.name} AND lease_token::text = ${params.leaseToken}
     `)
     return result.rowCount === 1
   }
 
-  /** Health rows for the named tasks, or every row when `names` is omitted. */
+  /**
+   * Health rows for the named tasks, or every row when `names` is omitted.
+   *
+   * `nameList` must bind as a single array-typed parameter, not one bound
+   * value per element: drizzle's `sql` tag tests `Array.isArray(chunk)`
+   * before it tests for a `Param`, so a bare `${nameList}` interpolation
+   * expands into a parenthesised row constructor (`($1, $2)`) rather than an
+   * array literal — the exact trap already documented at
+   * `storage-queries.ts`'s `$in`/`$nin` and locale-chain call sites. Wrapping
+   * with `sql.param(...)` forces it through the `Param` branch instead, so it
+   * binds as one `text[]`-typed parameter and `= ANY(...)` / `::text[]` both
+   * see an array, not a tuple.
+   */
   async health(names?: readonly string[]): Promise<RecurringTaskHealth[]> {
     const nameList = names ? [...names] : null
     const result = await this.db.execute<HealthRow>(sql`
@@ -245,7 +287,7 @@ export class SchedulerStore implements ISchedulerStore {
              (lease_expires_at IS NOT NULL AND lease_expires_at <= now()) AS lease_expired,
              now() AS database_now
       FROM byline_recurring_tasks
-      WHERE (${nameList}::text[] IS NULL OR name = ANY(${nameList}))
+      WHERE (${sql.param(nameList)}::text[] IS NULL OR name = ANY(${sql.param(nameList)}))
       ORDER BY name
     `)
 
