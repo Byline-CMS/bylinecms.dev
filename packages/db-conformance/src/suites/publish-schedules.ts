@@ -6,16 +6,35 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type {
-  CollectionDefinition,
-  DocumentPublishSchedule,
-  IDbAdapter,
-  ScheduleDocumentPublishResult,
+import { createSuperAdminContext } from '@byline/auth'
+import type { BylineCore, BylineLogger, DocumentLifecycleContext } from '@byline/core'
+import {
+  type CollectionDefinition,
+  changeDocumentStatus,
+  type DocumentPublishSchedule,
+  deleteDocument,
+  deleteLocale,
+  type IDbAdapter,
+  type ScheduleDocumentPublishResult,
+  unpublishDocument,
+  updateDocument,
 } from '@byline/core'
+import { runScheduledPublicationSweep } from '@byline/core/scheduler'
 import { v4 as uuidv4 } from 'uuid'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { ConformanceHooks, SchedulerContentionObserver } from '../index.js'
+
+const noopLogger = {
+  log: vi.fn(),
+  fatal: vi.fn(),
+  error: vi.fn(),
+  warn: vi.fn(),
+  info: vi.fn(),
+  debug: vi.fn(),
+  trace: vi.fn(),
+  silent: vi.fn(),
+} satisfies BylineLogger
 
 const timestamp = Date.now()
 
@@ -29,6 +48,12 @@ const SecondaryCollection: CollectionDefinition = {
   path: `publish-schedules-secondary-${timestamp}`,
   labels: { singular: 'Scheduled secondary', plural: 'Scheduled secondary' },
   fields: [{ name: 'title', type: 'text' }],
+}
+
+const LocaleCollection: CollectionDefinition = {
+  path: `publish-schedules-locales-${timestamp}`,
+  labels: { singular: 'Scheduled locale', plural: 'Scheduled locales' },
+  fields: [{ name: 'title', type: 'text', localized: true }],
 }
 
 interface CollectionFixture {
@@ -63,6 +88,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
   let adapter: IDbAdapter
   let primary: CollectionFixture
   let secondary: CollectionFixture
+  let localeCollection: CollectionFixture
   let observeContention: SchedulerContentionObserver
   let documentCounter = 0
 
@@ -102,6 +128,36 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
     return { ...document, versionId: result.document.id as string }
   }
 
+  async function createLocalizedDocument(): Promise<DocumentFixture> {
+    const label = `schedule-locale-document-${documentCounter++}`
+    const first = await adapter.commands.documents.createDocumentVersion({
+      collectionId: localeCollection.id,
+      collectionVersion: 1,
+      collectionConfig: localeCollection.definition,
+      action: 'create',
+      documentData: { title: `${label}-en` },
+      locale: 'en',
+      path: label,
+      status: 'draft',
+    })
+    const second = await adapter.commands.documents.createDocumentVersion({
+      documentId: first.document.document_id as string,
+      collectionId: localeCollection.id,
+      collectionVersion: 1,
+      collectionConfig: localeCollection.definition,
+      action: 'update',
+      documentData: { title: `${label}-fr` },
+      locale: 'fr',
+      previousVersionId: first.document.id as string,
+      status: 'draft',
+    })
+    return {
+      documentId: second.document.document_id as string,
+      versionId: second.document.id as string,
+      collection: localeCollection,
+    }
+  }
+
   async function schedule(params: {
     document: DocumentFixture
     publishAt: Date
@@ -135,10 +191,43 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
     })
   }
 
+  function lifecycleContext(
+    collection: CollectionFixture,
+    definition: CollectionDefinition = collection.definition
+  ): DocumentLifecycleContext {
+    return {
+      db: adapter,
+      definition,
+      collectionId: collection.id,
+      collectionVersion: 1,
+      collectionPath: definition.path,
+      logger: noopLogger,
+      defaultLocale: 'en',
+      requestContext: createSuperAdminContext({ id: 'scheduled-publication-conformance' }),
+    }
+  }
+
+  function sweepCore(definition: CollectionDefinition = primary.definition): BylineCore {
+    return {
+      config: { i18n: { content: { defaultLocale: 'en' } } },
+      collections: [definition],
+      db: adapter,
+      storage: undefined,
+      logger: noopLogger,
+      collectionRecords: new Map([
+        [definition.path, { collectionId: primary.id, version: 1, schemaHash: 'conformance' }],
+      ]),
+    } as unknown as BylineCore
+  }
+
   describe('document publish schedules (adapter conformance)', () => {
     beforeAll(async () => {
       await hooks.truncate()
-      adapter = await hooks.createAdapter([PrimaryCollection, SecondaryCollection])
+      adapter = await hooks.createAdapter([
+        PrimaryCollection,
+        SecondaryCollection,
+        LocaleCollection,
+      ])
       const observer = hooks.observePublishScheduleContention
       if (!observer) {
         throw new Error(
@@ -155,13 +244,19 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
         SecondaryCollection.path,
         SecondaryCollection
       )
+      const localeRows = await adapter.commands.collections.create(
+        LocaleCollection.path,
+        LocaleCollection
+      )
       const primaryRow = primaryRows[0]
       const secondaryRow = secondaryRows[0]
-      if (primaryRow == null || secondaryRow == null) {
+      const localeRow = localeRows[0]
+      if (primaryRow == null || secondaryRow == null || localeRow == null) {
         throw new Error('failed to create publish-schedule conformance collections')
       }
       primary = { id: primaryRow.id as string, definition: PrimaryCollection }
       secondary = { id: secondaryRow.id as string, definition: SecondaryCollection }
+      localeCollection = { id: localeRow.id as string, definition: LocaleCollection }
     })
 
     it('1. creates and reschedules one row, with ownership and database-time guards', async () => {
@@ -866,6 +961,302 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
       )
       await adapter.commands.collections.delete(collection.id)
       await expect(get(document)).resolves.toBeNull()
+    })
+
+    it('10. lifecycle invalidations commit and roll back atomically with their schedule effect', async () => {
+      const boom = new Error('forced outer lifecycle rollback')
+
+      const statusDocument = await createDocument(primary)
+      scheduledOrThrow(
+        await schedule({
+          document: statusDocument,
+          publishAt: new Date(Date.now() + 60_000),
+          actorId: uuidv4(),
+        })
+      )
+      await expect(
+        adapter.withTransaction(async () => {
+          await changeDocumentStatus(lifecycleContext(primary), {
+            documentId: statusDocument.documentId,
+            nextStatus: 'published',
+          })
+          await expect(
+            adapter.commands.documents.publishSchedules.cancel({
+              documentId: statusDocument.documentId,
+              collectionId: primary.id,
+            })
+          ).resolves.toBeNull()
+          throw boom
+        })
+      ).rejects.toThrow(boom.message)
+      expect((await get(statusDocument))?.state).toBe('armed')
+      expect(
+        (
+          await adapter.queries.documents.getCurrentVersionMetadata({
+            collection_id: primary.id,
+            document_id: statusDocument.documentId,
+          })
+        )?.status
+      ).toBe('draft')
+      await changeDocumentStatus(lifecycleContext(primary), {
+        documentId: statusDocument.documentId,
+        nextStatus: 'published',
+      })
+      await expect(get(statusDocument)).resolves.toBeNull()
+
+      const unpublishDocumentFixture = await createDocument(primary)
+      scheduledOrThrow(
+        await schedule({
+          document: unpublishDocumentFixture,
+          publishAt: new Date(Date.now() + 60_000),
+          actorId: uuidv4(),
+        })
+      )
+      await expect(
+        adapter.withTransaction(async () => {
+          await unpublishDocument(lifecycleContext(primary), {
+            documentId: unpublishDocumentFixture.documentId,
+          })
+          await expect(
+            adapter.commands.documents.publishSchedules.cancel({
+              documentId: unpublishDocumentFixture.documentId,
+              collectionId: primary.id,
+            })
+          ).resolves.toBeNull()
+          throw boom
+        })
+      ).rejects.toThrow(boom.message)
+      expect((await get(unpublishDocumentFixture))?.state).toBe('armed')
+      await unpublishDocument(lifecycleContext(primary), {
+        documentId: unpublishDocumentFixture.documentId,
+      })
+      await expect(get(unpublishDocumentFixture)).resolves.toBeNull()
+
+      const deletedDocument = await createDocument(primary)
+      scheduledOrThrow(
+        await schedule({
+          document: deletedDocument,
+          publishAt: new Date(Date.now() + 60_000),
+          actorId: uuidv4(),
+        })
+      )
+      await expect(
+        adapter.withTransaction(async () => {
+          await deleteDocument(lifecycleContext(primary), {
+            documentId: deletedDocument.documentId,
+          })
+          await expect(
+            adapter.commands.documents.publishSchedules.cancel({
+              documentId: deletedDocument.documentId,
+              collectionId: primary.id,
+            })
+          ).resolves.toBeNull()
+          throw boom
+        })
+      ).rejects.toThrow(boom.message)
+      expect((await get(deletedDocument))?.state).toBe('armed')
+      expect(
+        await adapter.queries.documents.getCurrentVersionMetadata({
+          collection_id: primary.id,
+          document_id: deletedDocument.documentId,
+        })
+      ).not.toBeNull()
+      await deleteDocument(lifecycleContext(primary), { documentId: deletedDocument.documentId })
+      await expect(get(deletedDocument)).resolves.toBeNull()
+
+      const editedDocument = await createDocument(primary)
+      scheduledOrThrow(
+        await schedule({
+          document: editedDocument,
+          publishAt: new Date(Date.now() + 60_000),
+          actorId: uuidv4(),
+        })
+      )
+      await expect(
+        adapter.withTransaction(async () => {
+          await updateDocument(lifecycleContext(primary), {
+            documentId: editedDocument.documentId,
+            data: { title: 'rolled back edit' },
+          })
+          await expect(
+            adapter.commands.documents.publishSchedules.suspendForContentEdit({
+              documentId: editedDocument.documentId,
+              collectionId: primary.id,
+            })
+          ).resolves.toEqual({ status: 'already_suspended' })
+          throw boom
+        })
+      ).rejects.toThrow(boom.message)
+      expect((await get(editedDocument))?.state).toBe('armed')
+      expect(
+        (
+          await adapter.queries.documents.getCurrentVersionMetadata({
+            collection_id: primary.id,
+            document_id: editedDocument.documentId,
+          })
+        )?.document_version_id
+      ).toBe(editedDocument.versionId)
+      await updateDocument(lifecycleContext(primary), {
+        documentId: editedDocument.documentId,
+        data: { title: 'committed edit' },
+      })
+      expect((await get(editedDocument))?.state).toBe('needs_reconfirm')
+
+      await cancel(editedDocument)
+
+      const localeDocument = await createLocalizedDocument()
+      scheduledOrThrow(
+        await schedule({
+          document: localeDocument,
+          publishAt: new Date(Date.now() + 60_000),
+          actorId: uuidv4(),
+        })
+      )
+      await expect(
+        adapter.withTransaction(async () => {
+          await deleteLocale(lifecycleContext(localeCollection), {
+            documentId: localeDocument.documentId,
+            locale: 'fr',
+          })
+          await expect(
+            adapter.commands.documents.publishSchedules.suspendForContentEdit({
+              documentId: localeDocument.documentId,
+              collectionId: localeCollection.id,
+            })
+          ).resolves.toEqual({ status: 'already_suspended' })
+          throw boom
+        })
+      ).rejects.toThrow(boom.message)
+      expect((await get(localeDocument))?.state).toBe('armed')
+      expect(
+        (
+          await adapter.queries.documents.getCurrentVersionMetadata({
+            collection_id: localeCollection.id,
+            document_id: localeDocument.documentId,
+          })
+        )?.document_version_id
+      ).toBe(localeDocument.versionId)
+      await deleteLocale(lifecycleContext(localeCollection), {
+        documentId: localeDocument.documentId,
+        locale: 'fr',
+      })
+      expect((await get(localeDocument))?.state).toBe('needs_reconfirm')
+
+      await cancel(localeDocument)
+    })
+
+    it('11. the sweep rolls status and audit back on fence failure, then publishes through hooks', async () => {
+      const rollbackDocument = await createDocument(primary)
+      const companionDocument = await createDocument(primary)
+      scheduledOrThrow(
+        await schedule({
+          document: rollbackDocument,
+          publishAt: new Date(Date.now() + 250),
+          actorId: uuidv4(),
+        })
+      )
+      scheduledOrThrow(
+        await schedule({
+          document: companionDocument,
+          publishAt: new Date(Date.now() + 250),
+          actorId: uuidv4(),
+        })
+      )
+      await sleep(300)
+
+      const scheduleCommands = adapter.commands.documents.publishSchedules
+      const deleteClaim = scheduleCommands.deleteClaim
+      scheduleCommands.deleteClaim = vi.fn(async (params) => {
+        if (params.documentId === rollbackDocument.documentId) {
+          throw new Error('forced delete-claim failure')
+        }
+        return deleteClaim.call(scheduleCommands, params)
+      })
+      try {
+        await expect(
+          runScheduledPublicationSweep(sweepCore(), { batchSize: 10, budgetMs: 5_000 })
+        ).resolves.toEqual({ published: 1, failed: 1, workRemaining: false })
+      } finally {
+        scheduleCommands.deleteClaim = deleteClaim
+      }
+
+      expect(
+        (
+          await adapter.queries.documents.getCurrentVersionMetadata({
+            collection_id: primary.id,
+            document_id: rollbackDocument.documentId,
+          })
+        )?.status
+      ).toBe('draft')
+      const retained = await get(rollbackDocument)
+      expect(retained?.state).toBe('armed')
+      expect(retained?.executionToken).toBeNull()
+      expect(retained?.lastError).toBe('forced delete-claim failure')
+      const rolledBackAudit = await adapter.queries.audit.getDocumentAuditLog({
+        document_id: rollbackDocument.documentId,
+      })
+      expect(
+        rolledBackAudit.entries.some((entry) => entry.action === 'document.status.changed')
+      ).toBe(false)
+      expect(
+        (
+          await adapter.queries.documents.getCurrentVersionMetadata({
+            collection_id: primary.id,
+            document_id: companionDocument.documentId,
+          })
+        )?.status
+      ).toBe('published')
+      await expect(get(companionDocument)).resolves.toBeNull()
+      await cancel(rollbackDocument)
+
+      const beforeStatusChange = vi.fn()
+      const afterStatusChange = vi.fn(async () => {
+        throw new Error('post-commit hook failure')
+      })
+      const definitionWithHooks: CollectionDefinition = {
+        ...primary.definition,
+        hooks: { beforeStatusChange, afterStatusChange },
+      }
+      const publishedDocument = await createDocument(primary)
+      scheduledOrThrow(
+        await schedule({
+          document: publishedDocument,
+          publishAt: new Date(Date.now() + 250),
+          actorId: uuidv4(),
+        })
+      )
+      await sleep(300)
+
+      await expect(
+        runScheduledPublicationSweep(sweepCore(definitionWithHooks), {
+          batchSize: 10,
+          budgetMs: 5_000,
+        })
+      ).resolves.toEqual({ published: 1, failed: 0, workRemaining: false })
+      expect(beforeStatusChange).toHaveBeenCalledOnce()
+      expect(afterStatusChange).toHaveBeenCalledOnce()
+      expect(
+        (
+          await adapter.queries.documents.getCurrentVersionMetadata({
+            collection_id: primary.id,
+            document_id: publishedDocument.documentId,
+          })
+        )?.status
+      ).toBe('published')
+      await expect(get(publishedDocument)).resolves.toBeNull()
+      const audit = await adapter.queries.audit.getDocumentAuditLog({
+        document_id: publishedDocument.documentId,
+      })
+      expect(audit.entries).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            action: 'document.status.changed',
+            actorRealm: 'system',
+            before: 'draft',
+            after: 'published',
+          }),
+        ])
+      )
     })
   })
 }
