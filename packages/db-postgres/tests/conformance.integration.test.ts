@@ -21,7 +21,7 @@
  */
 
 import type { AdminStore } from '@byline/admin'
-import type { CollectionDefinition, IDbAdapter } from '@byline/core'
+import type { CollectionDefinition, IDbAdapter, ISchedulerStore } from '@byline/core'
 import { runAdapterConformanceSuite } from '@byline/db-conformance'
 
 import { assertTestDatabase, migrateTestDatabase, resetTestDatabase } from '../src/lib/test-db.js'
@@ -30,6 +30,7 @@ import { createAdminStore as createPgAdminStore } from '../src/modules/admin/adm
 import { createAuditCommands } from '../src/modules/audit/audit-commands.js'
 import { createAuditQueries } from '../src/modules/audit/audit-queries.js'
 import { createCounterCommands } from '../src/modules/counters/counters-commands.js'
+import { createSchedulerStore } from '../src/modules/scheduler/scheduler-store.js'
 import { classifyError } from '../src/modules/storage/classify-error.js'
 
 function getConnectionString(): string {
@@ -75,5 +76,10 @@ runAdapterConformanceSuite({
   async createAdminStore(): Promise<AdminStore> {
     const testDb = setupTestDB()
     return createPgAdminStore(testDb.db)
+  },
+
+  async createSchedulerStore(): Promise<ISchedulerStore> {
+    const testDb = setupTestDB([])
+    return createSchedulerStore(testDb.db)
   },
 })

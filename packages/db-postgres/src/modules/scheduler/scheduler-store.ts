@@ -44,27 +44,45 @@ const LEASE_OWNER_MAX_LENGTH = 255
 /** `MAX_BACKOFF_MS` is milliseconds; `make_interval(secs => ...)` wants seconds. */
 const MAX_BACKOFF_SECONDS = MAX_BACKOFF_MS / 1000
 
+/**
+ * Drizzle's raw `db.execute(sql\`...\`)` path (as opposed to its schema-typed
+ * query builder) deliberately returns `timestamptz` / `timestamp` / `date`
+ * columns as the driver's raw text representation rather than a parsed `Date`
+ * — see `NodePgPreparedQuery`'s `getTypeParser` override in
+ * `drizzle-orm/node-postgres/session.js`. Every timestamp column below is
+ * therefore typed `string` at the row level and converted to `Date` at the
+ * method boundary (`toDate` / `toDateOrNull`), the same way `interval_ms` /
+ * `last_duration_ms` are coerced from the driver's bigint-as-string.
+ */
 type ClaimRow = {
   name: string
   lease_token: string
-  scheduled_for: Date
-  database_now: Date
+  scheduled_for: string
+  database_now: string
   recovered_expired_lease: boolean
 }
 
 type HealthRow = {
   name: string
   interval_ms: string
-  next_run_at: Date
+  next_run_at: string
   last_status: RecurringTaskStatus
-  last_started_at: Date | null
-  last_succeeded_at: Date | null
-  last_failed_at: Date | null
+  last_started_at: string | null
+  last_succeeded_at: string | null
+  last_failed_at: string | null
   last_duration_ms: string | null
   consecutive_failures: number
   last_error: string | null
   lease_expired: boolean
-  database_now: Date
+  database_now: string
+}
+
+function toDate(value: string): Date {
+  return new Date(value)
+}
+
+function toDateOrNull(value: string | null): Date | null {
+  return value === null ? null : new Date(value)
 }
 
 export class SchedulerStore implements ISchedulerStore {
@@ -166,8 +184,8 @@ export class SchedulerStore implements ISchedulerStore {
     return {
       name: row.name,
       leaseToken: row.lease_token,
-      scheduledFor: row.scheduled_for,
-      databaseNow: row.database_now,
+      scheduledFor: toDate(row.scheduled_for),
+      databaseNow: toDate(row.database_now),
       recoveredExpiredLease: row.recovered_expired_lease,
     }
   }
@@ -294,16 +312,16 @@ export class SchedulerStore implements ISchedulerStore {
     return result.rows.map((row) => ({
       name: row.name,
       intervalMs: Number(row.interval_ms),
-      nextRunAt: row.next_run_at,
+      nextRunAt: toDate(row.next_run_at),
       lastStatus: row.last_status,
-      lastStartedAt: row.last_started_at,
-      lastSucceededAt: row.last_succeeded_at,
-      lastFailedAt: row.last_failed_at,
+      lastStartedAt: toDateOrNull(row.last_started_at),
+      lastSucceededAt: toDateOrNull(row.last_succeeded_at),
+      lastFailedAt: toDateOrNull(row.last_failed_at),
       lastDurationMs: row.last_duration_ms === null ? null : Number(row.last_duration_ms),
       consecutiveFailures: row.consecutive_failures,
       lastError: row.last_error,
       leaseExpired: row.lease_expired,
-      databaseNow: row.database_now,
+      databaseNow: toDate(row.database_now),
     }))
   }
 }

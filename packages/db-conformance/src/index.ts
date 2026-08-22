@@ -7,7 +7,7 @@
  */
 
 import type { AdminStore } from '@byline/admin'
-import type { CollectionDefinition, IDbAdapter } from '@byline/core'
+import type { CollectionDefinition, IDbAdapter, ISchedulerStore } from '@byline/core'
 import { afterAll, beforeAll } from 'vitest'
 
 import { adminStoreSuite } from './suites/admin-store.js'
@@ -21,6 +21,7 @@ import { documentTreeAuditSuite } from './suites/document-tree-audit.js'
 import { fieldTypesSuite } from './suites/field-types.js'
 import { localeFallbackSuite } from './suites/locale-fallback.js'
 import { restoreSuite } from './suites/restore.js'
+import { schedulerSuite } from './suites/scheduler.js'
 import { systemFieldsDirectWriteSuite } from './suites/system-fields-direct-write.js'
 import { transactionsSuite } from './suites/transactions.js'
 import { versioningSuite } from './suites/versioning.js'
@@ -51,6 +52,7 @@ export { documentTreeAuditSuite } from './suites/document-tree-audit.js'
 export { fieldTypesSuite } from './suites/field-types.js'
 export { localeFallbackSuite } from './suites/locale-fallback.js'
 export { restoreSuite } from './suites/restore.js'
+export { schedulerSuite } from './suites/scheduler.js'
 export { systemFieldsDirectWriteSuite } from './suites/system-fields-direct-write.js'
 export { transactionsSuite } from './suites/transactions.js'
 export { versioningSuite } from './suites/versioning.js'
@@ -93,6 +95,13 @@ export interface ConformanceHooks {
    * zero skips.
    */
   createAdminStore?(): Promise<AdminStore>
+
+  /**
+   * Construct the adapter's `ISchedulerStore` against the same test database.
+   * Optional — an adapter without scheduler support omits it and the scheduler
+   * suite is not registered at all, so it never appears as skipped.
+   */
+  createSchedulerStore?(): Promise<ISchedulerStore>
 }
 
 /**
@@ -134,4 +143,7 @@ export function runAdapterConformanceSuite(hooks: ConformanceHooks): void {
   auditSuite(hooks)
   countersSuite(hooks)
   adminStoreSuite(hooks)
+  if (hooks.createSchedulerStore) {
+    schedulerSuite(hooks)
+  }
 }
