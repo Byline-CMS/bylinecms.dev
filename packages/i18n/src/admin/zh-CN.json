@@ -581,6 +581,7 @@
   "scheduledPublication.list.filters.allStates": "所有状态",
   "scheduledPublication.list.filters.state": "状态",
   "scheduledPublication.list.filters.authorizerHelp": "粘贴账户 ID 以查找它仍在授权的所有排期。",
+  "scheduledPublication.list.filters.authorizerInvalid": "这不是账户 ID。请从管理员用户中粘贴完整的 ID。",
   "scheduledPublication.list.filters.authorizer": "最后授权者 ID",
   "scheduledPublication.list.filters.apply": "应用筛选条件",
   "scheduledPublication.list.filters.clear": "清除筛选条件",

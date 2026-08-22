@@ -581,6 +581,7 @@
   "scheduledPublication.list.filters.allStates": "Todos los estados",
   "scheduledPublication.list.filters.state": "Estado",
   "scheduledPublication.list.filters.authorizerHelp": "Pega un id de cuenta para encontrar todas las programaciones que sigue autorizando.",
+  "scheduledPublication.list.filters.authorizerInvalid": "Eso no es un id de cuenta. Pega el id completo desde Usuarios.",
   "scheduledPublication.list.filters.authorizer": "ID del último autorizador",
   "scheduledPublication.list.filters.apply": "Aplicar filtros",
   "scheduledPublication.list.filters.clear": "Borrar filtros",

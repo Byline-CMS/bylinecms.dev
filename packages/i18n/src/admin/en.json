@@ -581,6 +581,7 @@
   "scheduledPublication.list.filters.allStates": "All states",
   "scheduledPublication.list.filters.state": "State",
   "scheduledPublication.list.filters.authorizerHelp": "Paste an account id to find every schedule it still authorizes.",
+  "scheduledPublication.list.filters.authorizerInvalid": "That is not an account id. Paste the full id from Admin Users.",
   "scheduledPublication.list.filters.authorizer": "Last authorizer ID",
   "scheduledPublication.list.filters.apply": "Apply filters",
   "scheduledPublication.list.filters.clear": "Clear filters",

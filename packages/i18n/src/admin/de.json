@@ -581,6 +581,7 @@
   "scheduledPublication.list.filters.allStates": "Alle Zustände",
   "scheduledPublication.list.filters.state": "Status",
   "scheduledPublication.list.filters.authorizerHelp": "Fügen Sie eine Konto-ID ein, um alle noch von ihr autorisierten Planungen zu finden.",
+  "scheduledPublication.list.filters.authorizerInvalid": "Das ist keine Konto-ID. Fügen Sie die vollständige ID aus der Benutzerverwaltung ein.",
   "scheduledPublication.list.filters.authorizer": "ID der letzten Autorisierung",
   "scheduledPublication.list.filters.apply": "Filter anwenden",
   "scheduledPublication.list.filters.clear": "Filter löschen",

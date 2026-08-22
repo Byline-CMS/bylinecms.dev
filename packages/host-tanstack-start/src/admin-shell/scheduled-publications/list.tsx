@@ -38,6 +38,9 @@ import type { ScheduledPublicationListResponse } from '../../server-fns/collecti
  * Badge intent per state. Armed is informational; the two states that mean
  * automatic publication is not going to happen unaided are warnings.
  */
+/** Admin account ids are UUIDs; both the route validator and the server fn insist. */
+const ADMIN_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 const STATE_INTENT = {
   none: 'noeffect',
   armed: 'info',
@@ -64,6 +67,7 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
     page?: number
   }
   const [authorizer, setAuthorizer] = useState(search.lastAuthorizedBy ?? '')
+  const [authorizerError, setAuthorizerError] = useState<string | null>(null)
   const [cancelling, setCancelling] = useState<string | null>(null)
 
   const applySearch = (patch: Record<string, unknown>) => {
@@ -71,6 +75,23 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
       to: getAdminRoutePath('scheduled-publications'),
       search: { ...(location.search as Record<string, unknown>), ...patch, page: undefined },
     })
+  }
+
+  /**
+   * Check the id here rather than letting the route's search schema reject it.
+   * Both the route validator and the server fn require a UUID, and a value that
+   * fails either replaces the whole page with an error screen carrying a raw
+   * regex — an unreasonable response to a mistyped id in a field whose entire
+   * purpose is "paste an account id".
+   */
+  const applyAuthorizer = () => {
+    const trimmed = authorizer.trim()
+    if (trimmed.length > 0 && !ADMIN_ID_RE.test(trimmed)) {
+      setAuthorizerError(t('scheduledPublication.list.filters.authorizerInvalid'))
+      return
+    }
+    setAuthorizerError(null)
+    applySearch({ lastAuthorizedBy: trimmed || undefined })
   }
 
   const cancel = async (collection: string, documentId: string) => {
@@ -167,21 +188,22 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
                 inputSize="sm"
                 label={t('scheduledPublication.list.filters.authorizer')}
                 value={authorizer}
-                onChange={(event) => setAuthorizer(event.currentTarget.value)}
+                error={authorizerError != null}
+                errorText={authorizerError ?? ''}
+                onChange={(event) => {
+                  setAuthorizer(event.currentTarget.value)
+                  setAuthorizerError(null)
+                }}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') {
                     event.preventDefault()
-                    applySearch({ lastAuthorizedBy: authorizer.trim() || undefined })
+                    applyAuthorizer()
                   }
                 }}
               />
             </div>
             <div className={styles['filter-actions']}>
-              <Button
-                size="sm"
-                type="button"
-                onClick={() => applySearch({ lastAuthorizedBy: authorizer.trim() || undefined })}
-              >
+              <Button size="sm" type="button" onClick={applyAuthorizer}>
                 {t('scheduledPublication.list.filters.apply')}
               </Button>
               {(search.state != null || search.lastAuthorizedBy != null) && (
@@ -191,6 +213,7 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
                   variant="text"
                   onClick={() => {
                     setAuthorizer('')
+                    setAuthorizerError(null)
                     navigate({ to: getAdminRoutePath('scheduled-publications'), search: {} })
                   }}
                 >

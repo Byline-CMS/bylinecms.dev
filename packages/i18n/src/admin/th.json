@@ -581,6 +581,7 @@
   "scheduledPublication.list.filters.allStates": "ทุกสถานะ",
   "scheduledPublication.list.filters.state": "สถานะ",
   "scheduledPublication.list.filters.authorizerHelp": "วาง ID บัญชีเพื่อค้นหากำหนดการทั้งหมดที่บัญชีนั้นยังอนุมัติอยู่",
+  "scheduledPublication.list.filters.authorizerInvalid": "นี่ไม่ใช่ ID บัญชี โปรดวาง ID แบบเต็มจากผู้ดูแลระบบ",
   "scheduledPublication.list.filters.authorizer": "ID ผู้อนุมัติล่าสุด",
   "scheduledPublication.list.filters.apply": "ใช้ตัวกรอง",
   "scheduledPublication.list.filters.clear": "ล้างตัวกรอง",

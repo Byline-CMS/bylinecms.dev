@@ -581,6 +581,7 @@
   "scheduledPublication.list.filters.allStates": "Tous les états",
   "scheduledPublication.list.filters.state": "État",
   "scheduledPublication.list.filters.authorizerHelp": "Collez un identifiant de compte pour trouver toutes les planifications qu’il autorise encore.",
+  "scheduledPublication.list.filters.authorizerInvalid": "Ceci n’est pas un identifiant de compte. Collez l’identifiant complet depuis Utilisateurs.",
   "scheduledPublication.list.filters.authorizer": "ID du dernier autorisateur",
   "scheduledPublication.list.filters.apply": "Appliquer les filtres",
   "scheduledPublication.list.filters.clear": "Effacer les filtres",

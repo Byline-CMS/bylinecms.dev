@@ -581,6 +581,7 @@
   "scheduledPublication.list.filters.allStates": "모든 상태",
   "scheduledPublication.list.filters.state": "상태",
   "scheduledPublication.list.filters.authorizerHelp": "계정 ID를 붙여넣어 해당 계정이 여전히 승인 중인 모든 예약을 찾으세요.",
+  "scheduledPublication.list.filters.authorizerInvalid": "계정 ID가 아닙니다. 관리자 사용자에서 전체 ID를 붙여넣으세요.",
   "scheduledPublication.list.filters.authorizer": "마지막 승인자 ID",
   "scheduledPublication.list.filters.apply": "필터 적용",
   "scheduledPublication.list.filters.clear": "필터 지우기",
