@@ -1076,6 +1076,39 @@ export const auditLog = mysqlTable(
 )
 
 // ---------------------------------------------------------------------------
+// Recurring-task scheduler — byline_recurring_tasks
+// ---------------------------------------------------------------------------
+
+// Recurring-task scheduler (specs/2026-08-22-scheduler.md).
+// Code-registered definitions are authoritative; rows for definitions removed
+// from code are retained as dormant history and never executed.
+export const recurringTasks = mysqlTable('byline_recurring_tasks', {
+  name: varchar('name', { length: 255 }).primaryKey(),
+  // bigint: MySQL INT tops out at ~24.9 days in milliseconds, and a 30-day
+  // interval is a legitimate configuration. `mode: 'number'` is safe because
+  // boot-time validation guarantees every millisecond value is a JS safe integer.
+  interval_ms: bigint('interval_ms', { mode: 'number' }).notNull(),
+  next_run_at: datetime('next_run_at', { fsp: 6 }).notNull(),
+  // A token unique to one claim — not a stable machine id. Every health and
+  // schedule write is conditional on it, so a slow runner whose lease expired
+  // cannot overwrite a newer run.
+  lease_token: uuidChar('lease_token'),
+  // Bounded, non-secret diagnostic label (machine id + pid). Correctness never
+  // depends on owner uniqueness.
+  lease_owner: varchar('lease_owner', { length: 255 }),
+  lease_expires_at: datetime('lease_expires_at', { fsp: 6 }),
+  last_started_at: datetime('last_started_at', { fsp: 6 }),
+  last_succeeded_at: datetime('last_succeeded_at', { fsp: 6 }),
+  last_failed_at: datetime('last_failed_at', { fsp: 6 }),
+  last_duration_ms: bigint('last_duration_ms', { mode: 'number' }),
+  consecutive_failures: int('consecutive_failures').notNull().default(0),
+  last_status: varchar('last_status', { length: 32 }).notNull().default('never_run'),
+  // Sanitized message, capped at 2 KiB by the store. Full stacks go to the logger.
+  last_error: text('last_error'),
+  ...timestamps,
+})
+
+// ---------------------------------------------------------------------------
 // Auth schema — byline_admin_users, byline_admin_roles, etc.
 // See ./auth.ts for definitions and rationale.
 // ---------------------------------------------------------------------------
