@@ -44,6 +44,16 @@ import type { ConformanceHooks } from '../index.js'
  * negligible against the suite's overall runtime, and not a relaxation of
  * `MIN_INTERVAL_MS` (which gates task *definitions*, not this store-level
  * fixture).
+ *
+ * Behaviours 1 and 7 rely on the hook's own connection pool to prove real
+ * concurrent contention (several claims/reconciles genuinely in flight at
+ * once, not serialised one after another). `db-postgres`'s hook happens to
+ * run against a `max: 4` pool (`setupTestDB`); a hook backed by a
+ * single-connection pool (e.g. a MySQL `connectionLimit: 1`) would silently
+ * serialise these calls and the tests would still pass without ever
+ * exercising real concurrency. Behaviour 1 uses 8 concurrent claims rather
+ * than 2 for the same reason — more callers than a small pool can
+ * accidentally get right by serialising two of them in request order.
  */
 export function schedulerSuite(hooks: ConformanceHooks): void {
   let store: ISchedulerStore
@@ -133,22 +143,41 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
       const name = taskName('two-claims')
       await makeDue(name)
 
-      const [a, b] = await Promise.all([
-        store.claim({ name, leaseMs: 60_000, owner: 'suite-a' }),
-        store.claim({ name, leaseMs: 60_000, owner: 'suite-b' }),
-      ])
+      // 8 concurrent attempts, not 2 — see the module doc comment on why a
+      // small number of callers can accidentally serialise through a small
+      // pool and pass without proving real contention.
+      const attempts = await Promise.all(
+        Array.from({ length: 8 }, (_, i) =>
+          store.claim({ name, leaseMs: 60_000, owner: `suite-${i}` })
+        )
+      )
 
-      const winners = [a, b].filter((claim) => claim !== null)
+      const winners = attempts.filter((claim) => claim !== null)
       expect(winners).toHaveLength(1)
     })
 
     it('2. a live lease cannot be stolen; an expired lease can be reclaimed with a new token', async () => {
       const liveName = taskName('lease-live')
       await makeDue(liveName)
-      await claimOrThrow({ name: liveName, leaseMs: 60_000, owner: 'holder' })
+      const holderClaim = await claimOrThrow({ name: liveName, leaseMs: 60_000, owner: 'holder' })
+      // An ordinary claim of a fresh, never-leased row is NOT a recovery.
+      expect(holderClaim.recoveredExpiredLease).toBe(false)
 
+      const beforeSteal = await healthOf(liveName)
       const stolen = await store.claim({ name: liveName, leaseMs: 60_000, owner: 'thief' })
       expect(stolen).toBeNull()
+
+      // The failed steal must leave the row exactly as it was: a successful
+      // claim always rewrites `last_started_at` (per the contract's column
+      // list), so an unchanged value here proves the thief's attempt never
+      // reached that write path.
+      const afterSteal = await healthOf(liveName)
+      expect(afterSteal.lastStartedAt).toEqual(beforeSteal.lastStartedAt)
+      // And the lease itself is intact: the original holder's token still
+      // renews, which would fail if the steal had reassigned lease_token.
+      await expect(
+        store.renew({ name: liveName, leaseToken: holderClaim.leaseToken, leaseMs: 60_000 })
+      ).resolves.toBe(true)
 
       const expiringName = taskName('lease-expiring')
       await makeDue(expiringName)
@@ -179,6 +208,12 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
 
       const tokenB = await claimOrThrow({ name, leaseMs: 60_000, owner: 'runner-b' })
       expect(tokenB.leaseToken).not.toBe(tokenA.leaseToken)
+
+      // Snapshot the token-B row before any stale/malformed attempt below,
+      // so "overwrite a newer run" is checked on more than just the lease
+      // token surviving — a read-then-write implementation could return
+      // `false` while still having mutated status/failure/schedule fields.
+      const beforeStaleAttempts = await healthOf(name)
 
       // Fixture requirement: a token that is not a well-formed UUID at all —
       // this is the case that historically raised 22P02 instead of
@@ -219,6 +254,14 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
         store.fail({ name, leaseToken: tokenA.leaseToken, durationMs: 1, error: 'stale' })
       ).resolves.toBe(false)
 
+      // None of the above touched the row: status, failure bookkeeping, and
+      // schedule are byte-for-byte what they were before any stale attempt.
+      const afterStaleAttempts = await healthOf(name)
+      expect(afterStaleAttempts.lastStatus).toBe(beforeStaleAttempts.lastStatus)
+      expect(afterStaleAttempts.consecutiveFailures).toBe(beforeStaleAttempts.consecutiveFailures)
+      expect(afterStaleAttempts.lastError).toBe(beforeStaleAttempts.lastError)
+      expect(afterStaleAttempts.nextRunAt.getTime()).toBe(beforeStaleAttempts.nextRunAt.getTime())
+
       // The token-B row is untouched by any of the above: it can still be
       // renewed with its own, still-valid token.
       await expect(
@@ -234,9 +277,20 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
       const failedClaim = await claimOrThrow({ name, leaseMs: 60_000, owner: 'suite' })
       await store.fail({ name, leaseToken: failedClaim.leaseToken, durationMs: 5, error: 'boom' })
 
+      // The Date-ness of the typed timestamp columns matters as much as
+      // their value — this is exactly the class of defect a store could
+      // ship (a raw driver string surviving through to the contract) while
+      // every other assertion in this suite still passes.
+      const failedRow = await healthOf(name)
+      expect(failedRow.lastStartedAt).toBeInstanceOf(Date)
+      expect(failedRow.lastFailedAt).toBeInstanceOf(Date)
+
       // Pull the row due again, then widen to a realistic cadence before the
-      // successful claim so `complete`'s persisted-interval math is checkable.
-      await store.reconcile([{ name, intervalMs: 1 }])
+      // successful claim so `complete`'s persisted-interval math is
+      // checkable. `makeDue` (not a bare `reconcile`) does the due-ing here
+      // so the widen-reconcile that follows isn't racing a warm connection
+      // pool the same way the original recipe did.
+      await makeDue(name)
       await store.reconcile([{ name, intervalMs: realInterval }])
 
       const succeedingClaim = await claimOrThrow({ name, leaseMs: 60_000, owner: 'suite' })
@@ -252,6 +306,8 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
       expect(row.consecutiveFailures).toBe(0)
       expect(row.lastError).toBeNull()
       expect(row.lastStatus).toBe('succeeded')
+      expect(row.lastDurationMs).toBe(20)
+      expect(row.lastSucceededAt).toBeInstanceOf(Date)
       assertClose(
         row.nextRunAt,
         succeedingClaim.databaseNow.getTime() + realInterval,
@@ -259,7 +315,7 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
       )
     })
 
-    it('5. failure applies bounded backoff (1, 2, 4... capped at 15min) and success resets it', async () => {
+    it('5. failure applies bounded backoff (1, 2, 4, 8... capped at 15min) and success resets it', async () => {
       const name = taskName('backoff')
       const realInterval = 3_600_000
 
@@ -290,22 +346,34 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
       assertClose(row.nextRunAt, third.referenceNow.getTime() + 4 * 60_000, 'failure 3 (~4min)')
       expect(row.consecutiveFailures).toBe(3)
 
-      // Two more failures push past the point the backoff would keep
-      // doubling (8min, then 16min) — the cap holds it at 15min for both.
+      // The contract names 8 minutes for the fourth consecutive failure —
+      // asserted exactly, not just "no more than the 15min cap", so a store
+      // that jumps to the cap early can't pass by coincidence.
       const fourth = await claimAndFail()
       row = await healthOf(name)
-      const fourthDelta = row.nextRunAt.getTime() - fourth.referenceNow.getTime()
-      expect(fourthDelta).toBeLessThanOrEqual(15 * 60_000 + TOLERANCE_MS)
+      assertClose(row.nextRunAt, fourth.referenceNow.getTime() + 8 * 60_000, 'failure 4 (~8min)')
+      expect(row.consecutiveFailures).toBe(4)
 
       const fifth = await claimAndFail()
       row = await healthOf(name)
-      const fifthDelta = row.nextRunAt.getTime() - fifth.referenceNow.getTime()
-      expect(fifthDelta).toBeLessThanOrEqual(15 * 60_000 + TOLERANCE_MS)
       assertClose(
         row.nextRunAt,
         fifth.referenceNow.getTime() + 15 * 60_000,
         'failure 5 (capped ~15min)'
       )
+      expect(row.consecutiveFailures).toBe(5)
+
+      // A sixth failure proves the cap holds for "every subsequent one" (the
+      // contract's wording), not just the first failure past the doubling
+      // sequence.
+      const sixth = await claimAndFail()
+      row = await healthOf(name)
+      assertClose(
+        row.nextRunAt,
+        sixth.referenceNow.getTime() + 15 * 60_000,
+        'failure 6 (still capped ~15min)'
+      )
+      expect(row.consecutiveFailures).toBe(6)
 
       // A later success restores the configured interval and resets the
       // failure sequence — the backoff never compounds across a success.
@@ -341,6 +409,10 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
         { name: nameB, intervalMs: 3_600_000 },
       ])
       await sleep(SETUP_SEPARATION_MS)
+      // nameB's row, captured immediately after it first exists. Reconciled
+      // again below (still at the same interval) and then omitted entirely
+      // — it must come back byte-for-byte identical both times.
+      const initialBRow = await healthOf(nameB)
 
       const claimA = await claimOrThrow({ name: nameA, leaseMs: 60_000, owner: 'suite' })
       await store.complete({
@@ -353,16 +425,21 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
       const beforeA = await healthOf(nameA)
       expect(beforeA.lastSucceededAt).not.toBeNull()
 
-      // Re-reconcile the same input: health history must survive.
+      // Re-reconcile the same input: the full health history must survive,
+      // not just one field of it.
       await store.reconcile([
         { name: nameA, intervalMs: 1 },
         { name: nameB, intervalMs: 3_600_000 },
       ])
       const afterA = await healthOf(nameA)
       expect(afterA.lastSucceededAt).toEqual(beforeA.lastSucceededAt)
+      expect(afterA.consecutiveFailures).toBe(beforeA.consecutiveFailures)
+      expect(afterA.lastError).toBe(beforeA.lastError)
+      expect(afterA.lastStatus).toBe(beforeA.lastStatus)
 
       // Reconcile a smaller set that omits nameB: its row must survive
-      // unexecuted and unaltered — reconcile neither runs nor deletes it.
+      // completely unexecuted and unaltered — reconcile neither runs nor
+      // deletes it, and doesn't so much as nudge its schedule.
       await store.reconcile([{ name: nameA, intervalMs: 1 }])
       const rows = await store.health([nameA, nameB])
       const bRow = assertDefined(
@@ -371,11 +448,16 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
       )
       expect(bRow.intervalMs).toBe(3_600_000)
       expect(bRow.lastStatus).toBe('never_run')
+      expect(bRow.nextRunAt.getTime()).toBe(initialBRow.nextRunAt.getTime())
     })
 
     it('7. concurrent reconciliation of the same task converges to one row', async () => {
       const name = taskName('concurrent-reconcile')
 
+      // Same pool-size caveat as behaviour 1 (see the module doc comment):
+      // a hook backed by a single-connection pool would silently serialise
+      // these and this test would pass without proving anything about real
+      // concurrent reconciliation.
       await Promise.all(
         Array.from({ length: 5 }, () => store.reconcile([{ name, intervalMs: 3_600_000 }]))
       )
@@ -436,11 +518,23 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
       // rather than asking the caller to trust `Date.now()`.
       expect(claim.scheduledFor.getTime()).toBeLessThanOrEqual(claim.databaseNow.getTime())
 
-      const healthRow = await healthOf(name)
-      expect(healthRow.databaseNow).toBeInstanceOf(Date)
-      // health's due-ness (via next claimability) is likewise judged
-      // against this same returned value, not the caller's clock.
-      expect(healthRow.nextRunAt.getTime()).toBeGreaterThan(0)
+      // The converse, which is the actual proof this behaviour is named
+      // for: a task reconciled with a realistic interval is NOT due, and
+      // `claim` must say so. Without this, "decisions follow database
+      // time" was never checked against a task that ISN'T due.
+      const futureName = taskName('clock-skew-not-due')
+      await store.reconcile([{ name: futureName, intervalMs: 3_600_000 }])
+      await expect(
+        store.claim({ name: futureName, leaseMs: 60_000, owner: 'suite' })
+      ).resolves.toBeNull()
+
+      // Two successive health() reads: databaseNow strictly increases,
+      // proving it is a live read of database time on each call, not a
+      // cached or constant value.
+      const firstRead = await healthOf(name)
+      await sleep(5)
+      const secondRead = await healthOf(name)
+      expect(secondRead.databaseNow.getTime()).toBeGreaterThan(firstRead.databaseNow.getTime())
     })
 
     it('10. an interval decrease clamps an unleased next run; an increase never postpones it', async () => {
@@ -485,6 +579,10 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
       expect(duringLease.intervalMs).toBe(3_600_000)
       // next_run_at is untouched by reconcile while a lease is live.
       expect(duringLease.nextRunAt.getTime()).toBe(nextRunBeforeClaim)
+      // The lease itself is provably still live at this point — a
+      // reconcile that had (incorrectly) cleared or expired it would flip
+      // this to true.
+      expect(duringLease.leaseExpired).toBe(false)
 
       // The proof that the lease itself (lease_token) is untouched:
       // `complete` with the ORIGINAL token must still succeed.
@@ -528,19 +626,16 @@ export function schedulerSuite(hooks: ConformanceHooks): void {
     it('health() reads: omitted, one name, several names, and an empty array all filter correctly', async () => {
       const nameA = taskName('health-shapes-a')
       const nameB = taskName('health-shapes-b')
-      const unrelatedName = taskName('health-shapes-unrelated')
 
       await store.reconcile([
         { name: nameA, intervalMs: 3_600_000 },
         { name: nameB, intervalMs: 3_600_000 },
       ])
 
-      // Omitted -> every row, including both seeded ones, excluding an
-      // unregistered name that was never reconciled.
+      // Omitted -> every row, including both seeded ones.
       const all = await store.health()
       const allNames = all.map((row) => row.name)
       expect(allNames).toEqual(expect.arrayContaining([nameA, nameB]))
-      expect(allNames).not.toContain(unrelatedName)
 
       // One name.
       const one = await store.health([nameA])

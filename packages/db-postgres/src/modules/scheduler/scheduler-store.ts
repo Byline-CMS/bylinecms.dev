@@ -78,7 +78,11 @@ type HealthRow = {
 }
 
 function toDate(value: string): Date {
-  return new Date(value)
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`scheduler store: failed to parse '${value}' as a timestamp`)
+  }
+  return date
 }
 
 function toDateOrNull(value: string | null): Date | null {
