@@ -57,6 +57,7 @@ function createMockDb(options: {
     commands: {
       collections: { create, update, delete: vi.fn(fail) },
       documents: {
+        publishSchedules: {} as any,
         createDocumentVersion: vi.fn(fail) as any,
         updateDocumentPath: vi.fn(fail) as any,
         setDocumentAvailableLocales: vi.fn(fail) as any,
@@ -93,6 +94,7 @@ function createMockDb(options: {
         getCollectionById: vi.fn(fail),
       },
       documents: {
+        publishSchedules: {} as any,
         getDocumentSystemFieldsForUpdate: vi.fn(async () => null),
         getDocumentById: vi.fn(fail),
         getCurrentVersionMetadata: vi.fn(fail) as any,

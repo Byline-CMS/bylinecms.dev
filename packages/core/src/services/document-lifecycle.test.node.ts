@@ -99,6 +99,7 @@ function createMockDb() {
         delete: vi.fn(),
       },
       documents: {
+        publishSchedules: {} as any,
         createDocumentVersion,
         updateDocumentPath: vi.fn().mockResolvedValue(undefined) as any,
         setDocumentAvailableLocales: vi.fn().mockResolvedValue(undefined) as any,
@@ -136,6 +137,7 @@ function createMockDb() {
         getCollectionById: vi.fn(),
       },
       documents: {
+        publishSchedules: {} as any,
         getDocumentSystemFieldsForUpdate,
         getDocumentById,
         getCurrentVersionMetadata,

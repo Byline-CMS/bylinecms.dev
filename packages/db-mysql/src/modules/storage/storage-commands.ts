@@ -46,6 +46,7 @@ import {
   textStore,
 } from '../../database/schema/index.js'
 import { classifyError } from './classify-error.js'
+import { DocumentPublishScheduleCommands } from './publish-schedules.js'
 import { prepareFieldInsertBuckets } from './storage-insert.js'
 import { affectedRowCount, getFirstOrThrow } from './storage-utils.js'
 import type * as schema from '../../database/schema/index.js'
@@ -189,10 +190,14 @@ export class CollectionCommands implements ICollectionCommands {
  * a member of `IDocumentCommands`.
  */
 export class DocumentCommands implements IDocumentCommands {
+  readonly publishSchedules: DocumentPublishScheduleCommands
+
   constructor(
     private dbManager: DBManager,
     private defaultContentLocale: string
-  ) {}
+  ) {
+    this.publishSchedules = new DocumentPublishScheduleCommands(dbManager)
+  }
 
   /**
    * The executor for this call — the ambient transaction when a

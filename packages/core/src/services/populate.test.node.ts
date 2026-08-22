@@ -164,6 +164,7 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
     commands: {
       collections: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
       documents: {
+        publishSchedules: {} as any,
         createDocumentVersion: vi.fn(),
         updateDocumentPath: vi.fn(),
         setDocumentAvailableLocales: vi.fn(),
@@ -200,6 +201,7 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
         getCollectionById,
       },
       documents: {
+        publishSchedules: {} as any,
         getDocumentSystemFieldsForUpdate: vi.fn(async () => null),
         getDocumentById: vi.fn(),
         getCurrentVersionMetadata: vi.fn(),
