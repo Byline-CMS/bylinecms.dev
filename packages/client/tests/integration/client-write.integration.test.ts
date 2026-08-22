@@ -110,6 +110,59 @@ describe('client.collection().update()', () => {
 })
 
 // ---------------------------------------------------------------------------
+// scheduled publication
+// ---------------------------------------------------------------------------
+
+describe('client scheduled-publication operations', () => {
+  it('arms, suspends on edit, re-confirms, and cancels through the lifecycle', async () => {
+    const handle = ctx.client.collection(ctx.definition.path)
+    const created = await handle.create({
+      title: 'Schedule lifecycle',
+      path: 'schedule-lifecycle',
+      summary: 'original',
+    })
+    const publishAt = new Date(Date.now() + 3_600_000).toISOString()
+
+    const armed = await handle.schedulePublish(created.documentId, {
+      publishAt,
+      expectedVersionId: created.documentVersionId,
+    })
+    expect(armed).toMatchObject({
+      documentId: created.documentId,
+      targetVersionId: created.documentVersionId,
+      state: 'armed',
+    })
+    expect((await handle.getScheduledPublish(created.documentId))?.publishAt.toISOString()).toBe(
+      publishAt
+    )
+
+    const updated = await handle.update(created.documentId, {
+      title: 'Schedule lifecycle revised',
+      path: 'schedule-lifecycle',
+      summary: 'revised',
+    })
+    expect(await handle.getScheduledPublish(created.documentId)).toMatchObject({
+      state: 'needs_reconfirm',
+      targetVersionId: created.documentVersionId,
+    })
+
+    const confirmed = await handle.confirmScheduledPublish(created.documentId, {
+      expectedVersionId: updated.documentVersionId,
+    })
+    expect(confirmed).toMatchObject({
+      state: 'armed',
+      targetVersionId: updated.documentVersionId,
+    })
+
+    expect(await handle.cancelScheduledPublish(created.documentId)).toMatchObject({
+      documentId: created.documentId,
+      state: 'armed',
+    })
+    expect(await handle.getScheduledPublish(created.documentId)).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
 // availableLocales (editorial advertised set — Slice 3 lifecycle threading)
 // ---------------------------------------------------------------------------
 

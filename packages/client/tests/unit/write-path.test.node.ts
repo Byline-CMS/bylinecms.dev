@@ -7,7 +7,7 @@
  */
 
 import { createSuperAdminContext } from '@byline/auth'
-import type { CollectionDefinition, IDbAdapter } from '@byline/core'
+import type { CollectionDefinition, DocumentPublishSchedule, IDbAdapter } from '@byline/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createBylineClient } from '../../src/index.js'
@@ -26,6 +26,31 @@ const postsCollection: CollectionDefinition = {
 }
 
 const allCollections = [postsCollection]
+
+function scheduleRow(overrides: Partial<DocumentPublishSchedule> = {}): DocumentPublishSchedule {
+  const now = new Date('2026-08-22T12:00:00.000Z')
+  return {
+    documentId: 'doc:1',
+    collectionId: 'col:posts',
+    targetVersionId: 'ver:current',
+    publishAt: new Date('2026-08-23T12:00:00.000Z'),
+    state: 'armed',
+    suspendedAt: null,
+    suspendedReason: null,
+    scheduledBy: null,
+    lastAuthorizedBy: null,
+    lastAuthorizedAt: now,
+    scheduledAt: now,
+    updatedAt: now,
+    executionToken: null,
+    executionExpiresAt: null,
+    lastAttemptAt: null,
+    nextAttemptAt: new Date('2026-08-23T12:00:00.000Z'),
+    attemptCount: 0,
+    lastError: null,
+    ...overrides,
+  }
+}
 
 interface AdapterOverrides {
   currentStatus?: string
@@ -58,6 +83,23 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
   const archivePublishedVersions = vi.fn(async (_params: any) => 1)
   const softDeleteDocument = vi.fn(async (_params: any) => 3)
   const restoreSoftDeletedDocument = vi.fn(async (_params: any) => 3)
+  const schedule = scheduleRow({
+    targetVersionId: currentVersionId,
+    executionToken: 'internal-fence-token',
+    executionExpiresAt: new Date('2026-08-22T12:05:00.000Z'),
+  })
+  const schedulePublish = vi.fn(async (_params: any) => ({
+    status: 'scheduled' as const,
+    schedule,
+    previous: null,
+  }))
+  const confirmScheduledPublish = vi.fn(async (_params: any) => ({
+    status: 'confirmed' as const,
+    schedule,
+    previousTargetVersionId: 'ver:previous',
+  }))
+  const cancelScheduledPublish = vi.fn(async (_params: any) => schedule)
+  const getScheduledPublish = vi.fn(async (_params: any) => schedule)
   // Audit capability (docs/07-auth-and-security/02-auditability.md — W2). The audited write-points
   // (changeStatus / delete / system-fields) require both `withTransaction`
   // and `commands.audit`; `withTransaction` is a passthrough in unit tests.
@@ -86,6 +128,17 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
     commands: {
       collections: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
       documents: {
+        publishSchedules: {
+          schedule: schedulePublish,
+          confirm: confirmScheduledPublish,
+          cancel: cancelScheduledPublish,
+          suspendForContentEdit: vi.fn(async () => ({ status: 'schedule_not_found' as const })),
+          claimDue: vi.fn(async () => []),
+          lockClaim: vi.fn(async () => null),
+          deleteClaim: vi.fn(async () => false),
+          suspendClaimForContentEdit: vi.fn(async () => false),
+          releaseClaim: vi.fn(async () => false),
+        },
         createDocumentVersion,
         setDocumentStatus,
         archivePublishedVersions,
@@ -107,6 +160,10 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
         getCollectionById: vi.fn(),
       },
       documents: {
+        publishSchedules: {
+          get: getScheduledPublish,
+          list: vi.fn(async () => ({ schedules: [], total: 0 })),
+        },
         getDocumentById,
         getCurrentVersionMetadata,
         getCurrentPath: vi.fn(async () => 'original-path'),
@@ -131,6 +188,10 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
     softDeleteDocument,
     getDocumentById,
     getCurrentVersionMetadata,
+    schedulePublish,
+    confirmScheduledPublish,
+    cancelScheduledPublish,
+    getScheduledPublish,
     auditAppend,
     withTransaction,
   }
@@ -369,6 +430,71 @@ describe('CollectionHandle.changeStatus', () => {
     ).rejects.toThrowError()
 
     expect(archivePublishedVersions).not.toHaveBeenCalled()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// scheduled publication
+// ---------------------------------------------------------------------------
+
+describe('CollectionHandle scheduled publication', () => {
+  it('exposes schedule, re-confirm, cancel, and read through lifecycle services', async () => {
+    const {
+      db,
+      schedulePublish,
+      confirmScheduledPublish,
+      cancelScheduledPublish,
+      getScheduledPublish,
+    } = makeAdapter()
+    const client = createBylineClient({
+      db,
+      requestContext: superAdmin,
+      collections: allCollections,
+    })
+    const handle = client.collection('posts')
+    const publishAt = '2026-08-23T12:00:00.000Z'
+
+    const scheduled = await handle.schedulePublish('doc:1', {
+      publishAt,
+      expectedVersionId: 'ver:current',
+    })
+    expect(scheduled).toMatchObject({ documentId: 'doc:1', targetVersionId: 'ver:current' })
+    expect(scheduled).not.toHaveProperty('executionToken')
+    expect(scheduled).not.toHaveProperty('executionExpiresAt')
+    expect(schedulePublish).toHaveBeenCalledWith({
+      documentId: 'doc:1',
+      collectionId: 'col:posts',
+      expectedVersionId: 'ver:current',
+      publishAt: new Date(publishAt),
+      actorId: null,
+    })
+
+    await expect(
+      handle.confirmScheduledPublish('doc:1', { expectedVersionId: 'ver:current' })
+    ).resolves.toMatchObject({ state: 'armed' })
+    expect(confirmScheduledPublish).toHaveBeenCalledWith({
+      documentId: 'doc:1',
+      collectionId: 'col:posts',
+      expectedVersionId: 'ver:current',
+      actorId: null,
+    })
+
+    await expect(handle.cancelScheduledPublish('doc:1')).resolves.toMatchObject({
+      documentId: 'doc:1',
+    })
+    expect(cancelScheduledPublish).toHaveBeenCalledWith({
+      documentId: 'doc:1',
+      collectionId: 'col:posts',
+    })
+
+    const read = await handle.getScheduledPublish('doc:1')
+    expect(read).toMatchObject({ state: 'armed' })
+    expect(read).not.toHaveProperty('executionToken')
+    expect(read).not.toHaveProperty('executionExpiresAt')
+    expect(getScheduledPublish).toHaveBeenCalledWith({
+      documentId: 'doc:1',
+      collectionId: 'col:posts',
+    })
   })
 })
 

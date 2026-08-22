@@ -10,6 +10,7 @@ import type { RequestContext } from '@byline/auth'
 import type {
   BylineLogger,
   CollectionDefinition,
+  DocumentPublishSchedule,
   IDbAdapter,
   IStorageProvider,
   MissingLocalePolicy,
@@ -502,6 +503,29 @@ export interface UpdateOptions {
    */
   availableLocales?: string[]
 }
+
+/** Optimistic, absolute-time input for `CollectionHandle.schedulePublish()`. */
+export interface SchedulePublishOptions {
+  /** ISO instant carrying an explicit UTC offset or `Z`. */
+  publishAt: string
+  /** The current version the editor reviewed and intends to publish. */
+  expectedVersionId: string
+}
+
+/** Reviewed current version used to re-arm a suspended publication. */
+export interface ConfirmScheduledPublishOptions {
+  expectedVersionId: string
+}
+
+/**
+ * Editorial schedule state exposed by the client API. The execution token and
+ * its lease expiry are deliberately absent: they are internal fencing
+ * credentials owned by the sweep, not document metadata.
+ */
+export type DocumentPublishScheduleInfo = Omit<
+  DocumentPublishSchedule,
+  'executionToken' | 'executionExpiresAt'
+>
 
 // ---------------------------------------------------------------------------
 // Document-tree options (the `tree: true` primitive — docs/04-collections/04-document-trees.md)
