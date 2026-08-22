@@ -54,6 +54,13 @@ export interface ClaimedRecurringTask {
   scheduledFor: Date
   /** Database time at the moment of the claim. */
   databaseNow: Date
+  /**
+   * True when this claim took over a lease that had expired — i.e. a previous
+   * runner died mid-execution without recording an outcome. The runner logs a
+   * distinct `recovered-expired-lease` event for these. False for an ordinary
+   * claim of an unleased row.
+   */
+  recoveredExpiredLease: boolean
 }
 
 /** Read-only health row for diagnostics and admin surfaces. */
@@ -83,6 +90,10 @@ export interface ReconcileTaskInput {
 /**
  * The optional scheduler capability a database adapter implements. Every method
  * derives due-ness and expiry from database time, never from the process clock.
+ *
+ * A MySQL (or any third) adapter implementing this interface should be able to
+ * do so from the doc comments below without reading the design spec — every
+ * method states exactly which columns it reads and writes.
  */
 export interface ISchedulerStore {
   /**
@@ -90,14 +101,51 @@ export interface ISchedulerStore {
    * preserving health history and any live lease. Must be safe to run
    * concurrently from several instances — a deploy restarts them together.
    *
-   * When an interval decreases, an unleased `next_run_at` is clamped to no
-   * later than database-now plus the new interval.
+   * A brand-new row's `next_run_at` is database-now **plus** the task's
+   * `intervalMs` — a task never fires at module evaluation or immediately on
+   * deploy; the first execution is one interval after the row is created.
+   *
+   * For an existing, unleased row:
+   *
+   * - When the interval **decreases**, `next_run_at` is clamped to no later
+   *   than database-now plus the new interval, so a task moving from a daily
+   *   to a minute-grained cadence does not wait out the rest of the old day.
+   * - When the interval **increases**, an already-due or earlier-scheduled
+   *   `next_run_at` is left alone — it is NOT postponed to reflect the new,
+   *   longer interval. The new cadence takes effect starting from the next
+   *   time the row completes successfully (see `complete` below).
+   *
+   * A row carrying a live lease (`lease_expires_at` in the future) is never
+   * disturbed by reconcile — the in-flight claim owns the row until it
+   * completes, fails, or the lease expires.
+   *
+   * Rows for names no longer present in the registered task set are retained
+   * as dormant history: reconcile neither executes them nor deletes them.
+   * Pruning dormant rows is a future explicit maintenance operation, not a
+   * side effect of reconcile.
    */
   reconcile(tasks: readonly ReconcileTaskInput[]): Promise<void>
 
   /**
-   * Atomically claim `name` if it is due and unleased (or its lease expired).
-   * Returns null when another instance won or the task is not yet due.
+   * Atomically claim `name` if it is due (`next_run_at <= database now`) and
+   * either unleased or its lease has expired. Returns null when another
+   * instance won the race or the task is not yet due.
+   *
+   * On a successful claim, exactly these columns are mutated:
+   *
+   * - `lease_token` — set to a fresh, claim-unique token.
+   * - `lease_owner` — set to the caller-supplied `owner` label.
+   * - `lease_expires_at` — set to database-now plus `leaseMs`.
+   * - `last_started_at` — set to database-now.
+   * - `last_status` — set to `'running'`.
+   *
+   * `next_run_at` is deliberately left untouched by claim. The returned
+   * `scheduledFor` is that pre-claim `next_run_at` value — the due time that
+   * made the row eligible, not a new value computed at claim time. Because
+   * claim never advances `next_run_at`, a row whose runner died without
+   * calling `complete` or `fail` stays due, so another instance can reclaim
+   * it the moment `lease_expires_at` passes (`recoveredExpiredLease: true`
+   * on that claim — see `ClaimedRecurringTask`).
    */
   claim(params: {
     name: string
@@ -105,26 +153,68 @@ export interface ISchedulerStore {
     owner: string
   }): Promise<ClaimedRecurringTask | null>
 
-  /** Extend a token-matched lease. Returns false when the lease has been lost. */
+  /**
+   * Extend a token-matched lease: sets `lease_expires_at` to database-now
+   * plus `leaseMs`. Every write here and below is conditioned on
+   * `lease_token = params.leaseToken` — a stale runner whose lease has since
+   * been reclaimed by another instance cannot successfully renew, complete,
+   * or fail the row. Returns `false` (never throws) when the token does not
+   * match — i.e. the lease had already been lost.
+   */
   renew(params: { name: string; leaseToken: string; leaseMs: number }): Promise<boolean>
 
   /**
-   * Record success on a token-matched row: clear the lease and failure state and
-   * set `next_run_at` to database-now plus `intervalMs`, or to database-now when
-   * `workRemaining` is true. Returns false when the lease had been lost.
+   * Record success on a token-matched row.
+   *
+   * Fields cleared: `lease_token`, `lease_owner`, `lease_expires_at` (all set
+   * to null — the row is unleased again).
+   *
+   * Fields reset: `consecutive_failures` back to 0, `last_error` to null —
+   * a success always clears prior failure state regardless of how many
+   * failures preceded it.
+   *
+   * Fields recorded: `last_succeeded_at` and `last_duration_ms` from
+   * `durationMs`; `last_status` set to `'succeeded'`.
+   *
+   * `next_run_at` becomes database-now plus the row's **persisted**
+   * `interval_ms` — never an interval supplied by the caller. A runner that
+   * has been holding a lease across a rolling deploy may be carrying a stale
+   * cadence; reading the column instead means a newly reconciled interval
+   * always wins. When `workRemaining` is true, `next_run_at` becomes
+   * database-now instead, ignoring the interval entirely.
+   *
+   * Returns `false` (never throws) when the token does not match — the
+   * lease had already been lost.
    */
   complete(params: {
     name: string
     leaseToken: string
-    intervalMs: number
     durationMs: number
     workRemaining: boolean
   }): Promise<boolean>
 
   /**
-   * Record failure on a token-matched row: clear the lease, increment
-   * `consecutive_failures`, store a bounded error, and schedule the bounded
-   * retry backoff. Returns false when the lease had been lost.
+   * Record failure on a token-matched row.
+   *
+   * Fields cleared: `lease_token`, `lease_owner`, `lease_expires_at` (all set
+   * to null — the row is unleased again, so another instance may claim it
+   * once `next_run_at` is reached).
+   *
+   * Fields incremented / stored: `consecutive_failures` is incremented by
+   * one; `last_error` is stored, truncated to 2048 characters and never
+   * containing a stack trace (full stacks belong in the configured logger,
+   * not this column). `last_failed_at` and `last_duration_ms` are recorded
+   * from `durationMs`; `last_status` is set to `'failed'`.
+   *
+   * `next_run_at` becomes database-now plus a bounded backoff derived from
+   * the just-incremented `consecutive_failures`: 1, 2, 4, 8 minutes for the
+   * first four consecutive failures, then capped at 15 minutes for the fifth
+   * and every subsequent consecutive failure. A later success (`complete`)
+   * restores the configured `interval_ms` and resets this sequence — the
+   * backoff never compounds across a success.
+   *
+   * Returns `false` (never throws) when the token does not match — the
+   * lease had already been lost.
    */
   fail(params: {
     name: string
@@ -133,6 +223,13 @@ export interface ISchedulerStore {
     error: string
   }): Promise<boolean>
 
-  /** Health rows for the named tasks, or all rows when `names` is omitted. */
+  /**
+   * Health rows for the named tasks, or all rows when `names` is omitted.
+   *
+   * `lease_owner` is a bounded, non-secret diagnostic label (typically a
+   * machine id plus process id), capped at 255 characters. Correctness never
+   * depends on it being unique — fencing is entirely a function of
+   * `lease_token`, never of `lease_owner`.
+   */
   health(names?: readonly string[]): Promise<RecurringTaskHealth[]>
 }
