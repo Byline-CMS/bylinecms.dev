@@ -895,7 +895,11 @@ export {
 // from code are retained as dormant history and never executed.
 export const recurringTasks = pgTable('byline_recurring_tasks', {
   name: varchar('name', { length: 255 }).primaryKey(),
-  interval_ms: integer('interval_ms').notNull(),
+  // bigint: postgres `integer` (int4) tops out at ~24.9 days in milliseconds,
+  // and a 30-day interval is a legitimate configuration. `mode: 'number'` is
+  // safe because boot-time validation (validateRecurringTasks) guarantees
+  // every millisecond value here is a JS safe integer.
+  interval_ms: bigint('interval_ms', { mode: 'number' }).notNull(),
   next_run_at: timestamp('next_run_at', { withTimezone: true }).notNull(),
   // A token unique to one claim — not a stable machine id. Every health and
   // schedule write is conditional on it, so a slow runner whose lease expired
@@ -908,7 +912,7 @@ export const recurringTasks = pgTable('byline_recurring_tasks', {
   last_started_at: timestamp('last_started_at', { withTimezone: true }),
   last_succeeded_at: timestamp('last_succeeded_at', { withTimezone: true }),
   last_failed_at: timestamp('last_failed_at', { withTimezone: true }),
-  last_duration_ms: integer('last_duration_ms'),
+  last_duration_ms: bigint('last_duration_ms', { mode: 'number' }),
   consecutive_failures: integer('consecutive_failures').notNull().default(0),
   last_status: varchar('last_status', { length: 32 }).notNull().default('never_run'),
   // Sanitized message, capped at 2 KiB by the store. Full stacks go to the logger.
