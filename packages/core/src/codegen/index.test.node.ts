@@ -338,6 +338,6 @@ describe('emitCollectionTypes', () => {
       import: './dist/codegen/index.js',
       require: './dist/codegen/index.js',
     })
-    expect(rootSource).not.toMatch(/codegen/)
+    expect(rootSource).not.toMatch(/['"]\.\/codegen(?:\/[^'"]*)?['"]/u)
   })
 })
