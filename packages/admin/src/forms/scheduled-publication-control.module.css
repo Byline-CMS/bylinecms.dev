@@ -112,18 +112,16 @@
   font-size: var(--font-size-sm);
 }
 
-.help {
+/* Standing guidance, not a warning about anything that has happened yet — so
+   it reads as muted help text alongside the time zone note, rather than
+   claiming an alert colour the rest of the admin does not use here. */
+.help,
+.warningText {
   color: var(--gray-500);
 }
 
 .validation {
   color: var(--red-600);
-}
-
-.warningText {
-  padding: var(--spacing-8);
-  border-radius: var(--border-radius-sm);
-  background: var(--orange-50, #fff7ed);
 }
 
 .choice {
@@ -139,10 +137,6 @@
 }
 
 :is([data-theme="dark"], :global(.dark)) {
-  .warningText {
-    background: color-mix(in srgb, var(--orange-500, #f97316) 14%, transparent);
-  }
-
   .validation {
     color: var(--red-400, #f87171);
   }
