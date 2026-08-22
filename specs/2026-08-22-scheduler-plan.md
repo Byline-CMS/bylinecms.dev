@@ -1166,7 +1166,7 @@ No timers. This is the unit an external cron or a test drives.
     It reads `core.db.scheduler` (throwing a clear error when absent), `core.recurringTasks`, and
     `core.logger`, then delegates.
   - **Internal:** `runDueTasksWithDeps(params: { store: ISchedulerStore; tasks: readonly RecurringTaskDefinition[]; owner: string; logger: BylineLogger; signal?: AbortSignal; concurrency?: number }): Promise<RunDueTasksSummary>`
-    where `RunDueTasksSummary = { claimed: number; succeeded: number; failed: number }`.
+    where `RunDueTasksSummary = { claimed: number; succeeded: number; failed: number; aborted: number }`.
     Not exported from the barrel; unit tests import it by relative path.
   - `defaultOwner(): string` — a bounded, non-secret diagnostic label, `` `${hostname()}:${process.pid}` ``,
     truncated to 255 characters. Correctness never depends on its uniqueness.
@@ -1348,6 +1348,11 @@ Required behaviour:
   `runDueTasksWithDeps` with `core.recurringTasks` and `core.logger`. It accepts no `tasks`
   parameter.
 - `runDueTasksWithDeps` does the work below.
+- Reconcile the complete registered definition set before each claim pass. This makes the public
+  one-shot runner self-sufficient for a fresh external-cron installation and means a transient
+  reconciliation outage is retried on the next pass. A reconciliation rejection is a pass-level
+  failure: log it and reject the pass so an external cron observes failure rather than a false
+  zero-work success. The ticker catches that rejection and retries on its next tick.
 - Attempt `store.claim({ name, leaseMs, owner })` for every definition. A null result is not an
   error — another instance won, or the task is not due.
 - Execute claimed tasks with a small fixed concurrency bound (default 2, overridable) so a slow
@@ -1365,9 +1370,13 @@ Required behaviour:
   `store.complete` with the known-stale token. Apply the same no-finalization rule after the
   incoming shutdown signal aborts an active run. A heartbeat store rejection also aborts and
   leaves the lease to expire because ownership is then uncertain.
+- Count a run stopped by the incoming shutdown signal under `aborted`, not `failed`; an ordinary
+  deploy must not look like task failure to an external monitor. Lease loss and heartbeat failure
+  remain failures.
 - A `false` return from `complete` is a lost-lease outcome, not a successful run. Count it as
   failed, log the distinct lost-lease event, and do not attempt `fail` afterward.
-- Wrap every store call so a store-level rejection is logged and counted, not thrown.
+- Wrap every per-task store call so a store-level rejection is logged and counted, not thrown.
+  Reconciliation is the pass-level exception described above: it rejects the whole pass.
 - Honour an incoming `signal`: stop claiming further tasks once it aborts.
 - Log structured start, success, failure, and lost-lease events with name, duration, and owner.
   Never log task arguments — recurring definitions have none.
@@ -1407,7 +1416,8 @@ git commit -s -m "feat(scheduler): added runDueTasks, the claim-and-run pass"
 - Modify: `packages/core/src/scheduler/index.ts` (export it)
 
 **Interfaces:**
-- Consumes: `runDueTasks` (Task 6), `ISchedulerStore`, `RecurringTaskDefinition` (Task 1).
+- Consumes: the internal `runDueTasksWithDeps` pass (Task 6), `ISchedulerStore`, and
+  `RecurringTaskDefinition` (Task 1).
 - Produces, in two layers:
   - **Public:** `startBylineScheduler(core: BylineCore, options?: SchedulerOptions): SchedulerController`
     where `SchedulerOptions = { tickIntervalMs?: number; startupJitterMs?: number; concurrency?: number; owner?: string; shutdownGraceMs?: number }`
@@ -1423,15 +1433,19 @@ Create `packages/core/src/scheduler/ticker.test.node.ts` using vitest fake timer
 
 1. **Nothing runs before the jitter elapses.** Start with `startupJitterMs: 30_000`; advance
    29_000ms; assert the store's `claim` has not been called.
-2. **Reconcile runs once at startup, before the first tick.**
+2. **Every tick reconciles before it claims.** Advance through two ticks and assert the ordered
+   sequence is `reconcile, claim, reconcile, claim`.
 3. **Ticks do not overlap.** Make `claim` return a task whose `run` never settles within the test;
    advance several tick intervals; assert `claim` was called once, not once per interval.
 4. **`stop()` prevents another tick.** Advance past one tick, call `stop()`, advance several more
    intervals, assert no further `claim`.
 5. **`stop()` aborts in-flight handler signals.** Assert the running handler's `ctx.signal.aborted`
    becomes true after `stop()`.
-6. **A rejected tick does not kill the ticker.** Make the first tick's store call reject; advance
-   two intervals; assert a second tick still occurred.
+6. **A rejected tick does not kill the ticker.** Make the first reconciliation reject; advance
+   two intervals; assert the next tick reconciles again and proceeds to claim.
+7. **The pending timeout is unref'd.** A started but idle ticker cannot keep Node alive by itself.
+8. **Shutdown grace is bounded and idempotent.** A handler that ignores abort cannot keep
+   `stop()` pending past the configured grace, and a second `stop()` resolves immediately.
 
 Use `vi.useFakeTimers()` in `beforeEach` and `vi.useRealTimers()` in `afterEach`. Prefer
 `await vi.advanceTimersByTimeAsync(ms)` so promise chains flush between timer steps.
@@ -1445,7 +1459,10 @@ Expected: FAIL — cannot resolve `./ticker.js`.
 
 Required behaviour:
 
-- Call `store.reconcile()` once with the registered definitions before scheduling the first tick.
+- Each call to the shared claim-and-run pass reconciles the registered definitions before claims.
+  Do not add a separate startup reconcile: it would duplicate the first pass while still leaving
+  later passes dependent on a one-time success. Per-pass reconciliation is the deliberate design
+  that makes external cron self-sufficient and lets the ticker recover from a transient outage.
 - Wait a random `0..startupJitterMs` (default 30_000) before the first tick, so a deploy that
   restarts every machine does not produce a synchronised tick.
 - Use a **recursive `setTimeout`**, never `setInterval`, and schedule the next timeout only after
@@ -1456,6 +1473,8 @@ Required behaviour:
   either way. It does **not** forge successful completion and does **not** write to the store on
   behalf of an aborted run — unfinished leases expire naturally, and the next instance reclaims
   them after expiry. `stop()` is idempotent: a second call resolves immediately.
+- A shutdown-aborted handler increments the pass summary's `aborted` count, not `failed`. It is an
+  intentional lifecycle event, not a task failure.
 - When a handler's run ends because its lease was lost, the pass counts it under `failed` and does
   **not** call `store.fail` — the token no longer matches, so the write would be rejected anyway,
   and a newer run now owns the row. Log it as a distinct `lost-lease` event rather than a failure.
@@ -1466,7 +1485,7 @@ Required behaviour:
 - [ ] **Step 4: Run it to verify it passes**
 
 Run: `cd packages/core && pnpm vitest run --mode=node src/scheduler/ticker.test.node.ts`
-Expected: PASS, 6 tests.
+Expected: PASS, 9 tests.
 
 - [ ] **Step 5: Full verification**
 

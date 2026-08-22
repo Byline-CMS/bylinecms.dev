@@ -31,6 +31,7 @@ export interface RunDueTasksSummary {
   claimed: number
   succeeded: number
   failed: number
+  aborted: number
 }
 
 interface RunDueTasksDeps {
@@ -234,12 +235,14 @@ async function runClaimedTask(params: {
   // leave its row alone. In particular, never issue a known-stale fail write:
   // the current owner is now another runner and the fence must remain intact.
   if (state !== 'active') {
-    summary.failed += 1
     if (state === 'aborted') {
+      summary.aborted += 1
       logger.warn(
         { event: 'scheduler.aborted', name: task.name, owner, durationMs },
         'Recurring task aborted before finalization'
       )
+    } else {
+      summary.failed += 1
     }
     return
   }
@@ -335,8 +338,23 @@ export function defaultOwner(): string {
 export async function runDueTasksWithDeps(params: RunDueTasksDeps): Promise<RunDueTasksSummary> {
   const concurrency = normalizeConcurrency(params.concurrency)
   const owner = params.owner.slice(0, MAX_OWNER_LENGTH)
-  const summary: RunDueTasksSummary = { claimed: 0, succeeded: 0, failed: 0 }
+  const summary: RunDueTasksSummary = { claimed: 0, succeeded: 0, failed: 0, aborted: 0 }
   let nextTaskIndex = 0
+
+  try {
+    await params.store.reconcile(params.tasks.map(({ name, intervalMs }) => ({ name, intervalMs })))
+  } catch (error) {
+    params.logger.error(
+      {
+        event: 'scheduler.reconcile-error',
+        owner,
+        durationMs: 0,
+        err: error,
+      },
+      'Recurring task definitions could not be reconciled'
+    )
+    throw error
+  }
 
   const takeNextTask = (): RecurringTaskDefinition | undefined => {
     if (params.signal?.aborted) return undefined

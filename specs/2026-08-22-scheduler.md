@@ -227,8 +227,11 @@ byline_recurring_tasks
 one claim, not a stable machine id. `lease_owner` is a bounded, non-secret diagnostic label such
 as a Fly machine id plus process id. Correctness never depends on owner uniqueness.
 
-Task definitions in code are authoritative. On host startup, the store inserts missing rows and
-updates `interval_ms` for registered names without replacing health history or a current lease.
+Task definitions in code are authoritative. Before every claim-and-run pass, the store inserts
+missing rows and updates `interval_ms` for registered names without replacing health history or a
+current lease. Reconciliation is part of the pass rather than a ticker-only startup step so
+`runDueTasks(core)` is self-sufficient on a fresh installation driven only by external cron, and a
+transient reconciliation failure is retried rather than leaving the scheduler silently empty.
 Reconciliation must be safe to run concurrently, not merely repeatedly: a deploy restarts every
 application instance at once, so several instances reconcile the same names simultaneously. Each
 adapter therefore performs reconciliation as a single conflict-tolerant statement per task —
@@ -308,11 +311,14 @@ slow analytics rollup cannot delay scheduled publication.
 
 The returned controller exposes `stop()`. Shutdown clears the next timeout, aborts active task
 signals, and gives active handlers a short grace period. It does not forge successful completion;
-unfinished leases expire normally. Tests and development never start a ticker implicitly.
+unfinished leases expire normally. An intentional shutdown is reported as aborted work, not task
+failure. Tests and development never start a ticker implicitly.
 
-`runDueTasks(core)` performs one identical claim-and-run pass without installing a timer. It is
-the supported seam for tests, CLI maintenance, and a future deployment driven by an external
-cron. This design does not expose it as an HTTP endpoint or invent remote authentication.
+`runDueTasks(core)` performs one identical reconcile-and-run pass without installing a timer. It
+is the supported seam for tests, CLI maintenance, and a future deployment driven by an external
+cron. A reconciliation failure rejects the pass, so an external operator observes an outage
+rather than a false zero-work success. This design does not expose it as an HTTP endpoint or
+invent remote authentication.
 
 ## Operational guarantees and limits
 

@@ -20,6 +20,11 @@ export {
   MIN_LEASE_MS,
 } from './define-recurring-task.js'
 export { type RunDueTasksOptions, type RunDueTasksSummary, runDueTasks } from './run-due-tasks.js'
+export {
+  type SchedulerController,
+  type SchedulerOptions,
+  startBylineScheduler,
+} from './ticker.js'
 export { validateRecurringTasks } from './validate-tasks.js'
 export type {
   ClaimedRecurringTask,

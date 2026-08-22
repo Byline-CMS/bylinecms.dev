@@ -69,7 +69,54 @@ describe('runDueTasks', () => {
     })
 
     expect(run).not.toHaveBeenCalled()
-    expect(summary).toEqual({ claimed: 0, succeeded: 0, failed: 0 })
+    expect(summary).toEqual({ claimed: 0, succeeded: 0, failed: 0, aborted: 0 })
+  })
+
+  it('reconciles the registered definitions before attempting claims', async () => {
+    const operations: string[] = []
+    const store = fakeStore({
+      reconcile: vi.fn(async (definitions) => {
+        operations.push('reconcile')
+        expect(definitions).toEqual([{ name: 'a', intervalMs: 60_000 }])
+      }),
+      claim: vi.fn(async () => {
+        operations.push('claim')
+        return null
+      }),
+    })
+
+    await runDueTasksWithDeps({
+      store,
+      tasks: [task('a')],
+      owner: 'test',
+      logger: silentLogger,
+    })
+
+    expect(operations).toEqual(['reconcile', 'claim'])
+  })
+
+  it('rejects a pass when reconciliation fails so external cron observes the outage', async () => {
+    const error = new Error('reconcile unavailable')
+    const logger = { ...silentLogger, error: vi.fn() }
+    const store = fakeStore({
+      reconcile: vi.fn(async () => {
+        throw error
+      }),
+    })
+
+    await expect(
+      runDueTasksWithDeps({
+        store,
+        tasks: [task('a')],
+        owner: 'test',
+        logger,
+      })
+    ).rejects.toBe(error)
+    expect(store.claim).not.toHaveBeenCalled()
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'scheduler.reconcile-error', err: error }),
+      expect.any(String)
+    )
   })
 
   it('runs a claimed task and completes it', async () => {
@@ -92,7 +139,7 @@ describe('runDueTasks', () => {
         workRemaining: false,
       })
     )
-    expect(summary).toEqual({ claimed: 1, succeeded: 1, failed: 0 })
+    expect(summary).toEqual({ claimed: 1, succeeded: 1, failed: 0, aborted: 0 })
   })
 
   it('passes workRemaining through to complete', async () => {
@@ -139,7 +186,7 @@ describe('runDueTasks', () => {
       expect.objectContaining({ err: error, name: 'a', owner: 'test' }),
       expect.any(String)
     )
-    expect(summary).toEqual({ claimed: 1, succeeded: 0, failed: 1 })
+    expect(summary).toEqual({ claimed: 1, succeeded: 0, failed: 1, aborted: 0 })
   })
 
   it('continues other tasks when a handler fails', async () => {
@@ -160,7 +207,7 @@ describe('runDueTasks', () => {
     })
 
     expect(ranB).toHaveBeenCalledTimes(1)
-    expect(summary).toEqual({ claimed: 2, succeeded: 1, failed: 1 })
+    expect(summary).toEqual({ claimed: 2, succeeded: 1, failed: 1, aborted: 0 })
   })
 
   it('contains and counts store failures without rejecting the pass', async () => {
@@ -179,7 +226,7 @@ describe('runDueTasks', () => {
         owner: 'test',
         logger: silentLogger,
       })
-    ).resolves.toEqual({ claimed: 1, succeeded: 1, failed: 1 })
+    ).resolves.toEqual({ claimed: 1, succeeded: 1, failed: 1, aborted: 0 })
     expect(ranB).toHaveBeenCalledTimes(1)
   })
 
@@ -198,7 +245,7 @@ describe('runDueTasks', () => {
         owner: 'test',
         logger: silentLogger,
       })
-    ).resolves.toEqual({ claimed: 1, succeeded: 0, failed: 1 })
+    ).resolves.toEqual({ claimed: 1, succeeded: 0, failed: 1, aborted: 0 })
     expect(store.fail).not.toHaveBeenCalled()
   })
 
@@ -221,7 +268,7 @@ describe('runDueTasks', () => {
         owner: 'test',
         logger: silentLogger,
       })
-    ).resolves.toEqual({ claimed: 1, succeeded: 0, failed: 1 })
+    ).resolves.toEqual({ claimed: 1, succeeded: 0, failed: 1, aborted: 0 })
   })
 
   it('aborts before heartbeat rejects and never finalizes a known-lost lease', async () => {
@@ -253,7 +300,7 @@ describe('runDueTasks', () => {
     expect(abortedWhenHeartbeatRejected).toBe(true)
     expect(store.complete).not.toHaveBeenCalled()
     expect(store.fail).not.toHaveBeenCalled()
-    expect(summary).toEqual({ claimed: 1, succeeded: 0, failed: 1 })
+    expect(summary).toEqual({ claimed: 1, succeeded: 0, failed: 1, aborted: 0 })
   })
 
   it('aborts and avoids finalization when the heartbeat store call rejects', async () => {
@@ -284,7 +331,7 @@ describe('runDueTasks', () => {
         owner: 'test',
         logger: silentLogger,
       })
-    ).resolves.toEqual({ claimed: 1, succeeded: 0, failed: 1 })
+    ).resolves.toEqual({ claimed: 1, succeeded: 0, failed: 1, aborted: 0 })
     expect(heartbeatRejectedAfterAbort).toBe(true)
     expect(store.complete).not.toHaveBeenCalled()
     expect(store.fail).not.toHaveBeenCalled()
@@ -313,7 +360,7 @@ describe('runDueTasks', () => {
 
     expect(store.complete).not.toHaveBeenCalled()
     expect(store.fail).not.toHaveBeenCalled()
-    expect(summary).toEqual({ claimed: 1, succeeded: 0, failed: 1 })
+    expect(summary).toEqual({ claimed: 1, succeeded: 0, failed: 0, aborted: 1 })
   })
 
   it('stops claiming new definitions after the incoming signal aborts', async () => {
@@ -373,7 +420,7 @@ describe('runDueTasks', () => {
       release()
     })
 
-    await expect(pass).resolves.toEqual({ claimed: 4, succeeded: 4, failed: 0 })
+    await expect(pass).resolves.toEqual({ claimed: 4, succeeded: 4, failed: 0, aborted: 0 })
     expect(maximumActive).toBe(2)
     expect(store.claim).toHaveBeenCalledTimes(4)
   })
@@ -392,7 +439,7 @@ describe('runDueTasks', () => {
     })
 
     expect(store.fail).not.toHaveBeenCalled()
-    expect(summary).toEqual({ claimed: 1, succeeded: 0, failed: 1 })
+    expect(summary).toEqual({ claimed: 1, succeeded: 0, failed: 1, aborted: 0 })
   })
 
   it('logs recovery when a claim takes over an expired lease', async () => {
