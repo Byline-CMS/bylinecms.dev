@@ -50,6 +50,13 @@ Every task's requirements implicitly include these.
   `Co-Authored-By`, no AI attribution, no others.
 - **Biome only.** Run `pnpm lint` from the repo root to auto-fix. Never add ESLint or Prettier.
   2-space indent, single quotes, no semicolons, 100-char lines.
+- **The public scheduler API takes `core`, not a dependency bag.** `runDueTasks(core, options?)`
+  and `startBylineScheduler(core, options?)` derive the store, the *validated* task definitions,
+  and the logger from the `BylineCore` instance. Callers must not be able to pass their own
+  `tasks` array: boot validation already vetted the registered set, and a second entry point
+  accepting an arbitrary set would let an unvalidated task run. Each has an internal
+  dependency-injected sibling (`runDueTasksWithDeps`, `startSchedulerWithDeps`) that unit tests
+  target; those are **not** exported from the subpath barrel.
 - **Two migration streams, and this plan produces both.** Drizzle is the **development** stream:
   you edit `src/database/schema/index.ts`, run `drizzle:generate`, and work against the generated
   migration. It is not what ships to existing installations. When the adapter's feature work is
@@ -616,8 +623,10 @@ config type, and call the gate alongside the existing boot validators (next to
 validateSchedulerConfig({ tasks: config.recurringTasks, adapter: db })
 ```
 
-Registration stores the definitions on the core instance for the runner to read later. It must
-**not** start a timer here — see the global constraints.
+Registration stores the **validated** definitions on the returned `BylineCore` instance as
+`core.recurringTasks: readonly RecurringTaskDefinition[]` (an empty array when none are
+configured), so `runDueTasks(core)` and `startBylineScheduler(core)` read the vetted set and no
+caller can substitute another. It must **not** start a timer here — see the global constraints.
 
 - [ ] **Step 7: Verify the whole core package still builds and passes**
 
@@ -941,9 +950,33 @@ The eleven behaviours, one `it` each:
     past expiry without completing, and assert the health row has `leaseExpired: true` and
     `lastStatus: 'running'`.
 
-Where a test needs a task to be due immediately, reconcile it and then `complete` it with
-`workRemaining: true`, which sets `next_run_at` to database-now. Do **not** issue raw SQL to
-manipulate `next_run_at` — that would couple the suite to one adapter.
+**Making a task due.** This is the one piece of setup every test needs, and the obvious recipe
+does not work: `reconcile` sets a new row's `next_run_at` to database-now *plus* the interval, so a
+freshly-reconciled task is not claimable, and `complete` cannot be used to pull it forward because
+`complete` requires a lease token that only a successful `claim` produces.
+
+The working recipe uses a sub-minimum interval at the store level, exactly as the lease tests use a
+sub-minimum lease, and for the same reason — **`MIN_INTERVAL_MS` constrains task definitions at
+boot via `validateRecurringTasks`, not `ISchedulerStore` calls**:
+
+```ts
+// Due almost immediately.
+await store.reconcile([{ name, intervalMs: 1 }])
+const claim = await store.claim({ name, leaseMs: 60_000, owner: 'suite' })
+// claim is non-null.
+
+// Then, if the test needs a realistic cadence, widen it. The reconcile clamp
+// only ever pulls an unleased next_run_at IN, never pushes it out, so a task
+// that is already due stays due.
+await store.reconcile([{ name, intervalMs: 3_600_000 }])
+```
+
+The same technique drives the backoff test: after each `fail`, `next_run_at` is a minute or more
+away, so re-reconcile at `intervalMs: 1` between failures to make the row claimable again, and
+assert the backoff by reading `health()` rather than by waiting for it.
+
+Do **not** issue raw SQL to manipulate `next_run_at` — that would couple the suite to one adapter.
+Do **not** relax `MIN_INTERVAL_MS` or `MIN_LEASE_MS`; they are definition-level and correct.
 
 Behaviours 2 and 11 need a lease that expires inside a test, and they can have one:
 **`MIN_LEASE_MS` constrains task *definitions*, not store calls.** `validateRecurringTasks` enforces
@@ -998,9 +1031,16 @@ No timers. This is the unit an external cron or a test drives.
 
 **Interfaces:**
 - Consumes: `ISchedulerStore`, `RecurringTaskDefinition`, `RecurringTaskContext` (Task 1).
-- Produces:
-  `runDueTasks(params: { store: ISchedulerStore; tasks: readonly RecurringTaskDefinition[]; owner: string; logger: BylineLogger; signal?: AbortSignal; concurrency?: number }): Promise<RunDueTasksSummary>`
-  where `RunDueTasksSummary = { claimed: number; succeeded: number; failed: number }`.
+- Produces, in two layers:
+  - **Public:** `runDueTasks(core: BylineCore, options?: RunDueTasksOptions): Promise<RunDueTasksSummary>`
+    where `RunDueTasksOptions = { signal?: AbortSignal; concurrency?: number; owner?: string }`.
+    It reads `core.db.scheduler` (throwing a clear error when absent), `core.recurringTasks`, and
+    `core.logger`, then delegates.
+  - **Internal:** `runDueTasksWithDeps(params: { store: ISchedulerStore; tasks: readonly RecurringTaskDefinition[]; owner: string; logger: BylineLogger; signal?: AbortSignal; concurrency?: number }): Promise<RunDueTasksSummary>`
+    where `RunDueTasksSummary = { claimed: number; succeeded: number; failed: number }`.
+    Not exported from the barrel; unit tests import it by relative path.
+  - `defaultOwner(): string` — a bounded, non-secret diagnostic label, `` `${hostname()}:${process.pid}` ``,
+    truncated to 255 characters. Correctness never depends on its uniqueness.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1014,7 +1054,7 @@ returns.
 import { describe, expect, it, vi } from 'vitest'
 
 import { defineRecurringTask } from './define-recurring-task.js'
-import { runDueTasks } from './run-due-tasks.js'
+import { runDueTasksWithDeps } from './run-due-tasks.js'
 import type { ClaimedRecurringTask, ISchedulerStore } from './types.js'
 
 const silentLogger = {
@@ -1053,7 +1093,7 @@ describe('runDueTasks', () => {
       name: 'a', intervalMs: 60_000, leaseMs: 60_000, run,
     })
 
-    const summary = await runDueTasks({
+    const summary = await runDueTasksWithDeps({
       store, tasks: [task], owner: 'test', logger: silentLogger,
     })
 
@@ -1068,7 +1108,7 @@ describe('runDueTasks', () => {
       name: 'a', intervalMs: 60_000, leaseMs: 60_000, run,
     })
 
-    const summary = await runDueTasks({
+    const summary = await runDueTasksWithDeps({
       store, tasks: [task], owner: 'test', logger: silentLogger,
     })
 
@@ -1086,7 +1126,7 @@ describe('runDueTasks', () => {
       run: async () => ({ workRemaining: true }),
     })
 
-    await runDueTasks({ store, tasks: [task], owner: 'test', logger: silentLogger })
+    await runDueTasksWithDeps({ store, tasks: [task], owner: 'test', logger: silentLogger })
 
     expect(store.complete).toHaveBeenCalledWith(
       expect.objectContaining({ workRemaining: true })
@@ -1100,7 +1140,7 @@ describe('runDueTasks', () => {
       run: async () => { throw new Error('boom') },
     })
 
-    const summary = await runDueTasks({
+    const summary = await runDueTasksWithDeps({
       store, tasks: [task], owner: 'test', logger: silentLogger,
     })
 
@@ -1122,7 +1162,7 @@ describe('runDueTasks', () => {
       defineRecurringTask({ name: 'b', intervalMs: 60_000, leaseMs: 60_000, run: ranB }),
     ]
 
-    const summary = await runDueTasks({
+    const summary = await runDueTasksWithDeps({
       store, tasks, owner: 'test', logger: silentLogger,
     })
 
@@ -1139,7 +1179,7 @@ describe('runDueTasks', () => {
     })
 
     await expect(
-      runDueTasks({ store, tasks: [task], owner: 'test', logger: silentLogger })
+      runDueTasksWithDeps({ store, tasks: [task], owner: 'test', logger: silentLogger })
     ).resolves.toBeDefined()
   })
 
@@ -1157,7 +1197,7 @@ describe('runDueTasks', () => {
       },
     })
 
-    await runDueTasks({ store, tasks: [task], owner: 'test', logger: silentLogger })
+    await runDueTasksWithDeps({ store, tasks: [task], owner: 'test', logger: silentLogger })
 
     expect(sawAbort).toBe(true)
   })
@@ -1173,6 +1213,11 @@ Expected: FAIL — cannot resolve `./run-due-tasks.js`.
 
 Required behaviour:
 
+- `runDueTasks(core, options)` resolves `core.db.scheduler` and throws a clear, actionable error
+  when the adapter lacks the capability; resolves `options.owner ?? defaultOwner()`; and calls
+  `runDueTasksWithDeps` with `core.recurringTasks` and `core.logger`. It accepts no `tasks`
+  parameter.
+- `runDueTasksWithDeps` does the work below.
 - Attempt `store.claim({ name, leaseMs, owner })` for every definition. A null result is not an
   error — another instance won, or the task is not due.
 - Execute claimed tasks with a small fixed concurrency bound (default 2, overridable) so a slow
@@ -1196,8 +1241,14 @@ Expected: PASS, 7 tests.
 
 - [ ] **Step 5: Export it and commit**
 
-Add `export { runDueTasks } from './run-due-tasks.js'` to `packages/core/src/scheduler/index.ts`.
-Do not add it to the package root.
+Add to `packages/core/src/scheduler/index.ts`:
+
+```ts
+export { runDueTasks, type RunDueTasksOptions, type RunDueTasksSummary } from './run-due-tasks.js'
+```
+
+Export **only** the core-based `runDueTasks`. `runDueTasksWithDeps` and `defaultOwner` stay
+unexported from the barrel. Do not add any of them to the package root.
 
 ```bash
 cd packages/core && pnpm typecheck && pnpm test
@@ -1217,9 +1268,13 @@ git commit -s -m "feat(scheduler): added runDueTasks, the claim-and-run pass"
 
 **Interfaces:**
 - Consumes: `runDueTasks` (Task 6), `ISchedulerStore`, `RecurringTaskDefinition` (Task 1).
-- Produces:
-  `startBylineScheduler(params: { store: ISchedulerStore; tasks: readonly RecurringTaskDefinition[]; owner: string; logger: BylineLogger; tickIntervalMs?: number; startupJitterMs?: number; concurrency?: number }): SchedulerController`
-  where `SchedulerController = { stop(): Promise<void> }`.
+- Produces, in two layers:
+  - **Public:** `startBylineScheduler(core: BylineCore, options?: SchedulerOptions): SchedulerController`
+    where `SchedulerOptions = { tickIntervalMs?: number; startupJitterMs?: number; concurrency?: number; owner?: string; shutdownGraceMs?: number }`
+    and `SchedulerController = { stop(): Promise<void> }`. Resolves store, validated tasks, and
+    logger from `core` exactly as `runDueTasks` does.
+  - **Internal:** `startSchedulerWithDeps(params: { store; tasks; owner; logger; tickIntervalMs?; startupJitterMs?; concurrency?; shutdownGraceMs? }): SchedulerController`.
+    Not exported from the barrel; unit tests import it by relative path.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1256,9 +1311,14 @@ Required behaviour:
 - Use a **recursive `setTimeout`**, never `setInterval`, and schedule the next timeout only after
   the current tick's `runDueTasks` settles. Two local ticks must never overlap.
 - Default `tickIntervalMs` to 60_000.
-- `stop()` clears the pending timeout, aborts the controller shared with in-flight handlers, awaits
-  a short grace period, and resolves. It does **not** forge successful completion — unfinished
-  leases expire naturally.
+- `stop()` clears the pending timeout, aborts the controller shared with in-flight handlers, then
+  waits for the in-flight tick to settle up to `shutdownGraceMs` (**default 5_000**) and resolves
+  either way. It does **not** forge successful completion and does **not** write to the store on
+  behalf of an aborted run — unfinished leases expire naturally, and the next instance reclaims
+  them after expiry. `stop()` is idempotent: a second call resolves immediately.
+- When a handler's run ends because its lease was lost, the pass counts it under `failed` and does
+  **not** call `store.fail` — the token no longer matches, so the write would be rejected anyway,
+  and a newer run now owns the row. Log it as a distinct `lost-lease` event rather than a failure.
 - Catch everything inside the tick. A rejected tick logs and schedules the next one.
 - Call `unref()` on the timeout handle if available, so a pending tick cannot by itself keep a
   process alive.
@@ -1278,8 +1338,17 @@ Expected: all green. Paste the output into the hand-off.
 
 - [ ] **Step 6: Export and commit**
 
-Add `export { startBylineScheduler, type SchedulerController } from './ticker.js'` to
-`packages/core/src/scheduler/index.ts`.
+Add to `packages/core/src/scheduler/index.ts`:
+
+```ts
+export {
+  startBylineScheduler,
+  type SchedulerController,
+  type SchedulerOptions,
+} from './ticker.js'
+```
+
+Export **only** the core-based `startBylineScheduler`; `startSchedulerWithDeps` stays internal.
 
 ```bash
 git add packages/core/src/scheduler
