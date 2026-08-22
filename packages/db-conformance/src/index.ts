@@ -7,7 +7,7 @@
  */
 
 import type { AdminStore } from '@byline/admin'
-import type { CollectionDefinition, IDbAdapter } from '@byline/core'
+import type { CollectionDefinition, IDbAdapter, ISchedulerStore } from '@byline/core'
 import { afterAll, beforeAll } from 'vitest'
 
 import { adminStoreSuite } from './suites/admin-store.js'
@@ -21,6 +21,7 @@ import { documentTreeAuditSuite } from './suites/document-tree-audit.js'
 import { fieldTypesSuite } from './suites/field-types.js'
 import { localeFallbackSuite } from './suites/locale-fallback.js'
 import { restoreSuite } from './suites/restore.js'
+import { schedulerSuite } from './suites/scheduler.js'
 import { systemFieldsDirectWriteSuite } from './suites/system-fields-direct-write.js'
 import { transactionsSuite } from './suites/transactions.js'
 import { versioningSuite } from './suites/versioning.js'
@@ -51,6 +52,7 @@ export { documentTreeAuditSuite } from './suites/document-tree-audit.js'
 export { fieldTypesSuite } from './suites/field-types.js'
 export { localeFallbackSuite } from './suites/locale-fallback.js'
 export { restoreSuite } from './suites/restore.js'
+export { schedulerSuite } from './suites/scheduler.js'
 export { systemFieldsDirectWriteSuite } from './suites/system-fields-direct-write.js'
 export { transactionsSuite } from './suites/transactions.js'
 export { versioningSuite } from './suites/versioning.js'
@@ -93,7 +95,40 @@ export interface ConformanceHooks {
    * zero skips.
    */
   createAdminStore?(): Promise<AdminStore>
+
+  /**
+   * Construct the adapter's `ISchedulerStore` against the same test database.
+   * Optional — an adapter without scheduler support omits it and the scheduler
+   * suite is not registered at all, so it never appears as skipped.
+   *
+   * An adapter that provides this hook must also provide
+   * `observeSchedulerContention`. The scheduler suite uses that observer to
+   * prove its claim and reconciliation races exercised more than one physical
+   * database connection instead of passing through a one-connection pool by
+   * accidental serialization.
+   */
+  createSchedulerStore?(): Promise<ISchedulerStore>
+
+  /**
+   * Run one scheduler operation while observing the adapter's physical
+   * database-connection lifecycle. `maxConcurrentConnections` is the peak
+   * number of simultaneously checked-out connections during `operation`.
+   *
+   * This is test-harness instrumentation, not a production adapter API. It is
+   * required whenever `createSchedulerStore` is present because the two race
+   * tests are otherwise vacuous against a pool limited to one connection.
+   */
+  observeSchedulerContention?: SchedulerContentionObserver
 }
+
+export interface SchedulerContentionObservation<T> {
+  result: T
+  maxConcurrentConnections: number
+}
+
+export type SchedulerContentionObserver = <T>(
+  operation: () => Promise<T>
+) => Promise<SchedulerContentionObservation<T>>
 
 /**
  * Register the full storage conformance suite against `hooks`. Each suite is
@@ -134,4 +169,7 @@ export function runAdapterConformanceSuite(hooks: ConformanceHooks): void {
   auditSuite(hooks)
   countersSuite(hooks)
   adminStoreSuite(hooks)
+  if (hooks.createSchedulerStore) {
+    schedulerSuite(hooks)
+  }
 }

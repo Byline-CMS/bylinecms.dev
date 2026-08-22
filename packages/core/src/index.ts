@@ -3,7 +3,7 @@
 //
 // Subpath exports (see `package.json`):
 //   - `.`             — main entry (this file); published
-//   - `./zod-schemas`, `./logger`, `./package.json` — published
+//   - `./zod-schemas`, `./logger`, `./scheduler`, `./package.json` — published
 //   - `./patches`, `./workflow`, `./services` — NOT published
 //
 // The three unpublished subpaths are in-monorepo boundaries used by
@@ -95,6 +95,11 @@ export {
   parseSort,
   parseWhere,
 } from './query/parse-where.js'
+export {
+  defineRecurringTask,
+  MIN_INTERVAL_MS,
+  MIN_LEASE_MS,
+} from './scheduler/define-recurring-task.js'
 export { getCollectionSchemasForPath } from './schemas/zod/cache.js'
 export * from './services/index.js'
 export * from './storage/index.js'
@@ -114,3 +119,13 @@ export {
 } from './utils/slugify-filename.js'
 export { getUploadFields, hasUploadField, isUploadField } from './utils/storage-utils.js'
 export * from './workflow/index.js'
+export type {
+  ClaimedRecurringTask,
+  ISchedulerStore,
+  ReconcileTaskInput,
+  RecurringTaskContext,
+  RecurringTaskDefinition,
+  RecurringTaskHealth,
+  RecurringTaskResult,
+  RecurringTaskStatus,
+} from './scheduler/types.js'

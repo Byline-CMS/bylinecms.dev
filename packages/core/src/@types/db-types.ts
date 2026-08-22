@@ -2,6 +2,7 @@ import type { RequestContext } from '@byline/auth'
 import type { CollectionDefinition } from '@byline/core'
 
 import type { DbErrorClassification } from '../lib/errors.js'
+import type { ISchedulerStore } from '../scheduler/types.js'
 
 /**
  * Read mode for document queries.
@@ -273,6 +274,13 @@ export interface IDbAdapter {
    * Canonical adapters (db-postgres, db-mysql) implement it.
    */
   classifyError?(err: unknown): DbErrorClassification
+  /**
+   * Optional recurring-task scheduler storage. Present on the canonical
+   * adapters; absent adapters simply cannot run recurring tasks, which
+   * `initBylineCore()` reports at boot rather than failing silently later.
+   * See specs/2026-08-22-scheduler.md.
+   */
+  scheduler?: ISchedulerStore
 }
 
 // ---------------------------------------------------------------------------

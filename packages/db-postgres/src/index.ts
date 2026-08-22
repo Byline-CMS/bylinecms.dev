@@ -15,6 +15,7 @@ import { DBManagerImpl, TXManagerImpl } from './lib/db-manager.js'
 import { createAuditCommands } from './modules/audit/audit-commands.js'
 import { createAuditQueries } from './modules/audit/audit-queries.js'
 import { createCounterCommands } from './modules/counters/counters-commands.js'
+import { createSchedulerStore } from './modules/scheduler/scheduler-store.js'
 import { classifyError } from './modules/storage/classify-error.js'
 import {
   createCommandBuilders,
@@ -146,6 +147,7 @@ export const pgAdapter = ({
   const commandBuilders = createCommandBuilders(dbManager, defaultContentLocale)
   const queryBuilders = createQueryBuilders(db, collections, defaultContentLocale, dbManager)
   const counterCommands = createCounterCommands(db)
+  const schedulerStore = createSchedulerStore(db)
   // Audit writes run on the DBManager so they join an ambient `withTransaction`
   // (atomic with the mutation they record); audit reads run on the pool.
   const auditCommands = createAuditCommands(dbManager)
@@ -169,5 +171,6 @@ export const pgAdapter = ({
     reAnchorDocument: (params) => commandBuilders.documents.reAnchorDocument(params),
     reAnchorDocuments: (params) => commandBuilders.documents.reAnchorDocuments(params),
     classifyError,
+    scheduler: schedulerStore,
   }
 }

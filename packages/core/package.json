@@ -61,6 +61,11 @@
       "import": "./dist/workflow/index.js",
       "require": "./dist/workflow/index.js"
     },
+    "./scheduler": {
+      "types": "./dist/scheduler/index.d.ts",
+      "import": "./dist/scheduler/index.js",
+      "require": "./dist/scheduler/index.js"
+    },
     "./services": {
       "types": "./dist/services/index.d.ts",
       "import": "./dist/services/index.js",

@@ -196,6 +196,7 @@ interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
     }
   }
   search?: SearchProvider
+  recurringTasks?: readonly RecurringTaskDefinition[]
 }
 ```
 
@@ -213,6 +214,7 @@ interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
 | `fields.richText.toMarkdown` | Optional | Synchronous one-way serializer used by markdown document export, `.md` routes, and `llms.txt`. |
 | `fields.richText.toText` | Conditional | Plain-text extractor required when a collection search body includes a rich-text field. |
 | `search` | Conditional | Search provider required when any collection declares `search`. |
+| `recurringTasks` | `[]` | Definitions created with `defineRecurringTask()`. Registration does not start a timer. When this list is non-empty, `db` must implement the optional scheduler capability; `initBylineCore()` validates and snapshots the definitions for the scheduler runner. |
 
 ### `ServerHooksConfig`
 
@@ -253,7 +255,7 @@ async function initBylineCore<TAdminStore = unknown>(
 This is the recommended server entry point. It:
 
 1. resolves and validates configuration;
-2. validates rich-text, search, translations, tree capabilities, and collection definitions;
+2. validates rich-text, search, translations, tree and scheduler capabilities, recurring tasks, and collection definitions;
 3. composes the configured services and logger;
 4. reconciles collection records and schema versions;
 5. ensures counter sequences and backfills legacy source locales where supported;
@@ -297,6 +299,7 @@ Returns the registered server config. It throws in a browser or before server co
 | `getAbilitiesByGroup()` | `Map<string, AbilityDescriptor[]>` | Groups registered abilities for admin presentation. |
 | `sessionProvider` | `SessionProvider \| undefined` | Configured session provider. |
 | `adminStore` | `TAdminStore \| undefined` | Configured admin-store aggregate. |
+| `recurringTasks` | `readonly RecurringTaskDefinition[]` | Frozen, validated recurring-task definitions. Empty when none are registered; storing them on core does not start a scheduler. |
 
 ### `getBylineCore<TAdminStore>()`
 

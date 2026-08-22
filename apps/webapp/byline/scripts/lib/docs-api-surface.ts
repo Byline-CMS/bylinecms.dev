@@ -65,6 +65,7 @@ const serverConfigKeys = completeKeys<ServerConfig>()([
   'adminStore',
   'fields',
   'search',
+  'recurringTasks',
 ])
 
 const bylineCoreKeys = completeKeys<BylineCore>()([
@@ -81,6 +82,7 @@ const bylineCoreKeys = completeKeys<BylineCore>()([
   'getAbilitiesByGroup',
   'sessionProvider',
   'adminStore',
+  'recurringTasks',
 ])
 
 const collectionDefinitionKeys = completeKeys<CollectionDefinition>()([

@@ -24,6 +24,7 @@ import {
 } from './config/config.js'
 import { type BylineLogger, createBylineLogger, defineLogger } from './lib/logger.js'
 import { Registry } from './lib/registry.js'
+import { validateSchedulerConfig } from './scheduler/validate-scheduler-config.js'
 import { type CollectionRecord, ensureCollections } from './services/collection-bootstrap.js'
 import { discoverCounterGroups } from './services/discover-counter-groups.js'
 import { validateTreeAuditCapability } from './services/document-lifecycle/audit.js'
@@ -37,6 +38,7 @@ import type {
   ResolvedServerConfig,
   ServerConfig,
 } from './@types/index.js'
+import type { RecurringTaskDefinition } from './scheduler/types.js'
 
 export interface BylineCore<TAdminStore = unknown> {
   config: ResolvedServerConfig<TAdminStore>
@@ -91,6 +93,13 @@ export interface BylineCore<TAdminStore = unknown> {
    * Undefined when the installation does not configure admin.
    */
   adminStore: TAdminStore | undefined
+  /**
+   * Validated recurring-task definitions (`ServerConfig.recurringTasks`),
+   * empty when none are configured. `runDueTasks(core)` and
+   * `startBylineScheduler(core)` read this vetted set so no caller can
+   * substitute another; `initBylineCore()` does not start a timer.
+   */
+  recurringTasks: readonly RecurringTaskDefinition[]
 }
 
 /**
@@ -138,6 +147,24 @@ export const initBylineCore = async <TAdminStore = unknown>(
   validateSearchConfig(composed.collections, {
     provider: resolvedConfig.search != null,
   })
+
+  // Validate recurring-task configuration: a task registered against an
+  // adapter that does not implement the optional scheduler capability would
+  // silently never run. Fail-fast at boot, same posture as search above. This
+  // only validates and gates — it does not start anything.
+  validateSchedulerConfig({ tasks: resolvedConfig.recurringTasks ?? [], adapter: composed.db })
+
+  // Freeze a snapshot of the validated task set: a new array of new, frozen
+  // objects, then freeze the array itself. Without this, `core.recurringTasks`
+  // would hold the caller's own array and definition objects, so a caller
+  // could `push()` a task or mutate `intervalMs` after `initBylineCore()`
+  // returns and bypass validation entirely. Both `core.recurringTasks` and
+  // the resolved config's `recurringTasks` are assigned this same snapshot so
+  // no path exposes the caller's originals.
+  const recurringTasks = Object.freeze(
+    (resolvedConfig.recurringTasks ?? []).map((task) => Object.freeze({ ...task }))
+  )
+  resolvedConfig.recurringTasks = recurringTasks
 
   // Tree edges are unversioned metadata and may only run on adapters that can
   // lock, mutate, and append audit rows in one transaction.
@@ -240,6 +267,7 @@ export const initBylineCore = async <TAdminStore = unknown>(
     getAbilitiesByGroup: () => abilities.byGroup(),
     sessionProvider: composed.config.sessionProvider,
     adminStore: composed.config.adminStore,
+    recurringTasks,
   }
 
   // Commit globals only after the replacement core has fully initialized. A
