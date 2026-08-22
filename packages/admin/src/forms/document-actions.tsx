@@ -26,6 +26,7 @@ import cx from 'clsx'
 
 import styles from './document-actions.module.css'
 import type { PublishedVersionInfo } from './form-renderer'
+import type { ScheduledPublicationState } from './scheduled-publication-state.js'
 
 const DUPLICATE_TITLE_SUFFIX = ' (copy)'
 
@@ -53,6 +54,10 @@ export function DocumentActions({
   onDeleteLocale,
   defaultLocale,
   availableLocales,
+  scheduledPublicationState,
+  onSchedulePublication,
+  onConfirmScheduledPublication,
+  onCancelScheduledPublication,
 }: {
   publishedVersion?: PublishedVersionInfo | null
   onUnpublish?: () => Promise<void>
@@ -118,6 +123,20 @@ export function DocumentActions({
    * minus the default locale and the `'all'` sentinel.
    */
   availableLocales?: string[]
+  /**
+   * Derived presentation state for the document's pending publication
+   * schedule. Decides which of the scheduling menu items appear; omit it (or
+   * pass a `none` state with no capabilities) and the group is hidden
+   * entirely — which is what an ineligible document, a single-status
+   * workflow, or an actor missing either ability all reduce to.
+   */
+  scheduledPublicationState?: ScheduledPublicationState
+  /** Opens the schedule / reschedule modal. Save-gated by the caller. */
+  onSchedulePublication?: () => void
+  /** Re-confirms a suspended schedule against the current version. Save-gated by the caller. */
+  onConfirmScheduledPublication?: () => void | Promise<void>
+  /** Withdraws the pending schedule. Deliberately not save-gated. */
+  onCancelScheduledPublication?: () => void | Promise<void>
 }) {
   const { t } = useTranslation('byline-admin')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -150,6 +169,46 @@ export function DocumentActions({
   const [showDeleteLocaleConfirm, setShowDeleteLocaleConfirm] = useState(false)
   const [deleteLocaleBusy, setDeleteLocaleBusy] = useState(false)
   const [deleteTargetLocale, setDeleteTargetLocale] = useState<string>('')
+
+  // Scheduled-publication menu items. The derived state already accounts for
+  // eligibility and for the abilities the actor holds, so the only thing left
+  // here is to map the permitted operations onto entries. The group renders
+  // above the locale and duplicate items because scheduling acts on the
+  // document's lifecycle rather than on its copies.
+  const scheduling = scheduledPublicationState
+  const schedulingActions: Array<{ key: string; label: string; onSelect: () => void }> = []
+  if (scheduling != null) {
+    if (scheduling.actions.schedule && onSchedulePublication != null) {
+      schedulingActions.push({
+        key: 'schedule',
+        // Short form: the menu supplies the "this document" context that the
+        // modal's title and submit button have to spell out for themselves.
+        label: t('scheduledPublication.actions.scheduleMenuItem'),
+        onSelect: onSchedulePublication,
+      })
+    }
+    if (scheduling.actions.confirm && onConfirmScheduledPublication != null) {
+      schedulingActions.push({
+        key: 'confirm',
+        label: t('scheduledPublication.actions.confirm'),
+        onSelect: () => void onConfirmScheduledPublication(),
+      })
+    }
+    if (scheduling.actions.reschedule && onSchedulePublication != null) {
+      schedulingActions.push({
+        key: 'reschedule',
+        label: t('scheduledPublication.actions.reschedule'),
+        onSelect: onSchedulePublication,
+      })
+    }
+    if (scheduling.actions.cancel && onCancelScheduledPublication != null) {
+      schedulingActions.push({
+        key: 'cancel',
+        label: t('scheduledPublication.actions.cancel'),
+        onSelect: () => void onCancelScheduledPublication(),
+      })
+    }
+  }
 
   const handleOnDelete = () => {
     setShowDeleteConfirm(false)
@@ -270,6 +329,20 @@ export function DocumentActions({
                 <DropdownComponent.Separator />
               </>
             )}*/}
+            {schedulingActions.length > 0 && (
+              <>
+                {schedulingActions.map((action) => (
+                  <DropdownComponent.Item key={action.key} onClick={action.onSelect}>
+                    <div className={cx('byline-form-actions-item', styles.item)}>
+                      <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
+                        <button type="button">{action.label}</button>
+                      </span>
+                    </div>
+                  </DropdownComponent.Item>
+                ))}
+                <DropdownComponent.Separator />
+              </>
+            )}
             {copyToLocaleAvailable && (
               <DropdownComponent.Item onClick={handleOpenCopyToLocale}>
                 <div className={cx('byline-form-actions-item', styles.item)}>

@@ -11,6 +11,26 @@ export interface ScheduledPublicationInstantChoice {
   offsetLabel: string
 }
 
+/**
+ * A wall time as the editor sees it: a calendar day and a clock reading, with
+ * no instant attached yet.
+ *
+ * The schedule modal takes these two halves from the date picker's
+ * `onWallTimeChange` and keeps them as strings all the way to
+ * `resolveScheduledPublicationWallTime`, never routing them through a `Date`.
+ * That is deliberate: `setHours` silently normalizes a nonexistent wall time (a
+ * spring-forward 02:30 becomes 03:30) and silently picks the first of two
+ * ambiguous instants at a fall-back overlap. Both are exactly the cases the
+ * editor has to be asked about, so the only safe carrier between the picker and
+ * the resolver is text.
+ */
+export interface ScheduledPublicationWallTime {
+  /** Calendar day as `YYYY-MM-DD`. */
+  date: string
+  /** Clock reading as `HH:mm`, 24-hour. */
+  time: string
+}
+
 export type ScheduledPublicationWallTimeResolution =
   | { status: 'invalid' }
   | { status: 'nonexistent' }
@@ -157,4 +177,42 @@ export function resolveScheduledPublicationWallTime(
 
   if (choices.length === 0) return { status: 'nonexistent' }
   return { status: 'valid', choices }
+}
+
+/**
+ * Split an instant into the calendar day and clock reading it shows in
+ * `timeZone`. Used to seed the modal when rescheduling, so the editor starts
+ * from the time they authorized rather than from its UTC spelling.
+ */
+export function wallTimeInZone(instant: Date, timeZone: string): ScheduledPublicationWallTime {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US-u-ca-iso8601-nu-latn', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    })
+      .formatToParts(instant)
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value])
+  )
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    time: `${parts.hour}:${parts.minute}`,
+  }
+}
+
+/**
+ * Join a wall time back into the `YYYY-MM-DDTHH:mm` string that
+ * `resolveScheduledPublicationWallTime` parses. Returns null when either half
+ * is still blank, which is the modal's "nothing to validate yet" signal.
+ */
+export function joinWallTime(wall: ScheduledPublicationWallTime): string | null {
+  if (wall.date.length === 0 || wall.time.length === 0) return null
+  // Trim to minutes: the resolver's grammar stops there, and scheduling has no
+  // sub-minute meaning even if a clock reading arrives carrying seconds.
+  return `${wall.date}T${wall.time.slice(0, 5)}`
 }

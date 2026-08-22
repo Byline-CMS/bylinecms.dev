@@ -27,11 +27,19 @@ export const FormStatusDisplay = ({
   workflowStatuses,
   publishedVersion,
   onUnpublish,
+  extraCells,
 }: {
   initialData?: Record<string, any>
   workflowStatuses?: WorkflowStatus[]
   publishedVersion?: PublishedVersionInfo | null
   onUnpublish?: () => Promise<void>
+  /**
+   * Additional metadata cells appended to the status / modified / created row.
+   * Used by scheduled publication to present an armed schedule at the same
+   * scale as the other document facts. Each child is expected to carry
+   * `.byline-form-status-cell` so it inherits the row's spacing.
+   */
+  extraCells?: React.ReactNode
 }) => {
   const { t } = useTranslation('byline-admin')
   const statusCode = initialData?.status
@@ -75,6 +83,8 @@ export const FormStatusDisplay = ({
             </span>
           </div>
         )}
+
+        {extraCells}
       </div>
 
       {publishedVersion != null && (

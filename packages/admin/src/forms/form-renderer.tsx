@@ -39,8 +39,10 @@ import { FormStatusDisplay } from './form-status-display'
 import { useNavigationGuardAdapter } from './navigation-guard'
 import { PathWidget } from './path-widget'
 import {
-  ScheduledPublicationControl,
+  ScheduledPublicationCell,
   type ScheduledPublicationInfo,
+  ScheduledPublicationNotice,
+  useScheduledPublication,
 } from './scheduled-publication-control'
 import { computeStatusTransitions } from './status-transitions'
 import { TreePlacementWidget } from './tree-placement-widget'
@@ -253,6 +255,18 @@ const FormContent = ({
   const [pendingSystemFieldsSubmit, setPendingSystemFieldsSubmit] =
     useState<SystemFieldsSubmitPayload | null>(null)
   const [contentLocale, setContentLocale] = useState(initialLocale ?? defaultLocale)
+
+  // Scheduled publication owns three placements — a status-bar cell, an
+  // escalated notice, and the schedule modal — so its state lives here and the
+  // surfaces are rendered where each belongs.
+  const scheduling = useScheduledPublication({
+    schedule: scheduledPublication ?? null,
+    onSchedule: onSchedulePublication,
+    onConfirm: onConfirmScheduledPublication,
+    onCancel: onCancelScheduledPublication,
+    hasUnsavedChanges: hasChanges,
+    onUnsavedChanges: () => setShowUnsavedModal(true),
+  })
   const { uploadField } = useBylineFieldServices()
 
   // Path-widget wiring. The live preview must use the installation's
@@ -581,17 +595,10 @@ const FormContent = ({
             workflowStatuses={workflowStatuses}
             publishedVersion={publishedVersion}
             onUnpublish={onUnpublish}
+            extraCells={
+              <ScheduledPublicationCell state={scheduling.state} timeZone={scheduling.timeZone} />
+            }
           />
-          {(scheduledPublication != null || onSchedulePublication != null) && (
-            <ScheduledPublicationControl
-              schedule={scheduledPublication ?? null}
-              onSchedule={onSchedulePublication}
-              onConfirm={onConfirmScheduledPublication}
-              onCancel={onCancelScheduledPublication}
-              hasUnsavedChanges={hasChanges}
-              onUnsavedChanges={() => setShowUnsavedModal(true)}
-            />
-          )}
         </div>
         <div className={cx('byline-form-actions', styles.actions)}>
           <Button
@@ -691,9 +698,22 @@ const FormContent = ({
             onDeleteLocale={onDeleteLocale}
             defaultLocale={defaultLocale}
             availableLocales={initialData?._availableVersionLocales as string[] | undefined}
+            scheduledPublicationState={scheduling.state}
+            onSchedulePublication={scheduling.openSchedule}
+            onConfirmScheduledPublication={scheduling.confirm}
+            onCancelScheduledPublication={scheduling.cancel}
           />
         </div>
       </div>
+      <ScheduledPublicationNotice
+        state={scheduling.state}
+        timeZone={scheduling.timeZone}
+        busy={scheduling.busy}
+        onConfirm={scheduling.confirm}
+        onReschedule={scheduling.openSchedule}
+        onCancel={scheduling.cancel}
+      />
+      {scheduling.modal}
       {restoreWarnings && restoreWarnings.length > 0 && (
         <Alert
           className="m-0 mt-4"

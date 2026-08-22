@@ -1,48 +1,81 @@
-.root,
-:global(.byline-scheduled-publication) {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--spacing-8);
-  margin-top: var(--spacing-4);
-  font-size: var(--font-size-sm);
-}
+/**
+ * Scheduled publication — editor surfaces.
+ *
+ * Override handles:
+ *
+ *   .byline-scheduled-publication-cell          — armed schedule's status-bar cell
+ *   .byline-scheduled-publication-cell-value    — the instant + zone within it
+ *   .byline-scheduled-publication-notice        — needs-reconfirm / overdue Alert
+ *   .byline-scheduled-publication-notice-actions — that Alert's action row
+ */
 
-.summary,
-:global(.byline-scheduled-publication-summary) {
+/* ---------------------------------------------------------------------------
+   Status-bar cell — deliberately matches .byline-form-status-cell so an armed
+   schedule reads as one more fact about the document, not as a control.
+   --------------------------------------------------------------------------- */
+
+.cell {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-4);
+  min-width: 0;
   align-items: baseline;
+  gap: var(--spacing-4);
 }
 
-.warning {
-  color: var(--orange-700, #9a4f00);
+.cell-label {
+  white-space: nowrap;
+}
+
+.cell-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .zone {
   color: var(--gray-500);
 }
 
-.error,
-.reason {
-  flex-basis: 100%;
+/* ---------------------------------------------------------------------------
+   Notice — the escalated states. Sits below the sticky status bar, full width.
+   --------------------------------------------------------------------------- */
+
+.notice {
+  margin-top: var(--spacing-8);
+  margin-bottom: var(--spacing-8);
 }
 
-.reason {
-  color: inherit;
+.notice-body,
+.notice-instant,
+.notice-attempts,
+.notice-error {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--font-size-sm);
 }
 
-.error {
-  color: var(--red-600);
+.notice-instant {
+  font-weight: 600;
 }
 
-.actions,
-:global(.byline-scheduled-publication-actions) {
+.notice-attempts {
+  color: var(--gray-500);
+}
+
+.notice-error {
+  font-family: var(--font-family-mono, monospace);
+  overflow-wrap: anywhere;
+}
+
+.notice-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--spacing-4);
+  gap: var(--spacing-8);
+  margin-top: var(--spacing-8);
 }
+
+/* ---------------------------------------------------------------------------
+   Schedule / reschedule modal
+   --------------------------------------------------------------------------- */
 
 .modalHead {
   padding-top: 1rem;
@@ -54,20 +87,8 @@
   font-size: var(--font-size-2xl);
 }
 
-.label {
+.field {
   display: block;
-  margin-bottom: var(--spacing-4);
-  font-weight: 600;
-}
-
-.input {
-  width: 100%;
-  min-height: 38px;
-  padding: var(--spacing-8);
-  color: inherit;
-  border: 1px solid var(--gray-300);
-  border-radius: var(--border-radius-sm);
-  background: var(--canvas-25);
 }
 
 .help,
@@ -96,11 +117,11 @@
 }
 
 :is([data-theme="dark"], :global(.dark)) {
-  .warning {
-    color: var(--orange-300, #fdba74);
-  }
-
   .warningText {
     background: color-mix(in srgb, var(--orange-500, #f97316) 14%, transparent);
+  }
+
+  .validation {
+    color: var(--red-400, #f87171);
   }
 }
