@@ -103,9 +103,15 @@
   width: 24px;
 }
 
+/* A real line-height, not 0. Zero leaves every line box with no height, which
+   a single-line label survives — the flex row centres it anyway — but a label
+   long enough to wrap does not: both lines land in the same place and render
+   on top of each other. "Scheduled Publications" is the first label in this
+   menu long enough to reach that. Non-compact rows have no fixed height, so
+   the row simply grows to fit a second line. */
 .nav ul :global(li.menu-item .label),
 :global(.byline-admin-menu-drawer) ul :global(li.menu-item .label) {
-  line-height: 0;
+  line-height: 1.2;
 }
 
 .nav ul :global(li.menu-item.compact .label),

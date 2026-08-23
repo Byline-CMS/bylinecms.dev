@@ -39,8 +39,11 @@ import { FormStatusDisplay } from './form-status-display'
 import { useNavigationGuardAdapter } from './navigation-guard'
 import { PathWidget } from './path-widget'
 import {
-  ScheduledPublicationControl,
+  ScheduledPublicationCell,
   type ScheduledPublicationInfo,
+  ScheduledPublicationNotice,
+  type SchedulePublicationInput,
+  useScheduledPublication,
 } from './scheduled-publication-control'
 import { computeStatusTransitions } from './status-transitions'
 import { TreePlacementWidget } from './tree-placement-widget'
@@ -84,7 +87,7 @@ export interface FormRendererProps {
   onStatusChange?: (nextStatus: string) => Promise<void>
   onUnpublish?: () => Promise<void>
   scheduledPublication?: ScheduledPublicationInfo | null
-  onSchedulePublication?: (input: { publishAt: string }) => Promise<void>
+  onSchedulePublication?: (input: SchedulePublicationInput) => Promise<void>
   onConfirmScheduledPublication?: () => Promise<void>
   onCancelScheduledPublication?: () => Promise<void>
   onDelete?: () => Promise<void>
@@ -253,6 +256,18 @@ const FormContent = ({
   const [pendingSystemFieldsSubmit, setPendingSystemFieldsSubmit] =
     useState<SystemFieldsSubmitPayload | null>(null)
   const [contentLocale, setContentLocale] = useState(initialLocale ?? defaultLocale)
+
+  // Scheduled publication owns three placements — a status-bar cell, an
+  // escalated notice, and the schedule modal — so its state lives here and the
+  // surfaces are rendered where each belongs.
+  const scheduling = useScheduledPublication({
+    schedule: scheduledPublication ?? null,
+    onSchedule: onSchedulePublication,
+    onConfirm: onConfirmScheduledPublication,
+    onCancel: onCancelScheduledPublication,
+    hasUnsavedChanges: hasChanges,
+    onUnsavedChanges: () => setShowUnsavedModal(true),
+  })
   const { uploadField } = useBylineFieldServices()
 
   // Path-widget wiring. The live preview must use the installation's
@@ -581,17 +596,10 @@ const FormContent = ({
             workflowStatuses={workflowStatuses}
             publishedVersion={publishedVersion}
             onUnpublish={onUnpublish}
+            afterStatusCells={
+              <ScheduledPublicationCell state={scheduling.state} timeZone={scheduling.timeZone} />
+            }
           />
-          {(scheduledPublication != null || onSchedulePublication != null) && (
-            <ScheduledPublicationControl
-              schedule={scheduledPublication ?? null}
-              onSchedule={onSchedulePublication}
-              onConfirm={onConfirmScheduledPublication}
-              onCancel={onCancelScheduledPublication}
-              hasUnsavedChanges={hasChanges}
-              onUnsavedChanges={() => setShowUnsavedModal(true)}
-            />
-          )}
         </div>
         <div className={cx('byline-form-actions', styles.actions)}>
           <Button
@@ -691,9 +699,22 @@ const FormContent = ({
             onDeleteLocale={onDeleteLocale}
             defaultLocale={defaultLocale}
             availableLocales={initialData?._availableVersionLocales as string[] | undefined}
+            scheduledPublicationState={scheduling.state}
+            onSchedulePublication={scheduling.openSchedule}
+            onConfirmScheduledPublication={scheduling.confirm}
+            onCancelScheduledPublication={scheduling.cancel}
           />
         </div>
       </div>
+      <ScheduledPublicationNotice
+        state={scheduling.state}
+        timeZone={scheduling.timeZone}
+        busy={scheduling.busy}
+        onConfirm={scheduling.confirm}
+        onReschedule={scheduling.openSchedule}
+        onCancel={scheduling.cancel}
+      />
+      {scheduling.modal}
       {restoreWarnings && restoreWarnings.length > 0 && (
         <Alert
           className="m-0 mt-4"
@@ -764,36 +785,9 @@ const FormContent = ({
   )
 }
 
-export const FormRenderer = ({
-  mode,
-  fields,
-  onSubmit,
-  onCancel,
-  onStatusChange,
-  onUnpublish,
-  onDelete,
-  onDuplicate,
-  onCopyToLocale,
-  onDeleteLocale,
-  contentLocales,
-  nextStatus,
-  workflowStatuses,
-  publishedVersion,
-  initialData,
-  adminConfig,
-  useAsTitle,
-  useAsPath,
-  advertiseLocales,
-  tree,
-  headingLabel,
-  headerSlot,
-  collectionPath,
-  initialLocale,
-  onLocaleChange,
-  defaultLocale,
-  useNavigationGuard,
-  restoreWarnings,
-}: FormRendererProps) => {
+export const FormRenderer = (props: FormRendererProps) => {
+  const { mode, initialData, initialLocale, collectionPath } = props
+
   // Persists per-tab-set active tab across locale-change remounts of FormContent.
   // useRef so mutations never trigger a re-render of FormRenderer itself.
   const savedTabsRef = useRef<Record<string, string>>({})
@@ -805,35 +799,12 @@ export const FormRenderer = ({
       documentId={mode === 'edit' && typeof initialData?.id === 'string' ? initialData.id : null}
       collectionPath={collectionPath ?? null}
     >
+      {/* Forwarded wholesale. An enumerated prop list here silently dropped
+          every prop added to FormRendererProps but not copied down — which is
+          how the scheduled-publication handlers reached FormContent as
+          `undefined` and the control never rendered. */}
       <FormContent
-        mode={mode}
-        fields={fields}
-        onSubmit={onSubmit}
-        onCancel={onCancel}
-        onStatusChange={onStatusChange}
-        onUnpublish={onUnpublish}
-        onDelete={onDelete}
-        onDuplicate={onDuplicate}
-        onCopyToLocale={onCopyToLocale}
-        onDeleteLocale={onDeleteLocale}
-        contentLocales={contentLocales}
-        nextStatus={nextStatus}
-        workflowStatuses={workflowStatuses}
-        publishedVersion={publishedVersion}
-        initialData={initialData}
-        adminConfig={adminConfig}
-        useAsTitle={useAsTitle}
-        useAsPath={useAsPath}
-        advertiseLocales={advertiseLocales}
-        tree={tree}
-        headingLabel={headingLabel}
-        headerSlot={headerSlot}
-        collectionPath={collectionPath}
-        initialLocale={initialLocale}
-        onLocaleChange={onLocaleChange}
-        defaultLocale={defaultLocale}
-        useNavigationGuard={useNavigationGuard}
-        restoreWarnings={restoreWarnings}
+        {...props}
         _activeTabBySet={savedTabsRef.current}
         _onTabChange={(tabSetName, tabName) => {
           savedTabsRef.current = { ...savedTabsRef.current, [tabSetName]: tabName }

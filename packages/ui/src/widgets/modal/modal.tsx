@@ -1,7 +1,7 @@
 'use client'
 
 import type React from 'react'
-import { createContext, useCallback, useRef, useState } from 'react'
+import { useCallback, useId, useRef, useState } from 'react'
 
 import { Dialog } from '@base-ui/react/dialog'
 import cx from 'clsx'
@@ -10,18 +10,23 @@ import styles from './modal.module.css'
 import { ModalActions } from './modal-actions'
 import { ModalContainer } from './modal-container'
 import { ModalContent } from './modal-content'
+import { ModalContext } from './modal-context.js'
 import { ModalHeader } from './modal-header'
+
+export { ModalContext }
 
 export interface ModalProps {
   isOpen?: boolean
   onDismiss?: () => void
   closeOnOverlayClick?: boolean
+  /**
+   * Accessible name for the dialog, for modals that carry no `Modal.Header`
+   * heading to borrow one from. Modals that do have a heading need nothing
+   * here — see `ModalContext.headingId`.
+   */
+  ariaLabel?: string
   children?: React.ReactNode
 }
-
-export const ModalContext = createContext<{
-  onDismiss?: () => void
-}>({})
 
 export type UseModalProps = ReturnType<typeof useModal>
 
@@ -53,8 +58,10 @@ function Modal({
   isOpen,
   onDismiss,
   closeOnOverlayClick,
+  ariaLabel,
   children,
 }: ModalProps): React.JSX.Element {
+  const headingId = useId()
   // Overlay dismissal is handled here rather than by Base UI's outside-press
   // detection. `Dialog.Popup` below is the full-viewport flex box that centres
   // the dialog, not the dialog box itself, so a click on the empty space around
@@ -83,7 +90,7 @@ function Modal({
   }
 
   return (
-    <ModalContext.Provider value={{ onDismiss }}>
+    <ModalContext.Provider value={{ onDismiss, headingId }}>
       <Dialog.Root
         open={isOpen}
         onOpenChange={(open) => {
@@ -98,6 +105,8 @@ function Modal({
           <Dialog.Backdrop className={cx('byline-modal-backdrop', styles.backdrop)} />
           <Dialog.Popup
             className={cx('byline-modal-wrapper', styles['modal-wrapper'])}
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabel == null ? headingId : undefined}
             onPointerDown={handleOverlayPointerDown}
             onClick={handleOverlayClick}
           >

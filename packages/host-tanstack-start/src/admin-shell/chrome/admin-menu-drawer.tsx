@@ -147,7 +147,7 @@ export function AdminMenuDrawer({
             <MenuItem
               to={getAdminRoutePath('scheduled-publications')}
               label={t('chrome.menu.scheduledPublications')}
-              icon={<CalendarIcon width="20px" height="20px" />}
+              icon={<CalendarIcon width="18px" height="18px" />}
               pathname={pathname}
               compact={compact}
             />

@@ -63,6 +63,9 @@ export * from './forms/form-context.js'
 export * from './forms/form-renderer.js'
 export * from './forms/navigation-guard.js'
 export * from './forms/path-widget.js'
+// Shared by the document editor and the cross-collection queue, so both agree
+// on when an armed schedule has become overdue and how loud each state is.
+export * from './forms/scheduled-publication-state.js'
 // Validation error code → translation helper. Sibling to schemas in
 // `@byline/core/validation`, which emit codes; this helper maps the
 // codes onto the active locale for form-input errorText slots.

@@ -25,6 +25,24 @@ import { CloseIcon } from '../../icons/close-icon.js'
 import styles from './datepicker.module.css'
 import type { Intent, Size, Variant } from '../../components/inputs/@types/input.js'
 
+/**
+ * The selection as the editor made it: a calendar day and a clock reading,
+ * with no instant attached.
+ *
+ * `onDateChange` reports a `Date`, which is an instant, and building one from a
+ * wall time goes through `setHours` — so on the two days a year the clocks
+ * change, the instant is not the time that was picked. A spring-forward 02:30
+ * comes back as 03:30, and an ambiguous autumn 01:30 silently resolves to the
+ * earlier of its two instants. Callers that must reject or disambiguate those
+ * cases need the wall time itself, which is what this carries.
+ */
+export interface DatePickerWallTime {
+  /** Calendar day as `YYYY-MM-DD`. */
+  date: string
+  /** Clock reading as `HH:mm`, 24-hour. */
+  time: string
+}
+
 export interface DatePickerProps extends React.InputHTMLAttributes<HTMLInputElement> {
   id: string
   name: string
@@ -32,6 +50,23 @@ export interface DatePickerProps extends React.InputHTMLAttributes<HTMLInputElem
   required?: boolean
   initialValue?: Date | null
   mode?: 'date' | 'datetime'
+  /**
+   * Earliest selectable day. Days before it are disabled in the calendar and
+   * the month navigation will not go back past its month.
+   *
+   * Day granularity only — the day containing `minDate` stays selectable in
+   * full, and in `datetime` mode every slot in the time list remains offered.
+   * A caller that needs a cutoff finer than a day has to enforce it itself.
+   */
+  minDate?: Date
+  /**
+   * Latest selectable day, the mirror of `minDate`: days after it are disabled
+   * and the month navigation will not go forward past its month. Takes
+   * precedence over `yearsInFuture`, which otherwise sets the upper bound.
+   *
+   * Day granularity only, on the same terms as `minDate`.
+   */
+  maxDate?: Date
   yearsInFuture?: number
   yearsInPast?: number
   variant?: Variant
@@ -47,6 +82,13 @@ export interface DatePickerProps extends React.InputHTMLAttributes<HTMLInputElem
   ariaLabelForClear?: string
   onClear?: () => void
   onDateChange?: (value: Date | null) => void
+  /**
+   * Fired alongside `onDateChange` with the day and clock reading the editor
+   * actually selected, before any instant is derived from them. Optional and
+   * additive — callers that are happy with the `Date` can ignore it entirely.
+   * Reports `null` when the selection is cleared.
+   */
+  onWallTimeChange?: (wall: DatePickerWallTime | null) => void
   validatorFn?: (value: Date) => {
     valid: boolean
     value: Date
@@ -61,6 +103,8 @@ export function DatePicker({
   required,
   initialValue,
   mode = 'datetime',
+  minDate,
+  maxDate,
   yearsInFuture = 1,
   yearsInPast = 10,
   variant,
@@ -72,6 +116,7 @@ export function DatePicker({
   contentClassName,
   onClear = () => {},
   onDateChange = () => {},
+  onWallTimeChange,
   validatorFn,
   helpText,
   errorText,
@@ -81,7 +126,6 @@ export function DatePicker({
   ...rest
 }: DatePickerProps): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false)
-  const [time, setTime] = useState<string>('08:00')
   const [date, setDate] = useState<Date | null>(() => {
     if (initialValue) {
       return initialValue
@@ -91,6 +135,11 @@ export function DatePicker({
     }
     return null
   })
+  // Seeded from the incoming date so the clock the widget holds agrees with the
+  // date it is showing. Declared after `date` for that reason. Previously this
+  // always started at 08:00, so picking a different day on a picker opened at
+  // 17:56 silently moved the value to 08:00.
+  const [time, setTime] = useState<string>(() => (date != null ? format(date, 'HH:mm') : '08:00'))
   const [month, setMonth] = useState<Date | null>(date)
   const calendarRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -102,6 +151,7 @@ export function DatePicker({
     }
     setDate(null)
     onDateChange(null)
+    emitWallTime(null, time)
     onClear()
   }
 
@@ -110,6 +160,26 @@ export function DatePicker({
       onDateChange(value)
     }
   }
+
+  /**
+   * Report the selection as a wall time. `clock` is passed explicitly wherever
+   * the editor's chosen clock reading is known independently of `day`, because
+   * `day` has already been through `setHours` by then and cannot be trusted to
+   * still say what was picked.
+   */
+  const emitWallTime = (day: Date | null, clock: string): void => {
+    if (onWallTimeChange == null) return
+    onWallTimeChange(day == null ? null : { date: format(day, 'yyyy-MM-dd'), time: clock })
+  }
+
+  // Two separate matchers, never one `{ before, after }` object: that shape is
+  // react-day-picker's DateInterval and matches the days *between* the two
+  // bounds — the exact inverse of an allowed window. An array of matchers is
+  // OR'd, so each bound disables its own side.
+  const disabledDays = [
+    ...(minDate == null ? [] : [{ before: minDate }]),
+    ...(maxDate == null ? [] : [{ after: maxDate }]),
+  ]
 
   const handleOnKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'ArrowDown') {
@@ -132,6 +202,7 @@ export function DatePicker({
     ) {
       hasInitialized.current = true
       onDateChange(date)
+      emitWallTime(date, time)
     }
   })
 
@@ -205,7 +276,10 @@ export function DatePicker({
           <span className="sr-only">Select date</span>
         </Popover.Trigger>
         <Popover.Portal>
-          <Popover.Positioner sideOffset={5}>
+          <Popover.Positioner
+            sideOffset={5}
+            className={cx('byline-datepicker-positioner', styles.positioner)}
+          >
             <Popover.Popup
               className={cx('byline-datepicker-content', styles.content, contentClassName)}
             >
@@ -222,6 +296,10 @@ export function DatePicker({
                     onMonthChange={setMonth}
                     onSelect={(selectedDate: Date) => {
                       if (selectedDate) {
+                        // Read the day before `setHours` mutates it: the
+                        // editor picked this day at the clock reading already
+                        // held in `time`, and normalization can move both.
+                        const day = new Date(selectedDate.getTime())
                         const [hours, minutes] = time.split(':')
                         selectedDate.setHours(
                           Number.parseInt(hours, 10),
@@ -230,15 +308,15 @@ export function DatePicker({
                         setDate(selectedDate)
                         setMonth(selectedDate)
                         handleOnDateChange(selectedDate)
+                        emitWallTime(day, time)
                       }
                     }}
-                    startMonth={new Date(new Date().getFullYear() - yearsInPast, 0)}
-                    endMonth={new Date(new Date().getFullYear() + yearsInFuture, 0)}
-                    // TODO: add props
-                    // disabled={(date) =>
-                    //   Number(date) < Date.now() - 1000 * 60 * 60 * 24 ||
-                    //   Number(date) > Date.now() + 1000 * 60 * 60 * 24 * 30
-                    // }
+                    disabled={disabledDays.length > 0 ? disabledDays : undefined}
+                    // Clamp the navigable range to the bounds as well as
+                    // disabling the days, so the caller is not offered months
+                    // in which nothing can be picked.
+                    startMonth={minDate ?? new Date(new Date().getFullYear() - yearsInPast, 0)}
+                    endMonth={maxDate ?? new Date(new Date().getFullYear() + yearsInFuture, 0)}
                   />
                 </div>
                 {mode === 'datetime' && (
@@ -268,6 +346,10 @@ export function DatePicker({
                                   )
                                   setDate(newDate)
                                   handleOnDateChange(newDate)
+                                  // `date`, not `newDate` — the grid label is
+                                  // what was clicked, and `newDate` may have
+                                  // been normalized away from it.
+                                  emitWallTime(date, timeValue)
                                 }
                               }}
                             >
@@ -297,9 +379,14 @@ export function DatePicker({
                       )}
                       onClick={() => {
                         const today = new Date()
+                        const clock = format(today, 'HH:mm')
                         setDate(today)
                         setMonth(today)
+                        // Keep the held clock in step with the value, so a
+                        // subsequent day pick preserves this time.
+                        setTime(clock)
                         handleOnDateChange(today)
+                        emitWallTime(today, clock)
                       }}
                     >
                       Today
@@ -329,6 +416,7 @@ export function DatePicker({
                       onClick={() => {
                         setIsOpen(false)
                         handleOnDateChange(date)
+                        emitWallTime(date, time)
                       }}
                     >
                       Select

@@ -15,28 +15,75 @@
   margin-bottom: var(--spacing-16);
 }
 
+/* Filters and pagination are separate jobs and used at different moments, so
+   they sit at opposite ends of one row rather than running together — the
+   pager previously read as a third filter control. */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--spacing-16);
+  margin-bottom: var(--spacing-4);
+}
+
+.filters-help {
+  margin: 0 0 var(--spacing-16);
+  color: var(--gray-500);
+  font-size: var(--font-size-sm);
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: end;
-  gap: var(--spacing-8);
-  margin-bottom: var(--spacing-16);
+  align-items: flex-end;
+  gap: var(--spacing-12);
 }
 
-.filters :global(.byline-input-wrapper) {
-  min-width: 18rem;
+.filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  min-width: 12rem;
+}
+
+.filter-authorizer :global(.byline-input-wrapper) {
+  min-width: 22rem;
+}
+
+/* Sits on the control baseline, not the label baseline, so the buttons line up
+   with the inputs rather than floating against their labels. */
+.filter-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  padding-bottom: 0.1rem;
 }
 
 .tableWrap {
+  margin-top: 0.75rem;
   overflow-x: auto;
 }
 
 .collection,
+.zone,
 .error {
   display: block;
   margin-top: var(--spacing-4);
   color: var(--gray-500);
   font-size: var(--font-size-xs);
+}
+
+.instant {
+  white-space: nowrap;
+}
+
+/* The whole point of this column is offboarding — an operator pastes an
+   account id in and compares. Tabular figures make mismatches visible. */
+.authorizer {
+  font-family: var(--font-family-mono, monospace);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
 }
 
 .error {

@@ -1,48 +1,95 @@
-.root,
-:global(.byline-scheduled-publication) {
+/**
+ * Scheduled publication — editor surfaces.
+ *
+ * Override handles:
+ *
+ *   .byline-scheduled-publication-cell          — armed schedule's status-bar cell
+ *   .byline-scheduled-publication-cell-value    — the instant + zone within it
+ *   .byline-scheduled-publication-notice        — needs-reconfirm / overdue Alert
+ *   .byline-scheduled-publication-notice-actions — that Alert's action row
+ */
+
+/* ---------------------------------------------------------------------------
+   Status-bar cell — deliberately matches .byline-form-status-cell so an armed
+   schedule reads as one more fact about the document, not as a control.
+   --------------------------------------------------------------------------- */
+
+/* Sits inside the status cell, continuing the line that starts "Status: Draft".
+   The success colour carries the meaning: among facts reporting what the
+   document already is, this is the one reporting what it is about to do.
+   `--text-success` is defined for both themes, so no dark-mode override.
+
+   Wraps rather than ellipsizing — the instant and its IANA zone are the whole
+   message, and half a zone name is worse than a second line. */
+.cell {
+  /* Own line while the meta row is stacked. Sharing one line with the status
+     value at narrow widths starved it — the ellipsis fell on "Draft" itself,
+     which is the last thing that should be abbreviated. */
+  flex-basis: 100%;
+  color: var(--text-success);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+@media (min-width: 66rem) {
+  /* Once the meta row lays out horizontally there is room to sit on the same
+     line as the status, continuing its sentence. */
+  .cell {
+    flex-basis: auto;
+    margin-left: var(--spacing-4);
+  }
+
+  /* When the phrase runs to a second line, "Status: Draft" belongs level with
+     its first line — centring leaves the label floating against the middle of
+     a two-line block. Scoped with :has so the timestamp cells, which never
+     wrap, keep their existing alignment. */
+  :global(.byline-form-status-cell):has(> .cell) {
+    align-items: flex-start;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Notice — the escalated states. Sits below the sticky status bar, full width.
+   --------------------------------------------------------------------------- */
+
+.notice {
+  margin-top: var(--spacing-8);
+  margin-bottom: var(--spacing-8);
+}
+
+.notice-body,
+.notice-instant,
+.notice-attempts,
+.notice-error {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--font-size-sm);
+}
+
+.notice-instant {
+  font-weight: 600;
+}
+
+.notice-attempts {
+  color: var(--gray-500);
+}
+
+.notice-error {
+  font-family: var(--font-family-mono, monospace);
+  overflow-wrap: anywhere;
+}
+
+.notice-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--spacing-8);
-  margin-top: var(--spacing-4);
-  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-8);
 }
 
-.summary,
-:global(.byline-scheduled-publication-summary) {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-4);
-  align-items: baseline;
-}
-
-.warning {
-  color: var(--orange-700, #9a4f00);
-}
-
-.zone {
-  color: var(--gray-500);
-}
-
-.error,
-.reason {
-  flex-basis: 100%;
-}
-
-.reason {
-  color: inherit;
-}
-
-.error {
-  color: var(--red-600);
-}
-
-.actions,
-:global(.byline-scheduled-publication-actions) {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-4);
-}
+/* ---------------------------------------------------------------------------
+   Schedule / reschedule modal
+   --------------------------------------------------------------------------- */
 
 .modalHead {
   padding-top: 1rem;
@@ -54,53 +101,49 @@
   font-size: var(--font-size-2xl);
 }
 
-.label {
+.field {
   display: block;
-  margin-bottom: var(--spacing-4);
-  font-weight: 600;
-}
-
-.input {
-  width: 100%;
-  min-height: 38px;
-  padding: var(--spacing-8);
-  color: inherit;
-  border: 1px solid var(--gray-300);
-  border-radius: var(--border-radius-sm);
-  background: var(--canvas-25);
 }
 
 .help,
 .validation,
 .warningText {
-  margin: var(--spacing-8) 0 0;
   font-size: var(--font-size-sm);
 }
 
+/* Belongs to the field above it — the zone qualifies every time shown in the
+   picker, so it sits tight under the input and reads at full strength rather
+   than as an aside. */
 .help {
+  margin: var(--spacing-4) 0 0;
+}
+
+/* Standing guidance, not a warning about anything that has happened yet, so it
+   is muted rather than claiming an alert colour. */
+.warningText {
+  margin: var(--spacing-12) 0 0;
   color: var(--gray-500);
 }
 
 .validation {
+  margin: var(--spacing-8) 0 0;
   color: var(--red-600);
-}
-
-.warningText {
-  padding: var(--spacing-8);
-  border-radius: var(--border-radius-sm);
-  background: var(--orange-50, #fff7ed);
 }
 
 .choice {
   margin-top: var(--spacing-12);
 }
 
-:is([data-theme="dark"], :global(.dark)) {
-  .warning {
-    color: var(--orange-300, #fdba74);
-  }
+/* The offset chooser only appears for a daylight-saving overlap, and its two
+   options carry the whole decision — give it room to show them rather than
+   collapsing to a bare chevron. */
+.choice-select {
+  min-width: 16rem;
+  max-width: 100%;
+}
 
-  .warningText {
-    background: color-mix(in srgb, var(--orange-500, #f97316) 14%, transparent);
+:is([data-theme="dark"], :global(.dark)) {
+  .validation {
+    color: var(--red-400, #f87171);
   }
 }

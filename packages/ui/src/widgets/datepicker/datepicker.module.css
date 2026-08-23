@@ -21,10 +21,19 @@
     width: 100%;
   }
 
+  /* Base UI's Positioner is the absolutely-positioned element, so it is the
+     one that can take part in z-index stacking. The Popup inside it is
+     `position: static`, where a z-index is inert — which is why the calendar
+     lost to any positioned ancestor above it in the tree, most visibly by
+     rendering behind a Modal. */
+  .positioner,
+  :global(.byline-datepicker-positioner) {
+    z-index: var(--z-index-popover);
+  }
+
   .content,
   :global(.byline-datepicker-content) {
     width: 100%;
-    z-index: var(--z-index-popover);
     border-radius: 4px;
     padding-top: var(--spacing-16);
     padding-bottom: var(--spacing-8);

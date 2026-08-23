@@ -8,15 +8,16 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouterState } from '@tanstack/react-router'
 
+import { deriveScheduledPublicationState } from '@byline/admin/react'
 import { useTranslation } from '@byline/i18n/react'
 import {
   Alert,
+  Badge,
   Button,
   Container,
-  Input,
   Section,
   Select,
   Table,
@@ -31,17 +32,34 @@ import { RouterPager } from '../chrome/router-pager.js'
 import styles from './list.module.css'
 import type { ScheduledPublicationListResponse } from '../../server-fns/collections/index.js'
 
+/**
+ * Badge intent per state. Armed is informational; the two states that mean
+ * automatic publication is not going to happen unaided are warnings.
+ */
+const STATE_INTENT = {
+  none: 'noeffect',
+  armed: 'info',
+  needs_reconfirm: 'warning',
+  overdue: 'warning',
+} as const
+
 export function ScheduledPublicationsView({ data }: { data: ScheduledPublicationListResponse }) {
-  const { t } = useTranslation('byline-admin')
+  const { t, locale } = useTranslation('byline-admin')
+  // One clock reading for the whole render, so every row's armed/overdue
+  // boundary is decided against the same instant.
+  const now = Date.now()
+  const timeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', [])
+  const instantFormat = useMemo(
+    () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone }),
+    [locale, timeZone]
+  )
   const navigate = useNavigate()
   const toastManager = useToastManager()
   const location = useRouterState({ select: (state) => state.location })
   const search = location.search as {
     state?: 'armed' | 'needs_reconfirm'
-    lastAuthorizedBy?: string
     page?: number
   }
-  const [authorizer, setAuthorizer] = useState(search.lastAuthorizedBy ?? '')
   const [cancelling, setCancelling] = useState<string | null>(null)
 
   const applySearch = (patch: Record<string, unknown>) => {
@@ -111,50 +129,29 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
           </Alert>
         )}
 
-        <div className={styles.filters}>
-          <Select<string>
-            id="scheduled-publication-state"
-            name="scheduled-publication-state"
-            size="sm"
-            value={search.state ?? '_all'}
-            items={[
-              { value: '_all', label: t('scheduledPublication.list.filters.allStates') },
-              { value: 'armed', label: t('scheduledPublication.list.states.armed') },
-              {
-                value: 'needs_reconfirm',
-                label: t('scheduledPublication.list.states.needsReconfirm'),
-              },
-            ]}
-            onValueChange={(value) => applySearch({ state: value === '_all' ? undefined : value })}
-          />
-          <Input
-            id="scheduled-publication-authorizer"
-            name="scheduled-publication-authorizer"
-            inputSize="sm"
-            label={t('scheduledPublication.list.filters.authorizer')}
-            value={authorizer}
-            onChange={(event) => setAuthorizer(event.currentTarget.value)}
-          />
-          <Button
-            size="sm"
-            type="button"
-            onClick={() => applySearch({ lastAuthorizedBy: authorizer.trim() || undefined })}
-          >
-            {t('scheduledPublication.list.filters.apply')}
-          </Button>
-          {(search.state != null || search.lastAuthorizedBy != null) && (
-            <Button
-              size="sm"
-              type="button"
-              variant="text"
-              onClick={() => {
-                setAuthorizer('')
-                navigate({ to: getAdminRoutePath('scheduled-publications'), search: {} })
-              }}
-            >
-              {t('scheduledPublication.list.filters.clear')}
-            </Button>
-          )}
+        <div className={styles.controls}>
+          <div className={styles.filters}>
+            <div className={styles.filter}>
+              <Select<string>
+                id="scheduled-publication-state"
+                name="scheduled-publication-state"
+                ariaLabel={t('scheduledPublication.list.filters.state')}
+                size="sm"
+                value={search.state ?? '_all'}
+                items={[
+                  { value: '_all', label: t('scheduledPublication.list.filters.allStates') },
+                  { value: 'armed', label: t('scheduledPublication.list.states.armed') },
+                  {
+                    value: 'needs_reconfirm',
+                    label: t('scheduledPublication.list.states.needsReconfirm'),
+                  },
+                ]}
+                onValueChange={(value) =>
+                  applySearch({ state: value === '_all' ? undefined : value })
+                }
+              />
+            </div>
+          </div>
           <RouterPager
             page={data.meta.page}
             count={data.meta.totalPages}
@@ -194,9 +191,15 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
               </Table.Header>
               <Table.Body>
                 {data.schedules.map((schedule) => {
-                  const overdue =
-                    schedule.state === 'armed' &&
-                    new Date(schedule.publishAt).getTime() <= Date.now()
+                  // Same derivation the document editor uses, so a row here and
+                  // the document it links to can never disagree about whether a
+                  // schedule has gone overdue.
+                  const state = deriveScheduledPublicationState(
+                    schedule,
+                    { canSchedule: false, canConfirm: false, canCancel: true },
+                    now
+                  )
+                  const publishAt = new Date(schedule.publishAt)
                   return (
                     <Table.Row key={schedule.documentId}>
                       <Table.Cell>
@@ -211,15 +214,38 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
                         </Link>
                         <span className={styles.collection}>{schedule.collectionLabel}</span>
                       </Table.Cell>
-                      <Table.Cell>{new Date(schedule.publishAt).toLocaleString()}</Table.Cell>
                       <Table.Cell>
-                        {schedule.state === 'needs_reconfirm'
-                          ? t('scheduledPublication.list.states.needsReconfirm')
-                          : overdue
-                            ? t('scheduledPublication.list.states.overdue')
-                            : t('scheduledPublication.list.states.armed')}
+                        <time className={styles.instant} dateTime={publishAt.toISOString()}>
+                          {instantFormat.format(publishAt)}
+                        </time>
+                        <span className={styles.zone}>{timeZone}</span>
                       </Table.Cell>
-                      <Table.Cell>{schedule.lastAuthorizedBy ?? '—'}</Table.Cell>
+                      <Table.Cell>
+                        <Badge intent={STATE_INTENT[state.kind]}>
+                          {state.kind === 'needs_reconfirm'
+                            ? t('scheduledPublication.list.states.needsReconfirm')
+                            : state.kind === 'overdue'
+                              ? t('scheduledPublication.list.states.overdue')
+                              : t('scheduledPublication.list.states.armed')}
+                        </Badge>
+                      </Table.Cell>
+                      <Table.Cell>
+                        {schedule.lastAuthorizedByName != null ? (
+                          <span>{schedule.lastAuthorizedByName}</span>
+                        ) : schedule.lastAuthorizedBy != null ? (
+                          // The account is gone — the schedule outlives it by
+                          // design — so the id is all there is left to identify
+                          // who authorized this.
+                          <span
+                            className={styles.authorizer}
+                            title={t('scheduledPublication.list.authorizerMissing')}
+                          >
+                            {schedule.lastAuthorizedBy}
+                          </span>
+                        ) : (
+                          <span>—</span>
+                        )}
+                      </Table.Cell>
                       <Table.Cell>
                         <span>{schedule.attemptCount}</span>
                         {schedule.lastError != null && (
@@ -228,13 +254,18 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
                       </Table.Cell>
                       <Table.Cell>
                         <Button
-                          size="sm"
+                          size="xs"
                           type="button"
-                          variant="text"
+                          intent="danger"
                           disabled={cancelling === schedule.documentId}
+                          // The column header already says Actions and the row
+                          // is a schedule, so the short label carries here —
+                          // unlike the editor's menu, where "Cancel schedule"
+                          // has to distinguish itself from cancelling an edit.
+                          aria-label={t('scheduledPublication.actions.cancel')}
                           onClick={() => cancel(schedule.collectionPath, schedule.documentId)}
                         >
-                          {t('scheduledPublication.actions.cancel')}
+                          {t('common.actions.cancel')}
                         </Button>
                       </Table.Cell>
                     </Table.Row>

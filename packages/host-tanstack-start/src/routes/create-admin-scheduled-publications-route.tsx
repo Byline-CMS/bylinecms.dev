@@ -20,15 +20,22 @@ import {
 import { getAdminRoutePath } from './admin-path.js'
 import type { ScheduledPublicationListResponse } from '../server-fns/collections/index.js'
 
+// Every member is an optional filter, so an unusable value should narrow to
+// "no filter" rather than take the page down. Without the `.catch`, a hand-typed
+// or stale `?lastAuthorizedBy=…` that is not a UUID replaced the whole view with
+// an error screen quoting the raw regex. `lastAuthorizedBy` has no UI control
+// any more — the authorizer is a column, not a filter — but the parameter and
+// the server fn behind it still work for a caller that constructs the URL.
 const searchSchema = z.object({
-  page: z.coerce.number().int().min(1).optional(),
-  page_size: z.coerce.number().int().min(1).max(100).optional(),
-  state: z.enum(['armed', 'needs_reconfirm']).optional(),
+  page: z.coerce.number().int().min(1).optional().catch(undefined),
+  page_size: z.coerce.number().int().min(1).max(100).optional().catch(undefined),
+  state: z.enum(['armed', 'needs_reconfirm']).optional().catch(undefined),
   lastAuthorizedBy: z
     .string()
     .trim()
     .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
-    .optional(),
+    .optional()
+    .catch(undefined),
 })
 
 type ScheduledPublicationsSearch = z.infer<typeof searchSchema>
