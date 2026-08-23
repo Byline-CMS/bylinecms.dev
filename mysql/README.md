@@ -17,7 +17,7 @@ name are configured in `docker-compose.yml` and the workspace `.env` files
 
 For initializing and seeding the database, generating/applying migrations, and
 the test database, see the root `CLAUDE.md` (Database section) and
-`docs/10-testing.md`.
+`docs/12-testing.md`.
 
 ## Initializing the databases
 

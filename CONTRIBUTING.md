@@ -310,7 +310,7 @@ pnpm lint        # entire workspace (auto-fix + format)
 pnpm typecheck   # type-check across packages
 ```
 
-For the test suite, see [`docs/10-testing.md`](./docs/10-testing.md).
+For the test suite, see [`docs/12-testing.md`](./docs/12-testing.md).
 
 
 ## Code of Conduct ##

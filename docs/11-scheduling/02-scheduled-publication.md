@@ -8,13 +8,13 @@ summary: "Enable delayed publication, understand what happens when a scheduled d
 
 Companions:
 - [Recurring tasks](./01-recurring-tasks.md) — the scheduler this feature runs on, and the ticker your server entry must start.
-- [Client SDK](../05-reading-and-delivery/01-client-sdk.md) — the `CollectionHandle` methods that arm, confirm, and cancel a schedule.
+- [Client SDK API](../10-api-reference/04-client-sdk.md) — the `CollectionHandle` methods that arm, confirm, and cancel a schedule.
 - [Authentication and authorization](../07-auth-and-security/01-authn-authz.md) — the two collection abilities a schedule captures.
 - [Auditability](../07-auth-and-security/02-auditability.md) — the audit records that make an unattended publication accountable.
 
-Scheduled publication lets an authorized editor choose a future instant at which a specific reviewed document version becomes published. At that instant Byline performs the same status transition as an immediate publish: the same authorization, the same `beforeStatusChange` and `afterStatusChange` hooks, the same auto-archive of previously published versions, and the same audit record. Read this document when you want to turn the feature on, or when you need to know what happens to a schedule as content changes underneath it.
+Scheduled publication lets an authorized editor choose a future instant at which a specific reviewed document version becomes published. At that instant Byline performs the same workflow status transition as an immediate publish: the same `beforeStatusChange` and `afterStatusChange` hooks and the same auto-archive of previously published versions. The unattended transition runs under a stable system actor, while separate schedule audit records retain the human authorization captured earlier. Read this document when you want to turn the feature on, or when you need to know what happens to a schedule as content changes underneath it.
 
-Scheduled publication is a delayed workflow mutation, not a read filter. Before the instant, public reads exclude the document because its current version is not `published`. This differs from an embargo, where content is already published and a `beforeRead` predicate hides it until request time — see the embargo recipe in [Authentication and authorization](../07-auth-and-security/01-authn-authz.md). Both remain available; they are not the same mechanism.
+Scheduled publication is a delayed workflow mutation, not a read filter. Before the instant, the scheduled version is not publicly readable. If the document has an older published version, public reads continue serving that version; a document that has never been published remains excluded. This differs from an embargo, where content is already published and a `beforeRead` predicate hides it until request time — see the embargo recipe in [Authentication and authorization](../07-auth-and-security/01-authn-authz.md). Both remain available; they are not the same mechanism.
 
 Publication is document-grain. The version that publishes carries every locale it was authored with, so scheduling publishes all of a version's locales together. There is no per-locale schedule.
 
@@ -22,7 +22,9 @@ Publication is document-grain. The version that publishes carries every locale i
 
 Three steps, in this order. The schema must exist before a ticker starts, because the scheduler's first sweep reconciles its task rows.
 
-**1. Apply the native upgrade scripts.** Existing installations run both the scheduler table and the schedule table for their adapter. The scripts are idempotent, wrapped in one transaction, and safe to run as either the application's database role or a superuser.
+**1. Apply the native upgrade scripts.** Existing installations run both the scheduler table and the schedule table for their adapter. Obtain these source-repository upgrade artifacts from the Git tag for the target Byline release; they are not exported by the adapter npm packages. Apply every script not already applied, in filename order.
+
+The PostgreSQL scripts are idempotent and each runs in one transaction. Run them as the application's database role when possible; their ownership guard also makes running them as a superuser safe. The MySQL scripts are idempotent, but MySQL DDL auto-commits and therefore cannot provide transactional atomicity. Run them as the application role or another account with the required database privileges, and inspect a failed migration before rerunning it because earlier DDL may already have committed.
 
 ```sh
 # PostgreSQL
@@ -62,7 +64,7 @@ A schedule is in one of two states, and the admin surfaces four situations:
 | No schedule, transition valid, actor holds both abilities | **Schedule publication** | Arm a schedule |
 | `armed` | **Scheduled for** date, time, zone | Reschedule, cancel |
 | `needs_reconfirm` | **Needs re-confirmation** — the content changed after scheduling | Confirm, reschedule, cancel |
-| `armed` but overdue and retrying | **Publication overdue** with the last bounded error | Cancel |
+| `armed` but overdue and retrying | **Publication overdue** with the last bounded error | Reschedule, cancel |
 
 ## Editing suspends rather than cancels
 
@@ -124,10 +126,7 @@ Scheduling requires both `collections.<path>.changeStatus` and `collections.<pat
 
 **Authorization is captured when a schedule is armed and is not re-checked at publication time.** Deleting the authorizing account, or revoking its permissions, does not revoke a schedule it validly authorized. The alternative — re-validating at fire time — would let any ordinary permission change silently stop scheduled publications, with nothing connecting cause to effect.
 
-Two consequences follow, and both are load-bearing:
-
-- Each schedule records `last_authorized_by`, rewritten whenever the schedule is armed: on create, reschedule, and re-confirm. It answers "whose authorization does this pending publication rest on", which `scheduled_by` cannot once a colleague has re-confirmed someone else's schedule.
-- **Offboarding an account should include cancelling its pending schedules.** The queue filters on the authorizer for exactly this purpose.
+Each schedule records `last_authorized_by`, rewritten whenever the schedule is armed: on create, reschedule, and re-confirm. It answers "whose authorization does this pending publication rest on", which `scheduled_by` cannot once a colleague has re-confirmed someone else's schedule. The queue displays this authorizer for accountability; an authorizer-specific queue filter is not part of the v1 interface.
 
 The queue is filtered per row rather than gated once: a schedule appears only when the viewer holds both abilities for that schedule's own collection. A single page-level check would leak the existence, paths, and timing of scheduled content in collections the viewer cannot otherwise see.
 

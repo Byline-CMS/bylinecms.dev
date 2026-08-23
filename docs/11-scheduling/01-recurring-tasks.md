@@ -20,7 +20,7 @@ Registration and execution are deliberately separate. `initBylineCore()` validat
 
 The database adapter must implement the optional scheduler capability. `@byline/db-postgres` and `@byline/db-mysql` both do. `initBylineCore()` fails at boot with an actionable error if tasks are registered against an adapter that does not.
 
-Existing installations must apply the native upgrade script that creates the scheduler's table before starting a ticker — `packages/db-postgres/sql/0007_add-recurring-tasks.sql` or `packages/db-mysql/sql/0002_add-recurring-tasks.sql`. The first sweep reconciles task rows and fails loudly against a missing table. Installations created by `@byline/cli` receive the table in the bundled baseline.
+Existing installations must apply the native upgrade script that creates the scheduler's table before starting a ticker — `packages/db-postgres/sql/0007_add-recurring-tasks.sql` or `packages/db-mysql/sql/0002_add-recurring-tasks.sql`. These scripts are source-repository upgrade artifacts rather than npm package exports; obtain them from the Git tag for the target Byline release. The first sweep reconciles task rows and fails loudly against a missing table. Installations created by `@byline/cli` receive the table in the bundled baseline.
 
 ## Declaring a task
 
@@ -54,7 +54,7 @@ await initBylineCore({
 })
 ```
 
-`name` must be stable and globally unique — it is the primary key of the task's row. `intervalMs` and `leaseMs` are both floored at 60 seconds (`MIN_INTERVAL_MS`, `MIN_LEASE_MS`) and must be whole numbers of milliseconds; a fractional or sub-minimum value fails at boot.
+`name` must be stable and globally unique — it is the primary key of the task's row. `intervalMs` and `leaseMs` both have a 60-second minimum (`MIN_INTERVAL_MS`, `MIN_LEASE_MS`) and must be whole numbers of milliseconds; a fractional or sub-minimum value fails at boot.
 
 ## Writing a handler
 
