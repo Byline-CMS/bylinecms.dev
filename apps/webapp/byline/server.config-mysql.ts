@@ -247,6 +247,12 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     // Collections opt in via their `search` config; lifecycle
     // hooks maintain the index (see e.g. `collections/docs/hooks.ts`).
     search: mysqlSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
+
+    // search: mysqlSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
+    // Optional document-grain delayed publication. This registers the inert
+    // recurring task; the webapp's server entry starts the ticker explicitly
+    // so seeds, migrations, and other imports of this config never start one.
+    scheduledPublication: { enabled: true },
   })
 
   // Register admin-subsystem abilities (admin.users.*, admin.roles.*) on
