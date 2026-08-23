@@ -1,5 +1,20 @@
 # @byline/richtext-lexical
 
+## 4.15.0
+
+### Minor Changes
+
+- added scheduled publication — arm, suspend on edit, re-confirm, and an operational admin queue — driven by a new in-process recurring-task scheduler
+  added the MySQL scheduler adapter so both canonical adapters pass the shared conformance suite unchanged
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@4.15.0
+  - @byline/client@4.15.0
+  - @byline/core@4.15.0
+  - @byline/ui@4.15.0
+
 ## 4.14.1
 
 ### Patch Changes
