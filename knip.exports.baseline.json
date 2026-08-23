@@ -1094,6 +1094,7 @@
     "packages/ui/src/lib/ripple.ts|export|default",
     "packages/ui/src/loaders/spinner.tsx|export|LoaderSpinner",
     "packages/ui/src/uikit.ts|export|buttonVariant",
+    "packages/ui/src/widgets/datepicker/datepicker.tsx|type|DatePickerWallTime",
     "packages/ui/src/widgets/drawer/drawer-context.tsx|export|DrawerProvider",
     "packages/ui/src/widgets/drawer/drawer.tsx|type|DrawerProps",
     "packages/ui/src/widgets/modal/modal.tsx|export|ModalContext",

@@ -42,6 +42,7 @@ import {
   ScheduledPublicationCell,
   type ScheduledPublicationInfo,
   ScheduledPublicationNotice,
+  type SchedulePublicationInput,
   useScheduledPublication,
 } from './scheduled-publication-control'
 import { computeStatusTransitions } from './status-transitions'
@@ -86,7 +87,7 @@ export interface FormRendererProps {
   onStatusChange?: (nextStatus: string) => Promise<void>
   onUnpublish?: () => Promise<void>
   scheduledPublication?: ScheduledPublicationInfo | null
-  onSchedulePublication?: (input: { publishAt: string }) => Promise<void>
+  onSchedulePublication?: (input: SchedulePublicationInput) => Promise<void>
   onConfirmScheduledPublication?: () => Promise<void>
   onCancelScheduledPublication?: () => Promise<void>
   onDelete?: () => Promise<void>
