@@ -18,7 +18,6 @@ import {
   Badge,
   Button,
   Container,
-  Label,
   Section,
   Select,
   Table,
