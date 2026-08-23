@@ -159,6 +159,29 @@ CREATE TABLE "byline_document_paths" (
 	CONSTRAINT "idx_document_paths_collection_locale_path" UNIQUE("collection_id","locale","path","alive")
 );
 --> statement-breakpoint
+CREATE TABLE "byline_document_publish_schedules" (
+	"document_id" uuid PRIMARY KEY NOT NULL,
+	"collection_id" uuid NOT NULL,
+	"target_version_id" uuid NOT NULL,
+	"publish_at" timestamp (6) with time zone NOT NULL,
+	"state" varchar(32) DEFAULT 'armed' NOT NULL,
+	"suspended_at" timestamp (6) with time zone,
+	"suspended_reason" varchar(32),
+	"scheduled_by" uuid,
+	"last_authorized_by" uuid,
+	"last_authorized_at" timestamp (6) with time zone NOT NULL,
+	"scheduled_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"execution_token" uuid,
+	"execution_expires_at" timestamp (6) with time zone,
+	"last_attempt_at" timestamp (6) with time zone,
+	"next_attempt_at" timestamp (6) with time zone NOT NULL,
+	"attempt_count" integer DEFAULT 0 NOT NULL,
+	"last_error" text,
+	CONSTRAINT "check_document_publish_schedules_state" CHECK ("byline_document_publish_schedules"."state" IN ('armed', 'needs_reconfirm')),
+	CONSTRAINT "check_document_publish_schedules_suspended_reason" CHECK ("byline_document_publish_schedules"."suspended_reason" IS NULL OR "byline_document_publish_schedules"."suspended_reason" = 'content_edited')
+);
+--> statement-breakpoint
 CREATE TABLE "byline_document_relationships" (
 	"child_document_id" uuid NOT NULL,
 	"parent_document_id" uuid,
@@ -272,6 +295,24 @@ CREATE TABLE "byline_store_numeric" (
 	CONSTRAINT "unique_numeric_field" UNIQUE("document_version_id","field_path","locale")
 );
 --> statement-breakpoint
+CREATE TABLE "byline_recurring_tasks" (
+	"name" varchar(255) PRIMARY KEY NOT NULL,
+	"interval_ms" bigint NOT NULL,
+	"next_run_at" timestamp with time zone NOT NULL,
+	"lease_token" uuid,
+	"lease_owner" varchar(255),
+	"lease_expires_at" timestamp with time zone,
+	"last_started_at" timestamp with time zone,
+	"last_succeeded_at" timestamp with time zone,
+	"last_failed_at" timestamp with time zone,
+	"last_duration_ms" bigint,
+	"consecutive_failures" integer DEFAULT 0 NOT NULL,
+	"last_status" varchar(32) DEFAULT 'never_run' NOT NULL,
+	"last_error" text,
+	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "byline_store_relation" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"document_version_id" uuid NOT NULL,
@@ -317,6 +358,9 @@ ALTER TABLE "byline_document_available_locales" ADD CONSTRAINT "byline_document_
 ALTER TABLE "byline_document_available_locales" ADD CONSTRAINT "byline_document_available_locales_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_paths" ADD CONSTRAINT "byline_document_paths_document_id_byline_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."byline_documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_paths" ADD CONSTRAINT "byline_document_paths_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "byline_document_publish_schedules" ADD CONSTRAINT "byline_document_publish_schedules_document_id_byline_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."byline_documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "byline_document_publish_schedules" ADD CONSTRAINT "byline_document_publish_schedules_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "byline_document_publish_schedules" ADD CONSTRAINT "byline_document_publish_schedules_target_version_id_byline_document_versions_id_fk" FOREIGN KEY ("target_version_id") REFERENCES "public"."byline_document_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_relationships" ADD CONSTRAINT "byline_document_relationships_child_document_id_byline_documents_id_fk" FOREIGN KEY ("child_document_id") REFERENCES "public"."byline_documents"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_relationships" ADD CONSTRAINT "byline_document_relationships_parent_document_id_byline_documents_id_fk" FOREIGN KEY ("parent_document_id") REFERENCES "public"."byline_documents"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_document_version_locales" ADD CONSTRAINT "byline_document_version_locales_document_version_id_byline_document_versions_id_fk" FOREIGN KEY ("document_version_id") REFERENCES "public"."byline_document_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -355,6 +399,8 @@ CREATE INDEX "idx_datetime_path_date" ON "byline_store_datetime" USING btree ("f
 CREATE INDEX "idx_datetime_collection_date" ON "byline_store_datetime" USING btree ("collection_id","value_timestamp_tz");--> statement-breakpoint
 CREATE INDEX "idx_document_available_locales_document_id" ON "byline_document_available_locales" USING btree ("document_id");--> statement-breakpoint
 CREATE INDEX "idx_document_paths_document_id" ON "byline_document_paths" USING btree ("document_id");--> statement-breakpoint
+CREATE INDEX "idx_document_publish_schedules_due" ON "byline_document_publish_schedules" USING btree ("next_attempt_at","publish_at") WHERE "byline_document_publish_schedules"."state" = 'armed';--> statement-breakpoint
+CREATE INDEX "idx_document_publish_schedules_execution_expiry" ON "byline_document_publish_schedules" USING btree ("execution_expires_at");--> statement-breakpoint
 CREATE INDEX "idx_document_relationships_parent_order" ON "byline_document_relationships" USING btree ("parent_document_id","order_key");--> statement-breakpoint
 CREATE INDEX "idx_documents_document_id" ON "byline_document_versions" USING btree ("document_id");--> statement-breakpoint
 CREATE INDEX "idx_documents_collection_document_deleted" ON "byline_document_versions" USING btree ("collection_id","document_id","is_deleted");--> statement-breakpoint
