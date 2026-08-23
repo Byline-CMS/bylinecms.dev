@@ -59,7 +59,7 @@ In the skeletons below, the `# <Title>` line is this same H1, sitting under the 
 ```text
 docs/01-getting-started/   02-why-byline/   03-architecture/   04-collections/
 docs/05-reading-and-delivery/   06-search/   07-auth-and-security/
-docs/08-internationalization/   09-admin-ui/   10-testing.md
+docs/08-internationalization/   09-admin-ui/   12-testing.md
 ```
 
 Place a new doc in the section whose subject it belongs to and give it the next free `NN-` prefix. The `index.md` of that section is its overview and table of contents — add the new document to it. If nothing fits, say so and ask rather than inventing a section.

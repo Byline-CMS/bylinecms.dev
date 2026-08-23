@@ -177,7 +177,16 @@ schema versioning.
   — how the admin/editor config is registered on the client and code-split away
   from public routes.
 
-### 10. [Testing](docs/10-testing.md)
+### 11. [Scheduling](docs/11-scheduling/index.md)
+
+- **[Recurring Tasks](docs/11-scheduling/01-recurring-tasks.md)** — declaring a
+  recurring task, starting the in-process ticker, and the database lease that
+  makes multiple application instances safe.
+- **[Scheduled Publication](docs/11-scheduling/02-scheduled-publication.md)** —
+  publishing a reviewed document at a future instant, and what happens when
+  scheduled content is edited.
+
+### 12. [Testing](docs/12-testing.md)
 
 Unit and integration suites, the `byline_test` database, and isolation strategy.
 

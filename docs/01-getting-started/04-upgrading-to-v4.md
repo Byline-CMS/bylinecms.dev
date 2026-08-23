@@ -9,7 +9,7 @@ summary: "Application migration guide for Byline 4.x: package alignment, route c
 Companions:
 - [Configuration](./03-configuration.md) — the current application file layout and runtime boundaries produced by a 4.x setup.
 - [CLI](./01-cli.md) — the `setup` and `doctor` commands that reconcile host routes and diagnose an installation.
-- [Testing](../11-testing.md) — the repository gates and targeted suites to run after the application migration.
+- [Testing](../12-testing.md) — the repository gates and targeted suites to run after the application migration.
 
 For an application using the published Postgres and TanStack Start packages,
 the main migration is application wiring. Existing documents and uploads do not

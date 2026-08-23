@@ -44,11 +44,11 @@ pnpm build            # Build all packages and apps
 pnpm lint             # Biome check (lint + format). No ESLint/Prettier.
 pnpm typecheck        # TypeScript type checking across workspace
 pnpm test             # Unit tests — no Postgres required
-pnpm test:integration # Integration suite — requires byline_test (see docs/10-testing.md)
+pnpm test:integration # Integration suite — requires byline_test (see docs/12-testing.md)
 pnpm clean            # Clean all workspaces + root node_modules
 ```
 
-`pnpm test:integration` requires a one-time `pnpm db:init:test` to create the `byline_test` database. The runner auto-migrates it on startup and truncates between test files. CI runs the same suite via `.github/workflows/ci.yml` against a Postgres service container. See [docs/10-testing.md](docs/10-testing.md) for the full story (safety guards, isolation strategy, single-test invocation).
+`pnpm test:integration` requires a one-time `pnpm db:init:test` to create the `byline_test` database. The runner auto-migrates it on startup and truncates between test files. CI runs the same suite via `.github/workflows/ci.yml` against a Postgres service container. See [docs/12-testing.md](docs/12-testing.md) for the full story (safety guards, isolation strategy, single-test invocation).
 
 ### Per-package testing
 
