@@ -29,7 +29,9 @@ export interface DocCheckIssue {
   line: number
   kind:
     | 'api-reference-missing-token'
+    | 'duplicate-document-path'
     | 'duplicate-route'
+    | 'invalid-document-path'
     | 'leading-h1-mismatch'
     | 'missing-companions'
     | 'missing-fragment'
@@ -49,6 +51,7 @@ export interface DocCheckResult {
 
 interface ParsedSource {
   filePath: string
+  locale: string
   title: string
   path: string
   root: Root
@@ -128,6 +131,14 @@ export function checkDocSources(
       const path =
         document.frontmatter.path ??
         slugify(document.frontmatter.title, { locale, collectionPath: 'docs' })
+      if (path.includes('/')) {
+        issues.push({
+          filePath: source.filePath,
+          line: 1,
+          kind: 'invalid-document-path',
+          detail: `frontmatter path '${path}' must be a single URL segment; document tree ancestors supply parent route segments`,
+        })
+      }
       const parsedRoot = parseBodyToMdast(document.body)
       const first = parsedRoot.children[0]
       if (
@@ -166,7 +177,13 @@ export function checkDocSources(
           detail: warning.detail,
         })
       }
-      parsed.push({ filePath: source.filePath, title: document.frontmatter.title, path, root })
+      parsed.push({
+        filePath: source.filePath,
+        locale,
+        title: document.frontmatter.title,
+        path,
+        root,
+      })
     } catch (error) {
       issues.push({
         filePath: source.filePath,
@@ -193,12 +210,26 @@ export function checkDocSources(
 
   const canonicalPathByFile = buildCanonicalSourcePathMap(parsed)
   const documentByFile = new Map(parsed.map((document) => [document.filePath, document]))
+  const fileByLocaleAndDocumentPath = new Map<string, string>()
   const fileByCanonicalRoute = new Map<string, string>()
   const headingIdsByFile = new Map(
     parsed.map((document) => [document.filePath, collectHeadingIds(document.root)])
   )
 
   for (const document of parsed) {
+    const pathKey = `${document.locale}\0${document.path}`
+    const existingPathFile = fileByLocaleAndDocumentPath.get(pathKey)
+    if (existingPathFile != null) {
+      issues.push({
+        filePath: document.filePath,
+        line: 1,
+        kind: 'duplicate-document-path',
+        detail: `document path '${document.path}' for locale '${document.locale}' is also used by ${existingPathFile}; document paths must be unique per collection and locale`,
+      })
+    } else {
+      fileByLocaleAndDocumentPath.set(pathKey, document.filePath)
+    }
+
     const route = canonicalPathByFile.get(document.filePath)
     if (route == null) continue
     const existing = fileByCanonicalRoute.get(route)

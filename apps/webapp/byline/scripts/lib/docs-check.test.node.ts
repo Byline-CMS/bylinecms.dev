@@ -51,6 +51,43 @@ describe('docs check', () => {
     ])
   })
 
+  it('rejects document paths that contain ancestor route segments', () => {
+    const result = checkDocSources([
+      source('/docs/analytics/index.md', 'Analytics', 'analytics', 'Overview'),
+      source(
+        '/docs/analytics/browser-agent.md',
+        'Browser agent',
+        'analytics/browser-agent',
+        'Agent documentation'
+      ),
+    ])
+
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        kind: 'invalid-document-path',
+        filePath: '/docs/analytics/browser-agent.md',
+        detail: expect.stringContaining('must be a single URL segment'),
+      }),
+    ])
+  })
+
+  it('rejects duplicate document paths even when their tree routes differ', () => {
+    const result = checkDocSources([
+      source('/docs/guide/index.md', 'Guide', 'guide', 'Guide overview'),
+      source('/docs/guide/configuration.md', 'Guide configuration', 'configuration', 'Guide'),
+      source('/docs/api/index.md', 'API', 'api', 'API overview'),
+      source('/docs/api/configuration.md', 'API configuration', 'configuration', 'API'),
+    ])
+
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        kind: 'duplicate-document-path',
+        filePath: '/docs/api/configuration.md',
+        detail: expect.stringContaining('/docs/guide/configuration.md'),
+      }),
+    ])
+  })
+
   it('reports a leading H1 that the importer cannot deduplicate', () => {
     const document = source('/docs/guide.md', 'Guide', 'guide', 'Body')
     const mismatched = {
