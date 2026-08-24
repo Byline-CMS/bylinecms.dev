@@ -42,6 +42,18 @@ The `@byline/analytics` root is server-only because hashing uses Node.js cryptog
 6. Dashboard queries combine current raw events with completed daily rollups.
 7. A recurring task rolls up completed UTC days and applies retention.
 
+The dashboard offers 7-, 30-, and 90-day reports, year to date, and all time.
+All time begins at the earliest day available in either retained headline
+rollups or raw events. Headline and country history is indefinite; a dashboard
+labels path, download, or referrer lists when finite aggregate retention gives
+them a later coverage boundary.
+
+[Browser agent and consent](./02-browser-agent-and-consent.md) documents the
+exact browser-side event rules. [Ingest and deployment](./03-ingest-and-deployment.md)
+lists every value received and the validation order. [Storage, rollups, and
+operations](./04-storage-rollups-and-operations.md) maps accepted values to SQL
+columns, aggregate tables, dashboard results, and retention.
+
 ![Three supported Byline analytics event flows: a browser loads the first-party agent and posts to the application-owned telemetry route; the host then resolves request identity directly, through a trusted nginx proxy, or through a Cloudflare-to-nginx trust chain before the same TanStack route, portable runtime, and SQL adapter.](./images/byline-analytics-event-flow.svg)
 
 The reference application selects `/telemetry/events` and implements it in

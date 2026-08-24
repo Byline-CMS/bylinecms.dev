@@ -138,9 +138,31 @@ In the reference application, edit the public layout at
 
 ## Browser behavior
 
-On installation, the agent reports one page event. It ignores consecutive navigation identities and ignores query-only and fragment-only changes unless configured to count them. Host adapters must report committed locations only; link hover, preload, prefetch, and failed navigation are not page views.
+On installation, the agent reports one page event. A module-level marker prevents
+the initial page from being counted again if the agent stops and restarts during
+the same document lifetime. The next committed navigation is still eligible.
+
+For page events, the browser identity is the URL pathname. Consecutive events
+with the same identity are suppressed until a different identity is observed.
+Query-only and fragment-only changes are ignored by default. Setting
+`countSearchChanges` or `countHashChanges` includes those components in the
+browser identity, so a committed change can produce another view. The server
+always removes query strings and fragments during normalization, however, so
+these options increase the view count for the stored pathname; they do not
+create separate dashboard paths. For example, `/docs?tab=api#request` is stored
+as `/docs`.
+
+Host adapters must report committed locations only. Link hover, preload,
+prefetch, failed navigation, and React remounts are not page views.
 
 One delegated document listener reports a download when an anchor targets a configured CDN host or ends in a configured extension. It does not cancel or delay navigation.
+
+Download events use the link's pathname, without its query or fragment. Every
+event includes the current document's `document.referrer`. In a client-side
+application that value remains the referrer of the original document while the
+router navigates, so several SPA page events can carry the same external
+referrer. Byline does not create a session or replace it with the preceding SPA
+path.
 
 The body is `text/plain` JSON with only:
 
@@ -151,7 +173,13 @@ application edits:
 { "v": 1, "kind": "page", "path": "/example", "ref": "https://referrer.example/" }
 ```
 
-The agent uses `navigator.sendBeacon`, falling back to `fetch` with `keepalive`. It never retries and never reads the response.
+The payload contains no client timestamp, site identifier, user agent, client
+address, country, cookie, or visitor identifier. The browser supplies ordinary
+request headers independently, and the server host resolves network facts at
+its own trust boundary.
+
+The agent uses `navigator.sendBeacon`, falling back to `fetch` with `keepalive`.
+It never retries and never reads the response.
 
 ## Consent is application-owned
 

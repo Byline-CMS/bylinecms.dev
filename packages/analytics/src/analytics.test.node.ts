@@ -166,6 +166,34 @@ describe('analytics ingest', () => {
   })
 })
 
+describe('analytics reporting coverage', () => {
+  it('reports independent finite-retention boundaries without shortening headline history', async () => {
+    const store = new MemoryStore()
+    store.earliestReportDay = '2025-01-01'
+    const analytics = createAnalytics({
+      store,
+      publicDomains: ['example.com'],
+      pathRetentionDays: 90,
+      referrerRetentionDays: 180,
+      now: () => new Date('2026-08-24T12:00:00.000Z'),
+    })
+
+    await expect(analytics.getReportCoverage()).resolves.toEqual({
+      summaryFrom: '2025-01-01',
+      pathsFrom: '2026-05-26',
+      referrersFrom: '2026-02-25',
+    })
+  })
+
+  it('reports no coverage before any raw or aggregate day exists', async () => {
+    await expect(fixtureAnalytics(new MemoryStore()).getReportCoverage()).resolves.toEqual({
+      summaryFrom: null,
+      pathsFrom: null,
+      referrersFrom: null,
+    })
+  })
+})
+
 function fixtureAnalytics(store: MemoryStore) {
   return createAnalytics({
     store,
@@ -193,6 +221,7 @@ class MemoryStore implements AnalyticsStore {
   events: AnalyticsEvent[] = []
   saltCalls = 0
   failNextInsert = false
+  earliestReportDay: string | null = null
 
   async getOrCreateDailySalt(): Promise<Uint8Array> {
     this.saltCalls += 1
@@ -213,6 +242,10 @@ class MemoryStore implements AnalyticsStore {
 
   async getEarliestEventDay(): Promise<string | null> {
     return null
+  }
+
+  async getEarliestReportDay(): Promise<string | null> {
+    return this.earliestReportDay
   }
 
   async rebuildDay(_options: AnalyticsRollupDayOptions): Promise<void> {}

@@ -10,7 +10,9 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ANALYTICS_DASHBOARD_PERIODS,
+  ANALYTICS_FIXED_DASHBOARD_PERIODS,
   ANALYTICS_LONGEST_DASHBOARD_PERIOD_DAYS,
+  isAnalyticsDashboardPeriod,
   resolveAnalyticsConfig,
 } from './config.js'
 
@@ -33,7 +35,13 @@ describe('resolveAnalyticsConfig', () => {
     ).toThrow(/at least 90 days/u)
   })
 
-  it('derives the retention floor from the supported dashboard periods', () => {
-    expect(ANALYTICS_LONGEST_DASHBOARD_PERIOD_DAYS).toBe(Math.max(...ANALYTICS_DASHBOARD_PERIODS))
+  it('derives the finite retention floor from only the fixed-day periods', () => {
+    expect(ANALYTICS_DASHBOARD_PERIODS).toEqual([7, 30, 90, 'ytd', 'all'])
+    expect(ANALYTICS_LONGEST_DASHBOARD_PERIOD_DAYS).toBe(
+      Math.max(...ANALYTICS_FIXED_DASHBOARD_PERIODS)
+    )
+    expect(isAnalyticsDashboardPeriod('ytd')).toBe(true)
+    expect(isAnalyticsDashboardPeriod('all')).toBe(true)
+    expect(isAnalyticsDashboardPeriod('30')).toBe(false)
   })
 })

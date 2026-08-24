@@ -17,4 +17,30 @@ describe('buildAnalyticsDashboardRange', () => {
       to: '2027-01-03',
     })
   })
+
+  it('builds year-to-date from January 1 in UTC', () => {
+    expect(buildAnalyticsDashboardRange('ytd', new Date('2027-06-03T23:59:59.999Z'))).toEqual({
+      from: '2027-01-01',
+      to: '2027-06-03',
+    })
+  })
+
+  it('builds all-time from the earliest reportable day', () => {
+    expect(
+      buildAnalyticsDashboardRange('all', new Date('2027-06-03T23:59:59.999Z'), '2024-02-29')
+    ).toEqual({ from: '2024-02-29', to: '2027-06-03' })
+  })
+
+  it('uses today for an empty all-time report', () => {
+    expect(buildAnalyticsDashboardRange('all', new Date('2027-06-03T23:59:59.999Z'))).toEqual({
+      from: '2027-06-03',
+      to: '2027-06-03',
+    })
+  })
+
+  it('rejects an invalid earliest report day before constructing a range', () => {
+    expect(() =>
+      buildAnalyticsDashboardRange('all', new Date('2027-06-03T23:59:59.999Z'), '2027-02-30')
+    ).toThrow(/real UTC calendar day/u)
+  })
 })

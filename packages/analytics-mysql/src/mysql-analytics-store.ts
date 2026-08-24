@@ -110,6 +110,18 @@ export class MySqlAnalyticsStore implements AnalyticsStore {
     return rows[0]?.day == null ? null : dayString(rows[0].day)
   }
 
+  async getEarliestReportDay(): Promise<string | null> {
+    const [rows] = await this.pool.query<DayRow[]>(
+      `SELECT DATE_FORMAT(MIN(day), '%Y-%m-%d') AS day
+       FROM (
+         SELECT day FROM byline_analytics_daily_site
+         UNION ALL
+         SELECT DATE(occurred_at) AS day FROM byline_analytics_event
+       ) AS reportable_days`
+    )
+    return rows[0]?.day == null ? null : dayString(rows[0].day)
+  }
+
   async rebuildDay(options: AnalyticsRollupDayOptions): Promise<void> {
     const day = assertAnalyticsDay(options.day)
     const nextDay = addAnalyticsDays(day, 1)

@@ -9,8 +9,12 @@
 import type { AnalyticsSummaryDay } from '@byline/analytics'
 import { describe, expect, it } from 'vitest'
 
-import { formatShare, shareWidth } from './dashboard.js'
-import { buildAnalyticsColumns } from './timeseries.js'
+import { formatShare, partialCoverageFrom, shareWidth } from './dashboard.js'
+import {
+  bucketAnalyticsTimeseries,
+  buildAnalyticsColumns,
+  resolveAnalyticsChartGranularity,
+} from './timeseries.js'
 
 function day(date: string, views: number, visitors: number): AnalyticsSummaryDay {
   return { day: date, views, visitors, downloads: 0 }
@@ -73,6 +77,84 @@ describe('buildAnalyticsColumns', () => {
   })
 })
 
+describe('analytics chart buckets', () => {
+  it('selects granularity explicitly from the reporting period and range size', () => {
+    expect(resolveAnalyticsChartGranularity(90, 90)).toBe('day')
+    expect(resolveAnalyticsChartGranularity('ytd', 90)).toBe('seven-day')
+    expect(resolveAnalyticsChartGranularity('all', 90)).toBe('day')
+    expect(resolveAnalyticsChartGranularity('all', 91)).toBe('seven-day')
+    expect(resolveAnalyticsChartGranularity('all', 733)).toBe('month')
+  })
+
+  it('keeps day boundaries and width in daily buckets', () => {
+    expect(bucketAnalyticsTimeseries([day('2026-01-01', 2, 1)], 'day')).toEqual([
+      {
+        from: '2026-01-01',
+        to: '2026-01-01',
+        granularity: 'day',
+        dayCount: 1,
+        views: 2,
+        visitors: 1,
+        downloads: 0,
+      },
+    ])
+  })
+
+  it('sums daily rows into explicit seven-day buckets', () => {
+    const days = Array.from({ length: 8 }, (_, index) =>
+      day(`2026-01-${String(index + 1).padStart(2, '0')}`, 2, 1)
+    )
+    expect(bucketAnalyticsTimeseries(days, 'seven-day')).toEqual([
+      {
+        from: '2026-01-01',
+        to: '2026-01-07',
+        granularity: 'seven-day',
+        dayCount: 7,
+        views: 14,
+        visitors: 7,
+        downloads: 0,
+      },
+      {
+        from: '2026-01-08',
+        to: '2026-01-08',
+        granularity: 'seven-day',
+        dayCount: 1,
+        views: 2,
+        visitors: 1,
+        downloads: 0,
+      },
+    ])
+  })
+
+  it('aligns month buckets to UTC calendar boundaries', () => {
+    expect(
+      bucketAnalyticsTimeseries(
+        [day('2026-01-31', 2, 1), day('2026-02-01', 3, 2), day('2026-02-02', 4, 2)],
+        'month'
+      )
+    ).toEqual([
+      {
+        from: '2026-01-31',
+        to: '2026-01-31',
+        granularity: 'month',
+        dayCount: 1,
+        views: 2,
+        visitors: 1,
+        downloads: 0,
+      },
+      {
+        from: '2026-02-01',
+        to: '2026-02-02',
+        granularity: 'month',
+        dayCount: 2,
+        views: 7,
+        visitors: 4,
+        downloads: 0,
+      },
+    ])
+  })
+})
+
 describe('shareWidth', () => {
   it('scales a row against the largest row in its list', () => {
     expect(shareWidth(50, 100)).toBe(50)
@@ -98,5 +180,14 @@ describe('formatShare', () => {
 
   it('reports zero rather than NaN when there is nothing to divide', () => {
     expect(formatShare(0, 0, 'en-US')).toBe('0%')
+  })
+})
+
+describe('partialCoverageFrom', () => {
+  it('returns a retained boundary only when it truncates the report', () => {
+    expect(partialCoverageFrom('2025-01-01', '2026-05-26')).toBe('2026-05-26')
+    expect(partialCoverageFrom('2026-05-27', '2026-05-26')).toBeUndefined()
+    expect(partialCoverageFrom('2026-05-26', '2026-05-26')).toBeUndefined()
+    expect(partialCoverageFrom('2025-01-01', null)).toBeUndefined()
   })
 })

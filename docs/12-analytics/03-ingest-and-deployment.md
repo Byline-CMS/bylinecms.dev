@@ -167,15 +167,60 @@ For direct Nitro start, load the local runtime environment that supplies the loc
 
 ## Ingest policy and responses
 
-The handler and portable runtime apply the following sequence:
+The analytics integration obtains values from three different sources. Keeping
+them separate is important because the browser payload is not trusted network
+metadata:
 
-1. Require POST, enforce the 1 KB body limit, and parse the exact event shape.
-2. Match `Origin`, or the `Referer` fallback, to `publicDomains`.
-3. Normalize the path and reject configured internal prefixes.
-4. Reject missing or crawler user agents and prefetch requests.
-5. Require the host-resolved client identity.
-6. Derive the daily visitor hash and suppress a replay for ten seconds.
-7. Store the normalized event.
+| Values | Source | Purpose |
+|---|---|---|
+| `v`, `kind`, `path`, `ref` | The agent's `text/plain` JSON body. | Event version, type, location, and referrer candidate. |
+| `Origin` or request `Referer`, `User-Agent`, `Sec-Purpose`, `X-Purpose` | Ordinary HTTP request headers read by the host handler. | Origin filtering, daily identity input, and bot or prefetch filtering. |
+| `clientIp`, optional `country` | The application-owned request-context resolver. | Daily identity input and optional country dimension. |
+| `occurredAt` | The application server clock when ingest begins. | Authoritative event timestamp and UTC day. |
+
+The body field `ref` and the HTTP `Referer` header have different jobs. `ref`
+can become the stored external referrer host. The `Origin` header, with the
+request `Referer` only as a fallback, selects the host checked against
+`publicDomains`.
+
+The handler and portable runtime then apply this sequence:
+
+1. The host streams at most 1,024 bytes and decodes valid UTF-8. The JSON object
+   must contain exactly `v`, `kind`, `path`, and `ref`; `v` must be `1`, `kind`
+   must be `page` or `download`, and both remaining values must be strings.
+   Unknown or missing fields are rejected.
+2. The request must use POST. The host from `Origin`, or the request `Referer`
+   fallback, is lowercased, stripped of a trailing dot, and matched—including
+   any development port—against `publicDomains`.
+3. `path` must begin with `/` and contain no unpaired UTF-16 surrogate. The
+   runtime removes everything from the first `?` or `#`, collapses repeated
+   slashes, and keeps at most 512 Unicode code points. It then silently drops
+   exact configured internal paths and their descendants.
+4. A blank user agent or one matched by the pinned `isbot` implementation is
+   silently dropped. `Sec-Purpose: prefetch` and `X-Purpose: preview` are also
+   silently dropped.
+5. The host-resolved `clientIp` must be non-empty. The portable runtime does not
+   read forwarding headers itself and does not continue without this identity
+   input.
+6. The runtime obtains the current UTC day's 32-byte salt and computes
+   `HMAC-SHA-256(salt, length-prefixed(clientIp, userAgent))`. Neither raw input
+   is passed to the storage adapter.
+7. An in-process cache suppresses the same `(visitor hash, kind, normalized
+   path)` for ten seconds. The default cache holds at most 10,000 keys. It is
+   intentionally not shared across application instances.
+8. The payload referrer is reduced to a lowercase host of at most 255 Unicode
+   code points. Empty, invalid, same-installation, and reserved `__other__`
+   values become `null`. A trusted country becomes an uppercase two-letter
+   code; any other value becomes `null`.
+9. The adapter inserts the server timestamp, kind, source `beacon`, normalized
+   path, visitor hash, normalized referrer host, and optional country. A failed
+   insert removes the provisional replay key so a later independent event is
+   not poisoned by the failure.
+
+The analytics handler does not read request cookies. The runtime processes but
+does not persist the complete referrer URL, user agent, raw client address, or
+request origin; it accepts no client timestamp. A same-origin browser may still
+attach cookies at the HTTP layer, but the analytics handler ignores them.
 
 Responses contain no body and no CORS headers:
 
@@ -187,4 +232,11 @@ Responses contain no body and no CORS headers:
 | `429` | An optional platform or proxy rate limiter rejected the request before the application. |
 | `503` | Event persistence failed. The browser does not retry. |
 
+Every application response carries `Cache-Control: no-store`.
+
 The lack of CORS response headers prevents another origin from reading the response, but it does not prevent a simple `text/plain` cross-origin POST. The origin validation is the application-level filter, and it remains abuse resistance rather than authentication because a non-browser client can forge browser headers.
+
+A persistence failure is not recorded as a policy drop. The handler logs only a
+fixed message and an allowlisted database error code, returns `503` with an
+empty body, and never attaches the request, payload, visitor hash, or database
+error object to the log entry.

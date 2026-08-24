@@ -19,7 +19,7 @@ import {
   resolveAnalyticsConfig,
 } from './config.js'
 import { isCrawlerUserAgent } from './crawler-user-agents.js'
-import { analyticsDay, assertAnalyticsDay, compareAnalyticsDays } from './date.js'
+import { addAnalyticsDays, analyticsDay, assertAnalyticsDay, compareAnalyticsDays } from './date.js'
 import { AnalyticsDedupeCache } from './dedupe.js'
 import { AnalyticsMetrics } from './metrics.js'
 import {
@@ -40,6 +40,7 @@ import type {
   AnalyticsPathTotal,
   AnalyticsRankedTotals,
   AnalyticsReferrerTotal,
+  AnalyticsReportCoverage,
   AnalyticsStore,
   AnalyticsSummary,
   AnalyticsTopQuery,
@@ -171,6 +172,21 @@ export class Analytics {
     return this.#store.getCountries(validateRange(range))
   }
 
+  /** Describe the independently retained dimensions available to reporting. */
+  async getReportCoverage(): Promise<AnalyticsReportCoverage> {
+    const summaryFrom = await this.#store.getEarliestReportDay()
+    if (summaryFrom == null) {
+      return { summaryFrom: null, pathsFrom: null, referrersFrom: null }
+    }
+
+    const today = analyticsDay(this.#now())
+    return {
+      summaryFrom,
+      pathsFrom: coverageStart(summaryFrom, today, this.config.pathRetentionDays),
+      referrersFrom: coverageStart(summaryFrom, today, this.config.referrerRetentionDays),
+    }
+  }
+
   /** Maintenance tooling may delete a bounded slice, then call `rebuildDay` per affected day. */
   deleteEvents(options: Parameters<AnalyticsStore['deleteEvents']>[0]): Promise<number> {
     if (options.to <= options.from) throw new Error('Analytics deletion `to` must be after `from`')
@@ -262,4 +278,10 @@ function validateLimit(limit = 20): number {
     throw new Error(`analytics limit must be an integer between 1 and ${ANALYTICS_MAX_TOP_LIMIT}`)
   }
   return limit
+}
+
+function coverageStart(summaryFrom: string, today: string, retentionDays: number | null): string {
+  if (retentionDays == null) return summaryFrom
+  const retainedFrom = addAnalyticsDays(today, -retentionDays)
+  return compareAnalyticsDays(summaryFrom, retainedFrom) >= 0 ? summaryFrom : retainedFrom
 }

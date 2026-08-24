@@ -19,6 +19,7 @@ import { useNavigate } from '../admin-shell/chrome/loose-router.js'
 import {
   getAnalyticsCountries,
   getAnalyticsReferrers,
+  getAnalyticsReportCoverage,
   getAnalyticsRuntime,
   getAnalyticsSummary,
   getAnalyticsTop,
@@ -26,14 +27,11 @@ import {
 import { getAdminRoutePath } from './admin-path.js'
 import { buildAnalyticsDashboardRange } from './analytics-range.js'
 
-const periodSchema = z.preprocess(
-  (value) => (value == null ? undefined : Number(value)),
-  z
-    .custom<AnalyticsDashboardPeriod>(
-      (value) => typeof value === 'number' && isAnalyticsDashboardPeriod(value)
-    )
-    .optional()
-)
+const periodSchema = z.preprocess((value) => {
+  if (value == null) return undefined
+  if (value === 'ytd' || value === 'all') return value
+  return Number(value)
+}, z.custom<AnalyticsDashboardPeriod>((value) => isAnalyticsDashboardPeriod(value)).optional())
 
 const searchSchema = z.object({
   period: periodSchema.catch(undefined),
@@ -44,7 +42,6 @@ interface AnalyticsSearch {
 }
 
 export function createAdminAnalyticsRoute(path: string) {
-  // biome-ignore lint/suspicious/noExplicitAny: dynamic path bypasses route-tree typing
   const Route: any = createFileRoute(path as never)({
     validateSearch: searchSchema,
     loaderDeps: ({ search }: { search: AnalyticsSearch }) => ({
@@ -54,7 +51,8 @@ export function createAdminAnalyticsRoute(path: string) {
       const runtime = await getAnalyticsRuntime()
       if (!runtime.enabled) throw notFound()
 
-      const range = buildAnalyticsDashboardRange(deps.period)
+      const coverage = await getAnalyticsReportCoverage()
+      const range = buildAnalyticsDashboardRange(deps.period, new Date(), coverage.summaryFrom)
       const [summary, pages, downloads, referrers, countries] = await Promise.all([
         getAnalyticsSummary({ data: range }),
         getAnalyticsTop({ data: { ...range, kind: 'page', limit: 20 } }),
@@ -64,7 +62,15 @@ export function createAdminAnalyticsRoute(path: string) {
       ])
 
       return {
-        data: { summary, pages, downloads, referrers, countries } satisfies AnalyticsDashboardData,
+        data: {
+          summary,
+          pages,
+          downloads,
+          referrers,
+          countries,
+          range,
+          coverage,
+        } satisfies AnalyticsDashboardData,
         period: deps.period,
       }
     },

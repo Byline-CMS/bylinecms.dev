@@ -17,6 +17,7 @@ import type {
   AnalyticsPathTotal,
   AnalyticsRankedTotals,
   AnalyticsReferrerTotal,
+  AnalyticsReportCoverage,
   AnalyticsSummary,
 } from '@byline/analytics'
 import { getAdminRequestContext } from '@byline/client/server'
@@ -46,6 +47,14 @@ export const getAnalyticsSummary = createServerFn({ method: 'GET' })
     const { getAnalytics } = await import('@byline/analytics')
     return getAnalytics().getSummary(data)
   })
+
+export const getAnalyticsReportCoverage = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<AnalyticsReportCoverage> => {
+    await assertAnalyticsRead()
+    const { getAnalytics } = await import('@byline/analytics')
+    return getAnalytics().getReportCoverage()
+  }
+)
 
 export const getAnalyticsTop = createServerFn({ method: 'GET' })
   .validator((input: AnalyticsTopInput) => input)

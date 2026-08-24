@@ -72,7 +72,7 @@ A single first-party script, **≤ 2 KB gzipped**, no dependencies, served from 
 
 - **Serve under an innocuous first-party path** (e.g. `/b.js`), not `analytics.js`/`track.js` — common adblock filter lists match those names and would silently distort numbers. Long cache TTL is fine.
 - On load: send one `page` event.
-- SPA navigations: subscribe to TanStack Router's **committed/resolved navigation event** — never link hover, never preload/prefetch. Ignore hash-only and search-only changes (configurable). Dedupe identical consecutive paths within 3 s (also guards React strict-mode double effects; additionally gate with a module-level "sent" flag for the initial view).
+- SPA navigations: subscribe to TanStack Router's **committed/resolved navigation event** — never link hover, never preload/prefetch. Ignore hash-only and search-only changes by default (configurable). Suppress an identical consecutive navigation identity until a different identity is observed, and gate the initial view with a module-level "sent" flag so React remounts or consent re-grants during one document lifetime do not recount it. The server still removes query strings and fragments, so configured search/hash changes add views to the normalized pathname rather than creating separate stored paths.
 - Downloads: one **delegated click listener** on `document` matching `a[href]` where the host equals the site's configured CDN host(s) **or** the pathname ends in a configured extension list (default: pdf, zip, docx, xlsx, pptx, csv, mp3, mp4, epub). Sends a `download` event with the file path. Do not preventDefault; do not delay navigation (use `sendBeacon`).
 - Transport: `navigator.sendBeacon(config.endpoint, blob)`; fallback `fetch(..., { keepalive: true })`. The application must supply a same-origin, root-relative endpoint. Fire-and-forget; never retry (retries are how client bugs become data corruption).
 - **The endpoint is same-origin by construction.** The configured root-relative path always addresses the origin serving the page, regardless of where the JavaScript artifact itself is hosted. An installation with several public domains does not change that: each domain serves its selected endpoint. V1 supports no cross-origin ingest and the endpoint emits no CORS headers at all. Be precise about what that does and does not achieve: because the beacon sends a safelisted `text/plain` body with no custom headers, it is a *simple* request, so a cross-origin page can still **send** it and the server will still receive it. Omitting `Access-Control-Allow-Origin` only denies the sending page the ability to **read the response** — which the beacon never reads anyway. **The origin check in §4 is what actually drops cross-origin submissions**, not the absence of CORS headers. Emitting none is the right default because there is no response any caller needs to read, not because it is a filter.
@@ -258,12 +258,12 @@ paths embed identifiers can set a finite window without losing its headline hist
 `analytics_daily_site` and `analytics_daily_country` contain no operator-supplied strings and are
 retained indefinitely and unconditionally.
 
-Configured retention has a **floor equal to the longest period the dashboard offers** — 90 days
-today, matching the event window. Below that floor the interface would lie: a 30-day path
-retention with a 90-day top-pages report renders a period the underlying rows cannot cover, and
-nothing on the page would say so. Tying the floor to the period picker rather than to the literal
-number 90 keeps the two coupled, so adding a longer dashboard period later forces the floor up
-with it rather than silently reintroducing the same defect.
+Configured retention has a **floor equal to the longest fixed-day period the dashboard offers** —
+90 days today, matching the event window. Below that floor the interface would lie: a 30-day path
+retention with a 90-day top-pages report renders a period the underlying rows cannot cover. Year to
+date and all time do not make the floor unbounded. The reporting contract exposes independent
+summary, path, and referrer coverage boundaries, and the dashboard labels a ranked dimension when
+its finite retention begins after the selected range.
 
 Growth is therefore bounded by the path cap rather than by traffic: `min(distinct paths, cap) ×
 days × kinds`. Index `analytics_daily_path` on `(day)`. Dashboard queries read rollups through `last_complete_day` and raw events for retained
@@ -280,11 +280,12 @@ Admin reads use TanStack Start server functions, not a new general HTTP API. Eve
 requires the registered `analytics.read` ability:
 
 - `getAnalyticsSummary({ from, to })` → `{ views, visitors, downloads, timeseries: [{day, views, visitors, downloads}] }`
-- `getAnalyticsTop({ kind, from, to, limit: 20 })` → `{ rows: paths with views/visitors, total }`, where `total` is the distinct path count in the period so the dashboard can label a top-N list as truncated
-- `getAnalyticsReferrers({ from, to, limit: 20 })` → the same `{ rows, total }` shape
+- `getAnalyticsReportCoverage()` → `{ summaryFrom, pathsFrom, referrersFrom }`, where a finite path or referrer retention policy may produce a later boundary than headline history
+- `getAnalyticsTop({ kind, from, to, limit: 20 })` → `{ rows: paths with views/visitors, total }`, where `total` is the distinct queryable path-key count in the period before the top-N limit. Completed days have already folded keys past the daily cap into one `__other__` key, so this is not the original pre-cap URL count.
+- `getAnalyticsReferrers({ from, to, limit: 20 })` → the same `{ rows, total }` shape and post-cap qualification
 - `getAnalyticsCountries({ from, to })`
 
-UI: one installation-level page in the admin. Period picker (7 / 30 / 90 days). Three stat tiles (views, daily unique visitors, downloads) with a small timeseries chart, then two lists: top pages, top downloads; referrers and countries below. Keep it to that — "simple, practical, useful" is the product requirement. Include the admin "exclude my visits on this browser" toggle here (sets the ignore flag, §3). Because local storage is origin-scoped, the toggle controls public-page collection only when admin and public pages share an origin; other deployments must provide the same toggle on the public origin.
+UI: one installation-level page in the admin. Period picker (7 / 30 / 90 days / year to date / all time). Year to date begins on January 1 UTC; all time begins on the earliest raw or headline-rollup day. Three stat tiles (views, daily unique visitors, downloads) use a small timeseries chart, followed by top pages, top downloads, referrers, and countries. Fixed periods chart daily rows; longer periods use explicit seven-day or UTC-month buckets whose visitor readouts remain labelled as sums of daily uniques. Ranked path/download and referrer cards disclose a later coverage boundary when finite aggregate retention truncates that dimension. Keep it to that — "simple, practical, useful" is the product requirement. Include the admin "exclude my visits on this browser" toggle here (sets the ignore flag, §3). Because local storage is origin-scoped, the toggle controls public-page collection only when admin and public pages share an origin; other deployments must provide the same toggle on the public origin.
 
 ---
 
@@ -317,8 +318,8 @@ advice, and must be flagged for counsel review per deployment.
 3. Ingest: the beacon body is sent as `text/plain` to the configured same-origin endpoint and no preflight request is issued (verify in devtools). Request with wrong Origin or an admin path → 204, nothing stored, and the drop is counted under its own reason. The endpoint returns no `Access-Control-Allow-Origin` header. Bot UA → nothing stored. 1 KB+ body → 400. A configured pre-application rate limiter can return 429. Tests prove that clients cannot select the host-resolved identity for every documented deployment scenario. Raw IP appears nowhere in DB, logs, or error traces.
 4. Same visitor across two UTC days yields two different hashes (test with fixed IP/UA, forced salt rotation).
 5. Rollup task is idempotent and catches up every missed complete day after simulated downtime, draining at tick cadence rather than one day per hour. Events older than 90 days are pruned. Historical path, referrer, and country queries match hand-computed fixtures.
-6. A day containing more distinct paths than the configured cap produces exactly `cap + 1` path rows, the extra being `__other__`, and the sum of the day's path views still equals the day's site view total. A fixture in which one visitor views three overflow paths yields `__other__` visitors of 1, not 3. Configuring retention below the dashboard's longest period is rejected at boot. Site and country aggregates are never pruned; path and referrer aggregates honour their configured retention.
-7. Dashboard: an actor with `analytics.read` sees data; an actor without it gets 403. Every multi-day visitor value is labelled as a sum of daily uniques.
+6. A day containing more distinct paths than the configured cap produces exactly `cap + 1` path rows, the extra being `__other__`, and the sum of the day's path views still equals the day's site view total. A fixture in which one visitor views three overflow paths yields `__other__` visitors of 1, not 3. Configuring retention below the dashboard's longest fixed-day period is rejected at boot. Site and country aggregates are never pruned; path and referrer aggregates honour their configured retention.
+7. Dashboard: an actor with `analytics.read` sees data; an actor without it gets 403. The picker accepts fixed-day, year-to-date, and all-time links without silent fallback. Every multi-day visitor value is labelled as a sum of daily uniques, and every finitely retained ranked dimension discloses its later coverage boundary.
 8. The Postgres and MySQL providers pass the shared store and rollup conformance suite.
 9. `docs/12-analytics/` documents: package/configuration setup, application-owned agent delivery, optional consent, deployment-specific request context, Cloudflare and nginx recipes, salt lifecycle, the path cap and both retention policies, where each drop metric is observed, scheduler health, and the delete/re-rollup maintenance procedure.
 

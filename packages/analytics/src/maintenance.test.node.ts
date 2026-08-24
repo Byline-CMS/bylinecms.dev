@@ -24,6 +24,7 @@ describe('runAnalyticsMaintenance', () => {
     const store = {
       getRollupCursor: async () => '2026-08-18',
       getEarliestEventDay: async () => null,
+      getEarliestReportDay: async () => null,
       rebuildDay,
       prune,
     } as unknown as AnalyticsStore

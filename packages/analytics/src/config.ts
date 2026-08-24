@@ -18,9 +18,16 @@ import type { BylineLogger } from '@byline/core'
 export const ANALYTICS_OVERFLOW_KEY = '__other__'
 
 export const ANALYTICS_EVENT_RETENTION_DAYS = 90
-export const ANALYTICS_DASHBOARD_PERIODS = [7, 30, 90] as const
+export const ANALYTICS_FIXED_DASHBOARD_PERIODS = [7, 30, 90] as const
+export const ANALYTICS_DASHBOARD_PERIODS = [
+  ...ANALYTICS_FIXED_DASHBOARD_PERIODS,
+  'ytd',
+  'all',
+] as const
 export type AnalyticsDashboardPeriod = (typeof ANALYTICS_DASHBOARD_PERIODS)[number]
-export const ANALYTICS_LONGEST_DASHBOARD_PERIOD_DAYS = Math.max(...ANALYTICS_DASHBOARD_PERIODS)
+export const ANALYTICS_LONGEST_DASHBOARD_PERIOD_DAYS = Math.max(
+  ...ANALYTICS_FIXED_DASHBOARD_PERIODS
+)
 export const ANALYTICS_MIN_CARDINALITY_CAP = 20
 export const ANALYTICS_DEFAULT_CARDINALITY_CAP = 1_000
 export const ANALYTICS_MAX_TOP_LIMIT = 100
@@ -55,7 +62,7 @@ export interface ResolvedAnalyticsConfig {
   logger?: BylineLogger
 }
 
-export function isAnalyticsDashboardPeriod(value: number): value is AnalyticsDashboardPeriod {
+export function isAnalyticsDashboardPeriod(value: unknown): value is AnalyticsDashboardPeriod {
   return ANALYTICS_DASHBOARD_PERIODS.some((period) => period === value)
 }
 

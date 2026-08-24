@@ -78,6 +78,18 @@ export interface AnalyticsDateRange {
   to: AnalyticsDay
 }
 
+/**
+ * Earliest UTC days for which each report dimension is complete under the
+ * current retention configuration. Headline totals and countries are retained
+ * indefinitely. Paths (including downloads) and referrers may begin later when
+ * their configured aggregate retention is finite.
+ */
+export interface AnalyticsReportCoverage {
+  summaryFrom: AnalyticsDay | null
+  pathsFrom: AnalyticsDay | null
+  referrersFrom: AnalyticsDay | null
+}
+
 export interface AnalyticsTopQuery extends AnalyticsDateRange {
   kind: AnalyticsEventKind
   limit?: number
@@ -126,6 +138,8 @@ export interface AnalyticsStore {
 
   getRollupCursor(): Promise<AnalyticsDay | null>
   getEarliestEventDay(): Promise<AnalyticsDay | null>
+  /** Earliest day present in either retained headline aggregates or raw events. */
+  getEarliestReportDay(): Promise<AnalyticsDay | null>
   rebuildDay(options: AnalyticsRollupDayOptions): Promise<void>
   prune(options: AnalyticsPruneOptions): Promise<AnalyticsPruneResult>
 

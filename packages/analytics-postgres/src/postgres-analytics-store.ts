@@ -102,6 +102,19 @@ export class PostgresAnalyticsStore implements AnalyticsStore {
     return result.rows[0]?.day ?? null
   }
 
+  async getEarliestReportDay(): Promise<string | null> {
+    const result = await this.pool.query<{ day: string | null }>(
+      `SELECT min(day)::text AS day
+       FROM (
+         SELECT day FROM byline_analytics_daily_site
+         UNION ALL
+         SELECT (occurred_at AT TIME ZONE 'UTC')::date AS day
+         FROM byline_analytics_event
+       ) reportable_days`
+    )
+    return result.rows[0]?.day ?? null
+  }
+
   async rebuildDay(options: AnalyticsRollupDayOptions): Promise<void> {
     const day = assertAnalyticsDay(options.day)
     const from = startOfAnalyticsDay(day)

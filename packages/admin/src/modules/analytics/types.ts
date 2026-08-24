@@ -8,9 +8,11 @@
 
 import type {
   AnalyticsCountryTotal,
+  AnalyticsDateRange,
   AnalyticsPathTotal,
   AnalyticsRankedTotals,
   AnalyticsReferrerTotal,
+  AnalyticsReportCoverage,
   AnalyticsSummary,
 } from '@byline/analytics'
 import type { AnalyticsDashboardPeriod as PortableAnalyticsDashboardPeriod } from '@byline/analytics/config'
@@ -18,6 +20,8 @@ import type { AnalyticsDashboardPeriod as PortableAnalyticsDashboardPeriod } fro
 export type AnalyticsDashboardPeriod = PortableAnalyticsDashboardPeriod
 
 export interface AnalyticsDashboardData {
+  range: AnalyticsDateRange
+  coverage: AnalyticsReportCoverage
   summary: AnalyticsSummary
   pages: AnalyticsRankedTotals<AnalyticsPathTotal>
   downloads: AnalyticsRankedTotals<AnalyticsPathTotal>

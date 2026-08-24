@@ -22,7 +22,7 @@ import { Button, Card, Container, Section, Select } from '@byline/ui/react'
 import cx from 'clsx'
 
 import styles from './dashboard.module.css'
-import { AnalyticsTimeseries } from './timeseries.js'
+import { AnalyticsTimeseries, resolveAnalyticsChartGranularity } from './timeseries.js'
 import type { AnalyticsDashboardData, AnalyticsDashboardPeriod } from '../types.js'
 
 export interface AnalyticsDashboardProps {
@@ -58,13 +58,17 @@ export function AnalyticsDashboard({
     }
   }
 
-  const periodItems = ANALYTICS_DASHBOARD_PERIODS.map((days) => ({
-    value: String(days),
-    label: t('analytics.period.days', { count: days }),
+  const periodItems = ANALYTICS_DASHBOARD_PERIODS.map((value) => ({
+    value: String(value),
+    label:
+      typeof value === 'number'
+        ? t('analytics.period.days', { count: value })
+        : t(`analytics.period.${value}`),
   }))
 
   const { views, visitors, downloads } = data.summary
   const days = data.summary.timeseries.length
+  const chartGranularity = resolveAnalyticsChartGranularity(period, days)
 
   return (
     <Section>
@@ -85,7 +89,7 @@ export function AnalyticsDashboard({
               value={String(period)}
               items={periodItems}
               onValueChange={(value) => {
-                const next = Number(value)
+                const next = value === 'ytd' || value === 'all' ? value : Number(value)
                 if (isAnalyticsDashboardPeriod(next)) onPeriodChange(next)
               }}
             />
@@ -134,10 +138,20 @@ export function AnalyticsDashboard({
 
         <Card className={cx('byline-analytics-chart-card', styles.chartCard)}>
           <Card.Header>
-            <Card.Title>{t('analytics.chart.perDay')}</Card.Title>
+            <Card.Title>
+              {chartGranularity === 'day'
+                ? t('analytics.chart.perDay')
+                : chartGranularity === 'seven-day'
+                  ? t('analytics.chart.perSevenDays')
+                  : t('analytics.chart.perMonth')}
+            </Card.Title>
           </Card.Header>
           <Card.Content>
-            <AnalyticsTimeseries days={data.summary.timeseries} locale={locale} />
+            <AnalyticsTimeseries
+              days={data.summary.timeseries}
+              granularity={chartGranularity}
+              locale={locale}
+            />
           </Card.Content>
         </Card>
 
@@ -151,6 +165,7 @@ export function AnalyticsDashboard({
             locale={locale}
             rows={data.pages.rows.map(toPathRow)}
             total={data.pages.total}
+            coverageFrom={partialCoverageFrom(data.range.from, data.coverage.pathsFrom)}
           />
           <div className={styles.stack}>
             <RankedList
@@ -158,6 +173,7 @@ export function AnalyticsDashboard({
               tone="visitors"
               locale={locale}
               total={data.referrers.total}
+              coverageFrom={partialCoverageFrom(data.range.from, data.coverage.referrersFrom)}
               rows={data.referrers.rows.map((row) => ({
                 key: row.referrerHost,
                 label: row.referrerHost,
@@ -188,6 +204,7 @@ export function AnalyticsDashboard({
           locale={locale}
           rows={data.downloads.rows.map(toPathRow)}
           total={data.downloads.total}
+          coverageFrom={partialCoverageFrom(data.range.from, data.coverage.pathsFrom)}
         />
       </Container>
     </Section>
@@ -253,6 +270,7 @@ function RankedList({
   tone,
   locale,
   total,
+  coverageFrom,
 }: {
   title: string
   caption?: string
@@ -261,6 +279,8 @@ function RankedList({
   locale: string
   /** Distinct keys in the period; omit for lists that are never truncated. */
   total?: number
+  /** First complete day when the selected report begins before retained rows. */
+  coverageFrom?: string
 }): React.JSX.Element {
   const { t } = useTranslation('byline-admin')
   const numbers = useMemo(() => new Intl.NumberFormat(locale), [locale])
@@ -268,16 +288,30 @@ function RankedList({
   // Say so when the list is a top-N slice. Without this the card presents a
   // truncated ranking as though it were the whole set.
   const truncated = total != null && total > rows.length
+  const coverageDate = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        dateStyle: 'medium',
+        timeZone: 'UTC',
+      }),
+    [locale]
+  )
+  const description = [
+    truncated ? t('analytics.topOf', { shown: rows.length, total }) : caption,
+    coverageFrom == null
+      ? undefined
+      : t('analytics.coverage.since', {
+          date: coverageDate.format(new Date(`${coverageFrom}T00:00:00.000Z`)),
+        }),
+  ]
+    .filter((value): value is string => value != null)
+    .join(' · ')
 
   return (
     <Card className={cx('byline-analytics-list', styles.list)}>
       <Card.Header>
         <Card.Title>{title}</Card.Title>
-        {truncated ? (
-          <Card.Description>{t('analytics.topOf', { shown: rows.length, total })}</Card.Description>
-        ) : (
-          caption != null && <Card.Description>{caption}</Card.Description>
-        )}
+        {description.length > 0 && <Card.Description>{description}</Card.Description>}
       </Card.Header>
       <Card.Content>
         {rows.length === 0 ? (
@@ -326,4 +360,12 @@ export function shareWidth(value: number, ceiling: number): number {
 export function formatShare(part: number, whole: number, locale: string): string {
   const percent = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 })
   return percent.format(whole <= 0 ? 0 : part / whole)
+}
+
+/** Return the retained boundary only when it truncates the selected range. */
+export function partialCoverageFrom(
+  rangeFrom: string,
+  coverageFrom: string | null
+): string | undefined {
+  return coverageFrom != null && coverageFrom > rangeFrom ? coverageFrom : undefined
 }

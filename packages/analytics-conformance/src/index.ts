@@ -100,6 +100,37 @@ export function runAnalyticsStoreConformanceSuite(hooks: AnalyticsConformanceHoo
       ])
     })
 
+    it('discovers the earliest reportable day and stitches retained rollups with newer raw data', async () => {
+      expect(await store.getEarliestReportDay()).toBeNull()
+
+      await store.insertEvent(
+        event('2025-12-31T23:00:00Z', 'page', '/old', 'old', 'old.example', 'TH')
+      )
+      expect(await store.getEarliestReportDay()).toBe('2025-12-31')
+      await store.rebuildDay({
+        day: '2025-12-31',
+        pathCardinalityCap: 20,
+        referrerCardinalityCap: 20,
+        advanceCursor: true,
+      })
+      await store.prune({
+        eventsBefore: new Date('2026-01-01T00:00:00.000Z'),
+        saltsBefore: '2025-12-31',
+        pathAggregatesBefore: null,
+        referrerAggregatesBefore: null,
+      })
+      await store.insertEvent(
+        event('2026-01-02T01:00:00Z', 'page', '/new', 'new', 'new.example', 'US')
+      )
+
+      expect(await store.getEarliestReportDay()).toBe('2025-12-31')
+      expect(await store.getSummary({ from: '2025-12-31', to: '2026-01-02' })).toEqual([
+        { day: '2025-12-31', views: 1, visitors: 1, downloads: 0 },
+        { day: '2026-01-01', views: 0, visitors: 0, downloads: 0 },
+        { day: '2026-01-02', views: 1, visitors: 1, downloads: 0 },
+      ])
+    })
+
     it('rebuilds capped daily aggregates idempotently and stitches later raw events', async () => {
       const events: AnalyticsEvent[] = []
       for (let index = 0; index < 20; index += 1) {

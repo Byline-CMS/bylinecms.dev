@@ -16,6 +16,7 @@ export {
   type AnalyticsTopInput,
   getAnalyticsCountries,
   getAnalyticsReferrers,
+  getAnalyticsReportCoverage,
   getAnalyticsRuntime,
   getAnalyticsSummary,
   getAnalyticsTop,
