@@ -88,6 +88,16 @@
       "import": "./dist/modules/admin-preferences/index.js",
       "require": "./dist/modules/admin-preferences/index.js"
     },
+    "./analytics": {
+      "types": "./dist/modules/analytics/index.d.ts",
+      "import": "./dist/modules/analytics/index.js",
+      "require": "./dist/modules/analytics/index.js"
+    },
+    "./analytics/components/dashboard": {
+      "types": "./dist/modules/analytics/components/dashboard.d.ts",
+      "import": "./dist/modules/analytics/components/dashboard.js",
+      "require": "./dist/modules/analytics/components/dashboard.js"
+    },
     "./services": {
       "types": "./dist/services/admin-services-context.d.ts",
       "import": "./dist/services/admin-services-context.js",
@@ -165,6 +175,8 @@
     "src/"
   ],
   "dependencies": {
+    "@byline/analytics": "workspace:*",
+    "@byline/analytics-agent": "workspace:*",
     "@byline/auth": "workspace:*",
     "@byline/core": "workspace:*",
     "@byline/i18n": "workspace:*",
@@ -257,6 +269,16 @@
         "types": "./dist/modules/admin-preferences/index.d.ts",
         "import": "./dist/modules/admin-preferences/index.js",
         "require": "./dist/modules/admin-preferences/index.js"
+      },
+      "./analytics": {
+        "types": "./dist/modules/analytics/index.d.ts",
+        "import": "./dist/modules/analytics/index.js",
+        "require": "./dist/modules/analytics/index.js"
+      },
+      "./analytics/components/dashboard": {
+        "types": "./dist/modules/analytics/components/dashboard.d.ts",
+        "import": "./dist/modules/analytics/components/dashboard.js",
+        "require": "./dist/modules/analytics/components/dashboard.js"
       },
       "./services": {
         "types": "./dist/services/admin-services-context.d.ts",

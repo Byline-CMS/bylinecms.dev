@@ -26,9 +26,11 @@ cp packages/db-postgres/.env.example      packages/db-postgres/.env       # dev 
 cp packages/db-postgres/.env.test.example packages/db-postgres/.env.test  # test DB
 cp packages/client/.env.test.example      packages/client/.env.test       # client integration tests
 cp packages/search-postgres/.env.test.example packages/search-postgres/.env.test
+cp packages/analytics-postgres/.env.test.example packages/analytics-postgres/.env.test
 cp packages/db-mysql/.env.example         packages/db-mysql/.env          # MySQL dev DB
 cp packages/db-mysql/.env.test.example    packages/db-mysql/.env.test     # MySQL test DB
 cp packages/search-mysql/.env.test.example packages/search-mysql/.env.test
+cp packages/analytics-mysql/.env.test.example packages/analytics-mysql/.env.test
 cd postgres && ./postgres.sh up -d  # start the container
 cd ../mysql && ./mysql.sh up -d      # start MySQL
 cd ..
@@ -58,6 +60,10 @@ The integration runner auto-migrates `byline_test` on startup (Drizzle's migrato
 | `@byline/db-mysql` | ❌ no-op (every test needs a DB) | ✅ shared storage conformance against MySQL |
 | `@byline/search-postgres` | ✅ vitest `--mode=node` | ✅ shared search conformance against PostgreSQL |
 | `@byline/search-mysql` | ✅ vitest `--mode=node` | ✅ shared search conformance against MySQL |
+| `@byline/analytics` | ✅ vitest `--mode=node` | — |
+| `@byline/analytics-agent` | ✅ size and privacy contract tests | — |
+| `@byline/analytics-postgres` | ✅ bundled migration drift tests | ✅ shared analytics conformance against PostgreSQL |
+| `@byline/analytics-mysql` | ✅ bundled migration drift tests | ✅ shared analytics conformance against MySQL |
 
 Only integration-mode suites write to the dedicated test databases. Unit suites
 remain in-memory.
@@ -112,7 +118,7 @@ When branch protection is enabled in repo settings, CI becomes a hard gate with 
 
 ## Running a single test
 
-Both packages use vitest, so the invocation is the same shape:
+The database-backed packages use vitest, so the invocation is the same shape:
 
 ```sh
 # @byline/client
@@ -126,13 +132,22 @@ cd packages/search-postgres && pnpm vitest run --mode=integration tests/conforma
 
 # @byline/search-mysql
 cd packages/search-mysql && pnpm vitest run --mode=integration tests/conformance.integration.test.ts
+
+# @byline/analytics-postgres
+cd packages/analytics-postgres && pnpm vitest run --mode=integration tests/conformance.integration.test.ts
+
+# @byline/analytics-mysql
+cd packages/analytics-mysql && pnpm vitest run --mode=integration tests/conformance.integration.test.ts
 ```
 
 The storage conformance entry point runs `@byline/db-conformance` against the
 database adapter. The search entry point runs
 `@byline/search-conformance` against the real PostgreSQL or MySQL index, including
 matching semantics, multilingual parser survival, lifecycle operations,
-relative weighting, and analyzer-fingerprint enforcement. Narrow either
+relative weighting, and analyzer-fingerprint enforcement. The analytics entry
+point runs `@byline/analytics-conformance` against a real SQL store, including
+concurrent migration startup, daily visitor boundaries, capped rollups,
+raw-plus-rollup stitching, maintenance rebuilds, and retention. Narrow any
 aggregate file to one case or suite with `-t`:
 
 ```sh

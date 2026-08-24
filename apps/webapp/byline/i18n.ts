@@ -41,8 +41,11 @@ export {
 
 /** Derived config object — passed directly to defineServerConfig / defineAdminConfig. */
 export const i18n = {
+  // Admin chrome language policy. User preferences may select any listed
+  // locale, while `defaultLocale` is the boot and missing-preference fallback.
   admin: {
     defaultLocale: defaultAdminLocale,
+    // Core consumes codes; richer display definitions remain alongside them.
     locales: adminLocales.map((l) => l.code),
     // Display names for the admin language switcher. The dropdown
     // shows these labels verbatim — keeping host-side authoring of
@@ -51,8 +54,12 @@ export const i18n = {
     // `Intl.DisplayNames` per code.
     localeDefinitions: adminLocales,
   },
+  // Document-language policy. These values drive lifecycle validation,
+  // localized field reads, and public alternate-language metadata.
   content: {
     defaultLocale: defaultContentLocale,
+    // Derive codes from the same definitions exposed through `public.ts` so
+    // public UI and server validation cannot drift.
     locales: contentLocales.map((l) => l.code),
     // Display names for the content locales a document can be published
     // in. Byline doesn't render these (content has no admin switcher) —

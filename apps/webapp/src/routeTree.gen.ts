@@ -16,6 +16,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as LngFrontendRouteRouteImport } from './routes/$lng/_frontend/route'
 import { Route as BylineAdminRouteRouteImport } from './routes/_byline/admin/route'
 import { Route as BylineSignInRouteImport } from './routes/_byline/sign-in'
+import { Route as TelemetryEventsRouteImport } from './routes/telemetry/events'
 import { Route as LngFrontendIndexRouteImport } from './routes/$lng/_frontend/index'
 import { Route as LngFrontendPathRouteImport } from './routes/$lng/_frontend/$path'
 import { Route as LngFrontendDocsRouteRouteImport } from './routes/$lng/_frontend/docs/route'
@@ -33,6 +34,7 @@ import { Route as LngFrontendNewsPathRouteImport } from './routes/$lng/_frontend
 import { Route as LngFrontendNewsChar123pathChar125DotmdRouteImport } from './routes/$lng/_frontend/news/{$path}[.]md'
 import { Route as BylineAdminAccountIndexRouteImport } from './routes/_byline/admin/account/index'
 import { Route as BylineAdminActivityIndexRouteImport } from './routes/_byline/admin/activity/index'
+import { Route as BylineAdminAnalyticsIndexRouteImport } from './routes/_byline/admin/analytics/index'
 import { Route as BylineAdminPermissionsIndexRouteImport } from './routes/_byline/admin/permissions/index'
 import { Route as BylineAdminRolesIndexRouteImport } from './routes/_byline/admin/roles/index'
 import { Route as BylineAdminScheduledPublicationsIndexRouteImport } from './routes/_byline/admin/scheduled-publications/index'
@@ -77,6 +79,11 @@ const BylineSignInRoute = BylineSignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
   getParentRoute: () => BylineRouteRoute,
+} as any)
+const TelemetryEventsRoute = TelemetryEventsRouteImport.update({
+  id: '/telemetry/events',
+  path: '/telemetry/events',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const LngFrontendIndexRoute = LngFrontendIndexRouteImport.update({
   id: '/',
@@ -169,6 +176,12 @@ const BylineAdminActivityIndexRoute =
     path: '/activity/',
     getParentRoute: () => BylineAdminRouteRoute,
   } as any)
+const BylineAdminAnalyticsIndexRoute =
+  BylineAdminAnalyticsIndexRouteImport.update({
+    id: '/analytics/',
+    path: '/analytics/',
+    getParentRoute: () => BylineAdminRouteRoute,
+  } as any)
 const BylineAdminPermissionsIndexRoute =
   BylineAdminPermissionsIndexRouteImport.update({
     id: '/permissions/',
@@ -239,6 +252,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof BylineAdminRouteRouteWithChildren
   '/sign-in': typeof BylineSignInRoute
+  '/telemetry/events': typeof TelemetryEventsRoute
   '/$lng/docs': typeof LngFrontendDocsRouteRouteWithChildren
   '/$lng/$path': typeof LngFrontendPathRoute
   '/$lng/{$path}.md': typeof LngFrontendChar123pathChar125DotmdRoute
@@ -256,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/$lng/news/': typeof LngFrontendNewsIndexRoute
   '/admin/account/': typeof BylineAdminAccountIndexRoute
   '/admin/activity/': typeof BylineAdminActivityIndexRoute
+  '/admin/analytics/': typeof BylineAdminAnalyticsIndexRoute
   '/admin/permissions/': typeof BylineAdminPermissionsIndexRoute
   '/admin/roles/': typeof BylineAdminRolesIndexRoute
   '/admin/scheduled-publications/': typeof BylineAdminScheduledPublicationsIndexRoute
@@ -274,6 +289,7 @@ export interface FileRoutesByTo {
   '/llms.txt': typeof LlmsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/sign-in': typeof BylineSignInRoute
+  '/telemetry/events': typeof TelemetryEventsRoute
   '/$lng/$path': typeof LngFrontendPathRoute
   '/$lng/{$path}.md': typeof LngFrontendChar123pathChar125DotmdRoute
   '/admin': typeof BylineAdminIndexRoute
@@ -289,6 +305,7 @@ export interface FileRoutesByTo {
   '/$lng/news': typeof LngFrontendNewsIndexRoute
   '/admin/account': typeof BylineAdminAccountIndexRoute
   '/admin/activity': typeof BylineAdminActivityIndexRoute
+  '/admin/analytics': typeof BylineAdminAnalyticsIndexRoute
   '/admin/permissions': typeof BylineAdminPermissionsIndexRoute
   '/admin/roles': typeof BylineAdminRolesIndexRoute
   '/admin/scheduled-publications': typeof BylineAdminScheduledPublicationsIndexRoute
@@ -310,6 +327,7 @@ export interface FileRoutesById {
   '/$lng/_frontend': typeof LngFrontendRouteRouteWithChildren
   '/_byline/admin': typeof BylineAdminRouteRouteWithChildren
   '/_byline/sign-in': typeof BylineSignInRoute
+  '/telemetry/events': typeof TelemetryEventsRoute
   '/$lng/_frontend/docs': typeof LngFrontendDocsRouteRouteWithChildren
   '/$lng/_frontend/$path': typeof LngFrontendPathRoute
   '/$lng/_frontend/{$path}.md': typeof LngFrontendChar123pathChar125DotmdRoute
@@ -327,6 +345,7 @@ export interface FileRoutesById {
   '/$lng/_frontend/news/': typeof LngFrontendNewsIndexRoute
   '/_byline/admin/account/': typeof BylineAdminAccountIndexRoute
   '/_byline/admin/activity/': typeof BylineAdminActivityIndexRoute
+  '/_byline/admin/analytics/': typeof BylineAdminAnalyticsIndexRoute
   '/_byline/admin/permissions/': typeof BylineAdminPermissionsIndexRoute
   '/_byline/admin/roles/': typeof BylineAdminRolesIndexRoute
   '/_byline/admin/scheduled-publications/': typeof BylineAdminScheduledPublicationsIndexRoute
@@ -348,6 +367,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/admin'
     | '/sign-in'
+    | '/telemetry/events'
     | '/$lng/docs'
     | '/$lng/$path'
     | '/$lng/{$path}.md'
@@ -365,6 +385,7 @@ export interface FileRouteTypes {
     | '/$lng/news/'
     | '/admin/account/'
     | '/admin/activity/'
+    | '/admin/analytics/'
     | '/admin/permissions/'
     | '/admin/roles/'
     | '/admin/scheduled-publications/'
@@ -383,6 +404,7 @@ export interface FileRouteTypes {
     | '/llms.txt'
     | '/sitemap.xml'
     | '/sign-in'
+    | '/telemetry/events'
     | '/$lng/$path'
     | '/$lng/{$path}.md'
     | '/admin'
@@ -398,6 +420,7 @@ export interface FileRouteTypes {
     | '/$lng/news'
     | '/admin/account'
     | '/admin/activity'
+    | '/admin/analytics'
     | '/admin/permissions'
     | '/admin/roles'
     | '/admin/scheduled-publications'
@@ -418,6 +441,7 @@ export interface FileRouteTypes {
     | '/$lng/_frontend'
     | '/_byline/admin'
     | '/_byline/sign-in'
+    | '/telemetry/events'
     | '/$lng/_frontend/docs'
     | '/$lng/_frontend/$path'
     | '/$lng/_frontend/{$path}.md'
@@ -435,6 +459,7 @@ export interface FileRouteTypes {
     | '/$lng/_frontend/news/'
     | '/_byline/admin/account/'
     | '/_byline/admin/activity/'
+    | '/_byline/admin/analytics/'
     | '/_byline/admin/permissions/'
     | '/_byline/admin/roles/'
     | '/_byline/admin/scheduled-publications/'
@@ -453,6 +478,7 @@ export interface RootRouteChildren {
   BylineRouteRoute: typeof BylineRouteRouteWithChildren
   LlmsDottxtRoute: typeof LlmsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TelemetryEventsRoute: typeof TelemetryEventsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -505,6 +531,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sign-in'
       preLoaderRoute: typeof BylineSignInRouteImport
       parentRoute: typeof BylineRouteRoute
+    }
+    '/telemetry/events': {
+      id: '/telemetry/events'
+      path: '/telemetry/events'
+      fullPath: '/telemetry/events'
+      preLoaderRoute: typeof TelemetryEventsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/$lng/_frontend/': {
       id: '/$lng/_frontend/'
@@ -623,6 +656,13 @@ declare module '@tanstack/react-router' {
       path: '/activity'
       fullPath: '/admin/activity/'
       preLoaderRoute: typeof BylineAdminActivityIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
+    }
+    '/_byline/admin/analytics/': {
+      id: '/_byline/admin/analytics/'
+      path: '/analytics'
+      fullPath: '/admin/analytics/'
+      preLoaderRoute: typeof BylineAdminAnalyticsIndexRouteImport
       parentRoute: typeof BylineAdminRouteRoute
     }
     '/_byline/admin/permissions/': {
@@ -772,6 +812,7 @@ interface BylineAdminRouteRouteChildren {
   BylineAdminIndexRoute: typeof BylineAdminIndexRoute
   BylineAdminAccountIndexRoute: typeof BylineAdminAccountIndexRoute
   BylineAdminActivityIndexRoute: typeof BylineAdminActivityIndexRoute
+  BylineAdminAnalyticsIndexRoute: typeof BylineAdminAnalyticsIndexRoute
   BylineAdminPermissionsIndexRoute: typeof BylineAdminPermissionsIndexRoute
   BylineAdminRolesIndexRoute: typeof BylineAdminRolesIndexRoute
   BylineAdminScheduledPublicationsIndexRoute: typeof BylineAdminScheduledPublicationsIndexRoute
@@ -789,6 +830,7 @@ const BylineAdminRouteRouteChildren: BylineAdminRouteRouteChildren = {
   BylineAdminIndexRoute: BylineAdminIndexRoute,
   BylineAdminAccountIndexRoute: BylineAdminAccountIndexRoute,
   BylineAdminActivityIndexRoute: BylineAdminActivityIndexRoute,
+  BylineAdminAnalyticsIndexRoute: BylineAdminAnalyticsIndexRoute,
   BylineAdminPermissionsIndexRoute: BylineAdminPermissionsIndexRoute,
   BylineAdminRolesIndexRoute: BylineAdminRolesIndexRoute,
   BylineAdminScheduledPublicationsIndexRoute:
@@ -830,6 +872,7 @@ const rootRouteChildren: RootRouteChildren = {
   BylineRouteRoute: BylineRouteRouteWithChildren,
   LlmsDottxtRoute: LlmsDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TelemetryEventsRoute: TelemetryEventsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

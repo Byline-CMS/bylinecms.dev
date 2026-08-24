@@ -10,7 +10,7 @@ Companions:
 - [Scheduling](./index.md) — the model this document implements, and what an installation must keep running.
 - [Configuration](../10-api-reference/01-configuration.md) — where `recurringTasks` sits on `ServerConfig`.
 - [Scheduled publication](./02-scheduled-publication.md) — the built-in task, and a worked example of a convergent sweep.
-- [Testing](../12-testing.md) — the shared conformance suite that both database adapters run against a live server.
+- [Testing](../13-testing.md) — the shared conformance suite that both database adapters run against a live server.
 
 A recurring task is a named function Byline runs on an interval inside your application process. You declare it in server configuration, and your server entry starts a ticker that executes due tasks. Reach for this when you have periodic, convergent work — a nightly rollup, a retention prune, a queue drain — that should not require a separate worker deployment.
 

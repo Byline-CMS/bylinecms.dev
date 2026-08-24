@@ -7,15 +7,28 @@
  */
 
 /**
- * Server-side Byline bootstrap. Imported as a side-effect from
- * `src/server.ts` (and from any seed / migration script that needs the
- * configured runtime). Resolves the composed `BylineCore` and registers
- * it on the process global via `initBylineCore()` — server-side callers
- * read it back with `getBylineCore<AdminStore>()`.
+ * Canonical server-side Byline bootstrap for the reference application.
+ * `src/server.ts` imports it for its registration side effect; seeds and other
+ * one-shot tools import it when they need the same configured runtime.
+ *
+ * This active example selects PostgreSQL for documents, search, and analytics;
+ * local filesystem upload storage; JWT admin sessions; Lexical rich-text
+ * adapters; scheduled publication; and analytics rollups. The commented MySQL
+ * blocks show the coordinated provider substitutions without changing the
+ * portable collection, admin, or host configuration.
+ *
+ * `initBylineCore()` validates and composes these choices, then registers the
+ * resolved core. Server-only consumers retrieve it through typed helpers such
+ * as `getBylineCore<AdminStore>()` and `getAdminBylineClient()`. Configuration
+ * registers recurring tasks but never starts their timer; `src/server.ts` owns
+ * scheduler startup for the long-running application process.
  */
 
 import { type AdminStore, registerAdminAbilities } from '@byline/admin'
 import { JwtSessionProvider } from '@byline/admin/auth'
+import { createAnalytics, defineAnalyticsRollupTask, registerAnalytics } from '@byline/analytics'
+// import { migrate as migrateAnalytics, mysqlAnalyticsStore } from '@byline/analytics-mysql'
+import { migrate as migrateAnalytics, postgresAnalyticsStore } from '@byline/analytics-postgres'
 import { getAdminBylineClient } from '@byline/client/server'
 import { type BylineCore, initBylineCore } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
@@ -33,8 +46,8 @@ import {
   lexicalEditorToMarkdownServer,
   lexicalEditorToTextServer,
 } from '@byline/richtext-lexical/server'
-// import { migrate, mysqlSearch } from '@byline/search-mysql'
-import { migrate, postgresSearch } from '@byline/search-postgres'
+// import { migrate as migrateSearch, mysqlSearch } from '@byline/search-mysql'
+import { migrate as migrateSearch, postgresSearch } from '@byline/search-postgres'
 import { localStorageProvider } from '@byline/storage-local'
 
 import { collections } from './collections/index.js'
@@ -52,10 +65,11 @@ import { routes } from './routes.js'
 // converge on one build) lets module reloads reuse the same pool.
 // Production has no HMR so this guard is a no-op there.
 declare global {
-  // biome-ignore lint: globalThis augmentation requires `var` rather than `let`
+  // A global augmentation requires `var`; TypeScript rejects `let` here.
   var __bylineCoreSingleton__: Promise<BylineCore<AdminStore>> | undefined
 }
 
+/** Construct and register one complete server runtime for this process. */
 async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   // Construct the db adapter up-front so we can thread its drizzle handle
   // into the session provider without a second connection pool. The admin
@@ -81,8 +95,14 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   //   heavier until we have a second adapter or a second DI consumer
   //   to justify the ceremony.
   const db = pgAdapter({
+    // Required PostgreSQL DSN. Passing an empty value leaves the adapter to
+    // report a single, provider-specific boot error when the env key is absent.
     connectionString: process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING || '',
+    // The adapter fingerprints and stores values against this server-safe
+    // schema tuple; it contains no admin presentation modules.
     collections,
+    // Locale used when adapter operations need the installation's canonical
+    // content fallback.
     defaultContentLocale: i18n.content.defaultLocale,
     // Pool tuning. Optional — `pgAdapter` ships sensible defaults
     // (max: 20, idle: 2s, connect: 30s). Override via env when running
@@ -103,10 +123,11 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   //
   // Swapping adapters takes three coordinated edits:
   //
-  //   1. the database and search-provider imports at the top of this file
+  //   1. the database, search-provider, and analytics-provider imports above
   //   2. this block — comment out the `pgAdapter({...})` call above, uncomment
   //      the `mysqlAdapter({...})` call below
-  //   3. the `search:` entry in `initBylineCore()` — select `mysqlSearch`
+  //   3. select `mysqlAnalyticsStore` in the analytics block and `mysqlSearch`
+  //      in the `search:` entry of `initBylineCore()`
   //
   // Prerequisites:
   //
@@ -147,15 +168,39 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   // down the whole app at boot — log loudly and continue.
   //
   try {
-    await migrate(db.pool, { log: (m) => console.log(m) })
+    await migrateSearch(db.pool, { log: (m) => console.log(m) })
   } catch (err) {
     console.error('[search-postgres] migrate failed — search may be unavailable:', err)
   }
 
+  // Analytics owns an independent numbered migration stream, just like the
+  // search provider. Unlike optional search degradation, a configured
+  // analytics subsystem must migrate successfully before its route and task
+  // runtime are registered.
+  await migrateAnalytics(db.pool, { log: (message) => console.log(message) })
+  const analytics = registerAnalytics(
+    createAnalytics({
+      // Reuse the document adapter's pool; analytics owns tables and
+      // migrations, not a second database connection pool.
+      store: postgresAnalyticsStore({ pool: db.pool }),
+      // store: mysqlAnalyticsStore({ pool: db.pool }),
+      // Browser submissions must name one of these same-origin hosts. The
+      // resolver prefers explicit analytics domains and otherwise derives the
+      // local/reference host from `VITE_SERVER_URL`.
+      publicDomains: resolveAnalyticsPublicDomains(),
+      // Defense in depth: reject events for admin and internal namespaces even
+      // if a modified browser agent bypasses its own ignored-prefix list.
+      ignoredPathPrefixes: [routes.admin, routes.api, '/_byline', '/telemetry'],
+    })
+  )
+
+  // Build the repository bundle once from the same Drizzle handle used by the
+  // document adapter. Authentication, admin server functions, and seeds then
+  // share transactions and do not allocate another pool.
   const adminStore = createAdminStore(db.drizzle)
 
   // Built-in JWT session provider. Signing secret comes from the
-  // environment — see `.env.local.example`. Phase 5 uses HS256 with Byline's
+  // environment — see `.env.local.example`. It uses HS256 with Byline's
   // default TTLs (15-minute access, 30-day refresh). Alternative providers
   // (Lucia, better-auth, WorkOS, Clerk, institutional SSO) can be dropped
   // in here by implementing the `SessionProvider` interface from
@@ -169,7 +214,11 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   }
 
   const sessionProvider = new JwtSessionProvider({
+    // Users, roles, permissions, and refresh tokens use the shared admin
+    // repository bundle created above.
     store: adminStore,
+    // The provider signs access and refresh tokens; the secret never enters
+    // client configuration.
     signingSecret,
   })
 
@@ -181,11 +230,18 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   registerTanstackStartHostBridge()
 
   const core = await initBylineCore<AdminStore>({
+    // One shared admin/content locale policy and translation registry.
     i18n,
+    // Canonical host-owned paths; configuration does not mount HTTP routes.
     routes,
+    // Portable schema tuple used for validation, lifecycle, and storage.
     collections,
+    // Server-only lifecycle hooks are attached after schema validation, which
+    // keeps their dependencies out of the collection-definition graph.
     hooks: serverHooks,
+    // Primary document storage adapter and its optional scheduler capability.
     db,
+    // Typed admin repositories exposed as `core.adminStore`.
     adminStore,
     // Site-wide default storage provider — used by any upload collection
     // that does not specify its own `upload.storage` override.
@@ -204,7 +260,9 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     // deployments, swap to `@byline/storage-s3` — see the commented
     // example below.
     storage: localStorageProvider({
+      // Runtime-writable directory, resolved from the webapp working directory.
       uploadDir: './uploads',
+      // Same-origin URL prefix handled by `src/server.ts` for stored files.
       baseUrl: '/uploads',
     }),
     // S3-compatible alternative (AWS S3 / Cloudflare R2 / MinIO). Replace
@@ -229,6 +287,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     //   pathPrefix: process.env.BYLINE_STORAGE_S3_PATH_PREFIX,
     //   cacheControl: 'public, max-age=31536000, immutable',
     // }),
+    // Authentication seam consumed by the TanStack admin transport.
     sessionProvider,
     fields: {
       // Server-side richtext adapter — refreshes embedded relation
@@ -261,7 +320,11 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       // `initBylineCore()` returns. Passing a factory defers resolution
       // to populate-call time so registration order here doesn't matter.
       richText: {
+        // Write-time visitor that refreshes stored relation envelopes before a
+        // document version is committed.
         embed: lexicalEditorEmbedServer({ getClient: getAdminBylineClient }),
+        // Read-time visitor that resolves configured embedded relations under
+        // the current authenticated request context.
         populate: lexicalEditorPopulateServer({ getClient: getAdminBylineClient }),
         // One-way markdown serializer for the agent-readable export surface
         // (`.md` routes, `llms.txt`). Pure JSON walk — no client needed.
@@ -276,13 +339,31 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     // (no second connection); the search index lives in the same database.
     // Collections opt in via their `search` config; lifecycle
     // hooks maintain the index (see e.g. `collections/docs/hooks.ts`).
-    search: postgresSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
+    search: postgresSearch({
+      // Search tables share the selected database adapter's connection pool.
+      pool: db.pool,
+      // Analyzer fallbacks must agree with document lifecycle locale defaults.
+      defaultLocale: i18n.content.defaultLocale,
+    }),
     // search: mysqlSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
     // Optional document-grain delayed publication. This registers the inert
     // recurring task; the webapp's server entry starts the ticker explicitly
     // so seeds, migrations, and other imports of this config never start one.
-    scheduledPublication: { enabled: true },
+    scheduledPublication: {
+      // Contributes Byline's built-in publication sweep to the recurring task
+      // registry. It does not start a timer during configuration.
+      enabled: true,
+    },
+    // Application-defined recurring tasks sit beside built-in tasks. The
+    // analytics definition performs catch-up rollups and retention maintenance;
+    // `src/server.ts` runs the combined validated registry.
+    recurringTasks: [defineAnalyticsRollupTask({ analytics })],
   })
+
+  // Analytics is created before core so its task can be registered above.
+  // Connect it to the application logger afterward; the runtime logs only
+  // operational counts and sanitized persistence error metadata.
+  analytics.setLogger(core.logger)
 
   // Register admin-subsystem abilities (admin.users.*, admin.roles.*) on
   // the shared registry. Collection abilities are auto-registered by
@@ -300,3 +381,31 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
 // via `getBylineCore<AdminStore>()` from `@byline/core`.
 globalThis.__bylineCoreSingleton__ ??= buildBylineCore()
 await globalThis.__bylineCoreSingleton__
+
+/** Resolve the allowlist used by analytics origin validation. */
+function resolveAnalyticsPublicDomains(): string[] {
+  // An explicit comma-separated list supports installations serving several
+  // public domains and takes precedence over the general site URL.
+  const configured = process.env.BYLINE_ANALYTICS_PUBLIC_DOMAINS
+  if (configured != null && configured.trim() !== '') {
+    return configured
+      .split(',')
+      .map((domain) => domain.trim())
+      .filter(Boolean)
+  }
+
+  // The reference app already requires its public URL for host behavior, so a
+  // single-domain installation need not repeat the host in another variable.
+  const publicUrl = process.env.VITE_SERVER_URL
+  if (publicUrl != null) {
+    try {
+      return [new URL(publicUrl).host]
+    } catch {
+      // The analytics config validator reports malformed explicit domains;
+      // an invalid public URL simply falls through to the local default.
+    }
+  }
+  // Final development default. Production deployments should always provide a
+  // valid public URL or explicit analytics domain list.
+  return ['localhost:5173']
+}

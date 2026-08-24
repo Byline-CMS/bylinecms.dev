@@ -32,7 +32,10 @@ export interface LocaleDefinition {
   nativeName: string
 }
 
+/** Initial admin chrome language before a signed-in user preference applies. */
 export const defaultAdminLocale = 'en'
+
+/** Source/fallback locale used by document lifecycle and content reads. */
 export const defaultContentLocale = 'en'
 
 /** Locales available in the CMS admin interface. */
@@ -51,7 +54,10 @@ export const adminLocales = [
   { code: 'th', nativeName: 'ไทย' },
 ] as const satisfies readonly LocaleDefinition[]
 
-/** Locales a document can be published in. */
+/**
+ * Locales a document can be published in. These need no bundled admin UI
+ * translation because content locale labels come from `nativeName`.
+ */
 export const contentLocales = [
   { code: 'en', nativeName: 'English' },
   { code: 'fr', nativeName: 'Français' },

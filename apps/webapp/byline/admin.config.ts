@@ -14,9 +14,9 @@
  * `route.lazy.tsx` covers component render and initial hydration. Keeping
  * both imports behind `_byline/*` keeps the admin graph off public routes.
  *
- * In TanStack Start with Vite 6 the server entry (`src/server.ts`) and
- * the SSR rendering context run in separate Vite environments, so
- * importing this file from `src/server.ts` would NOT propagate the
+ * TanStack Start's server entry (`src/server.ts`) and SSR rendering context
+ * run in separate Vite environments. Importing this file from `src/server.ts`
+ * would therefore NOT propagate the
  * registration into the SSR render module graph.
  */
 
@@ -37,8 +37,16 @@ import { i18n } from './i18n.js'
 import { routes } from './routes.js'
 
 export const config: AdminConfig = {
+  // Shared locale definitions and the complete admin translation registry.
+  // Keeping this identical to the server config prevents admin forms from
+  // offering locales the document lifecycle does not accept.
   i18n,
+  // Canonical admin, sign-in, and reserved API paths. This is the same
+  // client-safe object supplied to the server config and public facade.
   routes,
+  // Server-safe collection schemas. Presentation modules stay in `admin`
+  // below so importing this tuple elsewhere does not pull React into a
+  // server-only or public-client graph.
   collections,
   // Dashboard grouping. `docs`, `news`, and `pages` deliberately declare no
   // group — they render in the leading ungrouped band above these headings,
@@ -47,6 +55,9 @@ export const config: AdminConfig = {
     { name: 'media', label: 'Media' },
     { name: 'taxonomy', label: 'Taxonomies' },
   ],
+  // Per-collection presentation config: labels, columns, widgets, and other
+  // admin-only behavior. Every entry corresponds to one schema in
+  // `collections`; array order supplies the ungrouped dashboard order.
   admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, NewsCategoriesAdmin],
   // Per-block admin config, keyed by blockType — applies wherever the block
   // renders. Quote/Photo opt a block richtext field into the minimal
@@ -55,6 +66,8 @@ export const config: AdminConfig = {
   // FAQ is the dotted schema-path reference: its `faq.answer` key reaches
   // the answer field inside the block's array.
   blockAdmin: [QuoteBlockAdmin, PhotoBlockAdmin, FAQBlockAdmin],
+  // Site-wide defaults for field editors. Collection-specific field admin
+  // config can still override these choices.
   fields: {
     // Site-wide registration of the AI-enabled editor on every richtext
     // field. `LexicalRichTextAi` is built with
@@ -110,4 +123,7 @@ export const config: AdminConfig = {
   },
 }
 
+// Validate the presentation registries, canonicalize routes, and register the
+// resolved config in this admin module graph. The call is intentionally a
+// side effect; admin routes retrieve the result through `getAdminConfig()`.
 defineAdminConfig(config)

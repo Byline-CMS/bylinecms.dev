@@ -41,6 +41,7 @@ import { buildLocaleDefinitions } from '../i18n/locale-definitions.js'
 import { bylineAdminServices } from '../integrations/byline-admin-services.js'
 import { BylineAiAdminProvider } from '../integrations/byline-ai.js'
 import { bylineFieldServices } from '../integrations/byline-field-services.js'
+import { getAnalyticsRuntime } from '../server-fns/analytics/index.js'
 import { getCurrentAdminUser } from '../server-fns/auth/index.js'
 import { getScheduledPublicationRuntime } from '../server-fns/collections/index.js'
 import { getActiveLocaleFn, setAdminLocaleFn } from '../server-fns/i18n/index.js'
@@ -58,9 +59,12 @@ export function createAdminLayoutRoute(path: string) {
         // than calling `resolveRequestLocale` directly) keeps
         // `@tanstack/react-start/server` out of the client bundle — the
         // same pattern `getCurrentAdminUser` uses for `getAdminRequestContext`.
-        const activeLocale = await getActiveLocaleFn()
-        const scheduledPublicationRuntime = await getScheduledPublicationRuntime()
-        return { user, activeLocale, scheduledPublicationRuntime }
+        const [activeLocale, scheduledPublicationRuntime, analyticsRuntime] = await Promise.all([
+          getActiveLocaleFn(),
+          getScheduledPublicationRuntime(),
+          getAnalyticsRuntime(),
+        ])
+        return { user, activeLocale, scheduledPublicationRuntime, analyticsRuntime }
       } catch {
         // `getCurrentAdminUser` (via `getAdminRequestContext`) throws
         // `ERR_UNAUTHENTICATED` or a related auth error when no valid
@@ -73,11 +77,13 @@ export function createAdminLayoutRoute(path: string) {
       }
     },
     component: function AdminLayoutComponent() {
-      const { user, activeLocale, scheduledPublicationRuntime } = Route.useRouteContext() as {
-        user: Awaited<ReturnType<typeof getCurrentAdminUser>>
-        activeLocale: LocaleCode
-        scheduledPublicationRuntime: Awaited<ReturnType<typeof getScheduledPublicationRuntime>>
-      }
+      const { user, activeLocale, scheduledPublicationRuntime, analyticsRuntime } =
+        Route.useRouteContext() as {
+          user: Awaited<ReturnType<typeof getCurrentAdminUser>>
+          activeLocale: LocaleCode
+          scheduledPublicationRuntime: Awaited<ReturnType<typeof getScheduledPublicationRuntime>>
+          analyticsRuntime: Awaited<ReturnType<typeof getAnalyticsRuntime>>
+        }
       const { i18n } = getAdminConfig()
       const localeDefinitions = buildLocaleDefinitions(
         i18n.admin.locales,
@@ -113,6 +119,7 @@ export function createAdminLayoutRoute(path: string) {
                   <AdminAppBar user={user} />
                   <main className={cx('byline-admin-layout-main', layoutStyles.main)}>
                     <AdminMenuDrawer
+                      analyticsEnabled={analyticsRuntime.enabled}
                       scheduledPublicationEnabled={scheduledPublicationRuntime.enabled}
                     />
                     <Content>

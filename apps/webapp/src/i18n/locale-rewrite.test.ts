@@ -47,6 +47,7 @@ describe('localeInputRewrite — the matcher always sees a locale segment', () =
     expect(input('/_build/assets/app.js')).toBe('/_build/assets/app.js')
     expect(input('/uploads/img.png')).toBe('/uploads/img.png')
     expect(input('/api/whatever')).toBe('/api/whatever')
+    expect(input('/telemetry/events')).toBe('/telemetry/events')
   })
 
   it('never prefixes static assets', () => {
@@ -128,6 +129,7 @@ describe('isLocalizablePath', () => {
     expect(isLocalizablePath('/fr/about-byline')).toBe(true)
     expect(isLocalizablePath('/admin')).toBe(false)
     expect(isLocalizablePath('/_serverFn/x')).toBe(false)
+    expect(isLocalizablePath('/telemetry/events')).toBe(false)
     expect(isLocalizablePath('/favicon.ico')).toBe(false)
     expect(isLocalizablePath('/docs/getting-started.md')).toBe(true)
     expect(isLocalizablePath('/sitemap.xml')).toBe(false)

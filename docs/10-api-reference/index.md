@@ -10,7 +10,7 @@ Companions:
 - [Configuration](../01-getting-started/03-configuration.md) — an introductory tour of the application files and runtime boundaries behind these contracts.
 - [Key architectural decisions](../03-architecture/index.md) — the design context for the APIs listed here.
 - [Scheduling](../11-scheduling/index.md) — the `ServerConfig` scheduling properties in context: recurring tasks, the ticker, and scheduled publication.
-- [Testing](../12-testing.md) — the unit, integration, and browser suites used to verify these contracts.
+- [Testing](../13-testing.md) — the unit, integration, and browser suites used to verify these contracts.
 
 This section is the lookup surface for Byline's application-facing APIs. Use it when you know which system you are configuring and need the exact properties, defaults, parameters, return shapes, or runtime restrictions.
 

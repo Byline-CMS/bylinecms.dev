@@ -1,7 +1,6 @@
-# Byline analytics — working design
+# Byline analytics
 
-**Status:** working document — a design under discussion, not an approved plan. Sections
-below record the intended shape of the system. Nothing here is an approved implementation plan.
+**Status:** implemented.
 
 **Companions:**
 
@@ -13,13 +12,18 @@ below record the intended shape of the system. Nothing here is an approved imple
 visitors, downloads — surfaced in the Byline admin.
 
 **Deployment assumptions:** the constraints in §1 are drawn from one representative
-deployment — nginx in front of Node on Fly.io, Cloudflare in front of the site hostname,
+reference deployment — nginx in front of Node on Fly.io, Cloudflare in front of the site hostname,
 CloudFront over a private S3 bucket for downloads. They are illustrative of the class of
 deployment this design must survive, not a description of any particular installation.
 
 ---
 
-## 1. Context & constraints
+## 1. Reference context and portable constraints
+
+The following topology describes the Byline webapp that motivated the subsystem. It is a
+deployment scenario, not a requirement of the portable packages. Downstream applications may run
+without nginx, Cloudflare, Fly.io, or TanStack Start and must provide equivalent host integration
+for their own runtime.
 
 - Hosting: Docker image with **nginx in front of Node.js (TanStack Start)**, deployed on **Fly.io**. Multiple Fly machines per app are possible — no instance-local state.
 - **Cloudflare proxies the www hostname.** nginx is already configured to derive the real client IP from `CF-Connecting-IP`. `CF-IPCountry` is available.
@@ -39,16 +43,21 @@ No sessions/bounce/duration, no funnels, no UTM campaign reporting, no realtime 
 
 Three signals, each collected where it is reliable:
 
-1. **Page views** — client beacon (JS) → `POST /api/events`. POSTs are never cached by Cloudflare, so every beacon reaches Node regardless of the SWR cache.
+1. **Page views** — client beacon (JS) → an application-owned same-origin POST endpoint. In the reference webapp this is `/telemetry/events`. POSTs are never served from the page cache, so every accepted beacon reaches the application regardless of the SWR cache.
 2. **Visitors** — derived server-side at ingest from IP and UA under an installation-local daily salt. No cookie, no client storage, raw IP never persisted.
 3. **Downloads** — client click-handler in the same beacon script (v1). Optional later: `/dl/:id` count-and-302 route and/or nightly CloudFront access-log import. Design the events table so these additional sources can feed it without schema change (`source` column).
 
 Analytics ships as an **optional Byline subsystem**, not app-local code and not a mandatory part
-of core. The framework-independent package owns ingest, aggregation, query contracts, privacy
-rules, and task definitions. Postgres and MySQL drivers own their schemas, numbered migrations,
-and stores, following the search subsystem precedent. The TanStack Start host owns the public
-beacon route and authenticated admin server functions. The admin package owns the optional
-dashboard module and registers `analytics.read` and `analytics.maintain` abilities.
+of core. `@byline/analytics` owns the framework-independent server contract: ingest, aggregation,
+queries, privacy rules, and task definitions. The dependency-free `@byline/analytics-agent`
+package owns the framework-independent browser collector. `@byline/analytics-postgres` and
+`@byline/analytics-mysql` own their schemas, numbered migrations, and stores, following the search
+subsystem precedent. The private `@byline/analytics-conformance` workspace package holds the one
+behavioural suite both SQL drivers must pass; it is test infrastructure and never an application
+dependency. The TanStack Start host provides optional agent-response, committed-navigation,
+request-bridge, and authenticated admin helpers. The application chooses and mounts the agent and
+ingest routes. The admin package owns the optional dashboard module and registers `analytics.read`
+and `analytics.maintain` abilities.
 
 An installation is one analytics site in v1. Analytics does not introduce a multi-site registry.
 The installation config supplies its allowed public domains, optional CDN hosts, ignored path
@@ -65,33 +74,61 @@ A single first-party script, **≤ 2 KB gzipped**, no dependencies, served from 
 - On load: send one `page` event.
 - SPA navigations: subscribe to TanStack Router's **committed/resolved navigation event** — never link hover, never preload/prefetch. Ignore hash-only and search-only changes (configurable). Dedupe identical consecutive paths within 3 s (also guards React strict-mode double effects; additionally gate with a module-level "sent" flag for the initial view).
 - Downloads: one **delegated click listener** on `document` matching `a[href]` where the host equals the site's configured CDN host(s) **or** the pathname ends in a configured extension list (default: pdf, zip, docx, xlsx, pptx, csv, mp3, mp4, epub). Sends a `download` event with the file path. Do not preventDefault; do not delay navigation (use `sendBeacon`).
-- Transport: `navigator.sendBeacon('/api/events', blob)`; fallback `fetch(..., { keepalive: true })`. Fire-and-forget; never retry (retries are how client bugs become data corruption).
-- **The endpoint is same-origin by construction.** The beacon posts to the relative path `/api/events`, so it always addresses the origin serving the page. An installation with several public domains does not change that: each domain serves its own `/api/events`. V1 supports no cross-origin ingest and the endpoint emits no CORS headers at all. Be precise about what that does and does not achieve: because the beacon sends a safelisted `text/plain` body with no custom headers, it is a *simple* request, so a cross-origin page can still **send** it and the server will still receive it. Omitting `Access-Control-Allow-Origin` only denies the sending page the ability to **read the response** — which the beacon never reads anyway. **The origin check in §4 is what actually drops cross-origin submissions**, not the absence of CORS headers. Emitting none is the right default because there is no response any caller needs to read, not because it is a filter.
+- Transport: `navigator.sendBeacon(config.endpoint, blob)`; fallback `fetch(..., { keepalive: true })`. The application must supply a same-origin, root-relative endpoint. Fire-and-forget; never retry (retries are how client bugs become data corruption).
+- **The endpoint is same-origin by construction.** The configured root-relative path always addresses the origin serving the page, regardless of where the JavaScript artifact itself is hosted. An installation with several public domains does not change that: each domain serves its selected endpoint. V1 supports no cross-origin ingest and the endpoint emits no CORS headers at all. Be precise about what that does and does not achieve: because the beacon sends a safelisted `text/plain` body with no custom headers, it is a *simple* request, so a cross-origin page can still **send** it and the server will still receive it. Omitting `Access-Control-Allow-Origin` only denies the sending page the ability to **read the response** — which the beacon never reads anyway. **The origin check in §4 is what actually drops cross-origin submissions**, not the absence of CORS headers. Emitting none is the right default because there is no response any caller needs to read, not because it is a filter.
 - **The body is nevertheless sent as `text/plain`, not `application/json`**, and the server parses it as JSON. `application/json` is not a CORS-safelisted content type, so a beacon carrying it becomes preflighted the moment the endpoint is not same-origin — and a preflight issued as the page unloads is the one that does not complete. Same-origin the distinction is invisible, which is exactly why it is worth fixing now: `text/plain` costs nothing, keeps the request preflight-free by construction, and means a future absolute or configurable endpoint cannot silently start losing page views. Plausible and Umami send `text/plain` for the same reason.
 - Payload (JSON text, ≤ 1 KB): `{ v: 1, kind: "page" | "download", path: "/…", ref: document.referrer }`. **No site id and no client timestamp** — configuration selects the installation and the server stamps time. Nothing else.
-- Opt-outs: no-op when `localStorage["byline-analytics-ignore"]` exists (reading this flag is fine — it is set only by an explicit admin action in the Byline UI, "exclude my visits on this browser") or when `navigator.globalPrivacyControl === true`. Fail silent on any error.
+- Opt-out: no-op when `localStorage["byline-analytics-ignore"]` exists. Reading this flag is fine —
+  it is set only by the explicit "exclude my visits on this browser" action in the Byline UI.
+  Fail silent on any error.
 - The script must not set cookies, must not write to localStorage/sessionStorage/IndexedDB, must not read canvas/WebGL/fonts or any fingerprinting surface. This is a hard requirement — it is the basis of the privacy statement.
 
-The TanStack Start integration serves the script and exposes an explicit root-layout helper that
-renders its tag. Enabling analytics in server configuration does not silently modify application
-HTML. Script configuration that genuinely belongs in the browser, such as CDN hosts and whether
+Global Privacy Control is not treated as a first-party analytics opt-out. GPC expresses a request
+not to sell or share personal data with third parties or use it for cross-context targeted
+advertising; it is not intended to prohibit first-party processing in the same context. Byline
+analytics does none of those things. The agent therefore neither branches on
+`navigator.globalPrivacyControl` nor sends the value, and ingest neither branches on nor stores
+`Sec-GPC`. If the subsystem later sells, shares, or uses analytics data across contexts, that
+change must revisit GPC handling and the privacy statement before it can ship.
+
+`@byline/analytics-agent` builds a minified standalone browser artifact and enforces the 2 KB
+gzipped budget in its tests. An application normally places that artifact in the static assets it
+already serves and loads it with an ordinary script tag; this requires no framework or build
+integration. The reference webapp vendors the published artifact as `public/b.js` and has a drift
+test that requires the copy to match the package source exactly. The TanStack Start integration
+also offers an optional dynamic-response helper, a Vite development compatibility plugin for that
+route-based delivery mode, and an explicit root-layout helper that renders the tag and installs the
+small committed-route bridge. Enabling analytics in server configuration does not silently modify
+application HTML.
+Script configuration that genuinely belongs in the browser, such as CDN hosts and whether
 search-only changes count, travels through bounded `data-*` attributes on that tag. Admin paths
-(`/_byline` and configured equivalents) are excluded before any event is sent.
+(`/_byline` and configured equivalents) are excluded before any event is sent. The agent has no
+React or TanStack dependency; another host can feed it committed paths through the same narrow
+browser API.
 
 ---
 
-## 4. Component B — ingest endpoint `POST /api/events`
+## 4. Component B — application-owned ingest endpoint
 
-TanStack Start server route (runs on every Fly machine).
+The application mounts one route in its host framework. The reference webapp uses the TanStack
+Start route `POST /telemetry/events`; neither the portable package nor the host helper mounts it.
+
+The complete route must remain testable when a built application is served directly on localhost
+through Vite preview or Nitro start. In that mode the host may use the runtime's direct peer
+address only when both the request URL and the peer are loopback. This is separate from any fixed
+development identity, which must compile out of production builds, and it must not cause a public
+request or arbitrary forwarding header to bypass the configured proxy trust boundary.
+Local preview tooling must also load a localhost public-domain configuration rather than the
+deployment's production hostname; this changes runtime configuration, not the production build.
 
 Processing order (cheap rejections first):
 
 1. **Method/size guard:** POST only; body ≤ 1 KB; parsed as JSON regardless of the declared content type (the beacon sends `text/plain`; see §3) with exactly the known fields; unknown fields → reject. Respond `202` with empty body on accept, `204` on silent drop (see below), `400`/`429` otherwise. Never echo data back.
 2. **Origin check:** `Origin` (or `Referer`) must be present and its host must match one of the installation's configured public domains. Mismatch or absence → **silent drop (`204`)**, not an error — don't teach probes what passes. This is a cheap filter, not a security boundary: `Origin` is a request header and anything outside a browser can set it freely. No CORS headers are emitted (see §3).
 3. **Path check:** reject configured admin and internal prefixes even if a modified client submits them directly.
-4. **Bot filter:** drop if UA matches a maintained crawler list (use the community `crawler-user-agents` dataset or Matomo's device-detector list, vendored and refreshed occasionally); drop empty/absent UA. When the edge provides verified-bot or bot-score metadata, consume it only through explicitly configured, trusted headers that nginx overwrites; do not assume Cloudflare forwards a particular bot header to the origin by default.
+4. **Bot filter:** drop if UA matches the maintained `isbot` crawler dataset, pinned through the package lockfile and refreshed deliberately; drop empty/absent UA. When a platform or edge provides verified-bot metadata, consume it only through an explicitly configured host resolver whose trust boundary the deployment controls.
 5. **Prefetch filter:** drop `Sec-Purpose: prefetch` / `X-Purpose: preview`.
-6. **Visitor hash:** `HMAC-SHA-256(daily_salt, canonical(client_ip, user_agent))` → hex, where `canonical` length-prefixes each UTF-8 component rather than concatenating ambiguous strings. The salt is already unique to this installation and day. `client_ip` comes only from the host's trusted request bridge. **The raw IP must exist only in request scope — never logged, never stored.** Assert in code review that no logger or error object receives it on this route.
+6. **Visitor hash:** `HMAC-SHA-256(daily_salt, canonical(client_ip, user_agent))` → hex, where `canonical` length-prefixes each UTF-8 component rather than concatenating ambiguous strings. The salt is already unique to this installation and day. `client_ip` comes only from the application host's request-context resolver, using direct runtime facts, verified platform metadata, or an optional trusted-proxy header. **The raw IP must exist only in request scope — never logged, never stored.** Assert in code review that no logger or error object receives it on this route.
 7. **Dedupe:** same `(visitor_hash, kind, path)` within 10 s → drop (guards double-fires and naive replays). In-memory LRU per instance is acceptable; imperfect cross-machine dedupe is an explicit accuracy tradeoff.
 8. **Insert** into `analytics_event` (§6). `country` from the trusted edge metadata; `referrer_host` = host of `ref`, nulled when it equals an installation domain; `path` normalized (strip query + fragment, cap 512 chars, valid UTF-8, collapse `//`).
 
@@ -107,11 +144,14 @@ day, which is required to count daily visitors. Never derive salts from a persis
 
 ---
 
-## 5. Component C — edge & nginx config (document in README, don't automate)
+## 5. Component C — reference Cloudflare and nginx recipe
 
-- Cloudflare (www zone): cache rule **BYPASS `/api/*`**; keep respecting origin cache headers elsewhere; Bot Fight Mode on; IP Geolocation on. (Add `/dl/*` to the bypass rule if/when the redirect route ships.)
-- nginx: `limit_req` on `/api/events` — e.g. zone keyed by the verified real client IP, `rate=5r/s burst=10 nodelay`, return 429. nginx must accept `CF-Connecting-IP` only from current Cloudflare proxy ranges, overwrite any inbound client-supplied forwarding header, and prevent direct origin access from bypassing that trust boundary. The application must receive the normalized value through the host request bridge rather than reading arbitrary forwarding headers itself.
-- Cloudflare rate-limiting rule (belt-and-braces): e.g. 120 requests / minute / IP on `/api/events` → managed challenge or block.
+These controls apply to the motivating webapp deployment. Another application documents and tests
+the equivalent controls available in its direct server, hosting platform, or chosen proxies.
+
+- Cloudflare (www zone): bypass the application-selected ingest endpoint; keep respecting origin cache headers elsewhere; Bot Fight Mode on; IP Geolocation on. (Add `/dl/*` to the bypass rule if/when the redirect route ships.)
+- nginx: `limit_req` on `/telemetry/events` — e.g. zone keyed by the verified real client IP, `rate=5r/s burst=10 nodelay`, return 429. nginx must accept `CF-Connecting-IP` only from current Cloudflare proxy ranges, overwrite any inbound client-supplied forwarding header, and prevent direct origin access from bypassing that trust boundary. The application must receive the normalized value through the host request bridge rather than reading arbitrary forwarding headers itself.
+- Cloudflare rate-limiting rule (belt-and-braces): e.g. 120 requests / minute / IP on `/telemetry/events` → managed challenge or block.
 - CloudFront: unchanged in v1. (Optional later: standard logging → S3 for the log-import source.)
 
 ---
@@ -240,8 +280,8 @@ Admin reads use TanStack Start server functions, not a new general HTTP API. Eve
 requires the registered `analytics.read` ability:
 
 - `getAnalyticsSummary({ from, to })` → `{ views, visitors, downloads, timeseries: [{day, views, visitors, downloads}] }`
-- `getAnalyticsTop({ kind, from, to, limit: 20 })` → paths with views/visitors
-- `getAnalyticsReferrers({ from, to, limit: 20 })`
+- `getAnalyticsTop({ kind, from, to, limit: 20 })` → `{ rows: paths with views/visitors, total }`, where `total` is the distinct path count in the period so the dashboard can label a top-N list as truncated
+- `getAnalyticsReferrers({ from, to, limit: 20 })` → the same `{ rows, total }` shape
 - `getAnalyticsCountries({ from, to })`
 
 UI: one installation-level page in the admin. Period picker (7 / 30 / 90 days). Three stat tiles (views, daily unique visitors, downloads) with a small timeseries chart, then two lists: top pages, top downloads; referrers and countries below. Keep it to that — "simple, practical, useful" is the product requirement. Include the admin "exclude my visits on this browser" toggle here (sets the ignore flag, §3). Because local storage is origin-scoped, the toggle controls public-page collection only when admin and public pages share an origin; other deployments must provide the same toggle on the public origin.
@@ -254,17 +294,17 @@ An anonymous, cookieless, consent-free endpoint **cannot be fully spoof-proof** 
 
 - **Bounded, but not identity-secure:** one stable IP+UA pair counts as one daily visitor, but an attacker can rotate UA strings, IPs, or both to create additional hashes. Rate limiting bounds accepted submissions; it does not prove visitor identity. The dashboard is directional product telemetry, not an auditable traffic ledger.
 - **Rejected early:** bad or missing Origin, an excluded admin path, bot UA, oversized or malformed payload — all dropped before touching the database. Silent drops (`204`) deny attackers feedback.
-- **Rate limited twice:** Cloudflare rule at the edge, nginx `limit_req` at the origin.
+- **Rate limited at every configured pre-application boundary:** the reference deployment uses a Cloudflare rule at the edge and nginx `limit_req` at the origin. A direct or platform deployment uses its available equivalent.
 - **Cleanable:** an `analytics.maintain`-gated server function or documented CLI deletes events by time range or visitor hash and rebuilds affected retained days. There is no public maintenance endpoint.
-- **Observable, from two distinct sources.** The application logs daily counters for accepted events and for the drops it can actually see — origin, admin path, bot, prefetch, dedupe, malformed (counts only, no IPs, no hashes). A single dropped total is not diagnostic: the origin check's failure mode is total silent data loss, and a misconfigured domain list is indistinguishable from heavy crawler traffic unless the reasons are separated. Rate-limit rejections are **not** among them and cannot be: nginx and Cloudflare reject those requests before Node is reached, so that figure exists only in nginx's log and the Cloudflare dashboard. Any operational runbook must name both sources, because "accepted events fell" has a completely different cause depending on which side of the boundary the loss occurred. A > 5× day-over-day spike in accepted events, or any sustained shift in the drop mix, is worth a warning log line.
+- **Observable across application and deployment sources.** The application logs daily counters for accepted events and for the drops it can actually see — origin, admin path, bot, prefetch, missing host-resolved client identity, dedupe, malformed (counts only, no IPs, no hashes). A single dropped total is not diagnostic: the origin check's failure mode is total silent data loss, and a misconfigured domain list is indistinguishable from heavy crawler traffic unless the reasons are separated. Rejections made by a platform or proxy before Node cannot appear in application counters. Any operational runbook must name every configured source, because "accepted events fell" has a different cause depending on which side of the boundary the loss occurred. A > 5× day-over-day spike in accepted events, or any sustained shift in the drop mix, is worth a warning log line.
 - **Optional hardening (v2, stub only):** SSR injects `<meta name="ba-token" content="HMAC(installation_secret, utc_date)">`; beacon echoes it; server validates today/yesterday. Cache-compatible (rotates daily, same for all visitors) and blocks naive curl-stuffing — a determined attacker can scrape it, which is why it is optional, not load-bearing.
 
 ---
 
 ## 9. Privacy statement
 
-Implementation must provide a Byline-configurable privacy-statement page/snippet alongside the
-feature. Engineering must keep it true to the code: any future change that stores raw IPs, adds
+`@byline/analytics` provides `createAnalyticsPrivacyStatement()` as a configurable plain-text
+snippet for the deployment's privacy page. Engineering must keep it true to the code: any future change that stores raw IPs, adds
 client storage, or shares data invalidates the statement. The text is a template, not legal
 advice, and must be flagged for counsel review per deployment.
 
@@ -274,13 +314,13 @@ advice, and must be flagged for counsel review per deployment.
 
 1. Beacon: ≤ 2 KB gzipped; zero cookies and zero client-side storage writes (verify in devtools); no events on route preload/hover; exactly one event per committed navigation incl. back/forward; strict-mode dev double-mount does not double-count.
 2. Download clicks on CDN-host links produce `download` events; navigation is not delayed or broken.
-3. Ingest: the beacon body is sent as `text/plain` and no preflight request is issued (verify in devtools). Request with wrong Origin or an admin path → 204, nothing stored, and the drop is counted under its own reason. The endpoint returns no `Access-Control-Allow-Origin` header. Bot UA → nothing stored. 1 KB+ body → 400. Burst beyond nginx limit → 429. Direct-origin and spoofed-forwarding-header tests cannot select the client IP. Raw IP appears nowhere in DB, logs, or error traces.
+3. Ingest: the beacon body is sent as `text/plain` to the configured same-origin endpoint and no preflight request is issued (verify in devtools). Request with wrong Origin or an admin path → 204, nothing stored, and the drop is counted under its own reason. The endpoint returns no `Access-Control-Allow-Origin` header. Bot UA → nothing stored. 1 KB+ body → 400. A configured pre-application rate limiter can return 429. Tests prove that clients cannot select the host-resolved identity for every documented deployment scenario. Raw IP appears nowhere in DB, logs, or error traces.
 4. Same visitor across two UTC days yields two different hashes (test with fixed IP/UA, forced salt rotation).
 5. Rollup task is idempotent and catches up every missed complete day after simulated downtime, draining at tick cadence rather than one day per hour. Events older than 90 days are pruned. Historical path, referrer, and country queries match hand-computed fixtures.
 6. A day containing more distinct paths than the configured cap produces exactly `cap + 1` path rows, the extra being `__other__`, and the sum of the day's path views still equals the day's site view total. A fixture in which one visitor views three overflow paths yields `__other__` visitors of 1, not 3. Configuring retention below the dashboard's longest period is rejected at boot. Site and country aggregates are never pruned; path and referrer aggregates honour their configured retention.
 7. Dashboard: an actor with `analytics.read` sees data; an actor without it gets 403. Every multi-day visitor value is labelled as a sum of daily uniques.
 8. The Postgres and MySQL providers pass the shared store and rollup conformance suite.
-9. `docs/analytics.md` documents: package/configuration setup, script injection, Cloudflare rules, nginx trust and rate-limit snippets, salt lifecycle, the path cap and both retention policies, where each drop metric is observed, scheduler health, and the delete/re-rollup maintenance procedure.
+9. `docs/12-analytics/` documents: package/configuration setup, application-owned agent delivery, optional consent, deployment-specific request context, Cloudflare and nginx recipes, salt lifecycle, the path cap and both retention policies, where each drop metric is observed, scheduler health, and the delete/re-rollup maintenance procedure.
 
 ---
 

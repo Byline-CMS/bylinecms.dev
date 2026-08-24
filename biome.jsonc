@@ -10,6 +10,7 @@
     "includes": [
       "**",
       "!**/tailwind.css",
+      "!**/public/b.js",
       "!**/routeTree.gen.ts",
       "!**/generated/collection-types.ts",
       "!**/vendor",

@@ -7,17 +7,16 @@
  */
 
 /**
- * IMPORTANT NOTE: This file is NOT part of Byline's normal configuration,
- * and is only here as a convenience configuration for switching back
- * and forth between mysql and pg providers.
- */
-
-/**
- * Server-side Byline bootstrap. Imported as a side-effect from
- * `src/server.ts` (and from any seed / migration script that needs the
- * configured runtime). Resolves the composed `BylineCore` and registers
- * it on the process global via `initBylineCore()` — server-side callers
- * read it back with `getBylineCore<AdminStore>()`.
+ * Inactive MySQL provider comparison kept for maintainers who test both
+ * built-in SQL adapters. No application entry point imports this file;
+ * `server.config.ts` is the only canonical, feature-complete bootstrap.
+ *
+ * Do not rename this file over the canonical config or treat it as a second
+ * production profile: optional subsystems can be added to `server.config.ts`
+ * without being duplicated here. To switch the reference app, follow the
+ * coordinated database, search, and analytics substitutions documented in
+ * `server.config.ts`. This file exists only to make MySQL-specific core wiring
+ * easy to compare with `server.config-pg.ts`.
  */
 import { type AdminStore, registerAdminAbilities } from '@byline/admin'
 import { JwtSessionProvider } from '@byline/admin/auth'
@@ -65,10 +64,10 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   //
   // Future approaches, if/when the wiring grows:
   //
-  //   Option B — Adapter-owned admin store. Have `pgAdapter()` return
+  //   Option B — Adapter-owned admin store. Have `mysqlAdapter()` return
   //   `{ ..., adminStore }` directly so the integration point doesn't
   //   need the separate `createAdminStore(db.drizzle)` call or the
-  //   `@byline/db-postgres/admin` import. Widens the adapter contract
+  //   `@byline/db-mysql/admin` import. Widens the adapter contract
   //   slightly but removes one more concrete-adapter mention from this
   //   file.
   //
@@ -91,8 +90,11 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   //     byline/seed.ts` (it reads whichever adapter this file configures)
   //
   const db = mysqlAdapter({
+    // MySQL DSN used by the inactive comparison runtime.
     connectionString: process.env.BYLINE_DB_MYSQL_CONNECTION_STRING || '',
+    // The same portable schema tuple used by the canonical configuration.
     collections,
+    // Keep adapter fallback behavior aligned with document lifecycle policy.
     defaultContentLocale: i18n.content.defaultLocale,
     // Pool tuning. Optional — `mysqlAdapter` ships the same defaults as
     // `pgAdapter` (20 connections, 2s idle, 30s connect), so a managed provider
@@ -125,7 +127,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   const adminStore = createAdminStore(db.drizzle)
 
   // Built-in JWT session provider. Signing secret comes from the
-  // environment — see `.env.local.example`. Phase 5 uses HS256 with Byline's
+  // environment — see `.env.local.example`. It uses HS256 with Byline's
   // default TTLs (15-minute access, 30-day refresh). Alternative providers
   // (Lucia, better-auth, WorkOS, Clerk, institutional SSO) can be dropped
   // in here by implementing the `SessionProvider` interface from
@@ -139,7 +141,9 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   }
 
   const sessionProvider = new JwtSessionProvider({
+    // Share the adapter-built repositories with authentication.
     store: adminStore,
+    // Server-only token signing key validated immediately above.
     signingSecret,
   })
 
@@ -151,11 +155,17 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   registerTanstackStartHostBridge()
 
   const core = await initBylineCore<AdminStore>({
+    // Shared locale policy and translation registry.
     i18n,
+    // Shared canonical host paths; these values do not mount routes.
     routes,
+    // Portable collection schemas.
     collections,
+    // Server-only lifecycle hooks.
     hooks: serverHooks,
+    // MySQL document adapter selected by this comparison.
     db,
+    // MySQL-backed admin repositories.
     adminStore,
     // Site-wide default storage provider — used by any upload collection
     // that does not specify its own `upload.storage` override.
@@ -174,7 +184,9 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     // deployments, swap to `@byline/storage-s3` — see the commented
     // example below.
     storage: localStorageProvider({
+      // Runtime-writable directory, resolved from the webapp working directory.
       uploadDir: './uploads',
+      // Same-origin URL prefix handled by `src/server.ts` for stored files.
       baseUrl: '/uploads',
     }),
     // S3-compatible alternative (AWS S3 / Cloudflare R2 / MinIO). Replace
@@ -199,6 +211,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     //   pathPrefix: process.env.BYLINE_STORAGE_S3_PATH_PREFIX,
     //   cacheControl: 'public, max-age=31536000, immutable',
     // }),
+    // Built-in JWT authentication over the shared admin store.
     sessionProvider,
     fields: {
       // Server-side richtext adapter — refreshes embedded relation
@@ -231,7 +244,9 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       // `initBylineCore()` returns. Passing a factory defers resolution
       // to populate-call time so registration order here doesn't matter.
       richText: {
+        // Refresh embedded relation envelopes before writes are committed.
         embed: lexicalEditorEmbedServer({ getClient: getAdminBylineClient }),
+        // Resolve configured embedded relations in the current read context.
         populate: lexicalEditorPopulateServer({ getClient: getAdminBylineClient }),
         // One-way markdown serializer for the agent-readable export surface
         // (`.md` routes, `llms.txt`). Pure JSON walk — no client needed.
@@ -246,13 +261,20 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     // (no second connection); the search index lives in the same database.
     // Collections opt in via their `search` config; lifecycle
     // hooks maintain the index (see e.g. `collections/docs/hooks.ts`).
-    search: mysqlSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
+    search: mysqlSearch({
+      // Reuse the comparison adapter's pool.
+      pool: db.pool,
+      // Match search fallback behavior to document locale policy.
+      defaultLocale: i18n.content.defaultLocale,
+    }),
 
-    // search: mysqlSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
     // Optional document-grain delayed publication. This registers the inert
     // recurring task; the webapp's server entry starts the ticker explicitly
     // so seeds, migrations, and other imports of this config never start one.
-    scheduledPublication: { enabled: true },
+    scheduledPublication: {
+      // Register the built-in task without starting a scheduler timer.
+      enabled: true,
+    },
   })
 
   // Register admin-subsystem abilities (admin.users.*, admin.roles.*) on

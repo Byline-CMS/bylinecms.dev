@@ -138,10 +138,16 @@ jobs:
           cat > packages/search-postgres/.env.test <<EOF
           BYLINE_DB_POSTGRES_CONNECTION_STRING=$BYLINE_DB_POSTGRES_CONNECTION_STRING
           EOF
+          cat > packages/analytics-postgres/.env.test <<EOF
+          BYLINE_DB_POSTGRES_CONNECTION_STRING=$BYLINE_DB_POSTGRES_CONNECTION_STRING
+          EOF
           cat > packages/db-mysql/.env.test <<EOF
           BYLINE_DB_MYSQL_CONNECTION_STRING=$BYLINE_DB_MYSQL_CONNECTION_STRING
           EOF
           cat > packages/search-mysql/.env.test <<EOF
+          BYLINE_DB_MYSQL_CONNECTION_STRING=$BYLINE_DB_MYSQL_CONNECTION_STRING
+          EOF
+          cat > packages/analytics-mysql/.env.test <<EOF
           BYLINE_DB_MYSQL_CONNECTION_STRING=$BYLINE_DB_MYSQL_CONNECTION_STRING
           EOF
 
@@ -168,8 +174,9 @@ jobs:
       # Kathmandu (UTC+5:45) is chosen over a whole-hour offset because it also
       # catches arithmetic that assumes offsets are whole hours. The shared
       # `@byline/db-conformance` field-types suite carries the temporal
-      # coverage, so both adapters are exercised by this one step.
+      # coverage. The analytics suites join the same run because their SQL
+      # stores also promise UTC day boundaries independent of the host timezone.
       - name: Adapter conformance under a non-UTC timezone
         env:
           TZ: Asia/Kathmandu
-        run: pnpm --filter @byline/db-postgres --filter @byline/db-mysql test:integration
+        run: pnpm --filter @byline/db-postgres --filter @byline/db-mysql --filter @byline/analytics-postgres --filter @byline/analytics-mysql test:integration

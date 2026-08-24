@@ -12,6 +12,7 @@ import { registerAdminActivityAbilities } from './modules/admin-activity/abiliti
 import { registerAdminPermissionsAbilities } from './modules/admin-permissions/abilities.js'
 import { registerAdminRolesAbilities } from './modules/admin-roles/abilities.js'
 import { registerAdminUsersAbilities } from './modules/admin-users/abilities.js'
+import { registerAnalyticsAbilities } from './modules/analytics/abilities.js'
 
 /**
  * Register every ability contributed by the admin subsystem.
@@ -30,5 +31,6 @@ export function registerAdminAbilities(registry: AbilityRegistry): void {
   registerAdminRolesAbilities(registry)
   registerAdminPermissionsAbilities(registry)
   registerAdminActivityAbilities(registry)
+  registerAnalyticsAbilities(registry)
   // registerAccountAbilities(registry) — added when that module lands
 }

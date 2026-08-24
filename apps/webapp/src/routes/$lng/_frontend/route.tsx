@@ -2,6 +2,8 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
+import { AnalyticsAgent } from '@byline/host-tanstack-start/integrations/analytics-agent'
+
 import { useInterfaceLocale } from '@/i18n/hooks/use-locale-navigation'
 import { publicCacheMiddleware } from '@/middleware/public-cache'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
@@ -24,5 +26,14 @@ function FrontEndLayout() {
   // the nav, footer, and menu links revert to the visitor's interface
   // locale rather than carrying the `/fr` prefix.
   const locale = useInterfaceLocale()
-  return <FrontendLayout {...data} locale={locale} />
+  return (
+    <>
+      <AnalyticsAgent
+        src="/b.js"
+        endpoint="/telemetry/events"
+        ignoredPathPrefixes={['/admin', '/api', '/_byline', '/telemetry']}
+      />
+      <FrontendLayout {...data} locale={locale} />
+    </>
+  )
 }

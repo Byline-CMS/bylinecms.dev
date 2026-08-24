@@ -6,6 +6,10 @@
     [
       "@byline/admin",
       "@byline/ai",
+      "@byline/analytics",
+      "@byline/analytics-agent",
+      "@byline/analytics-mysql",
+      "@byline/analytics-postgres",
       "@byline/auth",
       "@byline/cli",
       "@byline/client",
@@ -28,5 +32,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@byline/webapp", "@byline/bench-storage"]
+  "ignore": ["@byline/webapp", "@byline/analytics-conformance", "@byline/bench-storage"]
 }

@@ -1,0 +1,330 @@
+/**
+ * AnalyticsDashboard — the installation-level analytics page.
+ *
+ * Override handles:
+ *   .byline-analytics-header       — title block and period/exclusion controls
+ *   .byline-analytics-title        — page heading
+ *   .byline-analytics-help         — the daily-uniques qualification
+ *   .byline-analytics-controls     — period picker + exclusion toggle
+ *   .byline-analytics-stats        — the three metric tiles
+ *   .byline-analytics-stat         — one tile
+ *   .byline-analytics-stat-label   — tracked uppercase metric name
+ *   .byline-analytics-stat-value   — the figure
+ *   .byline-analytics-stat-foot    — the figure's qualification
+ *   .byline-analytics-chart-card   — card wrapping the timeseries
+ *   .byline-analytics-lists        — top-pages / referrers+countries band
+ *   .byline-analytics-list         — one ranked-list card
+ *   .byline-analytics-ranking      — the ordered list
+ *   .byline-analytics-ranking-row  — one row, carrying its share bar
+ *
+ * The tile hues are the collection dashboard's status-tile values
+ * (`byline-dashboard-stat-tile`), so the two surfaces read as one system.
+ * Amber is deliberately unused here: it already means "draft".
+ */
+
+.header,
+:global(.byline-analytics-header) {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: var(--border-width-thin) var(--border-style-solid) var(--gray-200);
+}
+
+.title,
+:global(.byline-analytics-title) {
+  margin: 0;
+  font-size: 1.875rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.help,
+:global(.byline-analytics-help) {
+  max-width: 48ch;
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+}
+
+/* `Card.Title` defaults to 1.8rem bold — larger than this page's own heading,
+   which inverted the hierarchy. Bring the section titles below the h1 while
+   keeping them clearly headings. Scoped to the analytics cards so no other
+   Card consumer shifts. */
+.chartCard :global(.byline-card-title),
+.list :global(.byline-card-title) {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+.chartCard :global(.byline-card-description),
+.list :global(.byline-card-description) {
+  font-size: 0.75rem;
+}
+
+.controls,
+:global(.byline-analytics-controls) {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* ── Metric tiles ──────────────────────────────────────────────────── */
+
+.stats,
+:global(.byline-analytics-stats) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.stat,
+:global(.byline-analytics-stat) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 1rem 1.125rem 1.125rem;
+  border-radius: 0.375rem;
+}
+
+.statLabel,
+:global(.byline-analytics-stat-label) {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  line-height: 1;
+}
+
+.statValue,
+:global(.byline-analytics-stat-value) {
+  font-size: clamp(1.75rem, 4.5vw, 2.5rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.statFoot,
+:global(.byline-analytics-stat-foot) {
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--gray-600);
+}
+
+.toneViews {
+  background-color: #f0f9ff;
+}
+
+.toneViews .statLabel,
+.toneViews .statValue {
+  color: #0369a1;
+}
+
+.toneVisitors {
+  background-color: #f5f3ff;
+}
+
+.toneVisitors .statLabel,
+.toneVisitors .statValue {
+  color: #6d28d9;
+}
+
+.toneDownloads {
+  background-color: #ecfdf5;
+}
+
+.toneDownloads .statLabel,
+.toneDownloads .statValue {
+  color: #047857;
+}
+
+:is([data-theme="dark"], :global(.dark)) .statFoot,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-analytics-stat-foot) {
+  color: var(--gray-400);
+}
+
+:is([data-theme="dark"], :global(.dark)) .toneViews {
+  background-color: rgba(12, 74, 110, 0.28);
+}
+
+:is([data-theme="dark"], :global(.dark)) .toneViews .statLabel,
+:is([data-theme="dark"], :global(.dark)) .toneViews .statValue {
+  color: #7dd3fc;
+}
+
+:is([data-theme="dark"], :global(.dark)) .toneVisitors {
+  background-color: rgba(76, 29, 149, 0.3);
+}
+
+:is([data-theme="dark"], :global(.dark)) .toneVisitors .statLabel,
+:is([data-theme="dark"], :global(.dark)) .toneVisitors .statValue {
+  color: #c4b5fd;
+}
+
+:is([data-theme="dark"], :global(.dark)) .toneDownloads {
+  background-color: rgba(6, 78, 59, 0.28);
+}
+
+:is([data-theme="dark"], :global(.dark)) .toneDownloads .statLabel,
+:is([data-theme="dark"], :global(.dark)) .toneDownloads .statValue {
+  color: #6ee7b7;
+}
+
+/* ── Lists ─────────────────────────────────────────────────────────── */
+
+.chartCard,
+:global(.byline-analytics-chart-card) {
+  margin-bottom: 0.75rem;
+}
+
+/* Top pages is the list people actually read, so it takes the wide track. */
+.lists,
+:global(.byline-analytics-lists) {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  align-items: start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ranking,
+:global(.byline-analytics-ranking) {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.rankingRow,
+:global(.byline-analytics-ranking-row) {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0.625rem;
+  border-radius: 0.25rem;
+  /* The row paints its own stacking context so the share bar can sit behind
+     the text without escaping to the card background. */
+  isolation: isolate;
+}
+
+.rankingRow::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  width: var(--byline-analytics-share, 0%);
+  border-radius: 0.25rem;
+  background-color: var(--byline-analytics-bar, transparent);
+  opacity: 0.16;
+}
+
+.barViews {
+  --byline-analytics-bar: #38bdf8;
+}
+
+.barVisitors {
+  --byline-analytics-bar: #7c3aed;
+}
+
+.barDownloads {
+  --byline-analytics-bar: #10b981;
+}
+
+/* The reserved overflow bucket is an aggregate, not a page — a dashed rule
+   and muted label keep it from reading as traffic to a real path. */
+.rankingOverflow {
+  border: var(--border-width-thin) dashed var(--gray-300);
+}
+
+.rankingOverflow::before {
+  opacity: 0.07;
+}
+
+.rankingOverflow .rankingLabel {
+  font-style: italic;
+  color: var(--gray-600);
+}
+
+.rankingLabel {
+  overflow: hidden;
+  min-width: 0;
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rankingValue {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rankingVisitors {
+  min-width: 3ch;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  color: var(--gray-500);
+}
+
+:is([data-theme="dark"], :global(.dark)) .header,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-analytics-header) {
+  border-bottom-color: var(--gray-700);
+}
+
+:is([data-theme="dark"], :global(.dark)) .rankingVisitors {
+  color: var(--gray-400);
+}
+
+:is([data-theme="dark"], :global(.dark)) .rankingOverflow {
+  border-color: var(--gray-600);
+}
+
+:is([data-theme="dark"], :global(.dark)) .rankingOverflow .rankingLabel {
+  color: var(--gray-400);
+}
+
+:is([data-theme="dark"], :global(.dark)) .barVisitors {
+  --byline-analytics-bar: #a78bfa;
+}
+
+:is([data-theme="dark"], :global(.dark)) .barDownloads {
+  --byline-analytics-bar: #34d399;
+}
+
+@media (max-width: 900px) {
+  .lists,
+  :global(.byline-analytics-lists) {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .header,
+  :global(.byline-analytics-header) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .stats,
+  :global(.byline-analytics-stats) {
+    grid-template-columns: 1fr;
+  }
+}

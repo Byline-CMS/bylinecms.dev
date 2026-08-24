@@ -1,0 +1,232 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1010" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title>Byline analytics browser-to-database event flow</title>
+  <desc>Three supported deployment scenarios. In every scenario an application chooses when to load the first-party browser agent from b.js. The agent posts to the application-owned telemetry events route. A direct host resolves platform connection facts; a trusted reverse proxy overwrites optional Byline client headers; or Cloudflare and nginx form a two-proxy trust chain before the same TanStack route, portable analytics runtime, and SQL adapter.</desc>
+
+  <style>
+    .page-bg { fill: #f8fafc; }
+    .title { fill: #0f172a; font-size: 24px; font-weight: 750; text-anchor: middle; }
+    .subtitle { fill: #475569; font-size: 13px; text-anchor: middle; }
+    .panel { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; }
+    .panel-title { fill: #0f172a; font-size: 16px; font-weight: 700; }
+    .panel-subtitle { fill: #64748b; font-size: 11.5px; }
+    .box-title { fill: #ffffff; font-size: 13px; font-weight: 700; text-anchor: middle; }
+    .box-subtitle { fill: #ffffff; font-size: 10.5px; opacity: 0.88; text-anchor: middle; }
+    .step { fill: #ffffff; font-size: 12px; font-weight: 700; text-anchor: middle; }
+    .step-title { fill: #ffffff; font-size: 12px; font-weight: 700; text-anchor: start; }
+    .step-subtitle { fill: #e2e8f0; font-size: 10.5px; text-anchor: middle; }
+    .step-subtitle-start { fill: #e2e8f0; font-size: 10.5px; text-anchor: start; }
+    .arrow { fill: none; stroke: #64748b; stroke-width: 1.8; marker-end: url(#arrow); }
+    .trust-arrow { fill: none; stroke: #d97706; stroke-width: 2; marker-end: url(#trust-arrow); }
+    .arrow-label { fill: #475569; font-size: 10.5px; font-weight: 650; text-anchor: middle; }
+    .trust-label { fill: #b45309; font-size: 10px; font-weight: 700; text-anchor: middle; }
+    .note { fill: #475569; font-size: 11px; }
+    .note-strong { fill: #0f172a; font-size: 11px; font-weight: 700; }
+    .legend { fill: #64748b; font-size: 10.5px; }
+
+    @media (prefers-color-scheme: dark) {
+      .page-bg { fill: #0f172a; }
+      .title, .panel-title, .note-strong { fill: #f8fafc; }
+      .subtitle, .panel-subtitle, .arrow-label, .note, .legend { fill: #cbd5e1; }
+      .panel { fill: #111827; stroke: #475569; }
+      .arrow { stroke: #94a3b8; }
+      .trust-label { fill: #fbbf24; }
+    }
+  </style>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#64748b"/>
+    </marker>
+    <marker id="trust-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#d97706"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="1010" class="page-bg"/>
+
+  <text x="600" y="38" class="title">Browser agent to analytics storage</text>
+  <text x="600" y="62" class="subtitle">The application owns script delivery, consent, the event URL, and the request-trust boundary.</text>
+
+  <!-- Shared browser setup -->
+  <g transform="translate(55 88)">
+    <rect width="1090" height="92" rx="12" fill="#1e293b"/>
+    <g transform="translate(42 18)">
+      <circle cx="25" cy="27" r="20" fill="#2563eb"/>
+      <text x="25" y="31" class="step">1</text>
+      <text x="64" y="22" class="step-title">Application chooses when to load</text>
+      <text x="64" y="42" class="step-subtitle-start">layout or consent boundary</text>
+    </g>
+    <line x1="344" y1="46" x2="391" y2="46" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+    <g transform="translate(410 18)">
+      <circle cx="25" cy="27" r="20" fill="#0f766e"/>
+      <text x="25" y="31" class="step">2</text>
+      <text x="64" y="22" class="step-title">Browser loads first-party /b.js</text>
+      <text x="64" y="42" class="step-subtitle-start">static file, asset host, or app route</text>
+    </g>
+    <line x1="748" y1="46" x2="795" y2="46" stroke="#94a3b8" stroke-width="1.8" marker-end="url(#arrow)"/>
+    <g transform="translate(814 18)">
+      <circle cx="25" cy="27" r="20" fill="#b45309"/>
+      <text x="25" y="31" class="step">3</text>
+      <text x="64" y="22" class="step-title">Agent sends same-origin POST</text>
+      <text x="64" y="42" class="step-subtitle-start">/telemetry/events · text/plain · ≤ 1 KB</text>
+    </g>
+  </g>
+
+  <!-- Scenario 1 -->
+  <g transform="translate(40 205)">
+    <rect width="1120" height="220" rx="14" class="panel"/>
+    <text x="24" y="31" class="panel-title">Scenario 1 — Direct Node or hosting-platform connection</text>
+    <text x="24" y="51" class="panel-subtitle">No reverse proxy is required. The host resolves the peer from its trusted socket or platform request context.</text>
+
+    <g transform="translate(25 83)">
+      <rect width="168" height="82" rx="9" fill="#2563eb"/>
+      <text x="84" y="35" class="box-title">Browser agent</text>
+      <text x="84" y="56" class="box-subtitle">page · navigation · download</text>
+    </g>
+    <path d="M193 124 H256" class="arrow"/>
+    <text x="224" y="113" class="arrow-label">POST</text>
+
+    <g transform="translate(258 83)">
+      <rect width="183" height="82" rx="9" fill="#0f766e"/>
+      <text x="91.5" y="31" class="box-title">Host trust boundary</text>
+      <text x="91.5" y="51" class="box-subtitle">socket peer or platform facts</text>
+      <text x="91.5" y="67" class="box-subtitle">no arbitrary forwarding header</text>
+    </g>
+    <path d="M441 124 H504" class="trust-arrow"/>
+    <text x="472" y="74" class="trust-label">resolved clientIp + country?</text>
+
+    <g transform="translate(506 83)">
+      <rect width="196" height="82" rx="9" fill="#7c3aed"/>
+      <text x="98" y="30" class="box-title">TanStack route</text>
+      <text x="98" y="50" class="box-subtitle">telemetry/events.ts</text>
+      <text x="98" y="67" class="box-subtitle">createAnalyticsEventHandler()</text>
+    </g>
+    <path d="M702 124 H765" class="arrow"/>
+
+    <g transform="translate(767 83)">
+      <rect width="182" height="82" rx="9" fill="#b45309"/>
+      <text x="91" y="31" class="box-title">Portable runtime</text>
+      <text x="91" y="51" class="box-subtitle">validate · hash · suppress</text>
+      <text x="91" y="67" class="box-subtitle">@byline/analytics</text>
+    </g>
+    <path d="M949 124 H1007" class="arrow"/>
+
+    <g transform="translate(1009 83)">
+      <rect width="86" height="82" rx="9" fill="#334155"/>
+      <text x="43" y="32" class="box-title">SQL</text>
+      <text x="43" y="52" class="box-subtitle">Postgres</text>
+      <text x="43" y="68" class="box-subtitle">or MySQL</text>
+    </g>
+  </g>
+
+  <!-- Scenario 2 -->
+  <g transform="translate(40 445)">
+    <rect width="1120" height="220" rx="14" class="panel"/>
+    <text x="24" y="31" class="panel-title">Scenario 2 — Application-owned trusted reverse proxy</text>
+    <text x="24" y="51" class="panel-subtitle">nginx or an equivalent proxy overwrites optional Byline headers and prevents clients from reaching Node directly.</text>
+
+    <g transform="translate(25 83)">
+      <rect width="168" height="82" rx="9" fill="#2563eb"/>
+      <text x="84" y="35" class="box-title">Browser agent</text>
+      <text x="84" y="56" class="box-subtitle">POST /telemetry/events</text>
+    </g>
+    <path d="M193 124 H279" class="arrow"/>
+
+    <g transform="translate(281 83)">
+      <rect width="205" height="82" rx="9" fill="#0f766e"/>
+      <text x="102.5" y="30" class="box-title">Trusted nginx proxy</text>
+      <text x="102.5" y="50" class="box-subtitle">rate limit · body limit</text>
+      <text x="102.5" y="67" class="box-subtitle">overwrite inbound client headers</text>
+    </g>
+    <path d="M486 124 H572" class="trust-arrow"/>
+    <text x="529" y="74" class="trust-label">overwrites X-Byline-* (IP + country?)</text>
+
+    <g transform="translate(574 83)">
+      <rect width="202" height="82" rx="9" fill="#7c3aed"/>
+      <text x="101" y="30" class="box-title">Node / TanStack route</text>
+      <text x="101" y="50" class="box-subtitle">trustedAnalyticsHeaders()</text>
+      <text x="101" y="67" class="box-subtitle">/telemetry/events</text>
+    </g>
+    <path d="M776 124 H845" class="arrow"/>
+
+    <g transform="translate(847 83)">
+      <rect width="162" height="82" rx="9" fill="#b45309"/>
+      <text x="81" y="31" class="box-title">Analytics runtime</text>
+      <text x="81" y="52" class="box-subtitle">never stores raw IP</text>
+    </g>
+    <path d="M1009 124 H1039" class="arrow"/>
+
+    <g transform="translate(1041 83)">
+      <rect width="54" height="82" rx="9" fill="#334155"/>
+      <text x="27" y="35" class="box-title">SQL</text>
+      <text x="27" y="56" class="box-subtitle">store</text>
+    </g>
+  </g>
+
+  <!-- Scenario 3 -->
+  <g transform="translate(40 685)">
+    <rect width="1120" height="244" rx="14" class="panel"/>
+    <text x="24" y="31" class="panel-title">Scenario 3 — Cloudflare in front of nginx</text>
+    <text x="24" y="51" class="panel-subtitle">Each hop trusts only its known upstream. nginx normalizes verified Cloudflare metadata before Node sees the request.</text>
+
+    <g transform="translate(19 85)">
+      <rect width="137" height="82" rx="9" fill="#2563eb"/>
+      <text x="68.5" y="35" class="box-title">Browser agent</text>
+      <text x="68.5" y="56" class="box-subtitle">same-origin POST</text>
+    </g>
+    <path d="M156 126 H193" class="arrow"/>
+
+    <g transform="translate(195 85)">
+      <rect width="166" height="82" rx="9" fill="#ea580c"/>
+      <text x="83" y="29" class="box-title">Cloudflare edge</text>
+      <text x="83" y="49" class="box-subtitle">optional rate limit</text>
+      <text x="83" y="66" class="box-subtitle">bypass HTML cache</text>
+    </g>
+    <path d="M361 126 H403" class="trust-arrow"/>
+    <text x="382" y="76" class="trust-label">verified CF-* (IP + country?)</text>
+
+    <g transform="translate(405 85)">
+      <rect width="190" height="82" rx="9" fill="#0f766e"/>
+      <text x="95" y="29" class="box-title">nginx origin proxy</text>
+      <text x="95" y="49" class="box-subtitle">trust Cloudflare IP ranges</text>
+      <text x="95" y="66" class="box-subtitle">normalize $remote_addr</text>
+    </g>
+    <path d="M595 126 H637" class="trust-arrow"/>
+    <text x="616" y="76" class="trust-label">overwrites X-Byline-* headers</text>
+
+    <g transform="translate(639 85)">
+      <rect width="175" height="82" rx="9" fill="#7c3aed"/>
+      <text x="87.5" y="29" class="box-title">TanStack route</text>
+      <text x="87.5" y="49" class="box-subtitle">trusted header resolver</text>
+      <text x="87.5" y="66" class="box-subtitle">/telemetry/events</text>
+    </g>
+    <path d="M814 126 H852" class="arrow"/>
+
+    <g transform="translate(854 85)">
+      <rect width="151" height="82" rx="9" fill="#b45309"/>
+      <text x="75.5" y="31" class="box-title">Analytics runtime</text>
+      <text x="75.5" y="52" class="box-subtitle">daily HMAC identity</text>
+    </g>
+    <path d="M1005 126 H1039" class="arrow"/>
+
+    <g transform="translate(1041 85)">
+      <rect width="54" height="82" rx="9" fill="#334155"/>
+      <text x="27" y="35" class="box-title">SQL</text>
+      <text x="27" y="56" class="box-subtitle">store</text>
+    </g>
+
+    <text x="24" y="204" class="note-strong">Trust rule:</text>
+    <text x="92" y="204" class="note">the origin rejects direct public access; nginx accepts Cloudflare identity headers only from current Cloudflare networks.</text>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(56 967)">
+    <line x1="0" y1="0" x2="38" y2="0" class="arrow"/>
+    <text x="50" y="4" class="legend">HTTP/event processing</text>
+    <line x1="205" y1="0" x2="243" y2="0" class="trust-arrow"/>
+    <text x="255" y="4" class="legend">trusted request facts (country is optional)</text>
+    <rect x="550" y="-10" width="14" height="14" rx="3" fill="#7c3aed"/>
+    <text x="575" y="4" class="legend">application-owned route boundary</text>
+    <text x="827" y="4" class="legend">The portable packages require no particular proxy.</text>
+  </g>
+</svg>

@@ -22,7 +22,7 @@
   "scripts": {
     "dev": "vite dev --port 5173",
     "build": "vite build",
-    "preview": "vite preview --port 5173",
+    "preview": "vite preview --mode development --port 5173",
     "start": "NODE_ENV=production PORT=5173 node --env-file=.env.local .output/server/index.mjs",
     "byline:generate": "tsx byline/scripts/generate-types.ts",
     "byline:generate:check": "tsx byline/scripts/generate-types.ts --check",
@@ -39,6 +39,8 @@
   "dependencies": {
     "@byline/admin": "workspace:*",
     "@byline/ai": "workspace:*",
+    "@byline/analytics": "workspace:*",
+    "@byline/analytics-postgres": "workspace:*",
     "@byline/auth": "workspace:*",
     "@byline/client": "workspace:*",
     "@byline/core": "workspace:*",
@@ -64,6 +66,7 @@
     "mdast-util-to-string": "^4.0.0",
     "negotiator": "^1.1.0",
     "nitro": "npm:nitro-nightly@3.0.260522-beta",
+    "pino": "^10.3.1",
     "prism-react-renderer": "^2.4.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -75,6 +78,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.9",
+    "@byline/analytics-agent": "workspace:*",
     "@byline/db-mysql": "workspace:*",
     "@byline/search-mysql": "workspace:*",
     "@playwright/test": "^1.62.1",

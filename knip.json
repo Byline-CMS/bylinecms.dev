@@ -11,6 +11,7 @@
         "src/client.tsx",
         "src/router.tsx",
         "src/routes/**/*.{ts,tsx}",
+        "src/**/*.test.*.{ts,tsx}",
         "byline/*.{ts,tsx}",
         "byline/seeds/**/*.ts",
         "byline/scripts/**/*.ts",
@@ -40,6 +41,14 @@
       "project": ["src/**", "tests/**"]
     },
     "packages/search-mysql": {
+      "entry": ["src/*.ts", "src/**/*.test.node.ts", "tests/**/*.ts"],
+      "project": ["src/**", "tests/**"]
+    },
+    "packages/analytics-postgres": {
+      "entry": ["src/*.ts", "src/**/*.test.node.ts", "tests/**/*.ts"],
+      "project": ["src/**", "tests/**"]
+    },
+    "packages/analytics-mysql": {
       "entry": ["src/*.ts", "src/**/*.test.node.ts", "tests/**/*.ts"],
       "project": ["src/**", "tests/**"]
     },

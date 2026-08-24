@@ -11,9 +11,10 @@ Companions:
 - [Client SDK API](../10-api-reference/04-client-sdk.md) — scheduling a publication is a `CollectionHandle` operation alongside reads and writes.
 - [Authentication and authorization](../07-auth-and-security/01-authn-authz.md) — scheduling captures the same collection abilities that an immediate publish requires.
 - [Transactions](../03-architecture/03-transactions.md) — the ambient transaction that keeps a publication and its schedule row consistent.
-- [Testing](../12-testing.md) — the integration suites that exercise the scheduler against real PostgreSQL and MySQL.
+- [Testing](../13-testing.md) — the integration suites that exercise the scheduler against real PostgreSQL and MySQL.
+- [Analytics](../12-analytics/index.md) — the analytics rollup and retention task built on the same recurring-task primitive.
 
-Byline runs recurring background work — publishing a document at a future instant, pruning expired data, or implementing a future analytics rollup — inside the same Node process that serves requests. There is no queue, no worker fleet, and no second deployment to provision. Read this section when you want to enable scheduled publication, register a recurring task of your own, or understand what an installation must keep running for either to work.
+Byline runs recurring background work — publishing a document at a future instant, pruning expired data, or rolling analytics events into bounded daily aggregates — inside the same Node process that serves requests. There is no queue, no worker fleet, and no second deployment to provision. Read this section when you want to enable scheduled publication, register a recurring task of your own, or understand what an installation must keep running for either to work.
 
 Two things ship in this section. The **recurring-task scheduler** is the general primitive: you declare a task, the host starts a ticker, and the database decides which application instance owns each due run. **Scheduled publication** is the first consumer built on it: an editor picks a future instant, and the document moves through Byline's normal workflow transition to `published` when that instant arrives.
 
@@ -28,7 +29,7 @@ Four terms define the subsystem:
 
 ## Why sweeps rather than a queue
 
-Scheduled publication has the shape this scheduler is designed for: its durable source of truth is normal domain data, rerunning it is safe, and a missed run is recovered by a later one. Its task reads the schedule table rather than consuming serialized jobs. Future consumers can use the same model — for example, an analytics rollup could derive pending work from an event table. Work of this kind does not need a serialized payload, a per-item retry policy, a dead-letter queue, or a worker to deliver it.
+Scheduled publication and analytics maintenance have the shape this scheduler is designed for: their durable sources of truth are normal domain data, rerunning them is safe, and a missed run is recovered by a later one. Scheduled publication reads the schedule table rather than consuming serialized jobs. Analytics derives pending complete UTC days from its event table and rollup cursor. Work of this kind does not need a serialized payload, a per-item retry policy, a dead-letter queue, or a worker to deliver it.
 
 That shape is what makes an in-process ticker sufficient. Byline deliberately does not ship a queue, and a future one would complement this scheduler rather than replace it — it would exist for work that genuinely cannot be expressed as a convergent sweep, such as ordered external delivery where every individual attempt must be preserved.
 

@@ -48,12 +48,14 @@ import { i18nConfig, isRoutableLocale } from '@/i18n/i18n-config'
  *   - `_serverFn`         → TanStack Start server functions (default base)
  *   - `_build`            → TanStack Start build assets (default base)
  *   - `uploads`           → local storage provider (served in `server.ts`)
+ *   - `telemetry`         → application-owned analytics event ingress
  */
 const NON_LOCALIZED_ROUTE_PATHS = [routes.admin, routes.api, routes.signIn] as const
 
 export const NON_LOCALIZED_SEGMENTS: ReadonlySet<string> = new Set([
   '_serverFn',
   '_build',
+  'telemetry',
   'uploads',
 ])
 

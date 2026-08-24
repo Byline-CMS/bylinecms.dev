@@ -9,7 +9,7 @@ summary: "Clone the Byline CMS repo, provision PostgreSQL, seed the database, an
 Companions:
 - [Configuration](./03-configuration.md) — the server, admin, schema, and public files you will edit after the reference application is running.
 - [CLI](./01-cli.md) — the alternative path for installing Byline into an existing TanStack Start application.
-- [Testing](../12-testing.md) — the database setup, suite boundaries, and commands used to verify repository changes.
+- [Testing](../13-testing.md) — the database setup, suite boundaries, and commands used to verify repository changes.
 
 By the end of this guide you will have the Byline reference application (`apps/webapp`) running locally against a seeded PostgreSQL database, viewable at `http://localhost:5173/`. It is the quickest way to see a working Byline installation.
 
