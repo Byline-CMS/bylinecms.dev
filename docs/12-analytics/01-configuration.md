@@ -1,6 +1,6 @@
 ---
 title: "Analytics configuration"
-path: "analytics/configuration"
+path: "analytics-configuration"
 summary: "How to select an analytics database adapter, run its migrations, register the portable runtime, and schedule maintenance."
 ---
 

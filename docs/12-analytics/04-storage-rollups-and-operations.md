@@ -1,6 +1,6 @@
 ---
 title: "Analytics storage, rollups, and operations"
-path: "analytics/storage-rollups-and-operations"
+path: "storage-rollups-and-operations"
 summary: "How analytics protects visitor identity, combines raw events with daily rollups, applies retention, and exposes operational signals."
 ---
 

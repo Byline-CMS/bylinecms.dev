@@ -1,6 +1,6 @@
 ---
 title: "Analytics browser agent and consent"
-path: "analytics/browser-agent-and-consent"
+path: "browser-agent-and-consent"
 summary: "How an application serves or bundles the analytics collector, selects its ingest endpoint, reports SPA navigations, and controls consent."
 ---
 

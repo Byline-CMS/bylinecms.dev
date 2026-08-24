@@ -1,6 +1,6 @@
 ---
 title: "Analytics ingest and deployment"
-path: "analytics/ingest-and-deployment"
+path: "ingest-and-deployment"
 summary: "How an application mounts analytics ingest and supplies trusted request facts with no required proxy topology."
 ---
 
