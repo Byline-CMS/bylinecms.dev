@@ -1,5 +1,23 @@
 # @byline/admin
 
+## 4.16.0
+
+### Minor Changes
+
+- Analytics
+- 4b94573: Add the portable privacy-focused analytics contract, browser agent, PostgreSQL and MySQL stores with independent numbered migrations, and the TanStack Start admin integration.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [4b94573]
+  - @byline/analytics@4.16.0
+  - @byline/analytics-agent@4.16.0
+  - @byline/auth@4.16.0
+  - @byline/core@4.16.0
+  - @byline/i18n@4.16.0
+  - @byline/ui@4.16.0
+
 ## 4.15.0
 
 ### Minor Changes

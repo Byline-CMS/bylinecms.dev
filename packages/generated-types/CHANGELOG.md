@@ -1,5 +1,11 @@
 # @byline/generated-types
 
+## 4.16.0
+
+### Minor Changes
+
+- Analytics
+
 ## 4.15.0
 
 ### Minor Changes

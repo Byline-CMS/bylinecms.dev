@@ -1,5 +1,16 @@
 # @byline/storage-s3
 
+## 4.16.0
+
+### Minor Changes
+
+- Analytics
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@4.16.0
+
 ## 4.15.0
 
 ### Minor Changes
