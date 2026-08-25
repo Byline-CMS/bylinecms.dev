@@ -210,6 +210,16 @@ export function DocumentActions({
     }
   }
 
+  // Whether the ellipsis menu has anything to show. Every entry below is
+  // conditional, so with no available action the trigger would open an empty
+  // menu.
+  const hasAnyAction =
+    schedulingActions.length > 0 ||
+    copyToLocaleAvailable ||
+    deleteLocaleAvailable ||
+    onDuplicate != null ||
+    onDelete != null
+
   const handleOnDelete = () => {
     setShowDeleteConfirm(false)
     if (onDelete) {
@@ -298,25 +308,26 @@ export function DocumentActions({
 
   return (
     <>
-      <DropdownComponent.Root>
-        <DropdownComponent.Trigger
-          render={<IconButton variant="text" intent="noeffect" size="sm" />}
-        >
-          <EllipsisIcon
-            className={cx('byline-form-actions-icon', styles.icon)}
-            width="15px"
-            height="15px"
-          />
-        </DropdownComponent.Trigger>
-
-        <DropdownComponent.Portal>
-          <DropdownComponent.Content
-            className={cx('byline-form-actions-menu', styles.menu)}
-            align="end"
-            data-side="top"
-            sideOffset={10}
+      {hasAnyAction && (
+        <DropdownComponent.Root>
+          <DropdownComponent.Trigger
+            render={<IconButton variant="text" intent="noeffect" size="sm" />}
           >
-            {/*{publishedVersion && (
+            <EllipsisIcon
+              className={cx('byline-form-actions-icon', styles.icon)}
+              width="15px"
+              height="15px"
+            />
+          </DropdownComponent.Trigger>
+
+          <DropdownComponent.Portal>
+            <DropdownComponent.Content
+              className={cx('byline-form-actions-menu', styles.menu)}
+              align="end"
+              data-side="top"
+              sideOffset={10}
+            >
+              {/*{publishedVersion && (
               <>
                 <DropdownComponent.Item onClick={onUnpublish}>
                   <div className={cx('byline-form-actions-item', styles.item)}>
@@ -329,67 +340,75 @@ export function DocumentActions({
                 <DropdownComponent.Separator />
               </>
             )}*/}
-            {schedulingActions.length > 0 && (
-              <>
-                {schedulingActions.map((action) => (
-                  <DropdownComponent.Item key={action.key} onClick={action.onSelect}>
+              {schedulingActions.length > 0 && (
+                <>
+                  {schedulingActions.map((action) => (
+                    <DropdownComponent.Item key={action.key} onClick={action.onSelect}>
+                      <div className={cx('byline-form-actions-item', styles.item)}>
+                        <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
+                          <button type="button">{action.label}</button>
+                        </span>
+                      </div>
+                    </DropdownComponent.Item>
+                  ))}
+                  <DropdownComponent.Separator />
+                </>
+              )}
+              {copyToLocaleAvailable && (
+                <DropdownComponent.Item onClick={handleOpenCopyToLocale}>
+                  <div className={cx('byline-form-actions-item', styles.item)}>
+                    <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
+                      <button type="button">{t('documentActions.copyToLocaleMenuItem')}</button>
+                    </span>
+                  </div>
+                </DropdownComponent.Item>
+              )}
+              {deleteLocaleAvailable && (
+                <DropdownComponent.Item onClick={handleOpenDeleteLocale}>
+                  <div className={cx('byline-form-actions-item', styles.item)}>
+                    <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
+                      <button type="button">{t('documentActions.deleteLocale.menuItem')}</button>
+                    </span>
+                  </div>
+                </DropdownComponent.Item>
+              )}
+              {onDuplicate && (
+                <DropdownComponent.Item onClick={handleOpenDuplicate}>
+                  <div className={cx('byline-form-actions-item', styles.item)}>
+                    <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
+                      <button type="button">{t('common.actions.duplicate')}</button>
+                    </span>
+                  </div>
+                </DropdownComponent.Item>
+              )}
+              {onDelete && (
+                <>
+                  <DropdownComponent.Separator />
+                  <DropdownComponent.Item
+                    onClick={() => {
+                      setShowDeleteConfirm(true)
+                    }}
+                  >
                     <div className={cx('byline-form-actions-item', styles.item)}>
+                      <span className={cx('byline-form-actions-item-icon', styles['item-icon'])}>
+                        <DeleteIcon width="16px" height="16px" />
+                      </span>
                       <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                        <button type="button">{action.label}</button>
+                        <button
+                          type="button"
+                          className={cx('byline-form-actions-delete', styles.delete)}
+                        >
+                          {t('common.actions.delete')}
+                        </button>
                       </span>
                     </div>
                   </DropdownComponent.Item>
-                ))}
-                <DropdownComponent.Separator />
-              </>
-            )}
-            {copyToLocaleAvailable && (
-              <DropdownComponent.Item onClick={handleOpenCopyToLocale}>
-                <div className={cx('byline-form-actions-item', styles.item)}>
-                  <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                    <button type="button">{t('documentActions.copyToLocaleMenuItem')}</button>
-                  </span>
-                </div>
-              </DropdownComponent.Item>
-            )}
-            {deleteLocaleAvailable && (
-              <DropdownComponent.Item onClick={handleOpenDeleteLocale}>
-                <div className={cx('byline-form-actions-item', styles.item)}>
-                  <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                    <button type="button">{t('documentActions.deleteLocale.menuItem')}</button>
-                  </span>
-                </div>
-              </DropdownComponent.Item>
-            )}
-            {onDuplicate && (
-              <DropdownComponent.Item onClick={handleOpenDuplicate}>
-                <div className={cx('byline-form-actions-item', styles.item)}>
-                  <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                    <button type="button">{t('common.actions.duplicate')}</button>
-                  </span>
-                </div>
-              </DropdownComponent.Item>
-            )}
-            <DropdownComponent.Separator />
-            <DropdownComponent.Item
-              onClick={() => {
-                setShowDeleteConfirm(true)
-              }}
-            >
-              <div className={cx('byline-form-actions-item', styles.item)}>
-                <span className={cx('byline-form-actions-item-icon', styles['item-icon'])}>
-                  <DeleteIcon width="16px" height="16px" />
-                </span>
-                <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                  <button type="button" className={cx('byline-form-actions-delete', styles.delete)}>
-                    {t('common.actions.delete')}
-                  </button>
-                </span>
-              </div>
-            </DropdownComponent.Item>
-          </DropdownComponent.Content>
-        </DropdownComponent.Portal>
-      </DropdownComponent.Root>
+                </>
+              )}
+            </DropdownComponent.Content>
+          </DropdownComponent.Portal>
+        </DropdownComponent.Root>
+      )}
 
       <Modal
         isOpen={showDeleteConfirm}
