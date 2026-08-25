@@ -137,6 +137,20 @@ export interface FormRendererProps {
    */
   useAsPath?: string
   /**
+   * Whether the system path widget may render in the sidebar. Defaults to
+   * `true`, which preserves the historical behaviour of showing the widget
+   * whenever `useAsPath` is declared or the document envelope carries a
+   * `path`. Set `false` for a resource whose path is internal metadata and
+   * must never be presented or edited.
+   */
+  showPath?: boolean
+  /**
+   * Explicit form heading, used verbatim. Overrides both `useAsTitle`'s live
+   * value and the create/edit wording derived from `mode` — for a resource
+   * whose identity does not change when it is first materialised.
+   */
+  heading?: string
+  /**
    * Opts the available-locales widget into the sidebar (below the path
    * widget). Sourced from `CollectionDefinition.advertiseLocales` by the
    * caller. When true, one checkbox per content locale renders, reconciled
@@ -203,6 +217,8 @@ const FormContent = ({
   adminConfig,
   useAsTitle,
   useAsPath,
+  showPath = true,
+  heading,
   advertiseLocales,
   tree,
   headingLabel,
@@ -336,7 +352,8 @@ const FormContent = ({
 
   // Live document heading — tracks the useAsTitle field as the user types
   const liveTitle = useFieldValue<string>(useAsTitle ?? '')
-  const heading =
+  const computedHeading =
+    heading ||
     liveTitle ||
     (headingLabel
       ? mode === 'create'
@@ -582,7 +599,7 @@ const FormContent = ({
       aria-busy={isUploading}
     >
       <div className={cx('byline-form-heading-row', styles['heading-row'])}>
-        <h1 className={cx('byline-form-heading', styles.heading)}>{heading}</h1>
+        <h1 className={cx('byline-form-heading', styles.heading)}>{computedHeading}</h1>
         {/* Source-locale anchor indicator removed pending heading-layout work.
             To re-enable: render `<SourceLocaleBadge locale={sourceLocale} />`
             here from `initialData.sourceLocale` (mismatch-only is the intended
@@ -736,18 +753,19 @@ const FormContent = ({
           {layout.main.map((name) => renderItem(name))}
         </div>
         <div className={cx('byline-form-sidebar', styles.sidebar)}>
-          {(useAsPath ||
-            (typeof initialData?.path === 'string' && initialData.path.length > 0)) && (
-            <PathWidget
-              useAsPath={useAsPath}
-              collectionPath={collectionPath ?? ''}
-              defaultLocale={defaultLocale}
-              activeLocale={contentLocale}
-              mode={mode}
-              slugifier={pathSlugifier}
-              sourceLocked={pathSourceLocked}
-            />
-          )}
+          {showPath &&
+            (useAsPath ||
+              (typeof initialData?.path === 'string' && initialData.path.length > 0)) && (
+              <PathWidget
+                useAsPath={useAsPath}
+                collectionPath={collectionPath ?? ''}
+                defaultLocale={defaultLocale}
+                activeLocale={contentLocale}
+                mode={mode}
+                slugifier={pathSlugifier}
+                sourceLocked={pathSourceLocked}
+              />
+            )}
           {tree && mode === 'edit' && typeof initialData?.id === 'string' && (
             <TreePlacementWidget
               collectionPath={collectionPath ?? ''}
