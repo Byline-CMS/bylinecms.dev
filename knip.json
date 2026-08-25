@@ -22,8 +22,8 @@
       "project": ["src/**", "byline/**", "e2e/**"]
     },
     "packages/cli": {
-      "entry": ["src/cli.ts"],
-      "project": ["src/**"],
+      "entry": ["src/cli.ts", "tests/**/*.ts"],
+      "project": ["src/**", "tests/**"],
       "ignore": ["src/templates/**"]
     },
     "packages/db-postgres": {
@@ -32,9 +32,10 @@
         "src/database/seeds/index.ts",
         "src/database/migrate.ts",
         "src/**/tests/**/*.ts",
+        "tests/**/*.ts",
         "drizzle.config.ts"
       ],
-      "project": ["src/**"]
+      "project": ["src/**", "tests/**"]
     },
     "packages/search-postgres": {
       "entry": ["src/*.ts", "src/**/*.test.node.ts", "tests/**/*.ts"],
@@ -53,14 +54,19 @@
       "project": ["src/**", "tests/**"]
     },
     "packages/*": {
-      "entry": ["src/*.{ts,tsx}", "src/**/*.test.*.{ts,tsx}", "src/**/*.test.{ts,tsx}"],
-      "project": ["src/**"]
+      "entry": [
+        "src/*.{ts,tsx}",
+        "src/**/*.test.*.{ts,tsx}",
+        "src/**/*.test.{ts,tsx}",
+        "tests/**/*.ts"
+      ],
+      "project": ["src/**", "tests/**"]
     }
   },
   "ignoreDependencies": ["npm-run-all", "chokidar"],
   "rules": {
     "files": "off",
-    "devDependencies": "warn",
+    "devDependencies": "error",
     "exports": "off",
     "types": "off",
     "duplicates": "off",
