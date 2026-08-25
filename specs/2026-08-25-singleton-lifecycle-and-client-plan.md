@@ -652,7 +652,7 @@ write path in the system land atomically. Split it:
    | Method | Slot never saved |
    |---|---|
    | `get` | `null` |
-   | `history` | `[]` |
+   | `history` | an empty `FindResult` — `{ docs: [], meta }` echoing the requested `page` / `pageSize`, **not** a bare `[]` |
    | `findByVersion` | `null` |
    | `update` | **succeeds** — this is the materialising call |
    | `changeStatus`, `unpublish` | `ERR_NOT_FOUND` |
@@ -662,7 +662,9 @@ write path in the system land atomically. Split it:
    | `copyToLocale` | `ERR_NOT_FOUND` |
 
    Reads return empty rather than throwing, because "not configured yet" is a normal state a
-   front end must render. Mutations other than `update` throw `ERR_NOT_FOUND`
+   front end must render. Note `history` returns the paginated `FindResult` envelope in every
+   case — an unmaterialised slot yields `{ docs: [], meta }`, never a bare array, or the return
+   type is inconsistent with the signature two sections above. Mutations other than `update` throw `ERR_NOT_FOUND`
    (`packages/core/src/lib/errors.ts:181`) because they operate on a version that does not
    exist. A stale `expectedVersionId` is `ERR_CONFLICT` (line 182), not `ERR_NOT_FOUND`.
 6. It does **not** expose: `find`, `findOne`, `findById`, `findByPath`, `create`, `delete`,
