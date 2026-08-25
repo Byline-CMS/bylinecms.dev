@@ -32,8 +32,12 @@ jobs:
       - run: pnpm docs:check
       - run: pnpm lint
       - run: pnpm typecheck
-      # Dead-code guard: fails on unused production dependencies; unused
-      # files and devDependencies surface as warnings only (see knip.json).
+      # Dead-code guard: fails on unused production dependencies, which would
+      # otherwise ship to npm. Unused devDependencies surface as warnings only,
+      # and the `files` rule is off — its entry patterns did not model the
+      # repo's co-located tests, CSS modules, and icon components, so it
+      # reported ~90 mostly-false findings that nobody read (see knip.json).
+      # Both knip steps also run locally via the pre-push hook.
       - run: pnpm knip
 
       # Public-export audit. The gate above cannot see unused exported symbols

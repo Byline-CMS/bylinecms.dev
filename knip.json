@@ -59,13 +59,12 @@
   },
   "ignoreDependencies": ["npm-run-all", "chokidar"],
   "rules": {
-    "files": "warn",
+    "files": "off",
     "devDependencies": "warn",
     "exports": "off",
     "types": "off",
     "duplicates": "off",
     "enumMembers": "off",
-    "classMembers": "off",
     "binaries": "off",
     "unlisted": "off",
     "unresolved": "off"
