@@ -243,13 +243,50 @@ export interface PreviewDocument<F = any> {
 }
 
 /**
+ * Admin UI configuration consumed directly by Byline's form renderer.
+ *
+ * Collection-specific list, dashboard, and preview configuration belongs on
+ * {@link CollectionAdminConfig}; this base contains only the reusable form
+ * composition contract.
+ */
+export interface FormAdminConfig {
+  /** Named tab components. Each set is one tab bar. */
+  tabSets?: TabSetDefinition[]
+
+  /** Named horizontal-row layouts. */
+  rows?: RowDefinition[]
+
+  /** Named labelled-fieldset clusters. */
+  groups?: GroupDefinition[]
+
+  /**
+   * Composition: how the primitives above (and any raw schema fields) flow
+   * into the form's `main` and `sidebar` regions. When omitted, the
+   * renderer synthesises a default that places every schema field in
+   * `main` in declaration order.
+   */
+  layout?: LayoutDefinition
+
+  /**
+   * Per-field rendering overrides, keyed by schema path: a top-level field
+   * name (`title`) or a dotted, index-free path through `group` / `array`
+   * structure fields (`files.filesGroup.publicationFile`). Paths address
+   * field *declarations*, never item instances (no `[0]` indices), and never
+   * traverse a `blocks` field — blocks take their overrides from the
+   * blockType-keyed `AdminConfig.blockAdmin` registry instead.
+   * Placement is no longer expressed here — see the layout primitives above.
+   */
+  fields?: Record<string, FieldAdminConfig>
+}
+
+/**
  * Admin UI configuration for a collection.
  * This is the presentation/UI layer — separate from the data schema.
  *
  * Linked to a `CollectionDefinition` by `slug` matching the collection's
  * `path`.
  */
-export interface CollectionAdminConfig<T = any> {
+export interface CollectionAdminConfig<T = any> extends FormAdminConfig {
   /** Must match the `path` of the corresponding `CollectionDefinition`. */
   slug: string
 
@@ -321,34 +358,6 @@ export interface CollectionAdminConfig<T = any> {
 
   /** Default columns to show when no explicit column config is provided. */
   defaultColumns?: string[]
-
-  /** Named tab components. Each set is one tab bar. */
-  tabSets?: TabSetDefinition[]
-
-  /** Named horizontal-row layouts. */
-  rows?: RowDefinition[]
-
-  /** Named labelled-fieldset clusters. */
-  groups?: GroupDefinition[]
-
-  /**
-   * Composition: how the primitives above (and any raw schema fields) flow
-   * into the form's `main` and `sidebar` regions. When omitted, the
-   * renderer synthesises a default that places every schema field in
-   * `main` in declaration order.
-   */
-  layout?: LayoutDefinition
-
-  /**
-   * Per-field rendering overrides, keyed by schema path: a top-level field
-   * name (`title`) or a dotted, index-free path through `group` / `array`
-   * structure fields (`files.filesGroup.publicationFile`). Paths address
-   * field *declarations*, never item instances (no `[0]` indices), and never
-   * traverse a `blocks` field — blocks take their overrides from the
-   * blockType-keyed `AdminConfig.blockAdmin` registry instead.
-   * Placement is no longer expressed here — see the layout primitives above.
-   */
-  fields?: Record<string, FieldAdminConfig>
 
   /**
    * Preview URL configuration for the admin's live-preview affordance

@@ -11,8 +11,8 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type {
-  CollectionAdminConfig,
   Field,
+  FormAdminConfig,
   GroupDefinition,
   RowDefinition,
   TabSetDefinition,
@@ -124,7 +124,7 @@ export interface FormRendererProps {
   workflowStatuses?: WorkflowStatus[]
   publishedVersion?: PublishedVersionInfo | null
   initialData?: Record<string, any>
-  adminConfig?: CollectionAdminConfig
+  adminConfig?: FormAdminConfig
   /**
    * Name of the schema field to render as the live form heading.
    * Sourced from `CollectionDefinition.useAsTitle` by the caller.

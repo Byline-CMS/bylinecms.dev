@@ -11,8 +11,8 @@
 import { useMemo } from 'react'
 
 import type {
-  CollectionAdminConfig,
   Field,
+  FormAdminConfig,
   GroupDefinition,
   LayoutDefinition,
   RowDefinition,
@@ -50,7 +50,7 @@ export interface FormLayout {
  * the `seen` set guards against a config that references a row/group cycle.
  */
 export function buildFieldToTabPath(
-  adminConfig: CollectionAdminConfig | undefined,
+  adminConfig: FormAdminConfig | undefined,
   fieldByName: Map<string, Field>,
   rowByName: Map<string, RowDefinition>,
   groupByName: Map<string, GroupDefinition>
@@ -90,7 +90,7 @@ export function buildFieldToTabPath(
  * Rebuilt only when `adminConfig` / `fields` change.
  */
 export function useFormLayout(
-  adminConfig: CollectionAdminConfig | undefined,
+  adminConfig: FormAdminConfig | undefined,
   fields: Field[]
 ): FormLayout {
   const fieldByName = useMemo(() => {
