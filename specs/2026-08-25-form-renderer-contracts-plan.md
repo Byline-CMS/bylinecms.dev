@@ -60,6 +60,18 @@ Tasks 1, 3, and 4 each create a jsdom test file. Every one of them begins with t
 mock block and harness. **Repeat it verbatim in each file** — do not extract it to a shared
 helper, and do not import across test files.
 
+`FormRenderer` has three hard mount dependencies beyond its props, all unconditional. Miss
+any one and Tasks 3 and 4 fail before a single assertion runs:
+
+| Dependency | Site | Failure without it |
+|---|---|---|
+| Full `@byline/ui/react` module | `form-renderer.tsx:24` (`Alert`, `Button`, `ComboButton`) and its field/presentation subtree | "Element type is invalid" — a factory mock replaces the whole module, so anything not returned is `undefined` |
+| Registered admin config | `getAdminConfig()`, `form-renderer.tsx:279` | throws "Byline has not been configured yet" |
+| Field-services provider | `useBylineFieldServices()`, `form-renderer.tsx:271` | throws "BylineFieldServicesProvider missing" |
+
+Task 1 mounts only `DocumentActions` and does not strictly need the last two, but keep the
+harness identical across all three files rather than maintaining variants.
+
 ```tsx
 /**
  * This Source Code is subject to the terms of the Mozilla Public
@@ -71,10 +83,13 @@ helper, and do not import across test files.
 
 import { act } from 'react'
 
+import { defineAdminConfig } from '@byline/core'
 import { adminTranslations } from '@byline/i18n/admin'
 import { I18nProvider } from '@byline/i18n/react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { BylineFieldServicesProvider } from '../fields/field-services-context'
 
 // Spread the REAL uikit and override only the three primitives that make
 // assertions hard. A factory mock replaces the whole module, so anything not
@@ -114,6 +129,41 @@ vi.mock('@byline/ui/react', async (importOriginal) => {
   }
 })
 
+// Silences React's "not configured to support act(...)" warning. Copied from
+// `path-widget.test.tsx:76`.
+;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
+
+// FormRenderer calls `getAdminConfig()` unconditionally (`form-renderer.tsx:279`)
+// to resolve the path widget's slugifier. The *use* of the result is gated on
+// `useAsPath`, but the call is not — with no config registered it throws
+// "Byline has not been configured yet" and the mount fails. `AdminConfig`
+// requires only `i18n` and `collections`, so register a real one rather than
+// mocking `@byline/core`; it lives on a global, so module scope runs it once.
+defineAdminConfig({
+  i18n: {
+    admin: { defaultLocale: 'en', locales: ['en'] },
+    content: { defaultLocale: 'en', locales: ['en'] },
+  },
+  collections: [
+    {
+      path: 'pages',
+      labels: { singular: 'Page', plural: 'Pages' },
+      fields: [{ name: 'title', label: 'Title', type: 'text' }],
+    },
+  ],
+  slugifier: (value: string) => value.toLowerCase().trim().replace(/\s+/g, '-'),
+})
+
+// FormRenderer also calls `useBylineFieldServices()` unconditionally
+// (`form-renderer.tsx:271`), which throws when the provider is absent. Only
+// `getCollectionDocuments` and `uploadField` are required members; the tree
+// functions are optional. Cast the stub — these tests never invoke it, and
+// pinning the real signatures here would couple them to unrelated drift.
+const fieldServices = {
+  getCollectionDocuments: async () => ({ docs: [], total: 0 }),
+  uploadField: async () => ({}),
+} as any
+
 let container: HTMLDivElement
 let root: Root
 
@@ -139,7 +189,7 @@ const renderInProvider = (element: React.ReactNode) => {
         defaultLocale="en"
         localeDefinitions={[{ code: 'en', nativeName: 'English' }]}
       >
-        {element}
+        <BylineFieldServicesProvider services={fieldServices}>{element}</BylineFieldServicesProvider>
       </I18nProvider>
     )
   })
