@@ -11,7 +11,7 @@ than features bolted on later.
 > there is still work to do.
 > If you're interested in Byline, v4 is a solid base for evaluation and
 > for building on. Upgrading from 3.21? See the
-> [migration guide](docs/01-getting-started/03-upgrading-to-v4.md).
+> [migration guide](docs/01-getting-started/04-upgrading-to-v4.md).
 
 <img width="914" height="685" alt="byline-admin" src="https://github.com/user-attachments/assets/1d4a6a02-b847-4e66-b8c9-9fb8964a2287" />
 
@@ -42,7 +42,7 @@ For the longer story, see [docs/02-why-byline/01-mission.md](docs/02-why-byline/
 
 The docs live under [`docs/`](docs/) as a numbered, folder-per-section tree —
 itself a Byline-importable markdown repository. Each section has an `index.md`
-overview; the highlights below link straight to the per-topic references.
+overview; the table of contents below links straight to every topic reference.
 
 ### 1. [Getting Started](docs/01-getting-started/index.md)
 
@@ -50,10 +50,15 @@ overview; the highlights below link straight to the per-topic references.
   Byline to an existing TanStack Start app with `byline init` / `setup`.
 - **[Development environment](docs/01-getting-started/02-development-environment.md)**
   — clone this repo, bring up Postgres, seed, and run the example app.
-- **[Upgrading to v4](docs/01-getting-started/03-upgrading-to-v4.md)** — the
+- **[Configuration](docs/01-getting-started/03-configuration.md)** — where
+  server, admin, schema, and public client-safe configuration belongs.
+- **[Upgrading to v4](docs/01-getting-started/04-upgrading-to-v4.md)** — the
   3.21 → 4.x application migration: package alignment, route configuration,
   server-only hooks, the `@byline/client/server` + `@byline/generated-types`
   import surface, and release validation gates.
+- **[Upgrading to v4.12](docs/01-getting-started/05-upgrading-to-v4-12.md)** —
+  the 4.11 → 4.12 application migration, including renamed configuration and
+  locale properties, host-owned site URLs, and removed compatibility APIs.
 
 ### 2. [Why Byline](docs/02-why-byline/index.md)
 
@@ -63,6 +68,9 @@ overview; the highlights below link straight to the per-topic references.
 - **[Content in the Time of AI](docs/02-why-byline/02-content-in-the-time-of-ai.md)**
   — why structured content management matters more, not less, alongside
   generative AI.
+- **[Byline for Collections](docs/02-why-byline/03-byline-for-collections.md)**
+  — how Byline's versioning, workflow, and audit trail support digital
+  collections management and future institutional integrations.
 
 ### 3. [Architecture](docs/03-architecture/index.md)
 
@@ -146,6 +154,12 @@ schema versioning.
   — the two built-in physical implementations and their operational behavior.
 - **[Attachment extraction for search](docs/06-search/07-attachment-extraction.md)**
   — the planned boundary for Tika, Docling, OCR, and vision-model services.
+- **[Native search engines and backend portability](docs/06-search/08-native-engine-providers.md)**
+  — the stable search projection shared by portable SQL analysis and native
+  search engines.
+- **[Semantic discovery and institutional standards](docs/06-search/09-semantic-discovery-and-institutional-standards.md)**
+  — structured, hybrid, relationship-aware, and standards-based discovery for
+  research, library, archive, biodiversity, and cultural-heritage collections.
 
 ### 7. [Auth & Security](docs/07-auth-and-security/index.md)
 
@@ -173,9 +187,25 @@ schema versioning.
   brand-coherent UI surface: the foundational kit shared with `@infonomic/uikit`,
   the byline-prefixed cascade-layer system, and the
   `./react/{admin,fields,forms,services}` subpath exports.
-- **[Client-config Registration](docs/09-admin-ui/02-client-config-registration.md)**
-  — how the admin/editor config is registered on the client and code-split away
-  from public routes.
+- **[Admin-config Registration](docs/09-admin-ui/02-admin-config-registration.md)**
+  — why admin configuration is registered from both eager and lazy `_byline`
+  routes while remaining code-split from public routes.
+- **[Collection Groups](docs/09-admin-ui/03-collection-groups.md)** — arrange
+  dashboard collections into labelled, ordered, permission-aware groups.
+
+### 10. [API Reference](docs/10-api-reference/index.md)
+
+- **[Configuration API](docs/10-api-reference/01-configuration.md)** — exact
+  core, route, registration, getter, and server-client configuration contracts.
+- **[Collections API](docs/10-api-reference/02-collections.md)** — collection,
+  admin presentation, block, workflow, lifecycle hook, layout, column, and
+  preview contracts.
+- **[Fields API](docs/10-api-reference/03-fields.md)** — all built-in field
+  kinds, shared and type-specific options, value shapes, validation, hooks,
+  localization, and admin overrides.
+- **[Client SDK API](docs/10-api-reference/04-client-sdk.md)** — client and
+  collection-handle methods, read and write options, result envelopes, search,
+  history, audit, indexing, and document-tree contracts.
 
 ### 11. [Scheduling](docs/11-scheduling/index.md)
 
@@ -186,9 +216,24 @@ schema versioning.
   publishing a reviewed document at a future instant, and what happens when
   scheduled content is edited.
 
-### 12. [Testing](docs/12-testing.md)
+### 12. [Analytics](docs/12-analytics/index.md)
 
-Unit and integration suites, the `byline_test` database, and isolation strategy.
+- **[Analytics Configuration](docs/12-analytics/01-configuration.md)** — select
+  a database adapter, run migrations, register the runtime, and schedule
+  maintenance.
+- **[Browser Agent and Consent](docs/12-analytics/02-browser-agent-and-consent.md)**
+  — serve or bundle the collector, configure ingest and SPA navigation, and
+  control consent.
+- **[Ingest and Deployment](docs/12-analytics/03-ingest-and-deployment.md)** —
+  mount application-owned analytics ingest and provide trusted request facts.
+- **[Storage, Rollups, and Operations](docs/12-analytics/04-storage-rollups-and-operations.md)**
+  — visitor privacy, raw events, daily rollups, retention, dashboard queries,
+  and operational signals.
+
+### 13. [Testing](docs/13-testing.md)
+
+Unit and integration suites across PostgreSQL and MySQL, dedicated
+`byline_test` databases, safety guards, and isolation strategy.
 
 ## Deployment Scenarios (Current and Future)
 
