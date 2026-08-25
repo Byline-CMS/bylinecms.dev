@@ -317,6 +317,7 @@
     "packages/analytics/src/index.ts|export|ANALYTICS_DEDUPE_WINDOW_MS",
     "packages/analytics/src/index.ts|export|ANALYTICS_DEFAULT_CARDINALITY_CAP",
     "packages/analytics/src/index.ts|export|ANALYTICS_EVENT_RETENTION_DAYS",
+    "packages/analytics/src/index.ts|export|ANALYTICS_FIXED_DASHBOARD_PERIODS",
     "packages/analytics/src/index.ts|export|ANALYTICS_LONGEST_DASHBOARD_PERIOD_DAYS",
     "packages/analytics/src/index.ts|export|ANALYTICS_MAX_PATH_LENGTH",
     "packages/analytics/src/index.ts|export|ANALYTICS_MAX_TOP_LIMIT",
