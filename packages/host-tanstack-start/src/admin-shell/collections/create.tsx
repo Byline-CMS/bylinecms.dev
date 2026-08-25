@@ -105,6 +105,10 @@ export const CreateView = ({
         status: 'failed',
         message: description,
       })
+
+      // Rethrow so FormRenderer keeps the form dirty. The toast above has
+      // already told the editor what went wrong.
+      throw err
     }
   }
 

@@ -82,7 +82,7 @@ export interface SystemFieldsSubmitPayload {
 export interface FormRendererProps {
   mode: 'create' | 'edit'
   fields: Field[]
-  onSubmit: (data: any) => void
+  onSubmit: (data: any) => void | Promise<void>
   onCancel: () => void
   onStatusChange?: (nextStatus: string) => Promise<void>
   onUnpublish?: () => Promise<void>
@@ -261,6 +261,8 @@ const FormContent = ({
   const [hasChanges, setHasChanges] = useState(hasChangesFn())
   const [statusBusy, setStatusBusy] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const submittingRef = useRef(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   // Block-only "save first" guard. Set true when the editor triggers a
   // guarded action (status change, duplicate, copy-to-locale) while the form
   // is dirty — those actions operate on the saved version, so unsaved edits
@@ -396,13 +398,27 @@ const FormContent = ({
     }
   }
 
-  // Emit the payload and optimistically clear dirty state (parity with the
-  // prior submit behaviour — the host surfaces failures via toast).
+  // Await the host handler. Resolution means the save succeeded and the clean
+  // baseline can be committed; rejection preserves dirty state so the editor
+  // does not lose work and the navigation guard keeps blocking. Host handlers
+  // that surface their own toast MUST rethrow afterwards.
+  // Re-entry guard lives in a ref so the callback identity does not change
+  // mid-flight; the mirrored state drives the Save button's disabled prop.
   const submitPayload = useCallback(
-    (payload: SystemFieldsSubmitPayload) => {
-      if (onSubmit && typeof onSubmit === 'function') {
-        onSubmit(payload)
+    async (payload: SystemFieldsSubmitPayload) => {
+      if (typeof onSubmit !== 'function') return
+      if (submittingRef.current) return
+      submittingRef.current = true
+      setIsSubmitting(true)
+      try {
+        await onSubmit(payload)
         resetHasChanges()
+      } catch {
+        // Intentionally swallowed here — the host has already reported the
+        // failure to the user. Dirty state is preserved by not resetting.
+      } finally {
+        submittingRef.current = false
+        setIsSubmitting(false)
       }
     },
     [onSubmit, resetHasChanges]
@@ -499,7 +515,7 @@ const FormContent = ({
         return
       }
 
-      submitPayload(payload)
+      await submitPayload(payload)
     })()
   }
 
@@ -632,7 +648,7 @@ const FormContent = ({
             className={cx('byline-form-actions-button', styles['actions-button'])}
             size="sm"
             type="submit"
-            disabled={hasChanges === false || isUploading}
+            disabled={hasChanges === false || isUploading || isSubmitting}
           >
             {isUploading ? t('forms.actions.uploading') : t('common.actions.save')}
           </Button>
@@ -794,7 +810,7 @@ const FormContent = ({
           onConfirm={() => {
             const payload = pendingSystemFieldsSubmit
             setPendingSystemFieldsSubmit(null)
-            submitPayload(payload)
+            void submitPayload(payload)
           }}
         />
       )}
