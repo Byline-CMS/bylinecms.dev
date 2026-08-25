@@ -38,12 +38,6 @@ export type Size = 'md' | s
 export type Intent = 'primary' | t
 
 /**
- * When `true`, the button expands to fill 100% of its container width.
- * @default false
- */
-export type FullWidth = boolean
-
-/**
  * When `true`, enables a Material-style ripple animation on click/tap.
  * @default false
  */

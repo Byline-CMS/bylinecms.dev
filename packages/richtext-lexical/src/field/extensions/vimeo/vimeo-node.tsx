@@ -20,7 +20,6 @@ import type {
   EditorConfig,
   ElementFormatType,
   LexicalEditor,
-  LexicalNode,
   NodeKey,
   Spread,
 } from 'lexical'
@@ -165,8 +164,4 @@ export class VimeoNode extends DecoratorBlockNode {
 
 export function $createVimeoNode(videoID: string): VimeoNode {
   return new VimeoNode(videoID)
-}
-
-export function $isVimeoNode(node: VimeoNode | LexicalNode | null | undefined): node is VimeoNode {
-  return node instanceof VimeoNode
 }

@@ -50,12 +50,3 @@ export const loadChatConfiguration = (): ChatConfiguration | null => {
     return null
   }
 }
-
-export const clearChatConfiguration = () => {
-  if (typeof window === 'undefined') return
-  try {
-    localStorage.removeItem(STORAGE_KEY)
-  } catch (error) {
-    console.warn('Failed to clear chat configuration:', error)
-  }
-}

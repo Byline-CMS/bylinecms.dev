@@ -37,11 +37,6 @@ export function findPhase(id: PhaseId): Phase | undefined {
   return PHASES.find((p) => p.id === id)
 }
 
-export function phasesFrom(id: PhaseId): Phase[] {
-  const idx = PHASES.findIndex((p) => p.id === id)
-  return idx === -1 ? [] : PHASES.slice(idx)
-}
-
 export function phasesBetween(from: PhaseId | undefined, to: PhaseId | undefined): Phase[] {
   const fromIdx = from ? PHASES.findIndex((p) => p.id === from) : 0
   const toIdx = to ? PHASES.findIndex((p) => p.id === to) : PHASES.length - 1

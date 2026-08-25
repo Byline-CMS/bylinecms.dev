@@ -71,8 +71,6 @@ export const ENV_SPECS: readonly EnvSpec[] = [
   },
 ] as const
 
-export const ENV_KEYS: readonly EnvKey[] = ENV_SPECS.map((s) => s.key)
-
 export function envSpecsForAdapter(adapter: DatabaseAdapterId): readonly EnvSpec[] {
   return ENV_SPECS.filter((spec) => !spec.adapters || spec.adapters.includes(adapter))
 }

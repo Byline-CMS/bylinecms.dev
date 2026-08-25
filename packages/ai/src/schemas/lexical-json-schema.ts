@@ -43,14 +43,6 @@ export type JSONSchema7 = {
   [key: string]: unknown
 }
 
-/**
- * Type guard to check if a value is an object schema.
- * Inlined here to avoid circular dependency with utils.
- */
-function isObjectSchema(schema: unknown): schema is LexicalNodeSchema {
-  return typeof schema === 'object' && schema !== null && !Array.isArray(schema)
-}
-
 export interface LexicalNodeSchema extends JSONSchema7 {
   $schema?: string
   additionalProperties?: boolean
@@ -471,31 +463,4 @@ export const documentSchema: LexicalNodeSchema = {
     },
   },
   required: ['root'],
-}
-
-export const lexicalJsonSchema = (customNodes: JSONSchema7[] | undefined) => {
-  const schema = structuredClone(documentSchema)
-
-  if (Array.isArray(customNodes) && customNodes.length > 0) {
-    customNodes.forEach((nodeObj) => {
-      for (const [nodeName, nodeDefinition] of Object.entries(nodeObj)) {
-        // @ts-expect-error
-        schema.definitions[nodeName] = nodeDefinition
-
-        // @ts-expect-error
-        const rootNode = schema.definitions.RootNode
-        if (isObjectSchema(rootNode)) {
-          const children = rootNode.properties?.children
-          const items = children?.items
-          const anyOfList = (items as any)?.anyOf
-
-          if (Array.isArray(anyOfList)) {
-            anyOfList.push({ $ref: `#/definitions/${nodeName}` })
-          }
-        }
-      }
-    })
-  }
-
-  return schema
 }
