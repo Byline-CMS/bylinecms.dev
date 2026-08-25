@@ -14,6 +14,10 @@ export default defineConfig(({ mode }) => {
       hookTimeout: 60_000,
       ...(isIntegration
         ? {
+            // Loads `.env.test` before each test module imports. The suite
+            // reads its admin URLs at module scope, so this cannot wait for
+            // a `beforeAll`. See tests/_setup-env.ts.
+            setupFiles: ['./tests/_setup-env.ts'],
             fileParallelism: false,
             maxWorkers: 1,
             isolate: false,
