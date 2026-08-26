@@ -16,10 +16,41 @@ import type {
   AdminResourceConfig,
   Block,
   BlockAdminConfig,
+  CollectionAdminConfig,
   CollectionDefinition,
   CollectionGroupDefinition,
   Field,
+  SingletonAdminConfig,
 } from '../@types/index.js'
+
+type CollectionOnlyAdminKey = {
+  [Key in keyof SingletonAdminConfig<any>]-?: [
+    Exclude<SingletonAdminConfig<any>[Key], undefined>,
+  ] extends [never]
+    ? Key
+    : never
+}[keyof SingletonAdminConfig<any>] &
+  keyof CollectionAdminConfig<any>
+
+function completeCollectionOnlyAdminKeys<const Keys extends readonly CollectionOnlyAdminKey[]>(
+  keys: Keys &
+    ([Exclude<CollectionOnlyAdminKey, Keys[number]>] extends [never]
+      ? unknown
+      : { readonly __missingKeys: Exclude<CollectionOnlyAdminKey, Keys[number]> })
+): Keys {
+  return keys
+}
+
+/** Runtime counterpart to `SingletonAdminConfig`'s collection-only `never` members. */
+const COLLECTION_ONLY_ADMIN_KEYS = completeCollectionOnlyAdminKeys([
+  'columns',
+  'defaultSort',
+  'defaultColumns',
+  'itemView',
+  'itemViewSort',
+  'listView',
+  'listActions',
+])
 
 /**
  * Result of resolving a schema path against a field set — the grammar's
@@ -301,16 +332,7 @@ function validateOne(
   }
 
   if (admin.singleton === true) {
-    const collectionOnlyKeys = [
-      'columns',
-      'defaultSort',
-      'defaultColumns',
-      'itemView',
-      'itemViewSort',
-      'listView',
-      'listActions',
-    ] as const
-    for (const key of collectionOnlyKeys) {
+    for (const key of COLLECTION_ONLY_ADMIN_KEYS) {
       if (Object.hasOwn(admin, key)) {
         fail(`\`${key}\` is not allowed on a singleton admin config.`)
       }

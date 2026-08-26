@@ -538,9 +538,9 @@ export function defineAdmin<T = any>(
   config: Omit<CollectionAdminConfig<T>, 'slug' | 'singleton'>
 ): CollectionAdminConfig<T> {
   return {
+    ...config,
     singleton: false,
     slug: schema.path,
-    ...config,
   }
 }
 
@@ -553,9 +553,9 @@ export function defineSingletonAdmin<T = any>(
   config: Omit<SingletonAdminConfig<T>, 'slug' | 'singleton'>
 ): SingletonAdminConfig<T> {
   return {
+    ...config,
     singleton: true,
     slug: schema.path,
-    ...config,
   }
 }
 
