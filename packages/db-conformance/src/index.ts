@@ -23,6 +23,7 @@ import { localeFallbackSuite } from './suites/locale-fallback.js'
 import { publishSchedulesSuite } from './suites/publish-schedules.js'
 import { restoreSuite } from './suites/restore.js'
 import { schedulerSuite } from './suites/scheduler.js'
+import { singletonMappingSuite } from './suites/singleton-mapping.js'
 import { systemFieldsDirectWriteSuite } from './suites/system-fields-direct-write.js'
 import { transactionsSuite } from './suites/transactions.js'
 import { versioningSuite } from './suites/versioning.js'
@@ -54,6 +55,7 @@ export { fieldTypesSuite } from './suites/field-types.js'
 export { localeFallbackSuite } from './suites/locale-fallback.js'
 export { restoreSuite } from './suites/restore.js'
 export { schedulerSuite } from './suites/scheduler.js'
+export { singletonMappingSuite } from './suites/singleton-mapping.js'
 export { systemFieldsDirectWriteSuite } from './suites/system-fields-direct-write.js'
 export { transactionsSuite } from './suites/transactions.js'
 export { versioningSuite } from './suites/versioning.js'
@@ -176,6 +178,7 @@ export function runAdapterConformanceSuite(hooks: ConformanceHooks): void {
   localeFallbackSuite(hooks)
   auditSuite(hooks)
   countersSuite(hooks)
+  singletonMappingSuite(hooks)
   adminStoreSuite(hooks)
   if (hooks.createSchedulerStore) {
     schedulerSuite(hooks)

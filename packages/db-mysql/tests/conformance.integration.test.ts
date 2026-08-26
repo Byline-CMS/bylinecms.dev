@@ -29,6 +29,7 @@ import { createAuditQueries } from '../src/modules/audit/audit-queries.js'
 import { createCounterCommands } from '../src/modules/counters/counters-commands.js'
 import { createSchedulerStore } from '../src/modules/scheduler/scheduler-store.js'
 import { classifyError } from '../src/modules/storage/classify-error.js'
+import { SingletonCommands, SingletonQueries } from '../src/modules/storage/singletons.js'
 
 function getConnectionString(): string {
   const connectionString = process.env.BYLINE_DB_MYSQL_CONNECTION_STRING
@@ -46,6 +47,8 @@ runAdapterConformanceSuite({
     const counterCommands = createCounterCommands(testDb.pool)
     const auditCommands = createAuditCommands(testDb.dbManager)
     const auditQueries = createAuditQueries(testDb.db)
+    const singletonCommands = new SingletonCommands(testDb.dbManager)
+    const singletonQueries = new SingletonQueries(testDb.dbManager)
 
     return {
       classifyError,
@@ -53,6 +56,7 @@ runAdapterConformanceSuite({
         ...testDb.commandBuilders,
         counters: counterCommands,
         audit: auditCommands,
+        singletons: singletonCommands,
       },
       queries: {
         // `testDb.queryBuilders.collections` fully implements
@@ -63,6 +67,7 @@ runAdapterConformanceSuite({
         // unlike the Task 10A per-member composition this replaces.
         documents: testDb.queryBuilders.documents,
         audit: auditQueries,
+        singletons: singletonQueries,
       },
       withTransaction: (fn) => testDb.txManager.withTransaction(fn),
     }
