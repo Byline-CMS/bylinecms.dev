@@ -10,7 +10,7 @@ import { getTableName } from 'drizzle-orm'
 import { getTableConfig } from 'drizzle-orm/pg-core'
 import { describe, expect, it } from 'vitest'
 
-import { documentPaths, documentPublishSchedules } from './index.js'
+import { documentPaths, documentPublishSchedules, documents, singletonDocuments } from './index.js'
 
 describe('schema pins — document-path liveness', () => {
   it('pins the live-path and document-locale unique keys', () => {
@@ -118,5 +118,38 @@ describe('schema pins — scheduled publication', () => {
       const column = cfg.columns.find((candidate) => candidate.name === name)
       expect(column?.getSQLType(), name).toBe('timestamp (6) with time zone')
     }
+  })
+})
+
+describe('schema pins — singleton documents', () => {
+  it('pins the supporting document ownership key', () => {
+    const cfg = getTableConfig(documents)
+    const ownershipKey = cfg.uniqueConstraints.find(
+      (constraint) => constraint.name === 'uq_documents_collection_id_id'
+    )
+
+    expect(ownershipKey?.columns.map((column) => column.name)).toEqual(['collection_id', 'id'])
+  })
+
+  it('pins slot and document uniqueness plus collection ownership', () => {
+    const cfg = getTableConfig(singletonDocuments)
+    const collectionId = cfg.columns.find((column) => column.name === 'collection_id')
+    const documentId = cfg.columns.find((column) => column.name === 'document_id')
+    const ownershipForeignKey = cfg.foreignKeys.find(
+      (foreignKey) => foreignKey.getName() === 'fk_singleton_documents_document'
+    )
+    const reference = ownershipForeignKey?.reference()
+
+    expect(collectionId?.primary).toBe(true)
+    expect(documentId?.isUnique).toBe(true)
+    expect(reference?.columns.map((column) => column.name)).toEqual([
+      'collection_id',
+      'document_id',
+    ])
+    expect(reference?.foreignColumns.map((column) => column.name)).toEqual(['collection_id', 'id'])
+    expect(reference == null ? undefined : getTableName(reference.foreignTable)).toBe(
+      'byline_documents'
+    )
+    expect(ownershipForeignKey?.onDelete).toBe('cascade')
   })
 })

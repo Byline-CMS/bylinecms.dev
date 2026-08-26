@@ -6,7 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition, IDbAdapter } from '@byline/core'
+import type {
+  CollectionDefinition,
+  IDbAdapter,
+  ISingletonCommands,
+  ISingletonQueries,
+} from '@byline/core'
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
 
@@ -17,6 +22,7 @@ import { createAuditQueries } from './modules/audit/audit-queries.js'
 import { createCounterCommands } from './modules/counters/counters-commands.js'
 import { createSchedulerStore } from './modules/scheduler/scheduler-store.js'
 import { classifyError } from './modules/storage/classify-error.js'
+import { SingletonCommands, SingletonQueries } from './modules/storage/singletons.js'
 import {
   createCommandBuilders,
   type ReAnchorReport,
@@ -40,6 +46,8 @@ export type {
  * `IDbAdapter` and ignore the extra properties.
  */
 export interface PgAdapter extends IDbAdapter {
+  commands: IDbAdapter['commands'] & { singletons: ISingletonCommands }
+  queries: IDbAdapter['queries'] & { singletons: ISingletonQueries }
   /** The underlying Drizzle instance typed against the full schema. */
   drizzle: NodePgDatabase<typeof schema>
   /** The pg connection pool — exposed for housekeeping and teardown. */
@@ -148,6 +156,8 @@ export const pgAdapter = ({
   const queryBuilders = createQueryBuilders(db, collections, defaultContentLocale, dbManager)
   const counterCommands = createCounterCommands(db)
   const schedulerStore = createSchedulerStore(db)
+  const singletonCommands = new SingletonCommands(dbManager)
+  const singletonQueries = new SingletonQueries(dbManager)
   // Audit writes run on the DBManager so they join an ambient `withTransaction`
   // (atomic with the mutation they record); audit reads run on the pool.
   const auditCommands = createAuditCommands(dbManager)
@@ -158,10 +168,12 @@ export const pgAdapter = ({
       ...commandBuilders,
       counters: counterCommands,
       audit: auditCommands,
+      singletons: singletonCommands,
     },
     queries: {
       ...queryBuilders,
       audit: auditQueries,
+      singletons: singletonQueries,
     },
     withTransaction: (fn) => txManager.withTransaction(fn),
     drizzle: db,
