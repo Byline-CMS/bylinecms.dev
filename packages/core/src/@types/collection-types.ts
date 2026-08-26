@@ -1408,7 +1408,17 @@ export interface SingletonDefinition extends DocumentDefinitionBase {
   /** Singular display label. A singleton has no plural form. */
   label: string
 
+  /**
+   * Collection-only members remain explicit `never` properties rather than
+   * being omitted. Without them, `defineSingleton`'s generic parameter can
+   * absorb excess properties and collection-only configuration would pass at
+   * the definition site.
+   */
   labels?: never
+  /**
+   * Temporary hook-family guard. Plan 3 replaces this placeholder with the
+   * singleton-specific `beforeSave` / `afterSave` hook contract.
+   */
   hooks?: never
   useAsTitle?: never
   useAsPath?: never

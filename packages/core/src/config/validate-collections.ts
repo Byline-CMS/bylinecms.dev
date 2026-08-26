@@ -9,7 +9,13 @@
 import { isSingleton } from '../@types/collection-types.js'
 import { formatDeclarationPath, walkFieldDeclarations } from '../paths/index.js'
 import { fieldTypeToStore } from '../storage/field-store-map.js'
-import type { CollectionDefinition, Field, FieldType } from '../@types/index.js'
+import type {
+  CollectionDefinition,
+  DocumentDefinitionBase,
+  Field,
+  FieldType,
+  MultiCollectionDefinition,
+} from '../@types/index.js'
 
 /**
  * Field names that cannot be declared in a collection schema because they
@@ -56,6 +62,36 @@ const USE_AS_PATH_SOURCE_TYPES = new Set<FieldType>([
   // their string form carries a `.` which does not belong in a path segment.
   'integer',
   'counter',
+])
+
+type CollectionOnlyOption = Exclude<
+  keyof MultiCollectionDefinition,
+  keyof DocumentDefinitionBase | 'singleton' | 'label'
+>
+
+function completeCollectionOnlyOptions<const Keys extends readonly CollectionOnlyOption[]>(
+  keys: Keys &
+    ([Exclude<CollectionOnlyOption, Keys[number]>] extends [never]
+      ? unknown
+      : { readonly __missingKeys: Exclude<CollectionOnlyOption, Keys[number]> })
+): Keys {
+  return keys
+}
+
+/** Runtime counterpart to the singleton definition's collection-only `never` members. */
+const COLLECTION_ONLY_OPTIONS = completeCollectionOnlyOptions([
+  'labels',
+  'hooks',
+  'orderable',
+  'tree',
+  'useAsPath',
+  'useAsTitle',
+  'search',
+  'listSearch',
+  'advertiseLocales',
+  'showStats',
+  'linksInEditor',
+  'buildDocumentPath',
 ])
 
 /**
@@ -298,20 +334,7 @@ export function validateCollections(collections: readonly CollectionDefinition[]
 
   for (const collection of collections) {
     if (isSingleton(collection)) {
-      const forbidden = [
-        'labels',
-        'orderable',
-        'tree',
-        'useAsPath',
-        'useAsTitle',
-        'search',
-        'listSearch',
-        'advertiseLocales',
-        'showStats',
-        'linksInEditor',
-        'buildDocumentPath',
-      ] as const
-      for (const option of forbidden) {
+      for (const option of COLLECTION_ONLY_OPTIONS) {
         if ((collection as unknown as Record<string, unknown>)[option] !== undefined) {
           throw new Error(
             `Singleton "${collection.path}" sets \`${option}\`, which is a multi-document collection option. A singleton holds at most one document, so there is no list to sort, search, or paginate and no public slug. Remove \`${option}\`.`

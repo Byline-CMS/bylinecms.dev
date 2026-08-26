@@ -11,9 +11,10 @@ client, or admin behaviour.
 **Architecture:** `CollectionDefinition` becomes a discriminated union over a shared
 document base, with `defineSingleton()` as authoring sugar that stamps `singleton: true`.
 Singletons stay in the one existing `collections` tuple, so startup validation, fingerprinting,
-hook attachment, and ability registration remain a single pipeline. Cardinality is enforced
-in the database by an adapter-owned `byline_singleton_documents` mapping table, present in
-both canonical adapters and pinned by the shared conformance suite.
+and hook attachment remain a single pipeline. Multi-collection ability registration remains
+unchanged; singleton ability registration is deferred as recorded below. Cardinality is
+enforced in the database by an adapter-owned `byline_singleton_documents` mapping table,
+present in both canonical adapters and pinned by the shared conformance suite.
 
 **Tech Stack:** TypeScript, Drizzle ORM, PostgreSQL, MySQL, Vitest, Biome, pnpm/Turborepo.
 
@@ -63,8 +64,15 @@ a decision rather than a gap.
 2. **Hook-family validation against the definition discriminant** moves to Plan 3. Singleton
    hooks (`beforeSave` / `afterSave`) are defined in that plan; validating a hook family
    before the families exist has nothing to check.
+3. **Singleton ability registration** moves to Plan 3. The existing collection registrar
+   advertises seven multi-document verbs, including `create`, `delete`, and `reindex`, which
+   do not describe singleton operations. This plan therefore leaves multi-collection ability
+   registration unchanged and does not register singleton abilities. Plan 3 must add the
+   `singletons.<path>.read|update` family before non-super-admin users can access singletons;
+   `core.listAbilities()` and `core.getAbilitiesByGroup()` feed the permissions editor, so
+   this is an explicit lifecycle-plan obligation rather than an implied follow-up.
 
-A third, smaller deviation is recorded inline in Task 3: the stored resource kind is read
+A fourth, smaller deviation is recorded inline in Task 3: the stored resource kind is read
 from the existing `byline_collections.config` JSON rather than a new `kind` column, which
 keeps this plan to exactly one new table.
 

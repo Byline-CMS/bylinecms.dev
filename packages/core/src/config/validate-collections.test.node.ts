@@ -729,6 +729,16 @@ describe('validateCollections — singletons', () => {
     ).toThrow(/labels|label/i)
   })
 
+  it('rejects collection hooks on a singleton at runtime', () => {
+    expect(() =>
+      validateCollections([
+        singleton({
+          hooks: { beforeCreate: async () => {} },
+        }),
+      ])
+    ).toThrow(/hooks/)
+  })
+
   it('still applies field-level validation to a singleton', () => {
     expect(() =>
       validateCollections([

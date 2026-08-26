@@ -34,8 +34,10 @@ import type { MultiCollectionDefinition } from '../@types/index.js'
  * Keeping the seven-ability contract uniform makes the role editor UI
  * predictable and avoids hidden conditional logic downstream.
  *
- * Called from `initBylineCore()` for each declared collection. See
- * docs/07-auth-and-security/01-authn-authz.md.
+ * Called from `initBylineCore()` for each declared multi-document collection.
+ * Singleton ability registration is deferred to the singleton lifecycle plan,
+ * where its smaller verb set and `singletons.<path>` key family are defined.
+ * See docs/07-auth-and-security/01-authn-authz.md.
  */
 export function registerCollectionAbilities(
   registry: AbilityRegistry,
