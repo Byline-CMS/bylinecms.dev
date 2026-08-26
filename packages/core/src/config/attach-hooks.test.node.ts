@@ -5,6 +5,7 @@ import { resolveHooks, resolveUploadHooks } from '../@types/collection-types.js'
 import { initBylineCore } from '../core.js'
 import { commitHookAttachment, prepareHookAttachment } from './attach-hooks.js'
 import type {
+  BeforeSingletonSaveContext,
   CollectionDefinition,
   CollectionHooks,
   CollectionHooksLoader,
@@ -12,6 +13,9 @@ import type {
   IDbAdapter,
   ServerConfig,
   ServerHooksConfig,
+  SingletonDefinition,
+  SingletonHooks,
+  SingletonHooksLoader,
   UploadHooks,
   UploadHooksLoader,
 } from '../@types/index.js'
@@ -20,6 +24,15 @@ function collection(path = 'documents'): CollectionDefinition {
   return {
     path,
     labels: { singular: 'Document', plural: 'Documents' },
+    fields: [{ name: 'title', type: 'text' }],
+  }
+}
+
+function singleton(path = 'site-settings'): SingletonDefinition {
+  return {
+    singleton: true,
+    path,
+    label: 'Site settings',
     fields: [{ name: 'title', type: 'text' }],
   }
 }
@@ -58,6 +71,71 @@ function nestedUploadCollection(): {
 }
 
 describe('server hook attachment', () => {
+  it('rejects inline hooks from the wrong resource family at startup', () => {
+    const singletonDefinition = singleton()
+    singletonDefinition.hooks = { beforeCreate: () => {} } as never
+    expect(() => prepareHookAttachment({ collections: [singletonDefinition] })).toThrow(
+      /singleton.*beforeCreate/i
+    )
+
+    const collectionDefinition = collection()
+    const singletonHooks = { beforeSave: () => {} } as unknown as CollectionHooks
+    expect(() =>
+      prepareHookAttachment({
+        collections: [collectionDefinition],
+        hooks: { collections: { documents: singletonHooks } },
+      })
+    ).toThrow(/collection.*beforeSave/i)
+  })
+
+  it('accepts well-formed inline singleton hooks and resolves them unchanged', async () => {
+    const definition = singleton()
+    const hooks = {
+      beforeSave: vi.fn((_context: BeforeSingletonSaveContext) => {}),
+    } satisfies SingletonHooks
+    definition.hooks = hooks
+
+    expect(prepareHookAttachment({ collections: [definition] })).toEqual([])
+    expect(await resolveHooks(definition)).toBe(hooks)
+  })
+
+  it('defers loader-family validation until first resolution', async () => {
+    const definition = singleton()
+    const loader = vi.fn(() => Promise.resolve({ beforeCreate: () => {} }))
+    definition.hooks = loader as never
+
+    expect(() => prepareHookAttachment({ collections: [definition] })).not.toThrow()
+    await expect(resolveHooks(definition)).rejects.toThrow(/singleton.*beforeCreate/i)
+  })
+
+  it('resolves and caches a well-formed singleton hook loader', async () => {
+    const definition = singleton()
+    const hooks = {
+      beforeSave: vi.fn((_context: BeforeSingletonSaveContext) => {}),
+    } satisfies SingletonHooks
+    const loader = vi.fn<SingletonHooksLoader>(() => Promise.resolve(hooks))
+    definition.hooks = loader
+
+    expect(await resolveHooks(definition)).toBe(hooks)
+    expect(await resolveHooks(definition)).toBe(hooks)
+    expect(loader).toHaveBeenCalledOnce()
+  })
+
+  it('validates a reused loader against the current definition on every resolution', async () => {
+    const hooks = {
+      beforeSave: vi.fn((_context: BeforeSingletonSaveContext) => {}),
+    } satisfies SingletonHooks
+    const loader = vi.fn<SingletonHooksLoader>(() => Promise.resolve(hooks))
+    const singletonDefinition = singleton()
+    singletonDefinition.hooks = loader
+    const collectionDefinition = collection()
+    collectionDefinition.hooks = loader as unknown as CollectionHooksLoader
+
+    expect(await resolveHooks(singletonDefinition)).toBe(hooks)
+    await expect(resolveHooks(collectionDefinition)).rejects.toThrow(/collection.*beforeSave/i)
+    expect(loader).toHaveBeenCalledOnce()
+  })
+
   it('prepares without mutation, then attaches collection and canonical nested upload hooks', async () => {
     const { definition, nested, arrayFile, blockFile } = nestedUploadCollection()
     const collectionHooks = {} satisfies CollectionHooks

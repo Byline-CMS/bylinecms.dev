@@ -1,3 +1,4 @@
+import { assertHooksMatchDefinition } from '../@types/collection-types.js'
 import { formatDeclarationPath, walkFieldDeclarations } from '../paths/index.js'
 import type {
   CollectionDefinition,
@@ -6,11 +7,17 @@ import type {
   FileField,
   ImageField,
   ServerHooksConfig,
+  SingletonHooks,
+  SingletonHooksLoader,
   UploadHooks,
   UploadHooksLoader,
 } from '../@types/index.js'
 
-type CollectionHookValue = CollectionHooks | CollectionHooksLoader
+type DocumentHookValue =
+  | CollectionHooks
+  | CollectionHooksLoader
+  | SingletonHooks
+  | SingletonHooksLoader
 type UploadHookValue = UploadHooks | UploadHooksLoader
 type UploadField = ImageField | FileField
 
@@ -18,7 +25,7 @@ export type HookAttachmentOperation =
   | {
       kind: 'collection'
       target: CollectionDefinition
-      hooks: CollectionHookValue | undefined
+      hooks: DocumentHookValue | undefined
     }
   | {
       kind: 'upload'
@@ -26,7 +33,7 @@ export type HookAttachmentOperation =
       hooks: UploadHookValue | undefined
     }
 
-const registryCollectionHooks = new WeakMap<CollectionDefinition, CollectionHookValue>()
+const registryCollectionHooks = new WeakMap<CollectionDefinition, DocumentHookValue>()
 const registryUploadHooks = new WeakMap<UploadField, UploadHookValue>()
 
 /**
@@ -96,10 +103,12 @@ export function commitHookAttachment(operations: readonly HookAttachmentOperatio
 
 function planCollectionAttachment(
   collection: CollectionDefinition,
-  requested: CollectionHookValue | undefined,
+  requested: DocumentHookValue | undefined,
   operations: HookAttachmentOperation[]
 ): void {
   const owned = registryCollectionHooks.get(collection)
+  assertInlineHookFamily(collection, collection.hooks)
+  assertInlineHookFamily(collection, requested)
   assertOwnershipIntact(`collection "${collection.path}"`, collection.hooks, owned)
   if (requested === undefined) {
     if (owned !== undefined) {
@@ -114,6 +123,15 @@ function planCollectionAttachment(
   }
   if (requested !== collection.hooks) {
     operations.push({ kind: 'collection', target: collection, hooks: requested })
+  }
+}
+
+function assertInlineHookFamily(
+  definition: CollectionDefinition,
+  hooks: DocumentHookValue | undefined
+): void {
+  if (hooks !== undefined && typeof hooks !== 'function') {
+    assertHooksMatchDefinition(definition, hooks)
   }
 }
 

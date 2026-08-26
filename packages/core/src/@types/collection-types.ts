@@ -548,6 +548,61 @@ export interface AfterUpdateContext {
   deleteLocale?: { locale: string }
 }
 
+/** The public singleton operation represented by a save-hook invocation. */
+export type SingletonSaveOperation =
+  | { type: 'save' }
+  | { type: 'restore'; sourceVersionId: string }
+  | {
+      type: 'copyToLocale'
+      sourceLocale: string
+      targetLocale: string
+      overwrite: boolean
+    }
+
+/**
+ * Context passed to a singleton's `beforeSave` hooks.
+ *
+ * The hook runs inside the singleton transaction after the slot lock and
+ * current-value read. It may mutate `data` before the next immutable version
+ * is written. `documentId` and `originalData` are `null` only for the first
+ * materialising save.
+ *
+ * Restore carries the complete all-locale field tree with `locale: 'all'`.
+ * Copy-to-locale carries the merged target payload and the target locale's
+ * prior values; it never exposes the raw source-locale payload as `data`.
+ */
+export interface BeforeSingletonSaveContext {
+  data: Record<string, any>
+  originalData: Record<string, any> | null
+  singletonPath: string
+  locale: string
+  requestContext: RequestContext
+  isInitialSave: boolean
+  operation: SingletonSaveOperation
+  documentId: string | null
+}
+
+/**
+ * Context passed to a singleton's `afterSave` hooks after the save transaction
+ * commits. A hook failure rejects the public call but cannot roll back the
+ * persisted document version or initial slot mapping.
+ *
+ * Public-cache invalidation is deliberately host-owned rather than automatic.
+ * Hosts commonly invalidate preview caches after every save and public caches
+ * only when publication changes, using the status hooks for the latter.
+ */
+export interface AfterSingletonSaveContext {
+  data: Record<string, any>
+  originalData: Record<string, any> | null
+  singletonPath: string
+  locale: string
+  requestContext: RequestContext
+  isInitialSave: boolean
+  operation: SingletonSaveOperation
+  documentId: string
+  documentVersionId: string
+}
+
 /**
  * Context passed to `afterSystemFieldsChange` after a non-versioned document
  * path and/or advertised-locale change commits successfully.
@@ -1076,6 +1131,36 @@ export interface CollectionHooks {
   // fields runs each field's pipeline independently.
 }
 
+/** A singleton-hook function signature, parameterised by context type. */
+export type SingletonHookFn<Ctx> = (ctx: Ctx) => void | Promise<void>
+
+/** A singleton hook slot: one function or an ordered array of functions. */
+export type SingletonHookSlot<Ctx> = SingletonHookFn<Ctx> | SingletonHookFn<Ctx>[]
+
+/**
+ * Lifecycle hooks for a singleton document slot.
+ *
+ * The family describes public singleton operations rather than the internal
+ * create/update branch used to persist them. `beforeSave` runs inside the
+ * locked transaction and may mutate `data`; `afterSave` runs only after that
+ * transaction commits. Read, status, and unpublish hooks retain the shared
+ * document contracts.
+ */
+export interface SingletonHooks {
+  /** Runs for every singleton save, including initial materialisation. */
+  beforeSave?: SingletonHookSlot<BeforeSingletonSaveContext>
+  /** Runs after every singleton save commits. See its cache-invalidation JSDoc. */
+  afterSave?: SingletonHookSlot<AfterSingletonSaveContext>
+
+  beforeStatusChange?: SingletonHookSlot<StatusChangeContext>
+  afterStatusChange?: SingletonHookSlot<StatusChangeContext>
+  beforeUnpublish?: SingletonHookSlot<BeforeUnpublishContext>
+  afterUnpublish?: SingletonHookSlot<AfterUnpublishContext>
+
+  beforeRead?: BeforeReadHookSlot
+  afterRead?: SingletonHookSlot<AfterReadContext>
+}
+
 /**
  * A lazy loader for a collection's hooks — the function form of
  * `CollectionDefinition.hooks`. Returns the `CollectionHooks` object, or a
@@ -1088,6 +1173,11 @@ export interface CollectionHooks {
  * imports may still become browser chunks. Register hooks that import
  * server-only code through `ServerConfig.hooks.collections` from a server-only
  * entry instead.
+ *
+ * The loader remains lazy, so its returned family cannot be inspected during
+ * startup. A mismatched family fails on first lifecycle use instead. The
+ * import result is cached, but {@link resolveHooks} repeats family validation
+ * for the current definition on every call, including cache hits.
  *
  * @example
  * // docs.schema.ts — only for isomorphic-safe hooks
@@ -1104,10 +1194,66 @@ export interface CollectionHooks {
  */
 export type CollectionHooksLoader = () => Promise<CollectionHooks | { default: CollectionHooks }>
 
-const resolvedHooksCache = new WeakMap<CollectionHooksLoader, CollectionHooks>()
+/**
+ * A lazy loader for a singleton's hooks.
+ *
+ * Loaders remain lazy: their returned family is validated on first lifecycle
+ * use, not at startup, because eagerly importing server hook modules would
+ * defeat the loader boundary. The import result is cached by loader identity,
+ * but family validation still runs against the current definition on every
+ * {@link resolveHooks} call so one reused loader cannot bypass the kind check.
+ */
+export type SingletonHooksLoader = () => Promise<SingletonHooks | { default: SingletonHooks }>
+
+type ResolvedDocumentHooks = CollectionHooks & SingletonHooks
+type DocumentHooksLoader = CollectionHooksLoader | SingletonHooksLoader
+
+const resolvedHooksCache = new WeakMap<DocumentHooksLoader, ResolvedDocumentHooks>()
+
+const COLLECTION_ONLY_HOOK_NAMES = [
+  'beforeCreate',
+  'afterCreate',
+  'beforeUpdate',
+  'afterUpdate',
+  'afterSystemFieldsChange',
+  'beforeDelete',
+  'afterDelete',
+  'afterTreeChange',
+] as const satisfies readonly (keyof CollectionHooks)[]
+
+const SINGLETON_ONLY_HOOK_NAMES = [
+  'beforeSave',
+  'afterSave',
+] as const satisfies readonly (keyof SingletonHooks)[]
 
 /**
- * Resolve a collection's `hooks` to a concrete `CollectionHooks` object.
+ * Assert that an inspected hook object belongs to the definition's resource
+ * family. Inline objects are checked during startup attachment; lazily loaded
+ * objects are checked by {@link resolveHooks} on every resolution.
+ */
+export function assertHooksMatchDefinition(
+  definition: CollectionDefinition,
+  hooks: CollectionHooks | SingletonHooks
+): void {
+  const record = hooks as Record<string, unknown>
+  if (isSingleton(definition)) {
+    for (const name of COLLECTION_ONLY_HOOK_NAMES) {
+      if (record[name] !== undefined) {
+        throw new Error(`Singleton "${definition.path}" cannot use collection hook "${name}".`)
+      }
+    }
+    return
+  }
+
+  for (const name of SINGLETON_ONLY_HOOK_NAMES) {
+    if (record[name] !== undefined) {
+      throw new Error(`Collection "${definition.path}" cannot use singleton hook "${name}".`)
+    }
+  }
+}
+
+/**
+ * Resolve a document definition's `hooks` to a concrete, validated hook object.
  *
  * - The inline-object form (`hooks: { … }`) is returned as-is.
  * - The loader form (`hooks: () => import('./docs.hooks.js')`) is invoked
@@ -1116,18 +1262,33 @@ const resolvedHooksCache = new WeakMap<CollectionHooksLoader, CollectionHooks>()
  *   through here, so a loader's dynamic `import()` runs at most once per
  *   process regardless of how many documents flow through it.
  *
+ * Inline families are also validated during startup attachment. A loader
+ * cannot be inspected without importing it, so a mismatched loader fails on
+ * first lifecycle use rather than at boot. Validation runs on every call,
+ * including cache hits, against the current definition.
+ *
  * Returns `undefined` when no hooks are declared.
  */
 export async function resolveHooks(
   definition: CollectionDefinition
-): Promise<CollectionHooks | undefined> {
-  const hooks = definition.hooks
-  if (typeof hooks !== 'function') return hooks
-  const cached = resolvedHooksCache.get(hooks)
-  if (cached) return cached
-  const loaded = await hooks()
-  const resolved = 'default' in loaded ? loaded.default : loaded
-  resolvedHooksCache.set(hooks, resolved)
+): Promise<ResolvedDocumentHooks | undefined> {
+  const hooks = definition.hooks as
+    | CollectionHooks
+    | SingletonHooks
+    | DocumentHooksLoader
+    | undefined
+  if (typeof hooks !== 'function') {
+    if (hooks !== undefined) assertHooksMatchDefinition(definition, hooks)
+    return hooks as ResolvedDocumentHooks | undefined
+  }
+
+  let resolved = resolvedHooksCache.get(hooks)
+  if (resolved === undefined) {
+    const loaded = await hooks()
+    resolved = ('default' in loaded ? loaded.default : loaded) as ResolvedDocumentHooks
+    resolvedHooksCache.set(hooks, resolved)
+  }
+  assertHooksMatchDefinition(definition, resolved)
   return resolved
 }
 
@@ -1409,17 +1570,20 @@ export interface SingletonDefinition extends DocumentDefinitionBase {
   label: string
 
   /**
+   * Singleton lifecycle hooks, expressed as save/read/workflow operations.
+   * Inline objects are family-validated at startup. A loader remains lazy and
+   * is therefore family-validated on first lifecycle use and every subsequent
+   * resolution, including cache hits shared with another definition.
+   */
+  hooks?: SingletonHooks | SingletonHooksLoader
+
+  /**
    * Collection-only members remain explicit `never` properties rather than
    * being omitted. Without them, `defineSingleton`'s generic parameter can
    * absorb excess properties and collection-only configuration would pass at
    * the definition site.
    */
   labels?: never
-  /**
-   * Temporary hook-family guard. Plan 3 replaces this placeholder with the
-   * singleton-specific `beforeSave` / `afterSave` hook contract.
-   */
-  hooks?: never
   useAsTitle?: never
   useAsPath?: never
   orderable?: never

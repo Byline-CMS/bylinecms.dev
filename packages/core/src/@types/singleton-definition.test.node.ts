@@ -49,6 +49,28 @@ describe('defineSingleton', () => {
     })
   })
 
+  it('keeps collection and singleton hook families disjoint at the definition site', () => {
+    defineSingleton({
+      path: 'site-settings',
+      label: 'Site settings',
+      fields: [{ name: 'name', label: 'Site name', type: 'text' }],
+      hooks: {
+        // @ts-expect-error — collection create hooks do not exist on a singleton.
+        beforeCreate: () => {},
+      },
+    })
+
+    defineCollection({
+      path: 'pages',
+      labels: { singular: 'Page', plural: 'Pages' },
+      fields: [{ name: 'title', label: 'Title', type: 'text' }],
+      hooks: {
+        // @ts-expect-error — singleton save hooks do not exist on a collection.
+        beforeSave: () => {},
+      },
+    })
+  })
+
   it('preserves literal path types for the generated registries', () => {
     const def = defineSingleton({
       path: 'site-settings',

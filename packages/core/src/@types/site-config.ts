@@ -20,6 +20,8 @@ import type {
   CollectionDefinition,
   CollectionHooks,
   CollectionHooksLoader,
+  SingletonHooks,
+  SingletonHooksLoader,
   UploadHooks,
   UploadHooksLoader,
 } from './collection-types.js'
@@ -253,7 +255,10 @@ export type ResolvedAdminConfig = Omit<AdminConfig, 'routes'> & { routes: Routes
  * ```
  */
 export interface ServerHooksConfig {
-  collections?: Record<string, CollectionHooks | CollectionHooksLoader>
+  collections?: Record<
+    string,
+    CollectionHooks | CollectionHooksLoader | SingletonHooks | SingletonHooksLoader
+  >
   uploads?: Record<string, UploadHooks | UploadHooksLoader>
 }
 
