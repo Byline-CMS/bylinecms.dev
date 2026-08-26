@@ -121,3 +121,9 @@ export type CollectionFieldsAllLocalesByPath = {
 }
 
 export type CollectionPath = keyof CollectionFieldsByPath
+
+export type SingletonFieldsByPath = Record<never, never>
+
+export type SingletonFieldsAllLocalesByPath = Record<never, never>
+
+export type SingletonPath = keyof SingletonFieldsByPath

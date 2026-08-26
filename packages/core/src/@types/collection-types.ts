@@ -1470,10 +1470,36 @@ export type CollectionFieldDataAllLocales<C extends CollectionDefinition> = Fiel
 /** Broad collection registry used when an application has not supplied its schema types. */
 export type CollectionRegistry = Record<string, Record<string, any>>
 
-/** Infer a path-to-fields registry from a shared readonly collection-definition tuple. */
+/** Infer the multi-collection path-to-fields registry from a shared definition tuple. */
 export type InferCollectionRegistry<TCollections extends readonly CollectionDefinition[]> = {
-  [TCollection in TCollections[number] as TCollection['path']]: CollectionFieldData<TCollection>
+  [TCollection in TCollections[number] as TCollection extends SingletonDefinition
+    ? never
+    : TCollection['path']]: CollectionFieldData<TCollection>
 }
+
+/** Infer the all-locale multi-collection registry from a shared definition tuple. */
+export type InferCollectionRegistryAllLocales<
+  TCollections extends readonly CollectionDefinition[],
+> = {
+  [TCollection in TCollections[number] as TCollection extends SingletonDefinition
+    ? never
+    : TCollection['path']]: CollectionFieldDataAllLocales<TCollection>
+}
+
+/** Infer the singleton path-to-fields registry from a shared definition tuple. */
+export type InferSingletonRegistry<TCollections extends readonly CollectionDefinition[]> = {
+  [TCollection in TCollections[number] as TCollection extends SingletonDefinition
+    ? TCollection['path']
+    : never]: CollectionFieldData<TCollection>
+}
+
+/** Infer the all-locale singleton registry from a shared definition tuple. */
+export type InferSingletonRegistryAllLocales<TCollections extends readonly CollectionDefinition[]> =
+  {
+    [TCollection in TCollections[number] as TCollection extends SingletonDefinition
+      ? TCollection['path']
+      : never]: CollectionFieldDataAllLocales<TCollection>
+  }
 
 // ---------------------------------------------------------------------------
 // Block helpers — mirrors of defineCollection / CollectionFieldData / etc.

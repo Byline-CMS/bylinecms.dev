@@ -1,10 +1,10 @@
 /**
- * Compile-time contract between this application's collection schemas and its
- * generated collection-type projection.
+ * Compile-time contract between this application's collection and singleton
+ * schemas and its generated type projection.
  *
  * ```text
  * collections/index.ts                  generated/collection-types.ts
- *   `typeof collections`                 `CollectionFields*ByPath`
+ *   `typeof collections`                    `*Fields*ByPath`
  *            |                                      |
  *            v                                      v
  *    inferred registry ----------- Exact -------- generated registry
@@ -16,28 +16,33 @@
  * The generated file is deliberately a standalone projection for typed clients
  * and frontend code; it does not import the runtime schemas. This module joins
  * those two app-owned sources at compile time and requires their collection
- * keys, ordinary field shapes, and all-locale field shapes to match exactly.
+ * and singleton keys, ordinary field shapes, and all-locale field shapes to
+ * match exactly.
  *
  * This file has no runtime behavior. Keep it application-owned: `@byline/core`
  * provides the inference and code-generation machinery, but only this
  * application knows its concrete collection tuple and generated output.
  */
 
-import type { CollectionFieldData, CollectionFieldDataAllLocales } from '@byline/core'
+import type {
+  InferCollectionRegistry,
+  InferCollectionRegistryAllLocales,
+  InferSingletonRegistry,
+  InferSingletonRegistryAllLocales,
+} from '@byline/core'
 import type {
   CollectionFieldsAllLocalesByPath,
   CollectionFieldsByPath,
+  SingletonFieldsAllLocalesByPath,
+  SingletonFieldsByPath,
 } from '@byline/generated-types'
 
 import type { collections } from './collections/index.js'
 
-type InferredFieldsByPath = {
-  [Definition in (typeof collections)[number] as Definition['path']]: CollectionFieldData<Definition>
-}
-
-type InferredFieldsAllLocalesByPath = {
-  [Definition in (typeof collections)[number] as Definition['path']]: CollectionFieldDataAllLocales<Definition>
-}
+type InferredFieldsByPath = InferCollectionRegistry<typeof collections>
+type InferredFieldsAllLocalesByPath = InferCollectionRegistryAllLocales<typeof collections>
+type InferredSingletonFieldsByPath = InferSingletonRegistry<typeof collections>
+type InferredSingletonFieldsAllLocalesByPath = InferSingletonRegistryAllLocales<typeof collections>
 
 type IsAny<Value> = 0 extends 1 & Value ? true : false
 type Exact<Left, Right> =
@@ -63,4 +68,16 @@ type GeneratedAllLocalesKeysMatchRuntimeRegistry = Assert<
 >
 type GeneratedAllLocalesFieldsMatchRuntimeRegistry = Assert<
   Exact<CollectionFieldsAllLocalesByPath, InferredFieldsAllLocalesByPath>
+>
+type GeneratedSingletonKeysMatchRuntimeRegistry = Assert<
+  Exact<keyof SingletonFieldsByPath, keyof InferredSingletonFieldsByPath>
+>
+type GeneratedSingletonFieldsMatchRuntimeRegistry = Assert<
+  Exact<SingletonFieldsByPath, InferredSingletonFieldsByPath>
+>
+type GeneratedSingletonAllLocalesKeysMatchRuntimeRegistry = Assert<
+  Exact<keyof SingletonFieldsAllLocalesByPath, keyof InferredSingletonFieldsAllLocalesByPath>
+>
+type GeneratedSingletonAllLocalesFieldsMatchRuntimeRegistry = Assert<
+  Exact<SingletonFieldsAllLocalesByPath, InferredSingletonFieldsAllLocalesByPath>
 >

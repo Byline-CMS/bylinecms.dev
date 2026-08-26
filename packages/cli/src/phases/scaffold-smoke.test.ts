@@ -116,6 +116,8 @@ describe('temporary host scaffold smoke contracts', () => {
         expect([...new Set(generatedImports)].sort()).toEqual([
           'CollectionFieldsAllLocalesByPath',
           'CollectionFieldsByPath',
+          'SingletonFieldsAllLocalesByPath',
+          'SingletonFieldsByPath',
         ])
       }
     }
