@@ -1141,6 +1141,8 @@ export interface IDocumentQueries {
 
   getDocumentByVersion(params: {
     document_version_id: string
+    /** Optional logical-document ownership gate for singleton historical reads. */
+    document_id?: string
     locale?: string
     /** Optional collection ownership gate for client-facing historical reads. */
     collection_id?: string

@@ -21,6 +21,31 @@ population, field selection, response shaping, and (eventually) access control.
 | 6 | Cross-collection relation filters — nested-object where DSL over a relation field compiles to nested EXISTS through `store_relation` | **Shipped** |
 | — | `afterRead` collection hook — fires once per materialised document on every read path and once per populated relation target; `ReadContext.afterReadFired` enforces "at most once per logical request" (A→B→A foreclosure) | **Shipped** |
 | — | `path` as system attribute — `CreateOptions.path` / `UpdateOptions.path` forward to the lifecycle; see [DOCUMENT-PATHS.md](../../docs/04-collections/05-document-paths.md) | **Shipped** |
+| — | Singleton handle — typed, document-ID-free access to one zero-or-one slot through the shared document lifecycle and read pipeline | **Shipped** |
+
+### Singleton handle phase note (2026-08-26)
+
+`client.singleton(path)` is a separate, deliberately narrow capability rather
+than a mode on `CollectionHandle`. It exposes one read, one save, workflow and
+schedule operations, paginated history, historical-version reads, restore, and
+locale copy. It has no list, create, delete, search, order, tree, reindex, path,
+or caller-supplied document-id surface.
+
+The slot mapping is an internal reachability detail. Every operation authorizes
+against the singleton descriptor before resolving that mapping, so an actor
+without the required ability receives the same error whether the slot has been
+materialized or not. Reads use the existing collection document reader after
+that gate, preserving `beforeRead`, `afterRead`, population, rich-text refresh,
+locale handling, and response shaping. `get()` then removes the storage-only
+path from the public singleton envelope. Historical reads additionally bind
+the version query to the mapped logical document id, preventing a version id
+from another document in the same definition from reaching hooks or shaping.
+
+The registration type carries independent collection and singleton registries.
+`BylineClient<TCollections, TSingletons>` keeps the original collection generic
+in first position and defaults both registries through conditional `Register`
+lookups. Apps with generated registration get exact path inference; consumers
+without augmentation retain the prior loose string-path fallback.
 
 ### Phase 5 semantics
 

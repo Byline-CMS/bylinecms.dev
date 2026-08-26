@@ -17,6 +17,7 @@ import type { CollectionRegistry } from '@byline/core'
  * declare module '@byline/client' {
  *   interface Register {
  *     collections: CollectionFieldsByPath
+ *     singletons: SingletonFieldsByPath
  *   }
  * }
  * ```
@@ -46,4 +47,16 @@ export type RegisteredCollections = Register extends {
   collections: infer TCollections extends CollectionRegistry
 }
   ? TCollections
+  : CollectionRegistry
+
+/**
+ * The app's registered singleton registry, or the same loose
+ * `CollectionRegistry` fallback used by collections when no augmentation is
+ * present. Keeping this as a conditional lookup preserves the deliberately
+ * empty declaration-merge target above.
+ */
+export type RegisteredSingletons = Register extends {
+  singletons: infer TSingletons extends CollectionRegistry
+}
+  ? TSingletons
   : CollectionRegistry

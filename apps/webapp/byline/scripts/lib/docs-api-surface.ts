@@ -181,6 +181,7 @@ const bylineClientKeys = completeKeys<BylineClient>()([
   'resolveRequestContext',
   'search',
   'collection',
+  'singleton',
   'resolveCollectionRecord',
   'resolveCollectionId',
 ])

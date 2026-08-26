@@ -406,6 +406,9 @@ export interface FindByIdOptions<F = Record<string, any>>
   lenient?: boolean
 }
 
+/** Read controls for `SingletonHandle.get()`. */
+export type GetSingletonOptions<F = Record<string, any>> = FindByIdOptions<F>
+
 export interface FindByPathOptions<F = Record<string, any>>
   extends PopulateControls,
     StatusControls,
@@ -502,6 +505,14 @@ export interface UpdateOptions {
    * as `availableLocales`. See `docs/08-internationalization/index.md`.
    */
   availableLocales?: string[]
+}
+
+/** Write controls for `SingletonHandle.update()`. */
+export interface UpdateSingletonOptions {
+  /** Locale for field value resolution. Defaults to the client's `defaultLocale`. */
+  locale?: string
+  /** Reject the save when this is not the slot's current version id. */
+  expectedVersionId?: string
 }
 
 /** Optimistic, absolute-time input for `CollectionHandle.schedulePublish()`. */
@@ -768,6 +779,9 @@ export interface ClientDocument<F = Record<string, any>> {
    */
   _localeAgnostic?: boolean
 }
+
+/** A singleton read envelope. Singleton documents have no public URL path. */
+export type SingletonDocument<F = Record<string, any>> = Omit<ClientDocument<F>, 'path'>
 
 export interface FindResult<F = Record<string, any>> {
   docs: ClientDocument<F>[]

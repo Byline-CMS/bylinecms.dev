@@ -116,6 +116,32 @@ export function fieldTypesSuite(hooks: ConformanceHooks): void {
       expect(document?.fields.attachment.fileSize).toBe(102400)
     })
 
+    it('constrains historical reads to an optional logical document id', async () => {
+      const created = await adapter.commands.documents.createDocumentVersion({
+        collectionId: testCollection.id,
+        collectionVersion: 1,
+        collectionConfig: FieldTypesCollectionConfig,
+        action: 'create',
+        documentData: structuredClone(sampleDocument),
+        path: `version-document-gate-${Date.now()}`,
+      })
+      const documentVersionId = created.document.id
+      const documentId = created.document.document_id
+
+      await expect(
+        adapter.queries.documents.getDocumentByVersion({
+          document_version_id: documentVersionId,
+          document_id: documentId,
+        })
+      ).resolves.toMatchObject({ document_id: documentId })
+      await expect(
+        adapter.queries.documents.getDocumentByVersion({
+          document_version_id: documentVersionId,
+          document_id: crypto.randomUUID(),
+        })
+      ).resolves.toBeNull()
+    })
+
     it('treats an empty document-id predicate as always false', async () => {
       const created = await adapter.commands.documents.createDocumentVersion({
         collectionId: testCollection.id,

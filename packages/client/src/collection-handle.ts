@@ -55,6 +55,7 @@ import {
   resolveReadRequestContext,
   resolveReadSecurityFilters,
 } from './read-context.js'
+import { type DocumentBoundFindByVersionOptions, expectedDocumentId } from './read-internals.js'
 import { shapeDocument, shapePopulatedInPlace } from './response.js'
 import { assertSearchQueryLength, finalizeSearchHits } from './search.js'
 import type { BylineClient } from './client.js'
@@ -862,6 +863,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     versionId: string,
     options: FindByVersionOptions<F> = {}
   ): Promise<ClientDocument<F> | null> {
+    const boundOptions = options as FindByVersionOptions<F> & DocumentBoundFindByVersionOptions
     const readCtx = options._readContext ?? createReadContext()
     const requestContext = await this.resolveAndAssertRead('any', readCtx)
     const filters = await this.resolveBeforeReadFilters(
@@ -873,6 +875,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     const locale = options.locale ?? this.client.defaultLocale
     const raw = await this.client.db.queries.documents.getDocumentByVersion({
       document_version_id: versionId,
+      document_id: boundOptions[expectedDocumentId],
       locale,
       collection_id: collectionId,
       filters,

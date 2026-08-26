@@ -981,11 +981,13 @@ export class DocumentQueries implements IDocumentQueries {
    */
   async getDocumentByVersion({
     document_version_id,
+    document_id,
     locale = 'all',
     collection_id,
     filters,
   }: {
     document_version_id: string
+    document_id?: string
     locale?: string
     collection_id?: string
     filters?: DocumentFilter[]
@@ -993,6 +995,7 @@ export class DocumentQueries implements IDocumentQueries {
     const projectionLocale = locale === 'all' ? undefined : locale
     const filterLocale = projectionLocale ?? this.defaultContentLocale
     const conditions: SQL[] = [eq(documentVersions.id, document_version_id)]
+    if (document_id) conditions.push(eq(documentVersions.document_id, document_id))
     if (collection_id) conditions.push(eq(documentVersions.collection_id, collection_id))
     if (filters?.length) {
       const scope: OuterScope = {

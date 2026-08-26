@@ -18,11 +18,12 @@ import type {
   SearchProvider,
   SlugifierFn,
 } from '@byline/core'
-import { ERR_NOT_FOUND, getLogger } from '@byline/core'
+import { ERR_NOT_FOUND, ERR_VALIDATION, getLogger, isSingleton } from '@byline/core'
 
 import { CollectionHandle } from './collection-handle.js'
 import { zoneSearch } from './search.js'
-import type { RegisteredCollections } from './register.js'
+import { SingletonHandle } from './singleton-handle.js'
+import type { RegisteredCollections, RegisteredSingletons } from './register.js'
 import type { BylineClientConfig, ClientSearchResults, ZoneSearchOptions } from './types.js'
 
 /**
@@ -65,7 +66,10 @@ const silentLogger: BylineLogger = {
  * definitions, and optional storage provider. Use `collection(path)` to get
  * a scoped handle for querying and mutating documents.
  */
-export class BylineClient<TRegistry extends CollectionRegistry = RegisteredCollections> {
+export class BylineClient<
+  TCollections extends CollectionRegistry = RegisteredCollections,
+  TSingletons extends CollectionRegistry = RegisteredSingletons,
+> {
   readonly db: IDbAdapter
   readonly collections: readonly CollectionDefinition[]
   readonly storage: IStorageProvider | undefined
@@ -160,9 +164,9 @@ export class BylineClient<TRegistry extends CollectionRegistry = RegisteredColle
    * Get a handle scoped to a single collection. All subsequent read/write
    * operations on the handle are performed against this collection.
    */
-  collection<TPath extends keyof TRegistry & string>(
+  collection<TPath extends keyof TCollections & string>(
     path: TPath
-  ): CollectionHandle<TRegistry[TPath]> {
+  ): CollectionHandle<TCollections[TPath]> {
     const definition = this.collections.find((c) => c.path === path)
     if (!definition) {
       throw ERR_NOT_FOUND({
@@ -173,7 +177,36 @@ export class BylineClient<TRegistry extends CollectionRegistry = RegisteredColle
         },
       })
     }
-    return new CollectionHandle<TRegistry[TPath]>(this, definition)
+    if (isSingleton(definition)) {
+      throw ERR_VALIDATION({
+        message: `'${path}' is a singleton; use client.singleton('${path}')`,
+        details: { path, actualKind: 'singleton', expectedKind: 'collection' },
+      })
+    }
+    return new CollectionHandle<TCollections[TPath]>(this, definition)
+  }
+
+  /** Get the deliberately narrow, document-ID-free handle for a singleton slot. */
+  singleton<TPath extends keyof TSingletons & string>(
+    path: TPath
+  ): SingletonHandle<TSingletons[TPath]> {
+    const definition = this.collections.find((c) => c.path === path)
+    if (!definition) {
+      throw ERR_NOT_FOUND({
+        message: `Singleton not found: '${path}'`,
+        details: {
+          singletonPath: path,
+          available: this.collections.filter(isSingleton).map((c) => c.path),
+        },
+      })
+    }
+    if (!isSingleton(definition)) {
+      throw ERR_VALIDATION({
+        message: `'${path}' is a collection; use client.collection('${path}')`,
+        details: { path, actualKind: 'collection', expectedKind: 'singleton' },
+      })
+    }
+    return new SingletonHandle<TSingletons[TPath]>(this, definition)
   }
 
   /**
@@ -213,8 +246,9 @@ export class BylineClient<TRegistry extends CollectionRegistry = RegisteredColle
  * `RegisteredCollections`, so in an app whose generated types augment
  * `Register` the returned client is fully typed with no explicit generic.
  */
-export function createBylineClient<TRegistry extends CollectionRegistry = RegisteredCollections>(
-  config: BylineClientConfig
-): BylineClient<TRegistry> {
-  return new BylineClient<TRegistry>(config)
+export function createBylineClient<
+  TCollections extends CollectionRegistry = RegisteredCollections,
+  TSingletons extends CollectionRegistry = RegisteredSingletons,
+>(config: BylineClientConfig): BylineClient<TCollections, TSingletons> {
+  return new BylineClient<TCollections, TSingletons>(config)
 }

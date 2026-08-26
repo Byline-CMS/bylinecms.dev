@@ -27,6 +27,7 @@ export {
   type ReadContext,
   type ReadMode,
   type RestoreVersionResult,
+  type SingletonSaveResult,
   type UnpublishResult,
   type UnresolvedRelationValue,
   type UpdateDocumentResult,
@@ -34,7 +35,8 @@ export {
 
 export { BylineClient, createBylineClient } from './client.js'
 export { CollectionHandle } from './collection-handle.js'
-export type { Register, RegisteredCollections } from './register.js'
+export { SingletonHandle } from './singleton-handle.js'
+export type { Register, RegisteredCollections, RegisteredSingletons } from './register.js'
 export type {
   AuditLogOptions,
   BylineClientConfig,
@@ -51,6 +53,7 @@ export type {
   FindOptions,
   FindResult,
   GetAncestorsOptions,
+  GetSingletonOptions,
   GetSubtreeOptions,
   GetTreeParentOptions,
   HydratedSearchHit,
@@ -62,11 +65,13 @@ export type {
   SearchFacetBucket,
   SearchHit,
   SearchResults,
+  SingletonDocument,
   SortDirection,
   SortSpec,
   TreeNode,
   TreeParentResult,
   UpdateOptions,
+  UpdateSingletonOptions,
   WhereClause,
   WhereValue,
   WithPopulated,
