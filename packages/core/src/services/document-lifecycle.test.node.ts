@@ -453,6 +453,35 @@ describe('Document lifecycle service', () => {
       })
     })
 
+    it('allocates counters after beforeCreate and before persistence', async () => {
+      const callOrder: string[] = []
+      const { db, createDocumentVersion } = createMockDb()
+      const nextCounterValue = db.commands.counters.nextCounterValue as ReturnType<typeof vi.fn>
+      nextCounterValue.mockImplementation(async () => {
+        callOrder.push('counter')
+        return 42
+      })
+      createDocumentVersion.mockImplementation(async () => {
+        callOrder.push('persist')
+        return { document: { id: 'ver-1', document_id: 'doc-1' }, fieldCount: 1 }
+      })
+      const definition: CollectionDefinition = {
+        ...minimalCollection,
+        fields: [{ name: 'serial', type: 'counter', group: 'article-serials' }],
+        hooks: {
+          beforeCreate: vi.fn(({ data }) => {
+            callOrder.push('before')
+            data.serial = 999
+          }),
+        },
+      }
+
+      await createDocument(buildCtx(db, definition), { data: {} })
+
+      expect(callOrder).toEqual(['before', 'counter', 'persist'])
+      expect(createDocumentVersion.mock.calls[0]?.[0].documentData.serial).toBe(42)
+    })
+
     it('derives path from useAsPath source field via the slugifier', async () => {
       const { db, createDocumentVersion } = createMockDb()
       const definition: CollectionDefinition = { ...minimalCollection, useAsPath: 'title' }

@@ -16,7 +16,6 @@ import { getDefaultStatus } from '../../workflow/workflow.js'
 import { assignCounterValues } from '../assign-counter-values.js'
 import { normalizeNumericFields } from '../normalize-numeric-fields.js'
 import {
-  actorId,
   applyRichTextEmbed,
   extractDocumentId,
   extractVersionId,
@@ -24,7 +23,7 @@ import {
   resolvePathForUpdate,
   rethrowPathConflict,
 } from './internals.js'
-import { commitContentVersionWithScheduleSuspension } from './publish-schedule-consistency.js'
+import { persistExistingDocumentVersion } from './persistence.js'
 import { selfHealTreePlacement } from './tree.js'
 import type { DocumentPatch } from '../../patches/index.js'
 import type { DocumentLifecycleContext } from './context.js'
@@ -132,24 +131,15 @@ export async function updateDocument(
 
       await applyRichTextEmbed(ctx, data)
 
-      const result = await commitContentVersionWithScheduleSuspension({
-        ctx,
+      const result = await persistExistingDocumentVersion(ctx, {
         documentId: params.documentId,
-        write: () =>
-          db.commands.documents.createDocumentVersion({
-            documentId: params.documentId,
-            collectionId,
-            collectionVersion: ctx.collectionVersion,
-            collectionConfig: definition,
-            action: 'update',
-            documentData: data,
-            path: pathForCommand,
-            availableLocales: params.availableLocales,
-            status: defaultStatus,
-            locale: requestLocale,
-            previousVersionId: originalData.document_version_id as string | undefined,
-            createdBy: actorId(ctx),
-          }),
+        action: 'update',
+        documentData: data,
+        path: pathForCommand,
+        availableLocales: params.availableLocales,
+        status: defaultStatus,
+        locale: requestLocale,
+        previousVersionId: originalData.document_version_id as string | undefined,
       }).catch((err: unknown) =>
         rethrowPathConflict(db, err, pathForCommand ?? '', sourceLocale, 'update')
       )
@@ -307,24 +297,15 @@ export async function updateDocumentWithPatches(
 
       await applyRichTextEmbed(ctx, nextData)
 
-      const result = await commitContentVersionWithScheduleSuspension({
-        ctx,
+      const result = await persistExistingDocumentVersion(ctx, {
         documentId: params.documentId,
-        write: () =>
-          db.commands.documents.createDocumentVersion({
-            documentId: params.documentId,
-            collectionId,
-            collectionVersion: ctx.collectionVersion,
-            collectionConfig: definition,
-            action: 'update',
-            documentData: nextData,
-            path: pathForCommand,
-            availableLocales: params.availableLocales,
-            status: defaultStatus,
-            locale: requestLocale,
-            previousVersionId: originalData.document_version_id as string | undefined,
-            createdBy: actorId(ctx),
-          }),
+        action: 'update',
+        documentData: nextData,
+        path: pathForCommand,
+        availableLocales: params.availableLocales,
+        status: defaultStatus,
+        locale: requestLocale,
+        previousVersionId: originalData.document_version_id as string | undefined,
       }).catch((err: unknown) =>
         rethrowPathConflict(db, err, pathForCommand ?? '', sourceLocale, 'update')
       )

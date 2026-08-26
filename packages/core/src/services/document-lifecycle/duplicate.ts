@@ -14,7 +14,6 @@ import { type SlugifierFn, slugify } from '../../utils/slugify.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
 import { assignCounterValues } from '../assign-counter-values.js'
 import {
-  actorId,
   applyRichTextEmbed,
   derivePath,
   extractDocumentId,
@@ -25,6 +24,7 @@ import {
   rethrowPathConflict,
   stripMetaIdsInPlace,
 } from './internals.js'
+import { persistInitialDocumentVersion } from './persistence.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface DuplicateDocumentResult {
@@ -225,22 +225,16 @@ export async function duplicateDocument(
       // restoreDocumentVersion for the same caveat).
       await applyRichTextEmbed(ctx, clonedFields)
       try {
-        result = await db.commands.documents
-          .createDocumentVersion({
-            collectionId,
-            collectionVersion: ctx.collectionVersion,
-            collectionConfig: definition,
-            action: 'create',
-            documentData: clonedFields,
-            path: finalPath,
-            status: defaultStatus,
-            locale: 'all',
-            orderKey,
-            createdBy: actorId(ctx),
-          })
-          .catch((err: unknown) =>
-            rethrowPathConflict(db, err, finalPath, defaultLocale, 'duplicate')
-          )
+        result = await persistInitialDocumentVersion(ctx, {
+          action: 'create',
+          documentData: clonedFields,
+          path: finalPath,
+          status: defaultStatus,
+          locale: 'all',
+          orderKey,
+        }).catch((err: unknown) =>
+          rethrowPathConflict(db, err, finalPath, defaultLocale, 'duplicate')
+        )
       } catch (err: unknown) {
         if (!isPathConflictError(err)) {
           throw err
@@ -254,22 +248,16 @@ export async function duplicateDocument(
           { candidatePath, retryPath: finalPath, sourceDocumentId: params.sourceDocumentId },
           'duplicateDocument: candidate path collided, retrying with short-UUID suffix'
         )
-        result = await db.commands.documents
-          .createDocumentVersion({
-            collectionId,
-            collectionVersion: ctx.collectionVersion,
-            collectionConfig: definition,
-            action: 'create',
-            documentData: clonedFields,
-            path: finalPath,
-            status: defaultStatus,
-            locale: 'all',
-            orderKey,
-            createdBy: actorId(ctx),
-          })
-          .catch((retryErr: unknown) =>
-            rethrowPathConflict(db, retryErr, finalPath, defaultLocale, 'duplicate')
-          )
+        result = await persistInitialDocumentVersion(ctx, {
+          action: 'create',
+          documentData: clonedFields,
+          path: finalPath,
+          status: defaultStatus,
+          locale: 'all',
+          orderKey,
+        }).catch((retryErr: unknown) =>
+          rethrowPathConflict(db, retryErr, finalPath, defaultLocale, 'duplicate')
+        )
       }
 
       const newDocumentId = extractDocumentId(result.document)

@@ -11,14 +11,8 @@ import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { ERR_INVALID_TRANSITION, ERR_NOT_FOUND, ERR_VALIDATION } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
-import {
-  actorId,
-  applyRichTextEmbed,
-  extractDocumentId,
-  extractVersionId,
-  invokeHook,
-} from './internals.js'
-import { commitContentVersionWithScheduleSuspension } from './publish-schedule-consistency.js'
+import { applyRichTextEmbed, extractDocumentId, extractVersionId, invokeHook } from './internals.js'
+import { persistExistingDocumentVersion } from './persistence.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface RestoreVersionResult {
@@ -164,22 +158,13 @@ export async function restoreDocumentVersion(
       //
       // No `path` is passed: restore does not change the document's path
       // (the existing byline_document_paths row stays as-is — sticky).
-      const result = await commitContentVersionWithScheduleSuspension({
-        ctx,
+      const result = await persistExistingDocumentVersion(ctx, {
         documentId: params.documentId,
-        write: () =>
-          db.commands.documents.createDocumentVersion({
-            documentId: params.documentId,
-            collectionId,
-            collectionVersion: ctx.collectionVersion,
-            collectionConfig: definition,
-            action: 'restore',
-            documentData: sourceFields,
-            status: getDefaultStatus(definition),
-            locale: 'all',
-            previousVersionId: currentMeta.document_version_id,
-            createdBy: actorId(ctx),
-          }),
+        action: 'restore',
+        documentData: sourceFields,
+        status: getDefaultStatus(definition),
+        locale: 'all',
+        previousVersionId: currentMeta.document_version_id,
       })
 
       const documentId = extractDocumentId(result.document) || params.documentId

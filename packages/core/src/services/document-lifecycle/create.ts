@@ -17,7 +17,6 @@ import { assignCounterValues } from '../assign-counter-values.js'
 import { normalizeNumericFields } from '../normalize-numeric-fields.js'
 import { requireTreeAuditCapability } from './audit.js'
 import {
-  actorId,
   applyRichTextEmbed,
   derivePath,
   extractDocumentId,
@@ -26,6 +25,7 @@ import {
   maybeAppendOrderKey,
   rethrowPathConflict,
 } from './internals.js'
+import { persistInitialDocumentVersion } from './persistence.js'
 import { appendTreeRoot } from './tree.js'
 import type { DocumentLifecycleContext } from './context.js'
 
@@ -73,7 +73,7 @@ export async function createDocument(
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'createDocument' },
     async () => {
-      const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
+      const { db, definition, collectionPath, defaultLocale } = ctx
       assertActorCanPerform(ctx.requestContext, definition, 'create')
       // Reject unsupported tree adapters before hooks, counters, or persistence
       // can create a document that cannot be placed and audited safely.
@@ -120,23 +120,17 @@ export async function createDocument(
       // (internal-link / inline-image nodes) before flatten-and-persist.
       await applyRichTextEmbed(ctx, data)
 
-      const result = await db.commands.documents
-        .createDocumentVersion({
-          collectionId,
-          collectionVersion: ctx.collectionVersion,
-          collectionConfig: definition,
-          action: 'create',
-          documentData: data,
-          path: resolvedPath,
-          availableLocales: params.availableLocales,
-          status: params.status ?? data.status ?? getDefaultStatus(definition),
-          locale: params.locale ?? defaultLocale,
-          orderKey,
-          createdBy: actorId(ctx),
-        })
-        .catch((err: unknown) =>
-          rethrowPathConflict(db, err, resolvedPath, defaultLocale, 'create')
-        )
+      const result = await persistInitialDocumentVersion(ctx, {
+        action: 'create',
+        documentData: data,
+        path: resolvedPath,
+        availableLocales: params.availableLocales,
+        status: params.status ?? data.status ?? getDefaultStatus(definition),
+        locale: params.locale ?? defaultLocale,
+        orderKey,
+      }).catch((err: unknown) =>
+        rethrowPathConflict(db, err, resolvedPath, defaultLocale, 'create')
+      )
 
       const documentId = extractDocumentId(result.document)
       const documentVersionId = extractVersionId(result.document)

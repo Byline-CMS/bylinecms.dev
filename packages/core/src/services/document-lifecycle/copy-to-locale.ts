@@ -11,9 +11,9 @@ import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { ERR_NOT_FOUND, ERR_VALIDATION } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
-import { actorId, applyRichTextEmbed, extractVersionId, invokeHook } from './internals.js'
+import { applyRichTextEmbed, extractVersionId, invokeHook } from './internals.js'
 import { mergeLocaleData } from './merge-locale-data.js'
-import { commitContentVersionWithScheduleSuspension } from './publish-schedule-consistency.js'
+import { persistExistingDocumentVersion } from './persistence.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface CopyToLocaleResult {
@@ -171,22 +171,13 @@ export async function copyToLocale(
 
       await applyRichTextEmbed(ctx, merged.data)
 
-      const writeResult = await commitContentVersionWithScheduleSuspension({
-        ctx,
+      const writeResult = await persistExistingDocumentVersion(ctx, {
         documentId: params.documentId,
-        write: () =>
-          db.commands.documents.createDocumentVersion({
-            documentId: params.documentId,
-            collectionId,
-            collectionVersion: ctx.collectionVersion,
-            collectionConfig: definition,
-            action: 'copy_to_locale',
-            documentData: merged.data,
-            status: getDefaultStatus(definition),
-            locale: params.targetLocale,
-            previousVersionId,
-            createdBy: actorId(ctx),
-          }),
+        action: 'copy_to_locale',
+        documentData: merged.data,
+        status: getDefaultStatus(definition),
+        locale: params.targetLocale,
+        previousVersionId,
       })
 
       const documentVersionId = extractVersionId(writeResult.document)
