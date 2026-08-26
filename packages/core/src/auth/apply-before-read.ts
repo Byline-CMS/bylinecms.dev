@@ -44,7 +44,8 @@ const readSecurityStates = new WeakMap<ReadContext, ReadSecurityState>()
  * Resolve the per-collection `beforeRead` hook predicate for the current
  * request, with caching across populate fanout.
  *
- * Each configured hook function runs in declaration order. Predicates from
+ * Each configured hook function runs in declaration order. `false` is
+ * normalized to the documented always-false predicate, and predicates from
  * multiple hooks are combined with implicit AND. Results are cached in
  * module-private state bound to one request authority; caller-owned
  * `ReadContext` properties are never consulted for authorization.
@@ -86,7 +87,8 @@ export async function applyBeforeRead(params: {
         requestContext,
         readContext: createHookReadContext(scope, entry),
       })
-      if (result != null) predicates.push(result)
+      const predicate = normalizeBeforeReadResult(result)
+      if (predicate !== undefined) predicates.push(predicate)
     }
 
     if (predicates.length === 0) return null
@@ -236,4 +238,13 @@ function requestAuthorityToken(requestContext: RequestContext): string {
 function normalizeBeforeReadHook(slot: BeforeReadHookSlot | undefined): BeforeReadHookFn[] {
   if (!slot) return []
   return Array.isArray(slot) ? slot : [slot]
+}
+
+/** Normalize the deny-all shorthand without teaching the predicate parser a sentinel value. */
+function normalizeBeforeReadResult(
+  result: QueryPredicate | false | void
+): QueryPredicate | undefined {
+  if (result === false) return { id: { $in: [] } }
+  if (result === undefined) return undefined
+  return result
 }

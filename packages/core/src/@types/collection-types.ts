@@ -998,12 +998,13 @@ export interface BeforeReadContext {
 
 /**
  * A `beforeRead` hook function. Returns a `QueryPredicate` to scope the
- * query, or `void`/`undefined` to apply no scoping. May be async — actors
- * needing tenant lookups or role-metadata fetches commonly are.
+ * query, `false` to deny every row, or `void`/`undefined` to apply no
+ * scoping. May be async — actors needing tenant lookups or role-metadata
+ * fetches commonly are.
  */
 export type BeforeReadHookFn = (
   ctx: BeforeReadContext
-) => QueryPredicate | void | Promise<QueryPredicate | void>
+) => QueryPredicate | false | void | Promise<QueryPredicate | false | void>
 
 /**
  * Slot type for `beforeRead`.
@@ -1011,7 +1012,8 @@ export type BeforeReadHookFn = (
  * Distinct from the generic `CollectionHookSlot` because `beforeRead`
  * returns a value (a predicate). When multiple hook functions are
  * configured, their predicates are combined with implicit AND in
- * declaration order; functions that return `void` are skipped.
+ * declaration order; `false` remains restrictive in any position, and
+ * functions that return `void` are skipped.
  */
 export type BeforeReadHookSlot = BeforeReadHookFn | BeforeReadHookFn[]
 

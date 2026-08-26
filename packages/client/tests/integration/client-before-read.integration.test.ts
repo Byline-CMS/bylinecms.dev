@@ -48,7 +48,7 @@ let currentRequestContext: RequestContext = createSuperAdminContext({ id: 'test-
 
 function setActor(authorId: string | null): void {
   if (authorId === null) {
-    currentRequestContext = createRequestContext({ actor: null, readMode: 'any' })
+    currentRequestContext = createRequestContext({ actor: null, readMode: 'published' })
     return
   }
   currentRequestContext = createRequestContext({
@@ -81,6 +81,7 @@ const ownerOnlyDrafts: BeforeReadHookFn = ({ requestContext, collectionPath }) =
   // same actor class.
   const actor = requestContext.actor
   if (actor instanceof AdminAuth && actor.id === 'super') return
+  if (actor === null) return false
   if (actor instanceof AdminAuth && actor.id === 'deny-all') return { id: { $in: [] } }
   const id = actor instanceof AdminAuth ? actor.id : '__none__'
   return {
@@ -266,6 +267,19 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('beforeRead — find', () => {
+  it('returns no rows for an anonymous actor when the hook returns false', async () => {
+    setActor(null)
+    const result = await ctx.client.collection(postsDefinition.path).find({ status: 'published' })
+    expect(result.docs).toEqual([])
+    expect(result.meta.total).toBe(0)
+  })
+
+  it('returns rows from the same collection for an authenticated actor', async () => {
+    setActor('alice')
+    const result = await ctx.client.collection(postsDefinition.path).find({ status: 'any' })
+    expect(result.docs.length).toBeGreaterThan(0)
+  })
+
   it('compiles an empty id set to no rows without a UUID cast error', async () => {
     setActor('deny-all')
     const result = await ctx.client.collection(postsDefinition.path).find({ status: 'any' })

@@ -61,6 +61,59 @@ describe('applyBeforeRead', () => {
     expect(result).toBeNull()
   })
 
+  it('normalizes false to the documented always-false predicate', async () => {
+    const hook = () => false as const
+    const result = await applyBeforeRead({
+      definition: baseCollection(hook),
+      requestContext: createRequestContext(),
+      readContext: createReadContext(),
+    })
+    expect(result).toEqual({ id: { $in: [] } })
+  })
+
+  it('normalizes an async false result identically', async () => {
+    const hook = async () => {
+      await Promise.resolve()
+      return false as const
+    }
+    const result = await applyBeforeRead({
+      definition: baseCollection(hook),
+      requestContext: createRequestContext(),
+      readContext: createReadContext(),
+    })
+    expect(result).toEqual({ id: { $in: [] } })
+  })
+
+  it('keeps false restrictive in either hook order', async () => {
+    const deny = () => false as const
+    const permit: BeforeReadHookFn = () => ({ status: 'published' })
+    const params = {
+      requestContext: createRequestContext(),
+      readContext: createReadContext(),
+    }
+
+    await expect(
+      applyBeforeRead({ ...params, definition: baseCollection([deny, permit]) })
+    ).resolves.toEqual({
+      $and: [{ id: { $in: [] } }, { status: 'published' }],
+    })
+    await expect(
+      applyBeforeRead({
+        ...params,
+        definition: baseCollection([permit, deny]),
+        readContext: createReadContext(),
+      })
+    ).resolves.toEqual({
+      $and: [{ status: 'published' }, { id: { $in: [] } }],
+    })
+  })
+
+  it('does not admit true as an affirmative-allow result', () => {
+    // @ts-expect-error true is deliberately outside the beforeRead contract
+    const hook: BeforeReadHookFn = () => true
+    expect(hook).toBeTypeOf('function')
+  })
+
   it('combines multiple hook predicates with implicit AND', async () => {
     const a: BeforeReadHookFn = () => ({ tenantId: 't-1' })
     const b: BeforeReadHookFn = () => ({ status: 'published' })
