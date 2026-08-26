@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { createSuperAdminContext } from '@byline/auth'
+import { AdminAuth, createRequestContext, createSuperAdminContext } from '@byline/auth'
 import { describe, expect, it, vi } from 'vitest'
 
 import { commitHookAttachment, prepareHookAttachment } from '../config/attach-hooks.js'
@@ -33,6 +33,13 @@ const uploadCollection: CollectionDefinition = {
     { name: 'title', label: 'Title', type: 'text' },
     { name: 'caption', label: 'Caption', type: 'textArea', optional: true },
   ],
+}
+
+const uploadSingleton: CollectionDefinition = {
+  path: 'site-settings',
+  label: 'Site settings',
+  singleton: true,
+  fields: structuredClone(uploadCollection.fields),
 }
 
 function withFieldUpload(
@@ -151,12 +158,18 @@ function createMockDb() {
 }
 
 function createMockStorage() {
-  const upload = vi.fn().mockResolvedValue({
-    storageProvider: 'local',
-    storagePath: 'media/original.png',
-    storageUrl: '/uploads/media/original.png',
+  const storedPaths = new Set<string>()
+  const upload = vi.fn().mockImplementation(async () => {
+    storedPaths.add('media/original.png')
+    return {
+      storageProvider: 'local',
+      storagePath: 'media/original.png',
+      storageUrl: '/uploads/media/original.png',
+    }
   })
-  const del = vi.fn().mockResolvedValue(undefined)
+  const del = vi.fn().mockImplementation(async (storagePath: string) => {
+    storedPaths.delete(storagePath)
+  })
   const storage: IStorageProvider = {
     providerName: 'local',
     upload,
@@ -164,7 +177,7 @@ function createMockStorage() {
     getUrl: vi.fn((storagePath: string) => `/uploads/${storagePath}`),
   }
 
-  return { storage, upload, del }
+  return { storage, upload, del, storedPaths }
 }
 
 const noopLogger: BylineLogger = {
@@ -197,7 +210,7 @@ function createImageProcessor(overrides?: Partial<UploadImageProcessor>): Upload
 
 function buildCtx(overrides?: Partial<FieldUploadContext>) {
   const { db, createDocumentVersion } = createMockDb()
-  const { storage, upload, del } = createMockStorage()
+  const { storage, upload, del, storedPaths } = createMockStorage()
   const imageProcessor = createImageProcessor()
 
   const ctx: FieldUploadContext = {
@@ -215,10 +228,128 @@ function buildCtx(overrides?: Partial<FieldUploadContext>) {
     ...overrides,
   }
 
-  return { ctx, createDocumentVersion, upload, del, imageProcessor }
+  return { ctx, createDocumentVersion, upload, del, storedPaths, imageProcessor }
 }
 
 describe('uploadField service', () => {
+  it('authorizes a singleton field-only upload with its update ability', async () => {
+    const { ctx, upload } = buildCtx({
+      definition: uploadSingleton,
+      collectionPath: uploadSingleton.path,
+      requestContext: createRequestContext({
+        actor: new AdminAuth({
+          id: 'settings-editor',
+          abilities: ['singletons.site-settings.update'],
+        }),
+      }),
+    })
+
+    await expect(
+      uploadField(ctx, {
+        buffer: Buffer.from('png'),
+        originalFilename: 'hero.png',
+        mimeType: 'image/png',
+        fileSize: 3,
+        shouldCreateDocument: false,
+      })
+    ).resolves.toMatchObject({ storedFile: { filename: 'hero.png' } })
+
+    expect(upload).toHaveBeenCalledOnce()
+  })
+
+  it('rejects an anonymous singleton upload before writing bytes', async () => {
+    const { ctx, upload, storedPaths } = buildCtx({
+      definition: uploadSingleton,
+      collectionPath: uploadSingleton.path,
+      requestContext: createRequestContext({ actor: null, readMode: 'published' }),
+    })
+
+    await expect(
+      uploadField(ctx, {
+        buffer: Buffer.from('png'),
+        originalFilename: 'hero.png',
+        mimeType: 'image/png',
+        fileSize: 3,
+        shouldCreateDocument: false,
+      })
+    ).rejects.toMatchObject({ code: 'ERR_UNAUTHENTICATED' })
+
+    expect(upload).not.toHaveBeenCalled()
+    expect(storedPaths.size).toBe(0)
+  })
+
+  it('rejects singleton document creation before hooks, storage, or variants', async () => {
+    const beforeStore = vi.fn()
+    const definition = withFieldUpload(uploadSingleton, 'image', (field) => {
+      field.upload.hooks = { beforeStore }
+    })
+    const { ctx, upload, storedPaths, imageProcessor } = buildCtx({
+      definition,
+      collectionPath: definition.path,
+      requestContext: createRequestContext({
+        actor: new AdminAuth({
+          id: 'settings-editor',
+          abilities: ['singletons.site-settings.update'],
+        }),
+      }),
+    })
+
+    await expect(
+      uploadField(ctx, {
+        buffer: Buffer.from('png'),
+        originalFilename: 'hero.png',
+        mimeType: 'image/png',
+        fileSize: 3,
+        shouldCreateDocument: true,
+      })
+    ).rejects.toMatchObject({
+      code: ErrorCodes.VALIDATION,
+      message: expect.stringMatching(/singleton 'site-settings'.*updateSingleton/),
+    })
+
+    expect(beforeStore).not.toHaveBeenCalled()
+    expect(upload).not.toHaveBeenCalled()
+    expect(imageProcessor.extractMeta).not.toHaveBeenCalled()
+    expect(imageProcessor.generateVariants).not.toHaveBeenCalled()
+    expect(storedPaths.size).toBe(0)
+  })
+
+  it('keeps collection uploads gated on the create ability', async () => {
+    const denied = buildCtx({
+      requestContext: createRequestContext({
+        actor: new AdminAuth({ id: 'media-editor', abilities: ['collections.media.update'] }),
+      }),
+    })
+
+    await expect(
+      uploadField(denied.ctx, {
+        buffer: Buffer.from('png'),
+        originalFilename: 'hero.png',
+        mimeType: 'image/png',
+        fileSize: 3,
+        shouldCreateDocument: false,
+      })
+    ).rejects.toMatchObject({ code: 'ERR_FORBIDDEN' })
+
+    expect(denied.upload).not.toHaveBeenCalled()
+
+    const allowed = buildCtx({
+      requestContext: createRequestContext({
+        actor: new AdminAuth({ id: 'media-creator', abilities: ['collections.media.create'] }),
+      }),
+    })
+    await expect(
+      uploadField(allowed.ctx, {
+        buffer: Buffer.from('png'),
+        originalFilename: 'hero.png',
+        mimeType: 'image/png',
+        fileSize: 3,
+        shouldCreateDocument: false,
+      })
+    ).resolves.toBeDefined()
+    expect(allowed.upload).toHaveBeenCalledOnce()
+  })
+
   it('fires registry hooks for a nested array instance selected by its unique upload leaf', async () => {
     const beforeStore = vi.fn()
     const publicationFile = {

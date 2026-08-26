@@ -8,7 +8,7 @@
 
 import type { RequestContext } from '@byline/auth'
 
-import { resolveUploadHooks } from '../@types/index.js'
+import { isSingleton, resolveUploadHooks } from '../@types/index.js'
 import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
 import { ERR_DATABASE, ERR_STORAGE, ERR_VALIDATION } from '../lib/errors.js'
 import { withLogContext } from '../lib/logger.js'
@@ -103,7 +103,7 @@ export interface FieldUploadContext {
   /**
    * Request-scoped auth context. Forwarded to the internal
    * `DocumentLifecycleContext` when an upload creates a document, and
-   * consulted directly at the upload entry for the `create` ability
+   * consulted directly at the upload entry for the kind-aware write ability
    * check. Required at the field-level upload boundary so `beforeStore` /
    * `afterStore` hooks can branch on `actor`.
    */
@@ -281,10 +281,37 @@ export async function uploadField(
         imageProcessor,
         fieldName,
       } = ctx
-      // Upload is effectively a write under collection scope — enforce
-      // the `create` ability even when `shouldCreateDocument: false` so
-      // anonymous callers cannot push bytes into storage.
-      assertActorCanPerform(ctx.requestContext, definition, 'create')
+      const {
+        buffer,
+        originalFilename,
+        mimeType,
+        fileSize,
+        fields = {},
+        shouldCreateDocument = true,
+        locale,
+      } = params
+
+      // Upload is a write even when no document is created. Preserve the
+      // anti-abuse auth gate while selecting the verb from the resource kind.
+      // A singleton's document cardinality belongs exclusively to
+      // updateSingleton, so reject the collection-only create branch before
+      // resolving hooks or writing any bytes.
+      if (isSingleton(definition)) {
+        assertActorCanPerform(ctx.requestContext, definition, 'update')
+        if (shouldCreateDocument) {
+          throw ERR_VALIDATION(
+            {
+              message:
+                `Cannot create a document while uploading to singleton '${collectionPath}'. ` +
+                'Upload the field only and persist it through updateSingleton().',
+              details: { collectionPath, fieldName },
+            },
+            uploadField
+          ).log(logger)
+        }
+      } else {
+        assertActorCanPerform(ctx.requestContext, definition, 'create')
+      }
 
       const field = findUploadField(definition.fields, fieldName)
       if (!field) {
@@ -310,16 +337,6 @@ export async function uploadField(
           uploadField
         ).log(logger)
       }
-
-      const {
-        buffer,
-        originalFilename,
-        mimeType,
-        fileSize,
-        fields = {},
-        shouldCreateDocument = true,
-        locale,
-      } = params
 
       // -- Validation runs FIRST. Hooks never see a file that's about to
       //    be rejected.
