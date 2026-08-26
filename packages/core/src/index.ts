@@ -42,6 +42,7 @@ export {
   getCollectionAdminConfig,
   getCollectionDefinition,
   getServerConfig,
+  getSingletonAdminConfig,
   orderByContentLocale,
 } from './config/config.js'
 export {

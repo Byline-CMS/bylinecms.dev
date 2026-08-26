@@ -8,11 +8,13 @@ import { validateAdminConfigs, validateBlockAdminConfigs } from './validate-admi
 import { validateCollections } from './validate-collections.js'
 import type {
   AdminConfig,
+  AdminResourceConfig,
   CollectionAdminConfig,
   CollectionDefinition,
   ResolvedAdminConfig,
   ResolvedServerConfig,
   ServerConfig,
+  SingletonAdminConfig,
 } from '@/@types/index.js'
 
 // ---------------------------------------------------------------------------
@@ -67,10 +69,20 @@ export const getCollectionDefinition = (path: string): CollectionDefinition | nu
   return config.collections.find((collection) => collection.path === path) ?? null
 }
 
-export const getCollectionAdminConfig = (slug: string): CollectionAdminConfig | null => {
+const getAdminResourceConfig = (slug: string): AdminResourceConfig | null => {
   const adminConfig = getAdminConfigInstance()
   if (adminConfig == null) return null
   return adminConfig.admin?.find((admin) => admin.slug === slug) ?? null
+}
+
+export const getCollectionAdminConfig = (slug: string): CollectionAdminConfig | null => {
+  const admin = getAdminResourceConfig(slug)
+  return admin?.singleton === true ? null : admin
+}
+
+export const getSingletonAdminConfig = (slug: string): SingletonAdminConfig | null => {
+  const admin = getAdminResourceConfig(slug)
+  return admin?.singleton === true ? admin : null
 }
 
 export function defineAdminConfig(config: AdminConfig): ResolvedAdminConfig {

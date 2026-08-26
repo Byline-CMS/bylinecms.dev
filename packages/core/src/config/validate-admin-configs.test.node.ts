@@ -8,8 +8,14 @@
 
 import { describe, expect, it } from 'vitest'
 
+import {
+  type AdminResourceConfig,
+  type CollectionAdminConfig,
+  type CollectionDefinition,
+  defineSingleton,
+  defineSingletonAdmin,
+} from '../@types/index.js'
 import { validateAdminConfigs, validateBlockAdminConfigs } from './validate-admin-configs.js'
-import type { CollectionAdminConfig, CollectionDefinition } from '../@types/index.js'
 
 const collection: CollectionDefinition = {
   path: 'news',
@@ -39,6 +45,20 @@ const baseAdmin: CollectionAdminConfig = {
   layout: { main: ['main'] },
 }
 
+const singleton = defineSingleton({
+  path: 'site-settings',
+  label: 'Site settings',
+  fields: [
+    { name: 'title', label: 'Title', type: 'text' },
+    {
+      name: 'seo',
+      label: 'SEO',
+      type: 'group',
+      fields: [{ name: 'description', label: 'Description', type: 'textArea' }],
+    },
+  ],
+})
+
 describe('validateAdminConfigs', () => {
   it('accepts a valid admin config (baseline)', () => {
     expect(() => validateAdminConfigs([baseAdmin], [collection])).not.toThrow()
@@ -46,6 +66,58 @@ describe('validateAdminConfigs', () => {
 
   it('is a no-op when admins is undefined', () => {
     expect(() => validateAdminConfigs(undefined, [collection])).not.toThrow()
+  })
+
+  it('accepts a singleton admin config and dotted field override path', () => {
+    const admin = defineSingletonAdmin(singleton, {
+      fields: { 'seo.description': {} },
+      layout: { main: ['title', 'seo'] },
+    })
+
+    expect(() => validateAdminConfigs([admin], [collection, singleton])).not.toThrow()
+  })
+
+  it('rejects an unknown singleton field override path at startup', () => {
+    const admin = defineSingletonAdmin(singleton, { fields: { 'seo.missing': {} } })
+
+    expect(() => validateAdminConfigs([admin], [collection, singleton])).toThrow(
+      /does not resolve to a field declaration/
+    )
+  })
+
+  it('rejects list-only singleton options from untyped callers', () => {
+    const admin = {
+      ...defineSingletonAdmin(singleton, {}),
+      columns: [{ fieldName: 'title', label: 'Title' }],
+    } as unknown as AdminResourceConfig
+
+    expect(() => validateAdminConfigs([admin], [collection, singleton])).toThrow(
+      /columns.*not allowed on a singleton admin config/
+    )
+  })
+
+  it('rejects a singleton admin config targeting a multi-collection', () => {
+    const admin = { ...defineSingletonAdmin(singleton, {}), slug: collection.path }
+
+    expect(() => validateAdminConfigs([admin], [collection, singleton])).toThrow(
+      /targets a collection definition/
+    )
+  })
+
+  it('rejects a singleton admin config with no matching definition', () => {
+    const admin = { ...defineSingletonAdmin(singleton, {}), slug: 'missing-settings' }
+
+    expect(() => validateAdminConfigs([admin], [collection, singleton])).toThrow(
+      /no matching singleton definition/
+    )
+  })
+
+  it('rejects a multi-collection admin config targeting a singleton', () => {
+    const admin: CollectionAdminConfig = { slug: singleton.path }
+
+    expect(() => validateAdminConfigs([admin], [collection, singleton])).toThrow(
+      /targets a singleton definition/
+    )
   })
 
   // Rule 1 — slug pairing.

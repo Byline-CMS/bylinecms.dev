@@ -6,7 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { BlockFieldData, CollectionDefinition, WorkflowStatus } from './collection-types.js'
+import type {
+  BlockFieldData,
+  MultiCollectionDefinition,
+  SingletonDefinition,
+  WorkflowStatus,
+} from './collection-types.js'
 import type { Block, FieldComponentSlots, RichTextEditorComponent } from './field-types.js'
 
 /**
@@ -200,22 +205,23 @@ export interface FieldAdminConfig {
 }
 
 /**
- * One labelled group of collections on the admin dashboard.
+ * One labelled group of document resources on the admin dashboard.
  *
  * Declared in display order on `AdminConfig.collectionGroups` and referenced by
- * `name` from `CollectionAdminConfig.group`. Array order is the order headings
- * appear on the dashboard; a group with no member collections is not rendered
+ * `name` from a collection or singleton admin config. The registry keeps its
+ * established `collectionGroups` name for compatibility. Array order is the order headings
+ * appear on the dashboard; a group with no member resources is not rendered
  * at all, so no heading ever sits above an empty section.
  */
 export interface CollectionGroupDefinition {
   /**
-   * Stable key referenced by `CollectionAdminConfig.group`. Boot-validated —
+   * Stable key referenced by an admin resource's `group`. Boot-validated —
    * a reference to an undeclared name throws at startup rather than silently
    * producing an extra heading.
    */
   name: string
   /**
-   * Heading text rendered above this group's collections.
+   * Heading text rendered above this group's document resources.
    *
    * A plain string, deliberately not translated: `CollectionDefinition.labels`
    * are themselves rendered untranslated on the dashboard, so translating group
@@ -238,6 +244,13 @@ export interface CollectionGroupDefinition {
 export interface PreviewDocument<F = any> {
   id: string
   path: string
+  status: string
+  fields: F
+}
+
+/** Minimal pathless document shape passed to `SingletonAdminConfig.preview.url`. */
+export interface SingletonPreviewDocument<F = any> {
+  id: string
   status: string
   fields: F
 }
@@ -287,6 +300,9 @@ export interface FormAdminConfig {
  * `path`.
  */
 export interface CollectionAdminConfig<T = any> extends FormAdminConfig {
+  /** Explicit resource discriminator. Stamped by `defineAdmin`. */
+  singleton?: false
+
   /** Must match the `path` of the corresponding `CollectionDefinition`. */
   slug: string
 
@@ -467,6 +483,42 @@ export interface CollectionAdminConfig<T = any> extends FormAdminConfig {
   listActions?: Array<(props: ListActionComponentProps) => any>
 }
 
+/** Admin UI configuration for a singleton document resource. */
+export interface SingletonAdminConfig<T = any> extends FormAdminConfig {
+  /** Explicit resource discriminator. Stamped by `defineSingletonAdmin`. */
+  singleton: true
+
+  /** Must match the `path` of the corresponding `SingletonDefinition`. */
+  slug: string
+
+  /**
+   * Dashboard group this resource belongs to. The registry remains named
+   * `AdminConfig.collectionGroups` for backwards compatibility.
+   */
+  group?: string
+
+  /**
+   * Explicit public preview URL for the singleton's site-wide effect.
+   * Unlike collection previews, no internal document path is available or
+   * used as a fallback.
+   */
+  preview?: {
+    url: (doc: SingletonPreviewDocument<T>, ctx: { locale?: string }) => string | null
+  }
+
+  /** Collection-list options are invalid for a cardinality-one resource. */
+  columns?: never
+  defaultSort?: never
+  defaultColumns?: never
+  itemView?: never
+  itemViewSort?: never
+  listView?: never
+  listActions?: never
+}
+
+/** Admin presentation config for either registered document-resource kind. */
+export type AdminResourceConfig<T = any> = CollectionAdminConfig<T> | SingletonAdminConfig<T>
+
 /**
  * Props passed to each `CollectionAdminConfig.listActions` component. Kept
  * minimal and framework-agnostic (`@byline/core` is React-free); components
@@ -482,10 +534,26 @@ export interface ListActionComponentProps {
  * Sets `slug` from the schema's `path`.
  */
 export function defineAdmin<T = any>(
-  schema: CollectionDefinition,
-  config: Omit<CollectionAdminConfig<T>, 'slug'>
+  schema: MultiCollectionDefinition,
+  config: Omit<CollectionAdminConfig<T>, 'slug' | 'singleton'>
 ): CollectionAdminConfig<T> {
   return {
+    singleton: false,
+    slug: schema.path,
+    ...config,
+  }
+}
+
+/**
+ * Type-safe factory for a `SingletonAdminConfig` linked to a singleton schema.
+ * Sets both the schema path and resource discriminator for authors.
+ */
+export function defineSingletonAdmin<T = any>(
+  schema: SingletonDefinition,
+  config: Omit<SingletonAdminConfig<T>, 'slug' | 'singleton'>
+): SingletonAdminConfig<T> {
+  return {
+    singleton: true,
     slug: schema.path,
     ...config,
   }

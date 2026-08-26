@@ -8,8 +8,13 @@
 
 import { describe, expect, it } from 'vitest'
 
+import {
+  type AdminResourceConfig,
+  type CollectionAdminConfig,
+  type CollectionDefinition,
+  defineSingleton,
+} from '../@types/index.js'
 import { groupCollectionsForAdmin } from './group-collections.js'
-import type { CollectionAdminConfig, CollectionDefinition } from '../@types/index.js'
 
 const define = (path: string): CollectionDefinition => ({
   path,
@@ -22,6 +27,11 @@ const news = define('news')
 const images = define('images')
 const authors = define('authors')
 const categories = define('categories')
+const settings = defineSingleton({
+  path: 'site-settings',
+  label: 'Site settings',
+  fields: [{ name: 'title', label: 'Title', type: 'text' }],
+})
 
 const groups = [
   { name: 'media', label: 'Media' },
@@ -86,6 +96,16 @@ describe('groupCollectionsForAdmin', () => {
       groups
     )
     expect(result[0]?.collections).toEqual([more, images])
+  })
+
+  it('groups singleton and multi-collection resources together in declaration order', () => {
+    const resourceAdmin: AdminResourceConfig[] = [
+      ...admin,
+      { singleton: true, slug: settings.path, group: 'media' },
+    ]
+    const result = groupCollectionsForAdmin([images, settings], resourceAdmin, groups)
+
+    expect(result[0]?.collections).toEqual([images, settings])
   })
 
   it('places a collection with no admin config in the ungrouped band', () => {

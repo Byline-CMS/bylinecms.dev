@@ -6,15 +6,16 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { isSingleton } from '../@types/collection-types.js'
 import {
   type PathResolution,
   resolveDeclarationPath,
   walkFieldDeclarations,
 } from '../paths/index.js'
 import type {
+  AdminResourceConfig,
   Block,
   BlockAdminConfig,
-  CollectionAdminConfig,
   CollectionDefinition,
   CollectionGroupDefinition,
   Field,
@@ -80,7 +81,7 @@ function validateFieldAdminKeys(
  * Enforced rules:
  *  1. Each `collectionGroups` entry has a non-blank `name` and `label`.
  *  2. No two entries share a `name`.
- *  3. Every `CollectionAdminConfig.group` names a declared entry. This single
+ *  3. Every admin resource's `group` names a declared entry. This single
  *     rule covers both a typographical error and the case where `group` was set
  *     but the registry was never declared.
  *
@@ -90,7 +91,7 @@ function validateFieldAdminKeys(
  */
 export function validateCollectionGroups(
   collectionGroups: readonly CollectionGroupDefinition[] | undefined,
-  admins: readonly CollectionAdminConfig[] | undefined
+  admins: readonly AdminResourceConfig[] | undefined
 ): void {
   const declared = new Set<string>()
 
@@ -100,7 +101,7 @@ export function validateCollectionGroups(
 
     if (name === '') {
       throw new Error(
-        'A `collectionGroups` entry has a blank `name`. Each entry needs a non-empty key for `CollectionAdminConfig.group` to reference.'
+        'A `collectionGroups` entry has a blank `name`. Each entry needs a non-empty key for an admin resource `group` to reference.'
       )
     }
     if (label === '') {
@@ -126,7 +127,7 @@ export function validateCollectionGroups(
         : `declared groups: ${[...declared].map((name) => `"${name}"`).join(', ')}`
 
     throw new Error(
-      `Collection "${admin.slug}": \`group: '${admin.group}'\` does not name a declared collection group (${known}). Add it to \`AdminConfig.collectionGroups\`, or remove the \`group\` property.`
+      `Admin resource "${admin.slug}": \`group: '${admin.group}'\` does not name a declared collection group (${known}). Add it to \`AdminConfig.collectionGroups\`, or remove the \`group\` property.`
     )
   }
 }
@@ -164,7 +165,7 @@ export function validateCollectionGroups(
  * necessarily wired up.
  */
 export function validateAdminConfigs(
-  admins: readonly CollectionAdminConfig[] | undefined,
+  admins: readonly AdminResourceConfig[] | undefined,
   collections: readonly CollectionDefinition[],
   collectionGroups?: readonly CollectionGroupDefinition[]
 ): void {
@@ -266,20 +267,54 @@ export function validateBlockAdminConfigs(
 }
 
 function validateOne(
-  admin: CollectionAdminConfig,
+  admin: AdminResourceConfig,
   collectionsByPath: Map<string, CollectionDefinition>
 ): void {
   // Rule 1 — slug pairing.
   const collection = collectionsByPath.get(admin.slug)
   if (collection == null) {
+    if (admin.singleton === true) {
+      throw new Error(
+        `Singleton admin config "${admin.slug}" has no matching singleton definition (no singleton with \`path: '${admin.slug}'\` was registered).`
+      )
+    }
     throw new Error(
       `Admin config "${admin.slug}" has no matching collection (no collection with \`path: '${admin.slug}'\` was registered).`
     )
   }
 
+  if (admin.singleton === true && !isSingleton(collection)) {
+    throw new Error(
+      `Singleton admin config "${admin.slug}" targets a collection definition. Register it with \`defineAdmin\`, or point it at a singleton definition.`
+    )
+  }
+  if (admin.singleton !== true && isSingleton(collection)) {
+    throw new Error(
+      `Collection admin config "${admin.slug}" targets a singleton definition. Register it with \`defineSingletonAdmin\`, or point it at a multi-collection definition.`
+    )
+  }
+
   const slug = admin.slug
   const fail = (msg: string): never => {
-    throw new Error(`Collection "${slug}": ${msg}`)
+    const resource = admin.singleton === true ? 'Singleton' : 'Collection'
+    throw new Error(`${resource} "${slug}": ${msg}`)
+  }
+
+  if (admin.singleton === true) {
+    const collectionOnlyKeys = [
+      'columns',
+      'defaultSort',
+      'defaultColumns',
+      'itemView',
+      'itemViewSort',
+      'listView',
+      'listActions',
+    ] as const
+    for (const key of collectionOnlyKeys) {
+      if (Object.hasOwn(admin, key)) {
+        fail(`\`${key}\` is not allowed on a singleton admin config.`)
+      }
+    }
   }
 
   // Top-level schema field names — the population subject to placement
@@ -301,7 +336,7 @@ function validateOne(
     if (spec == null) return
     const { field, direction } = spec
     const documentColumns = new Set(['createdAt', 'updatedAt', 'path'])
-    if (collection.orderable === true) {
+    if (!isSingleton(collection) && collection.orderable === true) {
       fail(
         `${optionName} is not allowed on an orderable collection — manual ordering owns the sort (order_key asc).`
       )
@@ -318,8 +353,10 @@ function validateOne(
       fail(`${optionName}.direction must be 'asc' or 'desc' (got "${String(direction)}").`)
     }
   }
-  validateSortSpec(admin.defaultSort, 'defaultSort')
-  validateSortSpec(admin.itemViewSort, 'itemViewSort')
+  if (admin.singleton !== true) {
+    validateSortSpec(admin.defaultSort, 'defaultSort')
+    validateSortSpec(admin.itemViewSort, 'itemViewSort')
+  }
 
   // Build primitive lookup tables.
   const tabSets = admin.tabSets ?? []

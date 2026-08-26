@@ -108,6 +108,7 @@ const collectionDefinitionKeys = completeKeys<MultiCollectionDefinition>()([
 ])
 
 const collectionAdminConfigKeys = completeKeys<CollectionAdminConfig>()([
+  'singleton',
   'slug',
   'group',
   'columns',

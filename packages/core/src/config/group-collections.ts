@@ -6,12 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionAdminConfig, CollectionGroupDefinition } from '../@types/admin-types.js'
+import type { AdminResourceConfig, CollectionGroupDefinition } from '../@types/admin-types.js'
 import type { CollectionDefinition } from '../@types/collection-types.js'
 
 /**
  * One renderable section of the admin dashboard: a heading (or none) and the
- * collections beneath it.
+ * document resources beneath it. The public `collections` member name remains
+ * for backwards compatibility and may contain both resource kinds.
  */
 export interface CollectionGroupBucket<
   TDefinition extends CollectionDefinition = CollectionDefinition,
@@ -24,16 +25,16 @@ export interface CollectionGroupBucket<
 }
 
 /**
- * Bucket collections into ordered dashboard sections.
+ * Bucket collections and singletons into ordered dashboard sections.
  *
  * Rules:
  *  - The ungrouped band is emitted first, and omitted entirely when empty.
  *  - Declared groups follow in `collectionGroups` order.
  *  - A declared group with no members is skipped, so no heading ever appears
  *    above an empty section.
- *  - Collection declaration order is preserved within each bucket.
+ *  - Resource declaration order is preserved within each bucket.
  *  - An absent or empty registry yields a single ungrouped bucket holding every
- *    collection — the flat grid Byline rendered before groups existed.
+ *    resource — the flat grid Byline rendered before groups existed.
  *
  * This function is deliberately total: a `group` naming no declared entry is
  * treated as ungrouped rather than throwing. `validateCollectionGroups` rejects
@@ -42,14 +43,14 @@ export interface CollectionGroupBucket<
  * outcome.
  *
  * It takes no actor and knows nothing about abilities. Callers that need to
- * hide collections filter the `collections` argument first — see
+ * hide resources filter the `collections` argument first — see
  * `filterReadableCollections`. That ordering is what makes a group whose
  * members are all hidden disappear along with its heading: it arrives here with
  * no members and is skipped by the rule above.
  */
 export function groupCollectionsForAdmin<TDefinition extends CollectionDefinition>(
   collections: readonly TDefinition[],
-  admin: readonly CollectionAdminConfig[] | undefined,
+  admin: readonly AdminResourceConfig[] | undefined,
   collectionGroups: readonly CollectionGroupDefinition[] | undefined
 ): CollectionGroupBucket<TDefinition>[] {
   const groupByCollectionPath = new Map<string, string>()

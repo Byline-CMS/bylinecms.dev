@@ -1,17 +1,29 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { defineAdminConfig, defineServerConfig, getCollectionDefinition } from './config.js'
+import { defineAdmin, defineSingletonAdmin } from '../@types/admin-types.js'
+import { defineCollection, defineSingleton } from '../@types/collection-types.js'
+import {
+  defineAdminConfig,
+  defineServerConfig,
+  getCollectionAdminConfig,
+  getCollectionDefinition,
+  getSingletonAdminConfig,
+} from './config.js'
 import type { CollectionDefinition, IDbAdapter, ServerConfig } from '../@types/index.js'
 
 const SERVER_CONFIG = Symbol.for('__byline_server_config__')
+const ADMIN_CONFIG = Symbol.for('__byline_admin_config__')
 const CLIENT_CONFIG = Symbol.for('__byline_client_config__')
 const previousServer = (globalThis as Record<PropertyKey, unknown>)[SERVER_CONFIG]
+const previousAdmin = (globalThis as Record<PropertyKey, unknown>)[ADMIN_CONFIG]
 const previousClient = (globalThis as Record<PropertyKey, unknown>)[CLIENT_CONFIG]
 
 afterEach(() => {
   const globals = globalThis as Record<PropertyKey, unknown>
   if (previousServer === undefined) delete globals[SERVER_CONFIG]
   else globals[SERVER_CONFIG] = previousServer
+  if (previousAdmin === undefined) delete globals[ADMIN_CONFIG]
+  else globals[ADMIN_CONFIG] = previousAdmin
   if (previousClient === undefined) delete globals[CLIENT_CONFIG]
   else globals[CLIENT_CONFIG] = previousClient
 })
@@ -56,5 +68,33 @@ describe('collection definition config preference', () => {
 
     expect(getCollectionDefinition('docs')).toBe(server)
     expect(getCollectionDefinition('docs')?.hooks).toBe(hooks)
+  })
+})
+
+describe('admin resource config lookup', () => {
+  it('returns only the admin config matching the requested resource kind', () => {
+    const pages = defineCollection({
+      path: 'pages',
+      labels: { singular: 'Page', plural: 'Pages' },
+      fields: [{ name: 'title', label: 'Title', type: 'text' }],
+    })
+    const settings = defineSingleton({
+      path: 'site-settings',
+      label: 'Site settings',
+      fields: [{ name: 'title', label: 'Title', type: 'text' }],
+    })
+    const pagesAdmin = defineAdmin(pages, {})
+    const settingsAdmin = defineSingletonAdmin(settings, {})
+
+    defineAdminConfig({
+      collections: [pages, settings],
+      admin: [pagesAdmin, settingsAdmin],
+      i18n,
+    })
+
+    expect(getCollectionAdminConfig(pages.path)).toBe(pagesAdmin)
+    expect(getCollectionAdminConfig(settings.path)).toBeNull()
+    expect(getSingletonAdminConfig(settings.path)).toBe(settingsAdmin)
+    expect(getSingletonAdminConfig(pages.path)).toBeNull()
   })
 })

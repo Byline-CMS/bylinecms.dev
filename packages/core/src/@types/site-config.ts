@@ -12,8 +12,8 @@ import type { RecurringTaskDefinition } from '../scheduler/types.js'
 import type { SlugifierFn } from '../utils/slugify.js'
 import type { FilenameSlugifierFn } from '../utils/slugify-filename.js'
 import type {
+  AdminResourceConfig,
   BlockAdminConfig,
-  CollectionAdminConfig,
   CollectionGroupDefinition,
 } from './admin-types.js'
 import type {
@@ -161,13 +161,14 @@ export type TranslationBundleShape = Readonly<{
  * Used by `defineAdminConfig()` and consumed by admin UI routes.
  */
 export interface AdminConfig extends BaseConfig {
-  /** Admin UI configuration for collections (client-side only). */
-  admin?: CollectionAdminConfig[]
+  /** Admin UI configuration for collections and singleton resources (client-side only). */
+  admin?: AdminResourceConfig[]
 
   /**
-   * Ordered registry of dashboard collection groups. Array order is display
-   * order. A collection joins a group by setting `CollectionAdminConfig.group`
-   * to an entry's `name`.
+   * Ordered registry of dashboard resource groups. Array order is display
+   * order. A collection or singleton joins a group through its admin config's
+   * `group` property. The property name remains `collectionGroups` for
+   * backwards compatibility.
    *
    * Omit entirely to keep the flat, ungrouped dashboard grid — this property is
    * purely additive and changes nothing when absent.
