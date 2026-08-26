@@ -63,7 +63,14 @@ export function resolveAdminDocumentRead(
       populate,
       depth,
       status: 'any',
+      // Editors need the raw requested-locale values. Untranslated localized
+      // fields stay empty instead of falling back, which is the signal that
+      // enables the Copy to Locale workflow. Using `omit` would hide the whole
+      // resource and make a missing translation look like a missing slot.
       onMissingLocale: 'empty',
+      // Older rows may no longer reconstruct exactly against the current
+      // schema. Keep the editor loadable and surface those mismatches through
+      // `_restoreWarnings`, which the form renders as an alert.
       lenient: true,
     },
     populatedTree: populateRequested || autoRelationsActive,
