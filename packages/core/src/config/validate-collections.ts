@@ -66,7 +66,7 @@ const USE_AS_PATH_SOURCE_TYPES = new Set<FieldType>([
 
 type CollectionOnlyOption = Exclude<
   keyof MultiCollectionDefinition,
-  keyof DocumentDefinitionBase | 'singleton' | 'label'
+  keyof DocumentDefinitionBase | 'singleton' | 'label' | 'hooks'
 >
 
 function completeCollectionOnlyOptions<const Keys extends readonly CollectionOnlyOption[]>(
@@ -81,7 +81,6 @@ function completeCollectionOnlyOptions<const Keys extends readonly CollectionOnl
 /** Runtime counterpart to the singleton definition's collection-only `never` members. */
 const COLLECTION_ONLY_OPTIONS = completeCollectionOnlyOptions([
   'labels',
-  'hooks',
   'orderable',
   'tree',
   'useAsPath',
