@@ -16,13 +16,17 @@
 // src/server.ts (TanStack Start server entry point) before any
 // requests are handled. No need to import it here.
 
-import type { CollectionRecord, MultiCollectionDefinition } from '@byline/core'
+import type {
+  CollectionDefinition,
+  CollectionRecord,
+  MultiCollectionDefinition,
+} from '@byline/core'
 import { getCollectionDefinition, isSingleton } from '@byline/core'
 
 import { bylineCore } from './byline-core.js'
 
-export interface EnsuredCollection {
-  definition: MultiCollectionDefinition
+export interface EnsuredDocumentResource {
+  definition: CollectionDefinition
   collection: {
     id: string
     path: string
@@ -31,21 +35,28 @@ export interface EnsuredCollection {
   }
 }
 
+export interface EnsuredCollection extends EnsuredDocumentResource {
+  definition: MultiCollectionDefinition
+}
+
 /**
- * Resolve a collection for an admin API request.
+ * Resolve either registered document-resource kind against the reconciled
+ * collection record.
  *
  * Collections are reconciled with the database once at startup by
  * `initBylineCore()` (see `packages/core/src/services/collection-bootstrap.ts`).
  * This helper is a per-request cache lookup against the resulting in-memory
  * registry — no DB I/O, no hash work.
  *
- * Returns `null` when the path is not registered in the client/server config.
+ * This broader seam is reserved for operations such as field upload whose core
+ * service is explicitly kind-aware; collection route families continue to use
+ * `ensureCollection` below.
  */
-export async function ensureCollection(path: string): Promise<EnsuredCollection | null> {
+export async function ensureDocumentResource(
+  path: string
+): Promise<EnsuredDocumentResource | null> {
   const definition = getCollectionDefinition(path)
-  if (definition == null || isSingleton(definition)) {
-    return null
-  }
+  if (definition == null) return null
 
   let record: CollectionRecord
   try {
@@ -63,4 +74,18 @@ export async function ensureCollection(path: string): Promise<EnsuredCollection 
       schemaHash: record.schemaHash,
     },
   }
+}
+
+/**
+ * Narrow the shared document-resource resolution to a multi-document
+ * collection for a collection-scoped admin API request.
+ *
+ * Returns `null` when the path is unregistered or belongs to a singleton, so
+ * collection route families cannot accidentally admit the other resource kind.
+ */
+export async function ensureCollection(path: string): Promise<EnsuredCollection | null> {
+  const resource = await ensureDocumentResource(path)
+  return resource != null && !isSingleton(resource.definition)
+    ? { ...resource, definition: resource.definition }
+    : null
 }

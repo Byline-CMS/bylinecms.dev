@@ -13,7 +13,7 @@ import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byli
 import { getLogger, withLogContext } from '@byline/core/logger'
 import { uploadField as coreUploadField } from '@byline/core/services'
 
-import { ensureCollection } from '../../integrations/api-utils.js'
+import { ensureDocumentResource } from '../../integrations/api-utils.js'
 
 /**
  * Result of an upload through the host transport. The legacy top-level
@@ -156,11 +156,15 @@ export const uploadCollectionField = createServerFn({ method: 'POST' })
     return withLogContext(
       { domain: 'api', module: 'upload', function: 'uploadCollectionField' },
       async () => {
-        const config = await ensureCollection(collectionPath)
+        // Upload is the one field transport shared by both document-resource
+        // kinds. The core service selects the kind-aware ability and rejects
+        // singleton document creation before hooks or storage; the admin form
+        // always requests the field-only branch (`createDocument=false`).
+        const config = await ensureDocumentResource(collectionPath)
         if (config == null) {
           throw ERR_NOT_FOUND(
             {
-              message: 'Collection not found.',
+              message: 'Document resource not found.',
               details: { collectionPath },
             },
             uploadCollectionField

@@ -466,7 +466,8 @@ pattern generically — this repository is public.
       round-trip is still being made on every dashboard load
 - [ ] Open it before any save: heading reads the label, no path widget, no actions trigger,
       upload field gated
-- [ ] Save; confirm it materialises, the heading is unchanged, and the upload field unlocks
+- [ ] Save; confirm it materialises and the heading is unchanged, then upload a file and confirm
+      the unlocked field stores it successfully through the singleton transport
 - [ ] Save again; confirm a second version appears in history, and that the document count in
       the database is still exactly one
 - [ ] Edit a field, force a server error, and confirm the form stays dirty and blocks navigation
