@@ -121,6 +121,9 @@ function createMockDb() {
   // records the calls so write-point tests can assert the audit rows emitted.
   const auditAppend = vi.fn().mockResolvedValue({ id: 'audit-1' })
   const withTransaction = vi.fn(async (fn: () => Promise<unknown>) => fn())
+  const fail = () => {
+    throw new Error('unexpected singleton mapping call')
+  }
 
   // Fake classifier mirroring db-postgres's real one closely enough for
   // rethrowPathConflict's consumption of the seam: a pg-shaped 23505 with a
@@ -183,6 +186,7 @@ function createMockDb() {
         nextScopedCounterValue: vi.fn() as any,
       },
       audit: { append: auditAppend },
+      singletons: { setMapping: vi.fn(fail), clearMapping: vi.fn(fail) },
     },
     withTransaction: withTransaction as any,
     queries: {
@@ -227,6 +231,7 @@ function createMockDb() {
           meta: { total: 0, page: 1, pageSize: 20, totalPages: 0 },
         })),
       },
+      singletons: { getMappedDocumentId: vi.fn(fail) },
     },
   }
 

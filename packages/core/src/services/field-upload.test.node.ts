@@ -52,6 +52,9 @@ function withFieldUpload(
 }
 
 function createMockDb() {
+  const fail = () => {
+    throw new Error('unexpected singleton mapping call')
+  }
   const createDocumentVersion = vi.fn().mockResolvedValue({
     document: { id: 'ver-1', document_id: 'doc-1' },
     fieldCount: 2,
@@ -94,6 +97,7 @@ function createMockDb() {
         nextScopedCounterValue: vi.fn(),
       },
       audit: { append: vi.fn(async () => ({ id: 'audit-1' })) },
+      singletons: { setMapping: vi.fn(fail), clearMapping: vi.fn(fail) },
     },
     queries: {
       collections: {
@@ -134,6 +138,7 @@ function createMockDb() {
           meta: { total: 0, page: 1, pageSize: 20, totalPages: 0 },
         })),
       },
+      singletons: { getMappedDocumentId: vi.fn(fail) },
     },
     withTransaction: async <T>(fn: () => Promise<T>) => fn(),
   }

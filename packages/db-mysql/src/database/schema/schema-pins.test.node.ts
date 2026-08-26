@@ -569,3 +569,33 @@ describe('schema pins — scheduled publication', () => {
     )
   })
 })
+
+describe('schema pins — singleton documents', () => {
+  it('pins the supporting document ownership key', () => {
+    const cfg = getTableConfig(coreSchema.documents)
+    const ownershipKey = cfg.uniqueConstraints.find(
+      (constraint) => constraint.name === 'uq_documents_collection_id_id'
+    )
+
+    expect(ownershipKey?.columns.map((column) => column.name)).toEqual(['collection_id', 'id'])
+  })
+
+  it('pins slot and document uniqueness plus collection ownership', () => {
+    const cfg = getTableConfig(coreSchema.singletonDocuments)
+    const collectionId = cfg.columns.find((column) => column.name === 'collection_id')
+    const documentId = cfg.columns.find((column) => column.name === 'document_id')
+    const ownershipForeignKey = cfg.foreignKeys.find(
+      (foreignKey) => foreignKey.getName() === 'fk_singleton_documents_document'
+    )
+    const reference = ownershipForeignKey?.reference()
+
+    expect(collectionId?.primary).toBe(true)
+    expect(documentId?.isUnique).toBe(true)
+    expect(reference?.columns.map((column) => column.name)).toEqual([
+      'collection_id',
+      'document_id',
+    ])
+    expect(reference?.foreignColumns.map((column) => column.name)).toEqual(['collection_id', 'id'])
+    expect(ownershipForeignKey?.onDelete).toBe('cascade')
+  })
+})

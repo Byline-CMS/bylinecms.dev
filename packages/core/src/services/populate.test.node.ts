@@ -142,6 +142,9 @@ type FetchMap = Record<string, Record<string, any>>
  * `getCollectionById(id)` to resolve them to a path.
  */
 function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string, string> = {}) {
+  const fail = () => {
+    throw new Error('unexpected singleton mapping call')
+  }
   const getDocumentsByDocumentIds = vi.fn(
     async (params: {
       collection_id: string
@@ -193,6 +196,7 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
         nextScopedCounterValue: vi.fn(),
       },
       audit: { append: vi.fn(async () => ({ id: 'audit-1' })) },
+      singletons: { setMapping: vi.fn(fail), clearMapping: vi.fn(fail) },
     },
     queries: {
       collections: {
@@ -233,6 +237,7 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
           meta: { total: 0, page: 1, pageSize: 20, totalPages: 0 },
         })),
       },
+      singletons: { getMappedDocumentId: vi.fn(fail) },
     },
     withTransaction: async <T>(fn: () => Promise<T>) => fn(),
   } satisfies IDbAdapter

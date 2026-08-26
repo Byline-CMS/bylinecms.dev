@@ -91,6 +91,7 @@ function createMockDb(options: {
         nextScopedCounterValue: vi.fn(fail) as any,
       },
       audit: { append: vi.fn(async () => ({ id: 'audit-1' })) },
+      singletons: { setMapping: vi.fn(fail), clearMapping: vi.fn(fail) },
     },
     queries: {
       collections: {
@@ -131,6 +132,7 @@ function createMockDb(options: {
           meta: { total: 0, page: 1, pageSize: 20, totalPages: 0 },
         })),
       },
+      singletons: { getMappedDocumentId: vi.fn(fail) },
     },
     withTransaction: async <T>(fn: () => Promise<T>) => fn(),
   }

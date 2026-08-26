@@ -19,6 +19,7 @@ import { createAuditQueries } from './modules/audit/audit-queries.js'
 import { createCounterCommands } from './modules/counters/counters-commands.js'
 import { createSchedulerStore } from './modules/scheduler/scheduler-store.js'
 import { classifyError } from './modules/storage/classify-error.js'
+import { SingletonCommands, SingletonQueries } from './modules/storage/singletons.js'
 import { createCommandBuilders } from './modules/storage/storage-commands.js'
 import { createQueryBuilders } from './modules/storage/storage-queries.js'
 
@@ -171,6 +172,8 @@ export const mysqlAdapter = ({
   const auditCommands = createAuditCommands(dbManager)
   const auditQueries = createAuditQueries(db)
   const schedulerStore = createSchedulerStore(db)
+  const singletonCommands = new SingletonCommands(dbManager)
+  const singletonQueries = new SingletonQueries(dbManager)
 
   // Boot check: run lazily on the pool's first physical connection rather
   // than eagerly here, because `mysqlAdapter` is synchronous (mirroring
@@ -218,6 +221,7 @@ export const mysqlAdapter = ({
       // `auditCommands` fully implements `IAuditCommands` as of Task 11 —
       // see `./modules/audit/audit-commands.js`.
       audit: auditCommands,
+      singletons: singletonCommands,
     },
     queries: {
       // `queryBuilders.collections` fully implements `ICollectionQueries`
@@ -229,6 +233,7 @@ export const mysqlAdapter = ({
       // `auditQueries` fully implements `IAuditQueries` as of Task 11 — see
       // `./modules/audit/audit-queries.js`.
       audit: auditQueries,
+      singletons: singletonQueries,
     },
     withTransaction: (fn) => txManager.withTransaction(fn),
     scheduler: schedulerStore,

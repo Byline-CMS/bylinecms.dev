@@ -234,12 +234,16 @@ export interface IDbAdapter {
     counters: ICounterCommands
     /** Append-only audit-log writes, committed atomically via `withTransaction`. */
     audit: IAuditCommands
+    /** Singleton slot → document mapping writes. */
+    singletons: ISingletonCommands
   }
   queries: {
     collections: ICollectionQueries
     documents: IDocumentQueries
     /** Audit-log reads — per-document history, system-wide report. */
     audit: IAuditQueries
+    /** Singleton slot → document mapping reads. */
+    singletons: ISingletonQueries
   }
   /**
    * Run `fn` inside a single database transaction so the

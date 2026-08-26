@@ -107,6 +107,25 @@ export const documents = mysqlTable(
     }).onDelete('cascade'),
     index('idx_documents_collection').on(table.collection_id),
     index('idx_documents_collection_order').on(table.collection_id, table.order_key),
+    unique('uq_documents_collection_id_id').on(table.collection_id, table.id),
+  ]
+)
+
+// Singleton slot → document mapping. The composite foreign key proves that
+// the mapped document belongs to the registered collection while the primary
+// key enforces zero-or-one materialised document per singleton slot.
+export const singletonDocuments = mysqlTable(
+  'byline_singleton_documents',
+  {
+    collection_id: uuidChar('collection_id').primaryKey(),
+    document_id: uuidChar('document_id').notNull().unique(),
+  },
+  (table) => [
+    foreignKey({
+      name: 'fk_singleton_documents_document',
+      columns: [table.collection_id, table.document_id],
+      foreignColumns: [documents.collection_id, documents.id],
+    }).onDelete('cascade'),
   ]
 )
 

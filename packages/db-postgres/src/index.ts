@@ -6,12 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type {
-  CollectionDefinition,
-  IDbAdapter,
-  ISingletonCommands,
-  ISingletonQueries,
-} from '@byline/core'
+import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
 
@@ -46,8 +41,6 @@ export type {
  * `IDbAdapter` and ignore the extra properties.
  */
 export interface PgAdapter extends IDbAdapter {
-  commands: IDbAdapter['commands'] & { singletons: ISingletonCommands }
-  queries: IDbAdapter['queries'] & { singletons: ISingletonQueries }
   /** The underlying Drizzle instance typed against the full schema. */
   drizzle: NodePgDatabase<typeof schema>
   /** The pg connection pool — exposed for housekeeping and teardown. */
