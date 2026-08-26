@@ -182,6 +182,7 @@ describe('AdminDashboard document resources', () => {
     expect(card?.querySelector('.byline-dashboard-stat-tile')).toBeNull()
     expect(card?.querySelector('.byline-dashboard-title-meta')).toBeNull()
     expect(card?.textContent).not.toContain('99')
+    expect(card?.textContent?.match(/Manage Site settings/g)).toHaveLength(1)
     expect(
       view.container.querySelector('a[href="/internal/cms/collections/articles"]')
     ).not.toBeNull()

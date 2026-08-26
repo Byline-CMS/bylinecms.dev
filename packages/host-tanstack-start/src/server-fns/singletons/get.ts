@@ -8,11 +8,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { getAdminBylineClient } from '@byline/client/server'
-import { getCollectionDefinition } from '@byline/core'
-
-import { resolveAdminDocumentRead } from '../admin-document-presentation.js'
-import { serialise } from '../serialise.js'
+import { readSingletonDocument } from '../singleton-document-read.js'
 
 export interface GetSingletonInput {
   singleton: string
@@ -33,8 +29,4 @@ export interface GetSingletonInput {
  */
 export const getSingleton = createServerFn({ method: 'GET' })
   .validator((input: GetSingletonInput) => input)
-  .handler(async ({ data }) => {
-    const handle = getAdminBylineClient().singleton(data.singleton)
-    const { options } = resolveAdminDocumentRead(getCollectionDefinition(data.singleton), data)
-    return serialise(await handle.get(options))
-  })
+  .handler(async ({ data }) => readSingletonDocument(data))

@@ -160,15 +160,6 @@ function SingletonCard({ singleton }: { singleton: SingletonDefinition }) {
           </div>
         </Card.Header>
       </Link>
-      <Card.Content>
-        <Link
-          to={destination}
-          params={params}
-          className={cx('byline-dashboard-empty-link', styles.emptyLink)}
-        >
-          <p>{t('dashboard.collectionDescription', { label: singleton.label })}</p>
-        </Link>
-      </Card.Content>
     </Card>
   )
 }
