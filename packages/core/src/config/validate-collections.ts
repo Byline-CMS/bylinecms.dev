@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { isSingleton } from '../@types/collection-types.js'
 import { formatDeclarationPath, walkFieldDeclarations } from '../paths/index.js'
 import { fieldTypeToStore } from '../storage/field-store-map.js'
 import type { CollectionDefinition, Field, FieldType } from '../@types/index.js'
@@ -285,7 +286,45 @@ function validateVirtualFields(collection: CollectionDefinition): void {
  * necessarily wired up.
  */
 export function validateCollections(collections: readonly CollectionDefinition[]): void {
+  const definitionsByPath = new Map<string, CollectionDefinition>()
   for (const collection of collections) {
+    if (definitionsByPath.has(collection.path)) {
+      throw new Error(
+        `Two definitions are registered on path "${collection.path}". Collections and singletons share one path namespace, so a collection and a singleton cannot both be called "${collection.path}".`
+      )
+    }
+    definitionsByPath.set(collection.path, collection)
+  }
+
+  for (const collection of collections) {
+    if (isSingleton(collection)) {
+      const forbidden = [
+        'labels',
+        'orderable',
+        'tree',
+        'useAsPath',
+        'useAsTitle',
+        'search',
+        'listSearch',
+        'advertiseLocales',
+        'showStats',
+        'linksInEditor',
+        'buildDocumentPath',
+      ] as const
+      for (const option of forbidden) {
+        if ((collection as unknown as Record<string, unknown>)[option] !== undefined) {
+          throw new Error(
+            `Singleton "${collection.path}" sets \`${option}\`, which is a multi-document collection option. A singleton holds at most one document, so there is no list to sort, search, or paginate and no public slug. Remove \`${option}\`.`
+          )
+        }
+      }
+      if (typeof (collection as { label?: unknown }).label !== 'string') {
+        throw new Error(
+          `Singleton "${collection.path}" must declare a \`label\`. Singletons have no plural form, so they use \`label\` rather than \`labels\`.`
+        )
+      }
+    }
+
     walkFields(collection.fields, (field) => {
       if ('name' in field && RESERVED_FIELD_NAMES.has(field.name)) {
         const hint = RESERVED_FIELD_HINTS[field.name] ?? ''
@@ -293,6 +332,15 @@ export function validateCollections(collections: readonly CollectionDefinition[]
           `Collection "${collection.path}" declares a field named "${field.name}", which is a reserved system attribute.${hint ? ` ${hint}` : ''}`
         )
       }
+    })
+
+    walkFieldsWithPath(collection.fields, (field, fieldPath) => {
+      if (field.type !== 'relation') return
+      const target = definitionsByPath.get(field.targetCollection)
+      if (target == null || !isSingleton(target)) return
+      throw new Error(
+        `Field "${fieldPath}" on "${collection.path}" targets "${target.path}", which is a singleton. A singleton holds at most one document and is not a relation target in this release — reference its values directly instead.`
+      )
     })
 
     if (collection.useAsPath != null) {

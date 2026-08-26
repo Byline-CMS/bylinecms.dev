@@ -669,3 +669,89 @@ describe('validateCollections — search config fields', () => {
     )
   })
 })
+
+describe('validateCollections — singletons', () => {
+  const singleton = (extra: Record<string, unknown>) =>
+    ({
+      path: 'site-settings',
+      label: 'Site settings',
+      singleton: true,
+      fields: [{ name: 'name', label: 'Site name', type: 'text' }],
+      ...extra,
+    }) as any
+
+  it('rejects orderable on a singleton', () => {
+    expect(() => validateCollections([singleton({ orderable: true })])).toThrow(/orderable/)
+  })
+
+  it('rejects tree on a singleton', () => {
+    expect(() => validateCollections([singleton({ tree: true })])).toThrow(/tree/)
+  })
+
+  it('rejects useAsPath on a singleton', () => {
+    expect(() => validateCollections([singleton({ useAsPath: 'name' })])).toThrow(/useAsPath/)
+  })
+
+  it('rejects search configuration on a singleton', () => {
+    expect(() => validateCollections([singleton({ search: { body: ['name'] } })])).toThrow(/search/)
+  })
+
+  it('rejects advertiseLocales on a singleton', () => {
+    expect(() => validateCollections([singleton({ advertiseLocales: true })])).toThrow(
+      /advertiseLocales/
+    )
+  })
+
+  it('accepts a well-formed singleton', () => {
+    expect(() => validateCollections([singleton({})])).not.toThrow()
+  })
+
+  it('rejects a relation whose target is a singleton', () => {
+    const singletonTarget = singleton({})
+    const referrer = {
+      path: 'news',
+      labels: { singular: 'Article', plural: 'News' },
+      fields: [
+        {
+          name: 'settings',
+          label: 'Settings',
+          type: 'relation',
+          targetCollection: 'site-settings',
+        },
+      ],
+    } as any
+    expect(() => validateCollections([singletonTarget, referrer])).toThrow(/singleton/i)
+  })
+
+  it('rejects labels on a singleton at runtime', () => {
+    expect(() =>
+      validateCollections([singleton({ labels: { singular: 'S', plural: 'P' } })])
+    ).toThrow(/labels|label/i)
+  })
+
+  it('still applies field-level validation to a singleton', () => {
+    expect(() =>
+      validateCollections([
+        singleton({
+          fields: [
+            {
+              name: 'heroImage',
+              label: 'Hero image',
+              type: 'image',
+              upload: { location: '/leading-slash-is-invalid' },
+            },
+          ],
+        }),
+      ])
+    ).toThrow(/location/)
+  })
+
+  it('rejects a singleton whose path collides with a collection', () => {
+    const collection = {
+      path: 'site-settings',
+      labels: { singular: 'Setting', plural: 'Settings' },
+      fields: [{ name: 'title', label: 'Title', type: 'text' }],
+    } as any
+    expect(() => validateCollections([collection, singleton({})])).toThrow(/site-settings/)
+  })
+})
