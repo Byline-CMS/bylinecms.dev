@@ -11,6 +11,7 @@
 // keeps this module free of Node built-ins so it can sit in the static
 // module graph walked by client bundlers without being externalised.
 
+import { isSingleton } from '../@types/collection-types.js'
 import type {
   Block,
   CollectionDefinition,
@@ -171,10 +172,16 @@ function canonicalCollection(def: CollectionDefinition): Record<string, unknown>
     path: def.path,
     fields: def.fields.map(canonicalField),
   }
+  // Emitted only for singletons: adding an unconditional `kind` would change
+  // every existing collection's hash and bump every stored schema version on
+  // upgrade, even though its data shape did not change.
+  if (isSingleton(def)) out.kind = 'singleton'
   if (def.workflow) out.workflow = canonicalWorkflow(def.workflow)
-  if (def.useAsPath !== undefined) out.useAsPath = def.useAsPath
-  if (def.useAsTitle !== undefined) out.useAsTitle = def.useAsTitle
-  if (def.advertiseLocales !== undefined) out.advertiseLocales = def.advertiseLocales
+  if (!isSingleton(def)) {
+    if (def.useAsPath !== undefined) out.useAsPath = def.useAsPath
+    if (def.useAsTitle !== undefined) out.useAsTitle = def.useAsTitle
+    if (def.advertiseLocales !== undefined) out.advertiseLocales = def.advertiseLocales
+  }
   return out
 }
 

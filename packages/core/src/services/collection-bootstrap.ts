@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { isSingleton } from '../@types/collection-types.js'
 import { fingerprintCollection } from '../storage/collection-fingerprint.js'
 import type { CollectionDefinition, IDbAdapter } from '../@types/index.js'
 import type { BylineLogger } from '../lib/logger.js'
@@ -94,6 +95,20 @@ async function reconcileCollection(
       path: definition.path,
       record: { collectionId, version: initialVersion, schemaHash: fingerprint },
     }
+  }
+
+  const storedConfig = (existing.config ?? {}) as { singleton?: boolean }
+  const storedIsSingleton = storedConfig.singleton === true
+  const incomingIsSingleton = isSingleton(definition)
+  if (storedIsSingleton !== incomingIsSingleton) {
+    throw new Error(
+      `Registered schema "${definition.path}" changed kind from ` +
+        `${storedIsSingleton ? 'singleton' : 'collection'} to ` +
+        `${incomingIsSingleton ? 'singleton' : 'collection'}. Cardinality and supported ` +
+        'operations differ between the two, so this needs an explicit data migration — ' +
+        'not a schema-version bump. Register the new kind under a different path, migrate ' +
+        'the documents, then retire the old one.'
+    )
   }
 
   const collectionId = existing.id as string

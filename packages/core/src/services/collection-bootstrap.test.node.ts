@@ -33,25 +33,30 @@ interface CollectionRow {
   id: string
   version: number
   schema_hash: string | null
+  config?: Record<string, unknown>
 }
 
 function createMockDb(options: {
   existingRow?: CollectionRow | null
   getCollectionByPath?: (path: string) => Promise<CollectionRow | null>
+  failWrites?: boolean
 }) {
   const getCollectionByPath = vi.fn(
     options.getCollectionByPath ?? (async () => options.existingRow ?? null)
   )
-  const create = vi
-    .fn()
-    .mockImplementation(async (_path: string, _config: CollectionDefinition, _opts: any) => [
-      { id: 'col-new' },
-    ])
-  const update = vi.fn().mockResolvedValue([{ id: options.existingRow?.id ?? 'col-new' }])
-
   const fail = () => {
     throw new Error('not expected to be called')
   }
+  const create = options.failWrites
+    ? vi.fn(fail)
+    : vi
+        .fn()
+        .mockImplementation(async (_path: string, _config: CollectionDefinition, _opts: any) => [
+          { id: 'col-new' },
+        ])
+  const update = options.failWrites
+    ? vi.fn(fail)
+    : vi.fn().mockResolvedValue([{ id: options.existingRow?.id ?? 'col-new' }])
 
   const db: IDbAdapter = {
     commands: {
@@ -261,6 +266,61 @@ describe('ensureCollections', () => {
     expect(records.get('news')?.version).toBe(2)
     expect(records.get('pages')?.version).toBe(1)
     expect(create).toHaveBeenCalledTimes(1)
+    expect(update).not.toHaveBeenCalled()
+  })
+
+  it('rejects changing a registered path from collection to singleton before writing', async () => {
+    const { db, create, update } = createMockDb({
+      existingRow: {
+        id: 'col-1',
+        version: 1,
+        schema_hash: 'stale',
+        config: { path: 'site-settings', fields: [] },
+      },
+      failWrites: true,
+    })
+
+    await expect(
+      ensureCollections({
+        definitions: [
+          {
+            path: 'site-settings',
+            label: 'Site settings',
+            singleton: true,
+            fields: [{ name: 'name', label: 'Site name', type: 'text' }],
+          } as any,
+        ],
+        db,
+      })
+    ).rejects.toThrow(/kind/i)
+    expect(create).not.toHaveBeenCalled()
+    expect(update).not.toHaveBeenCalled()
+  })
+
+  it('rejects changing a registered path from singleton to collection before writing', async () => {
+    const { db, create, update } = createMockDb({
+      existingRow: {
+        id: 'col-1',
+        version: 1,
+        schema_hash: 'stale',
+        config: { path: 'site-settings', singleton: true, fields: [] },
+      },
+      failWrites: true,
+    })
+
+    await expect(
+      ensureCollections({
+        definitions: [
+          {
+            path: 'site-settings',
+            labels: { singular: 'Setting', plural: 'Settings' },
+            fields: [{ name: 'title', label: 'Title', type: 'text' }],
+          } as any,
+        ],
+        db,
+      })
+    ).rejects.toThrow(/kind/i)
+    expect(create).not.toHaveBeenCalled()
     expect(update).not.toHaveBeenCalled()
   })
 })

@@ -308,4 +308,21 @@ describe('fingerprintCollection', () => {
     })
     expect(await fingerprintCollection(b)).toBe(hashA)
   })
+
+  it('distinguishes a singleton from a collection with the same shape', async () => {
+    const fields = [{ name: 'name', label: 'Site name', type: 'text' }] as any
+    const asCollection = await fingerprintCollection({
+      path: 'site-settings',
+      labels: { singular: 'Setting', plural: 'Settings' },
+      fields,
+    } as any)
+    const asSingleton = await fingerprintCollection({
+      path: 'site-settings',
+      label: 'Site settings',
+      singleton: true,
+      fields,
+    } as any)
+
+    expect(asSingleton).not.toBe(asCollection)
+  })
 })
