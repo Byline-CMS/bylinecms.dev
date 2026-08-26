@@ -11,19 +11,16 @@ import { createServerFn } from '@tanstack/react-start'
 import { getAdminBylineClient, getAdminRequestContext } from '@byline/client/server'
 import {
   BylineError,
-  buildRelationSummaryPopulateMap,
   documentAbilityKey,
   ERR_NOT_FOUND,
   ErrorCodes,
-  getCollectionAdminConfig,
-  getCollectionDefinition,
   getCollectionSchemasForPath,
   getLogger,
   getServerConfig,
-  type PopulateSpec,
 } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { resolveAdminDocumentRead } from '../admin-document-presentation.js'
 import { serialise } from './utils'
 
 // ---------------------------------------------------------------------------
@@ -54,49 +51,14 @@ const getDocumentFn = createServerFn({ method: 'GET' })
     const client = getAdminBylineClient()
     const handle = client.collection(path)
 
-    // Determine populate strategy. The admin API-preview path passes an
-    // explicit `depth > 0` and uses `'*'` to walk every relation with the
-    // full document projection — useful for the debug/preview UI but
-    // wasteful elsewhere. The admin edit loader sets `populateRelations`
-    // to auto-build a depth-1 projection from the schema's relation
-    // fields, so each target gets just its picker columns + useAsTitle
-    // and relation-summary tiles render on first paint without per-tile
-    // fetches.
-    const populateRequested = typeof depth === 'number' && depth > 0
-    const autoRelationsActive = !populateRequested && populateRelations === true
-
-    let populate: PopulateSpec | undefined
-    let resolvedDepth: number | undefined
-    if (populateRequested) {
-      populate = '*'
-      resolvedDepth = depth
-    } else if (autoRelationsActive) {
-      const populateMap = buildRelationSummaryPopulateMap(
-        config.definition.fields,
-        (targetPath) => ({
-          def: getCollectionDefinition(targetPath),
-          admin: getCollectionAdminConfig(targetPath),
-        })
-      )
-      if (Object.keys(populateMap).length > 0) {
-        populate = populateMap
-        resolvedDepth = 1
-      }
-    }
+    const { options: readOptions, populatedTree } = resolveAdminDocumentRead(config.definition, {
+      locale,
+      depth,
+      populateRelations,
+    })
 
     const document = await handle.findById(id, {
-      locale: locale ?? 'en',
-      populate,
-      depth: resolvedDepth,
-      status: 'any',
-      // Admin edit path: show the RAW per-locale values — untranslated localized
-      // fields stay empty (the signal to use "Copy to Locale"), never falling
-      // back to the default locale. Overrides the client's `'fallback'` default.
-      onMissingLocale: 'empty',
-      // Admin edit path: tolerate schema-mismatch warnings rather than
-      // hard-failing the load. Warnings (if any) come back on the document
-      // as `_restoreWarnings` and the edit form surfaces them via an Alert.
-      lenient: true,
+      ...readOptions,
     })
 
     if (!document) {
@@ -114,7 +76,6 @@ const getDocumentFn = createServerFn({ method: 'GET' })
     //     don't match the raw relation-ref shape the schema expects —
     //     applies equally to the depth-based preview path and the
     //     admin-edit relation-summary path)
-    const populatedTree = populateRequested || autoRelationsActive
     const parsed =
       locale === 'all' || populatedTree
         ? (serialised as Record<string, any>)
