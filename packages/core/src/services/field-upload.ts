@@ -284,7 +284,7 @@ export async function uploadField(
       // Upload is effectively a write under collection scope — enforce
       // the `create` ability even when `shouldCreateDocument: false` so
       // anonymous callers cannot push bytes into storage.
-      assertActorCanPerform(ctx.requestContext, collectionPath, 'create')
+      assertActorCanPerform(ctx.requestContext, definition, 'create')
 
       const field = findUploadField(definition.fields, fieldName)
       if (!field) {

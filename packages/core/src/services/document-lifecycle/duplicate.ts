@@ -150,7 +150,7 @@ export async function duplicateDocument(
     { domain: 'services', module: 'lifecycle', function: 'duplicateDocument' },
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
-      assertActorCanPerform(ctx.requestContext, collectionPath, 'create')
+      assertActorCanPerform(ctx.requestContext, definition, 'create')
       const slugifier = ctx.slugifier ?? slugify
       const hooks = await resolveHooks(definition)
 

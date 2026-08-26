@@ -10,7 +10,7 @@ import { ERR_UNAUTHENTICATED, type RequestContext } from '@byline/auth'
 
 import { resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
-import { collectionAbilityKey } from '../../auth/register-collection-abilities.js'
+import { documentAbilityKey } from '../../auth/register-collection-abilities.js'
 import {
   ERR_CONFLICT,
   ERR_INVALID_TRANSITION,
@@ -49,8 +49,8 @@ class ClaimedPublicationOutcome extends Error {
 }
 
 function assertScheduleAbilities(ctx: DocumentLifecycleContext): void {
-  assertActorCanPerform(ctx.requestContext, ctx.collectionPath, 'changeStatus')
-  assertActorCanPerform(ctx.requestContext, ctx.collectionPath, 'publish')
+  assertActorCanPerform(ctx.requestContext, ctx.definition, 'changeStatus')
+  assertActorCanPerform(ctx.requestContext, ctx.definition, 'publish')
 }
 
 async function assertCurrentVersionCanPublish(
@@ -301,8 +301,8 @@ export async function listDocumentPublishSchedules(
   const collectionIds: string[] = []
   for (const definition of core.collections) {
     if (
-      actor.hasAbility(collectionAbilityKey(definition.path, 'changeStatus')) &&
-      actor.hasAbility(collectionAbilityKey(definition.path, 'publish'))
+      actor.hasAbility(documentAbilityKey(definition, 'changeStatus')) &&
+      actor.hasAbility(documentAbilityKey(definition, 'publish'))
     ) {
       collectionIds.push(core.getCollectionRecord(definition.path).collectionId)
     }

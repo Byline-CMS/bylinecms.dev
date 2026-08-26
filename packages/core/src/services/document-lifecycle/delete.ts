@@ -99,7 +99,7 @@ export async function deleteDocument(
     { domain: 'services', module: 'lifecycle', function: 'deleteDocument' },
     async () => {
       const { db, collectionPath, definition, logger } = ctx
-      assertActorCanPerform(ctx.requestContext, collectionPath, 'delete')
+      assertActorCanPerform(ctx.requestContext, definition, 'delete')
       const hooks = await resolveHooks(definition)
 
       // 1. Verify the document exists. Soft delete retains field rows and

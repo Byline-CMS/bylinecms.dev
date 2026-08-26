@@ -59,7 +59,7 @@ export async function deleteLocale(
     { domain: 'services', module: 'lifecycle', function: 'deleteLocale' },
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
-      assertActorCanPerform(ctx.requestContext, collectionPath, 'update')
+      assertActorCanPerform(ctx.requestContext, definition, 'update')
 
       // The default locale anchors the document's path and source_locale —
       // it cannot be deleted (the other locales fall back to it).

@@ -25,7 +25,7 @@
 import type React from 'react'
 import { useState } from 'react'
 
-import type { ListActionComponentProps } from '@byline/core'
+import { documentAbilityKey, type ListActionComponentProps } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Button, useToastManager } from '@byline/ui/react'
 
@@ -37,7 +37,9 @@ export function ReindexButton({
 }: ListActionComponentProps): React.JSX.Element | null {
   const { t } = useTranslation('byline-admin')
   const toastManager = useToastManager()
-  const canReindex = useAbility(`collections.${collectionPath}.reindex`)
+  const canReindex = useAbility(
+    documentAbilityKey({ kind: 'collection', path: collectionPath }, 'reindex')
+  )
   const [pending, setPending] = useState(false)
 
   if (!canReindex) return null

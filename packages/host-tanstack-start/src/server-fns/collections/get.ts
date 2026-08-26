@@ -12,7 +12,7 @@ import { getAdminBylineClient, getAdminRequestContext } from '@byline/client/ser
 import {
   BylineError,
   buildRelationSummaryPopulateMap,
-  collectionAbilityKey,
+  documentAbilityKey,
   ERR_NOT_FOUND,
   ErrorCodes,
   getCollectionAdminConfig,
@@ -177,8 +177,8 @@ const getDocumentFn = createServerFn({ method: 'GET' })
     if (scheduledPublicationEnabled) {
       const actor = (await getAdminRequestContext()).actor
       canSchedulePublication =
-        actor?.hasAbility(collectionAbilityKey(path, 'changeStatus')) === true &&
-        actor.hasAbility(collectionAbilityKey(path, 'publish'))
+        actor?.hasAbility(documentAbilityKey(config.definition, 'changeStatus')) === true &&
+        actor.hasAbility(documentAbilityKey(config.definition, 'publish'))
       if (canSchedulePublication) {
         scheduledPublish = await handle.getScheduledPublish(id)
       }

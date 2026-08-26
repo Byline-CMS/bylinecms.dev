@@ -234,7 +234,7 @@ export async function zoneSearch(
   let firstAbilityError: unknown
   for (const member of members) {
     try {
-      assertActorCanPerform(requestContext, member.path, 'read')
+      assertActorCanPerform(requestContext, member, 'read')
       readable.add(member.path)
     } catch (err) {
       firstAbilityError ??= err

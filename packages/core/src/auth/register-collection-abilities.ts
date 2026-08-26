@@ -8,89 +8,12 @@
 
 import type { AbilityRegistry } from '@byline/auth'
 
-import type { MultiCollectionDefinition } from '../@types/index.js'
-
-/**
- * Auto-register the CRUD + workflow abilities contributed by a collection.
- *
- * Every registered collection contributes exactly seven abilities, all in
- * the `collections.<path>` group:
- *
- *   - `collections.<path>.read`          — enumerate / fetch documents
- *   - `collections.<path>.create`        — create new documents
- *   - `collections.<path>.update`        — modify existing documents
- *   - `collections.<path>.delete`        — delete documents (soft or hard)
- *   - `collections.<path>.publish`       — transition a document into the
- *                                          `published` status
- *   - `collections.<path>.changeStatus`  — any other workflow transition
- *                                          (draft → custom state, etc.)
- *   - `collections.<path>.reindex`       — rebuild the collection's search
- *                                          index (admin maintenance task)
- *
- * Registration is unconditional: every collection in Byline has a workflow
- * (the default `draft → published → archived` one when not explicitly
- * configured), so `publish` and `changeStatus` always apply; `reindex` is
- * likewise uniform (a no-op for collections without a `search` config).
- * Keeping the seven-ability contract uniform makes the role editor UI
- * predictable and avoids hidden conditional logic downstream.
- *
- * Called from `initBylineCore()` for each declared multi-document collection.
- * Singleton ability registration is deferred to the singleton lifecycle plan,
- * where its smaller verb set and `singletons.<path>` key family are defined.
- * See docs/07-auth-and-security/01-authn-authz.md.
- */
-export function registerCollectionAbilities(
-  registry: AbilityRegistry,
-  definition: MultiCollectionDefinition
-): void {
-  const path = definition.path
-  const group = `collections.${path}`
-  const base = `collections.${path}`
-  const { singular, plural } = definition.labels
-
-  registry.register({
-    key: `${base}.read`,
-    label: `Read ${plural}`,
-    group,
-    source: 'collection',
-  })
-  registry.register({
-    key: `${base}.create`,
-    label: `Create ${singular}`,
-    group,
-    source: 'collection',
-  })
-  registry.register({
-    key: `${base}.update`,
-    label: `Update ${singular}`,
-    group,
-    source: 'collection',
-  })
-  registry.register({
-    key: `${base}.delete`,
-    label: `Delete ${singular}`,
-    group,
-    source: 'collection',
-  })
-  registry.register({
-    key: `${base}.publish`,
-    label: `Publish ${plural}`,
-    group,
-    source: 'collection',
-  })
-  registry.register({
-    key: `${base}.changeStatus`,
-    label: `Change status of ${plural}`,
-    group,
-    source: 'collection',
-  })
-  registry.register({
-    key: `${base}.reindex`,
-    label: `Reindex ${plural} search`,
-    group,
-    source: 'collection',
-  })
-}
+import {
+  type CollectionDefinition,
+  isSingleton,
+  type MultiCollectionDefinition,
+  type SingletonDefinition,
+} from '../@types/index.js'
 
 /** The ability suffixes that every collection contributes. Exposed for contract tests. */
 export const COLLECTION_ABILITY_VERBS = [
@@ -103,9 +26,132 @@ export const COLLECTION_ABILITY_VERBS = [
   'reindex',
 ] as const
 
-export type CollectionAbilityVerb = (typeof COLLECTION_ABILITY_VERBS)[number]
+/** The smaller ability family contributed by every singleton. */
+export const SINGLETON_ABILITY_VERBS = ['read', 'update', 'publish', 'changeStatus'] as const
 
-/** Compute the full ability key for a collection path and verb. */
-export function collectionAbilityKey(path: string, verb: CollectionAbilityVerb): string {
-  return `collections.${path}.${verb}`
+export type CollectionAbilityVerb = (typeof COLLECTION_ABILITY_VERBS)[number]
+export type SingletonAbilityVerb = (typeof SINGLETON_ABILITY_VERBS)[number]
+
+/** Minimal explicit descriptor for collection ability checks. */
+export interface CollectionAbilityResourceDescriptor {
+  kind: 'collection'
+  path: string
+}
+
+/** Minimal explicit descriptor for singleton ability checks. */
+export interface SingletonAbilityResourceDescriptor {
+  kind: 'singleton'
+  path: string
+}
+
+export type CollectionAbilityResource =
+  | MultiCollectionDefinition
+  | CollectionAbilityResourceDescriptor
+export type SingletonAbilityResource = SingletonDefinition | SingletonAbilityResourceDescriptor
+export type DocumentAbilityResource = CollectionAbilityResource | SingletonAbilityResource
+
+/** Correlate the permitted verb family with the resource kind. */
+export type DocumentAbilityVerbFor<Resource extends DocumentAbilityResource> =
+  Resource extends SingletonAbilityResource ? SingletonAbilityVerb : CollectionAbilityVerb
+
+/**
+ * Compute a document-resource ability key from a kind-bearing descriptor.
+ *
+ * TypeScript callers cannot pair a known singleton with collection-only verbs.
+ * Runtime validation preserves the same boundary for untyped JavaScript callers
+ * and for union-typed definitions whose concrete kind is known only at runtime.
+ */
+export function documentAbilityKey<Resource extends DocumentAbilityResource>(
+  resource: Resource,
+  verb: DocumentAbilityVerbFor<Resource>
+): string {
+  const kind = resourceKind(resource)
+  const candidate = verb as string
+  const allowed: readonly string[] =
+    kind === 'singleton' ? SINGLETON_ABILITY_VERBS : COLLECTION_ABILITY_VERBS
+
+  if (!allowed.includes(candidate)) {
+    throw new TypeError(`ability verb '${candidate}' is not valid for resource kind '${kind}'`)
+  }
+
+  return `${resourceNamespace(kind)}.${resource.path}.${candidate}`
+}
+
+/** @deprecated Use {@link documentAbilityKey}; this compatibility name also requires a descriptor. */
+export const collectionAbilityKey: typeof documentAbilityKey = documentAbilityKey
+
+/** Auto-register the seven abilities contributed by a multi-document collection. */
+export function registerCollectionAbilities(
+  registry: AbilityRegistry,
+  definition: MultiCollectionDefinition
+): void {
+  const group = documentAbilityGroup(definition)
+  const { singular, plural } = definition.labels
+  const labels: Record<CollectionAbilityVerb, string> = {
+    read: `Read ${plural}`,
+    create: `Create ${singular}`,
+    update: `Update ${singular}`,
+    delete: `Delete ${singular}`,
+    publish: `Publish ${plural}`,
+    changeStatus: `Change status of ${plural}`,
+    reindex: `Reindex ${plural} search`,
+  }
+
+  for (const verb of COLLECTION_ABILITY_VERBS) {
+    registry.register({
+      key: documentAbilityKey(definition, verb),
+      label: labels[verb],
+      group,
+      source: 'collection',
+    })
+  }
+}
+
+/** Auto-register the four read, update, and workflow abilities for a singleton. */
+export function registerSingletonAbilities(
+  registry: AbilityRegistry,
+  definition: SingletonDefinition
+): void {
+  const group = documentAbilityGroup(definition)
+  const label = definition.label
+  const labels: Record<SingletonAbilityVerb, string> = {
+    read: `Read ${label}`,
+    update: `Update ${label}`,
+    publish: `Publish ${label}`,
+    changeStatus: `Change status of ${label}`,
+  }
+
+  for (const verb of SINGLETON_ABILITY_VERBS) {
+    registry.register({
+      key: documentAbilityKey(definition, verb),
+      label: labels[verb],
+      group,
+      source: 'collection',
+    })
+  }
+}
+
+/** Register the correct ability family for either document-resource kind. */
+export function registerDocumentAbilities(
+  registry: AbilityRegistry,
+  definition: CollectionDefinition
+): void {
+  if (isSingleton(definition)) {
+    registerSingletonAbilities(registry, definition)
+    return
+  }
+  registerCollectionAbilities(registry, definition)
+}
+
+function documentAbilityGroup(resource: DocumentAbilityResource): string {
+  return `${resourceNamespace(resourceKind(resource))}.${resource.path}`
+}
+
+function resourceKind(resource: DocumentAbilityResource): 'collection' | 'singleton' {
+  if ('kind' in resource) return resource.kind
+  return resource.singleton === true ? 'singleton' : 'collection'
+}
+
+function resourceNamespace(kind: 'collection' | 'singleton'): 'collections' | 'singletons' {
+  return kind === 'singleton' ? 'singletons' : 'collections'
 }

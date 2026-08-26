@@ -74,7 +74,7 @@ export async function createDocument(
     { domain: 'services', module: 'lifecycle', function: 'createDocument' },
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
-      assertActorCanPerform(ctx.requestContext, collectionPath, 'create')
+      assertActorCanPerform(ctx.requestContext, definition, 'create')
       // Reject unsupported tree adapters before hooks, counters, or persistence
       // can create a document that cannot be placed and audited safely.
       if (definition.tree === true) requireTreeAuditCapability(db)

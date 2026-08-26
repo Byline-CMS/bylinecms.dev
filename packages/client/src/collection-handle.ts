@@ -368,7 +368,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    */
   async reindex(): Promise<ReindexResult> {
     const requestContext = await this.client.resolveRequestContext()
-    assertActorCanPerform(requestContext, this.definition.path, 'reindex')
+    assertActorCanPerform(requestContext, this.definition, 'reindex')
 
     const provider = this.client.searchProvider
     const result: ReindexResult = { collectionPath: this.definition.path, documents: 0, indexed: 0 }
@@ -1140,7 +1140,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     readContext: ReadContext
   ): Promise<RequestContext> {
     const requestContext = await resolveReadRequestContext(this.client, readContext, readMode)
-    assertActorCanPerform(requestContext, this.definition.path, 'read')
+    assertActorCanPerform(requestContext, this.definition, 'read')
     return requestContext
   }
 

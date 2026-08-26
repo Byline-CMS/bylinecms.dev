@@ -9,8 +9,9 @@
 import { ERR_UNAUTHENTICATED, type RequestContext } from '@byline/auth'
 
 import {
-  type CollectionAbilityVerb,
-  collectionAbilityKey,
+  type DocumentAbilityResource,
+  type DocumentAbilityVerbFor,
+  documentAbilityKey,
 } from './register-collection-abilities.js'
 
 /**
@@ -31,7 +32,8 @@ import {
  *          default for unauthenticated consumers).
  *        - Any other combination → `ERR_UNAUTHENTICATED`.
  *
- *   3. **Actor present** → `actor.assertAbility('collections.<path>.<verb>')`.
+ *   3. **Actor present** → assert the kind-aware ability key derived from the
+ *      resource descriptor.
  *      `AdminAuth` with `isSuperAdmin: true` short-circuits the check
  *      internally; any other actor must hold the specific ability.
  *
@@ -41,15 +43,16 @@ import {
  *
  * See docs/07-auth-and-security/01-authn-authz.md.
  */
-export function assertActorCanPerform(
+export function assertActorCanPerform<Resource extends DocumentAbilityResource>(
   context: RequestContext | undefined,
-  collectionPath: string,
-  verb: CollectionAbilityVerb
+  resource: Resource,
+  verb: DocumentAbilityVerbFor<Resource>
 ): void {
+  const path = resource.path
   if (!context) {
     throw ERR_UNAUTHENTICATED({
       message:
-        `missing requestContext on ${verb} '${collectionPath}'. Pass createSuperAdminContext() ` +
+        `missing requestContext on ${verb} '${path}'. Pass createSuperAdminContext() ` +
         `from @byline/auth for scripts/tests, or construct a request-scoped context from your ` +
         `session provider in the admin webapp.`,
     })
@@ -60,13 +63,13 @@ export function assertActorCanPerform(
   if (actor == null) {
     if (verb !== 'read') {
       throw ERR_UNAUTHENTICATED({
-        message: `anonymous request cannot ${verb} '${collectionPath}': no actor in context`,
+        message: `anonymous request cannot ${verb} '${path}': no actor in context`,
       })
     }
     if (readMode !== 'published') {
       throw ERR_UNAUTHENTICATED({
         message:
-          `anonymous read of '${collectionPath}' requires readMode: 'published' ` +
+          `anonymous read of '${path}' requires readMode: 'published' ` +
           `(got readMode: ${readMode == null ? '<unset>' : `'${readMode}'`})`,
       })
     }
@@ -74,5 +77,5 @@ export function assertActorCanPerform(
     return
   }
 
-  actor.assertAbility(collectionAbilityKey(collectionPath, verb))
+  actor.assertAbility(documentAbilityKey(resource, verb))
 }

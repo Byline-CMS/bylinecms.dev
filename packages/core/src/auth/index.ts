@@ -18,7 +18,18 @@ export {
 } from './filter-readable-collections.js'
 export {
   COLLECTION_ABILITY_VERBS,
+  type CollectionAbilityResource,
+  type CollectionAbilityResourceDescriptor,
   type CollectionAbilityVerb,
   collectionAbilityKey,
+  type DocumentAbilityResource,
+  type DocumentAbilityVerbFor,
+  documentAbilityKey,
   registerCollectionAbilities,
+  registerDocumentAbilities,
+  registerSingletonAbilities,
+  SINGLETON_ABILITY_VERBS,
+  type SingletonAbilityResource,
+  type SingletonAbilityResourceDescriptor,
+  type SingletonAbilityVerb,
 } from './register-collection-abilities.js'

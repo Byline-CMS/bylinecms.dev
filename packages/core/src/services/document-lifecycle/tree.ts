@@ -167,7 +167,7 @@ export async function placeTreeNode(
   return withLogContext(
     { domain: 'services', module: 'tree', function: 'placeTreeNode' },
     async () => {
-      assertActorCanPerform(ctx.requestContext, ctx.collectionPath, 'update')
+      assertActorCanPerform(ctx.requestContext, ctx.definition, 'update')
       const hooks = await resolveHooks(ctx.definition)
       const wantsEvent = hooks?.afterTreeChange != null
       const mutation = await auditedPlace(ctx, params)
@@ -242,7 +242,7 @@ export async function removeFromTree(
   return withLogContext(
     { domain: 'services', module: 'tree', function: 'removeFromTree' },
     async () => {
-      assertActorCanPerform(ctx.requestContext, ctx.collectionPath, 'update')
+      assertActorCanPerform(ctx.requestContext, ctx.definition, 'update')
       const hooks = await resolveHooks(ctx.definition)
       const wantsEvent = hooks?.afterTreeChange != null
       const capability = requireTreeAuditCapability(ctx.db)

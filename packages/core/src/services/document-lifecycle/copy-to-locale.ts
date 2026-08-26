@@ -78,7 +78,7 @@ export async function copyToLocale(
     { domain: 'services', module: 'lifecycle', function: 'copyToLocale' },
     async () => {
       const { db, definition, collectionId, collectionPath } = ctx
-      assertActorCanPerform(ctx.requestContext, collectionPath, 'update')
+      assertActorCanPerform(ctx.requestContext, definition, 'update')
 
       if (params.sourceLocale === params.targetLocale) {
         throw ERR_VALIDATION({

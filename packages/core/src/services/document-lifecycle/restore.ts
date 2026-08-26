@@ -78,7 +78,7 @@ export async function restoreDocumentVersion(
     { domain: 'services', module: 'lifecycle', function: 'restoreDocumentVersion' },
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
-      assertActorCanPerform(ctx.requestContext, collectionPath, 'update')
+      assertActorCanPerform(ctx.requestContext, definition, 'update')
       const hooks = await resolveHooks(definition)
 
       // 1. Read source version (full multi-locale tree).

@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { collectionAbilityKey } from './register-collection-abilities.js'
+import { documentAbilityKey } from './register-collection-abilities.js'
 import type { CollectionDefinition } from '../@types/collection-types.js'
 
 /**
@@ -45,5 +45,5 @@ export function filterReadableCollections(
   if (snapshot.isSuperAdmin) return [...collections]
 
   const held = new Set(snapshot.abilities)
-  return collections.filter((collection) => held.has(collectionAbilityKey(collection.path, 'read')))
+  return collections.filter((collection) => held.has(documentAbilityKey(collection, 'read')))
 }

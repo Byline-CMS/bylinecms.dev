@@ -15,8 +15,7 @@ import { type AbilityDescriptor, AbilityRegistry, type SessionProvider } from '@
 // client file transitively imports `@byline/core`.
 import type { Logger as PinoLogger } from 'pino'
 
-import { isSingleton } from './@types/index.js'
-import { registerCollectionAbilities } from './auth/register-collection-abilities.js'
+import { registerDocumentAbilities } from './auth/register-collection-abilities.js'
 import {
   defineBylineCore,
   getBylineCoreUnsafe,
@@ -65,9 +64,8 @@ export interface BylineCore<TAdminStore = unknown> {
    */
   getCollectionRecord: (path: string) => CollectionRecord
   /**
-   * Ability registry. Populated at init time with the CRUD + workflow
-   * abilities contributed by each declared collection
-   * (`collections.<path>.{read,create,update,delete,publish,changeStatus}`).
+   * Ability registry. Populated at init time with the kind-aware ability
+   * family contributed by every declared document resource.
    *
    * Plugins and future subsystems contribute their own abilities via
    * `registerAbility()` — or directly against `core.abilities` — typically
@@ -272,12 +270,12 @@ export const initBylineCore = async <TAdminStore = unknown>(
     return record
   }
 
-  // Ability registry — populated with each collection's CRUD + workflow
+  // Ability registry — populated with each document resource's kind-aware
   // abilities. Plugins and subsystems add their own via
   // `core.registerAbility()` or `core.abilities.register()`.
   const abilities = new AbilityRegistry()
   for (const definition of composed.collections) {
-    if (!isSingleton(definition)) registerCollectionAbilities(abilities, definition)
+    registerDocumentAbilities(abilities, definition)
   }
 
   const core: BylineCore<TAdminStore> = {

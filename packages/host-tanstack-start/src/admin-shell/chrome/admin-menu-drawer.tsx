@@ -14,7 +14,7 @@ import { ADMIN_PERMISSIONS_ABILITIES } from '@byline/admin/admin-permissions'
 import { ADMIN_ROLES_ABILITIES } from '@byline/admin/admin-roles'
 import { ADMIN_USERS_ABILITIES } from '@byline/admin/admin-users'
 import { ANALYTICS_ABILITIES } from '@byline/admin/analytics'
-import { collectionAbilityKey, getAdminConfig } from '@byline/core'
+import { documentAbilityKey, getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import {
   ActivityIcon,
@@ -105,8 +105,8 @@ export function AdminMenuDrawer({
     scheduledPublicationEnabled &&
     getAdminConfig().collections.some(
       (collection) =>
-        has(collectionAbilityKey(collection.path, 'changeStatus')) &&
-        has(collectionAbilityKey(collection.path, 'publish'))
+        has(documentAbilityKey(collection, 'changeStatus')) &&
+        has(documentAbilityKey(collection, 'publish'))
     )
   const showAdminSection = canReadUsers || canReadRoles || canReadPermissions || canReadActivity
 

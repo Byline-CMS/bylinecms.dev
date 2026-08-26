@@ -381,7 +381,7 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
       // target collection before any adapter access; unresolved target schemas
       // remain unresolved rather than bypassing the collection gate.
       if (opts.requestContext && targetDef) {
-        assertActorCanPerform(opts.requestContext, targetDef.path, 'read')
+        assertActorCanPerform(opts.requestContext, targetDef, 'read')
       }
 
       // Only fetch IDs we haven't materialised earlier in this request.

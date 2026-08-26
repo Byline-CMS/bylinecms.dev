@@ -11,10 +11,13 @@ import { describe, expect, it } from 'vitest'
 
 import {
   COLLECTION_ABILITY_VERBS,
-  collectionAbilityKey,
+  documentAbilityKey,
   registerCollectionAbilities,
+  registerDocumentAbilities,
+  registerSingletonAbilities,
+  SINGLETON_ABILITY_VERBS,
 } from './register-collection-abilities.js'
-import type { MultiCollectionDefinition } from '../@types/index.js'
+import type { MultiCollectionDefinition, SingletonDefinition } from '../@types/index.js'
 
 function pageCollection(): MultiCollectionDefinition {
   return {
@@ -40,8 +43,17 @@ function newsCollection(): MultiCollectionDefinition {
   }
 }
 
+function siteSettings(): SingletonDefinition {
+  return {
+    singleton: true,
+    path: 'site-settings',
+    label: 'Site settings',
+    fields: [{ name: 'title', type: 'text' }],
+  }
+}
+
 describe('registerCollectionAbilities', () => {
-  it('registers exactly the six CRUD + workflow abilities for a collection', () => {
+  it('registers exactly the seven collection abilities', () => {
     const registry = new AbilityRegistry()
     registerCollectionAbilities(registry, pageCollection())
 
@@ -119,7 +131,55 @@ describe('registerCollectionAbilities', () => {
   })
 })
 
-describe('COLLECTION_ABILITY_VERBS / collectionAbilityKey', () => {
+describe('registerSingletonAbilities', () => {
+  it('registers exactly the four singleton abilities', () => {
+    const registry = new AbilityRegistry()
+    registerSingletonAbilities(registry, siteSettings())
+
+    expect(registry.list().map((descriptor) => descriptor.key)).toEqual([
+      'singletons.site-settings.read',
+      'singletons.site-settings.update',
+      'singletons.site-settings.publish',
+      'singletons.site-settings.changeStatus',
+    ])
+  })
+
+  it('uses the singleton label and one singleton group', () => {
+    const registry = new AbilityRegistry()
+    registerSingletonAbilities(registry, siteSettings())
+
+    expect(registry.list().map((descriptor) => descriptor.label)).toEqual([
+      'Read Site settings',
+      'Update Site settings',
+      'Publish Site settings',
+      'Change status of Site settings',
+    ])
+    expect(registry.byGroup().get('singletons.site-settings')).toHaveLength(4)
+  })
+
+  it('does not register collection-only verbs', () => {
+    const registry = new AbilityRegistry()
+    registerSingletonAbilities(registry, siteSettings())
+
+    expect(registry.has('singletons.site-settings.create')).toBe(false)
+    expect(registry.has('singletons.site-settings.delete')).toBe(false)
+    expect(registry.has('singletons.site-settings.reindex')).toBe(false)
+  })
+})
+
+describe('registerDocumentAbilities', () => {
+  it('dispatches both definition kinds into isolated ability families', () => {
+    const registry = new AbilityRegistry()
+    registerDocumentAbilities(registry, pageCollection())
+    registerDocumentAbilities(registry, siteSettings())
+
+    expect(registry.size).toBe(11)
+    expect(registry.byGroup().get('collections.pages')).toHaveLength(7)
+    expect(registry.byGroup().get('singletons.site-settings')).toHaveLength(4)
+  })
+})
+
+describe('ability verb contracts / documentAbilityKey', () => {
   it('COLLECTION_ABILITY_VERBS exposes the canonical verb list in registration order', () => {
     expect(COLLECTION_ABILITY_VERBS).toEqual([
       'read',
@@ -132,16 +192,55 @@ describe('COLLECTION_ABILITY_VERBS / collectionAbilityKey', () => {
     ])
   })
 
-  it('collectionAbilityKey composes a flat dotted key', () => {
-    expect(collectionAbilityKey('pages', 'publish')).toBe('collections.pages.publish')
-    expect(collectionAbilityKey('news', 'changeStatus')).toBe('collections.news.changeStatus')
+  it('SINGLETON_ABILITY_VERBS exposes the canonical verb list in registration order', () => {
+    expect(SINGLETON_ABILITY_VERBS).toEqual(['read', 'update', 'publish', 'changeStatus'])
+  })
+
+  it('composes a kind-aware flat dotted key from definitions and explicit descriptors', () => {
+    expect(documentAbilityKey(pageCollection(), 'publish')).toBe('collections.pages.publish')
+    expect(documentAbilityKey(siteSettings(), 'changeStatus')).toBe(
+      'singletons.site-settings.changeStatus'
+    )
+    expect(documentAbilityKey({ kind: 'collection', path: 'news' }, 'read')).toBe(
+      'collections.news.read'
+    )
+    expect(documentAbilityKey({ kind: 'singleton', path: 'navigation' }, 'update')).toBe(
+      'singletons.navigation.update'
+    )
   })
 
   it('matches the keys produced by registerCollectionAbilities', () => {
     const registry = new AbilityRegistry()
-    registerCollectionAbilities(registry, pageCollection())
+    const definition = pageCollection()
+    registerCollectionAbilities(registry, definition)
     for (const verb of COLLECTION_ABILITY_VERBS) {
-      expect(registry.has(collectionAbilityKey('pages', verb))).toBe(true)
+      expect(registry.has(documentAbilityKey(definition, verb))).toBe(true)
     }
+  })
+
+  it('matches the keys produced by registerSingletonAbilities', () => {
+    const registry = new AbilityRegistry()
+    const definition = siteSettings()
+    registerSingletonAbilities(registry, definition)
+    for (const verb of SINGLETON_ABILITY_VERBS) {
+      expect(registry.has(documentAbilityKey(definition, verb))).toBe(true)
+    }
+  })
+
+  it('rejects collection-only verbs for singleton descriptors at compile time and runtime', () => {
+    const singleton = siteSettings()
+    const compileOnlyInvalidCall = () => {
+      documentAbilityKey(
+        singleton,
+        // @ts-expect-error create is not a singleton ability verb
+        'create'
+      )
+    }
+    expect(compileOnlyInvalidCall).toBeTypeOf('function')
+
+    const untypedKey = documentAbilityKey as (resource: unknown, verb: string) => string
+    expect(() => untypedKey(singleton, 'create')).toThrow(/verb 'create'.*singleton/)
+    expect(() => untypedKey(singleton, 'delete')).toThrow(/verb 'delete'.*singleton/)
+    expect(() => untypedKey(singleton, 'reindex')).toThrow(/verb 'reindex'.*singleton/)
   })
 })

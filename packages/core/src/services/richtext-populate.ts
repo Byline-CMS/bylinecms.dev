@@ -187,7 +187,7 @@ export function createRichTextDocumentReader(options: {
       })
     }
 
-    assertActorCanPerform(requestContext, collectionPath, 'read')
+    assertActorCanPerform(requestContext, definition, 'read')
 
     let filters: DocumentFilter[] | undefined
     if (!bypassBeforeRead) {

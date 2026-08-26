@@ -57,9 +57,9 @@ export async function changeDocumentStatus(
       // require the narrower `publish` ability — so installations can
       // grant "move things through the workflow" without also granting
       // "flip the final publish switch".
-      assertActorCanPerform(ctx.requestContext, collectionPath, 'changeStatus')
+      assertActorCanPerform(ctx.requestContext, definition, 'changeStatus')
       if (params.nextStatus === 'published') {
-        assertActorCanPerform(ctx.requestContext, collectionPath, 'publish')
+        assertActorCanPerform(ctx.requestContext, definition, 'publish')
       }
       // Single-status workflows (e.g. SINGLE_STATUS_WORKFLOW for lookups)
       // have no transitions to perform. Reject early with a clear message
@@ -179,7 +179,7 @@ export async function unpublishDocument(
       const { db, collectionId, collectionPath, definition } = ctx
       // Unpublish is a workflow transition out of `published` — reuse the
       // changeStatus gate rather than a separate ability.
-      assertActorCanPerform(ctx.requestContext, collectionPath, 'changeStatus')
+      assertActorCanPerform(ctx.requestContext, definition, 'changeStatus')
       // Single-status workflows have nothing to unpublish to.
       const workflow = getWorkflow(definition)
       if (workflow.statuses.length <= 1) {

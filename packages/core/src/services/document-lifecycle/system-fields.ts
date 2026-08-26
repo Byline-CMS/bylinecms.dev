@@ -91,7 +91,7 @@ export async function updateDocumentSystemFields(
     { domain: 'services', module: 'lifecycle', function: 'updateDocumentSystemFields' },
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
-      assertActorCanPerform(ctx.requestContext, collectionPath, 'update')
+      assertActorCanPerform(ctx.requestContext, definition, 'update')
 
       const requestLocale = params.locale ?? defaultLocale
       const explicitPath =

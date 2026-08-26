@@ -78,7 +78,7 @@ export async function updateDocument(
     { domain: 'services', module: 'lifecycle', function: 'updateDocument' },
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
-      assertActorCanPerform(ctx.requestContext, collectionPath, 'update')
+      assertActorCanPerform(ctx.requestContext, definition, 'update')
       const hooks = await resolveHooks(definition)
       const data = params.data
 
@@ -217,7 +217,7 @@ export async function updateDocumentWithPatches(
     { domain: 'services', module: 'lifecycle', function: 'updateDocumentWithPatches' },
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
-      assertActorCanPerform(ctx.requestContext, collectionPath, 'update')
+      assertActorCanPerform(ctx.requestContext, definition, 'update')
       const hooks = await resolveHooks(definition)
 
       // 1. Fetch current document.

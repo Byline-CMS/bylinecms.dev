@@ -17,11 +17,15 @@ import { describe, expect, it } from 'vitest'
 
 import { assertActorCanPerform } from './assert-actor-can-perform.js'
 
+const pages = { kind: 'collection', path: 'pages' } as const
+const news = { kind: 'collection', path: 'news' } as const
+const siteSettings = { kind: 'singleton', path: 'site-settings' } as const
+
 describe('assertActorCanPerform', () => {
   describe('missing context', () => {
     it('throws ERR_UNAUTHENTICATED when context is undefined', () => {
       try {
-        assertActorCanPerform(undefined, 'pages', 'read')
+        assertActorCanPerform(undefined, pages, 'read')
         expect.fail('expected ERR_UNAUTHENTICATED')
       } catch (err) {
         expect(err).toBeInstanceOf(AuthError)
@@ -33,13 +37,14 @@ describe('assertActorCanPerform', () => {
   describe('null actor (anonymous)', () => {
     it('permits read with readMode: published', () => {
       const ctx = createRequestContext({ actor: null, readMode: 'published' })
-      expect(() => assertActorCanPerform(ctx, 'pages', 'read')).not.toThrow()
+      expect(() => assertActorCanPerform(ctx, pages, 'read')).not.toThrow()
+      expect(() => assertActorCanPerform(ctx, siteSettings, 'read')).not.toThrow()
     })
 
     it('rejects read with readMode: any', () => {
       const ctx = createRequestContext({ actor: null, readMode: 'any' })
       try {
-        assertActorCanPerform(ctx, 'pages', 'read')
+        assertActorCanPerform(ctx, pages, 'read')
         expect.fail('expected ERR_UNAUTHENTICATED')
       } catch (err) {
         expect((err as AuthError).code).toBe(AuthErrorCodes.UNAUTHENTICATED)
@@ -50,7 +55,7 @@ describe('assertActorCanPerform', () => {
     it('rejects read when readMode is unset', () => {
       const ctx = createRequestContext({ actor: null })
       try {
-        assertActorCanPerform(ctx, 'pages', 'read')
+        assertActorCanPerform(ctx, pages, 'read')
         expect.fail('expected ERR_UNAUTHENTICATED')
       } catch (err) {
         expect((err as AuthError).code).toBe(AuthErrorCodes.UNAUTHENTICATED)
@@ -61,7 +66,7 @@ describe('assertActorCanPerform', () => {
       const ctx = createRequestContext({ actor: null, readMode: 'published' })
       for (const verb of ['create', 'update', 'delete', 'publish', 'changeStatus'] as const) {
         try {
-          assertActorCanPerform(ctx, 'pages', verb)
+          assertActorCanPerform(ctx, pages, verb)
           expect.fail(`expected ERR_UNAUTHENTICATED for ${verb}`)
         } catch (err) {
           expect((err as AuthError).code).toBe(AuthErrorCodes.UNAUTHENTICATED)
@@ -77,7 +82,7 @@ describe('assertActorCanPerform', () => {
         abilities: ['collections.pages.update'],
       })
       const ctx = createRequestContext({ actor })
-      expect(() => assertActorCanPerform(ctx, 'pages', 'update')).not.toThrow()
+      expect(() => assertActorCanPerform(ctx, pages, 'update')).not.toThrow()
     })
 
     it('throws ERR_FORBIDDEN when the specific ability is missing', () => {
@@ -87,7 +92,7 @@ describe('assertActorCanPerform', () => {
       })
       const ctx = createRequestContext({ actor })
       try {
-        assertActorCanPerform(ctx, 'pages', 'publish')
+        assertActorCanPerform(ctx, pages, 'publish')
         expect.fail('expected ERR_FORBIDDEN')
       } catch (err) {
         expect((err as AuthError).code).toBe(AuthErrorCodes.FORBIDDEN)
@@ -101,14 +106,38 @@ describe('assertActorCanPerform', () => {
         abilities: ['collections.pages.update'], // has update for 'pages' only
       })
       const ctx = createRequestContext({ actor })
-      expect(() => assertActorCanPerform(ctx, 'pages', 'update')).not.toThrow()
+      expect(() => assertActorCanPerform(ctx, pages, 'update')).not.toThrow()
       try {
-        assertActorCanPerform(ctx, 'news', 'update')
+        assertActorCanPerform(ctx, news, 'update')
         expect.fail('expected ERR_FORBIDDEN — wrong collection')
       } catch (err) {
         expect((err as AuthError).code).toBe(AuthErrorCodes.FORBIDDEN)
         expect((err as AuthError).message).toContain('collections.news.update')
       }
+    })
+
+    it('keeps collection and singleton namespaces isolated', () => {
+      const singletonActor = new AdminAuth({
+        id: 'singleton-editor',
+        abilities: ['singletons.site-settings.update'],
+      })
+      expect(() =>
+        assertActorCanPerform(
+          createRequestContext({ actor: singletonActor }),
+          siteSettings,
+          'update'
+        )
+      ).not.toThrow()
+
+      const collectionActor = new AdminAuth({
+        id: 'editor-1',
+        abilities: ['collections.site-settings.update'],
+      })
+      const ctx = createRequestContext({ actor: collectionActor })
+
+      expect(() => assertActorCanPerform(ctx, siteSettings, 'update')).toThrow(
+        /singletons\.site-settings\.update/
+      )
     })
   })
 
@@ -125,14 +154,23 @@ describe('assertActorCanPerform', () => {
         'reindex',
       ] as const
       for (const verb of verbs) {
-        expect(() => assertActorCanPerform(ctx, 'any-collection', verb)).not.toThrow()
+        expect(() =>
+          assertActorCanPerform(ctx, { kind: 'collection', path: 'any-collection' }, verb)
+        ).not.toThrow()
       }
     })
 
     it('passes even when readMode would normally reject a null actor', () => {
       // Super-admin doesn't care about readMode at this layer.
       const ctx = createSuperAdminContext()
-      expect(() => assertActorCanPerform(ctx, 'pages', 'read')).not.toThrow()
+      expect(() => assertActorCanPerform(ctx, pages, 'read')).not.toThrow()
     })
+  })
+
+  it('rejects anonymous singleton updates', () => {
+    const ctx = createRequestContext({ actor: null, readMode: 'published' })
+    expect(() => assertActorCanPerform(ctx, siteSettings, 'update')).toThrowError(
+      expect.objectContaining({ code: AuthErrorCodes.UNAUTHENTICATED })
+    )
   })
 })

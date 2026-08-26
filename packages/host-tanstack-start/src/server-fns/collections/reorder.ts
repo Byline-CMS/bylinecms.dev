@@ -66,7 +66,7 @@ export const reorderCollectionDocument = createServerFn({ method: 'POST' })
     }
 
     const requestContext = await getAdminRequestContext()
-    assertActorCanPerform(requestContext, path, 'update')
+    assertActorCanPerform(requestContext, config.definition, 'update')
 
     const serverConfig = getServerConfig()
     const collectionId = config.collection.id
