@@ -495,6 +495,38 @@ export interface ICollectionCommands {
   delete(id: string): Promise<any>
 }
 
+/**
+ * Writes to the singleton slot → document mapping
+ * (`byline_singleton_documents`). The mapping is the cardinality authority: a
+ * singleton's identity must not depend on a document `path` (locale-bearing and
+ * re-anchorable) or on a well-known generated UUID.
+ *
+ * `setMapping` is called inside the same transaction as the document create it
+ * accompanies, so the content version and the mapping commit together.
+ */
+export interface ISingletonCommands {
+  /**
+   * Record `documentId` as the singleton document for `collectionId`.
+   * The primary key on `collection_id` makes a competing concurrent insert
+   * fail rather than produce a second slot.
+   */
+  setMapping(collectionId: string, documentId: string): Promise<void>
+  /**
+   * Remove the mapping. Not part of the public singleton API — the supported
+   * surface has no delete. Present for internal tooling and test cleanup.
+   */
+  clearMapping(collectionId: string): Promise<void>
+}
+
+/** Reads of the singleton slot → document mapping. */
+export interface ISingletonQueries {
+  /**
+   * The mapped document id, or `null` when the slot has never been saved.
+   * `null` is the normal pre-materialisation state, not an error.
+   */
+  getMappedDocumentId(collectionId: string): Promise<string | null>
+}
+
 /** Locked structural state returned by tree mutation commands. */
 export interface TreePlacementState {
   placed: boolean
