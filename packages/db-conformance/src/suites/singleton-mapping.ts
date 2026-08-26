@@ -15,7 +15,12 @@
  * no hard-delete document command with which to drive it.
  */
 
-import type { IDbAdapter, SingletonDefinition } from '@byline/core'
+import {
+  type DbErrorClassification,
+  DbErrorCodes,
+  type IDbAdapter,
+  type SingletonDefinition,
+} from '@byline/core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { ConformanceHooks } from '../index.js'
@@ -68,6 +73,24 @@ export function singletonMappingSuite(hooks: ConformanceHooks): void {
     return created.document.document_id as string
   }
 
+  async function classifyRejection(
+    operation: () => Promise<unknown>,
+    expectation: string
+  ): Promise<DbErrorClassification> {
+    let caught: unknown
+    try {
+      await operation()
+    } catch (error) {
+      caught = error
+    }
+
+    expect(caught, expectation).toBeDefined()
+    if (adapter.classifyError == null) {
+      throw new Error('expected adapter to implement classifyError for this suite')
+    }
+    return adapter.classifyError(caught)
+  }
+
   describe('singleton document mapping', () => {
     beforeAll(async () => {
       await hooks.truncate()
@@ -117,9 +140,12 @@ export function singletonMappingSuite(hooks: ConformanceHooks): void {
       const secondDocumentId = await createDocument('same-slot')
       await adapter.commands.singletons.setMapping(collectionIds['same-slot'], firstDocumentId)
 
-      await expect(
-        adapter.commands.singletons.setMapping(collectionIds['same-slot'], secondDocumentId)
-      ).rejects.toBeDefined()
+      const classification = await classifyRejection(
+        () => adapter.commands.singletons.setMapping(collectionIds['same-slot'], secondDocumentId),
+        'expected the singleton slot primary key to reject a second document'
+      )
+      expect(classification.code).toBe(DbErrorCodes.UNIQUE_VIOLATION)
+      expect(classification.constraint).toMatch(/^(PRIMARY|byline_singleton_documents_pkey)$/)
       await expect(
         adapter.queries.singletons.getMappedDocumentId(collectionIds['same-slot'])
       ).resolves.toBe(firstDocumentId)
@@ -132,9 +158,21 @@ export function singletonMappingSuite(hooks: ConformanceHooks): void {
         documentId
       )
 
-      await expect(
-        adapter.commands.singletons.setMapping(collectionIds['same-document-target'], documentId)
-      ).rejects.toBeDefined()
+      const classification = await classifyRejection(
+        () =>
+          adapter.commands.singletons.setMapping(collectionIds['same-document-target'], documentId),
+        'expected the singleton document unique key to reject a second slot'
+      )
+      expect([
+        {
+          code: DbErrorCodes.UNIQUE_VIOLATION,
+          constraint: 'byline_singleton_documents_document_id_unique',
+        },
+        {
+          code: DbErrorCodes.FOREIGN_KEY_VIOLATION,
+          constraint: 'fk_singleton_documents_document',
+        },
+      ]).toContainEqual(classification)
       await expect(
         adapter.queries.singletons.getMappedDocumentId(collectionIds['same-document-source'])
       ).resolves.toBe(documentId)
@@ -146,9 +184,15 @@ export function singletonMappingSuite(hooks: ConformanceHooks): void {
     it('rejects a document owned by a different collection', async () => {
       const documentId = await createDocument('wrong-owner-source')
 
-      await expect(
-        adapter.commands.singletons.setMapping(collectionIds['wrong-owner-target'], documentId)
-      ).rejects.toBeDefined()
+      const classification = await classifyRejection(
+        () =>
+          adapter.commands.singletons.setMapping(collectionIds['wrong-owner-target'], documentId),
+        'expected the composite foreign key to reject a document from another collection'
+      )
+      expect(classification).toEqual({
+        code: DbErrorCodes.FOREIGN_KEY_VIOLATION,
+        constraint: 'fk_singleton_documents_document',
+      })
       await expect(
         adapter.queries.singletons.getMappedDocumentId(collectionIds['wrong-owner-target'])
       ).resolves.toBeNull()

@@ -11,9 +11,10 @@ import { type DbErrorClassification, DbErrorCodes } from '@byline/core'
 /**
  * Classify a Postgres driver error. Walks a short `cause` chain
  * (DrizzleQueryError → underlying pg error) looking for SQLSTATE `23505`
- * (unique violation) and returns the carried constraint name. This is the
- * driver-anatomy logic formerly inlined in core's `rethrowPathConflict`;
- * core now maps the returned classification to `ERR_PATH_CONFLICT`.
+ * (unique violation) or `23503` (foreign-key violation), and returns the
+ * carried constraint name. The unique-violation branch is the driver-anatomy
+ * logic formerly inlined in core's `rethrowPathConflict`; core now maps that
+ * classification to `ERR_PATH_CONFLICT`.
  */
 export function classifyError(err: unknown): DbErrorClassification {
   type PgLikeError = { code?: string; constraint?: string; cause?: unknown }
@@ -21,6 +22,9 @@ export function classifyError(err: unknown): DbErrorClassification {
   for (let i = 0; i < 3 && e != null && typeof e === 'object'; i++) {
     if (e.code === '23505') {
       return { code: DbErrorCodes.UNIQUE_VIOLATION, constraint: e.constraint }
+    }
+    if (e.code === '23503') {
+      return { code: DbErrorCodes.FOREIGN_KEY_VIOLATION, constraint: e.constraint }
     }
     e = e.cause as PgLikeError | undefined
   }

@@ -52,15 +52,25 @@ describe('classifyError (mysql)', () => {
     expect(classifyError(err).code).toBe('DB_UNIQUE_VIOLATION')
   })
 
-  it('returns DB_UNKNOWN for a non-duplicate-key error', () => {
+  it('classifies a foreign-key error with the constraint name', () => {
     expect(
       classifyError({
         code: 'ER_NO_REFERENCED_ROW_2',
         errno: 1452,
         sqlState: '23000',
-        message: 'Cannot add or update a child row: a foreign key constraint fails',
+        message:
+          'Cannot add or update a child row: a foreign key constraint fails (`db`.`table`, CONSTRAINT `fk_document_owner` FOREIGN KEY (`document_id`))',
       })
-    ).toEqual({ code: 'DB_UNKNOWN' })
+    ).toEqual({
+      code: 'DB_FOREIGN_KEY_VIOLATION',
+      constraint: 'fk_document_owner',
+    })
+  })
+
+  it('returns DB_UNKNOWN for an unrelated database error', () => {
+    expect(classifyError({ code: 'ER_DATA_TOO_LONG', errno: 1406 })).toEqual({
+      code: 'DB_UNKNOWN',
+    })
   })
 
   it('returns DB_UNKNOWN for a non-error value', () => {
@@ -91,11 +101,16 @@ runClassifyErrorContract([
           "Duplicate entry 'some-uuid' for key 'byline_document_paths.idx_document_paths_collection_locale_path'",
       },
     },
-    unrelatedError: {
-      code: 'ER_NO_REFERENCED_ROW_2',
-      errno: 1452,
-      sqlState: '23000',
-      message: 'Cannot add or update a child row: a foreign key constraint fails',
+    foreignKeyViolationError: {
+      name: 'DrizzleQueryError',
+      cause: {
+        code: 'ER_NO_REFERENCED_ROW_2',
+        errno: 1452,
+        sqlState: '23000',
+        message:
+          'Cannot add or update a child row: a foreign key constraint fails (`db`.`table`, CONSTRAINT `fk_document_owner` FOREIGN KEY (`document_id`))',
+      },
     },
+    unrelatedError: { code: 'ER_DATA_TOO_LONG', errno: 1406, sqlState: '22001' },
   },
 ])

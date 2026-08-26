@@ -30,8 +30,15 @@ describe('classifyError (postgres)', () => {
     })
   })
 
-  it('returns DB_UNKNOWN for a non-unique error', () => {
-    expect(classifyError({ code: '23503' })).toEqual({ code: 'DB_UNKNOWN' })
+  it('classifies a raw 23503 as DB_FOREIGN_KEY_VIOLATION with the constraint', () => {
+    expect(classifyError({ code: '23503', constraint: 'fk_document_owner' })).toEqual({
+      code: 'DB_FOREIGN_KEY_VIOLATION',
+      constraint: 'fk_document_owner',
+    })
+  })
+
+  it('returns DB_UNKNOWN for an unrelated database error', () => {
+    expect(classifyError({ code: '22000' })).toEqual({ code: 'DB_UNKNOWN' })
   })
 
   it('returns DB_UNKNOWN for a non-error value', () => {

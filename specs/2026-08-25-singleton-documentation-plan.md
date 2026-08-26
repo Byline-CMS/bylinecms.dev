@@ -201,6 +201,11 @@ new files — a fifth thin member would fragment the lookup surface.
 
 - the **discriminated schema tuple** — `collections` now holds both kinds, and that is the only
   definition registry
+- the lockstep release migration line: `getCollectionDefinition(path)` now returns the
+  `CollectionDefinition` union rather than the multi-collection branch alone; downstream code
+  that reads collection-only members such as `labels` must first narrow with
+  `definition.singleton !== true`. Add the same migration line to
+  `docs/01-getting-started/04-upgrading-to-v4.md`
 - `AdminResourceConfig` as the type of `AdminConfig.admin`
 - singleton hook registration through the existing `ServerHooksConfig.collections` registry,
   including the family/discriminant validation and its first-resolution guarantee for loaders

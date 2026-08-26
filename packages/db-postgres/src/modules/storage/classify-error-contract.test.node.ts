@@ -25,6 +25,10 @@ runClassifyErrorContract([
         constraint: 'idx_document_paths_collection_locale_path',
       },
     },
-    unrelatedError: { code: '23503' },
+    foreignKeyViolationError: {
+      name: 'DrizzleQueryError',
+      cause: { code: '23503', constraint: 'fk_document_owner' },
+    },
+    unrelatedError: { code: '22000' },
   },
 ])

@@ -21,6 +21,10 @@ import { describe, expect, it } from 'vitest'
  * silently drifting apart — the whole point of the `classifyError` seam is
  * that core never learns driver anatomy, which only holds if every adapter
  * reports the same shape for the same failure.
+ *
+ * Foreign-key violations share the same seam because ownership constraints
+ * must also be observable without leaking driver-specific error anatomy into
+ * core or shared adapter tests.
  */
 export interface ClassifyErrorContractCase {
   /** Short label for the `describe` block, e.g. 'postgres' / 'mysql'. */
@@ -38,7 +42,9 @@ export interface ClassifyErrorContractCase {
    * `classifyError` actually receives in production.
    */
   nestedUniqueViolationError: unknown
-  /** A realistic but unrelated driver error (e.g. a foreign-key violation). */
+  /** A foreign-key violation nested inside a Drizzle-style `cause` chain. */
+  foreignKeyViolationError: unknown
+  /** A realistic but unrelated driver error outside the classified families. */
   unrelatedError: unknown
 }
 
@@ -49,7 +55,13 @@ export interface ClassifyErrorContractCase {
 export function runClassifyErrorContract(cases: ClassifyErrorContractCase[]): void {
   describe.each(cases)(
     'classifyError contract ($adapterName)',
-    ({ classifyError, uniqueViolationError, nestedUniqueViolationError, unrelatedError }) => {
+    ({
+      classifyError,
+      uniqueViolationError,
+      nestedUniqueViolationError,
+      foreignKeyViolationError,
+      unrelatedError,
+    }) => {
       it('classifies a unique violation with the bare index name', () => {
         expect(classifyError(uniqueViolationError)).toEqual({
           code: DbErrorCodes.UNIQUE_VIOLATION,
@@ -61,6 +73,13 @@ export function runClassifyErrorContract(cases: ClassifyErrorContractCase[]): vo
         expect(classifyError(nestedUniqueViolationError)).toEqual({
           code: DbErrorCodes.UNIQUE_VIOLATION,
           constraint: 'idx_document_paths_collection_locale_path',
+        })
+      })
+
+      it('classifies a foreign-key violation with the bare constraint name', () => {
+        expect(classifyError(foreignKeyViolationError)).toEqual({
+          code: DbErrorCodes.FOREIGN_KEY_VIOLATION,
+          constraint: 'fk_document_owner',
         })
       })
 

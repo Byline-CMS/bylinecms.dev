@@ -1,4 +1,6 @@
--- 0009_add-singleton-documents.sql
+-- =============================================================================
+-- Byline: singleton document mapping  —  SCHEMA DDL ONLY
+-- =============================================================================
 --
 -- Adds the singleton slot -> document mapping that enforces zero-or-one
 -- cardinality for `singleton: true` schemas, plus the supporting unique key the
@@ -6,6 +8,13 @@
 --
 -- Not a table-only change: `byline_documents` has `id` as its sole primary key,
 -- so the composite FK needs `UNIQUE (collection_id, id)` added here.
+-- Adding that key takes an ACCESS EXCLUSIVE lock on `byline_documents` while
+-- PostgreSQL builds its supporting index; schedule an upgrade window for a
+-- large documents table.
+--
+-- Idempotent: the existing-table constraint is catalogue-guarded and the new
+-- table uses IF NOT EXISTS. Runs in one transaction.
+-- =============================================================================
 
 BEGIN;
 
@@ -23,7 +32,9 @@ END $$;
 
 CREATE TABLE IF NOT EXISTS byline_singleton_documents (
   collection_id uuid PRIMARY KEY,
-  document_id   uuid NOT NULL UNIQUE,
+  document_id   uuid NOT NULL,
+  CONSTRAINT byline_singleton_documents_document_id_unique
+    UNIQUE (document_id),
   CONSTRAINT fk_singleton_documents_document
     FOREIGN KEY (collection_id, document_id)
     REFERENCES byline_documents (collection_id, id)

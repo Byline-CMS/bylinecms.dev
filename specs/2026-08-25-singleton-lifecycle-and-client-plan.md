@@ -389,6 +389,12 @@ An upsert from the caller's perspective:
 9. Fire `afterSave` **after the outer transaction commits**, matching collection after-hook
    semantics. An `afterSave` failure rejects the call while leaving the committed save intact —
    the save happened; the notification did not.
+10. **Soft deletion does not release a singleton slot.** The supported singleton API has no
+    delete operation, so a mapped soft-deleted document is an exceptional state created only by
+    internal tooling or direct adapter use. Reads follow ordinary document liveness and return
+    `null`; `updateSingleton` must reject with `ERR_CONFLICT` rather than create a second document
+    or append a version to the tombstone. Tooling that intends to rematerialise the slot must
+    deliberately call `clearMapping` first.
 
 **Required behaviour — restore**
 
@@ -448,6 +454,8 @@ Unit tests (fake adapter):
 - `expectedVersionId`: current proceeds, stale rejects, unmaterialised-with-expected rejects;
 - a first save in a non-default locale rejects, and neither a document nor a mapping exists
   afterwards;
+- a mapped soft-deleted document remains mapped, reads as `null`, and rejects an update with
+  `ERR_CONFLICT` without creating a replacement document;
 - **collection regression**: `createDocument` / `updateDocument` / `restoreVersion` still assert
   the same abilities and fire the same hooks in the same order after the persistence-core
   extraction. This is the gate that proves the refactor was behaviour-preserving.

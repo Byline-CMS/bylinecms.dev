@@ -229,6 +229,7 @@ export const ERR_TREE_HOOK_COMMITTED = createErrorType(ErrorCodes.TREE_HOOK_COMM
  */
 export const DbErrorCodes = {
   UNIQUE_VIOLATION: 'DB_UNIQUE_VIOLATION',
+  FOREIGN_KEY_VIOLATION: 'DB_FOREIGN_KEY_VIOLATION',
   UNKNOWN: 'DB_UNKNOWN',
 } as const
 
@@ -237,9 +238,10 @@ export type DbErrorCode = (typeof DbErrorCodes)[keyof typeof DbErrorCodes]
 export interface DbErrorClassification {
   code: DbErrorCode
   /**
-   * For `DB_UNIQUE_VIOLATION`: the violated constraint / index name when the
-   * driver exposes it (Postgres carries it structurally; MySQL parses it from
-   * the error message). Absent when the driver surfaces no name.
+   * For `DB_UNIQUE_VIOLATION` and `DB_FOREIGN_KEY_VIOLATION`: the violated
+   * constraint / index name when the driver exposes it (Postgres carries it
+   * structurally; MySQL parses it from the error message). Absent when the
+   * driver surfaces no name.
    */
   constraint?: string
 }

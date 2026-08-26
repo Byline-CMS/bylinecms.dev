@@ -895,7 +895,9 @@ END $$;
 
 CREATE TABLE IF NOT EXISTS byline_singleton_documents (
   collection_id uuid PRIMARY KEY,
-  document_id   uuid NOT NULL UNIQUE,
+  document_id   uuid NOT NULL,
+  CONSTRAINT byline_singleton_documents_document_id_unique
+    UNIQUE (document_id),
   CONSTRAINT fk_singleton_documents_document
     FOREIGN KEY (collection_id, document_id)
     REFERENCES byline_documents (collection_id, id)
@@ -1193,6 +1195,10 @@ pnpm --filter @byline/db-mysql test:integration
 
 - [ ] All seven cases pass on PostgreSQL
 - [ ] All seven cases pass on MySQL
+- [ ] A second document for one slot classifies as `DB_UNIQUE_VIOLATION`; reusing a document
+      under a second slot reports either the document unique key or the composite ownership
+      foreign key (constraint-check order differs by engine); and the cross-collection ownership
+      case classifies as `DB_FOREIGN_KEY_VIOLATION` on `fk_singleton_documents_document`
 - [ ] The rollback case fails if you temporarily change `private get db()` to a constructor-
       captured handle — run that experiment once; a rollback test that passes either way is
       worthless

@@ -10,8 +10,8 @@ import { type DbErrorClassification, DbErrorCodes } from '@byline/core'
 
 /**
  * Classify a MySQL driver error. Walks a short `cause` chain (Drizzle's
- * `DrizzleQueryError` → the underlying mysql2 error) looking for a
- * duplicate-key error and returns the carried index name. Mirrors
+ * `DrizzleQueryError` → the underlying mysql2 error) looking for duplicate-key
+ * and foreign-key errors and returns the carried constraint or index name. Mirrors
  * `packages/db-postgres/src/modules/storage/classify-error.ts`, whose
  * pg-anatomy docblock this docblock intentionally parallels.
  *
@@ -46,6 +46,11 @@ export function classifyError(err: unknown): DbErrorClassification {
         ? qualifiedName.slice(qualifiedName.indexOf('.') + 1)
         : qualifiedName
       return { code: DbErrorCodes.UNIQUE_VIOLATION, constraint }
+    }
+    if (e.errno === 1451 || e.errno === 1452) {
+      const match =
+        typeof e.message === 'string' ? e.message.match(/CONSTRAINT [`']([^`']+)[`']/) : null
+      return { code: DbErrorCodes.FOREIGN_KEY_VIOLATION, constraint: match?.[1] }
     }
     e = e.cause as MySqlLikeError | undefined
   }

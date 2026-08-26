@@ -501,9 +501,11 @@ export interface ICollectionCommands {
 
 /**
  * Writes to the singleton slot → document mapping
- * (`byline_singleton_documents`). The mapping is the cardinality authority: a
- * singleton's identity must not depend on a document `path` (locale-bearing and
- * re-anchorable) or on a well-known generated UUID.
+ * (`byline_singleton_documents`). The mapping enforces slot and document
+ * uniqueness after the lifecycle caller has verified that the registered
+ * definition is a singleton. A singleton's identity must not depend on a
+ * document `path` (locale-bearing and re-anchorable) or on a well-known
+ * generated UUID.
  *
  * `setMapping` is called inside the same transaction as the document create it
  * accompanies, so the content version and the mapping commit together.
@@ -512,7 +514,9 @@ export interface ISingletonCommands {
   /**
    * Record `documentId` as the singleton document for `collectionId`.
    * The primary key on `collection_id` makes a competing concurrent insert
-   * fail rather than produce a second slot.
+   * fail rather than produce a second slot. This adapter primitive does not
+   * validate the registered collection kind; the singleton lifecycle must do
+   * that before calling it.
    */
   setMapping(collectionId: string, documentId: string): Promise<void>
   /**
