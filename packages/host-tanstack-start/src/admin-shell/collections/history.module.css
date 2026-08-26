@@ -1,5 +1,5 @@
 /**
- * HistoryView — list of past versions for a collection document.
+ * Shared version-history presentation for collection documents and singletons.
  *
  * Override handles:
  *   .byline-coll-history-head     — title + view-menu row

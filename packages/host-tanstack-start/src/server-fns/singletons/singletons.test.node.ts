@@ -240,6 +240,33 @@ describe('singleton server functions', () => {
     await expect(invoke(getSingleton, { singleton: 'site-settings' })).rejects.toBe(error)
   })
 
+  it('preserves the requested empty history envelope from an unmaterialised slot', async () => {
+    handle.history.mockResolvedValueOnce({
+      docs: [],
+      meta: { total: 0, page: 4, pageSize: 30, totalPages: 0 },
+    })
+    mocks.resolveActorLabels.mockResolvedValueOnce({})
+
+    await expect(
+      invoke(getSingletonHistory, {
+        singleton: 'site-settings',
+        params: { page: 4, page_size: 30 },
+      })
+    ).resolves.toEqual({
+      docs: [],
+      meta: { total: 0, page: 4, pageSize: 30, totalPages: 0 },
+      actors: {},
+    })
+    expect(handle.history).toHaveBeenCalledWith({
+      locale: 'en',
+      page: 4,
+      pageSize: 30,
+      order: undefined,
+      desc: undefined,
+    })
+    expect(mocks.resolveActorLabels).toHaveBeenCalledWith([])
+  })
+
   it('keeps missing-slot and stale-write failures distinguishable', async () => {
     const missing = { code: 'ERR_NOT_FOUND', message: 'slot is empty' }
     const stale = { code: 'ERR_CONFLICT', message: 'version changed' }

@@ -12,42 +12,33 @@
  * Restore-version modal body.
  *
  * Confirmation dialog for the "make current" action on the history view.
- * Calls the restore-version server fn, invalidates the router, and
- * navigates to the document's edit view so the user lands on the freshly
- * restored draft.
+ * The resource wrapper injects restore and post-restore navigation so this
+ * confirmation body works for both collection documents and singletons.
  */
 
 import { useState } from 'react'
-import { useRouter } from '@tanstack/react-router'
 
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, LoaderEllipsis, Modal } from '@byline/ui/react'
 import cx from 'clsx'
 
-import { getAdminRoutePath } from '../../routes/admin-path.js'
-import { restoreDocumentVersion } from '../../server-fns/collections/index.js'
-import { useNavigate } from '../chrome/loose-router.js'
 import styles from './restore-version-modal.module.css'
 
 interface RestoreVersionModalProps {
-  collection: string
-  documentId: string
-  versionId: string
   versionLabel: string
   versionNumber: number
   onClose: () => void
+  restoreVersion: () => Promise<unknown>
+  onRestoreComplete: () => void | Promise<void>
 }
 
 export function RestoreVersionModal({
-  collection,
-  documentId,
-  versionId,
   versionLabel,
   versionNumber,
   onClose,
+  restoreVersion,
+  onRestoreComplete,
 }: RestoreVersionModalProps) {
-  const navigate = useNavigate()
-  const router = useRouter()
   const { t } = useTranslation('byline-admin')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -57,15 +48,9 @@ export function RestoreVersionModal({
     setPending(true)
     setError(null)
     try {
-      await restoreDocumentVersion({
-        data: { collection, id: documentId, versionId },
-      })
+      await restoreVersion()
       onClose()
-      await router.invalidate()
-      navigate({
-        to: getAdminRoutePath('collections', '$collection', '$id'),
-        params: { collection, id: documentId },
-      })
+      await onRestoreComplete()
     } catch (err) {
       const code = getErrorCode(err)
       if (code === 'ERR_INVALID_TRANSITION') {

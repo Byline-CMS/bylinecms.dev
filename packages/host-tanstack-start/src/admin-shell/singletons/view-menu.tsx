@@ -23,7 +23,7 @@ import type { ContentLocaleOption } from '../collections/view-menu.js'
 
 export type SingletonViewMenuPath = 'edit' | 'history'
 
-/** Id-less edit/history navigation for a materialised singleton document. */
+/** Id-less edit/history navigation; preview appears only for a mapped document. */
 export function SingletonViewMenu({
   singleton,
   activeView,
@@ -39,7 +39,7 @@ export function SingletonViewMenu({
   contentLocales: ReadonlyArray<ContentLocaleOption>
   defaultContentLocale: string
   adminConfig?: SingletonAdminConfig
-  doc: SingletonPreviewDocument
+  doc?: SingletonPreviewDocument
 }) {
   const navigate = useNavigate()
   const { t } = useTranslation('byline-admin')
@@ -92,7 +92,7 @@ export function SingletonViewMenu({
         ]}
         onValueChange={handleLocaleChange}
       />
-      {adminConfig?.preview != null && (
+      {adminConfig?.preview != null && doc != null && (
         <SingletonPreviewLink
           doc={doc}
           adminConfig={adminConfig}
