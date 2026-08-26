@@ -47,6 +47,8 @@ export function classifyError(err: unknown): DbErrorClassification {
         : qualifiedName
       return { code: DbErrorCodes.UNIQUE_VIOLATION, constraint }
     }
+    // InnoDB's table-level FK failures use 1451/1452 and carry a constraint
+    // name. Legacy 1216/1217 variants omit the name, so they remain UNKNOWN.
     if (e.errno === 1451 || e.errno === 1452) {
       const match =
         typeof e.message === 'string' ? e.message.match(/CONSTRAINT [`']([^`']+)[`']/) : null

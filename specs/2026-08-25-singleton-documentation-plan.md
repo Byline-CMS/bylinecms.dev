@@ -206,6 +206,9 @@ new files — a fifth thin member would fragment the lookup surface.
   that reads collection-only members such as `labels` must first narrow with
   `definition.singleton !== true`. Add the same migration line to
   `docs/01-getting-started/04-upgrading-to-v4.md`
+- the additive `DbErrorCodes.FOREIGN_KEY_VIOLATION` member: canonical adapters now classify
+  named FK failures as `DB_FOREIGN_KEY_VIOLATION` where they previously returned `DB_UNKNOWN`,
+  so downstream exhaustive branches over the exported `DbErrorCode` union must add the new case
 - `AdminResourceConfig` as the type of `AdminConfig.admin`
 - singleton hook registration through the existing `ServerHooksConfig.collections` registry,
   including the family/discriminant validation and its first-resolution guarantee for loaders

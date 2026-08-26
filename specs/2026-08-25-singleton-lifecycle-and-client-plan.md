@@ -384,7 +384,10 @@ An upsert from the caller's perspective:
 6. Fire `beforeSave` **inside the transaction**, after the lock and the current-data read, so
    the hook sees consistent state and can mutate `data`.
 7. If a mapping exists, take the update path against that document id. Otherwise take the
-   create path and insert the mapping in the same transaction.
+   create path and insert the mapping in the same transaction. A lost first-save race is the
+   `setMapping` primary-key violation: PostgreSQL reports `byline_singleton_documents_pkey` and
+   MySQL reports `PRIMARY`. Detect it by `code === DB_UNIQUE_VIOLATION`, never by one engine's
+   constraint name.
 8. Commit the content version and the mapping together.
 9. Fire `afterSave` **after the outer transaction commits**, matching collection after-hook
    semantics. An `afterSave` failure rejects the call while leaving the committed save intact —
