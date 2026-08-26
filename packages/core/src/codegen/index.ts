@@ -8,7 +8,13 @@
 
 import { createHash } from 'node:crypto'
 
-import type { Block, CollectionDefinition, Field, FieldSet } from '../@types/index.js'
+import {
+  type Block,
+  type CollectionDefinition,
+  type Field,
+  type FieldSet,
+  isSingleton,
+} from '../@types/index.js'
 
 const FORMAT_VERSION = 3
 const HASH_DOMAIN = '@byline/core/codegen:collection-types:v3\n'
@@ -349,10 +355,10 @@ function emitBody(analysis: Analysis): string {
     definition,
   }))
   const multiCollectionContracts = collectionContracts.filter(
-    (collection) => collection.definition.singleton !== true
+    (collection) => !isSingleton(collection.definition)
   )
-  const singletonContracts = collectionContracts.filter(
-    (collection) => collection.definition.singleton === true
+  const singletonContracts = collectionContracts.filter((collection) =>
+    isSingleton(collection.definition)
   )
   const blockAliasByKey = new Map(blocks.map((block) => [block.key, block.alias]))
 
@@ -495,29 +501,31 @@ function emitBody(analysis: Analysis): string {
     )
   }
 
-  declarations.push('export type CollectionFieldsByPath = {')
-  for (const collection of multiCollectionContracts) {
-    declarations.push(`  ${propertyKey(collection.definition.path)}: ${collection.alias}`)
+  function emitRegistry(
+    name: string,
+    contracts: readonly CollectionContract[],
+    suffix: '' | 'AllLocales'
+  ): void {
+    if (contracts.length === 0) {
+      declarations.push(`export type ${name} = {}`)
+      return
+    }
+
+    declarations.push(`export type ${name} = {`)
+    for (const contract of contracts) {
+      declarations.push(`  ${propertyKey(contract.definition.path)}: ${contract.alias}${suffix}`)
+    }
+    declarations.push('}')
   }
-  declarations.push('}', '', 'export type CollectionFieldsAllLocalesByPath = {')
-  for (const collection of multiCollectionContracts) {
-    declarations.push(`  ${propertyKey(collection.definition.path)}: ${collection.alias}AllLocales`)
-  }
-  declarations.push(
-    '}',
-    '',
-    'export type CollectionPath = keyof CollectionFieldsByPath',
-    '',
-    'export type SingletonFieldsByPath = {'
-  )
-  for (const singleton of singletonContracts) {
-    declarations.push(`  ${propertyKey(singleton.definition.path)}: ${singleton.alias}`)
-  }
-  declarations.push('}', '', 'export type SingletonFieldsAllLocalesByPath = {')
-  for (const singleton of singletonContracts) {
-    declarations.push(`  ${propertyKey(singleton.definition.path)}: ${singleton.alias}AllLocales`)
-  }
-  declarations.push('}', '', 'export type SingletonPath = keyof SingletonFieldsByPath')
+
+  emitRegistry('CollectionFieldsByPath', multiCollectionContracts, '')
+  declarations.push('')
+  emitRegistry('CollectionFieldsAllLocalesByPath', multiCollectionContracts, 'AllLocales')
+  declarations.push('', 'export type CollectionPath = keyof CollectionFieldsByPath', '')
+  emitRegistry('SingletonFieldsByPath', singletonContracts, '')
+  declarations.push('')
+  emitRegistry('SingletonFieldsAllLocalesByPath', singletonContracts, 'AllLocales')
+  declarations.push('', 'export type SingletonPath = keyof SingletonFieldsByPath')
 
   const usedImports = IMPORT_ORDER.filter((name) => imports.has(name))
   const importLines =
@@ -538,8 +546,11 @@ function emitBody(analysis: Analysis): string {
     .map((line) => (line.length === 0 ? line : `  ${line}`))
 
   // Register the app's collection and singleton registries with @byline/client
-  // through a second declaration merge. This keeps both generated registries
-  // available to the client package without importing runtime definitions.
+  // through a second declaration merge. Every bare `BylineClient` in the app's
+  // program — including the `@byline/client/server` getters — then resolves its
+  // collection generic to `CollectionFieldsByPath`. The singleton member is
+  // emitted now so Plan 3's parallel `RegisteredSingletons` fallback can resolve
+  // `SingletonFieldsByPath` through the same merge without runtime definitions.
   // Both `@byline/generated-types` and `@byline/client` must be resolvable in
   // the consuming program; apps that generate types depend on both.
   const registerLines = [

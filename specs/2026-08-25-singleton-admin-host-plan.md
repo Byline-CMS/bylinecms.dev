@@ -448,6 +448,12 @@ pattern generically — this repository is public.
 
 **Red/green**
 
+- Before regenerating types after adding the worked singleton, run the webapp typecheck and
+  confirm that exactly the four singleton exactness assertions in
+  `apps/webapp/byline/collection-types.contract.ts` fail while the four collection assertions
+  remain green. Then regenerate and confirm the full contract passes. This proves the app-level
+  contract is non-vacuous once the first real singleton exists and that the inferred collection
+  registry still excludes it.
 - `pnpm byline:generate:check` passes with the singleton present;
 - the webapp's exactness contract compiles with a non-empty `SingletonFieldsByPath`;
 - an integration test saves the singleton through `@byline/client` and reads it back published.

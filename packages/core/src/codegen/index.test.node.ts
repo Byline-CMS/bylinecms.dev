@@ -101,6 +101,8 @@ describe('emitCollectionTypes', () => {
     expect(source.endsWith('\n')).toBe(true)
     expect(source).not.toContain('\r')
     expect(source).not.toContain(';')
+    expect(source).toContain('  export type SingletonFieldsByPath = {}')
+    expect(source).toContain('  export type SingletonFieldsAllLocalesByPath = {}')
   })
 
   it('declares every type inside the @byline/generated-types augmentation block', () => {
