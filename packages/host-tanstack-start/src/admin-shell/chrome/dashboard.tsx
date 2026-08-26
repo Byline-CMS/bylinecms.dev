@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { MultiCollectionDefinition, WorkflowStatus } from '@byline/core'
+import type { MultiCollectionDefinition, SingletonDefinition, WorkflowStatus } from '@byline/core'
 import {
   filterReadableCollections,
   getAdminConfig,
@@ -135,6 +135,44 @@ function CollectionCard({
   )
 }
 
+function SingletonCard({ singleton }: { singleton: SingletonDefinition }) {
+  const { t } = useTranslation('byline-admin')
+  const destination = getAdminRoutePath('singletons', '$singleton')
+  const params = { singleton: singleton.path }
+
+  return (
+    <Card>
+      <Link
+        to={destination}
+        params={params}
+        className={cx('byline-dashboard-card-link', styles.cardLink)}
+      >
+        <Card.Header>
+          <div className={cx('byline-dashboard-card-header', styles.cardHeader)}>
+            <Card.Title className={cx('byline-dashboard-card-title', styles.cardTitle)}>
+              <span className={cx('byline-dashboard-title-text', styles.titleText)}>
+                {singleton.label}
+              </span>
+            </Card.Title>
+            <Card.Description className="muted">
+              {t('dashboard.collectionDescription', { label: singleton.label })}
+            </Card.Description>
+          </div>
+        </Card.Header>
+      </Link>
+      <Card.Content>
+        <Link
+          to={destination}
+          params={params}
+          className={cx('byline-dashboard-empty-link', styles.emptyLink)}
+        >
+          <p>{t('dashboard.collectionDescription', { label: singleton.label })}</p>
+        </Link>
+      </Card.Content>
+    </Card>
+  )
+}
+
 interface AdminDashboardProps {
   statsMap: Record<string, CollectionStatusCount[]>
 }
@@ -147,9 +185,7 @@ export function AdminDashboard({ statsMap }: AdminDashboardProps) {
   // Filter before bucketing. A group left with no readable members arrives at
   // `groupCollectionsForAdmin` empty and is skipped, so its heading disappears
   // along with it — there is no group-level ability concept anywhere.
-  const visible = filterReadableCollections(config.collections, { isSuperAdmin, abilities }).filter(
-    (definition): definition is MultiCollectionDefinition => !isSingleton(definition)
-  )
+  const visible = filterReadableCollections(config.collections, { isSuperAdmin, abilities })
   const buckets = groupCollectionsForAdmin(visible, config.admin, config.collectionGroups)
 
   if (buckets.length === 0) {
@@ -176,13 +212,17 @@ export function AdminDashboard({ statsMap }: AdminDashboardProps) {
               </h2>
             )}
             <div className={cx('byline-dashboard-grid', styles.grid)}>
-              {bucket.collections.map((collection) => (
-                <CollectionCard
-                  key={collection.path}
-                  collection={collection}
-                  stats={statsMap[collection.path]}
-                />
-              ))}
+              {bucket.collections.map((resource) =>
+                isSingleton(resource) ? (
+                  <SingletonCard key={resource.path} singleton={resource} />
+                ) : (
+                  <CollectionCard
+                    key={resource.path}
+                    collection={resource}
+                    stats={statsMap[resource.path]}
+                  />
+                )
+              )}
             </div>
           </section>
         ))}

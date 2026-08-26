@@ -8,8 +8,8 @@
 
 import { describe, expect, it } from 'vitest'
 
+import { type CollectionDefinition, defineSingleton } from '../@types/index.js'
 import { filterReadableCollections } from './filter-readable-collections.js'
-import type { CollectionDefinition } from '../@types/index.js'
 
 const define = (path: string): CollectionDefinition => ({
   path,
@@ -20,11 +20,19 @@ const define = (path: string): CollectionDefinition => ({
 const news = define('news')
 const pages = define('pages')
 const media = define('media')
+const settings = defineSingleton({
+  path: 'site-settings',
+  label: 'Site settings',
+  fields: [{ name: 'title', label: 'Title', type: 'text' }],
+})
 const all = [news, pages, media]
 
 describe('filterReadableCollections', () => {
   it('returns every collection for a super admin, regardless of abilities', () => {
-    expect(filterReadableCollections(all, { isSuperAdmin: true, abilities: [] })).toEqual(all)
+    const resources = [...all, settings]
+    expect(filterReadableCollections(resources, { isSuperAdmin: true, abilities: [] })).toEqual(
+      resources
+    )
   })
 
   it('returns nothing when the actor holds no abilities', () => {
@@ -60,6 +68,33 @@ describe('filterReadableCollections', () => {
       ],
     })
     expect(result).toEqual([])
+  })
+
+  it('uses the singleton read namespace for singleton resources', () => {
+    expect(
+      filterReadableCollections([settings], {
+        isSuperAdmin: false,
+        abilities: ['singletons.site-settings.read'],
+      })
+    ).toEqual([settings])
+  })
+
+  it('does not let the collection namespace bleed into a singleton path', () => {
+    expect(
+      filterReadableCollections([settings], {
+        isSuperAdmin: false,
+        abilities: ['collections.site-settings.read'],
+      })
+    ).toEqual([])
+  })
+
+  it('does not advertise an update-only singleton without read access', () => {
+    expect(
+      filterReadableCollections([settings], {
+        isSuperAdmin: false,
+        abilities: ['singletons.site-settings.update'],
+      })
+    ).toEqual([])
   })
 
   it('does not match on a prefix of a collection path', () => {

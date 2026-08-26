@@ -21,14 +21,14 @@ export interface ActorAbilitySnapshot {
 }
 
 /**
- * Narrow a collection list to those the administrator can read.
+ * Narrow a document-resource list to those the administrator can read.
  *
  * `read` is the gate because everything a dashboard card offers — the link to
- * the list view, and the per-status counts — requires
- * `collections.<path>.read` and is rejected server-side without it. An
- * administrator who cannot read a collection would otherwise see a card whose
- * status tiles all read zero, which is indistinguishable from a collection that
- * is genuinely empty.
+ * its editor/list view, and collection status counts — requires the resource's
+ * kind-aware `collections.<path>.read` or `singletons.<path>.read` ability and
+ * is rejected server-side without it. An administrator who cannot read a
+ * collection would otherwise see a card whose status tiles all read zero,
+ * which is indistinguishable from a collection that is genuinely empty.
  *
  * **Cosmetic only.** This is an affordance, never a security boundary.
  * `assertActorCanPerform` remains the enforcement point on every read and write

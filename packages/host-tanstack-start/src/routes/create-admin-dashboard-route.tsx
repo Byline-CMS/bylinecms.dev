@@ -8,7 +8,12 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import { filterReadableCollections, getAdminConfig } from '@byline/core'
+import {
+  filterReadableCollections,
+  getAdminConfig,
+  isSingleton,
+  type MultiCollectionDefinition,
+} from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
@@ -40,7 +45,10 @@ export function createAdminDashboardRoute(path: string) {
 
       await Promise.all(
         visible
-          .filter((c) => c.showStats === true)
+          .filter(
+            (resource): resource is MultiCollectionDefinition =>
+              !isSingleton(resource) && resource.showStats === true
+          )
           .map(async (c) => {
             try {
               statsMap[c.path] = await getCollectionStats(c.path)
