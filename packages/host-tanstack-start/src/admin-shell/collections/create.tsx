@@ -9,7 +9,7 @@
 import { useState } from 'react'
 
 import { FormRenderer } from '@byline/admin/react'
-import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
+import type { CollectionAdminConfig, MultiCollectionDefinition } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Container, Section, useToastManager } from '@byline/ui/react'
 
@@ -30,7 +30,7 @@ export const CreateView = ({
   initialData,
   from,
 }: {
-  collectionDefinition: CollectionDefinition
+  collectionDefinition: MultiCollectionDefinition
   adminConfig?: CollectionAdminConfig
   // biome-ignore lint/suspicious/noExplicitAny: shape is collection-specific
   initialData?: Record<string, any>

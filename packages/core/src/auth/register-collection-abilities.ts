@@ -8,7 +8,7 @@
 
 import type { AbilityRegistry } from '@byline/auth'
 
-import type { CollectionDefinition } from '../@types/index.js'
+import type { MultiCollectionDefinition } from '../@types/index.js'
 
 /**
  * Auto-register the CRUD + workflow abilities contributed by a collection.
@@ -39,7 +39,7 @@ import type { CollectionDefinition } from '../@types/index.js'
  */
 export function registerCollectionAbilities(
   registry: AbilityRegistry,
-  definition: CollectionDefinition
+  definition: MultiCollectionDefinition
 ): void {
   const path = definition.path
   const group = `collections.${path}`

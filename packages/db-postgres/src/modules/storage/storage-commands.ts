@@ -20,6 +20,7 @@ import {
   ERR_VALIDATION,
   flattenFieldSetData,
   generateKeyBetween,
+  isSingleton,
   TREE_PLACEMENT_STALE_MARKER,
 } from '@byline/core'
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm'
@@ -117,8 +118,8 @@ export class CollectionCommands implements ICollectionCommands {
       .values({
         id: uuidv7(),
         path,
-        singular: config.labels.singular || path, // Default to path if singular not provided
-        plural: config.labels.plural || `${path}s`, // Default to pluralized path if not
+        singular: isSingleton(config) ? config.label : config.labels.singular || path,
+        plural: isSingleton(config) ? config.label : config.labels.plural || `${path}s`,
         config,
         ...(opts?.version !== undefined ? { version: opts.version } : {}),
         ...(opts?.schemaHash !== undefined ? { schema_hash: opts.schemaHash } : {}),

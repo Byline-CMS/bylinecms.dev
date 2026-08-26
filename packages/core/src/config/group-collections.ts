@@ -13,12 +13,14 @@ import type { CollectionDefinition } from '../@types/collection-types.js'
  * One renderable section of the admin dashboard: a heading (or none) and the
  * collections beneath it.
  */
-export interface CollectionGroupBucket {
+export interface CollectionGroupBucket<
+  TDefinition extends CollectionDefinition = CollectionDefinition,
+> {
   /** Registry key, or `null` for the leading ungrouped band. */
   name: string | null
   /** Heading text, or `null` when the band renders without a heading. */
   label: string | null
-  collections: CollectionDefinition[]
+  collections: TDefinition[]
 }
 
 /**
@@ -45,22 +47,22 @@ export interface CollectionGroupBucket {
  * members are all hidden disappear along with its heading: it arrives here with
  * no members and is skipped by the rule above.
  */
-export function groupCollectionsForAdmin(
-  collections: readonly CollectionDefinition[],
+export function groupCollectionsForAdmin<TDefinition extends CollectionDefinition>(
+  collections: readonly TDefinition[],
   admin: readonly CollectionAdminConfig[] | undefined,
   collectionGroups: readonly CollectionGroupDefinition[] | undefined
-): CollectionGroupBucket[] {
+): CollectionGroupBucket<TDefinition>[] {
   const groupByCollectionPath = new Map<string, string>()
   for (const entry of admin ?? []) {
     if (entry.group != null) groupByCollectionPath.set(entry.slug, entry.group)
   }
 
-  const membersByGroup = new Map<string, CollectionDefinition[]>()
+  const membersByGroup = new Map<string, TDefinition[]>()
   for (const group of collectionGroups ?? []) {
     membersByGroup.set(group.name, [])
   }
 
-  const ungrouped: CollectionDefinition[] = []
+  const ungrouped: TDefinition[] = []
   for (const collection of collections) {
     const groupName = groupByCollectionPath.get(collection.path)
     const members = groupName == null ? undefined : membersByGroup.get(groupName)
@@ -71,7 +73,7 @@ export function groupCollectionsForAdmin(
     members.push(collection)
   }
 
-  const buckets: CollectionGroupBucket[] = []
+  const buckets: CollectionGroupBucket<TDefinition>[] = []
   if (ungrouped.length > 0) {
     buckets.push({ name: null, label: null, collections: ungrouped })
   }

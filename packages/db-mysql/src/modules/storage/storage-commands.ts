@@ -21,6 +21,7 @@ import {
   ERR_VALIDATION,
   flattenFieldSetData,
   generateKeyBetween,
+  isSingleton,
   TREE_PLACEMENT_STALE_MARKER,
 } from '@byline/core'
 import { and, desc, eq, inArray, ne, notInArray, sql } from 'drizzle-orm'
@@ -98,8 +99,8 @@ export class CollectionCommands implements ICollectionCommands {
   ) {
     const id = uuidv7()
     const version = opts?.version ?? 1
-    const singular = config.labels.singular || path
-    const plural = config.labels.plural || `${path}s`
+    const singular = isSingleton(config) ? config.label : config.labels.singular || path
+    const plural = isSingleton(config) ? config.label : config.labels.plural || `${path}s`
     // `created_at`/`updated_at` are written explicitly rather than left to
     // the column's `DEFAULT CURRENT_TIMESTAMP(6)` — an earlier version of
     // this method approximated them with a request-time `Date` instead

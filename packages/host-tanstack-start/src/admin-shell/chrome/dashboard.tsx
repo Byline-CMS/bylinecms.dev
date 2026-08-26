@@ -6,12 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition, WorkflowStatus } from '@byline/core'
+import type { MultiCollectionDefinition, WorkflowStatus } from '@byline/core'
 import {
   filterReadableCollections,
   getAdminConfig,
   getWorkflowStatuses,
   groupCollectionsForAdmin,
+  isSingleton,
 } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Card, Container, Section } from '@byline/ui/react'
@@ -68,7 +69,7 @@ function CollectionCard({
   collection,
   stats,
 }: {
-  collection: CollectionDefinition
+  collection: MultiCollectionDefinition
   stats: CollectionStatusCount[] | undefined
 }) {
   const { t } = useTranslation('byline-admin')
@@ -146,7 +147,9 @@ export function AdminDashboard({ statsMap }: AdminDashboardProps) {
   // Filter before bucketing. A group left with no readable members arrives at
   // `groupCollectionsForAdmin` empty and is skipped, so its heading disappears
   // along with it — there is no group-level ability concept anywhere.
-  const visible = filterReadableCollections(config.collections, { isSuperAdmin, abilities })
+  const visible = filterReadableCollections(config.collections, { isSuperAdmin, abilities }).filter(
+    (definition): definition is MultiCollectionDefinition => !isSingleton(definition)
+  )
   const buckets = groupCollectionsForAdmin(visible, config.admin, config.collectionGroups)
 
   if (buckets.length === 0) {

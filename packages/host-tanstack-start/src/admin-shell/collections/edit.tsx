@@ -9,7 +9,7 @@
 import { useState } from 'react'
 
 import { FormRenderer } from '@byline/admin/react'
-import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
+import type { CollectionAdminConfig, MultiCollectionDefinition } from '@byline/core'
 import {
   getDefaultStatus,
   getWorkflow,
@@ -56,7 +56,7 @@ export const EditView = ({
   defaultContentLocale,
   returnSearch,
 }: {
-  collectionDefinition: CollectionDefinition
+  collectionDefinition: MultiCollectionDefinition
   adminConfig?: CollectionAdminConfig
   initialData: AnyCollectionSchemaTypes['UpdateType']
   locale?: string

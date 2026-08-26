@@ -10,11 +10,11 @@ import { useState } from 'react'
 
 import type {
   CollectionAdminConfig,
-  CollectionDefinition,
   RelationField as FieldType,
+  MultiCollectionDefinition,
   RelatedDocumentValue,
 } from '@byline/core'
-import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
+import { getCollectionAdminConfig, getCollectionDefinition, isSingleton } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import {
   Button,
@@ -80,7 +80,9 @@ export const RelationField = ({
   // config drives the picker-column rendering inside RelationSummary so
   // the selected tile matches the picker row exactly. Missing target →
   // render an inline error and disable the picker.
-  const targetDef: CollectionDefinition | null = getCollectionDefinition(field.targetCollection)
+  const targetDefinition = getCollectionDefinition(field.targetCollection)
+  const targetDef: MultiCollectionDefinition | null =
+    targetDefinition != null && !isSingleton(targetDefinition) ? targetDefinition : null
   const targetAdminConfig: CollectionAdminConfig | null = getCollectionAdminConfig(
     field.targetCollection
   )

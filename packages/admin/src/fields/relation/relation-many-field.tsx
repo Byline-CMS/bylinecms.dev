@@ -10,11 +10,11 @@ import { type ReactNode, useState } from 'react'
 
 import type {
   CollectionAdminConfig,
-  CollectionDefinition,
   RelationField as FieldType,
+  MultiCollectionDefinition,
   RelatedDocumentValue,
 } from '@byline/core'
-import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
+import { getCollectionAdminConfig, getCollectionDefinition, isSingleton } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import {
   Button,
@@ -122,7 +122,9 @@ export const RelationManyField = ({ field, defaultValue, id, path }: RelationMan
   const fieldError = useFieldError(fieldPath)
   const { getFieldValue, setFieldValue } = useFormContext()
 
-  const targetDef: CollectionDefinition | null = getCollectionDefinition(field.targetCollection)
+  const targetDefinition = getCollectionDefinition(field.targetCollection)
+  const targetDef: MultiCollectionDefinition | null =
+    targetDefinition != null && !isSingleton(targetDefinition) ? targetDefinition : null
   const targetAdminConfig: CollectionAdminConfig | null = getCollectionAdminConfig(
     field.targetCollection
   )

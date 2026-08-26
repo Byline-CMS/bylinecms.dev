@@ -16,6 +16,7 @@ import type {
   CollectionDefinition,
   CollectionFieldData,
   CollectionFieldDataAllLocales,
+  MultiCollectionDefinition,
 } from '../@types/collection-types.js'
 import type {
   AllFieldsFields,
@@ -31,7 +32,10 @@ import type {
 
 const fixtureDirectory = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures')
 
-function collection(path: string, fields: CollectionDefinition['fields']): CollectionDefinition {
+function collection(
+  path: string,
+  fields: CollectionDefinition['fields']
+): MultiCollectionDefinition {
   return { path, labels: { singular: path, plural: path }, fields }
 }
 

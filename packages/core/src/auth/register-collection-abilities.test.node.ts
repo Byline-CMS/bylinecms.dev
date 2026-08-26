@@ -14,9 +14,9 @@ import {
   collectionAbilityKey,
   registerCollectionAbilities,
 } from './register-collection-abilities.js'
-import type { CollectionDefinition } from '../@types/index.js'
+import type { MultiCollectionDefinition } from '../@types/index.js'
 
-function pageCollection(): CollectionDefinition {
+function pageCollection(): MultiCollectionDefinition {
   return {
     path: 'pages',
     labels: { singular: 'Page', plural: 'Pages' },
@@ -24,7 +24,7 @@ function pageCollection(): CollectionDefinition {
   }
 }
 
-function newsCollection(): CollectionDefinition {
+function newsCollection(): MultiCollectionDefinition {
   return {
     path: 'news',
     labels: { singular: 'News Item', plural: 'News' },

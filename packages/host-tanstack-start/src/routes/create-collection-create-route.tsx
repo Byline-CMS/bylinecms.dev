@@ -8,18 +8,15 @@
 
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
-import type { CollectionDefinition } from '@byline/core'
-import {
-  buildInitialDataFromFields,
-  getCollectionAdminConfig,
-  getCollectionDefinition,
-} from '@byline/core'
+import type { MultiCollectionDefinition } from '@byline/core'
+import { buildInitialDataFromFields, getCollectionAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { z } from 'zod'
 
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { CreateView } from '../admin-shell/collections/create.js'
 import { getAdminRoutePath } from './admin-path.js'
+import { getMultiCollectionDefinition } from './get-multi-collection-definition.js'
 
 const searchSchema = z.object({
   /** URL-encoded list search state to return to on cancel — see list-return-state.ts. */
@@ -36,7 +33,7 @@ export function createCollectionCreateRoute(path: string) {
       params: { collection: string }
       // biome-ignore lint/suspicious/noExplicitAny: collection-specific shape
     }): Promise<{ initialData: any }> => {
-      const collectionDef = getCollectionDefinition(params.collection)
+      const collectionDef = getMultiCollectionDefinition(params.collection)
       if (!collectionDef) {
         throw notFound()
       }
@@ -50,7 +47,7 @@ export function createCollectionCreateRoute(path: string) {
       const { collection } = Route.useParams() as { collection: string }
       // biome-ignore lint/suspicious/noExplicitAny: collection-specific shape
       const { initialData } = Route.useLoaderData() as { initialData: any }
-      const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
+      const collectionDef = getMultiCollectionDefinition(collection) as MultiCollectionDefinition
       const adminConfig = getCollectionAdminConfig(collection)
       const { t } = useTranslation('byline-admin')
       const search = Route.useSearch() as z.infer<typeof searchSchema>

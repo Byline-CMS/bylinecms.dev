@@ -9,8 +9,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
-import type { CollectionDefinition } from '@byline/core'
-import { getCollectionAdminConfig, getCollectionDefinition } from '@byline/core'
+import type { MultiCollectionDefinition } from '@byline/core'
+import { getCollectionAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { useToastManager } from '@byline/ui/react'
 import { z } from 'zod'
@@ -21,6 +21,7 @@ import { EditView } from '../admin-shell/collections/edit.js'
 import { getCollectionDocument } from '../server-fns/collections/index.js'
 import { getAdminRoutePath } from './admin-path.js'
 import { getContentLocaleRouteConfig } from './get-content-locale-route-config.js'
+import { getMultiCollectionDefinition } from './get-multi-collection-definition.js'
 import { decodeListReturnState } from './list-return-state.js'
 import { persistListReturnState, readListReturnState } from './list-return-storage.js'
 
@@ -46,7 +47,7 @@ export function createCollectionEditRoute(path: string) {
       params: { collection: string; id: string }
       deps: { locale?: string }
     }) => {
-      const collectionDef = getCollectionDefinition(params.collection)
+      const collectionDef = getMultiCollectionDefinition(params.collection)
       if (!collectionDef) {
         throw notFound()
       }
@@ -77,7 +78,7 @@ export function createCollectionEditRoute(path: string) {
       const { collection, id } = Route.useParams() as { collection: string; id: string }
       const search = Route.useSearch() as z.infer<typeof searchSchema>
       const { locale } = search
-      const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
+      const collectionDef = getMultiCollectionDefinition(collection) as MultiCollectionDefinition
       const adminConfig = getCollectionAdminConfig(collection)
       const { t } = useTranslation('byline-admin')
       const toastManager = useToastManager()

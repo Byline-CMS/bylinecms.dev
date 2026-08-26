@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition } from '@byline/core'
+import type { MultiCollectionDefinition } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { useTranslation } from '@byline/i18n/react'
 import { Container, Section } from '@byline/ui/react'
@@ -32,7 +32,7 @@ export const ApiView = ({
   contentLocales,
   defaultContentLocale,
 }: {
-  collectionDefinition: CollectionDefinition
+  collectionDefinition: MultiCollectionDefinition
   initialData: AnyCollectionSchemaTypes['UpdateType']
   /** Currently active locale from the route search param (undefined → all). */
   locale?: string

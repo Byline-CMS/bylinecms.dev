@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
-import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
+import type { CollectionAdminConfig, MultiCollectionDefinition } from '@byline/core'
 import { getCollectionAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Button, CheckIcon, LoaderRing, Modal, Search } from '@byline/ui/react'
@@ -57,7 +57,7 @@ interface RelationPickerBaseProps {
   /** The target collection path (e.g. `'media'`). */
   targetCollectionPath: string
   /** The target collection definition (used for labels + displayField fallback). */
-  targetDefinition?: CollectionDefinition | null
+  targetDefinition?: MultiCollectionDefinition | null
   /** Explicit display field to render as row label. */
   displayField?: string
   /**

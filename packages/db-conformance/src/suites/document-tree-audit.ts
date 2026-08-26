@@ -11,10 +11,10 @@
 import { createSuperAdminContext } from '@byline/auth'
 import {
   type BylineLogger,
-  type CollectionDefinition,
   type DocumentLifecycleContext,
   deleteDocument,
   type IDbAdapter,
+  type MultiCollectionDefinition,
   placeTreeNode,
   promoteChildrenAndRemove,
   removeFromTree,
@@ -25,7 +25,7 @@ import type { ConformanceHooks } from '../index.js'
 
 const timestamp = Date.now()
 const ACTOR_ID = '01901234-0000-7000-8000-000000000001'
-const config: CollectionDefinition = {
+const config: MultiCollectionDefinition = {
   path: `tree-audit-${timestamp}`,
   labels: { singular: 'Tree audit', plural: 'Tree audits' },
   useAsPath: 'title',

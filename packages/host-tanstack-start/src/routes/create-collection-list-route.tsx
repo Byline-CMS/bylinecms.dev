@@ -10,12 +10,8 @@ import { useEffect, useRef } from 'react'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import { applyRelationColumnFormatters } from '@byline/admin/react'
-import type { CollectionDefinition } from '@byline/core'
-import {
-  getCollectionAdminConfig,
-  getCollectionDefinition,
-  getWorkflowStatuses,
-} from '@byline/core'
+import type { MultiCollectionDefinition } from '@byline/core'
+import { getCollectionAdminConfig, getWorkflowStatuses } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { useToastManager } from '@byline/ui/react'
 import type { z } from 'zod'
@@ -31,6 +27,7 @@ import {
   reorderCollectionDocument,
 } from '../server-fns/collections/index.js'
 import { getAdminRoutePath } from './admin-path.js'
+import { getMultiCollectionDefinition } from './get-multi-collection-definition.js'
 import { collectionListSearchSchema as searchSchema } from './list-return-state.js'
 import type { CollectionTreeRow } from '../server-fns/collections/tree.js'
 
@@ -62,7 +59,7 @@ export function createCollectionListRoute(path: string) {
         status?: string
       }
     }) => {
-      const collectionDef = getCollectionDefinition(params.collection)
+      const collectionDef = getMultiCollectionDefinition(params.collection)
       if (!collectionDef) {
         throw notFound()
       }
@@ -108,7 +105,7 @@ export function createCollectionListRoute(path: string) {
       const { collection } = Route.useParams() as { collection: string }
       const search = Route.useSearch() as z.infer<typeof searchSchema>
       const navigate = useNavigate()
-      const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
+      const collectionDef = getMultiCollectionDefinition(collection) as MultiCollectionDefinition
       const adminConfig = getCollectionAdminConfig(collection)
       // Apply the built-in relation formatter to any relation column without an
       // explicit one, so relation cells render the target's title (the list

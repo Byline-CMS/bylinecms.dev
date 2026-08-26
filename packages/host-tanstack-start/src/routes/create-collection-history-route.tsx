@@ -8,12 +8,8 @@
 
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
-import type { CollectionDefinition } from '@byline/core'
-import {
-  getCollectionAdminConfig,
-  getCollectionDefinition,
-  getWorkflowStatuses,
-} from '@byline/core'
+import type { MultiCollectionDefinition } from '@byline/core'
+import { getCollectionAdminConfig, getWorkflowStatuses } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { z } from 'zod'
 
@@ -26,6 +22,7 @@ import {
 } from '../server-fns/collections/index.js'
 import { getAdminRoutePath } from './admin-path.js'
 import { getContentLocaleRouteConfig } from './get-content-locale-route-config.js'
+import { getMultiCollectionDefinition } from './get-multi-collection-definition.js'
 
 const searchSchema = z.object({
   page: z.coerce.number().min(1).optional(),
@@ -68,7 +65,7 @@ export function createCollectionHistoryRoute(path: string) {
         locale?: string
       }
     }) => {
-      const collectionDef = getCollectionDefinition(params.collection)
+      const collectionDef = getMultiCollectionDefinition(params.collection)
       if (!collectionDef) {
         throw notFound()
       }
@@ -111,7 +108,7 @@ export function createCollectionHistoryRoute(path: string) {
     component: function CollectionHistoryComponent() {
       const { history, currentDocument, auditLog } = Route.useLoaderData()
       const { collection } = Route.useParams() as { collection: string; id: string }
-      const collectionDef = getCollectionDefinition(collection) as CollectionDefinition
+      const collectionDef = getMultiCollectionDefinition(collection) as MultiCollectionDefinition
       const adminConfig = getCollectionAdminConfig(collection)
       const { t } = useTranslation('byline-admin')
       const { contentLocales, defaultContentLocale } = getContentLocaleRouteConfig()

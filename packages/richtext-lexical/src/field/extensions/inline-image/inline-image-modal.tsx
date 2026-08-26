@@ -12,8 +12,8 @@ import type * as React from 'react'
 import { useMemo, useState } from 'react'
 
 import { RelationPicker } from '@byline/admin/react'
-import type { CollectionDefinition, StoredFileValue } from '@byline/core'
-import { getCollectionDefinition } from '@byline/core'
+import type { MultiCollectionDefinition, StoredFileValue } from '@byline/core'
+import { getCollectionDefinition, isSingleton } from '@byline/core'
 import {
   Button,
   Checkbox,
@@ -106,7 +106,9 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
     }
   )
 
-  const targetDef: CollectionDefinition | null = getCollectionDefinition(collection)
+  const targetDefinition = getCollectionDefinition(collection)
+  const targetDef: MultiCollectionDefinition | null =
+    targetDefinition != null && !isSingleton(targetDefinition) ? targetDefinition : null
 
   // The image StoredFileValue lives inside the picked media doc's denormalised
   // `documentRelation.document.image` field — see `handlePickerSelect` below.

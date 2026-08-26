@@ -9,6 +9,7 @@
 import { createSuperAdminContext } from '@byline/auth'
 import { describe, expect, it, vi } from 'vitest'
 
+import { isSingleton } from '../../@types/index.js'
 import { TREE_HOOK_COMMITTED_MARKER } from '../../lib/errors.js'
 import { validateTreeAuditCapability } from './audit.js'
 import { createDocument } from './create.js'
@@ -16,8 +17,8 @@ import { deleteDocument } from './delete.js'
 import { placeTreeNode, promoteChildrenAndRemove, removeFromTree } from './tree.js'
 import type {
   AuditLogAppendInput,
-  CollectionDefinition,
   IDbAdapter,
+  MultiCollectionDefinition,
   TreeMutationResult,
   TreePlacementState,
 } from '../../@types/index.js'
@@ -242,7 +243,7 @@ function createHarness(
     }
   })
 
-  const definition: CollectionDefinition = {
+  const definition: MultiCollectionDefinition = {
     path: 'pages',
     labels: { singular: 'Page', plural: 'Pages' },
     fields: [{ name: 'title', type: 'text' }],
@@ -329,8 +330,12 @@ describe('document-tree lifecycle audit contract', () => {
         },
       },
     } as unknown as IDbAdapter
+    const definition = harness.ctx.definition
+    if (isSingleton(definition)) {
+      throw new Error('tree lifecycle harness must use a multi-document collection')
+    }
     expect(() =>
-      validateTreeAuditCapability([{ ...harness.ctx.definition, tree: false }], unsupported)
+      validateTreeAuditCapability([{ ...definition, tree: false }], unsupported)
     ).not.toThrow()
     expect(() => validateTreeAuditCapability([harness.ctx.definition], unsupported)).toThrow(
       /tree-enabled writes require/

@@ -9,12 +9,12 @@
 import { createSuperAdminContext } from '@byline/auth'
 import type { BylineCore, BylineLogger, DocumentLifecycleContext } from '@byline/core'
 import {
-  type CollectionDefinition,
   changeDocumentStatus,
   type DocumentPublishSchedule,
   deleteDocument,
   deleteLocale,
   type IDbAdapter,
+  type MultiCollectionDefinition,
   type ScheduleDocumentPublishResult,
   unpublishDocument,
   updateDocument,
@@ -38,19 +38,19 @@ const noopLogger = {
 
 const timestamp = Date.now()
 
-const PrimaryCollection: CollectionDefinition = {
+const PrimaryCollection: MultiCollectionDefinition = {
   path: `publish-schedules-primary-${timestamp}`,
   labels: { singular: 'Scheduled primary', plural: 'Scheduled primary' },
   fields: [{ name: 'title', type: 'text' }],
 }
 
-const SecondaryCollection: CollectionDefinition = {
+const SecondaryCollection: MultiCollectionDefinition = {
   path: `publish-schedules-secondary-${timestamp}`,
   labels: { singular: 'Scheduled secondary', plural: 'Scheduled secondary' },
   fields: [{ name: 'title', type: 'text' }],
 }
 
-const LocaleCollection: CollectionDefinition = {
+const LocaleCollection: MultiCollectionDefinition = {
   path: `publish-schedules-locales-${timestamp}`,
   labels: { singular: 'Scheduled locale', plural: 'Scheduled locales' },
   fields: [{ name: 'title', type: 'text', localized: true }],
@@ -58,7 +58,7 @@ const LocaleCollection: CollectionDefinition = {
 
 interface CollectionFixture {
   id: string
-  definition: CollectionDefinition
+  definition: MultiCollectionDefinition
 }
 
 interface DocumentFixture {
@@ -193,7 +193,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
 
   function lifecycleContext(
     collection: CollectionFixture,
-    definition: CollectionDefinition = collection.definition
+    definition: MultiCollectionDefinition = collection.definition
   ): DocumentLifecycleContext {
     return {
       db: adapter,
@@ -207,7 +207,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
     }
   }
 
-  function sweepCore(definition: CollectionDefinition = primary.definition): BylineCore {
+  function sweepCore(definition: MultiCollectionDefinition = primary.definition): BylineCore {
     return {
       config: { i18n: { content: { defaultLocale: 'en' } } },
       collections: [definition],
@@ -1213,7 +1213,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
       const afterStatusChange = vi.fn(async () => {
         throw new Error('post-commit hook failure')
       })
-      const definitionWithHooks: CollectionDefinition = {
+      const definitionWithHooks: MultiCollectionDefinition = {
         ...primary.definition,
         hooks: { beforeStatusChange, afterStatusChange },
       }

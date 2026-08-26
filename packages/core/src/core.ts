@@ -15,6 +15,7 @@ import { type AbilityDescriptor, AbilityRegistry, type SessionProvider } from '@
 // client file transitively imports `@byline/core`.
 import type { Logger as PinoLogger } from 'pino'
 
+import { isSingleton } from './@types/index.js'
 import { registerCollectionAbilities } from './auth/register-collection-abilities.js'
 import {
   defineBylineCore,
@@ -276,7 +277,7 @@ export const initBylineCore = async <TAdminStore = unknown>(
   // `core.registerAbility()` or `core.abilities.register()`.
   const abilities = new AbilityRegistry()
   for (const definition of composed.collections) {
-    registerCollectionAbilities(abilities, definition)
+    if (!isSingleton(definition)) registerCollectionAbilities(abilities, definition)
   }
 
   const core: BylineCore<TAdminStore> = {

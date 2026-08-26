@@ -16,13 +16,13 @@
 // src/server.ts (TanStack Start server entry point) before any
 // requests are handled. No need to import it here.
 
-import type { CollectionDefinition, CollectionRecord } from '@byline/core'
-import { getCollectionDefinition } from '@byline/core'
+import type { CollectionRecord, MultiCollectionDefinition } from '@byline/core'
+import { getCollectionDefinition, isSingleton } from '@byline/core'
 
 import { bylineCore } from './byline-core.js'
 
 export interface EnsuredCollection {
-  definition: CollectionDefinition
+  definition: MultiCollectionDefinition
   collection: {
     id: string
     path: string
@@ -43,7 +43,7 @@ export interface EnsuredCollection {
  */
 export async function ensureCollection(path: string): Promise<EnsuredCollection | null> {
   const definition = getCollectionDefinition(path)
-  if (definition == null) {
+  if (definition == null || isSingleton(definition)) {
     return null
   }
 

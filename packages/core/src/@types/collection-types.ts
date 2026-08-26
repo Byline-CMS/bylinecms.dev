@@ -1154,15 +1154,35 @@ export function defineHooks(hooks: CollectionHooks): CollectionHooks {
   return hooks
 }
 
-export interface CollectionDefinition {
-  labels: {
-    singular: string
-    plural: string
-  }
+/** Fields and lifecycle configuration shared by every document resource kind. */
+export interface DocumentDefinitionBase {
   path: string
   fields: Field[]
   /** Sequential workflow configuration. Falls back to DEFAULT_WORKFLOW if omitted. */
   workflow?: WorkflowConfig
+  /**
+   * Optional explicit version pin. When omitted, the startup bootstrap
+   * auto-increments the collection's stored version any time the schema
+   * fingerprint changes. When set, the value is used verbatim as long as it
+   * is >= the currently-stored version; pinning backwards throws at startup.
+   *
+   * The stamped version is written onto every `documentVersions` row so that
+   * a document can later be resolved against the schema shape it was
+   * authored under.
+   */
+  version?: number
+}
+
+/** A collection of many documents — Byline's original and default resource kind. */
+export interface MultiCollectionDefinition extends DocumentDefinitionBase {
+  /** Absent or `false` on a multi-document collection. */
+  singleton?: false
+  labels: {
+    singular: string
+    plural: string
+  }
+  /** A multi-document collection uses `labels`, never the singleton's `label`. */
+  label?: never
   /**
    * Lifecycle hooks for server-side document operations.
    *
@@ -1372,27 +1392,64 @@ export interface CollectionDefinition {
    * docs/04-collections/04-document-trees.md.
    */
   tree?: boolean
-  /**
-   * Optional explicit version pin. When omitted, the startup bootstrap
-   * auto-increments the collection's stored version any time the schema
-   * fingerprint changes. When set, the value is used verbatim as long as it
-   * is >= the currently-stored version; pinning backwards throws at startup.
-   *
-   * The stamped version is written onto every `documentVersions` row so that
-   * a document can later be resolved against the schema shape it was
-   * authored under.
-   */
-  version?: number
 }
+
+/**
+ * A single named document slot for an installation — the resource Payload CMS
+ * calls a Global. Cardinality is zero-or-one: the slot exists as soon as the
+ * definition is registered, and its document is materialised by the first save.
+ *
+ * Collection-only options are absent by construction: there is no list to sort,
+ * search, or paginate, no sibling documents to order or arrange in a tree, and
+ * no public slug (`path` is internal metadata; see the design spec).
+ */
+export interface SingletonDefinition extends DocumentDefinitionBase {
+  singleton: true
+  /** Singular display label. A singleton has no plural form. */
+  label: string
+
+  labels?: never
+  hooks?: never
+  useAsTitle?: never
+  useAsPath?: never
+  orderable?: never
+  tree?: never
+  search?: never
+  listSearch?: never
+  advertiseLocales?: never
+  showStats?: never
+  linksInEditor?: never
+  buildDocumentPath?: never
+}
+
+/** A registered multi-document collection or singleton document slot. */
+export type CollectionDefinition = MultiCollectionDefinition | SingletonDefinition
 
 /**
  * Type-safe factory for creating a CollectionDefinition.
  * Returns the definition as-is but provides type checking.
  */
-export function defineCollection<const C extends CollectionDefinition>(
-  definition: C & CollectionDefinition
+export function defineCollection<const C extends MultiCollectionDefinition>(
+  definition: C & MultiCollectionDefinition
 ): C {
   return definition
+}
+
+/**
+ * Type-safe factory for a singleton definition. Adds the `singleton: true`
+ * discriminant so authors never write it themselves, and locks in literal
+ * types for `path` and field names so the generated path registries resolve
+ * precisely. Mirrors `defineCollection`.
+ */
+export function defineSingleton<const S extends Omit<SingletonDefinition, 'singleton'>>(
+  definition: S & Omit<SingletonDefinition, 'singleton'>
+): S & { singleton: true } {
+  return { ...definition, singleton: true }
+}
+
+/** Narrows a definition to the singleton variant. */
+export function isSingleton(definition: CollectionDefinition): definition is SingletonDefinition {
+  return definition.singleton === true
 }
 
 export type CollectionFieldData<C extends CollectionDefinition> = FieldSetData<C['fields']>

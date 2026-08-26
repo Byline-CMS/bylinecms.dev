@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionAdminConfig, CollectionDefinition } from '@byline/core'
+import type { CollectionAdminConfig, MultiCollectionDefinition } from '@byline/core'
 import cx from 'clsx'
 
 import { PickerCell, resolveFallbackDisplayField, resolveRowLabel } from './relation-display'
@@ -34,7 +34,7 @@ import styles from './relation-summary.module.css'
 // ---------------------------------------------------------------------------
 
 interface RelationSummaryProps {
-  targetDefinition: CollectionDefinition
+  targetDefinition: MultiCollectionDefinition
   targetAdminConfig: CollectionAdminConfig | null
   displayField?: string
   /** The raw relation value from the form. May be a plain ref or a populated envelope. */

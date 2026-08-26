@@ -11,7 +11,7 @@ import { useParams, useRouterState } from '@tanstack/react-router'
 
 import { AdminTabs, renderFormatted, StatusBadge } from '@byline/admin/react'
 import { useBylineAdminServices } from '@byline/admin/services'
-import type { CollectionAdminConfig, CollectionDefinition, WorkflowStatus } from '@byline/core'
+import type { CollectionAdminConfig, MultiCollectionDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { useTranslation } from '@byline/i18n/react'
 import {
@@ -118,7 +118,7 @@ export const HistoryView = ({
   contentLocales,
   defaultContentLocale,
 }: {
-  collectionDefinition: CollectionDefinition
+  collectionDefinition: MultiCollectionDefinition
   adminConfig?: CollectionAdminConfig
   data: AnyCollectionSchemaTypes['HistoryType'] & {
     /**

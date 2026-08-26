@@ -16,8 +16,8 @@ import type {
   BlockAdminConfig,
   BylineCore,
   CollectionAdminConfig,
-  CollectionDefinition,
   Field,
+  MultiCollectionDefinition,
   ServerConfig,
 } from '@byline/core'
 
@@ -86,8 +86,10 @@ const bylineCoreKeys = completeKeys<BylineCore>()([
   'recurringTasks',
 ])
 
-const collectionDefinitionKeys = completeKeys<CollectionDefinition>()([
+const collectionDefinitionKeys = completeKeys<MultiCollectionDefinition>()([
+  'singleton',
   'labels',
+  'label',
   'path',
   'fields',
   'workflow',

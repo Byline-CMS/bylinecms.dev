@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
-import { getCollectionDefinition } from '@byline/core'
+import { getCollectionDefinition, isSingleton } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Button } from '@byline/ui/react'
 import cx from 'clsx'
@@ -49,7 +49,8 @@ export const TreePlacementWidget = ({
 }: TreePlacementWidgetProps) => {
   const { t } = useTranslation('byline-admin')
   const { getTreeAncestors, getTreeParent, placeTreeNode } = useBylineFieldServices()
-  const targetDefinition = getCollectionDefinition(collectionPath)
+  const definition = getCollectionDefinition(collectionPath)
+  const targetDefinition = definition != null && !isSingleton(definition) ? definition : null
 
   const [parent, setParent] = useState<{ id: string; title: string } | null>(null)
   // Whether the document has an edge row at all. `false` = *unplaced* (no row);

@@ -13,11 +13,12 @@ import type {
   CollectionDefinition,
   CollectionHooks,
   CollectionHooksLoader,
+  MultiCollectionDefinition,
   UploadHooks,
   UploadHooksLoader,
 } from './collection-types.js'
 
-function baseCollection(): CollectionDefinition {
+function baseCollection(): MultiCollectionDefinition {
   return {
     path: 'docs',
     labels: { singular: 'Doc', plural: 'Docs' },

@@ -12,8 +12,8 @@ import type * as React from 'react'
 import { useMemo, useState } from 'react'
 
 import { RelationPicker } from '@byline/admin/react'
-import type { CollectionDefinition } from '@byline/core'
-import { getAdminConfig, getCollectionDefinition } from '@byline/core'
+import type { MultiCollectionDefinition } from '@byline/core'
+import { getAdminConfig, getCollectionDefinition, isSingleton } from '@byline/core'
 import {
   Button,
   Checkbox,
@@ -48,7 +48,7 @@ interface FormState {
   picked: DocumentRelation | null
 }
 
-function emptyState(linkable: CollectionDefinition[]): FormState {
+function emptyState(linkable: MultiCollectionDefinition[]): FormState {
   return {
     text: '',
     linkType: linkable.length > 0 ? 'internal' : 'custom',
@@ -59,7 +59,10 @@ function emptyState(linkable: CollectionDefinition[]): FormState {
   }
 }
 
-function fromLinkData(data: LinkData | undefined, linkable: CollectionDefinition[]): FormState {
+function fromLinkData(
+  data: LinkData | undefined,
+  linkable: MultiCollectionDefinition[]
+): FormState {
   const base = emptyState(linkable)
   if (!data) return base
   const fields = data.fields
@@ -101,8 +104,12 @@ export const LinkModal: React.FC<LinkModalProps> = ({
   onClose,
   data: dataFromProps,
 }) => {
-  const linkable = useMemo<CollectionDefinition[]>(
-    () => getAdminConfig().collections.filter((c) => c.linksInEditor === true),
+  const linkable = useMemo<MultiCollectionDefinition[]>(
+    () =>
+      getAdminConfig().collections.filter(
+        (collection): collection is MultiCollectionDefinition =>
+          !isSingleton(collection) && collection.linksInEditor === true
+      ),
     []
   )
 
@@ -115,9 +122,11 @@ export const LinkModal: React.FC<LinkModalProps> = ({
     () => setUrlError(null)
   )
 
-  const targetDef: CollectionDefinition | null = state.targetCollection
+  const targetDefinition = state.targetCollection
     ? getCollectionDefinition(state.targetCollection)
     : null
+  const targetDef: MultiCollectionDefinition | null =
+    targetDefinition != null && !isSingleton(targetDefinition) ? targetDefinition : null
 
   const collectionItems: SelectValue<string>[] = useMemo(
     () => linkable.map((c) => ({ label: c.labels.singular, value: c.path })),
@@ -129,7 +138,9 @@ export const LinkModal: React.FC<LinkModalProps> = ({
     const title = state.picked.document?.title
     if (typeof title === 'string' && title.length > 0) return title
     // No title cached — show a stable stub keyed off the collection.
-    const pickedDef = getCollectionDefinition(state.picked.targetCollectionPath)
+    const pickedDefinition = getCollectionDefinition(state.picked.targetCollectionPath)
+    const pickedDef =
+      pickedDefinition != null && !isSingleton(pickedDefinition) ? pickedDefinition : null
     const short = state.picked.targetDocumentId.slice(0, 8)
     return `${pickedDef?.labels.singular ?? state.picked.targetCollectionPath} · ${short}…`
   }, [state.linkType, state.picked])

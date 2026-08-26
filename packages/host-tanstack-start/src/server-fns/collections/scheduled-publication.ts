@@ -15,6 +15,7 @@ import {
   type DocumentPublishScheduleState,
   ERR_NOT_FOUND,
   ERR_VALIDATION,
+  isSingleton,
   type RecurringTaskHealth,
 } from '@byline/core'
 import { listDocumentPublishSchedules } from '@byline/core/services'
@@ -247,7 +248,12 @@ export const listScheduledPublications = createServerFn({ method: 'GET' })
         return {
           ...serializeSchedule(schedule),
           collectionPath: definition?.path ?? schedule.collectionId,
-          collectionLabel: definition?.labels.plural ?? definition?.path ?? schedule.collectionId,
+          collectionLabel:
+            definition == null
+              ? schedule.collectionId
+              : isSingleton(definition)
+                ? definition.label
+                : definition.labels.plural,
           documentPath,
           lastAuthorizedByName:
             schedule.lastAuthorizedBy == null
