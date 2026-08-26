@@ -173,7 +173,9 @@ export class BylineClient<
         message: `Collection not found: '${path}'`,
         details: {
           collectionPath: path,
-          available: this.collections.map((c) => c.path),
+          available: this.collections
+            .filter((definition) => !isSingleton(definition))
+            .map((c) => c.path),
         },
       })
     }

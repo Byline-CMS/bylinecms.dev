@@ -86,6 +86,20 @@ describe('client.singleton()', () => {
     expect(() => client.singleton(articlesDefinition.path)).toThrow(
       `'${articlesDefinition.path}' is a collection`
     )
+
+    let missingCollectionError: unknown
+    try {
+      client.collection('missing-collection' as never)
+    } catch (error) {
+      missingCollectionError = error
+    }
+    expect(missingCollectionError).toMatchObject({
+      code: ErrorCodes.NOT_FOUND,
+      details: {
+        collectionPath: 'missing-collection',
+        available: [articlesDefinition.path],
+      },
+    })
   })
 
   it('returns the specified empty shapes before a slot is materialized', async () => {
@@ -154,15 +168,25 @@ describe('client.singleton()', () => {
     await expect(handle.get({ status: 'any' })).resolves.toBeNull()
   })
 
-  it('does not resolve another mapped singleton document by version id', async () => {
-    const settings = client.singleton(settingsDefinition.path)
+  it('does not resolve an orphaned version after rematerializing the singleton slot', async () => {
     const other = client.singleton(otherDefinition.path)
-    const { documentVersionId: otherVersionId } = await other.update({
-      title: 'Other singleton',
+    const first = await other.update({
+      title: 'First singleton document',
       enabled: true,
     })
+    await db.commands.singletons.clearMapping(collectionIds[otherDefinition.path])
 
-    await expect(settings.findByVersion(otherVersionId)).resolves.toBeNull()
+    const second = await other.update({
+      title: 'Rematerialized singleton document',
+      enabled: false,
+    })
+
+    expect(second.documentId).not.toBe(first.documentId)
+    await expect(other.findByVersion(first.documentVersionId)).resolves.toBeNull()
+    await expect(other.findByVersion(second.documentVersionId)).resolves.toMatchObject({
+      id: second.documentId,
+      versionId: second.documentVersionId,
+    })
   })
 
   it('authorizes before mapping for materialized and unmaterialized slots', async () => {
