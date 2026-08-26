@@ -13,7 +13,13 @@ import {
   createSuperAdminContext,
   type RequestContext,
 } from '@byline/auth'
-import { defineCollection, defineSingleton, defineWorkflow, ErrorCodes } from '@byline/core'
+import {
+  type BeforeReadHookFn,
+  defineCollection,
+  defineSingleton,
+  defineWorkflow,
+  ErrorCodes,
+} from '@byline/core'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { type BylineClient, createBylineClient, type SingletonHandle } from '../../src/index.js'
@@ -26,7 +32,7 @@ const workflow = defineWorkflow({
   archived: { label: 'Archived', verb: 'Archive' },
 })
 
-function singleton(path: string, beforeRead?: () => false) {
+function singleton(path: string, beforeRead?: BeforeReadHookFn) {
   return defineSingleton({
     path,
     label: 'Site settings',
@@ -41,7 +47,10 @@ function singleton(path: string, beforeRead?: () => false) {
 
 const neverSavedDefinition = singleton(`never-saved-${suffix}`)
 const settingsDefinition = singleton(`settings-${suffix}`)
-const deniedDefinition = singleton(`denied-${suffix}`, () => false)
+const publishedDefinition = singleton(`published-${suffix}`)
+const deniedDefinition = singleton(`denied-${suffix}`, ({ requestContext }) =>
+  requestContext.actor == null ? false : undefined
+)
 const otherDefinition = singleton(`other-${suffix}`)
 const articlesDefinition = defineCollection({
   path: `articles-${suffix}`,
@@ -51,6 +60,7 @@ const articlesDefinition = defineCollection({
 const definitions = [
   neverSavedDefinition,
   settingsDefinition,
+  publishedDefinition,
   deniedDefinition,
   otherDefinition,
   articlesDefinition,
@@ -162,10 +172,53 @@ describe('client.singleton()', () => {
     })
   })
 
-  it('returns null when beforeRead denies the mapped singleton', async () => {
+  it('saves, reads, publishes, and re-reads a singleton through the client handle', async () => {
+    const handle = client.singleton(publishedDefinition.path)
+    const saved = await handle.update({ title: 'Live value', enabled: true })
+
+    await expect(handle.get({ status: 'any' })).resolves.toMatchObject({
+      id: saved.documentId,
+      status: 'draft',
+      fields: { title: 'Live value', enabled: true },
+    })
+    await expect(handle.get()).resolves.toBeNull()
+
+    await expect(handle.changeStatus('published')).resolves.toEqual({
+      previousStatus: 'draft',
+      newStatus: 'published',
+    })
+    await expect(handle.get()).resolves.toMatchObject({
+      id: saved.documentId,
+      status: 'published',
+      fields: { title: 'Live value', enabled: true },
+    })
+  })
+
+  it('returns a private singleton only to an authorized actor', async () => {
     const handle = client.singleton(deniedDefinition.path)
     await handle.update({ title: 'Secret', enabled: false })
-    await expect(handle.get({ status: 'any' })).resolves.toBeNull()
+    await handle.changeStatus('published')
+
+    const anonymousClient = createBylineClient({
+      db,
+      collections: definitions,
+      requestContext: createRequestContext({ readMode: 'published' }),
+    })
+    const reader = new AdminAuth({
+      id: 'private-singleton-reader',
+      abilities: [`singletons.${deniedDefinition.path}.read`],
+    })
+    const authorizedClient = createBylineClient({
+      db,
+      collections: definitions,
+      requestContext: createRequestContext({ actor: reader, readMode: 'published' }),
+    })
+
+    await expect(anonymousClient.singleton(deniedDefinition.path).get()).resolves.toBeNull()
+    await expect(authorizedClient.singleton(deniedDefinition.path).get()).resolves.toMatchObject({
+      status: 'published',
+      fields: { title: 'Secret', enabled: false },
+    })
   })
 
   it('does not resolve an orphaned version after rematerializing the singleton slot', async () => {
