@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   COLLECTION_ABILITY_VERBS,
+  collectionAbilityKey,
   documentAbilityKey,
   registerCollectionAbilities,
   registerDocumentAbilities,
@@ -207,6 +208,10 @@ describe('ability verb contracts / documentAbilityKey', () => {
     expect(documentAbilityKey({ kind: 'singleton', path: 'navigation' }, 'update')).toBe(
       'singletons.navigation.update'
     )
+  })
+
+  it('preserves the deprecated collectionAbilityKey string-path contract', () => {
+    expect(collectionAbilityKey('news', 'read')).toBe('collections.news.read')
   })
 
   it('matches the keys produced by registerCollectionAbilities', () => {

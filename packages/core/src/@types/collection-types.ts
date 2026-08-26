@@ -1212,7 +1212,19 @@ type DocumentHooksLoader = CollectionHooksLoader | SingletonHooksLoader
 
 const resolvedHooksCache = new WeakMap<DocumentHooksLoader, ResolvedDocumentHooks>()
 
-const COLLECTION_ONLY_HOOK_NAMES = [
+type CollectionOnlyHookName = Exclude<keyof CollectionHooks, keyof SingletonHooks>
+type SingletonOnlyHookName = Exclude<keyof SingletonHooks, keyof CollectionHooks>
+
+function completeHookNames<HookName extends PropertyKey>() {
+  return <const Names extends readonly HookName[]>(
+    names: Names &
+      ([Exclude<HookName, Names[number]>] extends [never]
+        ? unknown
+        : { readonly __missingKeys: Exclude<HookName, Names[number]> })
+  ): Names => names
+}
+
+const COLLECTION_ONLY_HOOK_NAMES = completeHookNames<CollectionOnlyHookName>()([
   'beforeCreate',
   'afterCreate',
   'beforeUpdate',
@@ -1221,12 +1233,12 @@ const COLLECTION_ONLY_HOOK_NAMES = [
   'beforeDelete',
   'afterDelete',
   'afterTreeChange',
-] as const satisfies readonly (keyof CollectionHooks)[]
+])
 
-const SINGLETON_ONLY_HOOK_NAMES = [
+const SINGLETON_ONLY_HOOK_NAMES = completeHookNames<SingletonOnlyHookName>()([
   'beforeSave',
   'afterSave',
-] as const satisfies readonly (keyof SingletonHooks)[]
+])
 
 /**
  * Assert that an inspected hook object belongs to the definition's resource

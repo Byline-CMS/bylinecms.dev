@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition, IDbAdapter } from '@byline/core'
+import { type CollectionDefinition, type IDbAdapter, parseWhere } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -114,6 +114,33 @@ export function fieldTypesSuite(hooks: ConformanceHooks): void {
       })
 
       expect(document?.fields.attachment.fileSize).toBe(102400)
+    })
+
+    it('treats an empty document-id predicate as always false', async () => {
+      const created = await adapter.commands.documents.createDocumentVersion({
+        collectionId: testCollection.id,
+        collectionVersion: 1,
+        collectionConfig: FieldTypesCollectionConfig,
+        action: 'create',
+        documentData: structuredClone(sampleDocument),
+        path: `empty-id-predicate-${Date.now()}`,
+      })
+      const documentId = created.document.document_id
+      const allowed = await parseWhere({ id: { $in: [documentId] } }, FieldTypesCollectionConfig)
+      const denied = await parseWhere({ id: { $in: [] } }, FieldTypesCollectionConfig)
+
+      await expect(
+        adapter.queries.documents.findDocuments({
+          collection_id: testCollection.id,
+          filters: allowed.filters,
+        })
+      ).resolves.toMatchObject({ total: 1 })
+      await expect(
+        adapter.queries.documents.findDocuments({
+          collection_id: testCollection.id,
+          filters: denied.filters,
+        })
+      ).resolves.toEqual({ documents: [], total: 0 })
     })
 
     it('should return only requested fields with selective field loading', async () => {

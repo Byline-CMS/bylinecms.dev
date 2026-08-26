@@ -77,8 +77,10 @@ export function documentAbilityKey<Resource extends DocumentAbilityResource>(
   return `${resourceNamespace(kind)}.${resource.path}.${candidate}`
 }
 
-/** @deprecated Use {@link documentAbilityKey}; this compatibility name also requires a descriptor. */
-export const collectionAbilityKey: typeof documentAbilityKey = documentAbilityKey
+/** @deprecated Use {@link documentAbilityKey} with a kind-bearing resource descriptor. */
+export function collectionAbilityKey(path: string, verb: CollectionAbilityVerb): string {
+  return documentAbilityKey({ kind: 'collection', path }, verb)
+}
 
 /** Auto-register the seven abilities contributed by a multi-document collection. */
 export function registerCollectionAbilities(
