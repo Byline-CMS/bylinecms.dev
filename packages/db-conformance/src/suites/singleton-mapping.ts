@@ -131,6 +131,16 @@ export function singletonMappingSuite(hooks: ConformanceHooks): void {
       ).resolves.toBeUndefined()
     })
 
+    it('rejects a singleton slot lock outside an ambient transaction', async () => {
+      await expect(adapter.commands.singletons.lockSlot(collectionIds.empty)).rejects.toMatchObject(
+        {
+          code: 'ERR_DATABASE',
+          message: 'singleton slot locks require an active transaction',
+          details: { collectionId: collectionIds.empty },
+        }
+      )
+    })
+
     it('rejects a missing singleton slot instead of silently taking no lock', async () => {
       await expect(
         adapter.withTransaction(() =>

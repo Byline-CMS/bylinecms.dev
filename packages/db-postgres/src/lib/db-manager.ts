@@ -40,6 +40,8 @@ export interface DBManager {
    * boundary is open in this async context, otherwise the pool.
    */
   get(): DBExecutor
+  /** Whether the current async context owns an ambient transaction. */
+  isInTransaction(): boolean
 }
 
 export class DBManagerImpl implements DBManager {
@@ -51,6 +53,10 @@ export class DBManagerImpl implements DBManager {
 
   get(): DBExecutor {
     return transactionALS.getStore() ?? this.dbPool
+  }
+
+  isInTransaction(): boolean {
+    return transactionALS.getStore() != null
   }
 }
 

@@ -516,7 +516,9 @@ export interface ISingletonCommands {
    * Callers must invoke this inside `IDbAdapter.withTransaction`; the row
    * lock is then held until that ambient transaction commits or rolls back.
    * Locking the registration row works before a mapping exists and behaves
-   * identically on every canonical adapter.
+   * identically on every canonical adapter. Canonical adapters reject calls
+   * made without an ambient transaction instead of taking an autocommit lock
+   * that would be released before the caller's critical section.
    */
   lockSlot(collectionId: string): Promise<void>
   /**

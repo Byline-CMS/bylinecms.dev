@@ -6,7 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { ERR_NOT_FOUND, type ISingletonCommands, type ISingletonQueries } from '@byline/core'
+import {
+  ERR_DATABASE,
+  ERR_NOT_FOUND,
+  type ISingletonCommands,
+  type ISingletonQueries,
+} from '@byline/core'
 import { eq, sql } from 'drizzle-orm'
 import type { MySql2Database } from 'drizzle-orm/mysql2'
 
@@ -28,6 +33,13 @@ export class SingletonCommands implements ISingletonCommands {
   }
 
   async lockSlot(collectionId: string): Promise<void> {
+    if (!this.dbManager.isInTransaction()) {
+      throw ERR_DATABASE({
+        message: 'singleton slot locks require an active transaction',
+        details: { collectionId },
+      })
+    }
+
     const locked = await this.db.execute(sql`
       SELECT id FROM byline_collections
       WHERE id = ${collectionId}

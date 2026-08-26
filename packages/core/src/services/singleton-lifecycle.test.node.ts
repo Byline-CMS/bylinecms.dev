@@ -9,6 +9,7 @@
 import { AdminAuth, createRequestContext } from '@byline/auth'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { type DbErrorClassification, DbErrorCodes } from '../lib/errors.js'
 import {
   copySingletonToLocale,
   resolveSingletonDocumentId,
@@ -71,6 +72,14 @@ function createHarness(options: HarnessOptions = {}) {
   let versionCounter = 0
   const withTransaction = vi.fn(async <T>(operation: () => Promise<T>): Promise<T> => {
     const isOuter = transactionDepth === 0
+    const snapshot = isOuter
+      ? {
+          mappedDocumentId,
+          currentVersion,
+          views: new Map(views),
+          versionCounter,
+        }
+      : null
     transactionDepth++
     try {
       const result = await operation()
@@ -79,6 +88,13 @@ function createHarness(options: HarnessOptions = {}) {
       return result
     } catch (error) {
       transactionDepth--
+      if (snapshot != null) {
+        mappedDocumentId = snapshot.mappedDocumentId
+        currentVersion = snapshot.currentVersion
+        views.clear()
+        for (const [locale, view] of snapshot.views) views.set(locale, view)
+        versionCounter = snapshot.versionCounter
+      }
       throw error
     }
   })
@@ -122,9 +138,12 @@ function createHarness(options: HarnessOptions = {}) {
   const getDocumentByVersion = vi.fn(async (params: Record<string, any>) =>
     versions.get(params.document_version_id as string)
   )
+  const classifyError = vi.fn(
+    (_error: unknown): DbErrorClassification => ({ code: DbErrorCodes.UNKNOWN })
+  )
 
   const db = {
-    classifyError: vi.fn(() => ({ code: 'DB_UNKNOWN' })),
+    classifyError,
     commands: {
       documents: {
         createDocumentVersion,
@@ -180,6 +199,7 @@ function createHarness(options: HarnessOptions = {}) {
     getDocumentById,
     lockSlot,
     setMapping,
+    classifyError,
     withTransaction,
     isInTransaction: () => transactionDepth > 0,
     committedTransactions: () => committedTransactions,
@@ -247,6 +267,35 @@ describe('singleton lifecycle service', () => {
       }),
     ])
   })
+
+  it.each([
+    ['Postgres', 'byline_singleton_documents_pkey'],
+    ['MySQL', 'PRIMARY'],
+  ])(
+    'classifies a %s first-save mapping race by code and rolls back the version',
+    async (_adapterName, constraint) => {
+      const harness = createHarness()
+      const uniqueViolation = new Error('engine-specific duplicate error')
+      harness.setMapping.mockRejectedValueOnce(uniqueViolation)
+      harness.classifyError.mockReturnValueOnce({
+        code: DbErrorCodes.UNIQUE_VIOLATION,
+        constraint,
+      })
+
+      await expect(
+        updateSingleton(harness.ctx, { data: { title: 'Losing write' } })
+      ).rejects.toMatchObject({
+        code: 'ERR_CONFLICT',
+        message: "singleton 'site-settings' was materialised concurrently",
+      })
+
+      expect(harness.classifyError).toHaveBeenCalledWith(uniqueViolation)
+      expect(harness.committedTransactions()).toBe(0)
+      expect(harness.mappedDocumentId()).toBeNull()
+      expect(harness.currentVersion()).toBeNull()
+      expect(harness.views.size).toBe(0)
+    }
+  )
 
   it('updates the mapped document and supplies current field data to both hooks', async () => {
     const beforeSave = vi.fn((context: { data: Record<string, any> }) => {
