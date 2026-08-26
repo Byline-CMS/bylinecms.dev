@@ -186,7 +186,11 @@ function createMockDb() {
         nextScopedCounterValue: vi.fn() as any,
       },
       audit: { append: auditAppend },
-      singletons: { setMapping: vi.fn(fail), clearMapping: vi.fn(fail) },
+      singletons: {
+        lockSlot: vi.fn(fail),
+        setMapping: vi.fn(fail),
+        clearMapping: vi.fn(fail),
+      },
     },
     withTransaction: withTransaction as any,
     queries: {

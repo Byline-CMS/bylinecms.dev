@@ -512,6 +512,14 @@ export interface ICollectionCommands {
  */
 export interface ISingletonCommands {
   /**
+   * Lock the singleton's registered collection row as the slot mutex.
+   * Callers must invoke this inside `IDbAdapter.withTransaction`; the row
+   * lock is then held until that ambient transaction commits or rolls back.
+   * Locking the registration row works before a mapping exists and behaves
+   * identically on every canonical adapter.
+   */
+  lockSlot(collectionId: string): Promise<void>
+  /**
    * Record `documentId` as the singleton document for `collectionId`.
    * The primary key on `collection_id` makes a competing concurrent insert
    * fail rather than produce a second slot. This adapter primitive does not

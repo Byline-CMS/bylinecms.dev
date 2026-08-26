@@ -125,6 +125,20 @@ export function singletonMappingSuite(hooks: ConformanceHooks): void {
       ).resolves.toBeNull()
     })
 
+    it('locks a registered singleton slot through the ambient transaction', async () => {
+      await expect(
+        adapter.withTransaction(() => adapter.commands.singletons.lockSlot(collectionIds.empty))
+      ).resolves.toBeUndefined()
+    })
+
+    it('rejects a missing singleton slot instead of silently taking no lock', async () => {
+      await expect(
+        adapter.withTransaction(() =>
+          adapter.commands.singletons.lockSlot('00000000-0000-0000-0000-000000000000')
+        )
+      ).rejects.toMatchObject({ code: 'ERR_NOT_FOUND' })
+    })
+
     it('round-trips a mapped document id', async () => {
       const documentId = await createDocument('round-trip')
 

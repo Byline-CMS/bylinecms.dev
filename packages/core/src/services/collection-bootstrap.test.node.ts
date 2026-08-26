@@ -91,7 +91,11 @@ function createMockDb(options: {
         nextScopedCounterValue: vi.fn(fail) as any,
       },
       audit: { append: vi.fn(async () => ({ id: 'audit-1' })) },
-      singletons: { setMapping: vi.fn(fail), clearMapping: vi.fn(fail) },
+      singletons: {
+        lockSlot: vi.fn(fail),
+        setMapping: vi.fn(fail),
+        clearMapping: vi.fn(fail),
+      },
     },
     queries: {
       collections: {

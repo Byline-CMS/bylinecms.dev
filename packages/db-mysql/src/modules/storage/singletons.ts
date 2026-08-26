@@ -6,8 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { ISingletonCommands, ISingletonQueries } from '@byline/core'
-import { eq } from 'drizzle-orm'
+import { ERR_NOT_FOUND, type ISingletonCommands, type ISingletonQueries } from '@byline/core'
+import { eq, sql } from 'drizzle-orm'
 import type { MySql2Database } from 'drizzle-orm/mysql2'
 
 import { singletonDocuments } from '../../database/schema/index.js'
@@ -25,6 +25,21 @@ export class SingletonCommands implements ISingletonCommands {
    */
   private get db(): DatabaseConnection {
     return this.dbManager.get()
+  }
+
+  async lockSlot(collectionId: string): Promise<void> {
+    const locked = await this.db.execute(sql`
+      SELECT id FROM byline_collections
+      WHERE id = ${collectionId}
+      FOR UPDATE
+    `)
+    const rows = (locked as unknown as [Array<{ id: string }>, unknown])[0]
+    if (rows.length === 0) {
+      throw ERR_NOT_FOUND({
+        message: 'singleton slot registration not found',
+        details: { collectionId },
+      })
+    }
   }
 
   async setMapping(collectionId: string, documentId: string): Promise<void> {
