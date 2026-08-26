@@ -77,6 +77,7 @@ export {
   resolvePopulateOnRead,
   validateRichTextFieldFlags,
 } from './richtext-populate.js'
+export * from './singleton-lifecycle/index.js'
 export {
   type SearchProviderPresence,
   validateSearchConfig,

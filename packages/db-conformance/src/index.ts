@@ -23,6 +23,7 @@ import { localeFallbackSuite } from './suites/locale-fallback.js'
 import { publishSchedulesSuite } from './suites/publish-schedules.js'
 import { restoreSuite } from './suites/restore.js'
 import { schedulerSuite } from './suites/scheduler.js'
+import { singletonLifecycleSuite } from './suites/singleton-lifecycle.js'
 import { singletonMappingSuite } from './suites/singleton-mapping.js'
 import { systemFieldsDirectWriteSuite } from './suites/system-fields-direct-write.js'
 import { transactionsSuite } from './suites/transactions.js'
@@ -55,6 +56,7 @@ export { fieldTypesSuite } from './suites/field-types.js'
 export { localeFallbackSuite } from './suites/locale-fallback.js'
 export { restoreSuite } from './suites/restore.js'
 export { schedulerSuite } from './suites/scheduler.js'
+export { singletonLifecycleSuite } from './suites/singleton-lifecycle.js'
 export { singletonMappingSuite } from './suites/singleton-mapping.js'
 export { systemFieldsDirectWriteSuite } from './suites/system-fields-direct-write.js'
 export { transactionsSuite } from './suites/transactions.js'
@@ -129,6 +131,9 @@ export interface ConformanceHooks {
    * observer so neither suite silently depends on an incidental hook name.
    */
   observePublishScheduleContention?: SchedulerContentionObserver
+
+  /** Deterministic physical-connection barrier for singleton first-save races. */
+  observeSingletonContention?: SingletonContentionObserver
 }
 
 export interface SchedulerContentionObservation<T> {
@@ -138,6 +143,14 @@ export interface SchedulerContentionObservation<T> {
 
 export type SchedulerContentionObserver = <T>(
   operation: () => Promise<T>
+) => Promise<SchedulerContentionObservation<T>>
+
+/**
+ * Observe a singleton first-save race and expose a deterministic barrier that
+ * resolves only after two physical database connections are checked out.
+ */
+export type SingletonContentionObserver = <T>(
+  operation: (waitForTwoConnections: () => Promise<void>) => Promise<T>
 ) => Promise<SchedulerContentionObservation<T>>
 
 /**
@@ -179,6 +192,7 @@ export function runAdapterConformanceSuite(hooks: ConformanceHooks): void {
   auditSuite(hooks)
   countersSuite(hooks)
   singletonMappingSuite(hooks)
+  singletonLifecycleSuite(hooks)
   adminStoreSuite(hooks)
   if (hooks.createSchedulerStore) {
     schedulerSuite(hooks)

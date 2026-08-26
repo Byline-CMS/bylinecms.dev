@@ -142,4 +142,34 @@ runAdapterConformanceSuite({
       pool.off('release', onRelease)
     }
   },
+
+  async observeSingletonContention<T>(
+    operation: (waitForTwoConnections: () => Promise<void>) => Promise<T>
+  ) {
+    const { pool } = setupTestDB([])
+    let activeConnections = 0
+    let maxConcurrentConnections = 0
+    let signalTwoConnections!: () => void
+    const twoConnections = new Promise<void>((resolve) => {
+      signalTwoConnections = resolve
+    })
+    const onAcquire = () => {
+      activeConnections++
+      maxConcurrentConnections = Math.max(maxConcurrentConnections, activeConnections)
+      if (activeConnections >= 2) signalTwoConnections()
+    }
+    const onRelease = () => {
+      activeConnections--
+    }
+
+    pool.on('acquire', onAcquire)
+    pool.on('release', onRelease)
+    try {
+      const result = await operation(() => twoConnections)
+      return { result, maxConcurrentConnections }
+    } finally {
+      pool.off('acquire', onAcquire)
+      pool.off('release', onRelease)
+    }
+  },
 })
