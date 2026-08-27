@@ -379,7 +379,6 @@
     "packages/client/src/index.ts|export|ERR_NOT_FOUND",
     "packages/client/src/index.ts|export|ERR_READ_BUDGET_EXCEEDED",
     "packages/client/src/index.ts|export|ERR_VALIDATION",
-    "packages/client/src/index.ts|export|SingletonHandle",
     "packages/client/src/index.ts|export|createReadContext",
     "packages/client/src/index.ts|type|AuditLogEntry",
     "packages/client/src/index.ts|type|AuditLogOptions",
