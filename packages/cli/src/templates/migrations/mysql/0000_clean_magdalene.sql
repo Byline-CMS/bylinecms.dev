@@ -231,7 +231,8 @@ CREATE TABLE `byline_documents` (
 	`source_locale` varchar(10) NOT NULL,
 	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-	CONSTRAINT `byline_documents_id` PRIMARY KEY(`id`)
+	CONSTRAINT `byline_documents_id` PRIMARY KEY(`id`),
+	CONSTRAINT `uq_documents_collection_id_id` UNIQUE(`collection_id`,`id`)
 );
 --> statement-breakpoint
 CREATE TABLE `byline_store_file` (
@@ -349,6 +350,13 @@ CREATE TABLE `byline_store_relation` (
 	CONSTRAINT `unique_relation_field` UNIQUE(`document_version_id`,`field_path`,`locale`)
 );
 --> statement-breakpoint
+CREATE TABLE `byline_singleton_documents` (
+	`collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+	`document_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+	CONSTRAINT `byline_singleton_documents_collection_id` PRIMARY KEY(`collection_id`),
+	CONSTRAINT `byline_singleton_documents_document_id_unique` UNIQUE(`document_id`)
+);
+--> statement-breakpoint
 CREATE TABLE `byline_store_text` (
 	`id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	`document_version_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
@@ -399,6 +407,7 @@ ALTER TABLE `byline_store_relation` ADD CONSTRAINT `fk_store_relation_document_v
 ALTER TABLE `byline_store_relation` ADD CONSTRAINT `fk_store_relation_collection_id` FOREIGN KEY (`collection_id`) REFERENCES `byline_collections`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `byline_store_relation` ADD CONSTRAINT `fk_store_relation_target_document_id` FOREIGN KEY (`target_document_id`) REFERENCES `byline_documents`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `byline_store_relation` ADD CONSTRAINT `fk_store_relation_target_collection_id` FOREIGN KEY (`target_collection_id`) REFERENCES `byline_collections`(`id`) ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `byline_singleton_documents` ADD CONSTRAINT `fk_singleton_documents_document` FOREIGN KEY (`collection_id`,`document_id`) REFERENCES `byline_documents`(`collection_id`,`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `byline_store_text` ADD CONSTRAINT `fk_store_text_document_version_id` FOREIGN KEY (`document_version_id`) REFERENCES `byline_document_versions`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `byline_store_text` ADD CONSTRAINT `fk_store_text_collection_id` FOREIGN KEY (`collection_id`) REFERENCES `byline_collections`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX `idx_byline_admin_permissions_role` ON `byline_admin_permissions` (`admin_role_id`);--> statement-breakpoint
