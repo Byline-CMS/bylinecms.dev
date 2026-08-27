@@ -20,7 +20,7 @@ import {
   ActivityIcon,
   AnalyticsIcon,
   CalendarIcon,
-  HomeIcon,
+  DashboardIcon,
   RolesIcon,
   SettingsSlidersIcon,
   Tooltip,
@@ -144,24 +144,24 @@ export function AdminMenuDrawer({
           <MenuItem
             to={getAdminRoutePath()}
             label={t('chrome.menu.dashboard')}
-            icon={<HomeIcon width="20px" height="20px" />}
+            icon={<DashboardIcon width="20px" height="20px" />}
             pathname={pathname}
             compact={compact}
           />
-          {canSeeScheduledPublications && (
-            <MenuItem
-              to={getAdminRoutePath('scheduled-publications')}
-              label={t('chrome.menu.scheduledPublications')}
-              icon={<CalendarIcon width="18px" height="18px" />}
-              pathname={pathname}
-              compact={compact}
-            />
-          )}
           {canReadAnalytics && (
             <MenuItem
               to={getAdminRoutePath('analytics')}
               label={t('chrome.menu.analytics')}
               icon={<AnalyticsIcon width="20px" height="20px" />}
+              pathname={pathname}
+              compact={compact}
+            />
+          )}
+          {canSeeScheduledPublications && (
+            <MenuItem
+              to={getAdminRoutePath('scheduled-publications')}
+              label={t('chrome.menu.scheduledPublications')}
+              icon={<CalendarIcon width="18px" height="18px" />}
               pathname={pathname}
               compact={compact}
             />
