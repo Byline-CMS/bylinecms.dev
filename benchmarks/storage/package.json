@@ -15,7 +15,7 @@
     "pg": "^8.23.0"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "@types/pg": "^8.23.1",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2"

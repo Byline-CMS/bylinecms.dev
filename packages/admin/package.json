@@ -6,7 +6,7 @@
   "engines": {
     "node": ">=20.9.0"
   },
-  "description": "Byline CMS admin subsystem \u2014 admin users, roles, permissions, account self-service, and the built-in JWT session provider",
+  "description": "Byline CMS admin subsystem — admin users, roles, permissions, account self-service, and the built-in JWT session provider",
   "keywords": [
     "cms",
     "headless cms",
@@ -196,7 +196,7 @@
     "@lezer/highlight": "^1.2.3",
     "@tanstack/react-form-start": "^1.33.5",
     "clsx": "^2.1.1",
-    "jose": "^6.2.9",
+    "jose": "^6.2.10",
     "react-diff-viewer-continued": "^4.4.0",
     "uuid": "^14.0.2",
     "zod": "^4.4.3"
@@ -206,12 +206,12 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.9",
+    "@biomejs/biome": "2.5.10",
     "@rsbuild/plugin-react": "^2.1.0",
     "@rslib/core": "^0.23.2",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.4",
+    "@types/react-dom": "19.2.5",
     "@vitejs/plugin-react": "^6.1.0",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
