@@ -218,7 +218,8 @@ CREATE TABLE "byline_documents" (
 	"order_key" varchar(128) COLLATE "C",
 	"source_locale" varchar(10) NOT NULL,
 	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL
+	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "uq_documents_collection_id_id" UNIQUE("collection_id","id")
 );
 --> statement-breakpoint
 CREATE TABLE "byline_store_file" (
@@ -330,6 +331,12 @@ CREATE TABLE "byline_store_relation" (
 	CONSTRAINT "unique_relation_field" UNIQUE("document_version_id","field_path","locale")
 );
 --> statement-breakpoint
+CREATE TABLE "byline_singleton_documents" (
+	"collection_id" uuid PRIMARY KEY NOT NULL,
+	"document_id" uuid NOT NULL,
+	CONSTRAINT "byline_singleton_documents_document_id_unique" UNIQUE("document_id")
+);
+--> statement-breakpoint
 CREATE TABLE "byline_store_text" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"document_version_id" uuid NOT NULL,
@@ -379,6 +386,7 @@ ALTER TABLE "byline_store_relation" ADD CONSTRAINT "byline_store_relation_docume
 ALTER TABLE "byline_store_relation" ADD CONSTRAINT "byline_store_relation_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_store_relation" ADD CONSTRAINT "byline_store_relation_target_document_id_byline_documents_id_fk" FOREIGN KEY ("target_document_id") REFERENCES "public"."byline_documents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_store_relation" ADD CONSTRAINT "byline_store_relation_target_collection_id_byline_collections_id_fk" FOREIGN KEY ("target_collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "byline_singleton_documents" ADD CONSTRAINT "fk_singleton_documents_document" FOREIGN KEY ("collection_id","document_id") REFERENCES "public"."byline_documents"("collection_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_store_text" ADD CONSTRAINT "byline_store_text_document_version_id_byline_document_versions_id_fk" FOREIGN KEY ("document_version_id") REFERENCES "public"."byline_document_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_store_text" ADD CONSTRAINT "byline_store_text_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "idx_byline_admin_permissions_role" ON "byline_admin_permissions" USING btree ("admin_role_id");--> statement-breakpoint

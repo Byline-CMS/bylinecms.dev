@@ -1,5 +1,5 @@
 {
-  "id": "6fdc65d0-6bff-4050-8d0a-f84773f59640",
+  "id": "f5686a65-1a47-4194-baab-97bd9997fd47",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2185,7 +2185,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "uq_documents_collection_id_id": {
+          "name": "uq_documents_collection_id_id",
+          "nullsNotDistinct": false,
+          "columns": [
+            "collection_id",
+            "id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -3408,6 +3417,55 @@
             "document_version_id",
             "field_path",
             "locale"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.byline_singleton_documents": {
+      "name": "byline_singleton_documents",
+      "schema": "",
+      "columns": {
+        "collection_id": {
+          "name": "collection_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "fk_singleton_documents_document": {
+          "name": "fk_singleton_documents_document",
+          "tableFrom": "byline_singleton_documents",
+          "tableTo": "byline_documents",
+          "columnsFrom": [
+            "collection_id",
+            "document_id"
+          ],
+          "columnsTo": [
+            "collection_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "byline_singleton_documents_document_id_unique": {
+          "name": "byline_singleton_documents_document_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "document_id"
           ]
         }
       },
