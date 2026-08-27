@@ -839,6 +839,8 @@ describe('routes planning', () => {
       'collections/$collection/$id/index.tsx',
       'collections/$collection/$id/history.tsx',
       'collections/$collection/$id/api.tsx',
+      'singletons/$singleton/index.tsx',
+      'singletons/$singleton/history.tsx',
       'users/index.tsx',
       'users/$id/index.tsx',
       'roles/index.tsx',
@@ -850,6 +852,9 @@ describe('routes planning', () => {
       expect(routes.get(route), route).toContain('/_byline/cms')
       expect(routes.get(route), route).not.toContain('/_byline/admin')
     }
+
+    expect(routes.get('singletons/$singleton/index.tsx')).toContain('createSingletonRoute')
+    expect(routes.get('singletons/$singleton/history.tsx')).toContain('createSingletonHistoryRoute')
   })
 
   it('keeps example media navigation on the resolved admin mount', () => {

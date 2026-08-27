@@ -23,6 +23,9 @@ Read this document when you are building a public frontend, a feed or sitemap, a
 
 Use the [Client SDK API](../10-api-reference/04-client-sdk.md) when you need an exhaustive method or option lookup. This document concentrates on runnable usage and the architectural rules behind the SDK.
 
+The [Singletons guide](../04-collections/09-singletons.md) shows how to register and use the
+typed `client.singleton(path)` handle when a resource has one logical document instead of a list.
+
 The distinction matters because Byline today is in an internal transport phase (see [Routing & API](./02-routing-and-api.md)). The admin UI is the only active client, TanStack Start server functions are the internal transport boundary, and stable/public HTTP transport is intentionally deferred until the first real non-admin client arrives. `@byline/client` fits that phase well: it lives in the same Node process as Byline Core, holds direct references to the configured DB and storage adapters, and does no network I/O of its own.
 
 What this gives consumers in trusted runtimes:
@@ -37,21 +40,27 @@ What it does *not* do: speak HTTP, run in browsers, or hide the trust boundary. 
 
 ### Application type generation
 
-The application owns two related collection surfaces:
+The application owns two related document-resource surfaces:
 
 - `byline/collections/index.ts` exports `collections`, the evaluated runtime registry used by core and the client.
 - `byline/generated/collection-types.ts` is the committed, deterministic type projection emitted from that tuple by `@byline/core/codegen`.
 
 Run `pnpm byline:generate` after changing a collection, field, or block schema. `pnpm byline:generate:check` performs no writes and fails when the artifact is missing or stale; CI runs this before lint and typecheck. The runner imports the collection tuple directly and deliberately does not import `server.config.ts`.
 
-Typed clients use the generated `CollectionFieldsByPath` map as their registry provenance. A hand-authored compile contract maps `CollectionFieldData` and `CollectionFieldDataAllLocales` over `typeof collections` and requires exact key and value equality with both generated maps, so emitter or schema drift also fails application typecheck.
+Typed clients use the generated `CollectionFieldsByPath` and `SingletonFieldsByPath` maps as
+their registry provenance. A hand-authored compile contract infers the ordinary and all-locale
+maps for both resource kinds from `typeof collections` and requires exact key and value equality
+with all four generated maps, so emitter or schema drift also fails application typecheck.
 
-The generated file (format 2) is a pair of TypeScript **declaration merges**, not a module of local exports:
+The generated file (format 3) is a pair of TypeScript **declaration merges**, not a module of local exports:
 
 - Every emitted type lives inside a `declare module '@byline/generated-types'` block, so the published stub package `@byline/generated-types` is the one canonical import path (`import type { NewsFields } from '@byline/generated-types'`) from anywhere in the app. The stub itself is empty; the app's tsconfig `include` carrying the generated file into the program is what populates it. Imports are type-only and erased at runtime.
-- A second block registers the registry with the SDK: `declare module '@byline/client' { interface Register { collections: CollectionFieldsByPath } }`. Once merged, every **bare** `BylineClient` in the app's program (including `createBylineClient`'s default generic and the `@byline/client/server` getters below) resolves to `BylineClient<CollectionFieldsByPath>`: `client.collection('news')` autocompletes paths and returns generated field shapes with no explicit generics and no casts.
+- A second block registers both registries with the SDK through `Register.collections` and
+  `Register.singletons`. Once merged, every **bare** `BylineClient` in the app's program
+  (including the `@byline/client/server` getters below) gives `collection(path)` and
+  `singleton(path)` their generated path and field types without explicit generics or casts.
 
-Exactly one application per TypeScript program can hold these augmentations (declaration merging is program-global); one app per tsconfig (the supported layout) is safe. Unaugmented programs (a package's own tests, a script compiled outside the app) fall back to the loose `CollectionRegistry`.
+Exactly one application per TypeScript program can hold these augmentations (declaration merging is program-global); one app per tsconfig (the supported layout) is safe. Unaugmented programs (a package's own tests, a script compiled outside the app) fall back to the loose collection and singleton registries.
 
 ### Server client getters (`@byline/client/server`)
 

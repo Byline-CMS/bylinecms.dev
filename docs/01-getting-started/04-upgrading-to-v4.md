@@ -263,18 +263,18 @@ pnpm byline:generate:check
 
 Commit `byline/generated/collection-types.ts`. Keep
 `byline/collection-types.contract.ts` in the TypeScript project; it proves that
-the generated ordinary and all-locale field maps still exactly match the
-runtime collection tuple.
+the generated ordinary and all-locale field maps for collections and
+singletons still exactly match the runtime collection tuple.
 
-The generated file (format 2) is a pair of declaration merges rather than a
+The generated file (format 3) is a pair of declaration merges rather than a
 module of local exports:
 
 - Every emitted type is declared into the `@byline/generated-types` stub
   package, so application code imports collection types by package name:
   `import type { NewsFields } from '@byline/generated-types'`. Add
   `@byline/generated-types` to the app's dependencies (the CLI installs it).
-- A second block registers the registry with `@byline/client`'s `Register`
-  interface, so every bare `BylineClient` (including the
+- A second block registers the collection and singleton registries with
+  `@byline/client`'s `Register` interface, so every bare `BylineClient` (including the
   `@byline/client/server` getters and `createBylineClient` without an explicit
   generic) resolves to the app's typed registry.
 

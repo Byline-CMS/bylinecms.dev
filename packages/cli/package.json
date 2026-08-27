@@ -61,6 +61,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.9",
+    "@byline/core": "workspace:*",
     "@types/mdast": "^4.0.4",
     "@types/node": "^26.2.0",
     "@types/pg": "^8.23.1",

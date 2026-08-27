@@ -37,13 +37,14 @@ import { NewsCategoriesAdmin } from './collections/news-categories/admin.js'
 import { PagesAdmin } from './collections/pages/admin.js'
 import { i18n } from './i18n.js'
 import { routes } from './routes.js'
-
+import { SiteSettingsAdmin } from './singletons/site-settings/admin.js'
 
 export const config: AdminConfig = {
   i18n,
   routes,
   collections,
-  admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, NewsCategoriesAdmin],
+  collectionGroups: [{ name: 'settings', label: 'Settings' }],
+  admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, NewsCategoriesAdmin, SiteSettingsAdmin],
   fields: {
     // Default registration — every `type: 'richText'` field gets the full
     // Lexical feature set unless overridden per-field via

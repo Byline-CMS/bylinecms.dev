@@ -685,6 +685,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.9
         version: 2.5.9
+      '@byline/core':
+        specifier: workspace:*
+        version: link:../core
       '@types/mdast':
         specifier: ^4.0.4
         version: 4.0.4

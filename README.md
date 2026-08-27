@@ -114,6 +114,8 @@ schema versioning.
 - **[Collection Versioning](docs/04-collections/08-collection-versioning.md)** —
   schema versioning: Phase 1 (data model + fingerprinting) shipped; later phases
   deferred.
+- **[Singletons](docs/04-collections/09-singletons.md)** — one-document resources
+  with typed client access, admin editing, workflow, history, and uploads.
 
 ### 5. [Reading & Delivery](docs/05-reading-and-delivery/index.md)
 

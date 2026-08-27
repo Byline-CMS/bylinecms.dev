@@ -10,13 +10,14 @@ import type { InferCollectionRegistry } from '@byline/core'
 
 import type { CollectionFieldsByPath } from '@byline/generated-types'
 
+import { SiteSettings } from '../singletons/site-settings/schema.js'
 import { Docs } from './docs/schema.js'
 import { Media } from './media/schema.js'
 import { News } from './news/schema.js'
 import { NewsCategories } from './news-categories/schema.js'
 import { Pages } from './pages/schema.js'
 
-export const collections = [Docs, News, Pages, Media, NewsCategories] as const
+export const collections = [Docs, News, Pages, Media, NewsCategories, SiteSettings] as const
 
 export type InferredBylineCollections = InferCollectionRegistry<typeof collections>
 export type BylineCollections = CollectionFieldsByPath

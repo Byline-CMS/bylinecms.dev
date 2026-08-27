@@ -12,8 +12,10 @@ import './server.config.js'
 
 import { seedDocs } from './seeds/docs.js'
 import { seedNewsCategories } from './seeds/news-categories.js'
+import { seedSiteSettings } from './seeds/site-settings.js'
 
 async function run() {
+  await seedSiteSettings()
   await seedNewsCategories()
   await seedDocs()
 }

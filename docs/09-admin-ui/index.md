@@ -16,6 +16,10 @@ kit and wired into a host application through a deliberately code-split
 registration path. This section is for readers extending the admin surface or
 integrating it into their own app.
 
+The [Singletons guide](../04-collections/09-singletons.md) explains how the admin dashboard,
+editor, history view, and upload controls represent a one-document resource without list or
+create routes.
+
 - [UI Kit](./01-ui-kit.md) — `@byline/ui`, the framework-agnostic React
   primitives the admin is built from, and how to consume them in your own UI.
 - [Admin-config registration](./02-admin-config-registration.md) — how the

@@ -73,6 +73,13 @@ describe('temporary host scaffold smoke contracts', () => {
         answers.importDocs
       )
       expect(inventory.includes('src/ui/byline/render-blocks.tsx')).toBe(answers.examples)
+      expect(inventory.includes('src/routes/_byline/admin/singletons/$singleton/index.tsx')).toBe(
+        true
+      )
+      expect(inventory.includes('src/routes/_byline/admin/singletons/$singleton/history.tsx')).toBe(
+        true
+      )
+      expect(generated.includes("'site-settings': SiteSettingsFields")).toBe(answers.examples)
       expect(inventory.includes('byline/scripts/backfill-version-locales.ts')).toBe(
         answers.examples && answers.dbAdapter === 'postgres'
       )
