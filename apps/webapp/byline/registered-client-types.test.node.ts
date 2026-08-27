@@ -8,13 +8,17 @@
 
 import type { BylineClient, RegisteredCollections, RegisteredSingletons } from '@byline/client'
 import type { getViewerBylineClient } from '@byline/client/server'
-import type { DocsFields as DocFields } from '@byline/generated-types'
+import type {
+  DocsFields as DocFields,
+  SingletonFieldsByPath,
+  SiteSettingsFields,
+} from '@byline/generated-types'
 import { describe, expectTypeOf, it } from 'vitest'
 
 import type { BylineCollections } from './collections/index.js'
 
 type AppClient = BylineClient<BylineCollections>
-type SingletonRegistry = { 'site-settings': { siteName: string } }
+type SingletonRegistry = { 'site-settings': SiteSettingsFields }
 type TypedSingletonClient = BylineClient<BylineCollections, SingletonRegistry>
 
 const getDoc = (client: AppClient) => client.collection('docs').findById('document-id')
@@ -49,7 +53,7 @@ describe('application Byline client types', () => {
     // bare `BylineClient` — including the host getters' return type —
     // equivalent to the explicitly parameterised app client.
     expectTypeOf<RegisteredCollections>().toEqualTypeOf<BylineCollections>()
-    expectTypeOf<RegisteredSingletons>().toEqualTypeOf<{}>()
+    expectTypeOf<RegisteredSingletons>().toEqualTypeOf<SingletonFieldsByPath>()
     expectTypeOf<ReturnType<typeof getViewerBylineClient>>().toEqualTypeOf<AppClient>()
   })
 
@@ -57,7 +61,7 @@ describe('application Byline client types', () => {
     type InferredFields = NonNullable<Awaited<ReturnType<typeof getSettings>>>['fields']
     type SingletonMethods = keyof ReturnType<TypedSingletonClient['singleton']>
 
-    expectTypeOf<InferredFields>().toEqualTypeOf<{ siteName: string }>()
+    expectTypeOf<InferredFields>().toEqualTypeOf<SiteSettingsFields>()
     expectTypeOf<SingletonMethods>().toEqualTypeOf<
       | 'get'
       | 'update'

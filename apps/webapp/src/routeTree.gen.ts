@@ -42,6 +42,8 @@ import { Route as BylineAdminUsersIndexRouteImport } from './routes/_byline/admi
 import { Route as BylineAdminCollectionsCollectionIndexRouteImport } from './routes/_byline/admin/collections/$collection/index'
 import { Route as BylineAdminCollectionsCollectionCreateRouteImport } from './routes/_byline/admin/collections/$collection/create'
 import { Route as BylineAdminRolesIdIndexRouteImport } from './routes/_byline/admin/roles/$id/index'
+import { Route as BylineAdminSingletonsSingletonIndexRouteImport } from './routes/_byline/admin/singletons/$singleton/index'
+import { Route as BylineAdminSingletonsSingletonHistoryRouteImport } from './routes/_byline/admin/singletons/$singleton/history'
 import { Route as BylineAdminUsersIdIndexRouteImport } from './routes/_byline/admin/users/$id/index'
 import { Route as BylineAdminCollectionsCollectionIdIndexRouteImport } from './routes/_byline/admin/collections/$collection/$id/index'
 import { Route as BylineAdminCollectionsCollectionIdApiRouteImport } from './routes/_byline/admin/collections/$collection/$id/api'
@@ -221,6 +223,18 @@ const BylineAdminRolesIdIndexRoute = BylineAdminRolesIdIndexRouteImport.update({
   path: '/roles/$id/',
   getParentRoute: () => BylineAdminRouteRoute,
 } as any)
+const BylineAdminSingletonsSingletonIndexRoute =
+  BylineAdminSingletonsSingletonIndexRouteImport.update({
+    id: '/singletons/$singleton/',
+    path: '/singletons/$singleton/',
+    getParentRoute: () => BylineAdminRouteRoute,
+  } as any)
+const BylineAdminSingletonsSingletonHistoryRoute =
+  BylineAdminSingletonsSingletonHistoryRouteImport.update({
+    id: '/singletons/$singleton/history',
+    path: '/singletons/$singleton/history',
+    getParentRoute: () => BylineAdminRouteRoute,
+  } as any)
 const BylineAdminUsersIdIndexRoute = BylineAdminUsersIdIndexRouteImport.update({
   id: '/users/$id/',
   path: '/users/$id/',
@@ -276,8 +290,10 @@ export interface FileRoutesByFullPath {
   '/admin/scheduled-publications/': typeof BylineAdminScheduledPublicationsIndexRoute
   '/admin/users/': typeof BylineAdminUsersIndexRoute
   '/admin/collections/$collection/create': typeof BylineAdminCollectionsCollectionCreateRoute
+  '/admin/singletons/$singleton/history': typeof BylineAdminSingletonsSingletonHistoryRoute
   '/admin/collections/$collection/': typeof BylineAdminCollectionsCollectionIndexRoute
   '/admin/roles/$id/': typeof BylineAdminRolesIdIndexRoute
+  '/admin/singletons/$singleton/': typeof BylineAdminSingletonsSingletonIndexRoute
   '/admin/users/$id/': typeof BylineAdminUsersIdIndexRoute
   '/admin/collections/$collection/$id/api': typeof BylineAdminCollectionsCollectionIdApiRoute
   '/admin/collections/$collection/$id/history': typeof BylineAdminCollectionsCollectionIdHistoryRoute
@@ -311,8 +327,10 @@ export interface FileRoutesByTo {
   '/admin/scheduled-publications': typeof BylineAdminScheduledPublicationsIndexRoute
   '/admin/users': typeof BylineAdminUsersIndexRoute
   '/admin/collections/$collection/create': typeof BylineAdminCollectionsCollectionCreateRoute
+  '/admin/singletons/$singleton/history': typeof BylineAdminSingletonsSingletonHistoryRoute
   '/admin/collections/$collection': typeof BylineAdminCollectionsCollectionIndexRoute
   '/admin/roles/$id': typeof BylineAdminRolesIdIndexRoute
+  '/admin/singletons/$singleton': typeof BylineAdminSingletonsSingletonIndexRoute
   '/admin/users/$id': typeof BylineAdminUsersIdIndexRoute
   '/admin/collections/$collection/$id/api': typeof BylineAdminCollectionsCollectionIdApiRoute
   '/admin/collections/$collection/$id/history': typeof BylineAdminCollectionsCollectionIdHistoryRoute
@@ -351,8 +369,10 @@ export interface FileRoutesById {
   '/_byline/admin/scheduled-publications/': typeof BylineAdminScheduledPublicationsIndexRoute
   '/_byline/admin/users/': typeof BylineAdminUsersIndexRoute
   '/_byline/admin/collections/$collection/create': typeof BylineAdminCollectionsCollectionCreateRoute
+  '/_byline/admin/singletons/$singleton/history': typeof BylineAdminSingletonsSingletonHistoryRoute
   '/_byline/admin/collections/$collection/': typeof BylineAdminCollectionsCollectionIndexRoute
   '/_byline/admin/roles/$id/': typeof BylineAdminRolesIdIndexRoute
+  '/_byline/admin/singletons/$singleton/': typeof BylineAdminSingletonsSingletonIndexRoute
   '/_byline/admin/users/$id/': typeof BylineAdminUsersIdIndexRoute
   '/_byline/admin/collections/$collection/$id/api': typeof BylineAdminCollectionsCollectionIdApiRoute
   '/_byline/admin/collections/$collection/$id/history': typeof BylineAdminCollectionsCollectionIdHistoryRoute
@@ -391,8 +411,10 @@ export interface FileRouteTypes {
     | '/admin/scheduled-publications/'
     | '/admin/users/'
     | '/admin/collections/$collection/create'
+    | '/admin/singletons/$singleton/history'
     | '/admin/collections/$collection/'
     | '/admin/roles/$id/'
+    | '/admin/singletons/$singleton/'
     | '/admin/users/$id/'
     | '/admin/collections/$collection/$id/api'
     | '/admin/collections/$collection/$id/history'
@@ -426,8 +448,10 @@ export interface FileRouteTypes {
     | '/admin/scheduled-publications'
     | '/admin/users'
     | '/admin/collections/$collection/create'
+    | '/admin/singletons/$singleton/history'
     | '/admin/collections/$collection'
     | '/admin/roles/$id'
+    | '/admin/singletons/$singleton'
     | '/admin/users/$id'
     | '/admin/collections/$collection/$id/api'
     | '/admin/collections/$collection/$id/history'
@@ -465,8 +489,10 @@ export interface FileRouteTypes {
     | '/_byline/admin/scheduled-publications/'
     | '/_byline/admin/users/'
     | '/_byline/admin/collections/$collection/create'
+    | '/_byline/admin/singletons/$singleton/history'
     | '/_byline/admin/collections/$collection/'
     | '/_byline/admin/roles/$id/'
+    | '/_byline/admin/singletons/$singleton/'
     | '/_byline/admin/users/$id/'
     | '/_byline/admin/collections/$collection/$id/api'
     | '/_byline/admin/collections/$collection/$id/history'
@@ -714,6 +740,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BylineAdminRolesIdIndexRouteImport
       parentRoute: typeof BylineAdminRouteRoute
     }
+    '/_byline/admin/singletons/$singleton/': {
+      id: '/_byline/admin/singletons/$singleton/'
+      path: '/singletons/$singleton'
+      fullPath: '/admin/singletons/$singleton/'
+      preLoaderRoute: typeof BylineAdminSingletonsSingletonIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
+    }
+    '/_byline/admin/singletons/$singleton/history': {
+      id: '/_byline/admin/singletons/$singleton/history'
+      path: '/singletons/$singleton/history'
+      fullPath: '/admin/singletons/$singleton/history'
+      preLoaderRoute: typeof BylineAdminSingletonsSingletonHistoryRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
+    }
     '/_byline/admin/users/$id/': {
       id: '/_byline/admin/users/$id/'
       path: '/users/$id'
@@ -818,8 +858,10 @@ interface BylineAdminRouteRouteChildren {
   BylineAdminScheduledPublicationsIndexRoute: typeof BylineAdminScheduledPublicationsIndexRoute
   BylineAdminUsersIndexRoute: typeof BylineAdminUsersIndexRoute
   BylineAdminCollectionsCollectionCreateRoute: typeof BylineAdminCollectionsCollectionCreateRoute
+  BylineAdminSingletonsSingletonHistoryRoute: typeof BylineAdminSingletonsSingletonHistoryRoute
   BylineAdminCollectionsCollectionIndexRoute: typeof BylineAdminCollectionsCollectionIndexRoute
   BylineAdminRolesIdIndexRoute: typeof BylineAdminRolesIdIndexRoute
+  BylineAdminSingletonsSingletonIndexRoute: typeof BylineAdminSingletonsSingletonIndexRoute
   BylineAdminUsersIdIndexRoute: typeof BylineAdminUsersIdIndexRoute
   BylineAdminCollectionsCollectionIdApiRoute: typeof BylineAdminCollectionsCollectionIdApiRoute
   BylineAdminCollectionsCollectionIdHistoryRoute: typeof BylineAdminCollectionsCollectionIdHistoryRoute
@@ -838,9 +880,13 @@ const BylineAdminRouteRouteChildren: BylineAdminRouteRouteChildren = {
   BylineAdminUsersIndexRoute: BylineAdminUsersIndexRoute,
   BylineAdminCollectionsCollectionCreateRoute:
     BylineAdminCollectionsCollectionCreateRoute,
+  BylineAdminSingletonsSingletonHistoryRoute:
+    BylineAdminSingletonsSingletonHistoryRoute,
   BylineAdminCollectionsCollectionIndexRoute:
     BylineAdminCollectionsCollectionIndexRoute,
   BylineAdminRolesIdIndexRoute: BylineAdminRolesIdIndexRoute,
+  BylineAdminSingletonsSingletonIndexRoute:
+    BylineAdminSingletonsSingletonIndexRoute,
   BylineAdminUsersIdIndexRoute: BylineAdminUsersIdIndexRoute,
   BylineAdminCollectionsCollectionIdApiRoute:
     BylineAdminCollectionsCollectionIdApiRoute,

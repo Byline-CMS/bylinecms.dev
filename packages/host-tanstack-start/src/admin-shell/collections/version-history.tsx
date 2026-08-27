@@ -21,7 +21,7 @@ import { RestoreVersionModal } from './restore-version-modal.js'
 // bundle that cannot be resolved by Node during SSR.
 const DiffModal = lazy(() => import('@byline/admin/react').then((m) => ({ default: m.DiffModal })))
 
-export interface VersionHistoryDocument extends Record<string, unknown> {
+interface VersionHistoryDocument extends Record<string, unknown> {
   id: string
   versionId?: string
   status: string
@@ -45,7 +45,7 @@ export interface VersionHistoryData {
   actors?: Record<string, { label: string }>
 }
 
-export interface VersionHistoryRowContext {
+interface VersionHistoryRowContext {
   document: VersionHistoryDocument
   versionId: string | undefined
   versionNumber: number

@@ -90,6 +90,10 @@
       "types": "./dist/server-fns/collections/index.d.ts",
       "import": "./dist/server-fns/collections/index.js"
     },
+    "./server-fns/singletons": {
+      "types": "./dist/server-fns/singletons/index.d.ts",
+      "import": "./dist/server-fns/singletons/index.js"
+    },
     "./i18n": {
       "types": "./dist/i18n/index.d.ts",
       "import": "./dist/i18n/index.js"

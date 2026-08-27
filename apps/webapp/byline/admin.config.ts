@@ -35,6 +35,7 @@ import { PagesAdmin } from './collections/pages/admin.js'
 import { LexicalRichTextAi } from './fields/richtext/lexical-richtext-ai.js'
 import { i18n } from './i18n.js'
 import { routes } from './routes.js'
+import { SiteSettingsAdmin } from './singletons/site-settings/admin.js'
 
 export const config: AdminConfig = {
   // Shared locale definitions and the complete admin translation registry.
@@ -54,11 +55,12 @@ export const config: AdminConfig = {
   collectionGroups: [
     { name: 'media', label: 'Media' },
     { name: 'taxonomy', label: 'Taxonomies' },
+    { name: 'settings', label: 'Settings' },
   ],
   // Per-collection presentation config: labels, columns, widgets, and other
   // admin-only behavior. Every entry corresponds to one schema in
   // `collections`; array order supplies the ungrouped dashboard order.
-  admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, NewsCategoriesAdmin],
+  admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, NewsCategoriesAdmin, SiteSettingsAdmin],
   // Per-block admin config, keyed by blockType — applies wherever the block
   // renders. Quote/Photo opt a block richtext field into the minimal
   // editor (extension half of `lexicalRichTextMinimal`, see the block

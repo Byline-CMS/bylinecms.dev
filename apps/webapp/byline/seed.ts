@@ -14,12 +14,14 @@ import { seedAdmin } from './seeds/admin.js'
 import { seedDocs } from './seeds/docs.js'
 import { seedFaqFixture } from './seeds/faq-fixture.js'
 import { seedNewsCategories } from './seeds/news-categories.js'
+import { seedSiteSettings } from './seeds/site-settings.js'
 
 async function run() {
   await seedAdmin()
   await seedNewsCategories()
   await seedDocs()
   await seedFaqFixture()
+  await seedSiteSettings()
 }
 
 // Exit explicitly — the adapter's pool holds a live timer, so the process does

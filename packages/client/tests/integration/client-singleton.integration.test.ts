@@ -19,6 +19,7 @@ import {
   defineSingleton,
   defineWorkflow,
   ErrorCodes,
+  SINGLE_STATUS_WORKFLOW,
 } from '@byline/core'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -52,6 +53,12 @@ const deniedDefinition = singleton(`denied-${suffix}`, ({ requestContext }) =>
   requestContext.actor == null ? false : undefined
 )
 const otherDefinition = singleton(`other-${suffix}`)
+const operationalDefinition = defineSingleton({
+  path: `operational-${suffix}`,
+  label: 'Operational settings',
+  workflow: SINGLE_STATUS_WORKFLOW,
+  fields: [{ name: 'siteName', type: 'text', label: 'Site name' }],
+})
 const articlesDefinition = defineCollection({
   path: `articles-${suffix}`,
   labels: { singular: 'Article', plural: 'Articles' },
@@ -63,6 +70,7 @@ const definitions = [
   publishedDefinition,
   deniedDefinition,
   otherDefinition,
+  operationalDefinition,
   articlesDefinition,
 ] as const
 
@@ -191,6 +199,18 @@ describe('client.singleton()', () => {
       id: saved.documentId,
       status: 'published',
       fields: { title: 'Live value', enabled: true },
+    })
+  })
+
+  it('reads a single-status singleton as published immediately after its first save', async () => {
+    const handle = client.singleton(operationalDefinition.path)
+    const saved = await handle.update({ siteName: 'Example site' })
+
+    await expect(handle.get()).resolves.toMatchObject({
+      id: saved.documentId,
+      versionId: saved.documentVersionId,
+      status: 'published',
+      fields: { siteName: 'Example site' },
     })
   })
 

@@ -428,9 +428,10 @@ actually use it.
    `src/routes/index.ts`. Without these the app cannot import them, and `pnpm knip` flags the
    new modules as unreachable.
 3. A worked singleton in `apps/webapp/byline/` exercising the shape a real site needs: a
-   required text field, a localized `textArea` with length validation, and a `relation` to
-   `media` for a default hero/OG image. Registered in the existing `collections` tuple and the
-   existing `admin` tuple — **not** new registries.
+   required text field, a localized `textArea` with length validation, and direct image uploads
+   for the default social image and site icon. The default social image is deliberately owned by
+   the singleton rather than related through `media`. Registered in the existing `collections`
+   tuple and the existing `admin` tuple — **not** new registries.
 4. Its admin config uses `tabSets` + `layout` and a `preview` returning `/`.
 5. Generated types regenerate to include it, so `SingletonPath` is no longer `never` in the
    webapp and the exactness contract covers a real singleton.

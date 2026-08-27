@@ -51,3 +51,5 @@ export {
   type CreateSignInRouteOptions,
   createSignInRoute,
 } from './create-sign-in-route.js'
+export { createSingletonHistoryRoute } from './create-singleton-history-route.js'
+export { createSingletonRoute } from './create-singleton-route.js'
