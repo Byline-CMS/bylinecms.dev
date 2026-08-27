@@ -153,6 +153,7 @@ export const HistoryView = ({
       versionId,
       versionNumber,
       currentVersionId,
+      restoreStatusLabel,
       openCompare,
       openRestore,
     }) =>
@@ -214,7 +215,9 @@ export const HistoryView = ({
                     intent="noeffect"
                     onClick={openRestore}
                     className={cx('byline-coll-history-restore-button', styles.restoreButton)}
-                    title={t('collections.history.restoreButtonTitle')}
+                    title={t('collections.history.restoreButtonTitle', {
+                      status: restoreStatusLabel,
+                    })}
                   >
                     {t('collections.history.restoreButton')}
                   </Button>
@@ -268,6 +271,7 @@ export const HistoryView = ({
           <Container>
             <VersionHistoryCore
               data={data as unknown as VersionHistoryData}
+              resourceDefinition={collectionDefinition}
               resourcePath={collection}
               documentId={id}
               currentDocument={currentDocument}

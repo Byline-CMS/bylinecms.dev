@@ -60,7 +60,10 @@ vi.mock('@byline/i18n/react', () => ({
   useTranslation: () => ({
     t: (key: string, values?: Record<string, string | number>) => {
       if (key === 'collections.history.restoreButton') return 'Restore'
-      if (key === 'collections.restore.confirmButton') return 'Confirm restore'
+      if (key === 'collections.history.restoreButtonTitle')
+        return `Restore this version as ${values?.status}`
+      if (key === 'collections.restore.warning') return `New version status: ${values?.status}`
+      if (key === 'collections.restore.confirmButton') return `Restore as ${values?.status}`
       if (key === 'collections.history.title') return `${values?.label} History`
       if (key === 'collections.history.audit.createdBy') return `by ${values?.label}`
       return key
@@ -149,6 +152,7 @@ const singletonDefinition = {
   singleton: true,
   path: 'site-settings',
   label: 'Site settings',
+  workflow: { statuses: [{ name: 'published', label: 'Published' }], defaultStatus: 'published' },
   fields: [],
 } as unknown as SingletonDefinition
 
@@ -250,10 +254,12 @@ describe('singleton version history', () => {
       (button) => button.textContent === 'Restore'
     )
     expect(restoreButtons).toHaveLength(1)
+    expect(restoreButtons[0]?.title).toBe('Restore this version as Published')
 
     await act(async () => restoreButtons[0]?.click())
+    expect(container.textContent).toContain('New version status: Published')
     const confirm = [...container.querySelectorAll('button')].find(
-      (button) => button.textContent === 'Confirm restore'
+      (button) => button.textContent === 'Restore as Published'
     )
     await act(async () => confirm?.click())
 
@@ -377,9 +383,11 @@ describe('singleton version history', () => {
       (button) => button.textContent === 'Restore'
     )
     expect(restore).toBeDefined()
+    expect(restore?.title).toBe('Restore this version as Draft')
     await act(async () => restore?.click())
+    expect(container.textContent).toContain('New version status: Draft')
     const confirm = [...container.querySelectorAll('button')].find(
-      (button) => button.textContent === 'Confirm restore'
+      (button) => button.textContent === 'Restore as Draft'
     )
     await act(async () => confirm?.click())
 

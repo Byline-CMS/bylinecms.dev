@@ -27,6 +27,7 @@ import styles from './restore-version-modal.module.css'
 interface RestoreVersionModalProps {
   versionLabel: string
   versionNumber: number
+  restoreStatusLabel: string
   onClose: () => void
   restoreVersion: () => Promise<unknown>
   onRestoreComplete: () => void | Promise<void>
@@ -35,6 +36,7 @@ interface RestoreVersionModalProps {
 export function RestoreVersionModal({
   versionLabel,
   versionNumber,
+  restoreStatusLabel,
   onClose,
   restoreVersion,
   onRestoreComplete,
@@ -81,7 +83,10 @@ export function RestoreVersionModal({
           <span className="muted">{t('collections.restore.createdLabel')}</span> {versionLabel}
         </p>
         <p className={cx('byline-coll-restore-warning', styles.warning)}>
-          {t('collections.restore.warning', { version: versionNumber })}
+          {t('collections.restore.warning', {
+            version: versionNumber,
+            status: restoreStatusLabel,
+          })}
         </p>
       </div>
       <div className={cx('byline-coll-restore-actions', styles.actions)}>
@@ -112,7 +117,11 @@ export function RestoreVersionModal({
           disabled={pending}
           className={cx('byline-coll-restore-button', styles.button)}
         >
-          {pending === true ? <LoaderEllipsis size={42} /> : t('collections.restore.confirmButton')}
+          {pending === true ? (
+            <LoaderEllipsis size={42} />
+          ) : (
+            t('collections.restore.confirmButton', { status: restoreStatusLabel })
+          )}
         </Button>
       </div>
     </Modal.Content>

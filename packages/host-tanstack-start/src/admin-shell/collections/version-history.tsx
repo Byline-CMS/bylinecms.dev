@@ -8,6 +8,7 @@
 
 import { Fragment, lazy, type ReactNode, Suspense, useState } from 'react'
 
+import { type CollectionDefinition, getDefaultStatus, getWorkflowStatuses } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { CloseIcon, IconButton, Modal, Select, Table } from '@byline/ui/react'
 import cx from 'clsx'
@@ -52,6 +53,7 @@ interface VersionHistoryRowContext {
   currentVersionId: string | null
   actorLabel: string
   actionLabel: string
+  restoreStatusLabel: string
   openCompare: () => void
   openRestore: () => void
 }
@@ -104,6 +106,7 @@ function padRows(value: number) {
 
 export function VersionHistoryCore({
   data,
+  resourceDefinition,
   resourcePath,
   documentId,
   currentDocument,
@@ -115,6 +118,7 @@ export function VersionHistoryCore({
   onRestoreComplete,
 }: {
   data: VersionHistoryData
+  resourceDefinition: CollectionDefinition
   resourcePath: string
   documentId: string
   currentDocument?: Record<string, unknown> | null
@@ -139,6 +143,10 @@ export function VersionHistoryCore({
     currentDocument && typeof currentDocument.versionId === 'string'
       ? currentDocument.versionId
       : null
+  const restoreStatus = getDefaultStatus(resourceDefinition)
+  const restoreStatusLabel =
+    getWorkflowStatuses(resourceDefinition).find((status) => status.name === restoreStatus)
+      ?.label ?? restoreStatus
 
   return (
     <>
@@ -218,6 +226,7 @@ export function VersionHistoryCore({
                       currentVersionId,
                       actorLabel,
                       actionLabel,
+                      restoreStatusLabel,
                       openCompare,
                       openRestore,
                     })}
@@ -327,6 +336,7 @@ export function VersionHistoryCore({
             <RestoreVersionModal
               versionLabel={restoreTarget.label}
               versionNumber={restoreTarget.versionNumber}
+              restoreStatusLabel={restoreStatusLabel}
               onClose={() => setRestoreTarget(null)}
               restoreVersion={() => restoreVersion(restoreTarget.versionId)}
               onRestoreComplete={onRestoreComplete}

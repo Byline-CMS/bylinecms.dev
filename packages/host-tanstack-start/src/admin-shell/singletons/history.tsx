@@ -83,7 +83,14 @@ export function SingletonHistoryView({
       </>
     ),
     auditColSpan: 4,
-    renderCells: ({ document, versionId, currentVersionId, actorLabel, openRestore }) => (
+    renderCells: ({
+      document,
+      versionId,
+      currentVersionId,
+      actorLabel,
+      restoreStatusLabel,
+      openRestore,
+    }) => (
       <>
         <Table.Cell className="byline-singleton-history-status-cell">
           <StatusBadge status={document.status} workflowStatuses={workflowStatuses} />
@@ -101,7 +108,9 @@ export function SingletonHistoryView({
               intent="noeffect"
               onClick={openRestore}
               className={cx('byline-coll-history-restore-button', historyStyles.restoreButton)}
-              title={t('collections.history.restoreButtonTitle')}
+              title={t('collections.history.restoreButtonTitle', {
+                status: restoreStatusLabel,
+              })}
             >
               {t('collections.history.restoreButton')}
             </Button>
@@ -143,6 +152,7 @@ export function SingletonHistoryView({
         <Container>
           <VersionHistoryCore
             data={data}
+            resourceDefinition={singletonDefinition}
             resourcePath={singleton}
             documentId={documentId}
             currentDocument={currentDocument}

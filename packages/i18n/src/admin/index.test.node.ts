@@ -78,6 +78,25 @@ describe('bundled locale data', () => {
       }
     }
   })
+
+  it('parameterizes restore presentation by the workflow default status in every locale', () => {
+    const bundles = { en, fr, es, de, it: itBundle, 'zh-CN': zhCN, ko, th } as const
+    const statusKeys = [
+      'collections.history.restoreButtonTitle',
+      'collections.restore.warning',
+      'collections.restore.confirmButton',
+    ] as const
+
+    for (const [locale, bundle] of Object.entries(bundles)) {
+      for (const key of statusKeys) {
+        expect(bundle[key], `${key} must interpolate status in ${locale}`).toContain('{status}')
+      }
+      expect(
+        bundle['collections.restore.warning'],
+        `collections.restore.warning must interpolate version in ${locale}`
+      ).toContain('{version}')
+    }
+  })
 })
 
 describe('adminTranslations()', () => {

@@ -380,6 +380,9 @@ harness, `I18nProvider` with the real English bundle, no `@testing-library`):
    handle method — expanding Plan 3 is a deliberate decision, not a side effect of this task.
 5. Restore calls the singleton restore server fn, which fires `beforeSave`/`afterSave` with the
    `{ type: 'restore', sourceVersionId }` discriminator from Plan 3.
+   The shared restore tooltip, warning, and confirm label describe the effective
+   `getDefaultStatus(definition)` rather than assuming `draft`. This is a resource-wide rule:
+   existing single-status collections and singletons both restore directly to `published`.
 6. History is paginated, matching `SingletonHandle.history` returning `FindResult`.
 7. History reads require `singletons.<path>.read` — the same ability as the editor, per the
    design's "history reads use `read`" rule.
