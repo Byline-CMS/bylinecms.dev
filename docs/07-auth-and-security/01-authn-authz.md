@@ -451,6 +451,10 @@ collections.pages.delete
 collections.pages.publish
 collections.pages.changeStatus
 collections.pages.reindex
+singletons.site-settings.read
+singletons.site-settings.update
+singletons.site-settings.publish
+singletons.site-settings.changeStatus
 admin.users.create
 admin.roles.update
 admin.permissions.read
@@ -470,21 +474,30 @@ Collections auto-contribute their abilities at registration time:
 collections.<path>.{ read, create, update, delete, publish, changeStatus, reindex }
 ```
 
+Singletons contribute the cardinality-one family:
+
+```
+singletons.<path>.{ read, update, publish, changeStatus }
+```
+
+There is no singleton `create` ability because `update()` materialises an empty slot under the same update permission used by later saves. There is no public delete operation, and no `reindex` ability because singleton search indexing is not shipped. The kind-aware namespace means that a stale or mistyped grant such as `collections.site-settings.update` cannot authorize the `site-settings` singleton.
+
 `@byline/admin` registers its own abilities (`admin.users.*`, `admin.roles.*`, `admin.permissions.*`, and the read-only `admin.activity.read` that gates the [system activity area](./02-auditability.md#the-system-activity-area)) the same way, via `register*Abilities()` exports. Future plugins follow the same pattern: register at init time, assert at call sites. The core knows nothing plugin-specific while still rendering a complete admin UI.
 
 ### Two-layer access control
 
-**Layer 1: flat abilities.** Coarse-grained, table-stored, role-editable from the UI. Sufficient for "can this actor call this verb on this collection at all." Asserted at the service-layer entry point.
+**Layer 1: flat abilities.** Coarse-grained, table-stored, role-editable from the UI. Sufficient for "can this actor call this verb on this document resource at all." Asserted at the service-layer entry point.
 
-**Layer 2: conditional rules in hooks.** Per-collection, in code, with full access to the document and the actor. The hook machinery is where ownership, state-gated, locale-masked, and tenant-scoped rules live:
+**Layer 2: conditional rules in hooks.** Per resource, in code, with full access to the document and the actor. The hook machinery is where ownership, state-gated, locale-masked, and tenant-scoped rules live:
 
 - `CollectionHooks.beforeRead` — contributes a `QueryPredicate` AND-merged into the SQL query. Owner-only, tenant-scoped, soft-delete-hide.
 - `CollectionHooks.afterRead` — observes the materialised document and the actor; can mask fields, redact values, or tag rows.
 - `CollectionHooks.beforeUpdate` / workflow transition hooks — gate writes on document state ("publish only if `status === 'in-review'`").
+- `SingletonHooks.beforeSave` / workflow transition hooks — apply the equivalent write and workflow rules without exposing an internal create/update branch.
 
 CASL's *ideas* (subject + action + conditions) are useful here; CASL itself is not adopted. CASL rules are code; flat abilities are data. Storing compiled CASL rules in a database and editing them from a UI was rejected as awkward at best.
 
-The six Quick Reference recipes above cover the common Layer-2 patterns end-to-end. The deeper mechanics of the hook itself are documented in [Read-side scoping](#read-side-scoping-the-beforeread-hook).
+The seven Quick Reference recipes above cover the common Layer-2 patterns end-to-end. The deeper mechanics of the hook itself are documented in [Read-side scoping](#read-side-scoping-the-beforeread-hook).
 
 ### The enforcement boundary
 

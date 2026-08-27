@@ -1,7 +1,7 @@
 ---
 title: "Upgrading from 3.21 to 4.x"
 path: "upgrading-to-v4"
-summary: "Application migration guide for Byline 4.x: package alignment, route configuration, server-only lifecycle hooks, package-import surface for clients and generated types, request contexts, and release validation."
+summary: "Application migration guide for Byline 4.x: package alignment, route configuration, server-only lifecycle hooks, singleton-aware document resources, generated types, request contexts, and release validation."
 ---
 
 # Upgrading from 3.21 to 4.x
@@ -344,6 +344,29 @@ scoping, or `{ id: { $in: [] } }` when the actor should see no rows.
 
 These changes usually require test updates rather than application wiring:
 
+### Narrow document-resource unions
+
+`getCollectionDefinition(path)` now returns the complete `CollectionDefinition` union. Downstream code that reads collection-only members such as `labels`, `useAsTitle`, or `search` must narrow out `SingletonDefinition` first:
+
+```ts
+const definition = getCollectionDefinition(path)
+if (definition == null || definition.singleton === true) return null
+return definition.labels.plural
+```
+
+Two related helpers are kind-specific:
+
+- `defineAdmin(schema, config)` now requires `MultiCollectionDefinition`; use `defineSingletonAdmin()` for a singleton.
+- `getCollectionAdminConfig(slug)` returns `null` for a singleton slug; use `getSingletonAdminConfig(slug)` when the caller expects the singleton branch.
+
+Generated `Register` augmentation now carries separate `collections` and `singletons` registries. Regenerate application types so `BylineClient<TCollections, TSingletons>` receives both path-to-field maps.
+
+### Review additive error and restore behavior
+
+`DbErrorCode` adds `DB_FOREIGN_KEY_VIOLATION`. Canonical adapters now classify named foreign-key failures with that value where earlier releases returned `DB_UNKNOWN`. Add the case to downstream exhaustive switches over `DbErrorCode`.
+
+Historical restore continues to write the definition's configured default workflow status. The shared restore confirmation now derives its label from that same status: a default workflow says `Draft`, while `SINGLE_STATUS_WORKFLOW` says `Published`. This corrects the confirmation wording for existing single-status collections as well as singletons; tests or screenshots that asserted the old fixed “Restore as Draft” text must be updated.
+
 - **Tree reads:** status and `beforeRead` visibility are enforced at each edge.
   A hidden or unpublished ancestor stops traversal instead of compacting a
   visible descendant past it. Tree hydration shares one read context across the
@@ -379,9 +402,11 @@ accountability contract:
 
 - `withTransaction`
 - `commands.audit` and `queries.audit`
+- `commands.singletons` and `queries.singletons`, including a transaction-scoped `lockSlot`
 - transaction-scoped `getDocumentSystemFieldsForUpdate`
 - the updated tree mutation return values and collection identifiers
 - `promoteChildrenAndRemoveFromTree`
+- `classifyError` support for `DB_FOREIGN_KEY_VIOLATION` when the driver exposes a named foreign-key failure
 
 These are required capabilities, not optional feature negotiation. See
 [Transactions](../03-architecture/03-transactions.md) for the contract and

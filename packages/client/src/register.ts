@@ -24,8 +24,9 @@ import type { CollectionRegistry } from '@byline/core'
  *
  * Once merged, every bare `BylineClient` in the app's program — including
  * the getters on `@byline/client/server` — resolves to
- * `BylineClient<CollectionFieldsByPath>`, so `client.collection('news')`
- * autocompletes collection paths and returns the generated field shapes
+ * `BylineClient<CollectionFieldsByPath, SingletonFieldsByPath>`, so
+ * `client.collection('news')` and `client.singleton('site-settings')`
+ * autocomplete their respective paths and return the generated field shapes
  * with no per-call generics and no type assertions.
  *
  * Exactly one application per TypeScript program can augment this

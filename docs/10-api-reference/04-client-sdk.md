@@ -1,7 +1,7 @@
 ---
 title: "Client SDK API"
 path: "client-sdk-reference"
-summary: "Exact BylineClient construction, top-level methods, CollectionHandle methods, read and write options, result envelopes, search, history, audit, indexing, and document-tree contracts."
+summary: "Exact BylineClient construction, CollectionHandle and SingletonHandle methods, read and write options, result envelopes, search, history, audit, indexing, and document-tree contracts."
 ---
 
 # Client SDK API
@@ -12,17 +12,18 @@ Companions:
 - [Relationships](../04-collections/03-relationships.md) — populate syntax, depth, relation envelopes, and type overlays.
 - [Authentication and authorization](../07-auth-and-security/01-authn-authz.md) — abilities, `RequestContext`, row predicates, private singleton reads, and trusted escape hatches.
 
-This reference lists the public `@byline/client` construction, query, write, search, history, audit, indexing, and document-tree surface. All operations resolve a `RequestContext` and enforce the corresponding collection ability unless the method is explicitly described as trusted maintenance infrastructure.
+This reference lists the public `@byline/client` construction, collection and singleton handles, query, write, search, history, audit, indexing, and document-tree surface. All operations resolve a `RequestContext` and enforce the corresponding kind-aware ability unless the method is explicitly described as trusted maintenance infrastructure.
 
 ## `createBylineClient(config)`
 
 ```ts
-function createBylineClient<Registry = RegisteredCollections>(
-  config: BylineClientConfig
-): BylineClient<Registry>
+function createBylineClient<
+  TCollections extends CollectionRegistry = RegisteredCollections,
+  TSingletons extends CollectionRegistry = RegisteredSingletons,
+>(config: BylineClientConfig): BylineClient<TCollections, TSingletons>
 ```
 
-The default registry comes from generated declaration merging. In a configured application, `client.collection('docs')` therefore infers the collection path and generated field shape without an explicit generic.
+Both registry generics default through generated declaration merging. `TCollections` maps multi-document paths to field shapes; `TSingletons` maps singleton paths to field shapes.
 
 ```ts
 import { createSuperAdminContext } from '@byline/auth'
@@ -34,6 +35,21 @@ const client = createBylineClient({
   requestContext: createSuperAdminContext({ id: 'content-import' }),
 })
 ```
+
+### Generated `Register` merge
+
+The generated application types declare both registries:
+
+```ts
+declare module '@byline/client' {
+  interface Register {
+    collections: CollectionFieldsByPath
+    singletons: SingletonFieldsByPath
+  }
+}
+```
+
+`RegisteredCollections` and `RegisteredSingletons` conditionally read those members, then become the defaults for `BylineClient<TCollections, TSingletons>`. In a configured application, `client.collection('news')` and `client.singleton('site-settings')` therefore constrain paths and infer generated field shapes without explicit generics. An application with an empty singleton registry gets `keyof SingletonFieldsByPath = never`, so an arbitrary singleton path does not type-check.
 
 ## `BylineClientConfig`
 
@@ -84,12 +100,26 @@ Use a static context for a script that authenticates once. Use a factory for req
 ### `collection(path)`
 
 ```ts
-client.collection<TPath extends keyof Registry & string>(
+client.collection<TPath extends keyof TCollections & string>(
   path: TPath
-): CollectionHandle<Registry[TPath]>
+): CollectionHandle<TCollections[TPath]>
 ```
 
 Returns a collection-scoped handle or throws `ERR_NOT_FOUND` when the configured tuple has no matching path.
+
+### `singleton(path)`
+
+```ts
+client.singleton<TPath extends keyof TSingletons & string>(
+  path: TPath
+): SingletonHandle<TSingletons[TPath]>
+```
+
+Returns the document-ID-free singleton handle. It throws `ERR_NOT_FOUND` for an unknown path and `ERR_VALIDATION` when the path belongs to a multi-document collection.
+
+```ts
+const settings = client.singleton('site-settings')
+```
 
 ### `search(options)`
 
@@ -115,6 +145,153 @@ client.resolveCollectionId(path: string): Promise<string>
 ```
 
 Both use a per-client cache. Lifecycle writes use the version to stamp `collection_version`; ordinary reads usually need only the ID.
+
+## `SingletonHandle`
+
+`SingletonHandle<TFields>` addresses one registered singleton slot without a caller-supplied document id.
+
+| Method | Returns | Before first save |
+|---|---|---|
+| `get(options?)` | `Promise<SingletonDocument<TFields> \| null>` | `null` |
+| `update(data, options?)` | `Promise<SingletonSaveResult>` | Creates the backing document, first version, and slot mapping |
+| `changeStatus(nextStatus)` | `Promise<ChangeStatusResult>` | `ERR_NOT_FOUND` |
+| `unpublish()` | `Promise<UnpublishResult>` | `ERR_NOT_FOUND` |
+| `schedulePublish(options)` | `Promise<DocumentPublishScheduleInfo>` | `ERR_NOT_FOUND` |
+| `confirmScheduledPublish(options)` | `Promise<DocumentPublishScheduleInfo>` | `ERR_NOT_FOUND` |
+| `cancelScheduledPublish()` | `Promise<DocumentPublishScheduleInfo \| null>` | `ERR_NOT_FOUND` |
+| `getScheduledPublish()` | `Promise<DocumentPublishScheduleInfo \| null>` | `null` |
+| `history(options?)` | `Promise<FindResult<F>>` | Empty page with caller defaults |
+| `findByVersion(versionId, options?)` | `Promise<ClientDocument<F> \| null>` | `null` |
+| `restoreVersion(sourceVersionId)` | `Promise<SingletonSaveResult>` | `ERR_NOT_FOUND` |
+| `copyToLocale(args)` | `Promise<SingletonSaveResult>` | `ERR_NOT_FOUND` |
+
+### `get(options?)`
+
+```ts
+handle.get(options?: GetSingletonOptions<TFields>):
+  Promise<SingletonDocument<TFields> | null>
+```
+
+`GetSingletonOptions` is `FindByIdOptions`: `select`, `locale`, `populate`, `depth`, `status`, `onMissingLocale`, `lenient`, and the trusted read controls. `status` defaults to `published`; the other defaults match `findById()`. `SingletonDocument` omits the backing document's internal `path`.
+
+```ts
+const settings = await client.singleton('site-settings').get({
+  select: ['siteName'],
+  locale: 'en',
+})
+```
+
+### `update(data, options?)`
+
+```ts
+interface UpdateSingletonOptions {
+  locale?: string
+  expectedVersionId?: string
+}
+
+handle.update(
+  data: TFields,
+  options?: UpdateSingletonOptions
+): Promise<SingletonSaveResult>
+```
+
+`locale` defaults to the client content locale. The first save must use that default locale. The result is `{ documentId, documentVersionId }`.
+
+When `expectedVersionId` is present and differs from the current mapped version, the method throws `ERR_CONFLICT` with the expected and current version ids. Omit it for the first save; pass the `versionId` read by an interactive editor for subsequent saves.
+
+```ts
+const handle = client.singleton('site-settings')
+const current = await handle.get({ status: 'any' })
+if (current == null) throw new Error('Site settings have not been saved')
+await handle.update({ ...current.fields, siteName: 'Example site' }, {
+  expectedVersionId: current.versionId,
+})
+```
+
+### Workflow methods
+
+```ts
+handle.changeStatus(nextStatus: string): Promise<ChangeStatusResult>
+handle.unpublish(): Promise<UnpublishResult>
+```
+
+`changeStatus()` requires `singletons.<path>.changeStatus`; a transition to `published` additionally requires `.publish`. It returns `{ previousStatus, newStatus }`. `unpublish()` requires `.changeStatus` and returns `{ archivedCount }`. Both use the definition's workflow and reject an unmaterialised slot with `ERR_NOT_FOUND`.
+
+```ts
+await client.singleton('announcement').changeStatus('published')
+```
+
+### Scheduled publication methods
+
+```ts
+handle.schedulePublish(
+  options: SchedulePublishOptions
+): Promise<DocumentPublishScheduleInfo>
+
+handle.confirmScheduledPublish(
+  options: ConfirmScheduledPublishOptions
+): Promise<DocumentPublishScheduleInfo>
+
+handle.cancelScheduledPublish(): Promise<DocumentPublishScheduleInfo | null>
+handle.getScheduledPublish(): Promise<DocumentPublishScheduleInfo | null>
+```
+
+`SchedulePublishOptions` is `{ publishAt: string, expectedVersionId: string }`; `ConfirmScheduledPublishOptions` is `{ expectedVersionId: string }`. All four methods require `.changeStatus` and `.publish`. `publishAt` must be a future ISO instant with an explicit offset or `Z`.
+
+`cancelScheduledPublish()` returns `null` when no row remains after its transaction wins the lock. `getScheduledPublish()` returns `null` when the slot or schedule is absent. The returned `DocumentPublishScheduleInfo` omits internal execution fencing fields.
+
+```ts
+const handle = client.singleton('announcement')
+const current = await handle.get({ status: 'any' })
+if (current == null) throw new Error('Announcement has not been saved')
+await handle.schedulePublish({
+  publishAt: '2027-01-15T09:00:00Z', expectedVersionId: current.versionId,
+})
+```
+
+### History methods
+
+```ts
+handle.history<F = TFields>(options?: HistoryOptions): Promise<FindResult<F>>
+
+handle.findByVersion<F = TFields>(
+  versionId: string,
+  options?: FindByVersionOptions<F>
+): Promise<ClientDocument<F> | null>
+```
+
+`HistoryOptions` is `{ locale?, page?, pageSize?, order?, desc? }` plus trusted read controls. An empty slot returns `{ docs: [], meta: { total: 0, page, pageSize, totalPages: 0 } }`, using page `1` and page size `20` unless supplied.
+
+`FindByVersionOptions` is `{ select?, locale? }` plus trusted read controls. The requested version must belong to the currently mapped document; an unknown, hidden, orphaned, or unmaterialised version returns `null`. These editorial methods authorize reads in `any` mode. Their shared historical `ClientDocument` envelopes may contain the backing document's internal path metadata; it is not a singleton URL or identity.
+
+```ts
+const versions = await client.singleton('site-settings').history({ pageSize: 10 })
+const versionId = versions.docs[0]?.versionId
+const version = versionId
+  ? await client.singleton('site-settings').findByVersion(versionId)
+  : null
+```
+
+### Restore and locale copy
+
+```ts
+handle.restoreVersion(sourceVersionId: string): Promise<SingletonSaveResult>
+
+handle.copyToLocale(args: {
+  sourceLocale: string
+  targetLocale: string
+  overwrite?: boolean
+}): Promise<SingletonSaveResult>
+```
+
+Both methods require `.update` and throw `ERR_NOT_FOUND` before materialisation. `restoreVersion()` requires a historical version owned by the currently mapped document, reconstructs its complete all-locale field tree, and writes a new version at the workflow default status. `copyToLocale()` requires different source and target locales; `overwrite` defaults to `false`.
+
+```ts
+await client.singleton('site-settings').copyToLocale({
+  sourceLocale: 'en',
+  targetLocale: 'fr',
+})
+```
 
 ## `CollectionHandle` method index
 
@@ -366,7 +543,7 @@ handle.restoreVersion(
 ): Promise<RestoreVersionResult>
 ```
 
-`changeStatus()` accepts a valid adjacent transition or reset to the first workflow status. Publishing archives other published versions of the same document. `restoreVersion()` copies all-locale historical content into a new version and defaults its status to the first workflow status; it never silently republishes.
+`changeStatus()` accepts a valid adjacent transition or reset to the first workflow status. Publishing archives other published versions of the same document. `restoreVersion()` copies all-locale historical content into a new version at the definition's configured default status. That is `draft` for `DEFAULT_WORKFLOW` and `published` for `SINGLE_STATUS_WORKFLOW`.
 
 ### Scheduled publication
 

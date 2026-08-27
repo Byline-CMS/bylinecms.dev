@@ -1,7 +1,7 @@
 ---
 title: "Configuration API"
 path: "configuration-reference"
-summary: "Exact BaseConfig, AdminConfig, ServerConfig, BylineCore, route, registration, getter, and server-client contracts."
+summary: "Exact BaseConfig, AdminConfig, ServerConfig, BylineCore, document-resource registry, database error classification, getter, and server-client contracts."
 ---
 
 # Configuration API
@@ -29,7 +29,7 @@ interface BaseConfig {
 | Property | Required | Description |
 |---|---|---|
 | `i18n` | Yes | Admin-interface locales, content locales, display labels, and admin translation bundles. |
-| `collections` | Yes | Canonical readonly collection tuple. The server and admin must receive the same schema definitions. |
+| `collections` | Yes | Canonical readonly document-resource tuple containing `MultiCollectionDefinition` and `SingletonDefinition` values. Collections and singletons share this registry and path namespace; the server and admin must receive the same definitions. |
 | `routes` | No | Partial admin, API, and sign-in mount paths. `resolveRoutes()` supplies and validates defaults. |
 
 ### `i18n`
@@ -124,7 +124,7 @@ not transfer Byline's host-only session or preview cookies across origins.
 
 ```ts
 interface AdminConfig extends BaseConfig {
-  admin?: CollectionAdminConfig[]
+  admin?: AdminResourceConfig[]
   collectionGroups?: CollectionGroupDefinition[]
   blockAdmin?: BlockAdminConfig[]
   slugifier?: SlugifierFn
@@ -132,12 +132,16 @@ interface AdminConfig extends BaseConfig {
     richText?: { editor: RichTextEditorComponent }
   }
 }
+
+type AdminResourceConfig<T = any> =
+  | CollectionAdminConfig<T>
+  | SingletonAdminConfig<T>
 ```
 
 | Property | Default | Description |
 |---|---|---|
-| `admin` | `[]` | Collection presentation configs registered by `defineAdmin()`. Each `slug` must match a collection `path`. |
-| `collectionGroups` | `[]` | Ordered registry of dashboard collection groups, each `{ name, label }`. Array order is display order. A collection joins a group by setting `CollectionAdminConfig.group` to an entry's `name`. Omit for a flat dashboard. |
+| `admin` | `[]` | `CollectionAdminConfig` and `SingletonAdminConfig` values registered by `defineAdmin()` or `defineSingletonAdmin()`. Each `slug` and `singleton` discriminant must match its definition. |
+| `collectionGroups` | `[]` | Ordered registry of dashboard resource groups, each `{ name, label }`. Array order is display order. Either admin-config kind joins a group through `group`. Omit for a flat dashboard. |
 | `blockAdmin` | `[]` | Site-wide block presentation configs registered by `defineBlockAdmin()`, keyed by `blockType`. |
 | `slugifier` | `slugify` | Client copy used by the admin path widget for live previews. Register the same pure synchronous function on `ServerConfig.slugifier`. |
 | `fields.richText.editor` | None | React editor component used for rich-text fields unless a per-field admin config overrides it. Rich-text fields in the admin require a registered editor. |
@@ -224,20 +228,24 @@ The host owns execution lifetime. A long-running server may call `startBylineSch
 
 ```ts
 interface ServerHooksConfig {
-  collections?: Record<string, CollectionHooks | CollectionHooksLoader>
+  collections?: Record<
+    string,
+    CollectionHooks | CollectionHooksLoader | SingletonHooks | SingletonHooksLoader
+  >
   uploads?: Record<string, UploadHooks | UploadHooksLoader>
 }
 ```
 
 | Property | Key | Description |
 |---|---|---|
-| `collections` | Collection path, such as `docs` | Hooks merged onto that collection after initialization validates the registry. |
+| `collections` | Document-resource path, such as `docs` or `site-settings` | Collection or singleton hooks attached after initialization validates the registry. The registry name remains `collections` because both kinds use the canonical definition tuple. |
 | `uploads` | `<collectionPath>.<canonical schema path>` | Field-scoped upload hooks. Array indexes are omitted; a block type segment follows a blocks field. |
 
 ```ts
 export const serverHooks: ServerHooksConfig = {
   collections: {
     docs: () => import('./docs/hooks.js'),
+    'site-settings': () => import('./site-settings/hooks.js'),
   },
   uploads: {
     'media.image': () => import('./media/upload-hooks.js'),
@@ -246,6 +254,8 @@ export const serverHooks: ServerHooksConfig = {
 ```
 
 Use this registry when the hook module imports Node-only packages, secrets, storage SDKs, or server clients. A loader attached directly to an isomorphic schema remains reachable from the browser graph.
+
+Inline hook objects are family-checked during startup attachment: collection-only hooks cannot attach to a `singleton: true` definition, and `beforeSave` or `afterSave` cannot attach to a multi-document definition. A loader stays lazy, so Byline checks its hook family on first lifecycle resolution, caches the imported object by loader identity, and repeats the family check on every later resolution. Reusing one loader across different resource kinds therefore cannot bypass the discriminant check.
 
 ### `initBylineCore(config, pinoLogger?)`
 
@@ -313,13 +323,46 @@ function getBylineCore<TAdminStore = unknown>(): BylineCore<TAdminStore>
 
 Returns the core registered by `initBylineCore()`. It throws in the browser or before initialization completes.
 
+## Database error classification
+
+```ts
+const DbErrorCodes = {
+  UNIQUE_VIOLATION: 'DB_UNIQUE_VIOLATION',
+  FOREIGN_KEY_VIOLATION: 'DB_FOREIGN_KEY_VIOLATION',
+  UNKNOWN: 'DB_UNKNOWN',
+} as const
+
+type DbErrorCode = (typeof DbErrorCodes)[keyof typeof DbErrorCodes]
+```
+
+`IDbAdapter.classifyError(error)` returns a `DbErrorClassification` with one `DbErrorCode` and an optional `constraint`. Canonical adapters classify named foreign-key failures as `DB_FOREIGN_KEY_VIOLATION`; earlier versions classified those failures as `DB_UNKNOWN`.
+
+Downstream exhaustive branches over `DbErrorCode` must add the new member:
+
+```ts
+switch (classification.code) {
+  case DbErrorCodes.FOREIGN_KEY_VIOLATION:
+    return reportReferenceFailure(classification.constraint)
+  // …UNIQUE_VIOLATION and UNKNOWN…
+}
+```
+
 ## Configuration lookup helpers
 
 | Function | Return | Behavior |
 |---|---|---|
-| `getCollectionDefinition(path)` | `CollectionDefinition \| null` | Reads the current server config, or admin config when no server config exists, and finds a schema by path. |
-| `getCollectionAdminConfig(slug)` | `CollectionAdminConfig \| null` | Finds one browser-safe collection admin config by slug. Returns `null` when the admin config is absent. |
+| `getCollectionDefinition(path)` | `CollectionDefinition \| null` | Reads the current server config, or admin config when no server config exists, and finds either definition kind by path. |
+| `getCollectionAdminConfig(slug)` | `CollectionAdminConfig \| null` | Finds a multi-document admin config by slug. Returns `null` for an absent config and for a singleton config. |
+| `getSingletonAdminConfig(slug)` | `SingletonAdminConfig \| null` | Finds a singleton admin config by slug. Returns `null` for an absent config and for a multi-document config. |
 | `orderByContentLocale(codes)` | `string[]` | Returns a sorted copy using configured content-locale order, with unknown codes alphabetized at the end. It never filters codes. |
+
+`getCollectionDefinition(path)` previously returned only the multi-document branch. Code that reads collection-only members must now narrow the union:
+
+```ts
+const definition = getCollectionDefinition(path)
+if (definition == null || definition.singleton === true) return null
+return definition.labels.plural
+```
 
 ## Server client getters
 

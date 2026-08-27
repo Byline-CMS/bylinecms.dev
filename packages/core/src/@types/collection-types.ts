@@ -1570,9 +1570,9 @@ export interface MultiCollectionDefinition extends DocumentDefinitionBase {
 }
 
 /**
- * A single named document slot for an installation — the resource Payload CMS
- * calls a Global. Cardinality is zero-or-one: the slot exists as soon as the
- * definition is registered, and its document is materialised by the first save.
+ * A single named document slot for an installation. Cardinality is
+ * zero-or-one: the slot exists as soon as the definition is registered, and
+ * its document is materialised by the first save.
  *
  * Collection-only options are absent by construction: there is no list to sort,
  * search, or paginate, no sibling documents to order or arrange in a tree, and

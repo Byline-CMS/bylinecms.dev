@@ -10,15 +10,24 @@
  * the docs gate until a developer updates the human-written reference.
  */
 
-import type { BylineClient, BylineClientConfig, CollectionHandle } from '@byline/client'
+import type {
+  BylineClient,
+  BylineClientConfig,
+  CollectionHandle,
+  SingletonHandle,
+} from '@byline/client'
 import type {
   AdminConfig,
   BlockAdminConfig,
   BylineCore,
   CollectionAdminConfig,
+  defineSingleton,
+  defineSingletonAdmin,
   Field,
   MultiCollectionDefinition,
   ServerConfig,
+  SingletonAdminConfig,
+  SingletonDefinition,
 } from '@byline/core'
 
 type StringKeyOf<T> = Extract<keyof T, string>
@@ -107,6 +116,27 @@ const collectionDefinitionKeys = completeKeys<MultiCollectionDefinition>()([
   'version',
 ])
 
+const singletonDefinitionKeys = completeKeys<SingletonDefinition>()([
+  'singleton',
+  'path',
+  'label',
+  'fields',
+  'workflow',
+  'version',
+  'hooks',
+  'labels',
+  'useAsTitle',
+  'useAsPath',
+  'orderable',
+  'tree',
+  'search',
+  'listSearch',
+  'advertiseLocales',
+  'showStats',
+  'linksInEditor',
+  'buildDocumentPath',
+])
+
 const collectionAdminConfigKeys = completeKeys<CollectionAdminConfig>()([
   'singleton',
   'slug',
@@ -124,6 +154,35 @@ const collectionAdminConfigKeys = completeKeys<CollectionAdminConfig>()([
   'preview',
   'listView',
   'listActions',
+])
+
+const singletonAdminConfigKeys = completeKeys<SingletonAdminConfig>()([
+  'singleton',
+  'slug',
+  'group',
+  'preview',
+  'columns',
+  'defaultSort',
+  'defaultColumns',
+  'itemView',
+  'itemViewSort',
+  'listView',
+  'listActions',
+  'tabSets',
+  'rows',
+  'groups',
+  'layout',
+  'fields',
+])
+
+type SingletonFactories = {
+  defineSingleton: typeof defineSingleton
+  defineSingletonAdmin: typeof defineSingletonAdmin
+}
+
+const singletonFactoryKeys = completeKeys<SingletonFactories>()([
+  'defineSingleton',
+  'defineSingletonAdmin',
 ])
 
 const blockAdminConfigKeys = completeKeys<BlockAdminConfig>()(['blockType', 'fields'])
@@ -218,6 +277,21 @@ const collectionHandleKeys = completeKeys<CollectionHandle>()([
   'getTreeParent',
 ])
 
+const singletonHandleKeys = completeKeys<SingletonHandle>()([
+  'get',
+  'update',
+  'changeStatus',
+  'unpublish',
+  'schedulePublish',
+  'confirmScheduledPublish',
+  'cancelScheduledPublish',
+  'getScheduledPublish',
+  'history',
+  'findByVersion',
+  'restoreVersion',
+  'copyToLocale',
+])
+
 export interface DocsApiSurfaceSpec {
   fileSuffix: string
   tokens: readonly string[]
@@ -234,7 +308,14 @@ export const DOCS_API_SURFACE_SPECS: readonly DocsApiSurfaceSpec[] = [
   },
   {
     fileSuffix: '/docs/10-api-reference/02-collections.md',
-    tokens: unique(collectionDefinitionKeys, collectionAdminConfigKeys, blockAdminConfigKeys),
+    tokens: unique(
+      collectionDefinitionKeys,
+      singletonDefinitionKeys,
+      collectionAdminConfigKeys,
+      singletonAdminConfigKeys,
+      singletonFactoryKeys,
+      blockAdminConfigKeys
+    ),
   },
   {
     fileSuffix: '/docs/10-api-reference/03-fields.md',
@@ -242,6 +323,12 @@ export const DOCS_API_SURFACE_SPECS: readonly DocsApiSurfaceSpec[] = [
   },
   {
     fileSuffix: '/docs/10-api-reference/04-client-sdk.md',
-    tokens: unique(bylineClientConfigKeys, bylineClientKeys, collectionHandleKeys),
+    tokens: unique(
+      bylineClientConfigKeys,
+      bylineClientKeys,
+      collectionHandleKeys,
+      ['SingletonHandle'],
+      singletonHandleKeys
+    ),
   },
 ]

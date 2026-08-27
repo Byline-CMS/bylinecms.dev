@@ -1,7 +1,7 @@
 ---
 title: "Collections API"
 path: "collections-reference"
-summary: "Exact collection schema, admin presentation, block, workflow, lifecycle hook, layout, column, and preview configuration contracts."
+summary: "Exact multi-document and singleton schema, admin presentation, block, workflow, lifecycle hook, layout, column, and preview configuration contracts."
 ---
 
 # Collections API
@@ -13,13 +13,13 @@ Companions:
 - [Collection versioning](../04-collections/08-collection-versioning.md) — fingerprints, automatic version bumps, and explicit version pins.
 - [Authentication and authorization](../07-auth-and-security/01-authn-authz.md) — the `beforeRead` recipes include separating public and private singleton values.
 
-This reference lists the complete application-facing collection and presentation contracts exported by `@byline/core`. Collection schemas are isomorphic; collection and block admin configs are client-side presentation.
+This reference lists the complete application-facing document-resource and presentation contracts exported by `@byline/core`. Schemas are isomorphic; collection, singleton, and block admin configs are client-side presentation.
 
 ## `defineCollection(definition)`
 
 ```ts
-function defineCollection<const C extends CollectionDefinition>(
-  definition: C & CollectionDefinition
+function defineCollection<const C extends MultiCollectionDefinition>(
+  definition: C & MultiCollectionDefinition
 ): C
 ```
 
@@ -39,10 +39,20 @@ export const Articles = defineCollection({
 
 ## `CollectionDefinition`
 
+```ts
+type CollectionDefinition = MultiCollectionDefinition | SingletonDefinition
+```
+
+The `singleton` property discriminates the two branches. `defineCollection()` accepts only `MultiCollectionDefinition`; `defineSingleton()` accepts only the singleton branch.
+
+### `MultiCollectionDefinition`
+
 | Property | Required or default | Description |
 |---|---|---|
+| `singleton` | Omitted or `false` | Multi-document resource discriminant. |
 | `path` | Required | Unique collection key used by storage, clients, abilities, routes, and admin registration. |
 | `labels` | Required | `{ singular, plural }` display labels for collection UI. |
+| `label` | `never` | Singleton-only singular label; rejected on a multi-document definition. |
 | `fields` | Required | Ordered `Field[]` schema. `path`, `status`, and other reserved system attributes are not fields. |
 | `workflow` | `DEFAULT_WORKFLOW` | Sequential workflow. Use `defineWorkflow()` or `SINGLE_STATUS_WORKFLOW`. |
 | `hooks` | None | Isomorphic-safe `CollectionHooks` object or lazy loader. Put server-only hook modules in `ServerConfig.hooks.collections`. |
@@ -100,12 +110,59 @@ Return a root-relative path beginning with `/`, or `null` when the collection ca
 buildDocumentPath: (doc) => (doc.path ? `/articles/${doc.path}` : null)
 ```
 
+## `defineSingleton(definition)`
+
+```ts
+function defineSingleton<const S extends Omit<SingletonDefinition, 'singleton'>>(
+  definition: S & Omit<SingletonDefinition, 'singleton'>
+): S & { singleton: true }
+```
+
+The parameter supplies the singleton schema without its discriminator. The return value preserves literal path and field types and stamps `singleton: true` after the input spread.
+
+```ts
+import { defineSingleton } from '@byline/core'
+
+export const SiteSettings = defineSingleton({
+  path: 'site-settings',
+  label: 'Site settings',
+  fields: [{ name: 'siteName', label: 'Site name', type: 'text' }],
+})
+```
+
+## `SingletonDefinition`
+
+| Property | Required or default | Description |
+|---|---|---|
+| `singleton` | Required `true`; stamped by `defineSingleton()` | Resource-family discriminator. |
+| `path` | Required | Unique slot key shared by configuration, generated registries, abilities, admin routing, client lookup, and storage mapping. |
+| `label` | Required | Singular display label. |
+| `fields` | Required | Ordered `Field[]` schema stored through the shared document runtime. |
+| `workflow` | `DEFAULT_WORKFLOW` | Sequential workflow. `SINGLE_STATUS_WORKFLOW` makes every save immediately published and hides workflow controls. |
+| `version` | Automatic | Explicit schema-version pin; it cannot be lower than the stored version. |
+| `hooks` | None | `SingletonHooks` object or `SingletonHooksLoader`. Server-only modules belong in `ServerConfig.hooks.collections`. |
+| `labels` | `never` | Multi-document plural labels are invalid. |
+| `useAsTitle` | `never` | There is no list item that needs a derived title. |
+| `useAsPath` | `never` | The backing document path is generated internal metadata, not a public identifier. |
+| `orderable` | `never` | There are no sibling documents to order. |
+| `tree` | `never` | A document tree requires several independently addressed documents. |
+| `search` | `never` | Singleton search indexing is not shipped. |
+| `listSearch` | `never` | There is no admin list to search. |
+| `advertiseLocales` | `never` | The collection-level advertised-locale control is not part of the singleton surface. |
+| `showStats` | `never` | There is no dashboard document-count query. |
+| `linksInEditor` | `never` | Singletons are not rich-text link targets. |
+| `buildDocumentPath` | `never` | A singleton does not expose a per-document public path. |
+
+The explicit `?: never` members prevent the factory's generic parameter from absorbing collection-only excess properties. Runtime validation checks the same list for untyped JavaScript and rejects a collection and singleton that share one path.
+
+Deferred relation-target, search-indexing, embedded-tree, and multi-tenant-instance surfaces are fenced in [Singletons — Not yet shipped](../04-collections/09-singletons.md#not-yet-shipped).
+
 ## `defineAdmin(schema, config)`
 
 ```ts
 function defineAdmin<T = any>(
-  schema: CollectionDefinition,
-  config: Omit<CollectionAdminConfig<T>, 'slug'>
+  schema: MultiCollectionDefinition,
+  config: Omit<CollectionAdminConfig<T>, 'slug' | 'singleton'>
 ): CollectionAdminConfig<T>
 ```
 
@@ -129,6 +186,7 @@ export const ArticlesAdmin = defineAdmin(Articles, {
 
 | Property | Required or default | Description |
 |---|---|---|
+| `singleton` | `false`; stamped by `defineAdmin()` | Admin-resource discriminator. |
 | `slug` | Required; set by `defineAdmin()` | Must equal the corresponding collection `path`. |
 | `group` | None | Dashboard group this collection belongs to. Names an entry in `AdminConfig.collectionGroups` — a key, not a heading. Omit to place the collection in the leading ungrouped band. Boot-validated. |
 | `columns` | Synthesized defaults | Columns for the collection's default list view. |
@@ -249,6 +307,50 @@ interface ListActionComponentProps {
 
 A custom `listView` owns search, ordering, results, pagination, and header actions. `listActions` extend only the default list view and must perform their own permission gating.
 
+## `defineSingletonAdmin(schema, config)`
+
+```ts
+function defineSingletonAdmin<T = any>(
+  schema: SingletonDefinition,
+  config: Omit<SingletonAdminConfig<T>, 'slug' | 'singleton'>
+): SingletonAdminConfig<T>
+```
+
+The function returns the form config with `singleton: true` and `slug` set from `schema.path`.
+
+```ts
+import { defineSingletonAdmin } from '@byline/core'
+
+export const SiteSettingsAdmin = defineSingletonAdmin(SiteSettings, {
+  group: 'settings',
+  layout: { main: ['siteName', 'siteDescription'] },
+  preview: { url: () => '/' },
+})
+```
+
+## `SingletonAdminConfig`
+
+| Property | Required or default | Description |
+|---|---|---|
+| `singleton` | Required `true`; stamped by `defineSingletonAdmin()` | Admin-resource discriminator. |
+| `slug` | Required; stamped by `defineSingletonAdmin()` | Must equal the corresponding singleton definition path. |
+| `group` | None | Dashboard resource group name from `AdminConfig.collectionGroups`. |
+| `tabSets` | `[]` | Named tab bars used by `layout`. |
+| `rows` | `[]` | Named horizontal field rows used by `layout`, tabs, or groups. |
+| `groups` | `[]` | Named labelled fieldsets used by `layout` or tabs. |
+| `layout` | All schema fields in `main` | Shared form composition for the singleton editor. |
+| `fields` | `{}` | Per-field presentation overrides keyed by index-free schema path. |
+| `preview` | None | `{ url(doc, ctx) }` function receiving `{ id, status, fields }`; returns a relative or absolute URL, or `null` to hide preview. No internal document-path fallback is used. |
+| `columns` | `never` | Collection list option. |
+| `defaultSort` | `never` | Collection list option. |
+| `defaultColumns` | `never` | Collection list option. |
+| `itemView` | `never` | Collection item-list presentation option. |
+| `itemViewSort` | `never` | Collection item-list sort option. |
+| `listView` | `never` | Collection list replacement. |
+| `listActions` | `never` | Collection list-header extension. |
+
+The explicit `?: never` list prevents generic excess-property absorption. Startup validation applies the same kind and option checks to untyped configuration.
+
 ## Blocks
 
 ### `defineBlock(definition)`
@@ -351,3 +453,98 @@ After hooks run outside the storage transaction. A post-commit failure cannot ro
 Hooks attached directly to a schema must be safe in every graph that imports that schema. Register server-only hook loaders through `ServerConfig.hooks.collections`.
 
 Upload hooks are separate field-scoped `beforeStore` and `afterStore` hooks. Their complete contract is in [File and media uploads](../04-collections/06-file-media-uploads.md#beforestore-and-afterstore-hooks).
+
+## `SingletonHooks`
+
+```ts
+interface SingletonHooks {
+  beforeSave?: SingletonHookSlot<BeforeSingletonSaveContext>
+  afterSave?: SingletonHookSlot<AfterSingletonSaveContext>
+  beforeStatusChange?: SingletonHookSlot<StatusChangeContext>
+  afterStatusChange?: SingletonHookSlot<StatusChangeContext>
+  beforeUnpublish?: SingletonHookSlot<BeforeUnpublishContext>
+  afterUnpublish?: SingletonHookSlot<AfterUnpublishContext>
+  beforeRead?: BeforeReadHookSlot
+  afterRead?: SingletonHookSlot<AfterReadContext>
+}
+```
+
+Each slot accepts one function or an ordered array. `beforeSave` runs inside the locked write transaction and may mutate `data`; `afterSave` runs after commit and cannot roll back a persisted version or initial mapping.
+
+### Save contexts
+
+```ts
+interface BeforeSingletonSaveContext {
+  data: Record<string, any>
+  originalData: Record<string, any> | null
+  singletonPath: string
+  locale: string
+  requestContext: RequestContext
+  isInitialSave: boolean
+  operation: SingletonSaveOperation
+  documentId: string | null
+}
+
+interface AfterSingletonSaveContext {
+  data: Record<string, any>
+  originalData: Record<string, any> | null
+  singletonPath: string
+  locale: string
+  requestContext: RequestContext
+  isInitialSave: boolean
+  operation: SingletonSaveOperation
+  documentId: string
+  documentVersionId: string
+}
+```
+
+On the first save, `originalData` and `BeforeSingletonSaveContext.documentId` are `null`. `AfterSingletonSaveContext` always identifies the committed document and version.
+
+### `SingletonSaveOperation`
+
+```ts
+type SingletonSaveOperation =
+  | { type: 'save' }
+  | { type: 'restore'; sourceVersionId: string }
+  | {
+      type: 'copyToLocale'
+      sourceLocale: string
+      targetLocale: string
+      overwrite: boolean
+    }
+```
+
+| Branch | `data` | `originalData` | `locale` |
+|---|---|---|---|
+| `save` | Submitted locale field tree after normalisation; mutable in `beforeSave`. | Current values in the same locale, or `null` on first materialisation. | Submitted locale, defaulting to the installation content locale. |
+| `restore` | Complete historical **all-locale** field tree; localised fields remain locale maps. | Complete current all-locale field tree. | Literal `'all'`. |
+| `copyToLocale` | Source values merged into the target payload according to `overwrite`. | Previous target-locale values, or `null` when the target locale had no values. | `targetLocale`. |
+
+```ts
+import type { SingletonHooks } from '@byline/core'
+
+const hooks = {
+  afterSave: ({ operation, documentVersionId }) => {
+    if (operation.type === 'restore') console.info('restored', documentVersionId)
+  },
+} satisfies SingletonHooks
+```
+
+### Shared read and workflow contexts
+
+| Hook | Context | Fields and return |
+|---|---|---|
+| `beforeRead` | `BeforeReadContext` | `{ collectionPath, requestContext, readContext }`; returns `QueryPredicate`, `false`, or `void`, synchronously or asynchronously. |
+| `afterRead` | `AfterReadContext` | `{ doc, collectionPath, requestContext, readContext }`; may mutate raw `doc.fields` after populate. |
+| `beforeStatusChange`, `afterStatusChange` | `StatusChangeContext` | `{ documentId, documentVersionId, collectionPath, path, previousStatus, nextStatus }`. The shared internal `path` is supplied for lifecycle side effects but is not a singleton client identity. |
+| `beforeUnpublish` | `BeforeUnpublishContext` | `{ documentId, collectionPath, path }`. |
+| `afterUnpublish` | `AfterUnpublishContext` | `{ documentId, collectionPath, path, archivedCount }`. |
+
+```ts
+const hooks = {
+  beforeRead: ({ requestContext }) =>
+    requestContext.actor == null ? false : undefined,
+} satisfies SingletonHooks
+```
+
+Inline hook objects are family-validated at startup. `SingletonHooksLoader` is lazy, so a mismatched family fails on first lifecycle resolution; the imported object is cached, but its family is revalidated on every resolution.

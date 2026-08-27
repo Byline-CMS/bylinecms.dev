@@ -244,9 +244,9 @@ export class BylineClient<
 }
 
 /**
- * Create a new Byline client instance. The registry generic defaults to
- * `RegisteredCollections`, so in an app whose generated types augment
- * `Register` the returned client is fully typed with no explicit generic.
+ * Create a new Byline client instance. Both registry generics default through
+ * `Register`, so an app's generated collection and singleton types make the
+ * returned client fully typed with no explicit generic.
  */
 export function createBylineClient<
   TCollections extends CollectionRegistry = RegisteredCollections,
