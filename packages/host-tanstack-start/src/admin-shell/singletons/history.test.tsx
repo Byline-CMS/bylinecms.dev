@@ -18,6 +18,9 @@ const mocks = vi.hoisted(() => ({
   invalidate: vi.fn(async () => {}),
   restoreSingleton: vi.fn(async () => ({})),
   restoreCollection: vi.fn(async () => ({})),
+  findSingletonByVersion: vi.fn(async () => ({})),
+  pagerProps: [] as Array<{ componentName: string; page: number; count: number }>,
+  diffModalProps: [] as Array<Record<string, unknown>>,
   location: {
     pathname: '/admin/singletons/site-settings/history',
     search: {} as Record<string, unknown>,
@@ -41,7 +44,10 @@ vi.mock('@byline/admin/react', () => ({
   ),
   renderFormatted: (value: unknown) => String(value ?? ''),
   StatusBadge: ({ status }: { status: string }) => <span>{status}</span>,
-  DiffModal: () => <div data-testid="diff-modal" />,
+  DiffModal: (props: Record<string, unknown>) => {
+    mocks.diffModalProps.push(props)
+    return <div data-testid="diff-modal" />
+  },
 }))
 
 vi.mock('@byline/admin/services', () => ({
@@ -103,7 +109,7 @@ vi.mock('../../routes/admin-path.js', () => ({
 }))
 
 vi.mock('../../server-fns/singletons/index.js', () => ({
-  findSingletonByVersion: vi.fn(async () => ({})),
+  findSingletonByVersion: mocks.findSingletonByVersion,
   restoreSingletonVersion: mocks.restoreSingleton,
 }))
 
@@ -119,7 +125,10 @@ vi.mock('../chrome/loose-router.js', () => ({
 }))
 
 vi.mock('../chrome/router-pager.js', () => ({
-  RouterPager: ({ componentName }: { componentName: string }) => <div data-pager={componentName} />,
+  RouterPager: (props: { componentName: string; page: number; count: number }) => {
+    mocks.pagerProps.push(props)
+    return <div data-pager={props.componentName} />
+  },
 }))
 
 vi.mock('../chrome/th-sortable.js', () => ({
@@ -213,6 +222,8 @@ describe('singleton version history', () => {
     ).IS_REACT_ACT_ENVIRONMENT = true
     mocks.location.pathname = '/admin/singletons/site-settings/history'
     mocks.location.search = {}
+    mocks.pagerProps.length = 0
+    mocks.diffModalProps.length = 0
   })
 
   it('renders an explicit singleton restore column without collection title configuration', async () => {
@@ -229,7 +240,11 @@ describe('singleton version history', () => {
 
     expect(container.textContent).toContain('draft')
     expect(container.textContent).toContain('published')
-    expect(container.textContent).toContain('Ada Editor')
+    expect(
+      [...container.querySelectorAll('.byline-singleton-history-actor-cell')].map(
+        (cell) => cell.textContent
+      )
+    ).toEqual(['Ada Editor', 'Grace Editor'])
     expect(container.textContent).not.toContain('collections.history.tabs.document')
     const restoreButtons = [...container.querySelectorAll('button')].filter(
       (button) => button.textContent === 'Restore'
@@ -250,6 +265,70 @@ describe('singleton version history', () => {
       to: '/admin/singletons/$singleton',
       params: { singleton: 'site-settings' },
       search: {},
+    })
+    dispose()
+  })
+
+  it('wires the requested page and total pages into both shared pagers', () => {
+    render(
+      <SingletonHistoryView
+        singletonDefinition={singletonDefinition}
+        data={{
+          ...data,
+          meta: { ...data.meta, page: 3, pageSize: 30, total: 95, totalPages: 4 },
+        }}
+        currentDocument={currentDocument}
+        contentLocales={[]}
+        defaultContentLocale="en"
+        workflowStatuses={[]}
+      />
+    )
+
+    expect(mocks.pagerProps).toEqual([
+      expect.objectContaining({ componentName: 'pagerTop', page: 3, count: 4 }),
+      expect.objectContaining({ componentName: 'pagerBottom', page: 3, count: 4 }),
+    ])
+    dispose()
+  })
+
+  it('opens comparison with the singleton-bound historical version loader', async () => {
+    render(
+      <SingletonHistoryView
+        singletonDefinition={singletonDefinition}
+        data={data}
+        currentDocument={currentDocument}
+        contentLocales={[]}
+        defaultContentLocale="en"
+        workflowStatuses={[]}
+      />
+    )
+
+    const compare = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="collections.history.compareAriaLabel"]'
+    )
+    await act(async () => {
+      compare?.click()
+      await Promise.resolve()
+    })
+
+    expect(container.querySelector('[data-testid="diff-modal"]')).not.toBeNull()
+    expect(mocks.diffModalProps).toHaveLength(1)
+    expect(mocks.diffModalProps[0]).toMatchObject({
+      collection: 'site-settings',
+      documentId: 'document-settings',
+      versionId: 'version-old',
+      currentDocument,
+    })
+
+    const loadHistoricalVersion = mocks.diffModalProps[0]?.loadHistoricalVersion as (
+      resourcePath: string,
+      documentId: string,
+      versionId: string,
+      locale?: string
+    ) => Promise<Record<string, unknown>>
+    await loadHistoricalVersion('site-settings', 'document-settings', 'version-old', 'fr')
+    expect(mocks.findSingletonByVersion).toHaveBeenCalledWith({
+      data: { singleton: 'site-settings', versionId: 'version-old', locale: 'fr' },
     })
     dispose()
   })
