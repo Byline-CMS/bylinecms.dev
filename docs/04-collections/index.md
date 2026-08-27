@@ -1,7 +1,7 @@
 ---
 title: "Collections"
 path: "collections"
-summary: "Defining collections in Byline: defineCollection, the workflow system, lifecycle hooks (beforeCreate, beforeRead, afterUpdate…), and the admin presentation split."
+summary: "Defining Byline document resources: multi-document collections, singleton slots, workflows, lifecycle hooks, and the admin presentation split."
 ---
 
 # Collections
@@ -13,15 +13,16 @@ Companions:
 - [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md) — auth + access-control subsystem, including seven worked `beforeRead` row-scoping recipes (owner-only drafts, multi-tenant, private singletons, …).
 - [Document Storage](../03-architecture/01-document-storage.md) — *document* versioning (the sibling pillar: this doc covers *schema* versioning).
 - [Document Paths](./05-document-paths.md) — how `useAsPath` lands in `byline_document_paths`.
+- [Singletons](./09-singletons.md) — cardinality-one document slots, their client handle, lifecycle, workflow, storage identity, and modelling limits.
 - [Collections API](../10-api-reference/02-collections.md) — the exhaustive `CollectionDefinition`, `CollectionAdminConfig`, block, workflow, layout, and hook contracts.
 
 ## Overview
 
-A collection is the unit of authoring in Byline: one collection per content type, and every [document](../03-architecture/01-document-storage.md) is an instance of exactly one. Defining a collection is how you tell Byline what a content type contains and how editors work with it.
+A document resource is the unit of authoring in Byline: every [document](../03-architecture/01-document-storage.md) belongs to one registered definition that declares its fields, workflow, and hooks. `CollectionDefinition` is a discriminated union with two resource kinds: `MultiCollectionDefinition` describes a content type with several independently authored documents, while `SingletonDefinition` describes one named slot that holds zero or one document.
 
-You define it in two places, the way a Django model pairs with its `ModelAdmin`: a **schema** that declares what the collection *is* (`CollectionDefinition`, returned by `defineCollection`), and an **admin** config that declares how it *renders* in the dashboard (`CollectionAdminConfig`, returned by `defineAdmin`). The schema's `path` links the two.
+You define either kind in two places: a **schema** that declares what the resource is, and an **admin** config that declares how it renders in the dashboard. `defineCollection` returns the multi-document branch and `defineAdmin` pairs it with `CollectionAdminConfig`; `defineSingleton` and `defineSingletonAdmin` provide the corresponding singleton pair. The schema's `path` links the two.
 
-This document is the working reference for both halves. Read the [Quick reference](#quick-reference) if you know the shape you need and want the minimal recipe; read [Architecture](#architecture) for how the pieces fit. The related [Collection Versioning](./08-collection-versioning.md) reference covers the schema-versioning layer that records which schema version each document was authored against.
+This document is the working reference for multi-document collections. Read the [Quick reference](#quick-reference) if you know the shape you need and want the minimal recipe; read [Architecture](#architecture) for how the pieces fit. [Singletons](./09-singletons.md) provides the equivalent declaration, registration, admin, client, and lifecycle guide for a cardinality-one resource. The related [Collection Versioning](./08-collection-versioning.md) reference covers the schema-versioning layer shared by both kinds.
 
 ```
 schema.ts                            admin.tsx
@@ -36,7 +37,7 @@ defineCollection({                   defineAdmin(News, {
 })                                   })
 ```
 
-Both halves are co-located under `apps/webapp/byline/collections/<name>/`. The schema must stay **tsx-loadable** (no React, no CSS modules, no browser-only imports) so seeds and the server bootstrap can import it under raw `tsx`. The admin lives inside the Vite-managed admin module graph and may pull in React freely.
+Both multi-document halves are co-located under `apps/webapp/byline/collections/<name>/`; singleton examples use `apps/webapp/byline/singletons/<name>/`. The schema must stay **tsx-loadable** (no React, no CSS modules, no browser-only imports) so seeds and the server bootstrap can import it under raw `tsx`. The admin lives inside the Vite-managed admin module graph and may pull in React freely.
 
 ---
 
@@ -302,7 +303,9 @@ The split mirrors Django's `Model` / `ModelAdmin`. The same field names appear o
 
 ### The `CollectionDefinition` surface
 
-The properties you use most often are `path`, `labels`, `fields`, `useAsTitle`,
+`CollectionDefinition` is the union of `MultiCollectionDefinition` and
+`SingletonDefinition`. The multi-document branch documented in this section
+uses `path`, `labels`, `fields`, `useAsTitle`,
 `useAsPath`, and `workflow`. Structural and integration options add search,
 list search, lifecycle hooks, locale advertising, public path composition,
 rich-text link targets, statistics, ordering, document trees, and explicit
@@ -713,10 +716,14 @@ If either becomes load-bearing for an external consumer, the fix lives in `parse
 | Concern | Location |
 |---|---|
 | `CollectionDefinition` + `CollectionHooks` types | `packages/core/src/@types/collection-types.ts` |
+| `SingletonDefinition` + `SingletonHooks` types | `packages/core/src/@types/collection-types.ts` |
 | `CollectionAdminConfig` + layout primitives + `ColumnDefinition` | `packages/core/src/@types/admin-types.ts` |
+| `SingletonAdminConfig` | `packages/core/src/@types/admin-types.ts` |
 | `defineCollection` / `defineAdmin` factories | `packages/core/src/@types/collection-types.ts`, `packages/core/src/@types/admin-types.ts` |
+| `defineSingleton` / `defineSingletonAdmin` factories | `packages/core/src/@types/collection-types.ts`, `packages/core/src/@types/admin-types.ts` |
 | `defineWorkflow` + workflow transition validator | `packages/core/src/workflow/workflow.ts` |
 | Lifecycle hook dispatch | `packages/core/src/services/document-lifecycle/` (per-operation modules) |
+| Singleton lifecycle services | `packages/core/src/services/singleton-lifecycle/` |
 | `beforeRead` predicate compilation | `packages/core/src/auth/apply-before-read.ts`, `packages/core/src/query/parse-where.ts` |
 | Fingerprint | `packages/core/src/storage/collection-fingerprint.ts` |
 | Fingerprint contract tests | `packages/core/src/storage/collection-fingerprint.test.node.ts` |
@@ -725,6 +732,7 @@ If either becomes load-bearing for an external consumer, the fix lives in `parse
 | Optional `version` pin | `packages/core/src/@types/collection-types.ts` (`CollectionDefinition.version`) |
 | `collection_version` write | `packages/core/src/services/document-lifecycle/context.ts` (`DocumentLifecycleContext.collectionVersion`) |
 | Postgres schema (columns + views) | `packages/db-postgres/src/database/schema/index.ts` |
+| `byline_singleton_documents` mapping tables | `packages/db-postgres/src/database/schema/index.ts`, `packages/db-mysql/src/database/schema/index.ts` |
 | `collections.create/update` adapter | `packages/db-postgres/src/modules/storage/storage-commands.ts` |
 | Baseline migration | `packages/db-postgres/src/database/migrations/0000_ordinary_rhino.sql` |
 | Default `ListView` (table-based) | `packages/host-tanstack-start/src/admin-shell/collections/list.tsx` |
@@ -732,3 +740,4 @@ If either becomes load-bearing for an external consumer, the fix lives in `parse
 | Reference custom list view | `apps/webapp/byline/collections/media/components/media-list-view.tsx` |
 | Reference comprehensive schema | `apps/webapp/byline/collections/news/schema.ts` |
 | Reference comprehensive admin | `apps/webapp/byline/collections/news/admin.tsx` |
+| `SingletonHandle` | `packages/client/src/singleton-handle.ts` |
