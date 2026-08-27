@@ -233,9 +233,9 @@ Service-layer enforcement asserts collection abilities on the write side, and th
 `beforeRead` collection hook AND-merges a per-actor `QueryPredicate` into the same
 SQL machinery the public client uses.
 
-For the full story, including six worked `beforeRead` recipes (owner-only
+For the full story, including seven worked `beforeRead` recipes (owner-only
 drafts, multi-tenant scoping, embargo, soft-delete hide, department visibility,
-self-only), see [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md).
+self-only, public/private singleton values), see [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md).
 
 ## 7. Deployment topologies
 

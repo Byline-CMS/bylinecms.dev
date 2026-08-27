@@ -1,7 +1,7 @@
 ---
 title: "Authentication & Authorization"
 path: "authn-authz"
-summary: "How actors, abilities, and request context flow through Byline, plus six worked beforeRead recipes for row-level access control on document reads and populate."
+summary: "How actors, abilities, and request context flow through Byline, plus seven worked beforeRead recipes for row-level access control on document reads and populate."
 ---
 
 # Authentication & Authorization
@@ -225,16 +225,50 @@ hooks: {
   beforeRead: ({ requestContext }) => {
     if (requestContext.actor?.hasAbility('collections.profiles.read.any')) return
     const profileId = requestContext.actor?.profileId
-    return profileId ? { id: profileId } : { id: { $in: [] } }
+    return profileId ? { id: profileId } : false
   },
 }
 ```
 
-The reserved `id` key resolves to the logical document id. If your user model links profiles by a separate foreign key (e.g. `userId` rather than `profileId === actor.id`), filter on that field instead.
+The reserved `id` key resolves to the logical document id. Returning `false` produces an empty result when no profile is associated with the actor. If your user model links profiles by a separate foreign key (e.g. `userId` rather than `profileId === actor.id`), filter on that field instead.
 
 → [Read-side scoping — `beforeRead`](#read-side-scoping-the-beforeread-hook)
 
-### 10. Mask or redact a field on read (`afterRead`)
+### 10. Recipe — split public and private singleton values
+
+The base read gate permits an anonymous actor to read published documents. A `beforeRead` hook can restrict that access further. Keep publicly readable values and operational values in separate singletons, then deny anonymous reads on the private singleton.
+
+**Edit:** the singleton schema files.
+
+```ts
+import { defineSingleton } from '@byline/core'
+
+export const PublicSiteSettings = defineSingleton({
+  path: 'site-settings',
+  label: 'Site settings',
+  fields: [{ name: 'siteName', label: 'Site name', type: 'text' }],
+})
+
+export const PrivateOperations = defineSingleton({
+  path: 'private-operations',
+  label: 'Private operations',
+  fields: [{ name: 'senderAddress', label: 'Sender address', type: 'text' }],
+  hooks: {
+    beforeRead: ({ requestContext }) =>
+      requestContext.actor == null ? false : undefined,
+  },
+})
+```
+
+`false` normalises to `{ id: { $in: [] } }`, so anonymous reads return no document instead of throwing. If several `beforeRead` hooks are registered, Byline combines their results with logical AND; a later hook cannot override the denial.
+
+:::warning[Public singletons expose every published value]
+An operational value placed in a public singleton is readable by an anonymous client, and nothing reports the modelling mistake. Separate private operational values before publishing the singleton.
+:::
+
+→ [Read-side scoping — `beforeRead`](#read-side-scoping-the-beforeread-hook)
+
+### 11. Mask or redact a field on read (`afterRead`)
 
 Field-level visibility (masking, hashing, omitting) lives in `afterRead`. The hook receives the materialised document and can mutate `doc.fields` in place; mutations propagate through the response.
 
@@ -255,7 +289,7 @@ hooks: {
 
 → [Field-level redaction with `afterRead`](#field-level-redaction-with-afterread)
 
-### 11. Bypass `beforeRead` (escape hatch)
+### 12. Bypass `beforeRead` (escape hatch)
 
 Admin tooling, seeds, and migrations sometimes need to see everything regardless of scoping. The `_bypassBeforeRead: true` option on `@byline/client` read options is the deliberate, narrow exit.
 
@@ -272,7 +306,7 @@ Use only from internal tooling. Never inside application code paths: the whole p
 
 → [The documented escape hatches](#the-documented-escape-hatches)
 
-### 12. Plug in a different `SessionProvider`
+### 13. Plug in a different `SessionProvider`
 
 Sessions are pluggable behind `SessionProvider`. The built-in `JwtSessionProvider` is fully featured (15-min access, 30-day refresh, rotation, replay detection, argon2id), but Lucia, better-auth, WorkOS, Clerk, or institutional SSO can drop in by implementing the interface.
 
@@ -537,10 +571,10 @@ beforeRead?: (ctx: {
   collectionPath: string
   requestContext: RequestContext
   readContext: ReadContext
-}) => QueryPredicate | void | Promise<QueryPredicate | void>
+}) => QueryPredicate | false | void | Promise<QueryPredicate | false | void>
 ```
 
-The hook runs for collection reads and for target collections reached through relation or richtext population. It receives the actor and read context and returns a `QueryPredicate`. Caller `where` and hook security predicates compile separately: caller input uses the ordinary parser, while the hook uses strict validation and compiles wholly to adapter `DocumentFilter`s. Those two filter lists are then **AND**ed. Callers never see the scope: it is invisible, query-level, and applies even when no `where` was specified. Returning `void` (or `undefined`) means "no scoping for this actor", typically the admin / superuser path.
+The hook runs for collection and singleton reads and for target collections reached through relation or richtext population. It receives the actor and read context and returns a `QueryPredicate`, `false`, or `void`. Caller `where` and hook security predicates compile separately: caller input uses the ordinary parser, while the hook uses strict validation and compiles wholly to adapter `DocumentFilter`s. Those two filter lists are then **AND**ed. Callers never see the scope: it is invisible, query-level, and applies even when no `where` was specified. Returning `void` (or `undefined`) means "no scoping for this actor", typically the admin / superuser path. Returning `false` denies every row and produces an empty result rather than throwing.
 
 The predicate language is the security-checked subset of `WhereClause`: scalar equality, `$eq` / `$ne` / `$gt` / `$gte` / `$lt` / `$lte` / `$contains` / `$in` / `$nin`, relation sub-clauses and quantifiers, and `$and` / `$or` combinators. Field names resolve through `field-store-map`. Reserved `id`, `status`, and `path` keys compile as document-column filters at the correct relation depth. For top-level security clauses, `status` accepts `$eq` / `$ne` / `$in` / `$nin`; `path` accepts those plus `$contains`. Because strict security compilation no longer passes through caller-only top-level scalar handling, these operators are enforced consistently on list, detail, populate, count, history, version, and tree reads.
 
@@ -556,7 +590,7 @@ Wired into:
 - **Hook predicate AND user `where`.** The adapter applies the separately compiled filter lists with implicit AND. A user passing `where: { status: 'draft' }` against Recipe 1 (owner-only drafts) sees only their own drafts: both clauses apply.
 - **Compilation stays separate.** Permissive caller parsing cannot weaken, drop, or pre-seed strict hook filters; only the final adapter filter lists are combined.
 - **`void` means "no scoping".** Use it for the superuser / unconditional-read branch. Do not return an empty object `{}`; strict security-predicate parsing rejects it.
-- **Deny with an empty set, not an invalid UUID or an exception.** When the actor cannot read anything in a collection, return `{ id: { $in: [] } }`. It compiles to an always-false predicate without asking Postgres to cast a sentinel string to UUID; throwing would collapse list endpoints instead of producing the natural empty result.
+- **Return `false` to deny every row.** Byline normalises `false` to `{ id: { $in: [] } }`, which remains a valid explicit form. The predicate compiles to an always-false condition without asking the database to cast a sentinel string to UUID; throwing would collapse the endpoint instead of producing the natural empty result. Multiple hook results combine with logical AND, so a later hook cannot weaken a denial.
 - **Security predicates are strict and fail closed.** Unknown fields or operators, empty predicates/combinators, unsupported `query`, unresolved relation targets, and malformed reserved-column operands raise a validation error instead of being silently discarded. The deliberate exception is a relation quantifier such as `$none: {}`, whose empty nested clause means "no resolving targets."
 - **Bypass is explicit.** Admin tooling, migrations, and seeds pass `_bypassBeforeRead: true` on the read options to skip the hook. This is a deliberate escape hatch and should never be used inside application code.
 
@@ -692,7 +726,6 @@ The following are **declared in the contract but not implemented**, kept that wa
 - **`UserAuth` sign-in surface.** The type is in the `Actor` union; the DB tables, sign-in flow, and admin UI wait for a concrete end-user feature.
 - **Magic-link / SSO / OIDC providers.** `SessionProvider` accommodates them; built-in adapters wait for real demand.
 - **UI-editable conditional rules (CASL-style).** Hooks remain the expression surface. Revisit if real workloads demand role-editable conditional rules.
-- **Site-settings storage and editor.** Orthogonal to auth. Decide whether to reuse the collection runtime when the requirement is in hand.
 
 ---
 

@@ -443,7 +443,7 @@ Two consequences worth flagging:
 - **`readMode` propagates through the filter predicate.** A public-reader query for `where: { author: { id: 'X' } }` only matches when there is a *published* version of the author: no draft leaks at the target side either.
 - **Reserved metadata operators keep their meaning.** `status` and `path` clauses, including supported operator objects, compile as document-column filters at the correct relation depth. The same rule applies when those clauses come from strict `beforeRead` security predicates.
 - **A relation filter is not target population.** It constrains the source query but does not independently invoke the target collection's `beforeRead` hook. If the existence or fields of a related row are themselves sensitive, express that restriction in the source collection's `beforeRead` predicate rather than relying on the target hook.
-- **Nested-object DSL was chosen over Payload-style dot notation** (`'author.id': 'X'`). Dot notation collides with Byline's internal EAV path notation and doesn't absorb the future `hasMany` quantifiers (`some`, `every`, `none`).
+- **The nested-object DSL was chosen over dot notation** (`'author.id': 'X'`). Dot notation collides with Byline's internal EAV path notation and doesn't absorb the future `hasMany` quantifiers (`some`, `every`, `none`).
 
 ### The relation field admin widget
 

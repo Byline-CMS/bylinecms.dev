@@ -972,11 +972,11 @@ export interface AfterReadContext {
  * `LEFT JOIN LATERAL` SQL machinery the client's existing `where` parser
  * emits, then ANDs onto whatever the caller passed in `where`.
  *
- * Returning `undefined` (or simply `void`) means "no scoping" — typically
- * the superuser / unconditional-read branch. Return `{ id: { $in: [] } }`
- * when the actor cannot read anything; it compiles to an always-false SQL
- * predicate without passing an invalid UUID to Postgres. Do not throw, because
- * callers expect empty list results rather than collapsed endpoints.
+ * Returning `undefined` (or `void`) means "no scoping" — typically the
+ * superuser / unconditional-read branch. Return `false` when the actor cannot
+ * read anything; it normalises to `{ id: { $in: [] } }` and compiles to an
+ * always-false SQL predicate without passing an invalid UUID to the database.
+ * Do not throw, because callers expect empty results rather than collapsed endpoints.
  *
  * The hook receives:
  *   - `requestContext` — the authenticated request, including `actor`. The
@@ -988,7 +988,7 @@ export interface AfterReadContext {
  *     same hook function is reused across collections).
  *
  * See `docs/07-auth-and-security/01-authn-authz.md` for the strategic rationale; the Quick
- * Reference there carries six worked recipes.
+ * Reference there carries seven worked recipes.
  */
 export interface BeforeReadContext {
   collectionPath: string

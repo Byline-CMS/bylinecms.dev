@@ -11,6 +11,7 @@ Companions:
 - [Fields API](./03-fields.md) — every field definition accepted by `CollectionDefinition.fields`.
 - [Configuration API](./01-configuration.md) — how collection, admin, block-admin, and server-hook registries enter the runtime.
 - [Collection versioning](../04-collections/08-collection-versioning.md) — fingerprints, automatic version bumps, and explicit version pins.
+- [Authentication and authorization](../07-auth-and-security/01-authn-authz.md) — the `beforeRead` recipes include separating public and private singleton values.
 
 This reference lists the complete application-facing collection and presentation contracts exported by `@byline/core`. Collection schemas are isomorphic; collection and block admin configs are client-side presentation.
 

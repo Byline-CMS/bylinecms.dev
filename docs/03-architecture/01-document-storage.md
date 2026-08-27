@@ -211,7 +211,7 @@ Three models can back a headless CMS. Byline picked the third, and the tradeoffs
 
 ### A table per collection
 
-Each collection becomes its own SQL table, with a column per field. This is what Payload, Strapi, and Directus do.
+Each collection becomes its own SQL table, with a column per field. Table-per-collection content systems use this architecture.
 
 **Advantages.** Queries are ordinary SQL against ordinary columns, so filtering, sorting, and joining are as fast and as familiar as your database can make them. The schema is self-describing, and existing tooling (reporting, BI, migrations) works without adaptation.
 

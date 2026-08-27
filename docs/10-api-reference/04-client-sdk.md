@@ -10,7 +10,7 @@ Companions:
 - [Client SDK](../05-reading-and-delivery/01-client-sdk.md) — runnable recipes and explanation for reads, writes, filtering, population, preview, and request authority.
 - [Configuration API](./01-configuration.md) — the request-bound public, viewer, admin, and system client getters.
 - [Relationships](../04-collections/03-relationships.md) — populate syntax, depth, relation envelopes, and type overlays.
-- [Authentication and authorization](../07-auth-and-security/01-authn-authz.md) — abilities, `RequestContext`, row predicates, and trusted escape hatches.
+- [Authentication and authorization](../07-auth-and-security/01-authn-authz.md) — abilities, `RequestContext`, row predicates, private singleton reads, and trusted escape hatches.
 
 This reference lists the public `@byline/client` construction, query, write, search, history, audit, indexing, and document-tree surface. All operations resolve a `RequestContext` and enforce the corresponding collection ability unless the method is explicitly described as trusted maintenance infrastructure.
 
