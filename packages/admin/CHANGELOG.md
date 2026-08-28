@@ -1,5 +1,23 @@
 # @byline/admin
 
+## 4.18.0
+
+### Minor Changes
+
+- Added provider-neutral field-scoped full-text search queries with client pass-through
+  
+  Fixed the admin list pager so page changes scroll back to the top
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/analytics@4.18.0
+  - @byline/analytics-agent@4.18.0
+  - @byline/auth@4.18.0
+  - @byline/core@4.18.0
+  - @byline/i18n@4.18.0
+  - @byline/ui@4.18.0
+
 ## 4.17.0
 
 ### Minor Changes
