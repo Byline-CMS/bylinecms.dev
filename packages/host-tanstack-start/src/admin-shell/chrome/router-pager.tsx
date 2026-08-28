@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { useCallback } from 'react'
 import { useRouterState } from '@tanstack/react-router'
 
 import type { PaginationProps } from '@byline/ui/react'
@@ -18,6 +19,7 @@ import {
 } from '@byline/ui/react'
 
 import { Link } from './loose-router.js'
+import { scrollWindowToTop } from './scroll-to-top.js'
 
 interface RouterPageProps extends PaginationProps {
   smoothScrollToTop?: boolean
@@ -27,6 +29,13 @@ interface RouterPageProps extends PaginationProps {
  * A convenience pager wrapped around uikit's Pagination with `asChild`
  * targets that delegate to TanStack Router's `<Link>`. `asChild` merges
  * the existing button styles into the rendered Link.
+ *
+ * `smoothScrollToTop` is for a pager sitting *below* a long list: turning a
+ * page there should carry the reader back to the top rather than leaving them
+ * at the foot of a fresh page. It suppresses the router's own instant
+ * `resetScroll` and animates instead — so the component owes an actual
+ * scroll, which was the missing half: the flag disabled the reset and put
+ * nothing in its place, so a bottom pager did not scroll at all.
  */
 export function RouterPager({
   className,
@@ -35,6 +44,14 @@ export function RouterPager({
   ...rest
 }: RouterPageProps): React.JSX.Element {
   const location = useRouterState({ select: (s) => s.location })
+
+  // Fires alongside navigation rather than after it: the scroll and the new
+  // page load run together, so the list is in place by the time the reader
+  // arrives at the top.
+  const handleScrollToTop = useCallback(() => {
+    if (smoothScrollToTop !== true) return
+    scrollWindowToTop()
+  }, [smoothScrollToTop])
 
   return (
     <Pagination variant="dashboard" {...rest}>
@@ -51,6 +68,7 @@ export function RouterPager({
                   ) : (
                     <Link
                       resetScroll={smoothScrollToTop !== true}
+                      onClick={handleScrollToTop}
                       to={location.pathname as never}
                       search={params}
                     />
@@ -76,6 +94,7 @@ export function RouterPager({
                   ) : (
                     <Link
                       resetScroll={smoothScrollToTop !== true}
+                      onClick={handleScrollToTop}
                       to={location.pathname as never}
                       search={params}
                     />
@@ -103,6 +122,7 @@ export function RouterPager({
                   ) : (
                     <Link
                       resetScroll={smoothScrollToTop !== true}
+                      onClick={handleScrollToTop}
                       to={location.pathname as never}
                       search={params}
                     />
@@ -130,6 +150,7 @@ export function RouterPager({
                   ) : (
                     <Link
                       resetScroll={smoothScrollToTop !== true}
+                      onClick={handleScrollToTop}
                       to={location.pathname as never}
                       search={params}
                     />
@@ -156,6 +177,7 @@ export function RouterPager({
                   ) : (
                     <Link
                       resetScroll={smoothScrollToTop !== true}
+                      onClick={handleScrollToTop}
                       to={location.pathname as never}
                       search={params}
                     />
