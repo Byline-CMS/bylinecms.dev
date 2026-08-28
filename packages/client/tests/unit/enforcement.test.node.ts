@@ -527,14 +527,14 @@ describe('CollectionHandle enforcement', () => {
   })
 
   describe('search query contracts', () => {
-    it('passes full-text matching intent through collection and zone search', async () => {
+    it('passes full-text field scope and matching intent through collection and zone search', async () => {
       const providerSearch = vi.fn().mockResolvedValue({ hits: [], total: 0 })
       const client = createBylineClient({
         db: mockDb(),
         collections: [postsCollection],
         requestContext: createSuperAdminContext(),
         search: {
-          capabilities: {},
+          capabilities: { fullText: { fieldScope: true } },
           upsert: vi.fn(),
           remove: vi.fn(),
           search: providerSearch,
@@ -543,26 +543,50 @@ describe('CollectionHandle enforcement', () => {
 
       await client.collection('posts').search({
         query: 'forest restoration',
+        fieldScope: ['title'],
         matching: { operator: 'any', minimumShouldMatch: 1, phrase: 'off' },
       })
       await client.search({
         query: '"forest restoration"',
         zone: 'posts',
+        fieldScope: ['title', 'summary'],
         matching: { operator: 'all', phrase: 'required' },
       })
 
       expect(providerSearch).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
+          fieldScope: ['title'],
           matching: { operator: 'any', minimumShouldMatch: 1, phrase: 'off' },
         })
       )
       expect(providerSearch).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
+          fieldScope: ['title', 'summary'],
           matching: { operator: 'all', phrase: 'required' },
         })
       )
+    })
+
+    it('rejects field scope when the provider does not advertise it', async () => {
+      const providerSearch = vi.fn().mockResolvedValue({ hits: [], total: 0 })
+      const client = createBylineClient({
+        db: mockDb(),
+        collections: [postsCollection],
+        requestContext: createSuperAdminContext(),
+        search: {
+          capabilities: { fullText: { fieldScope: false } },
+          upsert: vi.fn(),
+          remove: vi.fn(),
+          search: providerSearch,
+        } as any,
+      })
+
+      await expect(
+        client.collection('posts').search({ query: 'forest', fieldScope: ['title'] })
+      ).rejects.toMatchObject({ code: 'ERR_VALIDATION' })
+      expect(providerSearch).not.toHaveBeenCalled()
     })
   })
 

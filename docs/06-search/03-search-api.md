@@ -22,6 +22,7 @@ Use a collection handle when every hit has the same collection schema.
 ```ts
 const result = await client.collection('docs').search({
   query: '"fractional indexing" arrays',
+  fieldScope: ['title', 'summary'],
   matching: {
     operator: 'all',
     phrase: 'auto',
@@ -69,6 +70,7 @@ The collection and zone entry points share these options:
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `query` | `string` | required | Full-text query, limited to 1,024 UTF-16 code units |
+| `fieldScope` | `string[]` | all configured body fields | Restrict matching to named fields from `search.body`; provider-capability gated |
 | `matching` | `SearchMatching` | all concepts, automatic quoted phrases | Provider-neutral matching intent |
 | `locale` | `string` | client default locale | Restrict search to one content locale |
 | `status` | `'published' \| 'any'` | `'published'` | Provider row status filter |
@@ -121,6 +123,19 @@ interface SearchMatching {
 | `phrase: 'off'` | Disable all phrase constraints, including quoted spans |
 
 Both built-in providers implement all of these settings. They translate the same portable concept plan into different database query syntax.
+
+## Field-scoped matching
+
+`fieldScope` contains collection field paths, not physical database or search-engine field names. Each name refers to the `SearchField.name` that core projects from the collection's `search.body` declaration. Providers map those logical names onto their own index representation.
+
+```ts
+await client.collection('publications').search({
+  query: 'forest restoration',
+  fieldScope: ['title', 'authors'],
+})
+```
+
+An omitted scope searches the complete configured body. A provider must set `capabilities.fullText.fieldScope: true` before accepting a scope. Providers that cannot retain or query named body fields must reject the option rather than silently search every field. Zone searches may use a scope only when the participating collections give the selected names compatible meaning; Byline does not reinterpret or alias field names across schemas.
 
 ## Results
 
@@ -229,8 +244,9 @@ The public types already carry `where`, `facets`, and facet result buckets becau
     anyTerms: true,
     minimumShouldMatch: true,
     phrase: true,
+    fieldScope: false,
   },
 }
 ```
 
-Do not expose facet controls, typo correction, semantic search, or a BM25 guarantee unless the registered provider advertises that capability. There is no provider-specific query extension bag in the shipped contract.
+Do not expose facet controls, field-scoped matching, typo correction, semantic search, or a BM25 guarantee unless the registered provider advertises that capability. There is no provider-specific query extension bag in the shipped contract.

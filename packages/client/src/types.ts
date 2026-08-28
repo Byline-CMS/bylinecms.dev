@@ -232,6 +232,8 @@ interface StatusControls {
 export interface CollectionSearchOptions extends BeforeReadControls {
   /** Free-text query string. */
   query: string
+  /** Restrict full-text matching to named fields from the collection's `search.body`. */
+  fieldScope?: string[]
   /** Provider-neutral term and phrase matching semantics. */
   matching?: SearchMatching
   /** Restrict to a single content locale (defaults to the client default). */
@@ -267,6 +269,8 @@ export interface CollectionSearchOptions extends BeforeReadControls {
 export interface ZoneSearchOptions extends BeforeReadControls {
   /** Free-text query string. */
   query: string
+  /** Restrict full-text matching to body-field names shared by participating collections. */
+  fieldScope?: string[]
   /** Provider-neutral term and phrase matching semantics. */
   matching?: SearchMatching
   /** The zone (named cross-collection scope) to search. */

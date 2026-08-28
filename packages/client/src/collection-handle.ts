@@ -57,7 +57,7 @@ import {
 } from './read-context.js'
 import { type DocumentBoundFindByVersionOptions, expectedDocumentId } from './read-internals.js'
 import { shapeDocument, shapePopulatedInPlace } from './response.js'
-import { assertSearchQueryLength, finalizeSearchHits } from './search.js'
+import { assertSearchFieldScope, assertSearchQueryLength, finalizeSearchHits } from './search.js'
 import type { BylineClient } from './client.js'
 import type {
   AuditLogOptions,
@@ -265,8 +265,10 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
           'see `@byline/search-postgres` → `postgresSearch()` for the built-in driver.',
       })
     }
+    assertSearchFieldScope(provider, options.fieldScope)
     const results = await provider.search({
       query: options.query,
+      fieldScope: options.fieldScope,
       matching: options.matching,
       collectionPath: this.definition.path,
       locale: options.locale ?? this.client.defaultLocale,

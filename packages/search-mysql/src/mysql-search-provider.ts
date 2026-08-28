@@ -36,6 +36,7 @@ const CAPABILITIES: SearchCapabilities = {
     anyTerms: true,
     minimumShouldMatch: true,
     phrase: true,
+    fieldScope: false,
   },
 }
 
@@ -143,6 +144,9 @@ export class MySqlSearchProvider implements SearchProvider {
   }
 
   async search(query: SearchQuery): Promise<SearchResults> {
+    if (query.fieldScope != null) {
+      throw new Error('@byline/search-mysql does not support field-scoped full-text queries')
+    }
     const plan = this.analyzer.analyzeQuery({
       query: query.query,
       locale: query.locale,

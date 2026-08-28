@@ -19,7 +19,7 @@
  */
 
 import type { RequestContext } from '@byline/auth'
-import type { ReadContext, ReadMode, SearchHit } from '@byline/core'
+import type { ReadContext, ReadMode, SearchHit, SearchProvider } from '@byline/core'
 import {
   assertActorCanPerform,
   createReadContext,
@@ -37,6 +37,25 @@ import type {
   HydratedSearchHit,
   ZoneSearchOptions,
 } from './types.js'
+
+/** Validate the optional logical body-field scope before calling a provider. */
+export function assertSearchFieldScope(
+  provider: SearchProvider,
+  fieldScope: string[] | undefined
+): void {
+  if (fieldScope == null) return
+  if (
+    fieldScope.length === 0 ||
+    fieldScope.some((field) => typeof field !== 'string' || field.trim().length === 0)
+  ) {
+    throw ERR_VALIDATION({ message: 'Search fieldScope must contain one or more field names.' })
+  }
+  if (!provider.capabilities.fullText.fieldScope) {
+    throw ERR_VALIDATION({
+      message: 'The registered search provider does not support field-scoped full-text queries.',
+    })
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Shared finishing pipeline
@@ -248,6 +267,8 @@ export async function zoneSearch(
     throw firstAbilityError
   }
 
+  assertSearchFieldScope(provider, options.fieldScope)
+
   let aggregateRestricted = readable.size !== members.length
   if (!options._bypassBeforeRead) {
     for (const member of members) {
@@ -265,6 +286,7 @@ export async function zoneSearch(
 
   const results = await provider.search({
     query: options.query,
+    fieldScope: options.fieldScope,
     matching: options.matching,
     zone: options.zone,
     locale: options.locale ?? client.defaultLocale,

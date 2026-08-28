@@ -106,6 +106,7 @@ At the provider boundary, a query may be scoped to either `collectionPath` or `z
 ```ts
 interface SearchQuery {
   query: string
+  fieldScope?: string[]
   matching?: SearchMatching
   zone?: string
   collectionPath?: string
@@ -149,6 +150,7 @@ interface SearchCapabilities {
     anyTerms: boolean
     minimumShouldMatch: boolean
     phrase: boolean
+    fieldScope?: boolean
   }
 }
 ```
@@ -162,6 +164,8 @@ An engine may support both, but one configured provider instance must behave con
 
 Do not infer BM25 from the existence of a relevance score. Set `bm25: true` only when the provider offers a stable BM25-quality ranking contract. Do not set `facets: true` because facet values are stored; the provider must compute and return buckets.
 
+Set `fullText.fieldScope: true` only when the provider preserves logical `SearchField.name` values for body fields and restricts matching to the requested names. An omitted capability is treated as `false` so existing third-party providers remain source-compatible. A scope is expressed in collection-schema field paths, never in physical engine field names. Unsupported scopes must fail explicitly; silently falling back to the complete body changes the meaning of the query.
+
 ## Provider responsibilities
 
 A complete provider owns:
@@ -172,6 +176,7 @@ A complete provider owns:
 - collection and zone scoping;
 - locale and published-status filtering;
 - query translation;
+- named body-field scoping when declared;
 - deterministic pagination order;
 - relevance scoring;
 - highlighted snippets when declared;

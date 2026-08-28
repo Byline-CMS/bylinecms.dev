@@ -202,6 +202,13 @@ export interface SearchQuery {
   /** The free-text query string, limited to {@link MAX_SEARCH_QUERY_LENGTH}. */
   query: string
   /**
+   * Restrict full-text matching to these named `body` fields. Field names are
+   * the schema paths carried by {@link SearchField.name}; providers that do
+   * not advertise `capabilities.fullText.fieldScope` must reject the option
+   * rather than silently searching the complete body.
+   */
+  fieldScope?: string[]
+  /**
    * Explicit full-text matching semantics. Defaults to all concepts required
    * with quoted spans treated as phrases.
    */
@@ -321,6 +328,11 @@ export interface SearchCapabilities {
     minimumShouldMatch: boolean
     /** Supports ordered phrase constraints. */
     phrase: boolean
+    /**
+     * Supports restricting full-text matching to named `body` fields.
+     * Omission is treated as `false` for compatibility with existing providers.
+     */
+    fieldScope?: boolean
   }
 }
 

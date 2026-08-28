@@ -30,6 +30,7 @@ export function capabilitiesSuite(hooks: SearchConformanceHooks): void {
         minimumShouldMatch: true,
         phrase: true,
       })
+      expect(fullText.fieldScope == null || typeof fullText.fieldScope === 'boolean').toBe(true)
     })
 
     it('declares the adapter capabilities expected by its conformance harness', () => {
