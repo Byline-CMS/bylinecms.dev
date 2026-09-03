@@ -164,6 +164,7 @@ export const ErrorCodes = {
   READ_RECURSION: 'ERR_READ_RECURSION',
   PATH_CONFLICT: 'ERR_PATH_CONFLICT',
   AUDIT_UNSUPPORTED: 'ERR_AUDIT_UNSUPPORTED',
+  DOCUMENT_HOOK_COMMITTED: 'ERR_DOCUMENT_HOOK_COMMITTED',
   TREE_HOOK_COMMITTED: 'ERR_TREE_HOOK_COMMITTED',
 } as const
 
@@ -172,6 +173,9 @@ export const TREE_PLACEMENT_STALE_MARKER = '[ERR_CONFLICT:TREE_PLACEMENT_STALE]'
 
 /** Stable message fallback for `ERR_TREE_HOOK_COMMITTED` errors. */
 export const TREE_HOOK_COMMITTED_MARKER = '[ERR_TREE_HOOK_COMMITTED]'
+
+/** Stable message fallback for `ERR_DOCUMENT_HOOK_COMMITTED` errors. */
+export const DOCUMENT_HOOK_COMMITTED_MARKER = '[ERR_DOCUMENT_HOOK_COMMITTED]'
 
 // ---------------------------------------------------------------------------
 // Pre-instantiated factories
@@ -204,6 +208,16 @@ export const ERR_PATH_CONFLICT = createErrorType(ErrorCodes.PATH_CONFLICT, 'warn
  * docs/03-architecture/03-transactions.md and docs/07-auth-and-security/02-auditability.md.
  */
 export const ERR_AUDIT_UNSUPPORTED = createErrorType(ErrorCodes.AUDIT_UNSUPPORTED)
+/**
+ * A document version committed, but its post-commit `afterCreate` or
+ * `afterUpdate` hook failed. Callers still receive a rejection so existing
+ * SDK error handling keeps working, while hosts can distinguish this from a
+ * rolled-back write and reconcile their UI without replaying the mutation.
+ */
+export const ERR_DOCUMENT_HOOK_COMMITTED = createErrorType(
+  ErrorCodes.DOCUMENT_HOOK_COMMITTED,
+  'warn'
+)
 /**
  * A tree mutation and its audit row committed, but its post-commit
  * `afterTreeChange` work failed. Callers still receive a rejection so they can

@@ -32,6 +32,7 @@ vi.mock('@byline/client/server', () => ({
 }))
 
 import newsHooks from '../news/hooks.js'
+import newsCategoryHooks from '../news-categories/hooks.js'
 import pagesHooks from '../pages/hooks.js'
 import docsHooks from './hooks.js'
 
@@ -241,6 +242,27 @@ describe('public collection lifecycle hooks', () => {
 
     expect(cache.invalidateDocument).toHaveBeenCalledOnce()
     expect(search.indexDocument).toHaveBeenCalledOnce()
+  })
+
+  it('attempts both news-category cache invalidations when one rejects', async () => {
+    const categoryCacheFailure = new Error('category cache failed')
+    cache.invalidateCollection.mockImplementation(async (collectionPath: string) => {
+      if (collectionPath === 'news-categories') throw categoryCacheFailure
+    })
+
+    await expect(
+      invokeHook(newsCategoryHooks.afterUpdate, {
+        documentId: 'category-1',
+        documentVersionId: 'version-1',
+        collectionPath: 'news-categories',
+        path: 'category-1',
+        data: {},
+        originalData: {},
+      })
+    ).rejects.toBe(categoryCacheFailure)
+
+    expect(cache.invalidateCollection).toHaveBeenCalledWith('news-categories')
+    expect(cache.invalidateCollection).toHaveBeenCalledWith('news')
   })
 
   it('starts delete cache invalidation even when search removal rejects', async () => {

@@ -16,6 +16,7 @@ import { getDefaultStatus } from '../../workflow/workflow.js'
 import { assignCounterValues } from '../assign-counter-values.js'
 import { normalizeNumericFields } from '../normalize-numeric-fields.js'
 import { requireTreeAuditCapability } from './audit.js'
+import { runCommittedDocumentHook } from './committed-hook.js'
 import {
   applyRichTextEmbed,
   derivePath,
@@ -152,13 +153,18 @@ export async function createDocument(
         }
       }
 
-      await invokeHook(hooks?.afterCreate, {
-        data,
-        collectionPath,
-        documentId,
-        documentVersionId,
-        path: resolvedPath,
-      })
+      await runCommittedDocumentHook(
+        ctx,
+        { phase: 'afterCreate', documentId, documentVersionId },
+        () =>
+          invokeHook(hooks?.afterCreate, {
+            data,
+            collectionPath,
+            documentId,
+            documentVersionId,
+            path: resolvedPath,
+          })
+      )
 
       return { documentId, documentVersionId }
     }

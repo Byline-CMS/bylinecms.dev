@@ -15,6 +15,7 @@ import { normaliseDateFields } from '../../utils/normalise-dates.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
 import { assignCounterValues } from '../assign-counter-values.js'
 import { normalizeNumericFields } from '../normalize-numeric-fields.js'
+import { runCommittedDocumentHook } from './committed-hook.js'
 import {
   applyRichTextEmbed,
   extractDocumentId,
@@ -151,14 +152,19 @@ export async function updateDocument(
       // save re-trees a stray (system step, best-effort, no-op when placed).
       await selfHealTreePlacement(ctx, documentId)
 
-      await invokeHook(hooks?.afterUpdate, {
-        data,
-        originalData,
-        collectionPath,
-        documentId,
-        documentVersionId,
-        path: pathForCommand ?? (originalData.path as string),
-      })
+      await runCommittedDocumentHook(
+        ctx,
+        { phase: 'afterUpdate', documentId, documentVersionId },
+        () =>
+          invokeHook(hooks?.afterUpdate, {
+            data,
+            originalData,
+            collectionPath,
+            documentId,
+            documentVersionId,
+            path: pathForCommand ?? (originalData.path as string),
+          })
+      )
 
       return { documentId, documentVersionId }
     }
@@ -318,14 +324,19 @@ export async function updateDocumentWithPatches(
       await selfHealTreePlacement(ctx, documentId)
 
       // 7. afterUpdate hook.
-      await invokeHook(hooks?.afterUpdate, {
-        data: nextData,
-        originalData,
-        collectionPath,
-        documentId,
-        documentVersionId,
-        path: pathForCommand ?? (originalData.path as string),
-      })
+      await runCommittedDocumentHook(
+        ctx,
+        { phase: 'afterUpdate', documentId, documentVersionId },
+        () =>
+          invokeHook(hooks?.afterUpdate, {
+            data: nextData,
+            originalData,
+            collectionPath,
+            documentId,
+            documentVersionId,
+            path: pathForCommand ?? (originalData.path as string),
+          })
+      )
 
       return { documentId, documentVersionId }
     }

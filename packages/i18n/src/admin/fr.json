@@ -320,6 +320,8 @@
   "collections.list.treeHookFailedDescription": "Le déplacement a été enregistré, mais une mise à jour après enregistrement a échoué. Le contenu dépendant peut rester obsolète.",
   "collections.list.treeRefreshFailedToast": "Impossible d'actualiser l'arborescence",
   "collections.list.treeRefreshFailedDescription": "Votre modification a peut-être été enregistrée. Rechargez la page pour afficher la dernière arborescence.",
+  "collections.save.hookFailedToast": "Enregistré, mise à jour ultérieure échouée",
+  "collections.save.hookFailedDescription": "Vos modifications ont été enregistrées, mais une mise à jour après enregistrement a échoué. Le contenu dépendant peut rester obsolète.",
   "collections.create.errorToastTitle": "Création : {label}",
   "collections.create.errorToastDescription": "Une erreur est survenue lors de la création de {label}.",
   "collections.edit.statusUpdateTitle": "Mise à jour du statut : {label}",

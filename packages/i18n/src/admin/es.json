@@ -320,6 +320,8 @@
   "collections.list.treeHookFailedDescription": "El movimiento del árbol se guardó, pero falló una actualización posterior. Es posible que el contenido dependiente siga desactualizado.",
   "collections.list.treeRefreshFailedToast": "No se pudo actualizar el árbol",
   "collections.list.treeRefreshFailedDescription": "Es posible que tu cambio se haya guardado. Recarga la página para ver el árbol más reciente.",
+  "collections.save.hookFailedToast": "Guardado, actualización posterior fallida",
+  "collections.save.hookFailedDescription": "Tus cambios se guardaron, pero falló una actualización posterior. Es posible que el contenido dependiente siga desactualizado.",
   "collections.create.errorToastTitle": "Creación de {label}",
   "collections.create.errorToastDescription": "Se produjo un error al crear {label}.",
   "collections.edit.statusUpdateTitle": "Actualización de estado de {label}",

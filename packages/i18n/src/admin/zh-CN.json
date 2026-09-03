@@ -320,6 +320,8 @@
   "collections.list.treeHookFailedDescription": "树结构移动已保存，但保存后的更新失败。相关内容可能仍未更新。",
   "collections.list.treeRefreshFailedToast": "无法刷新树结构",
   "collections.list.treeRefreshFailedDescription": "您的更改可能已保存。请重新加载页面以查看最新树结构。",
+  "collections.save.hookFailedToast": "已保存，但后续更新失败",
+  "collections.save.hookFailedDescription": "您的更改已保存，但保存后的更新失败。相关内容可能仍不是最新状态。",
   "collections.create.errorToastTitle": "{label}创建",
   "collections.create.errorToastDescription": "创建{label}时出错。",
   "collections.edit.statusUpdateTitle": "{label}状态更新",

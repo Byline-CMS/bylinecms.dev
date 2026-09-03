@@ -402,6 +402,43 @@ describe('Document lifecycle service', () => {
       )
     })
 
+    it('classifies an afterCreate failure as post-commit and retains committed ids', async () => {
+      const afterCreate = vi.fn().mockRejectedValue(new Error('cache unavailable'))
+      const { db, createDocumentVersion } = createMockDb()
+      const definition = { ...minimalCollection, hooks: { afterCreate } }
+
+      await expect(
+        createDocument(buildCtx(db, definition), { data: { title: 'X' } })
+      ).rejects.toMatchObject({
+        code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
+        details: {
+          phase: 'afterCreate',
+          documentId: 'doc-1',
+          documentVersionId: 'ver-1',
+          sideEffectCode: ErrorCodes.UNHANDLED,
+        },
+      })
+
+      expect(createDocumentVersion).toHaveBeenCalledOnce()
+    })
+
+    it('preserves committed classification when diagnostic logging also fails', async () => {
+      const afterCreate = vi.fn().mockRejectedValue(new Error('cache unavailable'))
+      const { db } = createMockDb()
+      const definition = { ...minimalCollection, hooks: { afterCreate } }
+      const ctx = buildCtx(db, definition)
+      ctx.logger = {
+        ...noopLogger,
+        log: vi.fn(() => {
+          throw new Error('logger failed')
+        }),
+      }
+
+      await expect(createDocument(ctx, { data: { title: 'X' } })).rejects.toMatchObject({
+        code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
+      })
+    })
+
     it('afterCreate receives the resolved canonical path', async () => {
       const afterCreate = vi.fn()
       const { db } = createMockDb()
@@ -729,6 +766,30 @@ describe('Document lifecycle service', () => {
       )
     })
 
+    it('classifies an afterUpdate failure as post-commit and retains committed ids', async () => {
+      const afterUpdate = vi.fn().mockRejectedValue(new Error('search unavailable'))
+      const { db, getDocumentById, createDocumentVersion } = createMockDb()
+      getDocumentById.mockResolvedValue({ fields: { title: 'Old' } })
+      const definition = { ...minimalCollection, hooks: { afterUpdate } }
+
+      await expect(
+        updateDocument(buildCtx(db, definition), {
+          documentId: 'doc-1',
+          data: { title: 'New' },
+        })
+      ).rejects.toMatchObject({
+        code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
+        details: {
+          phase: 'afterUpdate',
+          documentId: 'doc-1',
+          documentVersionId: 'ver-1',
+          sideEffectCode: ErrorCodes.UNHANDLED,
+        },
+      })
+
+      expect(createDocumentVersion).toHaveBeenCalledOnce()
+    })
+
     it('afterUpdate carries the sticky path forward when none is supplied', async () => {
       const afterUpdate = vi.fn()
       const { db, getDocumentById } = createMockDb()
@@ -1016,6 +1077,38 @@ describe('Document lifecycle service', () => {
       ).rejects.toSatisfy(
         (err: BylineError) => err instanceof BylineError && err.code === ErrorCodes.NOT_FOUND
       )
+    })
+
+    it('classifies a post-patch afterUpdate failure without replaying the version write', async () => {
+      const afterUpdate = vi
+        .fn()
+        .mockRejectedValue(
+          Object.assign(new Error('storage unavailable'), { code: ErrorCodes.STORAGE })
+        )
+      const { db, getDocumentById, createDocumentVersion } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'previous-version',
+        fields: { title: 'Old' },
+      })
+      const definition = { ...minimalCollection, hooks: { afterUpdate } }
+
+      await expect(
+        updateDocumentWithPatches(buildCtx(db, definition), {
+          documentId: 'doc-1',
+          documentVersionId: 'previous-version',
+          patches: [{ kind: 'field.set', path: 'title', value: 'New' }],
+        })
+      ).rejects.toMatchObject({
+        code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
+        details: {
+          phase: 'afterUpdate',
+          documentId: 'doc-1',
+          documentVersionId: 'ver-1',
+          sideEffectCode: ErrorCodes.STORAGE,
+        },
+      })
+
+      expect(createDocumentVersion).toHaveBeenCalledOnce()
     })
 
     it('throws ERR_CONFLICT on version mismatch', async () => {

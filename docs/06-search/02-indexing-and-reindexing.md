@@ -82,7 +82,7 @@ Do not call `getAdminBylineClient()` from a collection lifecycle hook. That clie
 
 Search hooks run after the source database transaction commits. Awaiting `indexDocument()` therefore gives callers a visible failure, but it cannot roll back the content write.
 
-For create, update, status, and system-field operations, a hook failure can reject the lifecycle call after content has committed. The index may remain stale until a later reconciliation or rebuild.
+For create and ordinary content-update operations, core reports this rejection as `ERR_DOCUMENT_HOOK_COMMITTED`. The admin host recognizes it as a committed save, refreshes the canonical document, clears the form's dirty state, and warns that dependent content may remain stale. SDK callers should reconcile the failed side effect or rebuild the index; they must not repeat the versioned write. Status and system-field hook failures can likewise reject after their mutations have committed, with their operation-specific reconciliation behavior.
 
 Delete is different. A failed `afterDelete` side effect does not reject the committed database and audit result. The lifecycle returns `committed-with-side-effect-failures`, and the host can warn the editor. Because the source document no longer exists, there is no retry-by-delete path; a rebuild removes any orphaned search row.
 

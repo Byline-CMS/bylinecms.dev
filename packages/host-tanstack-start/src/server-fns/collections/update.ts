@@ -11,10 +11,14 @@ import { createServerFn } from '@tanstack/react-start'
 import { getAdminRequestContext } from '@byline/client/server'
 import { ERR_NOT_FOUND, getLogger, getServerConfig } from '@byline/core'
 import type { DocumentPatch } from '@byline/core/patches'
-import type { DocumentLifecycleContext } from '@byline/core/services'
+import type {
+  DocumentLifecycleContext,
+  UpdateDocumentWithPatchesResult,
+} from '@byline/core/services'
 import { updateDocumentSystemFields, updateDocumentWithPatches } from '@byline/core/services'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { toCommittedDocumentHookFailureResponse } from './save-outcome.js'
 
 // ---------------------------------------------------------------------------
 // Apply patches (patch-based update — creates a new immutable version)
@@ -59,14 +63,25 @@ export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POS
       requestContext: await getAdminRequestContext(),
     }
 
-    await updateDocumentWithPatches(ctx, {
-      documentId: id,
-      patches,
-      documentVersionId: versionId,
-      locale: locale ?? serverConfig.i18n.content.defaultLocale,
-    })
+    let result: UpdateDocumentWithPatchesResult
+    try {
+      result = await updateDocumentWithPatches(ctx, {
+        documentId: id,
+        patches,
+        documentVersionId: versionId,
+        locale: locale ?? serverConfig.i18n.content.defaultLocale,
+      })
+    } catch (error) {
+      const committedFailure = toCommittedDocumentHookFailureResponse(error)
+      if (committedFailure != null) return committedFailure
+      throw error
+    }
 
-    return { status: 'ok' as const }
+    return {
+      status: 'ok' as const,
+      documentId: result.documentId,
+      documentVersionId: result.documentVersionId,
+    }
   })
 
 // ---------------------------------------------------------------------------

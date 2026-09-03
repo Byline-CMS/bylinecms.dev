@@ -24,6 +24,10 @@
  * re-exported here — the public surface is exactly this barrel).
  */
 
+export {
+  getDocumentHookCommittedDetails,
+  runCommittedDocumentHook,
+} from './committed-hook.js'
 export { copyToLocale } from './copy-to-locale.js'
 export { createDocument } from './create.js'
 export { deleteDocument } from './delete.js'
@@ -41,6 +45,11 @@ export { changeDocumentStatus, unpublishDocument } from './status.js'
 export { updateDocumentSystemFields } from './system-fields.js'
 export { placeTreeNode, promoteChildrenAndRemove, removeFromTree } from './tree.js'
 export { updateDocument, updateDocumentWithPatches } from './update.js'
+export type {
+  DocumentHookCommittedDetails,
+  DocumentHookCommittedPhase,
+  DocumentHookSideEffectCode,
+} from './committed-hook.js'
 export type { DocumentLifecycleContext } from './context.js'
 export type { CopyToLocaleResult } from './copy-to-locale.js'
 export type { CreateDocumentResult } from './create.js'

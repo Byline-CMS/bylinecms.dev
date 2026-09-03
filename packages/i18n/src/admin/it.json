@@ -320,6 +320,8 @@
   "collections.list.treeHookFailedDescription": "Lo spostamento dell'albero è stato salvato, ma un aggiornamento successivo non è riuscito. I contenuti dipendenti potrebbero rimanere obsoleti.",
   "collections.list.treeRefreshFailedToast": "Impossibile aggiornare l'albero",
   "collections.list.treeRefreshFailedDescription": "La modifica potrebbe essere stata salvata. Ricarica la pagina per vedere l'albero più recente.",
+  "collections.save.hookFailedToast": "Salvato, aggiornamento successivo non riuscito",
+  "collections.save.hookFailedDescription": "Le modifiche sono state salvate, ma un aggiornamento successivo non è riuscito. I contenuti dipendenti potrebbero rimanere obsoleti.",
   "collections.create.errorToastTitle": "Creazione di {label}",
   "collections.create.errorToastDescription": "Si è verificato un errore durante la creazione di {label}.",
   "collections.edit.statusUpdateTitle": "Aggiornamento stato di {label}",

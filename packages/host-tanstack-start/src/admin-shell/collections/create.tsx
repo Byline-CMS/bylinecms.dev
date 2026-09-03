@@ -15,7 +15,10 @@ import { Container, Section, useToastManager } from '@byline/ui/react'
 
 import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { decodeListReturnState } from '../../routes/list-return-state.js'
-import { createCollectionDocument } from '../../server-fns/collections/index.js'
+import {
+  createCollectionDocument,
+  hasCommittedDocumentHookFailure,
+} from '../../server-fns/collections/index.js'
 import { useNavigate } from '../chrome/loose-router.js'
 import { useTanStackNavigationGuard } from './tanstack-navigation-guard.js'
 
@@ -65,6 +68,14 @@ export const CreateView = ({
           ...(systemAvailableLocales ? { availableLocales: systemAvailableLocales } : {}),
         },
       })
+      const hookFailed = hasCommittedDocumentHookFailure(result)
+      if (hookFailed) {
+        toastManager.add({
+          title: t('collections.save.hookFailedToast'),
+          description: t('collections.save.hookFailedDescription'),
+          data: { intent: 'warning', iconType: 'warning', icon: true, close: true },
+        })
+      }
       // Create → edit: land the editor on the new document, where the rest
       // of the work (content, status, relations) happens. `from` threads
       // forward so closing the brand-new document also returns to the
@@ -75,7 +86,7 @@ export const CreateView = ({
         navigate({
           to: getAdminRoutePath('collections', '$collection', '$id'),
           params: { collection: path, id: result.documentId } as never,
-          search: { action: 'created', from },
+          search: { ...(hookFailed ? {} : { action: 'created' as const }), from },
           // Persistence has succeeded, but FormRenderer cannot commit its
           // clean baseline until this handler returns. Do not let that brief
           // dirty-state overlap block the intentional create → edit redirect.
@@ -85,7 +96,10 @@ export const CreateView = ({
         navigate({
           to: getAdminRoutePath('collections', '$collection'),
           params: { collection: path },
-          search: { ...decodeListReturnState(from), action: 'created' },
+          search: {
+            ...decodeListReturnState(from),
+            ...(hookFailed ? {} : { action: 'created' as const }),
+          },
           ignoreBlocker: true,
         })
       }

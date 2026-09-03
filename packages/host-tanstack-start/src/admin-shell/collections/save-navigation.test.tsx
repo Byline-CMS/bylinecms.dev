@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   navigate: vi.fn(),
   formProps: [] as Array<Record<string, unknown>>,
+  toastAdd: vi.fn(),
   update: vi.fn(),
   updateSystemFields: vi.fn(),
 }))
@@ -39,7 +40,7 @@ vi.mock('@byline/ui/react', () => {
   return {
     Container: Pass,
     Section: Pass,
-    useToastManager: () => ({ add: vi.fn() }),
+    useToastManager: () => ({ add: mocks.toastAdd }),
   }
 })
 
@@ -63,6 +64,8 @@ vi.mock('../../server-fns/collections/index.js', () => ({
   deleteDocument: vi.fn(),
   deleteDocumentLocale: vi.fn(),
   duplicateCollectionDocument: vi.fn(),
+  hasCommittedDocumentHookFailure: (result: { status: string }) =>
+    result.status === 'committed-hook-failed',
   hasDeleteSideEffectFailures: () => false,
   scheduleCollectionDocumentPublish: vi.fn(),
   unpublishDocument: vi.fn(),
@@ -194,6 +197,34 @@ describe('collection post-save navigation', () => {
     consoleError.mockRestore()
   })
 
+  it('treats a committed create hook failure as saved and navigates with a warning', async () => {
+    mocks.create.mockResolvedValueOnce({
+      status: 'committed-hook-failed',
+      documentId: 'language-th',
+      documentVersionId: 'version-created',
+      sideEffectFailure: { phase: 'afterCreate', code: 'ERR_UNHANDLED' },
+    })
+    act(() => {
+      root.render(<CreateView collectionDefinition={collection} from="page=2" />)
+    })
+
+    await act(async () => {
+      await latestSubmit()({ data: { name: 'Thai' } })
+    })
+
+    expect(mocks.toastAdd).toHaveBeenCalledWith({
+      title: 'collections.save.hookFailedToast',
+      description: 'collections.save.hookFailedDescription',
+      data: { intent: 'warning', iconType: 'warning', icon: true, close: true },
+    })
+    expect(mocks.navigate).toHaveBeenCalledWith({
+      to: '/admin/collections/$collection/$id',
+      params: { collection: 'languages', id: 'language-th' },
+      search: { from: 'page=2' },
+      ignoreBlocker: true,
+    })
+  })
+
   it('bypasses the dirty-form blocker during the successful edit refresh', async () => {
     act(() => {
       root.render(
@@ -223,5 +254,42 @@ describe('collection post-save navigation', () => {
       search: expect.any(Function),
       ignoreBlocker: true,
     })
+  })
+
+  it('treats a committed update hook failure as saved and refreshes with a warning', async () => {
+    mocks.update.mockResolvedValueOnce({
+      status: 'committed-hook-failed',
+      documentId: 'language-en',
+      documentVersionId: 'version-2',
+      sideEffectFailure: { phase: 'afterUpdate', code: 'ERR_UNHANDLED' },
+    })
+    act(() => {
+      root.render(
+        <EditView
+          collectionDefinition={collection}
+          initialData={initialData as never}
+          contentLocales={[{ code: 'en', label: 'English' }]}
+          defaultContentLocale="en"
+          locale="en"
+        />
+      )
+    })
+
+    await act(async () => {
+      await latestSubmit()({
+        data: { name: 'English' },
+        patches: [{ kind: 'field.set', path: 'name', value: 'English' }],
+        contentDirty: true,
+        pathDirty: false,
+        availableLocalesDirty: false,
+      })
+    })
+
+    expect(mocks.toastAdd).toHaveBeenCalledWith({
+      title: 'collections.save.hookFailedToast',
+      description: 'collections.save.hookFailedDescription',
+      data: { intent: 'warning', iconType: 'warning', icon: true, close: true },
+    })
+    expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ ignoreBlocker: true }))
   })
 })

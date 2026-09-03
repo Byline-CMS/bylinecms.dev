@@ -320,6 +320,8 @@
   "collections.list.treeHookFailedDescription": "Die Baumverschiebung wurde gespeichert, aber eine nachgelagerte Aktualisierung ist fehlgeschlagen. Abhängige Inhalte können veraltet bleiben.",
   "collections.list.treeRefreshFailedToast": "Der Baum konnte nicht aktualisiert werden",
   "collections.list.treeRefreshFailedDescription": "Ihre Änderung wurde möglicherweise gespeichert. Laden Sie die Seite neu, um den aktuellen Baum anzuzeigen.",
+  "collections.save.hookFailedToast": "Gespeichert, Folgeaktualisierung fehlgeschlagen",
+  "collections.save.hookFailedDescription": "Ihre Änderungen wurden gespeichert, aber eine nachgelagerte Aktualisierung ist fehlgeschlagen. Abhängige Inhalte können veraltet bleiben.",
   "collections.create.errorToastTitle": "{label} – Erstellung",
   "collections.create.errorToastDescription": "Beim Erstellen von {label} ist ein Fehler aufgetreten.",
   "collections.edit.statusUpdateTitle": "{label} – Statusaktualisierung",

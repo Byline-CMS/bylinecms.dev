@@ -25,15 +25,12 @@ import { invalidateCollection } from '@/lib/cache/with-cache'
 
 export default defineHooks({
   afterCreate: async () => {
-    await invalidateCollection('news-categories')
-    await invalidateCollection('news')
+    await Promise.all([invalidateCollection('news-categories'), invalidateCollection('news')])
   },
   afterUpdate: async () => {
-    await invalidateCollection('news-categories')
-    await invalidateCollection('news')
+    await Promise.all([invalidateCollection('news-categories'), invalidateCollection('news')])
   },
   afterDelete: async () => {
-    await invalidateCollection('news-categories')
-    await invalidateCollection('news')
+    await Promise.all([invalidateCollection('news-categories'), invalidateCollection('news')])
   },
 })

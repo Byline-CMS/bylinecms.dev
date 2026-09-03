@@ -29,6 +29,7 @@ import {
   deleteDocument,
   deleteDocumentLocale,
   duplicateCollectionDocument,
+  hasCommittedDocumentHookFailure,
   hasDeleteSideEffectFailures,
   scheduleCollectionDocumentPublish,
   unpublishDocument,
@@ -550,6 +551,7 @@ export const EditView = ({
     systemAvailableLocales?: string[]
   }) => {
     try {
+      let hookFailed = false
       // Document-grain system fields write first via their own non-versioned
       // path — so a path conflict surfaces before we mint a content version,
       // and these immediate writes never reset workflow status. See
@@ -571,7 +573,7 @@ export const EditView = ({
       // fields changed, so a path/advertising edit never creates an empty
       // content version.
       if (contentDirty) {
-        await updateCollectionDocumentWithPatches({
+        const result = await updateCollectionDocumentWithPatches({
           data: {
             collection: path,
             id: String(initialData.id),
@@ -580,19 +582,24 @@ export const EditView = ({
             locale,
           },
         })
+        hookFailed = hasCommittedDocumentHookFailure(result)
       }
 
       if (contentDirty && scheduledPublication?.state === 'armed') {
         notifyScheduleSuspended()
       }
 
-      const description = t('collections.edit.updatedDescription', { label: singularLower })
+      const description = hookFailed
+        ? t('collections.save.hookFailedDescription')
+        : t('collections.edit.updatedDescription', { label: singularLower })
       toastManager.add({
-        title: t('collections.edit.updateTitle', { label: singular }),
+        title: hookFailed
+          ? t('collections.save.hookFailedToast')
+          : t('collections.edit.updateTitle', { label: singular }),
         description,
         data: {
-          intent: 'success',
-          iconType: 'success',
+          intent: hookFailed ? 'warning' : 'success',
+          iconType: hookFailed ? 'warning' : 'success',
           icon: true,
           close: true,
         },

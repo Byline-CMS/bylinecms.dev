@@ -320,6 +320,8 @@
   "collections.list.treeHookFailedDescription": "การย้ายในผังโครงสร้างถูกบันทึกแล้ว แต่การอัปเดตหลังการบันทึกล้มเหลว เนื้อหาที่เกี่ยวข้องอาจยังไม่เป็นปัจจุบัน",
   "collections.list.treeRefreshFailedToast": "ไม่สามารถรีเฟรชผังโครงสร้างได้",
   "collections.list.treeRefreshFailedDescription": "การเปลี่ยนแปลงของคุณอาจถูกบันทึกแล้ว กรุณาโหลดหน้าใหม่เพื่อดูผังโครงสร้างล่าสุด",
+  "collections.save.hookFailedToast": "บันทึกแล้ว แต่การอัปเดตติดตามผลล้มเหลว",
+  "collections.save.hookFailedDescription": "บันทึกการเปลี่ยนแปลงแล้ว แต่การอัปเดตหลังบันทึกล้มเหลว เนื้อหาที่เกี่ยวข้องอาจยังไม่เป็นปัจจุบัน",
   "collections.create.errorToastTitle": "การสร้าง {label}",
   "collections.create.errorToastDescription": "เกิดข้อผิดพลาดขณะสร้าง {label}",
   "collections.edit.statusUpdateTitle": "การอัปเดตสถานะ {label}",
