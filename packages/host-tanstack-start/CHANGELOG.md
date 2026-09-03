@@ -1,5 +1,26 @@
 # @byline/host-tanstack-start
 
+## 4.19.0
+
+### Minor Changes
+
+- ff1c416: Classify version writes that commit before an `afterCreate`, `afterUpdate`, or singleton `afterSave` hook fails as `ERR_DOCUMENT_HOOK_COMMITTED`, including the committed document and version IDs plus the side-effect error code. Admin save flows now preserve the committed state, continue successful navigation, and show a warning instead of treating the write as uncommitted.
+
+### Patch Changes
+
+- Updated dependencies [ff1c416]
+- Updated dependencies [ff1c416]
+- Updated dependencies [77e5ace]
+  - @byline/core@4.19.0
+  - @byline/admin@4.19.0
+  - @byline/i18n@4.19.0
+  - @byline/ai@4.19.0
+  - @byline/analytics@4.19.0
+  - @byline/client@4.19.0
+  - @byline/analytics-agent@4.19.0
+  - @byline/auth@4.19.0
+  - @byline/ui@4.19.0
+
 ## 4.18.0
 
 ### Minor Changes

@@ -1,5 +1,15 @@
 # @infonomic/ai
 
+## 4.19.0
+
+### Patch Changes
+
+- Updated dependencies [ff1c416]
+- Updated dependencies [ff1c416]
+  - @byline/core@4.19.0
+  - @byline/richtext-lexical@4.19.0
+  - @byline/ui@4.19.0
+
 ## 4.18.0
 
 ### Minor Changes

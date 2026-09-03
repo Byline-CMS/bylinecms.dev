@@ -1,5 +1,19 @@
 # @byline/db-mysql
 
+## 4.19.0
+
+### Minor Changes
+
+- ff1c416: Reject stale `previousVersionId` values with `ERR_CONFLICT`, and require the current parent for locale-scoped writes to existing versioned documents instead of silently carrying other locales forward from the wrong version.
+
+### Patch Changes
+
+- Updated dependencies [ff1c416]
+- Updated dependencies [ff1c416]
+- Updated dependencies [77e5ace]
+  - @byline/core@4.19.0
+  - @byline/admin@4.19.0
+
 ## 4.18.0
 
 ### Minor Changes

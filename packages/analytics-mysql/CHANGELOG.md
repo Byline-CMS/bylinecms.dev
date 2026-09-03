@@ -1,5 +1,11 @@
 # @byline/analytics-mysql
 
+## 4.19.0
+
+### Patch Changes
+
+- @byline/analytics@4.19.0
+
 ## 4.18.0
 
 ### Minor Changes

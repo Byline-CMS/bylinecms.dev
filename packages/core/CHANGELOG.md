@@ -1,5 +1,16 @@
 # @byline/core
 
+## 4.19.0
+
+### Minor Changes
+
+- ff1c416: Reject stale `previousVersionId` values with `ERR_CONFLICT`, and require the current parent for locale-scoped writes to existing versioned documents instead of silently carrying other locales forward from the wrong version.
+- ff1c416: Classify version writes that commit before an `afterCreate`, `afterUpdate`, or singleton `afterSave` hook fails as `ERR_DOCUMENT_HOOK_COMMITTED`, including the committed document and version IDs plus the side-effect error code. Admin save flows now preserve the committed state, continue successful navigation, and show a warning instead of treating the write as uncommitted.
+
+### Patch Changes
+
+- @byline/auth@4.19.0
+
 ## 4.18.0
 
 ### Minor Changes
