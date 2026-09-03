@@ -467,6 +467,7 @@
   "forms.heading.createLabel": "สร้าง {label}",
   "forms.heading.editLabel": "แก้ไข {label}",
   "forms.actions.uploading": "กำลังอัปโหลด…",
+  "forms.actions.saving": "กำลังบันทึก…",
   "forms.actions.revertTo": "ย้อนกลับไปยัง {label}",
   "forms.uploadFailedFieldError": "อัปโหลดไม่สำเร็จ: {message}",
   "forms.restoreWarnings.title": "เอกสารนี้ถูกโหลดด้วยการสร้างใหม่แบบเท่าที่ทำได้",

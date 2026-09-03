@@ -187,19 +187,26 @@ describe('FormRenderer submit contract', () => {
     await act(async () => {})
 
     const form = container.querySelector('form')
+    const busyRegion = form?.parentElement
+    const liveStatus = container.querySelector('[role="status"]')
     const saveButton = container.querySelector<HTMLButtonElement>('button[type="submit"]')
-    expect(form?.getAttribute('aria-busy')).toBe('true')
+    expect(busyRegion?.getAttribute('aria-busy')).toBe('true')
+    expect(form?.getAttribute('aria-busy')).toBeNull()
     expect(form?.hasAttribute('inert')).toBe(true)
+    expect(liveStatus?.textContent).toBe('Saving…')
+    expect(busyRegion?.contains(liveStatus)).toBe(false)
     expect(saveButton?.getAttribute('aria-label')).toBe('Save')
     expect(saveButton?.querySelector('.byline-loader-ellipsis')).not.toBeNull()
+    expect(saveButton?.querySelector('.byline-form-save-label')?.textContent).toBe('Save')
 
     await act(async () => {
       submission.resolve()
       await submission.promise
     })
 
-    expect(form?.getAttribute('aria-busy')).toBe('false')
+    expect(busyRegion?.getAttribute('aria-busy')).toBe('false')
     expect(form?.hasAttribute('inert')).toBe(false)
+    expect(liveStatus?.textContent).toBe('')
     expect(saveButton?.getAttribute('aria-label')).toBeNull()
     expect(saveButton?.querySelector('.byline-loader-ellipsis')).toBeNull()
   })
@@ -212,8 +219,10 @@ describe('FormRenderer submit contract', () => {
     await act(async () => {})
 
     const form = container.querySelector('form')
+    const busyRegion = form?.parentElement
     const saveButton = container.querySelector<HTMLButtonElement>('button[type="submit"]')
-    expect(form?.getAttribute('aria-busy')).toBe('true')
+    expect(busyRegion?.getAttribute('aria-busy')).toBe('true')
+    expect(form?.getAttribute('aria-busy')).toBeNull()
     expect(saveButton?.querySelector('.byline-loader-ellipsis')).not.toBeNull()
 
     await act(async () => {
@@ -225,10 +234,36 @@ describe('FormRenderer submit contract', () => {
       }
     })
 
-    expect(form?.getAttribute('aria-busy')).toBe('false')
+    expect(form?.getAttribute('aria-busy')).toBeNull()
+    expect(busyRegion?.getAttribute('aria-busy')).toBe('false')
     expect(form?.hasAttribute('inert')).toBe(false)
     expect(saveButton?.getAttribute('aria-label')).toBeNull()
     expect(saveButton?.querySelector('.byline-loader-ellipsis')).toBeNull()
+  })
+
+  it('restores keyboard focus after the inert submitting window closes', async () => {
+    const submission = deferred()
+    render({ ...baseProps, onSubmit: () => submission.promise })
+    typeIntoTitle('Hello')
+    const input = container.querySelector<HTMLInputElement>('input[name="title"]')
+    if (input == null) throw new Error('title input not found')
+    input.focus()
+    expect(document.activeElement).toBe(input)
+
+    submitForm()
+    await act(async () => {})
+
+    document.body.tabIndex = -1
+    document.body.focus()
+    expect(document.activeElement).toBe(document.body)
+
+    await act(async () => {
+      submission.resolve()
+      await submission.promise
+    })
+
+    expect(document.activeElement).toBe(input)
+    document.body.removeAttribute('tabindex')
   })
 
   it('ignores a second submit while the first is still in flight', async () => {

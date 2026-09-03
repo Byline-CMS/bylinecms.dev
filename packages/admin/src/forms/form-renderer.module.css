@@ -20,6 +20,10 @@
  *   .byline-form-actions-status-wrap    — relative positioned wrapper around the ComboButton
  *   .byline-form-actions-combo-button   — ComboButton's main button minimums
  *   .byline-form-actions-combo-trigger  — ComboButton's trigger button minimums
+ *   .byline-form-busy-status            — visually-hidden save/upload announcement
+ *   .byline-form-save-content           — stable-width Save label/loader wrapper
+ *   .byline-form-save-label             — visible label that determines button width
+ *   .byline-form-save-loader            — centered progress overlay
  *
  *   .byline-form-layout                 — main + sidebar grid wrapper
  *   .byline-form-content                — main column
@@ -204,6 +208,44 @@
 :global(.byline-form-actions-button) {
   min-width: 70px;
   min-height: 28px;
+}
+
+.busy-status,
+:global(.byline-form-busy-status) {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  margin: -1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.save-content,
+:global(.byline-form-save-content) {
+  position: relative;
+  display: inline-block;
+}
+
+.save-label,
+:global(.byline-form-save-label) {
+  display: inline-block;
+}
+
+.save-label-hidden {
+  visibility: hidden;
+}
+
+.save-loader,
+:global(.byline-form-save-loader) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: inline-flex;
+  transform: translate(-50%, -50%);
 }
 
 .actions-status-wrap,

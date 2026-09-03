@@ -467,6 +467,7 @@
   "forms.heading.createLabel": "Crear {label}",
   "forms.heading.editLabel": "Editar {label}",
   "forms.actions.uploading": "Subiendo…",
+  "forms.actions.saving": "Guardando…",
   "forms.actions.revertTo": "Revertir a {label}",
   "forms.uploadFailedFieldError": "Error al subir: {message}",
   "forms.restoreWarnings.title": "Este documento se cargó con una reconstrucción de mejor esfuerzo",

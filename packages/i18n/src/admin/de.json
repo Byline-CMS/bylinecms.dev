@@ -467,6 +467,7 @@
   "forms.heading.createLabel": "{label} erstellen",
   "forms.heading.editLabel": "{label} bearbeiten",
   "forms.actions.uploading": "Wird hochgeladen …",
+  "forms.actions.saving": "Wird gespeichert …",
   "forms.actions.revertTo": "Auf {label} zurücksetzen",
   "forms.uploadFailedFieldError": "Hochladen fehlgeschlagen: {message}",
   "forms.restoreWarnings.title": "Dieses Dokument wurde mit einer bestmöglichen Rekonstruktion geladen",

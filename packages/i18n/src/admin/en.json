@@ -467,6 +467,7 @@
   "forms.heading.createLabel": "Create {label}",
   "forms.heading.editLabel": "Edit {label}",
   "forms.actions.uploading": "Uploading…",
+  "forms.actions.saving": "Saving…",
   "forms.actions.revertTo": "Revert to {label}",
   "forms.uploadFailedFieldError": "Upload failed: {message}",
   "forms.restoreWarnings.title": "This document was loaded with a best-effort reconstruction",

@@ -467,6 +467,7 @@
   "forms.heading.createLabel": "{label} 만들기",
   "forms.heading.editLabel": "{label} 편집",
   "forms.actions.uploading": "업로드 중…",
+  "forms.actions.saving": "저장 중…",
   "forms.actions.revertTo": "{label}(으)로 되돌리기",
   "forms.uploadFailedFieldError": "업로드 실패: {message}",
   "forms.restoreWarnings.title": "이 문서는 최선의 재구성으로 로드되었습니다",

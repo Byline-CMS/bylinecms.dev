@@ -467,6 +467,7 @@
   "forms.heading.createLabel": "Créer : {label}",
   "forms.heading.editLabel": "Modifier : {label}",
   "forms.actions.uploading": "Téléversement…",
+  "forms.actions.saving": "Enregistrement…",
   "forms.actions.revertTo": "Revenir à {label}",
   "forms.uploadFailedFieldError": "Échec du téléversement : {message}",
   "forms.restoreWarnings.title": "Ce document a été chargé via une reconstruction au mieux possible",

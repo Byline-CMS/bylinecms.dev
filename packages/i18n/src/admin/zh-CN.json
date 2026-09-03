@@ -467,6 +467,7 @@
   "forms.heading.createLabel": "新建{label}",
   "forms.heading.editLabel": "编辑{label}",
   "forms.actions.uploading": "正在上传…",
+  "forms.actions.saving": "正在保存…",
   "forms.actions.revertTo": "还原为 {label}",
   "forms.uploadFailedFieldError": "上传失败：{message}",
   "forms.restoreWarnings.title": "此文档是以尽力而为的方式重建加载的",

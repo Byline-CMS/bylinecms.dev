@@ -467,6 +467,7 @@
   "forms.heading.createLabel": "Crea {label}",
   "forms.heading.editLabel": "Modifica {label}",
   "forms.actions.uploading": "Caricamento in corso…",
+  "forms.actions.saving": "Salvataggio in corso…",
   "forms.actions.revertTo": "Ripristina a {label}",
   "forms.uploadFailedFieldError": "Caricamento non riuscito: {message}",
   "forms.restoreWarnings.title": "Questo documento è stato caricato con una ricostruzione best-effort",
