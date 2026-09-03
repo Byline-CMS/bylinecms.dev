@@ -11,6 +11,7 @@ import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { ERR_INVALID_TRANSITION, ERR_NOT_FOUND, ERR_VALIDATION } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
+import { runCommittedDocumentHook } from './committed-hook.js'
 import { applyRichTextEmbed, extractDocumentId, extractVersionId, invokeHook } from './internals.js'
 import { persistExistingDocumentVersion } from './persistence.js'
 import type { DocumentLifecycleContext } from './context.js'
@@ -172,15 +173,20 @@ export async function restoreDocumentVersion(
 
       // 7. afterUpdate. Restore is path-sticky: the canonical path comes
       //    from the current version's envelope (originalData), not the source.
-      await invokeHook(hooks?.afterUpdate, {
-        data: sourceFields,
-        originalData,
-        collectionPath,
-        documentId,
-        documentVersionId,
-        path: (originalData.path as string) ?? '',
-        restore: restoreContext,
-      })
+      await runCommittedDocumentHook(
+        ctx,
+        { phase: 'afterUpdate', documentId, documentVersionId },
+        () =>
+          invokeHook(hooks?.afterUpdate, {
+            data: sourceFields,
+            originalData,
+            collectionPath,
+            documentId,
+            documentVersionId,
+            path: (originalData.path as string) ?? '',
+            restore: restoreContext,
+          })
+      )
 
       return {
         documentId,

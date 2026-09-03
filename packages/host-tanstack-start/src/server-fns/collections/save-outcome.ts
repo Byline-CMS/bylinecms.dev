@@ -6,22 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-export type DocumentHookCommittedPhase = 'afterCreate' | 'afterUpdate'
-export type DocumentHookSideEffectCode = 'ERR_STORAGE' | 'ERR_UNHANDLED'
+import {
+  type DocumentHookCommittedPhase,
+  type DocumentHookSideEffectCode,
+  getDocumentHookCommittedDetails,
+} from '@byline/core/services'
 
-const DOCUMENT_HOOK_COMMITTED_CODE = 'ERR_DOCUMENT_HOOK_COMMITTED'
-
-function readStringProperty(value: unknown, key: string): string | undefined {
-  try {
-    if ((typeof value !== 'object' || value === null) && typeof value !== 'function') {
-      return undefined
-    }
-    const property = Reflect.get(value, key)
-    return typeof property === 'string' ? property : undefined
-  } catch {
-    return undefined
-  }
-}
+export type { DocumentHookCommittedPhase, DocumentHookSideEffectCode }
 
 export interface CollectionDocumentCommittedHookFailureResponse {
   status: 'committed-hook-failed'
@@ -40,36 +31,27 @@ export interface CollectionDocumentCommittedHookFailureResponse {
 export function toCommittedDocumentHookFailureResponse(
   error: unknown
 ): CollectionDocumentCommittedHookFailureResponse | null {
-  if (readStringProperty(error, 'code') !== DOCUMENT_HOOK_COMMITTED_CODE) return null
-
-  let details: unknown
-  try {
-    details = Reflect.get(error as object, 'details')
-  } catch {
-    return null
-  }
-  if (typeof details !== 'object' || details === null) return null
-
-  const phase = readStringProperty(details, 'phase')
-  const documentId = readStringProperty(details, 'documentId')
-  const documentVersionId = readStringProperty(details, 'documentVersionId')
-  const sideEffectCode = readStringProperty(details, 'sideEffectCode')
-
-  if (phase !== 'afterCreate' && phase !== 'afterUpdate') return null
-  if (!documentId || !documentVersionId) return null
-  if (sideEffectCode !== 'ERR_STORAGE' && sideEffectCode !== 'ERR_UNHANDLED') return null
+  const details = getDocumentHookCommittedDetails(error)
+  if (details == null) return null
 
   return {
     status: 'committed-hook-failed',
-    documentId,
-    documentVersionId,
+    documentId: details.documentId,
+    documentVersionId: details.documentVersionId,
     sideEffectFailure: {
-      phase,
-      code: sideEffectCode,
+      phase: details.phase,
+      code: details.sideEffectCode,
     },
   }
 }
 
-export function hasCommittedDocumentHookFailure(result: { status: string }): boolean {
-  return result.status === 'committed-hook-failed'
+export function hasCommittedDocumentHookFailure(
+  result: unknown
+): result is CollectionDocumentCommittedHookFailureResponse {
+  return (
+    typeof result === 'object' &&
+    result != null &&
+    'status' in result &&
+    result.status === 'committed-hook-failed'
+  )
 }

@@ -9,7 +9,7 @@
 import { AdminAuth, createRequestContext } from '@byline/auth'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { type DbErrorClassification, DbErrorCodes } from '../lib/errors.js'
+import { type DbErrorClassification, DbErrorCodes, ErrorCodes } from '../lib/errors.js'
 import {
   copySingletonToLocale,
   resolveSingletonDocumentId,
@@ -401,9 +401,17 @@ describe('singleton lifecycle service', () => {
       },
     })
 
-    await expect(updateSingleton(harness.ctx, { data: { title: 'Committed' } })).rejects.toThrow(
-      'notification failed'
-    )
+    await expect(
+      updateSingleton(harness.ctx, { data: { title: 'Committed' } })
+    ).rejects.toMatchObject({
+      code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
+      details: {
+        phase: 'afterSave',
+        documentId: 'doc-1',
+        documentVersionId: 'ver-1',
+        sideEffectCode: ErrorCodes.UNHANDLED,
+      },
+    })
     expect(harness.committedTransactions()).toBe(1)
     expect(harness.mappedDocumentId()).toBe('doc-1')
     expect(harness.currentVersion()?.document_version_id).toBe('ver-1')

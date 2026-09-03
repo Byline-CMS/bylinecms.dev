@@ -1425,6 +1425,34 @@ describe('Document lifecycle service', () => {
       )
     })
 
+    it('classifies a delete-locale afterUpdate failure after the new version commits', async () => {
+      const { db, deleteDocumentLocale, getDocumentById } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'ver-1',
+        document_id: 'doc-1',
+        path: 'current-path',
+        _availableVersionLocales: ['en', 'fr'],
+        fields: { title: 'Bonjour' },
+      })
+      const definition = {
+        ...minimalCollection,
+        hooks: { afterUpdate: vi.fn().mockRejectedValue(new Error('search unavailable')) },
+      }
+
+      await expect(
+        deleteLocale(buildCtx(db, definition), { documentId: 'doc-1', locale: 'fr' })
+      ).rejects.toMatchObject({
+        code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
+        details: {
+          phase: 'afterUpdate',
+          documentId: 'doc-1',
+          documentVersionId: 'ver-2',
+          sideEffectCode: ErrorCodes.UNHANDLED,
+        },
+      })
+      expect(deleteDocumentLocale).toHaveBeenCalledOnce()
+    })
+
     it('cancels an active schedule as an effect of an ordinary status transition', async () => {
       const { db, getCurrentVersionMetadata, cancelPublishSchedule, auditAppend } = createMockDb()
       getCurrentVersionMetadata.mockResolvedValue(metadataRow)
@@ -2506,6 +2534,30 @@ describe('Document lifecycle service', () => {
       )
     })
 
+    it('classifies a restore afterUpdate failure after the restored version commits', async () => {
+      const { db, sourceVersionId, createDocumentVersion } = setupRestore()
+      const definition = {
+        ...minimalCollection,
+        hooks: { afterUpdate: vi.fn().mockRejectedValue(new Error('search unavailable')) },
+      }
+
+      await expect(
+        restoreDocumentVersion(buildCtx(db, definition), {
+          documentId: 'doc-1',
+          sourceVersionId,
+        })
+      ).rejects.toMatchObject({
+        code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
+        details: {
+          phase: 'afterUpdate',
+          documentId: 'doc-1',
+          documentVersionId: 'ver-restored',
+          sideEffectCode: ErrorCodes.UNHANDLED,
+        },
+      })
+      expect(createDocumentVersion).toHaveBeenCalledOnce()
+    })
+
     it('throws ERR_FORBIDDEN when actor lacks collections.<path>.update', async () => {
       const { db, sourceVersionId } = setupRestore()
       const ctx = buildCtx(db)
@@ -2848,6 +2900,28 @@ describe('Document lifecycle service', () => {
       expect(afterCtx.path).toBe(writtenPath)
     })
 
+    it('classifies a duplicate afterCreate failure with the committed document ids', async () => {
+      const withHooks: CollectionDefinition = {
+        ...localizedCollection,
+        hooks: { afterCreate: vi.fn().mockRejectedValue(new Error('search unavailable')) },
+      }
+      const mocks = createMockDb()
+      setupSource(mocks)
+
+      await expect(
+        duplicateDocument(buildCtx(mocks.db, withHooks), { sourceDocumentId: 'doc-source' })
+      ).rejects.toMatchObject({
+        code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
+        details: {
+          phase: 'afterCreate',
+          documentId: 'doc-new',
+          documentVersionId: 'ver-new',
+          sideEffectCode: ErrorCodes.UNHANDLED,
+        },
+      })
+      expect(mocks.createDocumentVersion).toHaveBeenCalledOnce()
+    })
+
     it('enforces collections.<path>.create — rejects an admin actor missing the ability', async () => {
       const mocks = createMockDb()
       setupSource(mocks)
@@ -3169,6 +3243,32 @@ describe('Document lifecycle service', () => {
       })
       // Sticky path read off the target-locale envelope.
       expect(afterUpdate.mock.calls[0]?.[0].path).toBe('hello')
+    })
+
+    it('classifies a copy-to-locale afterUpdate failure after the version commits', async () => {
+      const withHooks: CollectionDefinition = {
+        ...mixedCollection,
+        hooks: { afterUpdate: vi.fn().mockRejectedValue(new Error('search unavailable')) },
+      }
+      const { mocks } = setupSourceTarget()
+
+      await expect(
+        copyToLocale(buildCtx(mocks.db, withHooks), {
+          documentId: 'doc-1',
+          sourceLocale: 'en',
+          targetLocale: 'fr',
+          overwrite: false,
+        })
+      ).rejects.toMatchObject({
+        code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
+        details: {
+          phase: 'afterUpdate',
+          documentId: 'doc-1',
+          documentVersionId: 'ver-new',
+          sideEffectCode: ErrorCodes.UNHANDLED,
+        },
+      })
+      expect(mocks.createDocumentVersion).toHaveBeenCalledOnce()
     })
 
     it('enforces collections.<path>.update — rejects an admin actor missing the ability', async () => {

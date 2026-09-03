@@ -11,6 +11,7 @@ import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { ERR_NOT_FOUND, ERR_VALIDATION } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
+import { runCommittedDocumentHook } from './committed-hook.js'
 import { applyRichTextEmbed, extractVersionId, invokeHook } from './internals.js'
 import { mergeLocaleData } from './merge-locale-data.js'
 import { persistExistingDocumentVersion } from './persistence.js'
@@ -182,17 +183,22 @@ export async function copyToLocale(
 
       const documentVersionId = extractVersionId(writeResult.document)
 
-      await invokeHook(hooks?.afterUpdate, {
-        data: merged.data,
-        originalData: targetFields,
-        collectionPath,
-        documentId: params.documentId,
-        documentVersionId,
-        // Path is sticky and source-locale-anchored; copy-to-locale never
-        // touches it. Read it off the target envelope.
-        path: (targetRecord.path as string) ?? '',
-        copyToLocale: copyToLocaleMarker,
-      })
+      await runCommittedDocumentHook(
+        ctx,
+        { phase: 'afterUpdate', documentId: params.documentId, documentVersionId },
+        () =>
+          invokeHook(hooks?.afterUpdate, {
+            data: merged.data,
+            originalData: targetFields,
+            collectionPath,
+            documentId: params.documentId,
+            documentVersionId,
+            // Path is sticky and source-locale-anchored; copy-to-locale never
+            // touches it. Read it off the target envelope.
+            path: (targetRecord.path as string) ?? '',
+            copyToLocale: copyToLocaleMarker,
+          })
+      )
 
       return {
         documentId: params.documentId,

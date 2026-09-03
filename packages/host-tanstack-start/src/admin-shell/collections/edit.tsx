@@ -44,7 +44,7 @@ import type { SerializedDocumentPublishSchedule } from '../../server-fns/collect
 import type { ContentLocaleOption } from './view-menu.js'
 
 type EditState = {
-  status: 'success' | 'failed' | 'busy' | 'idle'
+  status: 'success' | 'warning' | 'failed' | 'busy' | 'idle'
   message: string
 }
 
@@ -109,6 +109,16 @@ export const EditView = ({
       description: t('scheduledPublication.toast.suspendedDescription'),
       data: { intent: 'warning', iconType: 'warning', icon: true, close: true },
     })
+  }
+
+  const notifyCommittedHookFailure = () => {
+    const description = t('collections.save.hookFailedDescription')
+    toastManager.add({
+      title: t('collections.save.hookFailedToast'),
+      description,
+      data: { intent: 'warning', iconType: 'warning', icon: true, close: true },
+    })
+    setEditState({ status: 'warning', message: description })
   }
 
   const handleLocaleChange = (newLocale: string) => {
@@ -307,6 +317,15 @@ export const EditView = ({
       const result = await duplicateCollectionDocument({
         data: { collection: path, id: String(initialData.id) },
       })
+      if (hasCommittedDocumentHookFailure(result)) {
+        notifyCommittedHookFailure()
+        navigate({
+          to: getAdminRoutePath('collections', '$collection', '$id'),
+          params: { collection: path, id: result.documentId },
+          search: (prev: Record<string, unknown>) => ({ ...prev }),
+        })
+        return
+      }
       const description = result.pathRetried
         ? t('collections.edit.duplicatedAutoPathDescription', { path: result.newPath })
         : t('collections.edit.duplicatedPathDescription', { path: result.newPath })
@@ -368,6 +387,16 @@ export const EditView = ({
           overwrite,
         },
       })
+      if (hasCommittedDocumentHookFailure(result)) {
+        notifyCommittedHookFailure()
+        notifyScheduleSuspended()
+        navigate({
+          to: getAdminRoutePath('collections', '$collection', '$id'),
+          params: { collection: path, id: String(initialData.id) },
+          search: (prev: Record<string, unknown>) => ({ ...prev, locale: targetLocale }),
+        })
+        return
+      }
       const sourceLabel =
         contentLocales.find((l) => l.code === result.sourceLocale)?.label ?? result.sourceLocale
       const targetLabel =
@@ -436,6 +465,16 @@ export const EditView = ({
           locale: targetLocale,
         },
       })
+      if (hasCommittedDocumentHookFailure(result)) {
+        notifyCommittedHookFailure()
+        notifyScheduleSuspended()
+        navigate({
+          to: getAdminRoutePath('collections', '$collection', '$id'),
+          params: { collection: path, id: String(initialData.id) },
+          search: (prev: Record<string, unknown>) => ({ ...prev, locale: defaultContentLocale }),
+        })
+        return
+      }
       const targetLabel =
         contentLocales.find((l) => l.code === result.locale)?.label ?? result.locale
       const description = t('collections.edit.deletedLocaleDescription', {
@@ -499,7 +538,10 @@ export const EditView = ({
           close: true,
         },
       })
-      setEditState({ status: 'success', message: description })
+      setEditState({
+        status: hasSideEffectFailures ? 'warning' : 'success',
+        message: description,
+      })
       // Navigate back to the collection list after deletion. The return
       // target has now been consumed — clear the stored fallback so a later
       // visit doesn't resurrect a stale list position.
@@ -605,7 +647,7 @@ export const EditView = ({
         },
       })
 
-      setEditState({ status: 'success', message: description })
+      setEditState({ status: hookFailed ? 'warning' : 'success', message: description })
 
       // Re-navigate to the same route so the loader re-fetches the document.
       // The new version will have a fresh version ID, the collection's default

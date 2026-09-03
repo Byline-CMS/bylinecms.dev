@@ -14,6 +14,10 @@ import type { DeleteLocaleResult, DocumentLifecycleContext } from '@byline/core/
 import { deleteLocale } from '@byline/core/services'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import {
+  type CollectionDocumentCommittedHookFailureResponse,
+  toCommittedDocumentHookFailureResponse,
+} from './save-outcome.js'
 
 // ---------------------------------------------------------------------------
 // Delete one content locale's data from a document
@@ -31,29 +35,39 @@ import { ensureCollection } from '../../integrations/api-utils.js'
  */
 export const deleteDocumentLocale = createServerFn({ method: 'POST' })
   .validator((input: { collection: string; id: string; locale: string }) => input)
-  .handler(async ({ data: input }): Promise<DeleteLocaleResult> => {
-    const { collection: path, id, locale } = input
-    const logger = getLogger()
-    const config = await ensureCollection(path)
-    if (!config) {
-      throw ERR_NOT_FOUND({
-        message: 'Collection not found',
-        details: { collectionPath: path },
-      }).log(logger)
-    }
+  .handler(
+    async ({
+      data: input,
+    }): Promise<DeleteLocaleResult | CollectionDocumentCommittedHookFailureResponse> => {
+      const { collection: path, id, locale } = input
+      const logger = getLogger()
+      const config = await ensureCollection(path)
+      if (!config) {
+        throw ERR_NOT_FOUND({
+          message: 'Collection not found',
+          details: { collectionPath: path },
+        }).log(logger)
+      }
 
-    const serverConfig = getServerConfig()
-    const ctx: DocumentLifecycleContext = {
-      db: serverConfig.db,
-      definition: config.definition,
-      collectionId: config.collection.id,
-      collectionVersion: config.collection.version,
-      collectionPath: path,
-      logger,
-      defaultLocale: serverConfig.i18n.content.defaultLocale,
-      slugifier: serverConfig.slugifier,
-      requestContext: await getAdminRequestContext(),
-    }
+      const serverConfig = getServerConfig()
+      const ctx: DocumentLifecycleContext = {
+        db: serverConfig.db,
+        definition: config.definition,
+        collectionId: config.collection.id,
+        collectionVersion: config.collection.version,
+        collectionPath: path,
+        logger,
+        defaultLocale: serverConfig.i18n.content.defaultLocale,
+        slugifier: serverConfig.slugifier,
+        requestContext: await getAdminRequestContext(),
+      }
 
-    return deleteLocale(ctx, { documentId: id, locale })
-  })
+      try {
+        return await deleteLocale(ctx, { documentId: id, locale })
+      } catch (error) {
+        const committedFailure = toCommittedDocumentHookFailureResponse(error)
+        if (committedFailure != null) return committedFailure
+        throw error
+      }
+    }
+  )

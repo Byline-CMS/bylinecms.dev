@@ -14,6 +14,10 @@ import type { DocumentLifecycleContext, DuplicateDocumentResult } from '@byline/
 import { duplicateDocument } from '@byline/core/services'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import {
+  type CollectionDocumentCommittedHookFailureResponse,
+  toCommittedDocumentHookFailureResponse,
+} from './save-outcome.js'
 
 // ---------------------------------------------------------------------------
 // Duplicate document
@@ -32,29 +36,39 @@ import { ensureCollection } from '../../integrations/api-utils.js'
  */
 export const duplicateCollectionDocument = createServerFn({ method: 'POST' })
   .validator((input: { collection: string; id: string }) => input)
-  .handler(async ({ data: input }): Promise<DuplicateDocumentResult> => {
-    const { collection: path, id: sourceDocumentId } = input
-    const logger = getLogger()
-    const config = await ensureCollection(path)
-    if (!config) {
-      throw ERR_NOT_FOUND({
-        message: 'Collection not found',
-        details: { collectionPath: path },
-      }).log(logger)
-    }
+  .handler(
+    async ({
+      data: input,
+    }): Promise<DuplicateDocumentResult | CollectionDocumentCommittedHookFailureResponse> => {
+      const { collection: path, id: sourceDocumentId } = input
+      const logger = getLogger()
+      const config = await ensureCollection(path)
+      if (!config) {
+        throw ERR_NOT_FOUND({
+          message: 'Collection not found',
+          details: { collectionPath: path },
+        }).log(logger)
+      }
 
-    const serverConfig = getServerConfig()
-    const ctx: DocumentLifecycleContext = {
-      db: serverConfig.db,
-      definition: config.definition,
-      collectionId: config.collection.id,
-      collectionVersion: config.collection.version,
-      collectionPath: path,
-      logger,
-      defaultLocale: serverConfig.i18n.content.defaultLocale,
-      slugifier: serverConfig.slugifier,
-      requestContext: await getAdminRequestContext(),
-    }
+      const serverConfig = getServerConfig()
+      const ctx: DocumentLifecycleContext = {
+        db: serverConfig.db,
+        definition: config.definition,
+        collectionId: config.collection.id,
+        collectionVersion: config.collection.version,
+        collectionPath: path,
+        logger,
+        defaultLocale: serverConfig.i18n.content.defaultLocale,
+        slugifier: serverConfig.slugifier,
+        requestContext: await getAdminRequestContext(),
+      }
 
-    return duplicateDocument(ctx, { sourceDocumentId })
-  })
+      try {
+        return await duplicateDocument(ctx, { sourceDocumentId })
+      } catch (error) {
+        const committedFailure = toCommittedDocumentHookFailureResponse(error)
+        if (committedFailure != null) return committedFailure
+        throw error
+      }
+    }
+  )

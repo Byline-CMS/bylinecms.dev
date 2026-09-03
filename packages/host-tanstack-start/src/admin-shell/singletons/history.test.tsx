@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   findSingletonByVersion: vi.fn(async () => ({})),
   pagerProps: [] as Array<{ componentName: string; page: number; count: number }>,
   diffModalProps: [] as Array<Record<string, unknown>>,
+  toast: vi.fn(),
   location: {
     pathname: '/admin/singletons/site-settings/history',
     search: {} as Record<string, unknown>,
@@ -103,6 +104,7 @@ vi.mock('@byline/ui/react', () => {
     Section: Div,
     Select: () => <select aria-label="page size" />,
     Table,
+    useToastManager: () => ({ add: mocks.toast }),
   }
 })
 
@@ -401,6 +403,47 @@ describe('singleton version history', () => {
     expect(mocks.navigate).toHaveBeenLastCalledWith({
       to: '/admin/collections/$collection/$id',
       params: { collection: 'articles', id: 'document-article' },
+    })
+    dispose()
+  })
+
+  it('closes and refreshes after a restore whose afterSave hook failed post-commit', async () => {
+    mocks.restoreSingleton.mockResolvedValueOnce({
+      status: 'committed-hook-failed',
+      documentId: 'document-settings',
+      documentVersionId: 'version-restored',
+      sideEffectFailure: { phase: 'afterSave', code: 'ERR_UNHANDLED' },
+    })
+    render(
+      <SingletonHistoryView
+        singletonDefinition={singletonDefinition}
+        data={data}
+        currentDocument={currentDocument}
+        contentLocales={[]}
+        defaultContentLocale="en"
+        workflowStatuses={[]}
+      />
+    )
+
+    const restore = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Restore'
+    )
+    await act(async () => restore?.click())
+    const confirm = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Restore as Published'
+    )
+    await act(async () => confirm?.click())
+
+    expect(mocks.toast).toHaveBeenCalledWith({
+      title: 'collections.save.hookFailedToast',
+      description: 'collections.save.hookFailedDescription',
+      data: { intent: 'warning', iconType: 'warning', icon: true, close: true },
+    })
+    expect(mocks.invalidate).toHaveBeenCalledOnce()
+    expect(mocks.navigate).toHaveBeenLastCalledWith({
+      to: '/admin/singletons/$singleton',
+      params: { singleton: 'site-settings' },
+      search: {},
     })
     dispose()
   })

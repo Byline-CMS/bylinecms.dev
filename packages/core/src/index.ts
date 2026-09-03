@@ -70,7 +70,6 @@ export {
   type DbErrorClassification,
   type DbErrorCode,
   DbErrorCodes,
-  DOCUMENT_HOOK_COMMITTED_MARKER,
   ERR_AUDIT_UNSUPPORTED,
   ERR_CONFLICT,
   ERR_DATABASE,

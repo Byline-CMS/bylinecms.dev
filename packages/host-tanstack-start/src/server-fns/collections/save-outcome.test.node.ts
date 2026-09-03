@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { ERR_DOCUMENT_HOOK_COMMITTED, ErrorCodes } from '@byline/core'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -15,18 +16,17 @@ import {
 
 describe('collection save outcome transport', () => {
   it('returns only allowlisted committed hook metadata', () => {
-    const error = {
-      code: 'ERR_DOCUMENT_HOOK_COMMITTED',
+    const error = ERR_DOCUMENT_HOOK_COMMITTED({
       message: 'internal message',
       cause: new Error('secret hook failure'),
       details: {
         phase: 'afterCreate',
         documentId: 'doc-1',
         documentVersionId: 'version-1',
-        sideEffectCode: 'ERR_STORAGE',
+        sideEffectCode: ErrorCodes.STORAGE,
         privatePath: '/private/cache/key',
       },
-    }
+    })
 
     const response = toCommittedDocumentHookFailureResponse(error)
 
@@ -38,18 +38,37 @@ describe('collection save outcome transport', () => {
     })
     expect(JSON.stringify(response)).not.toContain('secret hook failure')
     expect(JSON.stringify(response)).not.toContain('/private/cache/key')
-    expect(hasCommittedDocumentHookFailure(response as { status: string })).toBe(true)
+    expect(hasCommittedDocumentHookFailure(response)).toBe(true)
+  })
+
+  it('accepts the singleton afterSave phase exported by core', () => {
+    const response = toCommittedDocumentHookFailureResponse(
+      ERR_DOCUMENT_HOOK_COMMITTED({
+        message: 'singleton committed',
+        details: {
+          phase: 'afterSave',
+          documentId: 'doc-singleton',
+          documentVersionId: 'version-singleton',
+          sideEffectCode: ErrorCodes.UNHANDLED,
+        },
+      })
+    )
+
+    expect(response?.sideEffectFailure).toEqual({
+      phase: 'afterSave',
+      code: ErrorCodes.UNHANDLED,
+    })
   })
 
   it('does not classify ordinary or malformed failures as committed', () => {
     expect(toCommittedDocumentHookFailureResponse(new Error('write failed'))).toBeNull()
     expect(
       toCommittedDocumentHookFailureResponse({
-        code: 'ERR_DOCUMENT_HOOK_COMMITTED',
+        code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
         message: 'missing ids',
         details: {
           phase: 'afterUpdate',
-          sideEffectCode: 'ERR_UNHANDLED',
+          sideEffectCode: ErrorCodes.UNHANDLED,
         },
       })
     ).toBeNull()

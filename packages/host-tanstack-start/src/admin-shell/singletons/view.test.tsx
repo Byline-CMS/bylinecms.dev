@@ -54,6 +54,14 @@ vi.mock('../../server-fns/singletons/index.js', () => ({
   copySingletonToLocale: mocks.copyToLocale,
 }))
 
+vi.mock('../../server-fns/collections/index.js', () => ({
+  hasCommittedDocumentHookFailure: (result: unknown) =>
+    typeof result === 'object' &&
+    result != null &&
+    'status' in result &&
+    result.status === 'committed-hook-failed',
+}))
+
 vi.mock('../../server-fns/preview/index.js', () => ({
   enablePreviewModeFn: vi.fn(async () => {}),
 }))
@@ -368,6 +376,25 @@ describe('SingletonView', () => {
     expect(mocks.guardStates).toContain(true)
     expect(mocks.guardStates.at(-1)).toBe(true)
     expect(container.textContent).toContain('Cancel')
+  })
+
+  it('treats a committed afterSave failure as saved, warns, and reloads canonical state', async () => {
+    mocks.update.mockResolvedValueOnce({
+      status: 'committed-hook-failed',
+      documentId: 'doc-settings',
+      documentVersionId: 'version-next',
+      sideEffectFailure: { phase: 'afterSave', code: 'ERR_UNHANDLED' },
+    })
+    render(loadedDocument)
+    typeIntoTitle('Committed change')
+    await submit()
+
+    expect(latestToastDescription()).toContain(
+      'Your changes were saved, but a post-save update failed'
+    )
+    expect(mocks.invalidate).toHaveBeenCalledOnce()
+    expect(mocks.guardStates.at(-1)).toBe(false)
+    expect(container.textContent).toContain('Close')
   })
 
   it('re-runs the loader and remounts before unlocking saved-document uploads', async () => {

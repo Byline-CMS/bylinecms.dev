@@ -13,6 +13,7 @@ import { withLogContext } from '../../lib/logger.js'
 import { type SlugifierFn, slugify } from '../../utils/slugify.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
 import { assignCounterValues } from '../assign-counter-values.js'
+import { runCommittedDocumentHook } from './committed-hook.js'
 import {
   applyRichTextEmbed,
   derivePath,
@@ -264,14 +265,23 @@ export async function duplicateDocument(
       const newDocumentVersionId = extractVersionId(result.document)
 
       // 8. afterCreate hook with duplicate marker.
-      await invokeHook(hooks?.afterCreate, {
-        data: clonedFields,
-        collectionPath,
-        documentId: newDocumentId,
-        documentVersionId: newDocumentVersionId,
-        path: finalPath,
-        duplicate: duplicateMarker,
-      })
+      await runCommittedDocumentHook(
+        ctx,
+        {
+          phase: 'afterCreate',
+          documentId: newDocumentId,
+          documentVersionId: newDocumentVersionId,
+        },
+        () =>
+          invokeHook(hooks?.afterCreate, {
+            data: clonedFields,
+            collectionPath,
+            documentId: newDocumentId,
+            documentVersionId: newDocumentVersionId,
+            path: finalPath,
+            duplicate: duplicateMarker,
+          })
+      )
 
       return {
         documentId: newDocumentId,

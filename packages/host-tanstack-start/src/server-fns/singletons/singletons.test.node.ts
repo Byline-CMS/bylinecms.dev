@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { ERR_DOCUMENT_HOOK_COMMITTED, ErrorCodes } from '@byline/core'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -231,6 +232,39 @@ describe('singleton server functions', () => {
       { title: 'Changed' },
       { locale: undefined, expectedVersionId: 'version-current' }
     )
+  })
+
+  it.each([
+    ['update', updateSingleton, { singleton: 'site-settings', data: { title: 'Changed' } }],
+    [
+      'copyToLocale',
+      copySingletonToLocale,
+      { singleton: 'site-settings', sourceLocale: 'en', targetLocale: 'fr' },
+    ],
+    [
+      'restoreVersion',
+      restoreSingletonVersion,
+      { singleton: 'site-settings', versionId: 'version-1' },
+    ],
+  ] as const)('returns a committed hook outcome for %s', async (method, serverFunction, input) => {
+    handle[method].mockRejectedValueOnce(
+      ERR_DOCUMENT_HOOK_COMMITTED({
+        message: 'write committed',
+        details: {
+          phase: 'afterSave',
+          documentId: 'doc-settings',
+          documentVersionId: 'version-next',
+          sideEffectCode: ErrorCodes.UNHANDLED,
+        },
+      })
+    )
+
+    await expect(invoke(serverFunction, input)).resolves.toEqual({
+      status: 'committed-hook-failed',
+      documentId: 'doc-settings',
+      documentVersionId: 'version-next',
+      sideEffectFailure: { phase: 'afterSave', code: ErrorCodes.UNHANDLED },
+    })
   })
 
   it('preserves authentication failures from the handle', async () => {

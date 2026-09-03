@@ -19,9 +19,10 @@
 import { useState } from 'react'
 
 import { useTranslation } from '@byline/i18n/react'
-import { Alert, Button, LoaderEllipsis, Modal } from '@byline/ui/react'
+import { Alert, Button, LoaderEllipsis, Modal, useToastManager } from '@byline/ui/react'
 import cx from 'clsx'
 
+import { hasCommittedDocumentHookFailure } from '../../server-fns/collections/save-outcome.js'
 import styles from './restore-version-modal.module.css'
 
 interface RestoreVersionModalProps {
@@ -42,6 +43,7 @@ export function RestoreVersionModal({
   onRestoreComplete,
 }: RestoreVersionModalProps) {
   const { t } = useTranslation('byline-admin')
+  const toastManager = useToastManager()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -50,7 +52,14 @@ export function RestoreVersionModal({
     setPending(true)
     setError(null)
     try {
-      await restoreVersion()
+      const result = await restoreVersion()
+      if (hasCommittedDocumentHookFailure(result)) {
+        toastManager.add({
+          title: t('collections.save.hookFailedToast'),
+          description: t('collections.save.hookFailedDescription'),
+          data: { intent: 'warning', iconType: 'warning', icon: true, close: true },
+        })
+      }
       onClose()
       await onRestoreComplete()
     } catch (err) {

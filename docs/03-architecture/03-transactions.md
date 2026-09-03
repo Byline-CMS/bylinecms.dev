@@ -54,7 +54,7 @@ Transactions make the *database side* of uploads atomic and tidier. **"Transacti
 
 ### What this means for your code
 
-Collection `after*` hooks run only after commit. They cannot roll back the mutation or its audit row. Most lifecycle operations still reject when such a hook fails, so you can reconcile. Ordinary create and content-update writes use `ERR_DOCUMENT_HOOK_COMMITTED` for this rejection; its allowlisted details identify `afterCreate` or `afterUpdate` plus the committed document and version IDs. The admin host treats that code as saved-with-warning, refreshes the canonical document, and never replays the version write.
+Collection and singleton `after*` hooks run only after commit. They cannot roll back the mutation or its audit row. Version-creating operations use `ERR_DOCUMENT_HOOK_COMMITTED` when `afterCreate`, `afterUpdate`, or singleton `afterSave` rejects; its allowlisted details include the committed document and version IDs. This covers ordinary saves, duplicate, restore, copy-to-locale, delete-locale, and singleton saves. The admin host treats that code as saved-with-warning, refreshes the canonical state, and never replays the version write.
 
 **Delete is deliberately different, and it is visible in the return type.** `afterTreeChange` and
 `afterDelete` are attempted independently, and their failures do not reject an already-committed

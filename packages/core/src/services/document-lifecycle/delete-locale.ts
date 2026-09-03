@@ -11,6 +11,7 @@ import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { ERR_NOT_FOUND, ERR_VALIDATION } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
+import { runCommittedDocumentHook } from './committed-hook.js'
 import { actorId, invokeHook } from './internals.js'
 import { commitContentVersionWithScheduleSuspension } from './publish-schedule-consistency.js'
 import type { DocumentLifecycleContext } from './context.js'
@@ -133,17 +134,26 @@ export async function deleteLocale(
         },
       })
 
-      await invokeHook(hooks?.afterUpdate, {
-        data: originalData,
-        originalData,
-        collectionPath,
-        documentId: params.documentId,
-        documentVersionId: result.newVersionId,
-        // Path is sticky and source-locale-anchored; deleting a translation
-        // never touches it. Read it off the target envelope.
-        path: (targetRecord.path as string) ?? '',
-        deleteLocale: deleteLocaleMarker,
-      })
+      await runCommittedDocumentHook(
+        ctx,
+        {
+          phase: 'afterUpdate',
+          documentId: params.documentId,
+          documentVersionId: result.newVersionId,
+        },
+        () =>
+          invokeHook(hooks?.afterUpdate, {
+            data: originalData,
+            originalData,
+            collectionPath,
+            documentId: params.documentId,
+            documentVersionId: result.newVersionId,
+            // Path is sticky and source-locale-anchored; deleting a translation
+            // never touches it. Read it off the target envelope.
+            path: (targetRecord.path as string) ?? '',
+            deleteLocale: deleteLocaleMarker,
+          })
+      )
 
       return {
         documentId: params.documentId,

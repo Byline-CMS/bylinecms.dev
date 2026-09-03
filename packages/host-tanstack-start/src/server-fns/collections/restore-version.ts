@@ -14,6 +14,7 @@ import type { DocumentLifecycleContext } from '@byline/core/services'
 import { restoreDocumentVersion as restoreDocumentVersionService } from '@byline/core/services'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { toCommittedDocumentHookFailureResponse } from './save-outcome.js'
 
 // ---------------------------------------------------------------------------
 // Restore a historical document version as the new current version
@@ -45,15 +46,21 @@ export const restoreDocumentVersion = createServerFn({ method: 'POST' })
       requestContext: await getAdminRequestContext(),
     }
 
-    const result = await restoreDocumentVersionService(ctx, {
-      documentId: id,
-      sourceVersionId: versionId,
-    })
+    try {
+      const result = await restoreDocumentVersionService(ctx, {
+        documentId: id,
+        sourceVersionId: versionId,
+      })
 
-    return {
-      status: 'ok' as const,
-      documentId: result.documentId,
-      documentVersionId: result.documentVersionId,
-      sourceVersionId: result.sourceVersionId,
+      return {
+        status: 'ok' as const,
+        documentId: result.documentId,
+        documentVersionId: result.documentVersionId,
+        sourceVersionId: result.sourceVersionId,
+      }
+    } catch (error) {
+      const committedFailure = toCommittedDocumentHookFailureResponse(error)
+      if (committedFailure != null) return committedFailure
+      throw error
     }
   })

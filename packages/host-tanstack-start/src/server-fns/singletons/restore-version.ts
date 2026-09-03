@@ -10,10 +10,19 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { getAdminBylineClient } from '@byline/client/server'
 
+import { toCommittedDocumentHookFailureResponse } from '../collections/save-outcome.js'
 import { serialise } from '../serialise.js'
 
 export const restoreSingletonVersion = createServerFn({ method: 'POST' })
   .validator((input: { singleton: string; versionId: string }) => input)
-  .handler(async ({ data }) =>
-    serialise(await getAdminBylineClient().singleton(data.singleton).restoreVersion(data.versionId))
-  )
+  .handler(async ({ data }) => {
+    try {
+      return serialise(
+        await getAdminBylineClient().singleton(data.singleton).restoreVersion(data.versionId)
+      )
+    } catch (error) {
+      const committedFailure = toCommittedDocumentHookFailureResponse(error)
+      if (committedFailure != null) return committedFailure
+      throw error
+    }
+  })

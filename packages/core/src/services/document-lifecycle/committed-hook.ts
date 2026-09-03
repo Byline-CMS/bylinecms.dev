@@ -13,7 +13,7 @@ import {
 } from '../../lib/errors.js'
 import type { DocumentLifecycleContext } from './context.js'
 
-export type DocumentHookCommittedPhase = 'afterCreate' | 'afterUpdate'
+export type DocumentHookCommittedPhase = 'afterCreate' | 'afterUpdate' | 'afterSave'
 
 export type DocumentHookSideEffectCode = typeof ErrorCodes.STORAGE | typeof ErrorCodes.UNHANDLED
 
@@ -61,7 +61,7 @@ export function getDocumentHookCommittedDetails(
   const documentVersionId = readStringProperty(details, 'documentVersionId')
   const failureCode = readStringProperty(details, 'sideEffectCode')
 
-  if (phase !== 'afterCreate' && phase !== 'afterUpdate') return null
+  if (phase !== 'afterCreate' && phase !== 'afterUpdate' && phase !== 'afterSave') return null
   if (!documentId || !documentVersionId) return null
   if (failureCode !== ErrorCodes.STORAGE && failureCode !== ErrorCodes.UNHANDLED) return null
 

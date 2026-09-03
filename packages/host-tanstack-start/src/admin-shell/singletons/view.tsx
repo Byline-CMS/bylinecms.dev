@@ -24,6 +24,10 @@ import { Container, Section, useToastManager } from '@byline/ui/react'
 
 import { getAdminRoutePath } from '../../routes/admin-path.js'
 import {
+  hasCommittedDocumentHookFailure,
+  type SerializedDocumentPublishSchedule,
+} from '../../server-fns/collections/index.js'
+import {
   cancelSingletonScheduledPublish,
   changeSingletonStatus,
   confirmSingletonScheduledPublish,
@@ -35,7 +39,6 @@ import {
 import { useNavigate } from '../chrome/loose-router.js'
 import { useTanStackNavigationGuard } from '../collections/tanstack-navigation-guard.js'
 import { SingletonViewMenu } from './view-menu.js'
-import type { SerializedDocumentPublishSchedule } from '../../server-fns/collections/index.js'
 import type { ContentLocaleOption } from '../collections/view-menu.js'
 
 type SingletonDocument = Record<string, any> & {
@@ -119,9 +122,17 @@ export function SingletonView({
     )
   }
 
+  const notifyCommittedHookFailure = () => {
+    toast(
+      t('collections.save.hookFailedToast'),
+      t('collections.save.hookFailedDescription'),
+      'warning'
+    )
+  }
+
   const handleSubmit = async ({ data }: { data: Record<string, any> }) => {
     try {
-      await updateSingleton({
+      const result = await updateSingleton({
         data: {
           singleton: path,
           data,
@@ -130,11 +141,15 @@ export function SingletonView({
         },
       })
       if (document != null) notifyScheduleSuspended()
-      toast(
-        t('singletons.edit.updateTitle', { label }),
-        t('singletons.edit.updatedDescription', { label: label.toLowerCase() }),
-        'success'
-      )
+      if (hasCommittedDocumentHookFailure(result)) {
+        notifyCommittedHookFailure()
+      } else {
+        toast(
+          t('singletons.edit.updateTitle', { label }),
+          t('singletons.edit.updatedDescription', { label: label.toLowerCase() }),
+          'success'
+        )
+      }
       await reload()
     } catch (err) {
       const code = errorCode(err)
@@ -199,7 +214,7 @@ export function SingletonView({
     overwrite: boolean
   }) => {
     try {
-      await copySingletonToLocale({
+      const result = await copySingletonToLocale({
         data: {
           singleton: path,
           sourceLocale: locale ?? defaultContentLocale,
@@ -212,14 +227,18 @@ export function SingletonView({
         contentLocales.find((entry) => entry.code === sourceLocale)?.label ?? sourceLocale
       const targetLabel =
         contentLocales.find((entry) => entry.code === targetLocale)?.label ?? targetLocale
-      toast(
-        t('collections.edit.copyToLocaleTitle', { label }),
-        t('collections.edit.copiedSuccessMessage', {
-          source: sourceLabel,
-          target: targetLabel,
-        }),
-        'success'
-      )
+      if (hasCommittedDocumentHookFailure(result)) {
+        notifyCommittedHookFailure()
+      } else {
+        toast(
+          t('collections.edit.copyToLocaleTitle', { label }),
+          t('collections.edit.copiedSuccessMessage', {
+            source: sourceLabel,
+            target: targetLabel,
+          }),
+          'success'
+        )
+      }
       notifyScheduleSuspended()
       navigate({
         to: getAdminRoutePath('singletons', '$singleton'),

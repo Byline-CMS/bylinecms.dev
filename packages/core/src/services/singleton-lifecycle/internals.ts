@@ -9,6 +9,7 @@
 import { resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { DbErrorCodes, ERR_CONFLICT, ERR_VALIDATION } from '../../lib/errors.js'
+import { runCommittedDocumentHook } from '../document-lifecycle/committed-hook.js'
 import { extractDocumentId, extractVersionId } from '../document-lifecycle/internals.js'
 import type {
   AfterSingletonSaveContext,
@@ -157,7 +158,15 @@ export async function commitSingletonSave(params: {
     }
   })
 
-  await invokeSingletonHook(hooks?.afterSave, committed.afterSaveContext)
+  await runCommittedDocumentHook(
+    ctx,
+    {
+      phase: 'afterSave',
+      documentId: committed.documentId,
+      documentVersionId: committed.documentVersionId,
+    },
+    () => invokeSingletonHook(hooks?.afterSave, committed.afterSaveContext)
+  )
   return {
     documentId: committed.documentId,
     documentVersionId: committed.documentVersionId,

@@ -14,6 +14,10 @@ import type { CopyToLocaleResult, DocumentLifecycleContext } from '@byline/core/
 import { copyToLocale } from '@byline/core/services'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import {
+  type CollectionDocumentCommittedHookFailureResponse,
+  toCommittedDocumentHookFailureResponse,
+} from './save-outcome.js'
 
 // ---------------------------------------------------------------------------
 // Copy document content from one locale into another
@@ -38,34 +42,44 @@ export const copyDocumentToLocale = createServerFn({ method: 'POST' })
       overwrite: boolean
     }) => input
   )
-  .handler(async ({ data: input }): Promise<CopyToLocaleResult> => {
-    const { collection: path, id, sourceLocale, targetLocale, overwrite } = input
-    const logger = getLogger()
-    const config = await ensureCollection(path)
-    if (!config) {
-      throw ERR_NOT_FOUND({
-        message: 'Collection not found',
-        details: { collectionPath: path },
-      }).log(logger)
-    }
+  .handler(
+    async ({
+      data: input,
+    }): Promise<CopyToLocaleResult | CollectionDocumentCommittedHookFailureResponse> => {
+      const { collection: path, id, sourceLocale, targetLocale, overwrite } = input
+      const logger = getLogger()
+      const config = await ensureCollection(path)
+      if (!config) {
+        throw ERR_NOT_FOUND({
+          message: 'Collection not found',
+          details: { collectionPath: path },
+        }).log(logger)
+      }
 
-    const serverConfig = getServerConfig()
-    const ctx: DocumentLifecycleContext = {
-      db: serverConfig.db,
-      definition: config.definition,
-      collectionId: config.collection.id,
-      collectionVersion: config.collection.version,
-      collectionPath: path,
-      logger,
-      defaultLocale: serverConfig.i18n.content.defaultLocale,
-      slugifier: serverConfig.slugifier,
-      requestContext: await getAdminRequestContext(),
-    }
+      const serverConfig = getServerConfig()
+      const ctx: DocumentLifecycleContext = {
+        db: serverConfig.db,
+        definition: config.definition,
+        collectionId: config.collection.id,
+        collectionVersion: config.collection.version,
+        collectionPath: path,
+        logger,
+        defaultLocale: serverConfig.i18n.content.defaultLocale,
+        slugifier: serverConfig.slugifier,
+        requestContext: await getAdminRequestContext(),
+      }
 
-    return copyToLocale(ctx, {
-      documentId: id,
-      sourceLocale,
-      targetLocale,
-      overwrite,
-    })
-  })
+      try {
+        return await copyToLocale(ctx, {
+          documentId: id,
+          sourceLocale,
+          targetLocale,
+          overwrite,
+        })
+      } catch (error) {
+        const committedFailure = toCommittedDocumentHookFailureResponse(error)
+        if (committedFailure != null) return committedFailure
+        throw error
+      }
+    }
+  )

@@ -14,7 +14,10 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
+  copyToLocale: vi.fn(),
   create: vi.fn(),
+  deleteLocale: vi.fn(),
+  duplicate: vi.fn(),
   navigate: vi.fn(),
   formProps: [] as Array<Record<string, unknown>>,
   toastAdd: vi.fn(),
@@ -59,11 +62,11 @@ vi.mock('../../routes/list-return-storage.js', () => ({
 vi.mock('../../server-fns/collections/index.js', () => ({
   cancelCollectionDocumentScheduledPublish: vi.fn(),
   confirmCollectionDocumentScheduledPublish: vi.fn(),
-  copyDocumentToLocale: vi.fn(),
+  copyDocumentToLocale: mocks.copyToLocale,
   createCollectionDocument: mocks.create,
   deleteDocument: vi.fn(),
-  deleteDocumentLocale: vi.fn(),
-  duplicateCollectionDocument: vi.fn(),
+  deleteDocumentLocale: mocks.deleteLocale,
+  duplicateCollectionDocument: mocks.duplicate,
   hasCommittedDocumentHookFailure: (result: { status: string }) =>
     result.status === 'committed-hook-failed',
   hasDeleteSideEffectFailures: () => false,
@@ -126,6 +129,25 @@ beforeEach(() => {
   })
   mocks.update.mockResolvedValue({ status: 'ok' })
   mocks.updateSystemFields.mockResolvedValue({ status: 'ok' })
+  mocks.copyToLocale.mockResolvedValue({
+    documentId: 'language-en',
+    documentVersionId: 'version-2',
+    sourceLocale: 'en',
+    targetLocale: 'th',
+    fieldsUpdated: 1,
+  })
+  mocks.deleteLocale.mockResolvedValue({
+    documentId: 'language-en',
+    documentVersionId: 'version-2',
+    locale: 'th',
+  })
+  mocks.duplicate.mockResolvedValue({
+    documentId: 'language-copy',
+    documentVersionId: 'version-copy',
+    sourceDocumentId: 'language-en',
+    newPath: 'english-copy',
+    pathRetried: false,
+  })
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
@@ -145,6 +167,12 @@ function latestSubmit(): (payload: Record<string, unknown>) => Promise<void> {
   const onSubmit = mocks.formProps.at(-1)?.onSubmit
   if (typeof onSubmit !== 'function') throw new Error('FormRenderer onSubmit not found')
   return onSubmit as (payload: Record<string, unknown>) => Promise<void>
+}
+
+function latestAction(name: string): (...args: any[]) => Promise<void> {
+  const action = mocks.formProps.at(-1)?.[name]
+  if (typeof action !== 'function') throw new Error(`FormRenderer ${name} not found`)
+  return action as (...args: any[]) => Promise<void>
 }
 
 describe('collection post-save navigation', () => {
@@ -291,5 +319,66 @@ describe('collection post-save navigation', () => {
       data: { intent: 'warning', iconType: 'warning', icon: true, close: true },
     })
     expect(mocks.navigate).toHaveBeenCalledWith(expect.objectContaining({ ignoreBlocker: true }))
+  })
+
+  it.each([
+    {
+      action: 'onDuplicate',
+      invoke: () => latestAction('onDuplicate')(),
+      mock: mocks.duplicate,
+      phase: 'afterCreate',
+      expectedSearch: expect.any(Function),
+      expectedId: 'language-copy',
+    },
+    {
+      action: 'onCopyToLocale',
+      invoke: () => latestAction('onCopyToLocale')({ targetLocale: 'th', overwrite: false }),
+      mock: mocks.copyToLocale,
+      phase: 'afterUpdate',
+      expectedSearch: expect.any(Function),
+      expectedId: 'language-en',
+    },
+    {
+      action: 'onDeleteLocale',
+      invoke: () => latestAction('onDeleteLocale')({ targetLocale: 'th' }),
+      mock: mocks.deleteLocale,
+      phase: 'afterUpdate',
+      expectedSearch: expect.any(Function),
+      expectedId: 'language-en',
+    },
+  ])('treats committed $action hook failures as completed mutations', async (testCase) => {
+    testCase.mock.mockResolvedValueOnce({
+      status: 'committed-hook-failed',
+      documentId: testCase.expectedId,
+      documentVersionId: 'version-committed',
+      sideEffectFailure: { phase: testCase.phase, code: 'ERR_UNHANDLED' },
+    })
+    act(() => {
+      root.render(
+        <EditView
+          collectionDefinition={collection}
+          initialData={initialData as never}
+          contentLocales={[
+            { code: 'en', label: 'English' },
+            { code: 'th', label: 'Thai' },
+          ]}
+          defaultContentLocale="en"
+          locale="en"
+        />
+      )
+    })
+
+    await act(testCase.invoke)
+
+    expect(mocks.toastAdd).toHaveBeenCalledWith({
+      title: 'collections.save.hookFailedToast',
+      description: 'collections.save.hookFailedDescription',
+      data: { intent: 'warning', iconType: 'warning', icon: true, close: true },
+    })
+    expect(mocks.navigate).toHaveBeenCalledWith({
+      to: '/admin/collections/$collection/$id',
+      params: { collection: 'languages', id: testCase.expectedId },
+      search: testCase.expectedSearch,
+    })
   })
 })
