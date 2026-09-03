@@ -24,10 +24,7 @@
  * re-exported here — the public surface is exactly this barrel).
  */
 
-export {
-  getDocumentHookCommittedDetails,
-  runCommittedDocumentHook,
-} from './committed-hook.js'
+export { getDocumentHookCommittedDetails } from './committed-hook.js'
 export { copyToLocale } from './copy-to-locale.js'
 export { createDocument } from './create.js'
 export { deleteDocument } from './delete.js'

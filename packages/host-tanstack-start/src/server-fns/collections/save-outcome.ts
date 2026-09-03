@@ -12,8 +12,6 @@ import {
   getDocumentHookCommittedDetails,
 } from '@byline/core/services'
 
-export type { DocumentHookCommittedPhase, DocumentHookSideEffectCode }
-
 export interface CollectionDocumentCommittedHookFailureResponse {
   status: 'committed-hook-failed'
   documentId: string
