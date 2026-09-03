@@ -129,6 +129,16 @@ const submitForm = () => {
   })
 }
 
+const deferred = () => {
+  let resolve: () => void = () => {}
+  let reject: (reason?: unknown) => void = () => {}
+  const promise = new Promise<void>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
 describe('FormRenderer submit contract', () => {
   const render = (props: Record<string, unknown>) =>
     renderInProvider(<FormRenderer {...(props as any)} />)
@@ -169,13 +179,62 @@ describe('FormRenderer submit contract', () => {
     expect(container.textContent).toContain('Cancel')
   })
 
-  it('ignores a second submit while the first is still in flight', async () => {
-    let release: () => void = () => {}
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
+  it('shows a named busy indicator until onSubmit resolves', async () => {
+    const submission = deferred()
+    render({ ...baseProps, onSubmit: () => submission.promise })
+    typeIntoTitle('Hello')
+    submitForm()
+    await act(async () => {})
+
+    const form = container.querySelector('form')
+    const saveButton = container.querySelector<HTMLButtonElement>('button[type="submit"]')
+    expect(form?.getAttribute('aria-busy')).toBe('true')
+    expect(form?.hasAttribute('inert')).toBe(true)
+    expect(saveButton?.getAttribute('aria-label')).toBe('Save')
+    expect(saveButton?.querySelector('.byline-loader-ellipsis')).not.toBeNull()
+
+    await act(async () => {
+      submission.resolve()
+      await submission.promise
     })
+
+    expect(form?.getAttribute('aria-busy')).toBe('false')
+    expect(form?.hasAttribute('inert')).toBe(false)
+    expect(saveButton?.getAttribute('aria-label')).toBeNull()
+    expect(saveButton?.querySelector('.byline-loader-ellipsis')).toBeNull()
+  })
+
+  it('hides the busy indicator when onSubmit rejects', async () => {
+    const submission = deferred()
+    render({ ...baseProps, onSubmit: () => submission.promise })
+    typeIntoTitle('Hello')
+    submitForm()
+    await act(async () => {})
+
+    const form = container.querySelector('form')
+    const saveButton = container.querySelector<HTMLButtonElement>('button[type="submit"]')
+    expect(form?.getAttribute('aria-busy')).toBe('true')
+    expect(saveButton?.querySelector('.byline-loader-ellipsis')).not.toBeNull()
+
+    await act(async () => {
+      submission.reject(new Error('save failed'))
+      try {
+        await submission.promise
+      } catch {
+        // FormRenderer intentionally handles host-reported submission failures.
+      }
+    })
+
+    expect(form?.getAttribute('aria-busy')).toBe('false')
+    expect(form?.hasAttribute('inert')).toBe(false)
+    expect(saveButton?.getAttribute('aria-label')).toBeNull()
+    expect(saveButton?.querySelector('.byline-loader-ellipsis')).toBeNull()
+  })
+
+  it('ignores a second submit while the first is still in flight', async () => {
+    const submission = deferred()
     const onSubmit = vi.fn(async () => {
-      await gate
+      await submission.promise
     })
     render({ ...baseProps, onSubmit })
     typeIntoTitle('Hello')
@@ -187,7 +246,7 @@ describe('FormRenderer submit contract', () => {
     await act(async () => {})
     expect(onSubmit).toHaveBeenCalledTimes(1)
     await act(async () => {
-      release()
+      submission.resolve()
     })
     expect(onSubmit).toHaveBeenCalledTimes(1)
   })

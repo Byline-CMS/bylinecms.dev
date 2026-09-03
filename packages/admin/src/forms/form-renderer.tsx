@@ -21,7 +21,7 @@ import type {
 import { getAdminConfig } from '@byline/core'
 import type { DocumentPatch } from '@byline/core/patches'
 import { useTranslation } from '@byline/i18n/react'
-import { Alert, Button, ComboButton } from '@byline/ui/react'
+import { Alert, Button, ComboButton, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'clsx'
 
 import { sliceFieldAdmin } from '../fields/field-admin'
@@ -611,8 +611,8 @@ const FormContent = ({
       noValidate
       onSubmit={handleSubmit}
       className={cx('byline-form', styles.form)}
-      inert={isUploading ? true : undefined}
-      aria-busy={isUploading}
+      inert={isUploading || isSubmitting ? true : undefined}
+      aria-busy={isUploading || isSubmitting}
     >
       <div className={cx('byline-form-heading-row', styles['heading-row'])}>
         <h1 className={cx('byline-form-heading', styles.heading)}>{computedHeading}</h1>
@@ -649,8 +649,15 @@ const FormContent = ({
             size="sm"
             type="submit"
             disabled={hasChanges === false || isUploading || isSubmitting}
+            aria-label={isSubmitting ? t('common.actions.save') : undefined}
           >
-            {isUploading ? t('forms.actions.uploading') : t('common.actions.save')}
+            {isUploading ? (
+              t('forms.actions.uploading')
+            ) : isSubmitting ? (
+              <LoaderEllipsis size={42} aria-hidden="true" />
+            ) : (
+              t('common.actions.save')
+            )}
           </Button>
           {primaryStatus && onStatusChange && (
             <div className={cx('byline-form-actions-status-wrap', styles['actions-status-wrap'])}>
