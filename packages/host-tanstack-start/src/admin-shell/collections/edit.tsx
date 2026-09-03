@@ -601,12 +601,16 @@ export const EditView = ({
       setEditState({ status: 'success', message: description })
 
       // Re-navigate to the same route so the loader re-fetches the document.
-      // The new version will have a fresh version ID, draft status, and
-      // updated publishedVersion metadata.
+      // The new version will have a fresh version ID, the collection's default
+      // workflow status, and updated publishedVersion metadata.
       navigate({
         to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection: path, id: String(initialData.id) },
         search: (prev: Record<string, unknown>) => ({ ...prev }),
+        // Every write above has succeeded. FormRenderer clears its dirty
+        // baseline after this handler returns, so bypass the guard during the
+        // intentional post-save refresh rather than racing that state update.
+        ignoreBlocker: true,
       })
     } catch (err) {
       console.error('Network error:', err)

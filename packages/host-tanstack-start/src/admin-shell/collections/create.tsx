@@ -76,12 +76,17 @@ export const CreateView = ({
           to: getAdminRoutePath('collections', '$collection', '$id'),
           params: { collection: path, id: result.documentId } as never,
           search: { action: 'created', from },
+          // Persistence has succeeded, but FormRenderer cannot commit its
+          // clean baseline until this handler returns. Do not let that brief
+          // dirty-state overlap block the intentional create → edit redirect.
+          ignoreBlocker: true,
         })
       } else {
         navigate({
           to: getAdminRoutePath('collections', '$collection'),
           params: { collection: path },
           search: { ...decodeListReturnState(from), action: 'created' },
+          ignoreBlocker: true,
         })
       }
     } catch (err) {
