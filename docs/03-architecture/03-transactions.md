@@ -85,10 +85,14 @@ conflict. Both built-in adapters implement the member. An out-of-tree adapter mu
 upgrading `@byline/core`; there is no optional capability fallback.
 
 Creating a version for an existing document takes a row-scoped document lock before checking
-version liveness. Saves to the same document therefore serialize with each other and with
-soft-delete/un-delete, while unrelated documents remain concurrent. The guard rejects adding a
-live version to a fully deleted document; whole-document un-delete is the supported storage
-primitive for that transition.
+version liveness and the write's `previousVersionId`. Saves to the same document therefore
+serialize with each other and with soft-delete/un-delete, while unrelated documents remain
+concurrent. A stale parent raises `ERR_CONFLICT` before a version is inserted. Locale-specific
+writes to an existing versioned document must supply the current parent because storage copies all
+other locales forward from it; omitting the parent also raises `ERR_CONFLICT`. Use one
+`locale: 'all'` write to persist a complete multi-locale tree rather than batching per-locale
+writes in one transaction. The guard also rejects adding a live version to a fully deleted
+document; whole-document un-delete is the supported storage primitive for that transition.
 
 Runtime structural checks back the TypeScript contract for untyped JavaScript adapters: audited
 and system-field writes throw `ERR_AUDIT_UNSUPPORTED` when a required function is absent, and tree

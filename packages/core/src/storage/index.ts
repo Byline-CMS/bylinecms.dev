@@ -8,6 +8,11 @@
 
 export { fingerprintCollection } from './collection-fingerprint.js'
 export {
+  assertDocumentVersionParent,
+  type DocumentVersionParentAssertion,
+  type DocumentVersionParentConflictReason,
+} from './document-version-parent.js'
+export {
   ALL_STORE_TYPES,
   type FieldStoreKind,
   type FieldStoreMapping,

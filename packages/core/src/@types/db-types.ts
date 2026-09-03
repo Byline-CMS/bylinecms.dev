@@ -842,9 +842,12 @@ export interface IDocumentCommands {
     createdBy?: string
     /**
      * When updating an existing document, the version ID of the version being
-     * replaced. If provided and `locale` is a specific locale (not 'all'),
-     * field-value rows for other locales are copied forward from this version
-     * into the new one so that per-locale content is not lost.
+     * replaced. The adapter verifies this ID against the current live version
+     * while holding the document-row lock and throws `ERR_CONFLICT` when it is
+     * stale. A locale-specific write to an existing versioned document must
+     * provide this value so field rows for every other locale can be copied
+     * forward safely. `locale: 'all'` writes replace the complete locale tree
+     * and may omit it; when supplied, it must still be current.
      */
     previousVersionId?: string
     /**

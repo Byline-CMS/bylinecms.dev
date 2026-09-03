@@ -35,7 +35,7 @@
  * purely through the adapter contract.
  */
 
-import type { CollectionDefinition, IDbAdapter } from '@byline/core'
+import { type CollectionDefinition, ErrorCodes, type IDbAdapter } from '@byline/core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { ConformanceHooks } from '../index.js'
@@ -57,6 +57,7 @@ const LocaleCollectionConfig: CollectionDefinition = {
 // `reconstruct: false`, so narrow to the reconstructed branch (the only one
 // carrying the locale metadata) here rather than at every assertion site.
 type ReconstructedRead = {
+  document_version_id: string
   fields: Record<string, any>
   source_locale: string
   _availableVersionLocales: string[]
@@ -71,6 +72,48 @@ export function localeFallbackSuite(hooks: ConformanceHooks): void {
   let adapter: IDbAdapter
   let testCollection: { id: string; name: string } = {} as any
   let seq = 0
+
+  async function createVersionedDoc(suffix: string) {
+    const documentData = {
+      title: { en: `Original EN ${suffix}`, de: `Original DE ${suffix}` },
+      body: { en: `Body EN ${suffix}`, de: `Body DE ${suffix}` },
+      sku: `parent-${suffix}`,
+    }
+    return adapter.commands.documents.createDocumentVersion({
+      collectionId: testCollection.id,
+      collectionVersion: 1,
+      collectionConfig: LocaleCollectionConfig,
+      action: 'create',
+      documentData,
+      path: `parent-${timestamp}-${suffix}`,
+      locale: 'all',
+      status: 'draft',
+    })
+  }
+
+  function writeLocale(params: {
+    documentId: string
+    previousVersionId?: string
+    locale: 'en' | 'de'
+    suffix: string
+  }) {
+    const { documentId, previousVersionId, locale, suffix } = params
+    return adapter.commands.documents.createDocumentVersion({
+      documentId,
+      collectionId: testCollection.id,
+      collectionVersion: 1,
+      collectionConfig: LocaleCollectionConfig,
+      action: 'update',
+      documentData: {
+        title: `Updated ${locale.toUpperCase()} ${suffix}`,
+        body: `Updated body ${locale.toUpperCase()} ${suffix}`,
+        sku: `parent-${suffix}`,
+      },
+      locale,
+      status: 'draft',
+      previousVersionId,
+    })
+  }
 
   /** Create a logical document from a multi-locale (`'all'`) field tree. */
   async function createDoc(documentData: Record<string, unknown>): Promise<string> {
@@ -362,6 +405,123 @@ export function localeFallbackSuite(hooks: ConformanceHooks): void {
       const byId = new Map(documents.map((d) => [d.document_id, d]))
       expect(byId.get(both)?._availableVersionLocales).toEqual(['de', 'en'])
       expect(byId.get(enOnly)?._availableVersionLocales).toEqual(['en'])
+    })
+
+    describe('version parent integrity', () => {
+      it('rejects a stale previousVersionId without creating another version', async () => {
+        const initial = await createVersionedDoc('stale')
+        const documentId = initial.document.document_id as string
+        const current = await writeLocale({
+          documentId,
+          previousVersionId: initial.document.id as string,
+          locale: 'en',
+          suffix: 'stale',
+        })
+
+        await expect(
+          writeLocale({
+            documentId,
+            previousVersionId: initial.document.id as string,
+            locale: 'de',
+            suffix: 'stale',
+          })
+        ).rejects.toMatchObject({
+          code: ErrorCodes.CONFLICT,
+          details: {
+            reason: 'stale',
+            documentId,
+            previousVersionId: initial.document.id,
+            currentVersionId: current.document.id,
+          },
+        })
+
+        const stored = await readById(documentId, 'all')
+        expect(stored?.document_version_id).toBe(current.document.id)
+        expect(stored?.fields.title).toEqual({
+          en: 'Updated EN stale',
+          de: 'Original DE stale',
+        })
+      })
+
+      it('rejects an omitted parent for a locale-scoped existing-document write', async () => {
+        const initial = await createVersionedDoc('missing')
+        const documentId = initial.document.document_id as string
+
+        await expect(
+          writeLocale({ documentId, locale: 'de', suffix: 'missing' })
+        ).rejects.toMatchObject({
+          code: ErrorCodes.CONFLICT,
+          details: {
+            reason: 'missing',
+            documentId,
+            previousVersionId: null,
+            currentVersionId: initial.document.id,
+          },
+        })
+
+        const stored = await readById(documentId, 'all')
+        expect(stored?.document_version_id).toBe(initial.document.id)
+      })
+
+      it('allows one concurrent locale save and rejects the other stale parent', async () => {
+        const initial = await createVersionedDoc('concurrent')
+        const documentId = initial.document.document_id as string
+        const previousVersionId = initial.document.id as string
+
+        const outcomes = await Promise.allSettled([
+          writeLocale({ documentId, previousVersionId, locale: 'en', suffix: 'concurrent' }),
+          writeLocale({ documentId, previousVersionId, locale: 'de', suffix: 'concurrent' }),
+        ])
+        const fulfilled = outcomes.filter((outcome) => outcome.status === 'fulfilled')
+        const rejected = outcomes.filter((outcome) => outcome.status === 'rejected')
+
+        expect(fulfilled).toHaveLength(1)
+        expect(rejected).toHaveLength(1)
+        expect(rejected[0]).toMatchObject({ reason: { code: ErrorCodes.CONFLICT } })
+
+        const stored = await readById(documentId, 'all')
+        if (outcomes[0]?.status === 'fulfilled') {
+          expect(stored?.fields.title).toEqual({
+            en: 'Updated EN concurrent',
+            de: 'Original DE concurrent',
+          })
+        } else {
+          expect(stored?.fields.title).toEqual({
+            en: 'Original EN concurrent',
+            de: 'Updated DE concurrent',
+          })
+        }
+      })
+
+      it('rejects sequential locale writes that reuse a parent inside withTransaction', async () => {
+        const initial = await createVersionedDoc('transaction')
+        const documentId = initial.document.document_id as string
+        const previousVersionId = initial.document.id as string
+
+        await expect(
+          adapter.withTransaction(async () => {
+            await writeLocale({
+              documentId,
+              previousVersionId,
+              locale: 'en',
+              suffix: 'transaction',
+            })
+            await writeLocale({
+              documentId,
+              previousVersionId,
+              locale: 'de',
+              suffix: 'transaction',
+            })
+          })
+        ).rejects.toMatchObject({ code: ErrorCodes.CONFLICT })
+
+        const stored = await readById(documentId, 'all')
+        expect(stored?.document_version_id).toBe(initial.document.id)
+        expect(stored?.fields.title).toEqual({
+          en: 'Original EN transaction',
+          de: 'Original DE transaction',
+        })
+      })
     })
 
     // The re-anchor coverage ("no-ops when the document is already anchored

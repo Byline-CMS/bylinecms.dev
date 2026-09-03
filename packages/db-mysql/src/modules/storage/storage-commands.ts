@@ -15,6 +15,7 @@ import type {
   TreePlacementState,
 } from '@byline/core'
 import {
+  assertDocumentVersionParent,
   DbErrorCodes,
   ERR_CONFLICT,
   ERR_NOT_FOUND,
@@ -295,6 +296,12 @@ export class DocumentCommands implements IDocumentCommands {
             details: { documentId },
           })
         }
+        assertDocumentVersionParent({
+          documentId,
+          locale: params.locale,
+          previousVersionId: params.previousVersionId,
+          currentVersionId: versionLiveness.currentVersionId,
+        })
         sourceLocale = existing.source_locale ?? this.defaultContentLocale
       }
 
@@ -1016,12 +1023,16 @@ export class DocumentCommands implements IDocumentCommands {
   private async readDocumentVersionLiveness(
     tx: TxConnection,
     documentId: string
-  ): Promise<{ total: number; live: number }> {
+  ): Promise<{ total: number; live: number; currentVersionId: string | null }> {
     // Match the live views: only explicit `false` is live; legacy `NULL` is not.
+    // Their current version is likewise the greatest live UUIDv7 id.
     return tx
       .select({
         total: sql<number>`CAST(COUNT(*) AS SIGNED)`,
         live: sql<number>`CAST(COUNT(CASE WHEN ${documentVersions.is_deleted} = false THEN 1 END) AS SIGNED)`,
+        currentVersionId: sql<
+          string | null
+        >`MAX(CASE WHEN ${documentVersions.is_deleted} = false THEN ${documentVersions.id} ELSE NULL END)`,
       })
       .from(documentVersions)
       .where(eq(documentVersions.document_id, documentId))

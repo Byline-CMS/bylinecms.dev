@@ -17,7 +17,7 @@ import type {
   SingletonDefinition,
   UploadImageProcessor,
 } from '@byline/core'
-import { getAvailableTransitions, SINGLE_STATUS_WORKFLOW } from '@byline/core'
+import { ErrorCodes, getAvailableTransitions, SINGLE_STATUS_WORKFLOW } from '@byline/core'
 import { runScheduledPublicationSweep } from '@byline/core/scheduler'
 import {
   changeDocumentStatus,
@@ -564,7 +564,10 @@ export function singletonLifecycleSuite(hooks: ConformanceHooks): void {
 
       await expect(
         updateSingleton(context('after-save'), { data: { title: 'Committed value' } })
-      ).rejects.toThrow('afterSave observer failed')
+      ).rejects.toMatchObject({
+        code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
+        details: { phase: 'afterSave', sideEffectCode: ErrorCodes.UNHANDLED },
+      })
       expect((await read('after-save', 'en'))?.fields).toMatchObject({
         title: 'Committed value',
       })
