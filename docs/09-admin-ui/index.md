@@ -28,3 +28,31 @@ create routes.
 - [Collection groups](./03-collection-groups.md) — arranging dashboard
   collections into labelled groups, and filtering cards to the collections an
   administrator is allowed to read.
+
+## Concurrent editing and recovery
+
+The editor loads a coherent current document together with its document-wide
+revision. Every mutation uses that observation. If another editor, SDK client,
+scheduler or structural operation commits first, Byline rejects the older
+mutation before it changes persisted state.
+
+The editor retains the local form and shows a persistent warning near the
+document actions. All mutation controls for that editing session are blocked,
+including Save, workflow status, path, advertised locales, schedules, duplicate,
+delete, locale and tree actions. The editor can inspect or copy unsaved text,
+then choose **Reload and discard my changes** to fetch a coherent current form.
+Ordinary navigation continues to use the unsaved-change guard.
+
+A confirmed database lock conflict uses a separate reload-required message. A
+committed after-hook failure says that the write committed and must not be
+submitted again. Missing revision payloads from an old browser fail closed and
+also require reload. These outcomes are transported as typed errors; the admin
+does not classify them by matching translated text or display raw database
+messages.
+
+Document-wide revisions intentionally make edits in separate content locales
+conflict. All eight shipped admin-language bundles include the recovery copy;
+adding another admin locale requires translating the complete
+`documentConcurrency.*` key set before it can provide the same recovery flow.
+Locale-grain merging and unsaved-work recovery across a reload are outside the
+current interface.

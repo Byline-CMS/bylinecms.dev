@@ -75,7 +75,7 @@ outbox for reported hooks remains deferred.
 
 ## What your adapter must supply
 
-`withTransaction` is **mandatory** on `IDbAdapter` in 4.x, not an optional capability. Services depend on `IDbAdapter.withTransaction(fn)` rather than on Postgres specifically, so a new adapter must provide equivalent atomic semantics. Pretending that `fn` is transactional when it is not is not an accepted degradation.
+`withTransaction` is **mandatory** on the current `IDbAdapter` contract, not an optional capability. Services depend on `IDbAdapter.withTransaction(fn)` rather than on PostgreSQL specifically, so a new adapter must provide equivalent atomic semantics. Pretending that `fn` is transactional when it is not is not an accepted degradation.
 
 It arrives alongside the rest of the accountability surface: `commands.audit`, `queries.audit`,
 `getDocumentSystemFieldsForUpdate`, and `promoteChildrenAndRemoveFromTree`.
@@ -87,12 +87,15 @@ upgrading `@byline/core`; there is no optional capability fallback.
 Creating a version for an existing document takes a row-scoped document lock before checking
 version liveness and the write's `previousVersionId`. Saves to the same document therefore
 serialize with each other and with soft-delete/un-delete, while unrelated documents remain
-concurrent. A stale parent raises `ERR_CONFLICT` before a version is inserted. Locale-specific
-writes to an existing versioned document must supply the current parent because storage copies all
-other locales forward from it; omitting the parent also raises `ERR_CONFLICT`. Use one
-`locale: 'all'` write to persist a complete multi-locale tree rather than batching per-locale
-writes in one transaction. The guard also rejects adding a live version to a fully deleted
-document; whole-document un-delete is the supported storage primitive for that transition.
+concurrent. This parent check is a low-level storage-integrity boundary: a stale parent raises
+`ERR_CONFLICT` before a version is inserted. Supported lifecycle services first require the
+document-wide `expectedRevision` and translate a parent that becomes stale into
+`ERR_DOCUMENT_STALE`. Locale-specific writes to an existing versioned document must also supply
+the current parent because storage copies all other locales forward from it; omitting the parent
+raises `ERR_CONFLICT`. Use one `locale: 'all'` write to persist a complete multi-locale tree rather
+than batching per-locale writes in one transaction. The guard also rejects adding a live version
+to a fully deleted document; whole-document un-delete is the supported storage primitive for that
+transition.
 
 Runtime structural checks back the TypeScript contract for untyped JavaScript adapters: audited
 and system-field writes throw `ERR_AUDIT_UNSUPPORTED` when a required function is absent, and tree

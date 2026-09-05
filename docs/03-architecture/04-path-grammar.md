@@ -106,7 +106,10 @@ A stable form write fails if its id no longer exists. That is deliberate: it sto
 
 That is syntax validation, not schema validation. Field resolution stays best-effort and searches block variants by child name rather than by the selected item's `_type`. Server-side `field.set` can create an `{ _id }` item when an id is absent, while admin form writes deliberately fail when an id target has disappeared.
 
-A positional patch uses the array order at that point in the patch stream. The optimistic concurrency check rejects a stale `documentVersionId` rather than rebasing it across a reorder saved by another request.
+A positional patch uses the array order at that point in the patch stream. The
+document-wide revision check rejects a stale editable observation rather than
+rebasing it across a reorder saved by another request. The content-version
+parent remains an additional integrity check for version-creating writes.
 
 ## Declaration paths
 

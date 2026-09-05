@@ -80,14 +80,29 @@ That last property is why the admin ships a **scheduled publications queue** rat
 
 Confirming retargets the schedule to the version the editor has just reviewed and returns it to `armed`, leaving `publishAt` untouched — including when that instant has already passed, in which case it publishes on the next sweep. An editor who wants a different time reschedules instead.
 
+### Upgrade invalidation
+
+The document-revision upgrade cannot prove which logical-document state a v4
+schedule authorized. Existing armed schedules therefore move to
+`needs_reconfirm` with reason `upgrade_invalidated`, and any execution claim is
+cleared. After the fenced v5 cutover, review the scheduled-publication queue and
+explicitly confirm, reschedule or cancel each row. Backfilling document revision
+1 is not authorization to publish.
+
+See the [v5 upgrade guide](../01-getting-started/06-upgrading-to-v5.md) and the
+provider-specific cutover runbook. A fresh installation created from the v5 CLI
+baseline has no legacy schedules to invalidate.
+
 ## Which operations suspend, and which cancel
 
 | Operation | Effect on an armed schedule |
 |---|---|
 | Content update, restore version, copy to locale, delete locale | **Suspend** — these mint a new content version, so the reviewed content changed |
+| Path, advertised locales, source-locale re-anchor, actual tree/order change | **Suspend** — document metadata or placement changed after authorization |
+| Arm, reschedule, re-confirm | **Remain armed** — validate the current revision and store the resulting revision as the schedule's authorization |
 | Status change from any caller, unpublish | **Cancel** — the transition authorized at scheduling time no longer exists |
 | Delete a document | **Cancel** — including a soft delete, which leaves the document row in place and so does not cascade |
-| Path change, advertised locale change, rescheduling the time | **Neither** — these are unversioned system changes |
+| Claim/lease bookkeeping or a true no-op | **No change** — operational ownership does not alter editorial authorization |
 
 Every one of these happens inside the same transaction as the operation that triggered it, so a schedule cannot survive a change that invalidated it, and a rolled-back operation leaves the schedule intact.
 

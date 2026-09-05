@@ -160,13 +160,14 @@ Watch mode (re-runs on file change) is a per-package script; run it from inside 
 cd packages/core && pnpm test:watch
 ```
 
-## Editor smoke suite (Playwright)
+## Legacy editor smoke suite (paused)
 
-:::note[Under review: paused]
-Byline's browser-level end-to-end tests currently run on Playwright, and the two
-suites below are still present and runnable. Playwright itself is under review,
-and its use is paused for now: hold off on growing new reliance on it while that
-review is open. The instructions below describe the suites as they stand today.
+:::note[Not a release gate]
+The repository still contains the previous Playwright editor and agent-surface
+specifications, but Byline no longer uses Playwright as a current release gate.
+Do not add new coverage to these suites or report an unrun Playwright command as
+passing evidence. The instructions below document the retained files for
+maintenance until they are removed or replaced.
 :::
 
 Browser-level happy paths over the admin document editor: the regression net for the
@@ -189,18 +190,18 @@ cd apps/webapp && pnpm test:e2e
 cd apps/webapp && pnpm test:e2e:ui          # headed UI mode
 ```
 
-The `setup` project signs in through the real form (keeping the sign-in flow itself under
-test: the surface the v3.5.1 form-GET leak lived on) and persists the session to
+The retained `setup` project signs in through the real form (the surface the
+v3.5.1 form-GET leak lived on) and persists the session to
 `e2e/.auth/admin.json` for the other projects. Tests that mutate documents create their
 own document first, so reruns stay clean against a long-lived dev database.
 
 **Hydration caveat:** interactions that land before React hydrates set native input values
 without reaching the form context, so the dirty-gated Save button never enables, and a
-pre-hydration submit falls back to the native form post. The suite waits for hydration via
-React fiber keys (`waitForHydration` in `editor-smoke.spec.ts`) before interacting; new
-scenarios should do the same after any full page load.
+pre-hydration submit falls back to the native form post. The retained suite's
+`waitForHydration` helper inspects React fiber keys before interacting after a
+full page load.
 
-## Agent-surface specs (Playwright)
+## Legacy agent-surface specs (Playwright)
 
 The same Playwright run carries contract specs for the public agent-facing routes,
 alongside the editor smoke suite: `e2e/sitemap.spec.ts` (dynamic `sitemap.xml` with

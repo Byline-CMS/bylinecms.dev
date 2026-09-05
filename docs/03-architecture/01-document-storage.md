@@ -25,6 +25,7 @@ Five terms carry most of the model. Everything below builds on them.
 - **Document**: the core unit of content in Byline (one article, one page). Everything the CMS stores, versions, localizes, and serves is a document. A [collection](../04-collections/index.md) declares what shape a document takes (its fields, workflow, and hooks), so every document is an instance of exactly one collection: the collection is the unit of authoring, the document is the unit of content. A document has a stable id, is never edited in place, and is a tree rather than a flat record: a field can hold a group, a repeating array, or a sequence of blocks.
   - **Document version**: one saved state of a document. Every save inserts a new version; earlier versions stay exactly as they were. "The document" as a reader sees it is really its current version.
   - **Current version**: the most recent non-deleted version of a document, resolved by a database view rather than by a flag you maintain.
+  - **Document revision**: a positive integer on the stable document row that advances for every committed editorial change, including changes outside the immutable version stream. Editable reads expose it as an optimistic-concurrency observation.
 - **Store row**: a single field value, stored as one row in one of seven typed tables. A document version is not a record in a table of its own: it is the set of store rows that share its id.
 - **Field path**: the dotted string on each store row that says which part of the document tree that value came from, such as `content.0.photoBlock.caption`. It is what lets a flat table hold a nested document.
 
@@ -328,6 +329,34 @@ creation rather than the direct system-field audit service, so if you need dedic
 audit rows you must use that entry point. The admin surfaces available audit rows as a **Document
 history** tab beside the version timeline. See
 [Auditability](../07-auth-and-security/02-auditability.md) for the full reference.
+
+### Revision is separate from version and audit history
+
+`byline_documents.revision` protects the whole logical document. A content save
+creates a new immutable version and advances the revision once. Status, path,
+advertised-locale, source-locale, scheduling and actual tree/order changes mint
+no content version, but still advance that same revision. A multi-part Save or
+structural operation advances each changed document once within its owning
+transaction.
+
+The revision is an optimistic-concurrency token, not a historical sequence.
+Callers compare it for equality and carry the exact successful receipt rather
+than infer the next value. The maximum is JavaScript's largest safe integer.
+New and upgraded documents start at 1, and soft deletion never resets the
+counter.
+
+Audit timestamps cannot replace this counter. Two writes may share a database
+timestamp resolution, audit insertion can occur at a different point in the
+transaction, and finding the latest audit row does not atomically lock the
+document being changed. The document row is the serialization point: a guarded
+mutation locks it, compares the caller's observed revision, writes all related
+state, and advances the revision before commit.
+
+Ordinary published and historical reads do not expose a write token. SDK
+writers use `findByIdForEdit()`, `findForEdit()`, `getTreeForEdit()` or a
+singleton's `getForEdit()` to obtain one coherent current observation. A stale
+or omitted observation fails closed; lifecycle code never attaches a freshly
+fetched token to work prepared from older state.
 
 ## Indicative benchmarks
 
