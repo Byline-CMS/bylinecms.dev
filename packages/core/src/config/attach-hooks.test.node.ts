@@ -11,7 +11,6 @@ import type {
   CollectionHooks,
   CollectionHooksLoader,
   FileField,
-  IDbAdapter,
   ServerConfig,
   ServerHooksConfig,
   SingletonDefinition,

@@ -25,7 +25,6 @@
 import { AdminAuth, createRequestContext, type RequestContext } from '@byline/auth'
 import type { BeforeReadHookFn, IDbAdapter, QueryPredicate } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
-import type { PgAdapter } from '@byline/db-postgres'
 import { migrate, postgresSearch } from '@byline/search-postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

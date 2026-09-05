@@ -8,12 +8,7 @@ import { testAdapter } from '../../../../core/src/storage/db-adapter.test-helper
  */
 
 import { AdminAuth, createRequestContext } from '@byline/auth'
-import {
-  defineServerConfig,
-  defineSingleton,
-  type IDbAdapter,
-  type IStorageProvider,
-} from '@byline/core'
+import { defineServerConfig, defineSingleton, type IStorageProvider } from '@byline/core'
 import { defineLogger } from '@byline/core/logger'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 

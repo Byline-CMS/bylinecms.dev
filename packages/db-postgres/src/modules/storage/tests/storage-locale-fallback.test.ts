@@ -198,6 +198,21 @@ describe('content-locale resolution — source_locale internals (Postgres)', () 
     expect(paths.rows.map((r) => (r as { locale: string }).locale)).toEqual(['en'])
   })
 
+  it('leaves already-stamped source locales and document revisions unchanged on repeated backfill', async () => {
+    const documentId = await createDoc({ title: { en: 'Already stamped' }, sku: 'SL-BACKFILL' })
+    const before = await db.execute(
+      sql`SELECT source_locale, revision FROM byline_documents WHERE id = ${documentId}::uuid`
+    )
+
+    expect(await commandBuilders.documents.backfillSourceLocales()).toEqual({ rowsUpdated: 0 })
+    expect(await commandBuilders.documents.backfillSourceLocales()).toEqual({ rowsUpdated: 0 })
+
+    const after = await db.execute(
+      sql`SELECT source_locale, revision FROM byline_documents WHERE id = ${documentId}::uuid`
+    )
+    expect(after.rows).toEqual(before.rows)
+  })
+
   it('keys the completeness ledger off the document source_locale, not the global default', async () => {
     // en has only {title}; de has {title, body}. Anchored to en, the canonical
     // checklist is {title} and both locales cover it. Re-anchored to de, the

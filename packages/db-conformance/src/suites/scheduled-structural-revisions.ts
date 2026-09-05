@@ -32,6 +32,8 @@ const logger = {
   silent: vi.fn(),
 }
 export function scheduledStructuralRevisionsSuite(hooks: ConformanceHooks): void {
+  const revisionTestTools = hooks.revisionTestTools
+  if (!revisionTestTools) throw new Error('Missing Task 7 revision fixture tools')
   let db: IDbAdapter
   let flat: DocumentLifecycleContext,
     tree: DocumentLifecycleContext,
@@ -363,9 +365,11 @@ export function scheduledStructuralRevisionsSuite(hooks: ConformanceHooks): void
       const before = await db.queries.documents.getCanonicalDocumentOrder({
         collection_id: tree.collectionId,
       })
-      const append = db.commands.audit!.append.bind(db.commands.audit)
+      const audit = db.commands.audit
+      if (!audit) throw new Error('Missing Task 7 audit capability')
+      const append = audit.append.bind(audit)
       const failure = new Error('injected initial placement failure')
-      const spy = vi.spyOn(db.commands.audit!, 'append').mockImplementation(async (entry) => {
+      const spy = vi.spyOn(audit, 'append').mockImplementation(async (entry) => {
         if (entry.action === 'document.tree.placed') throw failure
         return append(entry)
       })
@@ -425,9 +429,11 @@ export function scheduledStructuralRevisionsSuite(hooks: ConformanceHooks): void
     it('rolls back content and placement together when self-heal audit fails', async () => {
       const doc = await create(tree)
       await removeFromTree(tree, { documentId: doc.documentId, expectedRevision: 1 })
-      const append = db.commands.audit!.append.bind(db.commands.audit)
+      const audit = db.commands.audit
+      if (!audit) throw new Error('Missing Task 7 audit capability')
+      const append = audit.append.bind(audit)
       const failure = new Error('injected placement audit failure')
-      const spy = vi.spyOn(db.commands.audit!, 'append').mockImplementation(async (entry) => {
+      const spy = vi.spyOn(audit, 'append').mockImplementation(async (entry) => {
         if (entry.action === 'document.tree.placed') throw failure
         return append(entry)
       })
@@ -459,8 +465,8 @@ export function scheduledStructuralRevisionsSuite(hooks: ConformanceHooks): void
     it('suspends an authorization mismatch without adopting the new revision', async () => {
       const doc = await create()
       await schedule(flat, doc)
-      await hooks.revisionTestTools!.setRevision(doc.documentId, 3)
-      await hooks.revisionTestTools!.makeScheduleDue(doc.documentId)
+      await revisionTestTools.setRevision(doc.documentId, 3)
+      await revisionTestTools.makeScheduleDue(doc.documentId)
       expect(await sweep(flat)).toMatchObject({ published: 0 })
       expect(await revision(flat, doc.documentId)).toBe(4)
       expect(
@@ -473,7 +479,7 @@ export function scheduledStructuralRevisionsSuite(hooks: ConformanceHooks): void
     it('leaves a replaced worker claim untouched', async () => {
       const doc = await create()
       await schedule(flat, doc)
-      await hooks.revisionTestTools!.makeScheduleDue(doc.documentId)
+      await revisionTestTools.makeScheduleDue(doc.documentId)
       const ready = signal(),
         release = signal()
       const pending = sweep({
@@ -501,7 +507,7 @@ export function scheduledStructuralRevisionsSuite(hooks: ConformanceHooks): void
           executionToken: current.executionToken,
           error: 'test ownership loss',
         })
-        await hooks.revisionTestTools!.makeScheduleDue(doc.documentId)
+        await revisionTestTools.makeScheduleDue(doc.documentId)
         const [replacement] = await db.commands.documents.publishSchedules.claimDue({
           batchSize: 1,
           leaseMs: 60000,
@@ -578,7 +584,7 @@ export function scheduledStructuralRevisionsSuite(hooks: ConformanceHooks): void
         if (!observe) throw new Error('Missing connection observer')
         const doc = await create()
         await schedule(flat, doc)
-        await hooks.revisionTestTools!.makeScheduleDue(doc.documentId)
+        await revisionTestTools.makeScheduleDue(doc.documentId)
         const ready = signal(),
           release = signal()
         const lockClaim = db.commands.documents.publishSchedules.lockClaim.bind(
@@ -690,7 +696,7 @@ export function scheduledStructuralRevisionsSuite(hooks: ConformanceHooks): void
     it('publishes only the authorized revision and advances it once while clearing the claim', async () => {
       const doc = await create()
       await schedule(flat, doc)
-      await hooks.revisionTestTools!.makeScheduleDue(doc.documentId)
+      await revisionTestTools.makeScheduleDue(doc.documentId)
       expect(await sweep(flat)).toMatchObject({ published: 1, failed: 0 })
       expect(await revision(flat, doc.documentId)).toBe(3)
       expect(

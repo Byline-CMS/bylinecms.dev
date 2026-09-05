@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { defineServerConfig, getServerConfig } from './config/config.js'
 import { initBylineCore } from './core.js'
 import { testAdapter } from './storage/db-adapter.test-helper.js'
-import type { IDbAdapter, ServerConfig } from './@types/index.js'
+import type { ServerConfig } from './@types/index.js'
 
 function serverConfig(admin: string): ServerConfig {
   return {

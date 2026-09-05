@@ -9,16 +9,6 @@ import { setupTestDB, teardownTestDB } from '../src/lib/test-helper.js'
 import { DocumentRevisions } from '../src/modules/storage/document-revisions.js'
 
 const native = readFileSync(new URL('../sql/0005_document-revisions.sql', import.meta.url), 'utf8')
-const incremental =
-  readFileSync(
-    new URL('../src/database/migrations/0001_sour_komodo.sql', import.meta.url),
-    'utf8'
-  ) +
-  '\n--> statement-breakpoint\n' +
-  readFileSync(
-    new URL('../src/database/migrations/0002_gifted_galactus.sql', import.meta.url),
-    'utf8'
-  )
 const fixture = (text: string) =>
   text
     .replaceAll('byline_document_publish_schedules', 'byline_revision_fixture_schedules')
@@ -128,14 +118,6 @@ describe('document revision native upgrade (mysql)', () => {
     await execute('DROP TABLE IF EXISTS byline_revision_fixture_documents')
     await connection.end()
     await teardownTestDB()
-  })
-  it('gives the incremental development chain the same occupied-data result as native SQL', async () => {
-    await reset()
-    for (const statement of fixture(incremental)
-      .split('--> statement-breakpoint')
-      .filter((s) => s.trim()))
-      await execute(statement)
-    await assertUpgrade()
   })
   it('upgrades occupied data, rejects obsolete inserts, and exposes the old UPDATE fencing boundary', async () => {
     await reset()
@@ -259,7 +241,7 @@ describe('document revision native upgrade (mysql)', () => {
     }
     await revisions.assertCompatibleSchema()
   })
-  it('builds a fresh complete schema from the retained baseline plus incremental migration', async () => {
+  it('builds a fresh complete schema from the squashed development baseline', async () => {
     const journal = JSON.parse(
       readFileSync(
         new URL('../src/database/migrations/meta/_journal.json', import.meta.url),
@@ -281,22 +263,26 @@ describe('document revision native upgrade (mysql)', () => {
         .replaceAll('uq_', 'rf_uq_')
         .replaceAll('unique_', 'rf_unique_')
     const baselineSql = fresh(baseline)
-    const tables = Array.from(baselineSql.matchAll(/CREATE TABLE ["`]([^"`]+)["`]/g), (m) => m[1]!)
-    const views = Array.from(baselineSql.matchAll(/\bVIEW ["`]([^"`]+)["`]/g), (m) => m[1]!)
+    const tables = Array.from(baselineSql.matchAll(/CREATE TABLE ["`]([^"`]+)["`]/g)).flatMap(
+      (match) => (match[1] ? [match[1]] : [])
+    )
+    const views = Array.from(baselineSql.matchAll(/\bVIEW ["`]([^"`]+)["`]/g)).flatMap((match) =>
+      match[1] ? [match[1]] : []
+    )
     expect(tables.length).toBeGreaterThan(20)
     expect(views.length).toBeGreaterThanOrEqual(2)
     for (const view of views) await execute(`DROP VIEW IF EXISTS \`${view}\``)
     try {
       for (const statement of baselineSql.split('--> statement-breakpoint').filter((s) => s.trim()))
         await execute(statement)
-      for (const statement of fresh(incremental)
-        .split('--> statement-breakpoint')
-        .filter((s) => s.trim()))
-        await execute(statement)
       const columns = await rows(
         "SELECT column_default AS column_default, is_nullable AS is_nullable FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'rf_documents' AND column_name = 'revision'"
       )
       expect(columns).toEqual([{ column_default: null, is_nullable: 'NO' }])
+      const scheduleColumns = await rows(
+        "SELECT column_default AS column_default, is_nullable AS is_nullable FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'rf_document_publish_schedules' AND column_name = 'authorized_revision'"
+      )
+      expect(scheduleColumns).toEqual([{ column_default: null, is_nullable: 'YES' }])
     } finally {
       await execute('SET FOREIGN_KEY_CHECKS = 0')
       for (const view of views) await execute(`DROP VIEW IF EXISTS \`${view}\``)

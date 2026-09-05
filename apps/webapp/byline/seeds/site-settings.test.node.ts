@@ -8,7 +8,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ get: vi.fn(), update: vi.fn(), singleton: vi.fn() }))
+const mocks = vi.hoisted(() => ({ getForEdit: vi.fn(), update: vi.fn(), singleton: vi.fn() }))
 
 vi.mock('@byline/client/server', () => ({
   getSystemBylineClient: () => ({ singleton: mocks.singleton }),
@@ -19,19 +19,24 @@ import { seedSiteSettings } from './site-settings.js'
 describe('seedSiteSettings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.singleton.mockReturnValue({ get: mocks.get, update: mocks.update })
+    mocks.singleton.mockReturnValue({ getForEdit: mocks.getForEdit, update: mocks.update })
     mocks.update.mockResolvedValue({
       documentId: 'document-settings',
       documentVersionId: 'version-settings',
+      revision: 1,
     })
   })
 
   it('materializes the empty slot only once when the seed is rerun', async () => {
-    mocks.get.mockResolvedValueOnce(null).mockResolvedValueOnce({
-      id: 'document-settings',
-      versionId: 'version-settings',
-      status: 'published',
-      fields: { siteName: 'Example site' },
+    mocks.getForEdit.mockResolvedValueOnce({ state: 'empty' }).mockResolvedValueOnce({
+      state: 'document',
+      document: {
+        id: 'document-settings',
+        versionId: 'version-settings',
+        revision: 1,
+        status: 'published',
+        fields: { siteName: 'Example site' },
+      },
     })
 
     await expect(seedSiteSettings()).resolves.toBe('seeded')
@@ -40,23 +45,30 @@ describe('seedSiteSettings', () => {
     expect(mocks.singleton).toHaveBeenCalledTimes(2)
     expect(mocks.singleton).toHaveBeenNthCalledWith(1, 'site-settings')
     expect(mocks.singleton).toHaveBeenNthCalledWith(2, 'site-settings')
-    expect(mocks.get).toHaveBeenCalledTimes(2)
-    expect(mocks.get).toHaveBeenNthCalledWith(1, { status: 'any' })
-    expect(mocks.get).toHaveBeenNthCalledWith(2, { status: 'any' })
+    expect(mocks.getForEdit).toHaveBeenCalledTimes(2)
+    expect(mocks.getForEdit).toHaveBeenNthCalledWith(1)
+    expect(mocks.getForEdit).toHaveBeenNthCalledWith(2)
     expect(mocks.update).toHaveBeenCalledOnce()
-    expect(mocks.update).toHaveBeenCalledWith({
-      siteName: 'Example site',
-      siteDescription:
-        'A concise description of this site for search results and social media previews.',
-    })
+    expect(mocks.update).toHaveBeenCalledWith(
+      {
+        siteName: 'Example site',
+        siteDescription:
+          'A concise description of this site for search results and social media previews.',
+      },
+      { expectedState: 'empty' }
+    )
   })
 
   it('does not overwrite an existing slot or mint another version', async () => {
-    mocks.get.mockResolvedValue({
-      id: 'document-settings',
-      versionId: 'editor-version',
-      status: 'published',
-      fields: { siteName: 'Editor value', siteDescription: 'Editor-owned description.' },
+    mocks.getForEdit.mockResolvedValue({
+      state: 'document',
+      document: {
+        id: 'document-settings',
+        versionId: 'editor-version',
+        revision: 8,
+        status: 'published',
+        fields: { siteName: 'Editor value', siteDescription: 'Editor-owned description.' },
+      },
     })
 
     await expect(seedSiteSettings()).resolves.toBe('unchanged')

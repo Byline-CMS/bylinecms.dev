@@ -10,7 +10,7 @@ import {
   getCollectionDefinition,
   getSingletonAdminConfig,
 } from './config.js'
-import type { CollectionDefinition, IDbAdapter, ServerConfig } from '../@types/index.js'
+import type { CollectionDefinition, ServerConfig } from '../@types/index.js'
 
 const SERVER_CONFIG = Symbol.for('__byline_server_config__')
 const ADMIN_CONFIG = Symbol.for('__byline_admin_config__')

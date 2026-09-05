@@ -19,13 +19,7 @@ import {
   resolvePopulateOnRead,
   validateRichTextFieldFlags,
 } from './richtext-populate.js'
-import type {
-  CollectionDefinition,
-  FieldSet,
-  IDbAdapter,
-  ReadContext,
-  RichTextField,
-} from '../@types/index.js'
+import type { CollectionDefinition, FieldSet, ReadContext, RichTextField } from '../@types/index.js'
 
 // ---------------------------------------------------------------------------
 // Fixture — a synthetic collection that exercises every nesting type the
