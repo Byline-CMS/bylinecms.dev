@@ -272,7 +272,7 @@ export async function cancelDocumentScheduledPublish(
       await readDocumentForMutation(ctx, params)
       const audit = requireAuditCapability(ctx.db)
       const actor = auditActor(ctx)
-      const committed = await commitGuardedDocumentMutation(ctx, params, async (locked) => {
+      const committed = await commitGuardedDocumentMutation(ctx, params, async (_locked) => {
         const schedule = await ctx.db.commands.documents.publishSchedules.cancel({
           documentId: params.documentId,
           collectionId: ctx.collectionId,

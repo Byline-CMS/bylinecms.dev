@@ -29,10 +29,14 @@ export async function reorderDocument(
         queries.documents.getCanonicalDocumentOrder({ collection_id: ctx.collectionId })
       )
       const keys = new Map(rows.map((row) => [row.id, row.order_key]))
-      const keyed = rows.filter((row) => row.order_key !== null)
-      const corrupt = keyed.some(
-        (row, index) => index > 0 && row.order_key! <= keyed[index - 1]!.order_key!
+      const keyed = rows.filter(
+        (row): row is typeof row & { order_key: string } => row.order_key !== null
       )
+      const corrupt = keyed.some((row, index) => {
+        if (index === 0) return false
+        const previous = keyed[index - 1]
+        return previous !== undefined && row.order_key <= previous.order_key
+      })
       if (corrupt) {
         const replacements = generateNKeysBetween(null, null, rows.length)
         rows.forEach((row, index) => {
