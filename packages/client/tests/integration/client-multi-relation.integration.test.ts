@@ -231,7 +231,7 @@ describe('hasMany query quantifiers', () => {
     await articles.changeStatus(artNone, 'published', { expectedRevision: 1 })
   }, 30_000)
 
-  const findIds = async (where: Record<string, unknown>): Promise<Set<string>> => {
+  const findIds = async (where: import('@byline/core').QueryPredicate): Promise<Set<string>> => {
     const result = await ctx.client.collection(articlesDefinition.path).find({ where })
     return new Set(result.docs.map((d) => d.id))
   }

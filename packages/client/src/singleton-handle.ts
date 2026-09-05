@@ -218,7 +218,7 @@ export class SingletonHandle<TFields extends Record<string, any> = Record<string
     overwrite?: boolean
   }): Promise<SingletonSaveResult> {
     const ctx = await this.buildAuthorizedLifecycleContext(['update'])
-    return copySingletonToLocale(ctx, { ...args, overwrite: args.overwrite ?? false })
+    return copySingletonToLocale(ctx, { ...args, overwrite: args?.overwrite ?? false })
   }
 
   private async authorizeRead(

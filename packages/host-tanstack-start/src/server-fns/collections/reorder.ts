@@ -1,3 +1,4 @@
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -38,32 +39,34 @@ export const reorderCollectionDocument = createServerFn({ method: 'POST' })
       afterDocumentId?: string | null
     }) => input
   )
-  .handler(async ({ data: input }) => {
-    const { collection: path, documentId, beforeDocumentId, afterDocumentId } = input
-    const logger = getLogger()
+  .handler(
+    withDocumentMutationErrors(async ({ data: input }) => {
+      const { collection: path, documentId, beforeDocumentId, afterDocumentId } = input
+      const logger = getLogger()
 
-    const config = await ensureCollection(path)
-    if (!config) {
-      throw ERR_NOT_FOUND({
-        message: 'Collection not found',
-        details: { collectionPath: path },
-      }).log(logger)
-    }
+      const config = await ensureCollection(path)
+      if (!config) {
+        throw ERR_NOT_FOUND({
+          message: 'Collection not found',
+          details: { collectionPath: path },
+        }).log(logger)
+      }
 
-    const serverConfig = getServerConfig()
-    const result = await reorderDocument(
-      {
-        db: serverConfig.db,
-        definition: config.definition,
-        collectionId: config.collection.id,
-        collectionVersion: config.collection.version,
-        collectionPath: path,
-        requestContext: await getAdminRequestContext(),
-        logger,
-        defaultLocale: serverConfig.i18n.content.defaultLocale,
-        slugifier: serverConfig.slugifier,
-      },
-      { documentId, expectedRevision: input.expectedRevision, beforeDocumentId, afterDocumentId }
-    )
-    return { status: 'ok' as const, ...result }
-  })
+      const serverConfig = getServerConfig()
+      const result = await reorderDocument(
+        {
+          db: serverConfig.db,
+          definition: config.definition,
+          collectionId: config.collection.id,
+          collectionVersion: config.collection.version,
+          collectionPath: path,
+          requestContext: await getAdminRequestContext(),
+          logger,
+          defaultLocale: serverConfig.i18n.content.defaultLocale,
+          slugifier: serverConfig.slugifier,
+        },
+        { documentId, expectedRevision: input.expectedRevision, beforeDocumentId, afterDocumentId }
+      )
+      return { status: 'ok' as const, ...result }
+    })
+  )

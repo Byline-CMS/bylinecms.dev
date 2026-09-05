@@ -1,3 +1,4 @@
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -34,61 +35,63 @@ export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POS
       locale?: string
     }) => input
   )
-  .handler(async ({ data: input }) => {
-    const {
-      collection: path,
-      id,
-      patches,
-      expectedRevision,
-      locale,
-      path: explicitPath,
-      availableLocales,
-    } = input
-    const logger = getLogger()
-    const config = await ensureCollection(path)
-    if (!config) {
-      throw ERR_NOT_FOUND({
-        message: 'Collection not found',
-        details: { collectionPath: path },
-      }).log(logger)
-    }
-
-    const serverConfig = getServerConfig()
-    const ctx: DocumentLifecycleContext = {
-      db: serverConfig.db,
-      definition: config.definition,
-      collectionId: config.collection.id,
-      collectionVersion: config.collection.version,
-      collectionPath: path,
-      logger,
-      defaultLocale: serverConfig.i18n.content.defaultLocale,
-      slugifier: serverConfig.slugifier,
-      requestContext: await getAdminRequestContext(),
-    }
-
-    let result: Awaited<ReturnType<typeof saveDocument>>
-    try {
-      result = await saveDocument(ctx, {
-        documentId: id,
+  .handler(
+    withDocumentMutationErrors(async ({ data: input }) => {
+      const {
+        collection: path,
+        id,
         patches,
         expectedRevision,
-        path: explicitPath ?? undefined,
+        locale,
+        path: explicitPath,
         availableLocales,
-        locale: locale ?? serverConfig.i18n.content.defaultLocale,
-      })
-    } catch (error) {
-      const committedFailure = toCommittedDocumentHookFailureResponse(error)
-      if (committedFailure != null) return committedFailure
-      throw error
-    }
+      } = input
+      const logger = getLogger()
+      const config = await ensureCollection(path)
+      if (!config) {
+        throw ERR_NOT_FOUND({
+          message: 'Collection not found',
+          details: { collectionPath: path },
+        }).log(logger)
+      }
 
-    return {
-      status: 'ok' as const,
-      documentId: result.documentId,
-      ...('documentVersionId' in result ? { documentVersionId: result.documentVersionId } : {}),
-      revision: result.revision,
-    }
-  })
+      const serverConfig = getServerConfig()
+      const ctx: DocumentLifecycleContext = {
+        db: serverConfig.db,
+        definition: config.definition,
+        collectionId: config.collection.id,
+        collectionVersion: config.collection.version,
+        collectionPath: path,
+        logger,
+        defaultLocale: serverConfig.i18n.content.defaultLocale,
+        slugifier: serverConfig.slugifier,
+        requestContext: await getAdminRequestContext(),
+      }
+
+      let result: Awaited<ReturnType<typeof saveDocument>>
+      try {
+        result = await saveDocument(ctx, {
+          documentId: id,
+          patches,
+          expectedRevision,
+          path: explicitPath ?? undefined,
+          availableLocales,
+          locale: locale ?? serverConfig.i18n.content.defaultLocale,
+        })
+      } catch (error) {
+        const committedFailure = toCommittedDocumentHookFailureResponse(error)
+        if (committedFailure != null) return committedFailure
+        throw error
+      }
+
+      return {
+        status: 'ok' as const,
+        documentId: result.documentId,
+        ...('documentVersionId' in result ? { documentVersionId: result.documentVersionId } : {}),
+        revision: result.revision,
+      }
+    })
+  )
 
 // ---------------------------------------------------------------------------
 // System-managed, document-grain fields (path + advertised locales)
@@ -111,51 +114,53 @@ export const updateCollectionDocumentSystemFields = createServerFn({ method: 'PO
       availableLocales?: string[]
     }) => input
   )
-  .handler(async ({ data: input }) => {
-    const {
-      collection: path,
-      id,
-      expectedRevision,
-      locale,
-      path: explicitPath,
-      availableLocales,
-    } = input
-    const logger = getLogger()
-    const config = await ensureCollection(path)
-    if (!config) {
-      throw ERR_NOT_FOUND({
-        message: 'Collection not found',
-        details: { collectionPath: path },
-      }).log(logger)
-    }
-
-    const serverConfig = getServerConfig()
-    const ctx: DocumentLifecycleContext = {
-      db: serverConfig.db,
-      definition: config.definition,
-      collectionId: config.collection.id,
-      collectionVersion: config.collection.version,
-      collectionPath: path,
-      logger,
-      defaultLocale: serverConfig.i18n.content.defaultLocale,
-      slugifier: serverConfig.slugifier,
-      requestContext: await getAdminRequestContext(),
-    }
-
-    try {
-      const result = await updateDocumentSystemFields(ctx, {
+  .handler(
+    withDocumentMutationErrors(async ({ data: input }) => {
+      const {
+        collection: path,
+        id,
         expectedRevision,
-        documentId: id,
-        locale: locale ?? serverConfig.i18n.content.defaultLocale,
+        locale,
         path: explicitPath,
         availableLocales,
-        // Reconciliation still requires a current observation.
-        reconcile: true,
-      })
-      return { status: 'ok' as const, revision: result.revision }
-    } catch (error) {
-      const committedFailure = toCommittedDocumentHookFailureResponse(error)
-      if (committedFailure != null) return committedFailure
-      throw error
-    }
-  })
+      } = input
+      const logger = getLogger()
+      const config = await ensureCollection(path)
+      if (!config) {
+        throw ERR_NOT_FOUND({
+          message: 'Collection not found',
+          details: { collectionPath: path },
+        }).log(logger)
+      }
+
+      const serverConfig = getServerConfig()
+      const ctx: DocumentLifecycleContext = {
+        db: serverConfig.db,
+        definition: config.definition,
+        collectionId: config.collection.id,
+        collectionVersion: config.collection.version,
+        collectionPath: path,
+        logger,
+        defaultLocale: serverConfig.i18n.content.defaultLocale,
+        slugifier: serverConfig.slugifier,
+        requestContext: await getAdminRequestContext(),
+      }
+
+      try {
+        const result = await updateDocumentSystemFields(ctx, {
+          expectedRevision,
+          documentId: id,
+          locale: locale ?? serverConfig.i18n.content.defaultLocale,
+          path: explicitPath,
+          availableLocales,
+          // Reconciliation still requires a current observation.
+          reconcile: true,
+        })
+        return { status: 'ok' as const, revision: result.revision }
+      } catch (error) {
+        const committedFailure = toCommittedDocumentHookFailureResponse(error)
+        if (committedFailure != null) return committedFailure
+        throw error
+      }
+    })
+  )

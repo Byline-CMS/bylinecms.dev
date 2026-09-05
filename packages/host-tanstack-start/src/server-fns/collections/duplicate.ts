@@ -1,3 +1,4 @@
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -37,41 +38,43 @@ import {
 export const duplicateCollectionDocument = createServerFn({ method: 'POST' })
   .validator((input: { expectedRevision: number; collection: string; id: string }) => input)
   .handler(
-    async ({
-      data: input,
-    }): Promise<DuplicateDocumentResult | CollectionDocumentCommittedHookFailureResponse> => {
-      const { collection: path, id: sourceDocumentId } = input
-      const logger = getLogger()
-      const config = await ensureCollection(path)
-      if (!config) {
-        throw ERR_NOT_FOUND({
-          message: 'Collection not found',
-          details: { collectionPath: path },
-        }).log(logger)
-      }
+    withDocumentMutationErrors(
+      async ({
+        data: input,
+      }): Promise<DuplicateDocumentResult | CollectionDocumentCommittedHookFailureResponse> => {
+        const { collection: path, id: sourceDocumentId } = input
+        const logger = getLogger()
+        const config = await ensureCollection(path)
+        if (!config) {
+          throw ERR_NOT_FOUND({
+            message: 'Collection not found',
+            details: { collectionPath: path },
+          }).log(logger)
+        }
 
-      const serverConfig = getServerConfig()
-      const ctx: DocumentLifecycleContext = {
-        db: serverConfig.db,
-        definition: config.definition,
-        collectionId: config.collection.id,
-        collectionVersion: config.collection.version,
-        collectionPath: path,
-        logger,
-        defaultLocale: serverConfig.i18n.content.defaultLocale,
-        slugifier: serverConfig.slugifier,
-        requestContext: await getAdminRequestContext(),
-      }
+        const serverConfig = getServerConfig()
+        const ctx: DocumentLifecycleContext = {
+          db: serverConfig.db,
+          definition: config.definition,
+          collectionId: config.collection.id,
+          collectionVersion: config.collection.version,
+          collectionPath: path,
+          logger,
+          defaultLocale: serverConfig.i18n.content.defaultLocale,
+          slugifier: serverConfig.slugifier,
+          requestContext: await getAdminRequestContext(),
+        }
 
-      try {
-        return await duplicateDocument(ctx, {
-          sourceDocumentId,
-          expectedRevision: input.expectedRevision,
-        })
-      } catch (error) {
-        const committedFailure = toCommittedDocumentHookFailureResponse(error)
-        if (committedFailure != null) return committedFailure
-        throw error
+        try {
+          return await duplicateDocument(ctx, {
+            sourceDocumentId,
+            expectedRevision: input.expectedRevision,
+          })
+        } catch (error) {
+          const committedFailure = toCommittedDocumentHookFailureResponse(error)
+          if (committedFailure != null) return committedFailure
+          throw error
+        }
       }
-    }
+    )
   )

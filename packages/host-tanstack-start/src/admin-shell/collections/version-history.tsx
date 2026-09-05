@@ -1,3 +1,5 @@
+import { DocumentMutationNotice } from '../document-mutation-notice.js'
+import { useDocumentMutationState } from '../document-mutation-state.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -55,6 +57,7 @@ interface VersionHistoryRowContext {
   actionLabel: string
   restoreStatusLabel: string
   openCompare: () => void
+  mutationsBlocked: boolean
   openRestore: () => void
 }
 
@@ -126,9 +129,10 @@ export function VersionHistoryCore({
   rowPresentation: VersionHistoryRowPresentation
   loadHistoricalVersion: HistoricalVersionLoader
   onPageSizeChange: (pageSize: number) => void
-  restoreVersion: (versionId: string) => Promise<unknown>
+  restoreVersion: (versionId: string, expectedRevision: number) => Promise<unknown>
   onRestoreComplete: () => void | Promise<void>
 }) {
+  const mutation = useDocumentMutationState(currentDocument)
   const { t } = useTranslation('byline-admin')
   const [selectedVersion, setSelectedVersion] = useState<{
     versionId: string
@@ -150,6 +154,7 @@ export function VersionHistoryCore({
 
   return (
     <>
+      <DocumentMutationNotice issue={mutation.issue} />
       <div className={cx('byline-coll-history-options', styles.options)}>
         <RouterPager
           page={data.meta.page}
@@ -195,7 +200,7 @@ export function VersionHistoryCore({
                 setSelectedVersion({ versionId, label: versionLabel })
               }
               const openRestore = () => {
-                if (versionId == null || versionId === currentVersionId) return
+                if (mutation.blocked || versionId == null || versionId === currentVersionId) return
                 setRestoreTarget({ versionId, label: versionLabel, versionNumber })
               }
 
@@ -228,6 +233,7 @@ export function VersionHistoryCore({
                       actionLabel,
                       restoreStatusLabel,
                       openCompare,
+                      mutationsBlocked: mutation.blocked,
                       openRestore,
                     })}
                   </Table.Row>
@@ -334,11 +340,15 @@ export function VersionHistoryCore({
           </Modal.Header>
           {restoreTarget ? (
             <RestoreVersionModal
+              disabled={mutation.blocked}
+              onMutationError={mutation.report}
               versionLabel={restoreTarget.label}
               versionNumber={restoreTarget.versionNumber}
               restoreStatusLabel={restoreStatusLabel}
               onClose={() => setRestoreTarget(null)}
-              restoreVersion={() => restoreVersion(restoreTarget.versionId)}
+              restoreVersion={() =>
+                restoreVersion(restoreTarget.versionId, mutation.expectedRevision())
+              }
               onRestoreComplete={onRestoreComplete}
             />
           ) : null}

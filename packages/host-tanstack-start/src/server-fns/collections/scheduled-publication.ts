@@ -1,3 +1,4 @@
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -138,10 +139,10 @@ async function scheduledPublicationRuntime(): Promise<ScheduledPublicationRuntim
 
 /** Authenticated feature discovery for the admin shell and health warning. */
 export const getScheduledPublicationRuntime = createServerFn({ method: 'GET' }).handler(
-  async () => {
+  withDocumentMutationErrors(async () => {
     await getAdminRequestContext()
     return scheduledPublicationRuntime()
-  }
+  })
 )
 
 export const scheduleCollectionDocumentPublish = createServerFn({ method: 'POST' })
@@ -154,17 +155,19 @@ export const scheduleCollectionDocumentPublish = createServerFn({ method: 'POST'
       expectedVersionId: string
     }) => input
   )
-  .handler(async ({ data }) => {
-    assertFeatureEnabled()
-    const schedule = await getAdminBylineClient()
-      .collection(data.collection)
-      .schedulePublish(data.id, {
-        publishAt: data.publishAt,
-        expectedRevision: data.expectedRevision,
-        expectedVersionId: data.expectedVersionId,
-      })
-    return { ...serializeSchedule(schedule), revision: schedule.revision }
-  })
+  .handler(
+    withDocumentMutationErrors(async ({ data }) => {
+      assertFeatureEnabled()
+      const schedule = await getAdminBylineClient()
+        .collection(data.collection)
+        .schedulePublish(data.id, {
+          publishAt: data.publishAt,
+          expectedRevision: data.expectedRevision,
+          expectedVersionId: data.expectedVersionId,
+        })
+      return { ...serializeSchedule(schedule), revision: schedule.revision }
+    })
+  )
 
 export const confirmCollectionDocumentScheduledPublish = createServerFn({ method: 'POST' })
   .validator(
@@ -175,32 +178,36 @@ export const confirmCollectionDocumentScheduledPublish = createServerFn({ method
       expectedVersionId: string
     }) => input
   )
-  .handler(async ({ data }) => {
-    assertFeatureEnabled()
-    const schedule = await getAdminBylineClient()
-      .collection(data.collection)
-      .confirmScheduledPublish(data.id, {
-        expectedRevision: data.expectedRevision,
-        expectedVersionId: data.expectedVersionId,
-      })
-    return { ...serializeSchedule(schedule), revision: schedule.revision }
-  })
+  .handler(
+    withDocumentMutationErrors(async ({ data }) => {
+      assertFeatureEnabled()
+      const schedule = await getAdminBylineClient()
+        .collection(data.collection)
+        .confirmScheduledPublish(data.id, {
+          expectedRevision: data.expectedRevision,
+          expectedVersionId: data.expectedVersionId,
+        })
+      return { ...serializeSchedule(schedule), revision: schedule.revision }
+    })
+  )
 
 export const cancelCollectionDocumentScheduledPublish = createServerFn({ method: 'POST' })
   .validator((input: { expectedRevision: number; collection: string; id: string }) => input)
-  .handler(async ({ data }) => {
-    assertFeatureEnabled()
-    const schedule = await getAdminBylineClient()
-      .collection(data.collection)
-      .cancelScheduledPublish(data.id, { expectedRevision: data.expectedRevision })
-    return schedule.schedule == null
-      ? { status: 'not_found' as const, revision: schedule.revision }
-      : {
-          status: 'cancelled' as const,
-          schedule: serializeSchedule(schedule.schedule),
-          revision: schedule.revision,
-        }
-  })
+  .handler(
+    withDocumentMutationErrors(async ({ data }) => {
+      assertFeatureEnabled()
+      const schedule = await getAdminBylineClient()
+        .collection(data.collection)
+        .cancelScheduledPublish(data.id, { expectedRevision: data.expectedRevision })
+      return schedule.schedule == null
+        ? { status: 'not_found' as const, revision: schedule.revision }
+        : {
+            status: 'cancelled' as const,
+            schedule: serializeSchedule(schedule.schedule),
+            revision: schedule.revision,
+          }
+    })
+  )
 
 export const listScheduledPublications = createServerFn({ method: 'GET' })
   .validator(
@@ -211,84 +218,86 @@ export const listScheduledPublications = createServerFn({ method: 'GET' })
       pageSize?: number
     }) => input
   )
-  .handler(async ({ data }) => {
-    assertFeatureEnabled()
-    if (data.states?.some((state) => state !== 'armed' && state !== 'needs_reconfirm') === true) {
-      throw ERR_VALIDATION({ message: 'state must be armed or needs_reconfirm' })
-    }
-    if (data.lastAuthorizedBy != null && !UUID_RE.test(data.lastAuthorizedBy)) {
-      throw ERR_VALIDATION({ message: 'lastAuthorizedBy must be a UUID' })
-    }
-    const core = bylineCore()
-    const page = data.page ?? 1
-    const pageSize = data.pageSize ?? 25
-    const requestContext = await getAdminRequestContext()
-    const result = await listDocumentPublishSchedules(core, requestContext, {
-      states: data.states,
-      lastAuthorizedBy: data.lastAuthorizedBy,
-      page,
-      pageSize,
-    })
-    const collections = new Map(
-      core.collections.map((definition) => {
-        const record = core.getCollectionRecord(definition.path)
-        return [record.collectionId, definition] as const
-      })
-    )
-    // Resolve authorizer names in one query for the whole page rather than one
-    // per row. `last_authorized_by` is deliberately not a foreign key — deleting
-    // an admin account must not revoke a schedule it authorized — so an id here
-    // may simply have no user row left, and the caller falls back to the id.
-    const authorizerIds = [
-      ...new Set(
-        result.schedules
-          .map((schedule) => schedule.lastAuthorizedBy)
-          .filter((id): id is string => id != null)
-      ),
-    ]
-    const authorizerNames = new Map<string, string>()
-    // `adminStore` is optional on core — an installation can run without the
-    // admin subsystem — so a missing store simply means no names to resolve and
-    // the column falls back to ids.
-    const adminUsers = core.adminStore?.adminUsers
-    if (authorizerIds.length > 0 && adminUsers != null) {
-      const users = await adminUsers.getByIds(authorizerIds)
-      for (const user of users) {
-        const fullName = [user.given_name, user.family_name].filter(Boolean).join(' ').trim()
-        authorizerNames.set(user.id, fullName.length > 0 ? fullName : user.email)
+  .handler(
+    withDocumentMutationErrors(async ({ data }) => {
+      assertFeatureEnabled()
+      if (data.states?.some((state) => state !== 'armed' && state !== 'needs_reconfirm') === true) {
+        throw ERR_VALIDATION({ message: 'state must be armed or needs_reconfirm' })
       }
-    }
-
-    const schedules = await Promise.all(
-      result.schedules.map(async (schedule): Promise<ScheduledPublicationListItem> => {
-        const definition = collections.get(schedule.collectionId)
-        return {
-          ...serializeSchedule(schedule),
-          collectionPath: definition?.path ?? schedule.collectionId,
-          collectionLabel:
-            definition == null
-              ? schedule.collectionId
-              : isSingleton(definition)
-                ? definition.label
-                : definition.labels.plural,
-          documentPath: schedule.documentPath,
-          revision: schedule.revision,
-          lastAuthorizedByName:
-            schedule.lastAuthorizedBy == null
-              ? null
-              : (authorizerNames.get(schedule.lastAuthorizedBy) ?? null),
-        }
-      })
-    )
-
-    return {
-      schedules,
-      meta: {
+      if (data.lastAuthorizedBy != null && !UUID_RE.test(data.lastAuthorizedBy)) {
+        throw ERR_VALIDATION({ message: 'lastAuthorizedBy must be a UUID' })
+      }
+      const core = bylineCore()
+      const page = data.page ?? 1
+      const pageSize = data.pageSize ?? 25
+      const requestContext = await getAdminRequestContext()
+      const result = await listDocumentPublishSchedules(core, requestContext, {
+        states: data.states,
+        lastAuthorizedBy: data.lastAuthorizedBy,
         page,
         pageSize,
-        total: result.total,
-        totalPages: Math.max(1, Math.ceil(result.total / pageSize)),
-      },
-      runtime: await scheduledPublicationRuntime(),
-    } satisfies ScheduledPublicationListResponse
-  })
+      })
+      const collections = new Map(
+        core.collections.map((definition) => {
+          const record = core.getCollectionRecord(definition.path)
+          return [record.collectionId, definition] as const
+        })
+      )
+      // Resolve authorizer names in one query for the whole page rather than one
+      // per row. `last_authorized_by` is deliberately not a foreign key — deleting
+      // an admin account must not revoke a schedule it authorized — so an id here
+      // may simply have no user row left, and the caller falls back to the id.
+      const authorizerIds = [
+        ...new Set(
+          result.schedules
+            .map((schedule) => schedule.lastAuthorizedBy)
+            .filter((id): id is string => id != null)
+        ),
+      ]
+      const authorizerNames = new Map<string, string>()
+      // `adminStore` is optional on core — an installation can run without the
+      // admin subsystem — so a missing store simply means no names to resolve and
+      // the column falls back to ids.
+      const adminUsers = core.adminStore?.adminUsers
+      if (authorizerIds.length > 0 && adminUsers != null) {
+        const users = await adminUsers.getByIds(authorizerIds)
+        for (const user of users) {
+          const fullName = [user.given_name, user.family_name].filter(Boolean).join(' ').trim()
+          authorizerNames.set(user.id, fullName.length > 0 ? fullName : user.email)
+        }
+      }
+
+      const schedules = await Promise.all(
+        result.schedules.map(async (schedule): Promise<ScheduledPublicationListItem> => {
+          const definition = collections.get(schedule.collectionId)
+          return {
+            ...serializeSchedule(schedule),
+            collectionPath: definition?.path ?? schedule.collectionId,
+            collectionLabel:
+              definition == null
+                ? schedule.collectionId
+                : isSingleton(definition)
+                  ? definition.label
+                  : definition.labels.plural,
+            documentPath: schedule.documentPath,
+            revision: schedule.revision,
+            lastAuthorizedByName:
+              schedule.lastAuthorizedBy == null
+                ? null
+                : (authorizerNames.get(schedule.lastAuthorizedBy) ?? null),
+          }
+        })
+      )
+
+      return {
+        schedules,
+        meta: {
+          page,
+          pageSize,
+          total: result.total,
+          totalPages: Math.max(1, Math.ceil(result.total / pageSize)),
+        },
+        runtime: await scheduledPublicationRuntime(),
+      } satisfies ScheduledPublicationListResponse
+    })
+  )

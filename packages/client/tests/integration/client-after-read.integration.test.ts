@@ -32,7 +32,7 @@ function testCollection(suffix: string | number): CollectionDefinition {
       published: { label: 'Published', verb: 'Publish' },
       archived: { label: 'Archived', verb: 'Archive' },
     }),
-    search: { fields: ['title'] },
+    search: { body: ['title'] },
     useAsTitle: 'title',
     // System path is derived from `title` via the installation slugifier
     // (the standard pattern). Test data uses unique titles so the derived
@@ -92,7 +92,8 @@ describe('afterRead integration', () => {
     const published = await ctx.client
       .collection(ctx.definition.path)
       .findByPath('afterread-bypath', { status: 'any' })
-    await handle.changeStatus(published?.id, 'published', { expectedRevision: 1 })
+    if (!published) throw new Error('Expected fixture document')
+    await handle.changeStatus(published.id, 'published', { expectedRevision: 1 })
 
     hookCalls.length = 0
     const doc = await handle.findByPath('afterread-bypath')

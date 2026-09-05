@@ -160,6 +160,7 @@ export function createSingletonRoute(path: string) {
             ]}
           />
           <SingletonView
+            key={`${singleton}/${locale}`}
             singletonDefinition={definition}
             adminConfig={getSingletonAdminConfig(singleton) ?? undefined}
             document={routeState.document}

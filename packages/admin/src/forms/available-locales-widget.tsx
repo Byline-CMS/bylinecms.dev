@@ -27,6 +27,7 @@ export interface AvailableLocalesWidgetLocale {
 }
 
 export interface AvailableLocalesWidgetProps {
+  disabled?: boolean
   /** All configured content locales — one checkbox each (code + display label). */
   contentLocales: ReadonlyArray<AvailableLocalesWidgetLocale>
   /**
@@ -50,6 +51,7 @@ export interface AvailableLocalesWidgetProps {
  * `.byline-form-available-locales-list`.
  */
 export const AvailableLocalesWidget = ({
+  disabled: mutationsBlocked = false,
   contentLocales,
   availableVersionLocales,
 }: AvailableLocalesWidgetProps) => {
@@ -62,6 +64,7 @@ export const AvailableLocalesWidget = ({
 
   const toggle = useCallback(
     (code: string, checked: boolean) => {
+      if (mutationsBlocked) return
       const next = new Set(advertised)
       if (checked) {
         next.add(code)
@@ -70,7 +73,7 @@ export const AvailableLocalesWidget = ({
       }
       setSystemAvailableLocales([...next])
     },
-    [advertised, setSystemAvailableLocales]
+    [mutationsBlocked, advertised, setSystemAvailableLocales]
   )
 
   if (contentLocales.length === 0) {
@@ -102,7 +105,7 @@ export const AvailableLocalesWidget = ({
               label={label}
               intent={intent}
               checked={checked}
-              disabled={disabled}
+              disabled={mutationsBlocked || disabled}
               onCheckedChange={(value) => toggle(code, value === true)}
             />
           )

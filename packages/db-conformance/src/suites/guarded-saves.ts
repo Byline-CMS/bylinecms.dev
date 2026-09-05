@@ -129,6 +129,38 @@ export function guardedSavesSuite(hooks: ConformanceHooks): void {
         requestContext: createSuperAdminContext({ id: 'guarded-save-conformance' }),
       }
     })
+    it.each(['en', 'fr'])(
+      'metadata-only Save with explicit %s locale needs no version parent',
+      async (locale) => {
+        const doc = await create()
+        const before = await state(doc.documentId)
+        const path = crypto.randomUUID()
+        const result = await saveDocument(ctx, {
+          documentId: doc.documentId,
+          expectedRevision: 1,
+          patches: [],
+          locale,
+          path,
+          availableLocales: ['en', 'fr'],
+        })
+        expect(result.revision).toBe(2)
+        const after = await state(doc.documentId)
+        expect(after.document?.versionId).toBe(before.document?.versionId)
+        expect(after.document?.path).toBe(locale === 'en' ? path : before.document?.path)
+        expect(after.revision).toBe(2)
+        await expect(
+          saveDocument(ctx, {
+            documentId: doc.documentId,
+            expectedRevision: 1,
+            patches: [],
+            locale,
+            path: crypto.randomUUID(),
+            availableLocales: [],
+          })
+        ).rejects.toMatchObject({ code: 'ERR_DOCUMENT_STALE' })
+        expect(await state(doc.documentId)).toEqual(after)
+      }
+    )
     describe('Task 6 remaining lifecycle guards', () => {
       type Operation = (
         context: DocumentLifecycleContext,

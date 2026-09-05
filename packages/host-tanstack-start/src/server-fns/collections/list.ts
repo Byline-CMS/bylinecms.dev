@@ -1,3 +1,4 @@
+import { withEditableRevision } from '../editable-revision.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -205,11 +206,9 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
     }
 
     const parsed = list.parse(serialised)
+    const observations = new Map(result.docs.map((doc) => [doc.id, doc]))
     return {
       ...parsed,
-      docs: parsed.docs.map((doc, index) => ({
-        ...doc,
-        revision: result.docs[index]?.revision,
-      })),
+      docs: parsed.docs.map((doc) => withEditableRevision(doc, observations.get(doc.id))),
     }
   })

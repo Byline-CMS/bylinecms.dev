@@ -633,5 +633,21 @@
   "scheduledPublication.list.columns.authorizer": "อนุมัติล่าสุดโดย",
   "scheduledPublication.list.authorizerMissing": "บัญชีนี้ไม่มีอยู่แล้ว จึงแสดง ID แทน",
   "scheduledPublication.list.columns.attempt": "จำนวนครั้ง / ข้อผิดพลาดล่าสุด",
-  "scheduledPublication.list.columns.actions": "การดำเนินการ"
+  "scheduledPublication.list.columns.actions": "การดำเนินการ",
+  "documentConcurrency.staleTitle": "เอกสารมีการเปลี่ยนแปลง",
+  "documentConcurrency.stale": "เอกสารนี้มีการเปลี่ยนแปลงหลังจากที่คุณเปิด การเปลี่ยนแปลงของคุณยังไม่ได้รับการบันทึก โปรดโหลดเอกสารใหม่เพื่อดำเนินการต่อ การโหลดใหม่จะทิ้งการเปลี่ยนแปลงที่ยังไม่ได้บันทึกของคุณ",
+  "documentConcurrency.reloadTitle": "ต้องโหลดใหม่",
+  "documentConcurrency.reload": "ตัวแก้ไขนี้ไม่มีเลขรุ่นเอกสารที่ถูกต้อง การเปลี่ยนแปลงของคุณยังไม่ได้รับการบันทึก โปรดโหลดเอกสารใหม่เพื่อดำเนินการต่อ การโหลดใหม่จะทิ้งการเปลี่ยนแปลงที่ยังไม่ได้บันทึก",
+  "documentConcurrency.lockTitle": "เอกสารกำลังถูกใช้งาน",
+  "documentConcurrency.lock": "การดำเนินการอื่นขัดแย้งกับการเปลี่ยนแปลงนี้ การเปลี่ยนแปลงของคุณถูกย้อนกลับแล้ว โปรดโหลดเอกสารใหม่ก่อนลองอีกครั้ง การโหลดใหม่จะทิ้งการเปลี่ยนแปลงที่ยังไม่ได้บันทึก",
+  "documentConcurrency.unavailableTitle": "ไม่สามารถใช้เอกสารได้",
+  "documentConcurrency.unavailable": "เอกสารนี้ไม่พร้อมใช้งานแล้ว การเปลี่ยนแปลงของคุณยังไม่ได้รับการบันทึก โปรดโหลดใหม่เพื่อตรวจสอบความพร้อมใช้งาน การโหลดใหม่จะทิ้งการเปลี่ยนแปลงที่ยังไม่ได้บันทึก",
+  "documentConcurrency.committedTitle": "บันทึกแล้วพร้อมคำเตือน",
+  "documentConcurrency.committed": "บันทึกการเปลี่ยนแปลงแล้ว แต่การดำเนินการติดตามผลล้มเหลว โปรดอย่าบันทึกซ้ำ",
+  "documentConcurrency.reloadAction": "โหลดใหม่และทิ้งการเปลี่ยนแปลงของฉัน",
+  "documentConcurrency.reloadFailed": "โหลดใหม่ไม่สำเร็จ การเปลี่ยนแปลงที่ยังไม่ได้บันทึกยังอยู่ โปรดลองอีกครั้ง",
+  "documentConcurrency.schedulesTitle": "ต้องตรวจสอบการเผยแพร่ตามกำหนดเวลา",
+  "documentConcurrency.schedules": "บันทึกโครงสร้างแล้ว การเผยแพร่ตามกำหนดเวลาที่ได้รับผลกระทบถูกระงับและต้องได้รับการตรวจสอบก่อนดำเนินการ",
+  "documentConcurrency.reviewSchedules": "ตรวจสอบการเผยแพร่ตามกำหนดเวลา",
+  "documentConcurrency.failed": "ไม่สามารถดำเนินการให้เสร็จได้ การเปลี่ยนแปลงที่ยังไม่ได้บันทึกยังคงอยู่"
 }

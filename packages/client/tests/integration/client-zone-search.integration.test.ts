@@ -29,8 +29,8 @@ import type {
   SearchProvider,
 } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
+import type { PgAdapter } from '@byline/db-postgres'
 import { migrate, postgresSearch } from '@byline/search-postgres'
-import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { setupMultiCollectionTestClient } from '../fixtures/setup.js'
@@ -115,7 +115,7 @@ interface Ctx {
 }
 
 let ctx: Ctx
-let searchPool: Pool
+let searchPool: PgAdapter['pool']
 let articleOne: string
 let articleTwo: string
 let noteAlice: string
@@ -127,7 +127,7 @@ beforeAll(async () => {
     {
       requestContext: () => currentRequestContext,
       search: (adapter) => {
-        const pool = (adapter as unknown as { pool: Pool }).pool
+        const pool = adapter.pool
         searchPool = pool
         return postgresSearch({
           pool,
@@ -136,7 +136,7 @@ beforeAll(async () => {
       },
     }
   )
-  await migrate((db as unknown as { pool: Pool }).pool)
+  await migrate(db.pool)
   ctx = {
     client,
     db,

@@ -26,6 +26,8 @@ import { hasCommittedDocumentHookFailure } from '../../server-fns/collections/sa
 import styles from './restore-version-modal.module.css'
 
 interface RestoreVersionModalProps {
+  disabled?: boolean
+  onMutationError?: (error: unknown) => unknown
   versionLabel: string
   versionNumber: number
   restoreStatusLabel: string
@@ -35,6 +37,8 @@ interface RestoreVersionModalProps {
 }
 
 export function RestoreVersionModal({
+  disabled = false,
+  onMutationError,
   versionLabel,
   versionNumber,
   restoreStatusLabel,
@@ -48,7 +52,7 @@ export function RestoreVersionModal({
   const [pending, setPending] = useState(false)
 
   async function handleRestore() {
-    if (pending) return
+    if (pending || disabled) return
     setPending(true)
     setError(null)
     try {
@@ -63,6 +67,11 @@ export function RestoreVersionModal({
       onClose()
       await onRestoreComplete()
     } catch (err) {
+      if (onMutationError?.(err)) {
+        setPending(false)
+        onClose()
+        return
+      }
       const code = getErrorCode(err)
       if (code === 'ERR_INVALID_TRANSITION') {
         setError(t('collections.restore.errors.alreadyCurrent'))
@@ -113,7 +122,7 @@ export function RestoreVersionModal({
           intent="noeffect"
           size="sm"
           onClick={onClose}
-          disabled={pending}
+          disabled={pending || disabled}
           className={cx('byline-coll-restore-button', styles.button)}
         >
           {t('common.actions.cancel')}
@@ -123,7 +132,7 @@ export function RestoreVersionModal({
           intent="primary"
           onClick={handleRestore}
           style={{ minWidth: '80px' }}
-          disabled={pending}
+          disabled={pending || disabled}
           className={cx('byline-coll-restore-button', styles.button)}
         >
           {pending === true ? (

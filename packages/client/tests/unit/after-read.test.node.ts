@@ -12,6 +12,7 @@ import { createReadContext, ErrorCodes } from '@byline/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createBylineClient } from '../../src/index.js'
+import { testAdapter } from '../fixtures/test-adapter.js'
 
 const superAdmin = createSuperAdminContext({ id: 'test-super-admin' })
 
@@ -19,7 +20,9 @@ const superAdmin = createSuperAdminContext({ id: 'test-super-admin' })
 // Fixtures — two collections so we can exercise populate + afterRead too.
 // ---------------------------------------------------------------------------
 
-function postsCollection(afterRead?: (ctx: any) => void | Promise<void>): CollectionDefinition {
+function postsCollection(
+  afterRead?: (ctx: any) => void | Promise<void>
+): Extract<CollectionDefinition, { labels: object }> {
   return {
     path: 'posts',
     labels: { singular: 'Post', plural: 'Posts' },
@@ -37,7 +40,9 @@ function postsCollection(afterRead?: (ctx: any) => void | Promise<void>): Collec
   }
 }
 
-function authorsCollection(afterRead?: (ctx: any) => void | Promise<void>): CollectionDefinition {
+function authorsCollection(
+  afterRead?: (ctx: any) => void | Promise<void>
+): Extract<CollectionDefinition, { labels: object }> {
   return {
     path: 'authors',
     labels: { singular: 'Author', plural: 'Authors' },
@@ -61,24 +66,37 @@ function rawDoc(collectionId: string, documentId: string, fields: Record<string,
 
 function makeAdapter(fetchMap: Record<string, Record<string, any>> = {}) {
   const getCollectionByPath = vi.fn(async (path: string) => ({ id: path, path }))
-  const findDocuments = vi.fn(async () => ({ documents: [], total: 0 }))
-  const getDocumentById = vi.fn(async () => null)
-  const getDocumentByPath = vi.fn(async () => null)
-  const getDocumentByVersion = vi.fn(async () => null)
-  const getDocumentHistory = vi.fn(async () => ({
+  const findDocuments = vi.fn<IDbAdapter['queries']['documents']['findDocuments']>(async () => ({
     documents: [],
-    meta: { total: 0, page: 1, page_size: 20, total_pages: 0, order: 'updated_at', desc: true },
+    total: 0,
   }))
-  const getTreeSubtree = vi.fn(async () => [])
-  const getTreeAncestors = vi.fn(async () => [])
-  const getDocumentsByDocumentIds = vi.fn(
-    async (params: { collection_id: string; document_ids: string[] }) => {
-      const bucket = fetchMap[params.collection_id] ?? {}
-      return params.document_ids.map((id) => bucket[id]).filter(Boolean)
-    }
+  const getDocumentById = vi.fn<IDbAdapter['queries']['documents']['getDocumentById']>(
+    async () => null
   )
+  const getDocumentByPath = vi.fn<IDbAdapter['queries']['documents']['getDocumentByPath']>(
+    async () => null
+  )
+  const getDocumentByVersion = vi.fn<IDbAdapter['queries']['documents']['getDocumentByVersion']>(
+    async () => null
+  )
+  const getDocumentHistory = vi.fn<IDbAdapter['queries']['documents']['getDocumentHistory']>(
+    async () => ({
+      documents: [],
+      meta: { total: 0, page: 1, page_size: 20, total_pages: 0, order: 'updated_at', desc: true },
+    })
+  )
+  const getTreeSubtree = vi.fn<IDbAdapter['queries']['documents']['getTreeSubtree']>(async () => [])
+  const getTreeAncestors = vi.fn<IDbAdapter['queries']['documents']['getTreeAncestors']>(
+    async () => []
+  )
+  const getDocumentsByDocumentIds = vi.fn<
+    IDbAdapter['queries']['documents']['getDocumentsByDocumentIds']
+  >(async (params: { collection_id: string; document_ids: string[] }) => {
+    const bucket = fetchMap[params.collection_id] ?? {}
+    return params.document_ids.map((id) => bucket[id]).filter(Boolean)
+  })
 
-  const db = {
+  const db = testAdapter({
     commands: {
       collections: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
       documents: {
@@ -117,7 +135,7 @@ function makeAdapter(fetchMap: Record<string, Record<string, any>> = {}) {
         getTreeParent: vi.fn(async () => ({ placed: false, parentDocumentId: null })),
       },
     },
-  } satisfies IDbAdapter
+  })
 
   return {
     db,
@@ -568,7 +586,9 @@ describe('afterRead — A→B→A safety', () => {
   })
 
   it('reruns redaction for fresh raw objects with identical read metadata', async () => {
-    const postsHook = vi.fn((ctx: any) => delete ctx.doc.fields.secret)
+    const postsHook = vi.fn((ctx: any) => {
+      delete ctx.doc.fields.secret
+    })
     const { db, getDocumentById } = makeAdapter()
     getDocumentById.mockImplementation(async () =>
       rawDoc('posts', 'p1', { title: 'A', secret: 'hidden' })

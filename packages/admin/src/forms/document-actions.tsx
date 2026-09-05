@@ -41,6 +41,7 @@ export interface DocumentActionsLocaleOption {
 }
 
 export function DocumentActions({
+  disabled = false,
   publishedVersion,
   onUnpublish,
   onDelete,
@@ -59,6 +60,7 @@ export function DocumentActions({
   onConfirmScheduledPublication,
   onCancelScheduledPublication,
 }: {
+  disabled?: boolean
   publishedVersion?: PublishedVersionInfo | null
   onUnpublish?: () => Promise<void>
   onDelete?: () => Promise<void>
@@ -221,24 +223,29 @@ export function DocumentActions({
     onDelete != null
 
   const handleOnDelete = () => {
+    if (disabled) return
     setShowDeleteConfirm(false)
     if (onDelete) {
-      onDelete()
+      void onDelete().catch(() => {})
     }
   }
 
   const handleOnDuplicate = async () => {
+    if (disabled) return
     if (!onDuplicate) return
     setDuplicateBusy(true)
     try {
       await onDuplicate()
       setShowDuplicateConfirm(false)
+    } catch {
+      // The host reports the failure and retains the editor observation.
     } finally {
       setDuplicateBusy(false)
     }
   }
 
   const handleOpenDuplicate = () => {
+    if (disabled) return
     // Duplicate copies the saved version — block when the form is dirty so
     // unsaved edits are not silently dropped from the copy.
     if (hasUnsavedChanges) {
@@ -249,6 +256,7 @@ export function DocumentActions({
   }
 
   const handleOpenCopyToLocale = () => {
+    if (disabled) return
     // Copy-to-Locale reads the saved version — block when the form is dirty.
     if (hasUnsavedChanges) {
       onUnsavedChanges?.()
@@ -263,17 +271,21 @@ export function DocumentActions({
   }
 
   const handleOnCopyToLocale = async () => {
+    if (disabled) return
     if (!onCopyToLocale || !copyTargetLocale) return
     setCopyToLocaleBusy(true)
     try {
       await onCopyToLocale({ targetLocale: copyTargetLocale, overwrite: copyOverwrite })
       setShowCopyToLocaleConfirm(false)
+    } catch {
+      // The host reports the failure and retains the editor observation.
     } finally {
       setCopyToLocaleBusy(false)
     }
   }
 
   const handleOpenDeleteLocale = () => {
+    if (disabled) return
     // Delete-Locale removes the saved version's locale content — block when
     // the form is dirty so the editor saves (or discards) first.
     if (hasUnsavedChanges) {
@@ -288,11 +300,14 @@ export function DocumentActions({
   }
 
   const handleOnDeleteLocale = async () => {
+    if (disabled) return
     if (!onDeleteLocale || !deleteTargetLocale) return
     setDeleteLocaleBusy(true)
     try {
       await onDeleteLocale({ targetLocale: deleteTargetLocale })
       setShowDeleteLocaleConfirm(false)
+    } catch {
+      // The host reports the failure and retains the editor observation.
     } finally {
       setDeleteLocaleBusy(false)
     }
@@ -311,6 +326,7 @@ export function DocumentActions({
       {hasAnyAction && (
         <DropdownComponent.Root>
           <DropdownComponent.Trigger
+            disabled={disabled}
             render={<IconButton variant="text" intent="noeffect" size="sm" />}
           >
             <EllipsisIcon
@@ -329,7 +345,7 @@ export function DocumentActions({
             >
               {/*{publishedVersion && (
               <>
-                <DropdownComponent.Item onClick={onUnpublish}>
+                <DropdownComponent.Item disabled={disabled} onClick={onUnpublish}>
                   <div className={cx('byline-form-actions-item', styles.item)}>
                     <span className={cx('byline-form-actions-item-icon', styles['item-icon'])} />
                     <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
@@ -343,10 +359,16 @@ export function DocumentActions({
               {schedulingActions.length > 0 && (
                 <>
                   {schedulingActions.map((action) => (
-                    <DropdownComponent.Item key={action.key} onClick={action.onSelect}>
+                    <DropdownComponent.Item
+                      disabled={disabled}
+                      key={action.key}
+                      onClick={action.onSelect}
+                    >
                       <div className={cx('byline-form-actions-item', styles.item)}>
                         <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                          <button type="button">{action.label}</button>
+                          <button type="button" disabled={disabled}>
+                            {action.label}
+                          </button>
                         </span>
                       </div>
                     </DropdownComponent.Item>
@@ -355,28 +377,34 @@ export function DocumentActions({
                 </>
               )}
               {copyToLocaleAvailable && (
-                <DropdownComponent.Item onClick={handleOpenCopyToLocale}>
+                <DropdownComponent.Item disabled={disabled} onClick={handleOpenCopyToLocale}>
                   <div className={cx('byline-form-actions-item', styles.item)}>
                     <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                      <button type="button">{t('documentActions.copyToLocaleMenuItem')}</button>
+                      <button type="button" disabled={disabled}>
+                        {t('documentActions.copyToLocaleMenuItem')}
+                      </button>
                     </span>
                   </div>
                 </DropdownComponent.Item>
               )}
               {deleteLocaleAvailable && (
-                <DropdownComponent.Item onClick={handleOpenDeleteLocale}>
+                <DropdownComponent.Item disabled={disabled} onClick={handleOpenDeleteLocale}>
                   <div className={cx('byline-form-actions-item', styles.item)}>
                     <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                      <button type="button">{t('documentActions.deleteLocale.menuItem')}</button>
+                      <button type="button" disabled={disabled}>
+                        {t('documentActions.deleteLocale.menuItem')}
+                      </button>
                     </span>
                   </div>
                 </DropdownComponent.Item>
               )}
               {onDuplicate && (
-                <DropdownComponent.Item onClick={handleOpenDuplicate}>
+                <DropdownComponent.Item disabled={disabled} onClick={handleOpenDuplicate}>
                   <div className={cx('byline-form-actions-item', styles.item)}>
                     <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                      <button type="button">{t('common.actions.duplicate')}</button>
+                      <button type="button" disabled={disabled}>
+                        {t('common.actions.duplicate')}
+                      </button>
                     </span>
                   </div>
                 </DropdownComponent.Item>
@@ -385,6 +413,7 @@ export function DocumentActions({
                 <>
                   <DropdownComponent.Separator />
                   <DropdownComponent.Item
+                    disabled={disabled}
                     onClick={() => {
                       setShowDeleteConfirm(true)
                     }}
@@ -454,7 +483,13 @@ export function DocumentActions({
             >
               {t('common.actions.cancel')}
             </Button>
-            <Button size="sm" style={{ minWidth: '80px' }} intent="danger" onClick={handleOnDelete}>
+            <Button
+              size="sm"
+              style={{ minWidth: '80px' }}
+              intent="danger"
+              disabled={disabled}
+              onClick={handleOnDelete}
+            >
               {t('common.actions.delete')}
             </Button>
           </Modal.Actions>
@@ -533,7 +568,7 @@ export function DocumentActions({
               onClick={() => {
                 if (!duplicateBusy) setShowDuplicateConfirm(false)
               }}
-              disabled={duplicateBusy}
+              disabled={disabled || duplicateBusy}
             >
               {t('common.actions.cancel')}
             </Button>
@@ -542,7 +577,7 @@ export function DocumentActions({
               style={{ minWidth: '80px' }}
               intent="primary"
               onClick={handleOnDuplicate}
-              disabled={duplicateBusy}
+              disabled={disabled || duplicateBusy}
             >
               {duplicateBusy
                 ? t('documentActions.duplicate.busyButton')
@@ -611,7 +646,7 @@ export function DocumentActions({
                 onValueChange={(value) => {
                   if (value != null) setCopyTargetLocale(value)
                 }}
-                disabled={copyToLocaleBusy}
+                disabled={disabled || copyToLocaleBusy}
               />
             </div>
             <div
@@ -623,7 +658,7 @@ export function DocumentActions({
                 name="overwrite"
                 label={t('documentActions.copyToLocale.overwriteLabel')}
                 checked={copyOverwrite}
-                disabled={copyToLocaleBusy}
+                disabled={disabled || copyToLocaleBusy}
                 helpText={t('documentActions.copyToLocale.overwriteHelp')}
                 onCheckedChange={(value) => {
                   setCopyOverwrite(value === true)
@@ -647,7 +682,7 @@ export function DocumentActions({
               onClick={() => {
                 if (!copyToLocaleBusy) setShowCopyToLocaleConfirm(false)
               }}
-              disabled={copyToLocaleBusy}
+              disabled={disabled || copyToLocaleBusy}
             >
               {t('common.actions.cancel')}
             </Button>
@@ -656,7 +691,7 @@ export function DocumentActions({
               style={{ minWidth: '80px' }}
               intent="primary"
               onClick={handleOnCopyToLocale}
-              disabled={copyToLocaleBusy || !copyTargetLocale}
+              disabled={disabled || copyToLocaleBusy || !copyTargetLocale}
             >
               {copyToLocaleBusy
                 ? t('documentActions.copyToLocale.busyButton')
@@ -711,7 +746,7 @@ export function DocumentActions({
                 onValueChange={(value) => {
                   if (value != null) setDeleteTargetLocale(value)
                 }}
-                disabled={deleteLocaleBusy}
+                disabled={disabled || deleteLocaleBusy}
               />
             </div>
             <p style={{ marginTop: 'var(--spacing-12)' }}>
@@ -734,7 +769,7 @@ export function DocumentActions({
               onClick={() => {
                 if (!deleteLocaleBusy) setShowDeleteLocaleConfirm(false)
               }}
-              disabled={deleteLocaleBusy}
+              disabled={disabled || deleteLocaleBusy}
             >
               {t('common.actions.cancel')}
             </Button>
@@ -743,7 +778,7 @@ export function DocumentActions({
               style={{ minWidth: '80px' }}
               intent="danger"
               onClick={handleOnDeleteLocale}
-              disabled={deleteLocaleBusy || !deleteTargetLocale}
+              disabled={disabled || deleteLocaleBusy || !deleteTargetLocale}
             >
               {deleteLocaleBusy
                 ? t('documentActions.deleteLocale.busyButton')

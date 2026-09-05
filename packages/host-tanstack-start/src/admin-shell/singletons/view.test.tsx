@@ -9,7 +9,12 @@
 import { act } from 'react'
 
 import { BylineFieldServicesProvider } from '@byline/admin/react'
-import { defineAdminConfig, defineSingleton, type SingletonDefinition } from '@byline/core'
+import {
+  defineAdminConfig,
+  defineSingleton,
+  ERR_DOCUMENT_STALE,
+  type SingletonDefinition,
+} from '@byline/core'
 import { adminTranslations } from '@byline/i18n/admin'
 import { I18nProvider } from '@byline/i18n/react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -234,13 +239,29 @@ function latestToastDescription(): string {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.guardStates.length = 0
-  mocks.update.mockResolvedValue({ versionId: 'version-next' })
-  mocks.changeStatus.mockResolvedValue({ newStatus: 'published' })
-  mocks.unpublish.mockResolvedValue({ archivedCount: 1 })
-  mocks.schedule.mockResolvedValue({ state: 'armed' })
-  mocks.confirmSchedule.mockResolvedValue({ state: 'armed' })
-  mocks.cancelSchedule.mockResolvedValue(null)
-  mocks.copyToLocale.mockResolvedValue({ versionId: 'version-next' })
+  mocks.update.mockResolvedValue({
+    documentId: 'doc-settings',
+    revision: 8,
+    versionId: 'version-next',
+  })
+  mocks.changeStatus.mockResolvedValue({
+    documentId: 'doc-settings',
+    revision: 8,
+    newStatus: 'published',
+  })
+  mocks.unpublish.mockResolvedValue({ documentId: 'doc-settings', revision: 8, archivedCount: 1 })
+  mocks.schedule.mockResolvedValue({ documentId: 'doc-settings', revision: 8, state: 'armed' })
+  mocks.confirmSchedule.mockResolvedValue({
+    documentId: 'doc-settings',
+    revision: 8,
+    state: 'armed',
+  })
+  mocks.cancelSchedule.mockResolvedValue({ schedule: null, revision: 8 })
+  mocks.copyToLocale.mockResolvedValue({
+    documentId: 'doc-settings',
+    revision: 8,
+    versionId: 'version-next',
+  })
 
   defineAdminConfig({
     routes: { admin: '/internal/cms' },
@@ -350,12 +371,21 @@ describe('SingletonView', () => {
   })
 
   it('distinguishes stale saves from a singleton missing on the server', async () => {
-    mocks.update.mockRejectedValueOnce({ code: 'ERR_CONFLICT' })
+    mocks.update.mockRejectedValueOnce(
+      ERR_DOCUMENT_STALE({
+        message: 'Test failure',
+        details: {
+          reason: 'revision_mismatch',
+          documentId: 'doc-settings',
+          expectedRevision: 7,
+          currentRevision: 8,
+        },
+      })
+    )
     render(loadedDocument)
     typeIntoTitle('Stale edit')
     await submit()
-    const conflict = latestToastDescription()
-    expect(conflict).toContain('Someone else saved this singleton first')
+    expect(container.textContent).toContain('This document has changed since you opened it.')
 
     act(() => root.unmount())
     root = createRoot(container)
@@ -363,13 +393,22 @@ describe('SingletonView', () => {
     render(loadedDocument)
     typeIntoTitle('Missing edit')
     await submit()
-    const notConfigured = latestToastDescription()
-    expect(notConfigured).toContain('not configured on the server')
-    expect(notConfigured).not.toBe(conflict)
+    expect(container.textContent).toContain('This document is no longer available.')
+    expect(container.textContent).not.toContain('This document has changed since you opened it.')
   })
 
   it('keeps a failed save dirty with the navigation guard active', async () => {
-    mocks.update.mockRejectedValueOnce({ code: 'ERR_CONFLICT' })
+    mocks.update.mockRejectedValueOnce(
+      ERR_DOCUMENT_STALE({
+        message: 'Test failure',
+        details: {
+          reason: 'revision_mismatch',
+          documentId: 'doc-settings',
+          expectedRevision: 7,
+          currentRevision: 8,
+        },
+      })
+    )
     render(loadedDocument)
     typeIntoTitle('Unsaved change')
     await submit()
@@ -384,6 +423,7 @@ describe('SingletonView', () => {
       status: 'committed-hook-failed',
       documentId: 'doc-settings',
       documentVersionId: 'version-next',
+      revision: 8,
       sideEffectFailure: { phase: 'afterSave', code: 'ERR_UNHANDLED' },
     })
     render(loadedDocument)

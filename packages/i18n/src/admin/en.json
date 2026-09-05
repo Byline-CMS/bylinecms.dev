@@ -633,5 +633,21 @@
   "scheduledPublication.list.columns.authorizer": "Last authorized by",
   "scheduledPublication.list.authorizerMissing": "This account no longer exists; showing its id.",
   "scheduledPublication.list.columns.attempt": "Attempts / last error",
-  "scheduledPublication.list.columns.actions": "Actions"
+  "scheduledPublication.list.columns.actions": "Actions",
+  "documentConcurrency.staleTitle": "Document changed",
+  "documentConcurrency.stale": "This document has changed since you opened it. Your changes were not saved. Reload the document to continue. Reloading will discard your unsaved changes.",
+  "documentConcurrency.reloadTitle": "Reload required",
+  "documentConcurrency.reload": "This editor is missing a valid document revision. Your changes were not saved. Reload the document to continue. Reloading will discard your unsaved changes.",
+  "documentConcurrency.lockTitle": "Document is busy",
+  "documentConcurrency.lock": "Another operation conflicted with this change. Your changes were rolled back. Reload the document before trying again. Reloading will discard your unsaved changes.",
+  "documentConcurrency.unavailableTitle": "Document unavailable",
+  "documentConcurrency.unavailable": "This document is no longer available. Your changes were not saved. Reload to check its availability. Reloading will discard your unsaved changes.",
+  "documentConcurrency.committedTitle": "Saved with a warning",
+  "documentConcurrency.committed": "Your changes were saved, but a follow-up action failed. Do not repeat the save.",
+  "documentConcurrency.reloadAction": "Reload and discard my changes",
+  "documentConcurrency.reloadFailed": "Reload failed. Your unsaved changes are still here. Try reloading again.",
+  "documentConcurrency.schedulesTitle": "Scheduled publications need review",
+  "documentConcurrency.schedules": "The structure was saved. Scheduled publications affected by this change were suspended and need review before they can run.",
+  "documentConcurrency.reviewSchedules": "Review scheduled publications",
+  "documentConcurrency.failed": "The operation could not be completed. Your unsaved changes are still available."
 }

@@ -31,6 +31,7 @@ function coerceToString(value: unknown): string {
 }
 
 export interface PathWidgetProps {
+  disabled?: boolean
   /** The collection's `useAsPath` source field name, when configured. */
   useAsPath: string | undefined
   /** Collection path, forwarded to the slugifier as context. */
@@ -91,6 +92,7 @@ export const PathWidget = ({
   mode,
   slugifier,
   sourceLocked = false,
+  disabled = false,
 }: PathWidgetProps) => {
   const { setSystemPath } = useFormContext()
   const { t } = useTranslation('byline-admin')
@@ -125,18 +127,19 @@ export const PathWidget = ({
 
   const handleChange = useCallback(
     (next: string) => {
+      if (disabled) return
       // Empty string clears the override — server falls back to derive
       // (create) or sticky (update).
       setSystemPath(next.length === 0 ? null : next)
     },
-    [setSystemPath]
+    [disabled, setSystemPath]
   )
 
   const handleRegenerate = useCallback(() => {
-    if (livePreview.length > 0) {
+    if (!disabled && livePreview.length > 0) {
       setSystemPath(livePreview)
     }
-  }, [livePreview, setSystemPath])
+  }, [disabled, livePreview, setSystemPath])
 
   // Validate live: if the typed value differs from its slugified form,
   // surface an inline hint without blocking input (mirrors the previous
@@ -184,6 +187,7 @@ export const PathWidget = ({
             type="button"
             onClick={handleRegenerate}
             className={cx('byline-form-path-regenerate', styles.regenerate)}
+            disabled={disabled}
             aria-label={t('pathWidget.regenerateAriaLabel', { field: useAsPath })}
           >
             {t('pathWidget.regenerateButton', { field: useAsPath })}
@@ -191,6 +195,7 @@ export const PathWidget = ({
         )}
       </div>
       <Input
+        disabled={disabled}
         id="system-path"
         name="__systemPath__"
         value={inputValue}

@@ -633,5 +633,21 @@
   "scheduledPublication.list.columns.authorizer": "Ultima autorizzazione di",
   "scheduledPublication.list.authorizerMissing": "Questo account non esiste più; viene mostrato il suo id.",
   "scheduledPublication.list.columns.attempt": "Tentativi / ultimo errore",
-  "scheduledPublication.list.columns.actions": "Azioni"
+  "scheduledPublication.list.columns.actions": "Azioni",
+  "documentConcurrency.staleTitle": "Documento modificato",
+  "documentConcurrency.stale": "Questo documento è cambiato da quando è stato aperto. Le modifiche non sono state salvate. Ricarica il documento per continuare. Le modifiche non salvate verranno scartate.",
+  "documentConcurrency.reloadTitle": "Ricaricamento necessario",
+  "documentConcurrency.reload": "L’editor non dispone di una revisione valida del documento. Le modifiche non sono state salvate. Ricarica il documento per continuare. Le modifiche non salvate verranno scartate.",
+  "documentConcurrency.lockTitle": "Documento occupato",
+  "documentConcurrency.lock": "Un’altra operazione è entrata in conflitto con questa modifica. Le modifiche sono state annullate. Ricarica il documento prima di riprovare. Le modifiche non salvate verranno scartate.",
+  "documentConcurrency.unavailableTitle": "Documento non disponibile",
+  "documentConcurrency.unavailable": "Questo documento non è più disponibile. Le modifiche non sono state salvate. Ricarica per verificarne la disponibilità. Le modifiche non salvate verranno scartate.",
+  "documentConcurrency.committedTitle": "Salvato con un avviso",
+  "documentConcurrency.committed": "Le modifiche sono state salvate, ma un’azione successiva non è riuscita. Non ripetere il salvataggio.",
+  "documentConcurrency.reloadAction": "Ricarica e scarta le mie modifiche",
+  "documentConcurrency.reloadFailed": "Ricaricamento non riuscito. Le modifiche non salvate sono ancora presenti. Riprova.",
+  "documentConcurrency.schedulesTitle": "Pubblicazioni programmate da verificare",
+  "documentConcurrency.schedules": "La struttura è stata salvata. Le pubblicazioni programmate interessate sono state sospese e devono essere verificate prima dell’esecuzione.",
+  "documentConcurrency.reviewSchedules": "Verifica le pubblicazioni programmate",
+  "documentConcurrency.failed": "Impossibile completare l’operazione. Le modifiche non salvate sono ancora disponibili."
 }

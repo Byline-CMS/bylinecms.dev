@@ -1,3 +1,4 @@
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -22,19 +23,21 @@ export type UpdateSingletonInput = SingletonSavePrecondition & {
 
 export const updateSingleton = createServerFn({ method: 'POST' })
   .validator((input: UpdateSingletonInput) => input)
-  .handler(async ({ data }) => {
-    const { singleton, data: fields, locale, ...precondition } = data
-    try {
-      const result = await getAdminBylineClient()
-        .singleton(singleton)
-        .update(fields, {
-          locale,
-          ...precondition,
-        })
-      return serialise(result)
-    } catch (error) {
-      const committedFailure = toCommittedDocumentHookFailureResponse(error)
-      if (committedFailure != null) return committedFailure
-      throw error
-    }
-  })
+  .handler(
+    withDocumentMutationErrors(async ({ data }) => {
+      const { singleton, data: fields, locale, ...precondition } = data
+      try {
+        const result = await getAdminBylineClient()
+          .singleton(singleton)
+          .update(fields, {
+            locale,
+            ...precondition,
+          })
+        return serialise(result)
+      } catch (error) {
+        const committedFailure = toCommittedDocumentHookFailureResponse(error)
+        if (committedFailure != null) return committedFailure
+        throw error
+      }
+    })
+  )

@@ -1,3 +1,4 @@
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -39,25 +40,27 @@ export const placeTreeNode = createServerFn({ method: 'POST' })
       reconcile?: boolean
     }) => input
   )
-  .handler(async ({ data }) => {
-    const { collection: path, documentId } = data
-    const config = await ensureCollection(path)
-    if (!config) {
-      throw ERR_NOT_FOUND({
-        message: 'Collection not found',
-        details: { collectionPath: path },
-      }).log(getLogger())
-    }
-    const handle = getAdminBylineClient().collection(path)
-    const result = await placeAdminTreeNode(handle, documentId, {
-      expectedRevision: data.expectedRevision,
-      parentDocumentId: data.parentDocumentId,
-      beforeDocumentId: data.beforeDocumentId ?? null,
-      afterDocumentId: data.afterDocumentId ?? null,
-      reconcile: data.reconcile,
+  .handler(
+    withDocumentMutationErrors(async ({ data }) => {
+      const { collection: path, documentId } = data
+      const config = await ensureCollection(path)
+      if (!config) {
+        throw ERR_NOT_FOUND({
+          message: 'Collection not found',
+          details: { collectionPath: path },
+        }).log(getLogger())
+      }
+      const handle = getAdminBylineClient().collection(path)
+      const result = await placeAdminTreeNode(handle, documentId, {
+        expectedRevision: data.expectedRevision,
+        parentDocumentId: data.parentDocumentId,
+        beforeDocumentId: data.beforeDocumentId ?? null,
+        afterDocumentId: data.afterDocumentId ?? null,
+        reconcile: data.reconcile,
+      })
+      return { status: 'ok' as const, ...result }
     })
-    return { status: 'ok' as const, ...result }
-  })
+  )
 
 // ---------------------------------------------------------------------------
 // Remove a node from the tree (back to the unplaced state)
@@ -72,21 +75,27 @@ export const removeFromTree = createServerFn({ method: 'POST' })
       reconcile?: boolean
     }) => input
   )
-  .handler(async ({ data }) => {
-    const { collection: path, documentId } = data
-    const config = await ensureCollection(path)
-    if (!config) {
-      throw ERR_NOT_FOUND({
-        message: 'Collection not found',
-        details: { collectionPath: path },
-      }).log(getLogger())
-    }
-    const result = await removeAdminTreeNode(getAdminBylineClient().collection(path), documentId, {
-      expectedRevision: data.expectedRevision,
-      reconcile: data.reconcile,
+  .handler(
+    withDocumentMutationErrors(async ({ data }) => {
+      const { collection: path, documentId } = data
+      const config = await ensureCollection(path)
+      if (!config) {
+        throw ERR_NOT_FOUND({
+          message: 'Collection not found',
+          details: { collectionPath: path },
+        }).log(getLogger())
+      }
+      const result = await removeAdminTreeNode(
+        getAdminBylineClient().collection(path),
+        documentId,
+        {
+          expectedRevision: data.expectedRevision,
+          reconcile: data.reconcile,
+        }
+      )
+      return { status: 'ok' as const, ...result }
     })
-    return { status: 'ok' as const, ...result }
-  })
+  )
 
 // ---------------------------------------------------------------------------
 // Resolve a document's ancestor chain (root-first), hydrated with titles
@@ -94,30 +103,32 @@ export const removeFromTree = createServerFn({ method: 'POST' })
 
 export const getTreeAncestors = createServerFn({ method: 'GET' })
   .validator((input: { collection: string; documentId: string }) => input)
-  .handler(async ({ data }) => {
-    const { collection: path, documentId } = data
-    const config = await ensureCollection(path)
-    if (!config) {
-      throw ERR_NOT_FOUND({
-        message: 'Collection not found',
-        details: { collectionPath: path },
-      }).log(getLogger())
-    }
-    const useAsTitle = config.definition.useAsTitle
-    // Admin context: read with `status: 'any'` so draft ancestors still show.
-    const ancestors = await getAdminBylineClient()
-      .collection(path)
-      .getAncestors(documentId, { status: 'any' })
-    return ancestors.map((doc) => {
-      const fields = doc.fields as Record<string, any> | undefined
-      const title = useAsTitle ? fields?.[useAsTitle] : undefined
-      return {
-        id: doc.id,
-        title: typeof title === 'string' && title.length > 0 ? title : doc.path,
-        path: doc.path,
+  .handler(
+    withDocumentMutationErrors(async ({ data }) => {
+      const { collection: path, documentId } = data
+      const config = await ensureCollection(path)
+      if (!config) {
+        throw ERR_NOT_FOUND({
+          message: 'Collection not found',
+          details: { collectionPath: path },
+        }).log(getLogger())
       }
+      const useAsTitle = config.definition.useAsTitle
+      // Admin context: read with `status: 'any'` so draft ancestors still show.
+      const ancestors = await getAdminBylineClient()
+        .collection(path)
+        .getAncestors(documentId, { status: 'any' })
+      return ancestors.map((doc) => {
+        const fields = doc.fields as Record<string, any> | undefined
+        const title = useAsTitle ? fields?.[useAsTitle] : undefined
+        return {
+          id: doc.id,
+          title: typeof title === 'string' && title.length > 0 ? title : doc.path,
+          path: doc.path,
+        }
+      })
     })
-  })
+  )
 
 // ---------------------------------------------------------------------------
 // Resolve a document's placement state in the tree (unplaced / root / child)
@@ -125,17 +136,19 @@ export const getTreeAncestors = createServerFn({ method: 'GET' })
 
 export const getTreeParent = createServerFn({ method: 'GET' })
   .validator((input: { collection: string; documentId: string }) => input)
-  .handler(async ({ data }) => {
-    const { collection: path, documentId } = data
-    const config = await ensureCollection(path)
-    if (!config) {
-      throw ERR_NOT_FOUND({
-        message: 'Collection not found',
-        details: { collectionPath: path },
-      }).log(getLogger())
-    }
-    return getAdminTreeParent(getAdminBylineClient().collection(path), documentId)
-  })
+  .handler(
+    withDocumentMutationErrors(async ({ data }) => {
+      const { collection: path, documentId } = data
+      const config = await ensureCollection(path)
+      if (!config) {
+        throw ERR_NOT_FOUND({
+          message: 'Collection not found',
+          details: { collectionPath: path },
+        }).log(getLogger())
+      }
+      return getAdminTreeParent(getAdminBylineClient().collection(path), documentId)
+    })
+  )
 
 // ---------------------------------------------------------------------------
 // Read the whole collection tree as ordered, depth-tagged rows for the built-in
@@ -161,70 +174,74 @@ export interface CollectionTreeRow {
 
 export const getCollectionTree = createServerFn({ method: 'GET' })
   .validator((input: { collection: string; locale?: string }) => input)
-  .handler(async ({ data }) => {
-    const { collection: path } = data
-    const config = await ensureCollection(path)
-    if (!config) {
-      throw ERR_NOT_FOUND({
-        message: 'Collection not found',
-        details: { collectionPath: path },
-      }).log(getLogger())
-    }
-    const handle = getAdminBylineClient().collection(path)
-    // Shared deliberately across the structural and unplaced reads: the
-    // beforeRead predicate cache is per-ReadContext, so sharing gives both
-    // halves one predicate snapshot — a time-dependent predicate (embargo
-    // cutoff) evaluated twice could otherwise disagree between the placed
-    // forest and the unplaced list. The request-memoized context factory
-    // keeps this sharing safe (one request authority per request).
-    const readContext = createReadContext()
+  .handler(
+    withDocumentMutationErrors(async ({ data }) => {
+      const { collection: path } = data
+      const config = await ensureCollection(path)
+      if (!config) {
+        throw ERR_NOT_FOUND({
+          message: 'Collection not found',
+          details: { collectionPath: path },
+        }).log(getLogger())
+      }
+      const handle = getAdminBylineClient().collection(path)
+      // Shared deliberately across the structural and unplaced reads: the
+      // beforeRead predicate cache is per-ReadContext, so sharing gives both
+      // halves one predicate snapshot — a time-dependent predicate (embargo
+      // cutoff) evaluated twice could otherwise disagree between the placed
+      // forest and the unplaced list. The request-memoized context factory
+      // keeps this sharing safe (one request authority per request).
+      const readContext = createReadContext()
 
-    const { forest, unplaced } = await handle.getTreeForEdit({
-      locale: data.locale,
-      _readContext: readContext,
-    })
-    const rows: CollectionTreeRow[] = []
-    const placed = new Set<string>()
-    const walk = (nodes: typeof forest, depth: number, parentId: string | null): void => {
-      for (const node of nodes) {
-        const doc = node.document
+      const { forest, unplaced } = await handle.getTreeForEdit({
+        locale: data.locale,
+        _readContext: readContext,
+      })
+      const rows: CollectionTreeRow[] = []
+      const placed = new Set<string>()
+      const walk = (nodes: typeof forest, depth: number, parentId: string | null): void => {
+        for (const node of nodes) {
+          const doc = node.document
+          rows.push({
+            id: doc.id,
+            revision: doc.revision,
+            parentId,
+            depth,
+            unplaced: false,
+            status: doc.status,
+            path: doc.path,
+            createdAt: doc.createdAt,
+            updatedAt: doc.updatedAt,
+            fields: doc.fields as Record<string, any>,
+          })
+          placed.add(doc.id)
+          walk(node.children, depth + 1, doc.id)
+        }
+      }
+      walk(forest, 0, null)
+
+      // Surface documents not yet in the tree (e.g. freshly created) so they
+      // remain reachable. Trees are small by design, so a single wide read is fine.
+      for (const doc of unplaced) {
         rows.push({
           id: doc.id,
           revision: doc.revision,
-          parentId,
-          depth,
-          unplaced: false,
+          parentId: null,
+          depth: 0,
+          unplaced: true,
           status: doc.status,
           path: doc.path,
           createdAt: doc.createdAt,
           updatedAt: doc.updatedAt,
           fields: doc.fields as Record<string, any>,
         })
-        placed.add(doc.id)
-        walk(node.children, depth + 1, doc.id)
       }
-    }
-    walk(forest, 0, null)
 
-    // Surface documents not yet in the tree (e.g. freshly created) so they
-    // remain reachable. Trees are small by design, so a single wide read is fine.
-    for (const doc of unplaced) {
-      rows.push({
-        id: doc.id,
-        revision: doc.revision,
-        parentId: null,
-        depth: 0,
-        unplaced: true,
-        status: doc.status,
-        path: doc.path,
-        createdAt: doc.createdAt,
-        updatedAt: doc.updatedAt,
-        fields: doc.fields as Record<string, any>,
-      })
-    }
-
-    return {
-      rows,
-      included: { collection: { path: config.collection.path, labels: config.definition.labels } },
-    }
-  })
+      return {
+        rows,
+        included: {
+          collection: { path: config.collection.path, labels: config.definition.labels },
+        },
+      }
+    })
+  )

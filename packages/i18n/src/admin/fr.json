@@ -633,5 +633,21 @@
   "scheduledPublication.list.columns.authorizer": "Dernière autorisation par",
   "scheduledPublication.list.authorizerMissing": "Ce compte n’existe plus ; son identifiant est affiché.",
   "scheduledPublication.list.columns.attempt": "Tentatives / dernière erreur",
-  "scheduledPublication.list.columns.actions": "Actions"
+  "scheduledPublication.list.columns.actions": "Actions",
+  "documentConcurrency.staleTitle": "Document modifié",
+  "documentConcurrency.stale": "Ce document a changé depuis son ouverture. Vos modifications n’ont pas été enregistrées. Rechargez le document pour continuer. Le rechargement supprimera vos modifications non enregistrées.",
+  "documentConcurrency.reloadTitle": "Rechargement nécessaire",
+  "documentConcurrency.reload": "Cet éditeur ne dispose pas d’une révision valide du document. Vos modifications n’ont pas été enregistrées. Rechargez le document pour continuer. Vos modifications non enregistrées seront supprimées.",
+  "documentConcurrency.lockTitle": "Document occupé",
+  "documentConcurrency.lock": "Une autre opération est entrée en conflit avec cette modification. Vos modifications ont été annulées. Rechargez le document avant de réessayer. Vos modifications non enregistrées seront supprimées.",
+  "documentConcurrency.unavailableTitle": "Document indisponible",
+  "documentConcurrency.unavailable": "Ce document n’est plus disponible. Vos modifications n’ont pas été enregistrées. Rechargez pour vérifier sa disponibilité. Vos modifications non enregistrées seront supprimées.",
+  "documentConcurrency.committedTitle": "Enregistré avec un avertissement",
+  "documentConcurrency.committed": "Vos modifications ont été enregistrées, mais une action ultérieure a échoué. Ne répétez pas l’enregistrement.",
+  "documentConcurrency.reloadAction": "Recharger et abandonner mes modifications",
+  "documentConcurrency.reloadFailed": "Le rechargement a échoué. Vos modifications non enregistrées sont toujours présentes. Réessayez.",
+  "documentConcurrency.schedulesTitle": "Publications programmées à vérifier",
+  "documentConcurrency.schedules": "La structure a été enregistrée. Les publications programmées concernées ont été suspendues et doivent être vérifiées avant leur exécution.",
+  "documentConcurrency.reviewSchedules": "Vérifier les publications programmées",
+  "documentConcurrency.failed": "L’opération n’a pas pu être effectuée. Vos modifications non enregistrées sont toujours disponibles."
 }

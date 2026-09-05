@@ -1,3 +1,5 @@
+import { DocumentMutationNotice } from '../document-mutation-notice.js'
+import { useDocumentMutationState } from '../document-mutation-state.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -144,6 +146,7 @@ export const TreeListView = ({
   /** Header action components (`CollectionAdminConfig.listActions`). */
   listActions?: Array<(props: ListActionComponentProps) => React.ReactNode>
 }) => {
+  const mutation = useDocumentMutationState(undefined)
   const { t } = useTranslation('byline-admin')
   const router = useRouter()
   const toastManager = useToastManager()
@@ -159,10 +162,14 @@ export const TreeListView = ({
   const [moveController] = useState(() => createAdminTreeMoveController())
   const preserveOptimisticForRows = useRef<CollectionTreeRow[] | null>(null)
   useEffect(() => {
-    if (!shouldSyncAdminTreeRows(rows, preserveOptimisticForRows.current, isMoving)) return
+    if (
+      mutation.blocked ||
+      !shouldSyncAdminTreeRows(rows, preserveOptimisticForRows.current, isMoving)
+    )
+      return
     preserveOptimisticForRows.current = null
     setLocalPlaced(rows.filter((r) => !r.unplaced))
-  }, [rows, isMoving])
+  }, [rows, isMoving, mutation.blocked])
 
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
@@ -186,13 +193,13 @@ export const TreeListView = ({
   }
 
   const handleDragStart = ({ active }: DragStartEvent) => {
-    if (!moveController.isMoving()) setActiveId(String(active.id))
+    if (!mutation.blocked && !moveController.isMoving()) setActiveId(String(active.id))
   }
   const handleDragMove = ({ delta }: DragMoveEvent) => setOffsetLeft(delta.x)
   const handleDragOver = ({ over }: DragOverEvent) => setOverId(over ? String(over.id) : null)
 
   const handleDragEnd = async ({ active, over }: DragEndEvent) => {
-    if (moveController.isMoving()) {
+    if (mutation.blocked || moveController.isMoving()) {
       resetDnd()
       return
     }
@@ -231,10 +238,12 @@ export const TreeListView = ({
       return
     }
 
+    if ('receipt' in outcome) mutation.reportStructure(outcome.receipt)
+    const handled = 'error' in outcome ? mutation.report(outcome.error) : null
     const effects = getAdminTreeMoveUiEffects(outcome)
     if (effects.rollback) setLocalPlaced(current)
 
-    if (effects.structuralFailure != null) {
+    if (!handled && effects.structuralFailure != null) {
       const conflict = effects.structuralFailure === 'conflict'
       toastManager.add({
         title: t(
@@ -318,6 +327,7 @@ export const TreeListView = ({
   return (
     <Section>
       <Container>
+        <DocumentMutationNotice issue={mutation.issue} scheduleNotice={mutation.scheduleNotice} />
         <div className={cx('byline-coll-list-head', styles.head)}>
           <h1 className={cx('byline-coll-list-title', styles.title)}>{collectionLabels.plural}</h1>
           <span className={cx('byline-coll-list-stats', styles.stats)}>
@@ -380,7 +390,7 @@ export const TreeListView = ({
                         key={row.id}
                         id={row.id}
                         dragging={row.id === activeId}
-                        disabled={isMoving}
+                        disabled={mutation.blocked || isMoving}
                         dragHandleLabel={t('collections.list.dragHandleAriaLabel')}
                       >
                         {renderCells(row, depth)}

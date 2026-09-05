@@ -1,3 +1,4 @@
+import { testAdapter } from '../../storage/db-adapter.test-helper.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,7 +14,7 @@ import { rethrowPathConflict } from './internals.js'
 import type { IDbAdapter } from '../../@types/index.js'
 
 const adapterWith = (c: DbErrorClassification | undefined): IDbAdapter =>
-  ({ classifyError: c === undefined ? undefined : () => c }) as unknown as IDbAdapter
+  testAdapter({ classifyError: c === undefined ? undefined : () => c })
 
 describe('rethrowPathConflict', () => {
   it.each([

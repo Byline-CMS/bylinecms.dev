@@ -1,3 +1,5 @@
+import { testAdapter } from '../storage/db-adapter.test-helper.js'
+import { runReadSnapshot } from '../storage/read-snapshot.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -31,7 +33,7 @@ function emptyCore(): {
   const claimDue = vi.fn().mockResolvedValue([])
   return {
     core: {
-      db: { commands: { documents: { publishSchedules: { claimDue } } } },
+      db: testAdapter({ commands: { documents: { publishSchedules: { claimDue } } } }),
       logger,
     } as unknown as BylineCore,
     claimDue,
@@ -113,22 +115,19 @@ describe('runScheduledPublicationSweep', () => {
     const core = {
       collections: [],
       collectionRecords: new Map(),
-      db: {
-        withTransaction: async <T>(fn: () => Promise<T>) => fn(),
-        withReadSnapshot: async (
-          fn: (queries: {
-            documents: {
-              getCurrentVersionMetadata: () => Promise<null>
-              getDocumentRevision: () => Promise<number>
-            }
-          }) => Promise<unknown>
-        ) =>
-          fn({
-            documents: {
-              getCurrentVersionMetadata: async () => null,
-              getDocumentRevision: async () => 1,
+      db: testAdapter({
+        withReadSnapshot: async (fn) => {
+          const db = testAdapter({
+            queries: {
+              documents: {
+                getCurrentVersionMetadata: async () => null,
+                getDocumentRevision: async () => 1,
+              },
             },
-          }),
+          })
+          return runReadSnapshot(db.queries, fn)
+        },
+        withTransaction: async <T>(fn: () => Promise<T>) => fn(),
         commands: {
           collections: { lockCollectionRegistration: vi.fn(async () => {}) },
           audit: { append: vi.fn().mockResolvedValue({ id: 'audit-1' }) },
@@ -136,7 +135,7 @@ describe('runScheduledPublicationSweep', () => {
             publishSchedules: { claimDue, lockClaim, deleteClaim, releaseClaim },
           },
         },
-      },
+      }),
       logger,
     } as unknown as BylineCore
 

@@ -314,7 +314,7 @@ describe('singleton server functions', () => {
     expect(mocks.resolveActorLabels).toHaveBeenCalledWith([])
   })
 
-  it('preserves confirmed lock failures through the host and message-only transport', async () => {
+  it('preserves confirmed lock failures as safe wire data through the host', async () => {
     const conflict = ERR_LOCK_CONFLICT({
       message: 'private diagnostic',
       cause: new Error('driver SQL'),
@@ -330,8 +330,8 @@ describe('singleton server functions', () => {
     } catch (error) {
       received = error
     }
-    expect(received).toBe(conflict)
-    expect(getLockConflictDetails(new Error(conflict.message))).toEqual({
+    expect(received).not.toHaveProperty('cause')
+    expect(getLockConflictDetails(JSON.parse(JSON.stringify(received)))).toEqual({
       reason: 'lock_conflict',
       rolledBack: true,
       retryable: true,

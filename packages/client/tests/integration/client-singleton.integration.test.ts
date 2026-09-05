@@ -264,7 +264,9 @@ describe('client.singleton()', () => {
       },
       { expectedState: 'empty' }
     )
-    await db.commands.singletons.clearMapping(collectionIds[otherDefinition.path])
+    const collectionId = collectionIds[otherDefinition.path]
+    if (!collectionId) throw new Error('Expected singleton collection')
+    await db.commands.singletons.clearMapping(collectionId)
 
     const second = await other.update(
       {

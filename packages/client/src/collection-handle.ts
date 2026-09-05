@@ -1160,10 +1160,10 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     return placeTreeNodeLifecycle(ctx, {
       documentId,
       expectedRevision: options?.expectedRevision,
-      parentDocumentId: options.parentDocumentId,
-      beforeDocumentId: options.beforeDocumentId ?? null,
-      afterDocumentId: options.afterDocumentId ?? null,
-      reconcile: options.reconcile,
+      parentDocumentId: options?.parentDocumentId,
+      beforeDocumentId: options?.beforeDocumentId ?? null,
+      afterDocumentId: options?.afterDocumentId ?? null,
+      reconcile: options?.reconcile,
     })
   }
 
@@ -1181,7 +1181,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     return removeFromTreeLifecycle(ctx, {
       documentId,
       expectedRevision: options?.expectedRevision,
-      reconcile: options.reconcile,
+      reconcile: options?.reconcile,
     })
   }
 

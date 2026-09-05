@@ -1,3 +1,4 @@
+import { walkToStatus } from './lib/walk-document-status.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -185,24 +186,6 @@ function derivePath(frontmatter: DocFrontmatter, locale: string): string {
  * through any intermediate statuses (e.g. needs_review). No-op when the
  * workflow doesn't include the target or when already at/past it.
  */
-async function walkToStatus(
-  handle: CollectionHandle,
-  documentId: string,
-  workflowStatuses: readonly { name: string }[],
-  currentStatus: string,
-  targetStatus: string,
-  expectedRevision: number
-): Promise<void> {
-  const currentIdx = workflowStatuses.findIndex((s) => s.name === currentStatus)
-  const targetIdx = workflowStatuses.findIndex((s) => s.name === targetStatus)
-  if (currentIdx === -1 || targetIdx === -1 || targetIdx <= currentIdx) return
-  for (let i = currentIdx + 1; i <= targetIdx; i++) {
-    const result = await handle.changeStatus(documentId, workflowStatuses[i].name, {
-      expectedRevision,
-    })
-    expectedRevision = result.revision
-  }
-}
 
 interface ProcessResult {
   filePath: string
@@ -338,7 +321,7 @@ async function processFile(
       // completeness ledger (intersection). See docs/08-internationalization/index.md.
       availableLocales: [...new Set([...(document.availableLocales ?? []), locale])],
     })
-    await walkToStatus(
+    const revision = await walkToStatus(
       handle,
       result.documentId,
       workflowStatuses,
@@ -350,7 +333,7 @@ async function processFile(
       filePath,
       action: 'updated',
       documentId: result.documentId,
-      revision: result.revision,
+      revision,
       path: docPath,
     }
   }

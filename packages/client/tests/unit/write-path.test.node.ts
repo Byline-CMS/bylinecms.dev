@@ -8,9 +8,11 @@
 
 import { createSuperAdminContext } from '@byline/auth'
 import type { CollectionDefinition, DocumentPublishSchedule, IDbAdapter } from '@byline/core'
+import { runReadSnapshot } from '@byline/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createBylineClient } from '../../src/index.js'
+import { testAdapter } from '../fixtures/test-adapter.js'
 
 const superAdmin = createSuperAdminContext({ id: 'test-super-admin' })
 
@@ -106,27 +108,32 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
   // (changeStatus / delete / system-fields) require both `withTransaction`
   // and `commands.audit`; `withTransaction` is a passthrough in unit tests.
   const auditAppend = vi.fn(async (_input: any) => ({ id: 'audit:1' }))
-  const withTransaction = vi.fn(async (fn: () => Promise<unknown>) => fn())
+  const withTransaction = vi.fn()
 
-  const getDocumentById = vi.fn(async (_params: any) =>
-    existingDoc === undefined
-      ? {
-          document_id: 'doc:1',
-          document_version_id: currentVersionId,
-          path: 'original-path',
-          status: currentStatus,
-          fields: { title: 'Original' },
-        }
-      : existingDoc
+  const getDocumentById = vi.fn<IDbAdapter['queries']['documents']['getDocumentById']>(
+    async (_params: any) =>
+      existingDoc === undefined
+        ? {
+            document_id: 'doc:1',
+            document_version_id: currentVersionId,
+            path: 'original-path',
+            status: currentStatus,
+            fields: { title: 'Original' },
+          }
+        : existingDoc
   )
 
   const getCurrentVersionMetadata = vi.fn(async (_params: any) => ({
     document_version_id: currentVersionId,
+    document_id: 'doc:1',
+    collection_id: 'col:posts',
+    created_at: new Date('2026-01-01'),
+    updated_at: new Date('2026-01-01'),
     status: currentStatus,
     path: 'original-path',
   }))
 
-  const db = {
+  const db = testAdapter({
     revisions: {
       readStructure: async () => {
         throw new Error('Structural reads are outside this fixture')
@@ -147,7 +154,8 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
       ]),
       advance: vi.fn(async () => ({ documentId: 'doc:1', revision: ++revision })),
     },
-    withReadSnapshot: (async (fn) => fn(db.queries)) satisfies IDbAdapter['withReadSnapshot'],
+    withReadSnapshot: (async (fn) =>
+      runReadSnapshot(db.queries, fn)) satisfies IDbAdapter['withReadSnapshot'],
     commands: {
       singletons: { lockSlot: vi.fn(async () => {}) },
       collections: {
@@ -184,7 +192,10 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
       },
       audit: { append: auditAppend },
     },
-    withTransaction: withTransaction as any,
+    withTransaction: async (fn) => {
+      withTransaction()
+      return fn()
+    },
     queries: {
       collections: {
         getAllCollections: vi.fn(),
@@ -193,7 +204,6 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
       },
       documents: {
         publishSchedules: {
-          lockDocuments: vi.fn(),
           get: getScheduledPublish,
           list: vi.fn(async () => ({ schedules: [], total: 0 })),
         },
@@ -212,7 +222,7 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
         findDocuments: vi.fn(),
       },
     },
-  } satisfies IDbAdapter
+  })
 
   return {
     db,

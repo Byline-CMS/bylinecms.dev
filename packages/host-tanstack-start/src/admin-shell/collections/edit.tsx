@@ -37,6 +37,7 @@ import {
   updateDocumentStatus,
 } from '../../server-fns/collections/index.js'
 import { useNavigate } from '../chrome/loose-router.js'
+import { useDocumentMutationState } from '../document-mutation-state.js'
 import { useTanStackNavigationGuard } from './tanstack-navigation-guard.js'
 import { ViewMenu } from './view-menu.js'
 import type { SerializedDocumentPublishSchedule } from '../../server-fns/collections/index.js'
@@ -50,7 +51,7 @@ type EditState = {
 export const EditView = ({
   collectionDefinition,
   adminConfig,
-  initialData,
+  initialData: loadedData,
   locale,
   contentLocales,
   defaultContentLocale,
@@ -65,6 +66,8 @@ export const EditView = ({
   /** URL-encoded list search state to return to on close — see list-return-state.ts. */
   returnSearch?: Record<string, unknown>
 }) => {
+  const mutation = useDocumentMutationState(loadedData)
+  const initialData = mutation.document ?? loadedData
   const toastManager = useToastManager()
   const { t } = useTranslation('byline-admin')
   const [_editState, setEditState] = useState<EditState>({
@@ -130,14 +133,16 @@ export const EditView = ({
 
   const handleStatusChange = async (status: string) => {
     try {
-      await updateDocumentStatus({
+      mutation.assertWritable()
+      const result = await updateDocumentStatus({
         data: {
-          expectedRevision: initialData.revision,
+          expectedRevision: mutation.expectedRevision(),
           collection: path,
           id: String(initialData.id),
           status,
         },
       })
+      mutation.adopt(result)
       const description = t('collections.edit.statusChangedDescription', { status })
       toastManager.add({
         title: t('collections.edit.statusUpdateTitle', { label: singular }),
@@ -157,9 +162,16 @@ export const EditView = ({
         search: (prev: Record<string, unknown>) => ({ ...prev }),
       })
     } catch (err) {
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        reloadDocument()
+        return
+      }
       console.error('Status change error:', err)
       const description = t('collections.edit.statusChangeFailedDescription', {
-        message: (err as Error).message,
+        message: t('documentConcurrency.failed'),
       })
       toastManager.add({
         title: t('collections.edit.statusUpdateTitle', { label: singular }),
@@ -185,15 +197,17 @@ export const EditView = ({
 
   const handleSchedulePublication = async ({ publishAt }: { publishAt: string }) => {
     try {
-      await scheduleCollectionDocumentPublish({
+      mutation.assertWritable()
+      const result = await scheduleCollectionDocumentPublish({
         data: {
-          expectedRevision: initialData.revision,
+          expectedRevision: mutation.expectedRevision(),
           collection: path,
           id: String(initialData.id),
           publishAt,
           expectedVersionId: String(initialData.versionId),
         },
       })
+      mutation.adopt(result)
       toastManager.add({
         title: t('scheduledPublication.toast.scheduledTitle'),
         description: t('scheduledPublication.toast.scheduledDescription'),
@@ -201,9 +215,16 @@ export const EditView = ({
       })
       reloadDocument()
     } catch (err) {
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        reloadDocument()
+        return
+      }
       toastManager.add({
         title: t('scheduledPublication.toast.failedTitle'),
-        description: (err as Error).message,
+        description: t('documentConcurrency.failed'),
         data: { intent: 'danger', iconType: 'danger', icon: true, close: true },
       })
       throw err
@@ -212,14 +233,16 @@ export const EditView = ({
 
   const handleConfirmScheduledPublication = async () => {
     try {
-      await confirmCollectionDocumentScheduledPublish({
+      mutation.assertWritable()
+      const result = await confirmCollectionDocumentScheduledPublish({
         data: {
-          expectedRevision: initialData.revision,
+          expectedRevision: mutation.expectedRevision(),
           collection: path,
           id: String(initialData.id),
           expectedVersionId: String(initialData.versionId),
         },
       })
+      mutation.adopt(result)
       toastManager.add({
         title: t('scheduledPublication.toast.confirmedTitle'),
         description: t('scheduledPublication.toast.confirmedDescription'),
@@ -227,9 +250,16 @@ export const EditView = ({
       })
       reloadDocument()
     } catch (err) {
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        reloadDocument()
+        return
+      }
       toastManager.add({
         title: t('scheduledPublication.toast.failedTitle'),
-        description: (err as Error).message,
+        description: t('documentConcurrency.failed'),
         data: { intent: 'danger', iconType: 'danger', icon: true, close: true },
       })
       throw err
@@ -238,13 +268,15 @@ export const EditView = ({
 
   const handleCancelScheduledPublication = async () => {
     try {
+      mutation.assertWritable()
       const result = await cancelCollectionDocumentScheduledPublish({
         data: {
-          expectedRevision: initialData.revision,
+          expectedRevision: mutation.expectedRevision(),
           collection: path,
           id: String(initialData.id),
         },
       })
+      mutation.adopt({ ...result, documentId: String(initialData.id) })
       const cancelled = result.status === 'cancelled'
       toastManager.add({
         title: cancelled
@@ -262,9 +294,16 @@ export const EditView = ({
       })
       reloadDocument()
     } catch (err) {
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        reloadDocument()
+        return
+      }
       toastManager.add({
         title: t('scheduledPublication.toast.failedTitle'),
-        description: (err as Error).message,
+        description: t('documentConcurrency.failed'),
         data: { intent: 'danger', iconType: 'danger', icon: true, close: true },
       })
       throw err
@@ -285,13 +324,15 @@ export const EditView = ({
 
   const handleUnpublish = async () => {
     try {
-      await unpublishDocument({
+      mutation.assertWritable()
+      const result = await unpublishDocument({
         data: {
-          expectedRevision: initialData.revision,
+          expectedRevision: mutation.expectedRevision(),
           collection: path,
           id: String(initialData.id),
         },
       })
+      mutation.adopt(result)
       const description = t('collections.edit.unpublishedDescription')
       toastManager.add({
         title: t('collections.edit.unpublishTitle', { label: singular }),
@@ -310,9 +351,16 @@ export const EditView = ({
         search: (prev: Record<string, unknown>) => ({ ...prev }),
       })
     } catch (err) {
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        reloadDocument()
+        return
+      }
       console.error('Unpublish error:', err)
       const description = t('collections.edit.unpublishFailedDescription', {
-        message: (err as Error).message,
+        message: t('documentConcurrency.failed'),
       })
       toastManager.add({
         title: t('collections.edit.unpublishTitle', { label: singular }),
@@ -330,9 +378,10 @@ export const EditView = ({
 
   const handleDuplicate = async () => {
     try {
+      mutation.assertWritable()
       const result = await duplicateCollectionDocument({
         data: {
-          expectedRevision: initialData.revision,
+          expectedRevision: mutation.expectedRevision(),
           collection: path,
           id: String(initialData.id),
         },
@@ -372,9 +421,16 @@ export const EditView = ({
         search: (prev: Record<string, unknown>) => ({ ...prev }),
       })
     } catch (err) {
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        reloadDocument()
+        return
+      }
       console.error('Duplicate error:', err)
       const description = t('collections.edit.duplicateFailedDescription', {
-        message: (err as Error).message,
+        message: t('documentConcurrency.failed'),
       })
       toastManager.add({
         title: t('collections.edit.duplicateTitle', { label: singular }),
@@ -398,9 +454,10 @@ export const EditView = ({
     overwrite: boolean
   }) => {
     try {
+      mutation.assertWritable()
       const result = await copyDocumentToLocale({
         data: {
-          expectedRevision: initialData.revision,
+          expectedRevision: mutation.expectedRevision(),
           collection: path,
           id: String(initialData.id),
           sourceLocale: locale ?? defaultContentLocale,
@@ -408,6 +465,7 @@ export const EditView = ({
           overwrite,
         },
       })
+      mutation.adopt(result)
       if (hasCommittedDocumentHookFailure(result)) {
         notifyCommittedHookFailure()
         notifyScheduleSuspended()
@@ -459,9 +517,16 @@ export const EditView = ({
         search: (prev: Record<string, unknown>) => ({ ...prev, locale: targetLocale }),
       })
     } catch (err) {
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        reloadDocument()
+        return
+      }
       console.error('Copy to locale error:', err)
       const description = t('collections.edit.copyFailedDescription', {
-        message: (err as Error).message,
+        message: t('documentConcurrency.failed'),
       })
       toastManager.add({
         title: t('collections.edit.copyToLocaleTitle', { label: singular }),
@@ -479,14 +544,16 @@ export const EditView = ({
 
   const handleDeleteLocale = async ({ targetLocale }: { targetLocale: string }) => {
     try {
+      mutation.assertWritable()
       const result = await deleteDocumentLocale({
         data: {
-          expectedRevision: initialData.revision,
+          expectedRevision: mutation.expectedRevision(),
           collection: path,
           id: String(initialData.id),
           locale: targetLocale,
         },
       })
+      mutation.adopt(result)
       if (hasCommittedDocumentHookFailure(result)) {
         notifyCommittedHookFailure()
         notifyScheduleSuspended()
@@ -523,9 +590,16 @@ export const EditView = ({
         search: (prev: Record<string, unknown>) => ({ ...prev, locale: defaultContentLocale }),
       })
     } catch (err) {
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        reloadDocument()
+        return
+      }
       console.error('Delete locale error:', err)
       const description = t('collections.edit.deleteLocaleFailedDescription', {
-        message: (err as Error).message,
+        message: t('documentConcurrency.failed'),
       })
       toastManager.add({
         title: t('collections.edit.deleteLocaleTitle', { label: singular }),
@@ -543,13 +617,28 @@ export const EditView = ({
 
   const handleDelete = async () => {
     try {
+      mutation.assertWritable()
       const result = await deleteDocument({
         data: {
-          expectedRevision: initialData.revision,
+          expectedRevision: mutation.expectedRevision(),
           collection: path,
           id: String(initialData.id),
         },
       })
+      if (result.scheduledPublicationsNeedReconfirmation) {
+        toastManager.add({
+          title: t('documentConcurrency.schedulesTitle'),
+          description: (
+            <>
+              <p>{t('documentConcurrency.schedules')}</p>
+              <a href={getAdminRoutePath('scheduled-publications')}>
+                {t('documentConcurrency.reviewSchedules')}
+              </a>
+            </>
+          ),
+          data: { intent: 'warning', iconType: 'warning', icon: true, close: true },
+        })
+      }
       const hasSideEffectFailures = hasDeleteSideEffectFailures(result)
       const description = hasSideEffectFailures
         ? t('collections.edit.deletedWithWarningsDescription', { label: singular })
@@ -578,9 +667,16 @@ export const EditView = ({
         search: returnSearch,
       })
     } catch (err) {
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        reloadDocument()
+        return
+      }
       console.error('Delete error:', err)
       const description = t('collections.edit.deleteFailedDescription', {
-        message: (err as Error).message,
+        message: t('documentConcurrency.failed'),
       })
       toastManager.add({
         title: t('collections.edit.deleteTitle', { label: singular }),
@@ -619,17 +715,19 @@ export const EditView = ({
     systemAvailableLocales?: string[]
   }) => {
     try {
+      mutation.assertWritable()
       const result = await updateCollectionDocumentWithPatches({
         data: {
           collection: path,
           id: String(initialData.id),
-          expectedRevision: initialData.revision,
+          expectedRevision: mutation.expectedRevision(),
           patches: contentDirty ? patches : [],
           locale,
           ...(pathDirty ? { path: systemPath ?? null } : {}),
           ...(availableLocalesDirty ? { availableLocales: systemAvailableLocales ?? [] } : {}),
         },
       })
+      mutation.adopt(result)
       const hookFailed = hasCommittedDocumentHookFailure(result)
       if (
         (contentDirty || pathDirty || availableLocalesDirty) &&
@@ -669,6 +767,13 @@ export const EditView = ({
         ignoreBlocker: true,
       })
     } catch (err) {
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        reloadDocument()
+        return
+      }
       console.error('Network error:', err)
       const description = t('collections.edit.updateFailedDescription', { label: singularLower })
       toastManager.add({
@@ -694,6 +799,13 @@ export const EditView = ({
     <Section>
       <Container>
         <FormRenderer
+          mutationIssue={mutation.issue}
+          mutationsBlocked={mutation.blocked}
+          observedRevision={mutation.revision}
+          onMutationError={mutation.report}
+          onTreeMutationCommitted={mutation.adopt}
+          scheduledPublicationsNeedReconfirmation={mutation.scheduleNotice}
+          scheduledPublicationsHref={getAdminRoutePath('scheduled-publications')}
           mode="edit"
           fields={fields}
           onSubmit={handleSubmit}

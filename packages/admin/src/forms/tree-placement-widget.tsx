@@ -20,6 +20,9 @@ import { RelationPicker } from '../fields/relation/relation-picker.js'
 import styles from './tree-placement-widget.module.css'
 
 export interface TreePlacementWidgetProps {
+  disabled?: boolean
+  onMutationError?: (error: unknown) => 'blocked' | 'committed' | null | void
+  onCommitted?: (receipt: import('@byline/core').StructuralMutationReceipt) => void
   expectedRevision: number
   /** The collection path (`tree: true`). */
   collectionPath: string
@@ -45,6 +48,9 @@ export interface TreePlacementWidgetProps {
  */
 export const TreePlacementWidget = ({
   collectionPath,
+  disabled = false,
+  onMutationError,
+  onCommitted,
   expectedRevision,
   documentId,
   useAsTitle,
@@ -101,7 +107,7 @@ export const TreePlacementWidget = ({
   // placement (including making the node a root) leaves it placed.
   const place = useCallback(
     async (parentDocumentId: string | null, optimistic: { id: string; title: string } | null) => {
-      if (placeTreeNode == null || busy) return
+      if (disabled || placeTreeNode == null || busy) return
       const previousParent = parent
       const previousPlaced = placed
       setError(null)
@@ -109,13 +115,15 @@ export const TreePlacementWidget = ({
       setParent(optimistic)
       setPlaced(true)
       try {
-        await placeTreeNode({
+        const result = await placeTreeNode({
           expectedRevision,
           collection: collectionPath,
           documentId,
           parentDocumentId,
         })
-      } catch {
+        onCommitted?.(result)
+      } catch (error) {
+        if (onMutationError?.(error) === 'committed') return
         setParent(previousParent)
         setPlaced(previousPlaced)
         setError(t('treeWidget.error'))
@@ -123,7 +131,19 @@ export const TreePlacementWidget = ({
         setBusy(false)
       }
     },
-    [placeTreeNode, busy, parent, placed, collectionPath, documentId, t, expectedRevision]
+    [
+      disabled,
+      onMutationError,
+      onCommitted,
+      expectedRevision,
+      placeTreeNode,
+      busy,
+      parent,
+      placed,
+      collectionPath,
+      documentId,
+      t,
+    ]
   )
 
   const handlePick = useCallback(
@@ -163,7 +183,7 @@ export const TreePlacementWidget = ({
           size="xs"
           variant="outlined"
           intent="noeffect"
-          disabled={loading || busy}
+          disabled={disabled || loading || busy}
           onClick={() => setPickerOpen(true)}
         >
           {t('treeWidget.choose')}
@@ -172,7 +192,7 @@ export const TreePlacementWidget = ({
           <button
             type="button"
             className={cx('byline-form-tree-link', styles.link)}
-            disabled={loading || busy}
+            disabled={disabled || loading || busy}
             onClick={() => place(null, null)}
           >
             {t('treeWidget.addToTree')}
@@ -182,7 +202,7 @@ export const TreePlacementWidget = ({
             <button
               type="button"
               className={cx('byline-form-tree-link', styles.link)}
-              disabled={busy}
+              disabled={disabled || busy}
               onClick={() => place(null, null)}
             >
               {t('treeWidget.makeRoot')}

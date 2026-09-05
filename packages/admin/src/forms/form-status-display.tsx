@@ -23,12 +23,14 @@ import type { PublishedVersionInfo } from './form-renderer'
  * Unpublish action when a previously-published version is still live.
  */
 export const FormStatusDisplay = ({
+  disabled = false,
   initialData,
   workflowStatuses,
   publishedVersion,
   onUnpublish,
   afterStatusCells,
 }: {
+  disabled?: boolean
   initialData?: Record<string, any>
   workflowStatuses?: WorkflowStatus[]
   publishedVersion?: PublishedVersionInfo | null
@@ -106,7 +108,10 @@ export const FormStatusDisplay = ({
               {' '}
               <button
                 type="button"
-                onClick={onUnpublish}
+                disabled={disabled}
+                onClick={() => {
+                  if (!disabled) void onUnpublish().catch(() => {})
+                }}
                 className={cx('byline-form-status-unpublish', styles['status-unpublish'])}
               >
                 {t('common.actions.unpublish')}

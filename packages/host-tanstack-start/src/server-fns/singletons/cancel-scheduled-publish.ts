@@ -1,3 +1,4 @@
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -14,10 +15,12 @@ import { serialise } from '../serialise.js'
 
 export const cancelSingletonScheduledPublish = createServerFn({ method: 'POST' })
   .validator((input: { expectedRevision: number; singleton: string }) => input)
-  .handler(async ({ data }) =>
-    serialise(
-      await getAdminBylineClient()
-        .singleton(data.singleton)
-        .cancelScheduledPublish({ expectedRevision: data.expectedRevision })
+  .handler(
+    withDocumentMutationErrors(async ({ data }) =>
+      serialise(
+        await getAdminBylineClient()
+          .singleton(data.singleton)
+          .cancelScheduledPublish({ expectedRevision: data.expectedRevision })
+      )
     )
   )

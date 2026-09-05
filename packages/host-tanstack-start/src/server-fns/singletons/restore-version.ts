@@ -1,3 +1,4 @@
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -15,16 +16,18 @@ import { serialise } from '../serialise.js'
 
 export const restoreSingletonVersion = createServerFn({ method: 'POST' })
   .validator((input: { expectedRevision: number; singleton: string; versionId: string }) => input)
-  .handler(async ({ data }) => {
-    try {
-      return serialise(
-        await getAdminBylineClient()
-          .singleton(data.singleton)
-          .restoreVersion(data.versionId, { expectedRevision: data.expectedRevision })
-      )
-    } catch (error) {
-      const committedFailure = toCommittedDocumentHookFailureResponse(error)
-      if (committedFailure != null) return committedFailure
-      throw error
-    }
-  })
+  .handler(
+    withDocumentMutationErrors(async ({ data }) => {
+      try {
+        return serialise(
+          await getAdminBylineClient()
+            .singleton(data.singleton)
+            .restoreVersion(data.versionId, { expectedRevision: data.expectedRevision })
+        )
+      } catch (error) {
+        const committedFailure = toCommittedDocumentHookFailureResponse(error)
+        if (committedFailure != null) return committedFailure
+        throw error
+      }
+    })
+  )

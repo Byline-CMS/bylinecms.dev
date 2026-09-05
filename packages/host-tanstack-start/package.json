@@ -30,7 +30,7 @@
     "build": "run-s build:*",
     "build:clean": "node scripts/clean.js dist build",
     "build:code": "rslib build",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.revision-tests.json",
     "clean": "node scripts/clean.js node_modules dist build types .turbo",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "test": "vitest run --mode=jsdom && vitest run --mode=node",

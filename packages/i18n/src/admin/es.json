@@ -633,5 +633,21 @@
   "scheduledPublication.list.columns.authorizer": "Última autorización por",
   "scheduledPublication.list.authorizerMissing": "Esta cuenta ya no existe; se muestra su id.",
   "scheduledPublication.list.columns.attempt": "Intentos / último error",
-  "scheduledPublication.list.columns.actions": "Acciones"
+  "scheduledPublication.list.columns.actions": "Acciones",
+  "documentConcurrency.staleTitle": "Documento modificado",
+  "documentConcurrency.stale": "Este documento ha cambiado desde que lo abrió. Sus cambios no se guardaron. Recargue el documento para continuar. Al recargar se descartarán sus cambios sin guardar.",
+  "documentConcurrency.reloadTitle": "Es necesario recargar",
+  "documentConcurrency.reload": "Este editor no dispone de una revisión válida del documento. Sus cambios no se guardaron. Recargue el documento para continuar. Se descartarán sus cambios sin guardar.",
+  "documentConcurrency.lockTitle": "Documento ocupado",
+  "documentConcurrency.lock": "Otra operación entró en conflicto con este cambio. Sus cambios se revirtieron. Recargue el documento antes de intentarlo de nuevo. Se descartarán sus cambios sin guardar.",
+  "documentConcurrency.unavailableTitle": "Documento no disponible",
+  "documentConcurrency.unavailable": "Este documento ya no está disponible. Sus cambios no se guardaron. Recargue para comprobar su disponibilidad. Se descartarán sus cambios sin guardar.",
+  "documentConcurrency.committedTitle": "Guardado con una advertencia",
+  "documentConcurrency.committed": "Sus cambios se guardaron, pero falló una acción posterior. No repita el guardado.",
+  "documentConcurrency.reloadAction": "Recargar y descartar mis cambios",
+  "documentConcurrency.reloadFailed": "No se pudo recargar. Sus cambios sin guardar siguen aquí. Inténtelo de nuevo.",
+  "documentConcurrency.schedulesTitle": "Las publicaciones programadas requieren revisión",
+  "documentConcurrency.schedules": "La estructura se guardó. Las publicaciones programadas afectadas se suspendieron y deben revisarse antes de ejecutarse.",
+  "documentConcurrency.reviewSchedules": "Revisar publicaciones programadas",
+  "documentConcurrency.failed": "No se pudo completar la operación. Sus cambios sin guardar siguen disponibles."
 }

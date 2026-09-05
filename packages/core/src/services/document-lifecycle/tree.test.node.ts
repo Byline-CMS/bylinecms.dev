@@ -1,3 +1,4 @@
+import { testAdapter } from '../../storage/db-adapter.test-helper.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -220,16 +221,23 @@ function createHarness(
       .filter(([, placement]) => placement.parentDocumentId === parentDocumentId)
       .map(([document_id, placement]) => ({ document_id, order_key: placement.orderKey }))
   )
-  const getTreeSubtree = vi.fn(async ({ rootDocumentId }: { rootDocumentId: string | null }) => {
+  const getTreeSubtree = vi.fn(async ({ rootDocumentId }: { rootDocumentId?: string | null }) => {
     const ids =
       rootDocumentId == null
         ? [...placements.entries()]
             .filter(([, placement]) => placement.parentDocumentId == null)
             .flatMap(([id]) => subtree(id))
         : subtree(rootDocumentId)
-    return ids.map((document_id) => ({ document_id }))
+    return ids.map((document_id) => ({
+      document_id,
+      parent_document_id: placements.get(document_id)?.parentDocumentId ?? null,
+      depth: 0,
+      order_key: placements.get(document_id)?.orderKey ?? 'a0',
+    }))
   })
-  const withTransaction = vi.fn(async <T>(fn: () => Promise<T>): Promise<T> => {
+  const withTransaction = vi.fn()
+  const transact = async <T>(fn: () => Promise<T>): Promise<T> => {
+    withTransaction()
     transactionDepth++
     calls.push('tx:start')
     const placementSnapshot = new Map(placements)
@@ -250,7 +258,7 @@ function createHarness(
     } finally {
       transactionDepth--
     }
-  })
+  }
 
   const definition: MultiCollectionDefinition = {
     path: 'pages',
@@ -272,7 +280,7 @@ function createHarness(
     trace: vi.fn(),
     silent: vi.fn(),
   } satisfies BylineLogger
-  const db = {
+  const db = testAdapter({
     commands: {
       collections: { lockCollectionRegistration: vi.fn(async () => {}) },
       singletons: { lockSlot: vi.fn(async () => {}) },
@@ -280,7 +288,7 @@ function createHarness(
         publishSchedules: {
           lockDocuments: vi.fn(async () => {}),
           cancel: vi.fn(async () => null),
-          suspendForContentEdit: vi.fn(async () => ({ status: 'schedule_not_found' })),
+          suspendForContentEdit: vi.fn(async () => ({ status: 'schedule_not_found' as const })),
         },
         placeTreeNode: place,
         removeFromTree: remove,
@@ -310,8 +318,7 @@ function createHarness(
         publishSchedules: {},
       },
     },
-    withReadSnapshot: (fn: Parameters<IDbAdapter['withReadSnapshot']>[0]) =>
-      runReadSnapshot(db.queries, fn),
+    withReadSnapshot: (fn) => runReadSnapshot(db.queries, fn),
     revisions: {
       ...unusedRevisionStore,
       isInTransaction: () => transactionDepth > 0,
@@ -347,8 +354,8 @@ function createHarness(
         return { documentId: locked.documentId, revision }
       },
     } satisfies IDbAdapter['revisions'],
-    withTransaction,
-  } as unknown as IDbAdapter
+    withTransaction: transact,
+  })
   const ctx: DocumentLifecycleContext = {
     db,
     definition,
@@ -380,7 +387,7 @@ function createHarness(
 describe('document-tree lifecycle audit contract', () => {
   it('validates the full tree audit capability only for tree-enabled collections', () => {
     const harness = createHarness()
-    const unsupported = {
+    const unsupported = testAdapter({
       ...harness.ctx.db,
       commands: {
         ...harness.ctx.db.commands,
@@ -389,7 +396,7 @@ describe('document-tree lifecycle audit contract', () => {
           promoteChildrenAndRemoveFromTree: undefined,
         },
       },
-    } as unknown as IDbAdapter
+    })
     const definition = harness.ctx.definition
     if (isSingleton(definition)) {
       throw new Error('tree lifecycle harness must use a multi-document collection')
@@ -898,7 +905,7 @@ describe('document-tree lifecycle audit contract', () => {
       document: { id: 'version-1', document_id: 'created-node' },
       fieldCount: 1,
     }))
-    harness.ctx.db = {
+    harness.ctx.db = testAdapter({
       ...harness.ctx.db,
       commands: {
         ...harness.ctx.db.commands,
@@ -909,7 +916,7 @@ describe('document-tree lifecycle audit contract', () => {
         audit: undefined,
       },
       withTransaction: undefined,
-    } as unknown as IDbAdapter
+    })
 
     await expect(
       createDocument(harness.ctx, { data: { title: 'Created' }, locale: 'en' })

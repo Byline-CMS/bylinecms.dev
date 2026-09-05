@@ -178,7 +178,7 @@ export function createCollectionListRoute(path: string) {
                 beforeDocumentId,
                 afterDocumentId,
               }) => {
-                await placeTreeNode({
+                return await placeTreeNode({
                   data: {
                     expectedRevision: parseDocumentRevision(
                       (data as { rows: CollectionTreeRow[] }).rows.find(
@@ -205,7 +205,7 @@ export function createCollectionListRoute(path: string) {
               orderable={collectionDef.orderable === true}
               listActions={adminConfig?.listActions}
               onReorder={async ({ documentId, beforeDocumentId, afterDocumentId }) => {
-                await reorderCollectionDocument({
+                return await reorderCollectionDocument({
                   data: {
                     expectedRevision: parseDocumentRevision(
                       data.docs.find(

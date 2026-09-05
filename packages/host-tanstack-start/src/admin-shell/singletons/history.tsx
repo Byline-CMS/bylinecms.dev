@@ -15,7 +15,6 @@ import type {
   SingletonPreviewDocument,
   WorkflowStatus,
 } from '@byline/core'
-import { parseDocumentRevision } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Button, Container, Section, Table } from '@byline/ui/react'
 import cx from 'clsx'
@@ -90,6 +89,7 @@ export function SingletonHistoryView({
       currentVersionId,
       actorLabel,
       restoreStatusLabel,
+      mutationsBlocked,
       openRestore,
     }) => (
       <>
@@ -107,6 +107,7 @@ export function SingletonHistoryView({
               variant="outlined"
               size="xs"
               intent="noeffect"
+              disabled={mutationsBlocked}
               onClick={openRestore}
               className={cx('byline-coll-history-restore-button', historyStyles.restoreButton)}
               title={t('collections.history.restoreButtonTitle', {
@@ -167,10 +168,10 @@ export function SingletonHistoryView({
               return historical as unknown as Record<string, unknown>
             }}
             onPageSizeChange={handlePageSizeChange}
-            restoreVersion={(versionId) =>
+            restoreVersion={(versionId, expectedRevision) =>
               restoreSingletonVersion({
                 data: {
-                  expectedRevision: parseDocumentRevision(currentDocument?.revision),
+                  expectedRevision,
                   singleton,
                   versionId,
                 },

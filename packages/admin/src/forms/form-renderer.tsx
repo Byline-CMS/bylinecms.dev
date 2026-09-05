@@ -80,6 +80,15 @@ export interface SystemFieldsSubmitPayload {
 
 /** Props shared by both the public FormRenderer and its internal FormContent component. */
 export interface FormRendererProps {
+  mutationIssue?: 'stale' | 'reload' | 'lock' | 'unavailable' | 'committed' | null
+  mutationsBlocked?: boolean
+  observedRevision?: number
+  onMutationError?: (error: unknown) => 'blocked' | 'committed' | null | void
+  onTreeMutationCommitted?: (receipt: import('@byline/core').StructuralMutationReceipt) => void
+  scheduledPublicationsNeedReconfirmation?: boolean
+  scheduledPublicationsHref?: string
+  /** Explicit discard action; defaults to a complete server reload. */
+  onReloadDocument?: () => void | Promise<void>
   mode: 'create' | 'edit'
   fields: Field[]
   onSubmit: (data: any) => void | Promise<void>
@@ -196,6 +205,14 @@ export interface FormRendererProps {
 
 const FormContent = ({
   mode,
+  mutationIssue,
+  mutationsBlocked = false,
+  observedRevision,
+  onMutationError,
+  onTreeMutationCommitted,
+  scheduledPublicationsNeedReconfirmation = false,
+  scheduledPublicationsHref,
+  onReloadDocument,
   fields,
   onSubmit,
   onCancel,
@@ -283,6 +300,7 @@ const FormContent = ({
   // escalated notice, and the schedule modal — so its state lives here and the
   // surfaces are rendered where each belongs.
   const scheduling = useScheduledPublication({
+    disabled: mutationsBlocked,
     schedule: scheduledPublication ?? null,
     onSchedule: onSchedulePublication,
     onConfirm: onConfirmScheduledPublication,
@@ -373,7 +391,25 @@ const FormContent = ({
   // The guard hook is injected by the consuming framework (prop > context > no-op fallback).
   const guardFromContext = useNavigationGuardAdapter()
   const useGuard = useNavigationGuardProp ?? guardFromContext
-  const guard = useGuard(hasChanges)
+  const [discarding, setDiscarding] = useState(false)
+  const [reloadFailed, setReloadFailed] = useState(false)
+  const warningRef = useRef<HTMLDivElement>(null)
+  const mutationBlockedRef = useRef(mutationsBlocked)
+  mutationBlockedRef.current = mutationsBlocked || discarding
+  const guard = useGuard(hasChanges && !discarding)
+  useEffect(() => {
+    if (mutationIssue) warningRef.current?.focus()
+  }, [mutationIssue])
+  useEffect(() => {
+    if (!discarding) return
+    // Let the guard's beforeunload listener detach before the explicit discard.
+    Promise.resolve()
+      .then(() => (onReloadDocument ? onReloadDocument() : window.location.reload()))
+      .catch(() => {
+        setDiscarding(false)
+        setReloadFailed(true)
+      })
+  }, [discarding, onReloadDocument])
 
   // Compute available status transitions
   const currentStatus = initialData?.status
@@ -404,6 +440,11 @@ const FormContent = ({
     if (isBusy || !restoreFocusAfterBusyRef.current) return
     restoreFocusAfterBusyRef.current = false
 
+    if (mutationIssue) {
+      warningRef.current?.focus()
+      focusBeforeBusyRef.current = null
+      return
+    }
     const original = focusBeforeBusyRef.current
     focusBeforeBusyRef.current = null
     const originalCanReceiveFocus =
@@ -414,7 +455,7 @@ const FormContent = ({
           'input:not(:disabled), textarea:not(:disabled), select:not(:disabled), button:not(:disabled), [tabindex]:not([tabindex="-1"])'
         )
     target?.focus({ preventScroll: true })
-  }, [isBusy])
+  }, [isBusy, mutationIssue])
 
   const captureFocusBeforeBusy = useCallback(() => {
     if (focusBeforeBusyRef.current != null) return
@@ -438,7 +479,7 @@ const FormContent = ({
   // mid-flight; the mirrored state drives the Save button's disabled prop.
   const submitPayload = useCallback(
     async (payload: SystemFieldsSubmitPayload) => {
-      if (typeof onSubmit !== 'function') return
+      if (mutationBlockedRef.current || typeof onSubmit !== 'function') return
       if (submittingRef.current) return
       submittingRef.current = true
       captureFocusBeforeBusy()
@@ -458,6 +499,10 @@ const FormContent = ({
   )
 
   const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
+    if (mutationBlockedRef.current) {
+      e.preventDefault()
+      return
+    }
     e.preventDefault()
 
     // Run field-level beforeValidate hooks (submit-time), then validate
@@ -470,6 +515,8 @@ const FormContent = ({
         console.error('Form validation failed:', allErrors)
         return
       }
+
+      if (mutationBlockedRef.current) return
 
       // Execute any pending uploads before submitting
       const pendingUploads = getPendingUploads()
@@ -674,6 +721,7 @@ const FormContent = ({
           <div className={cx('byline-form-status-bar', styles['status-bar'])}>
             <div className={cx('byline-form-status-details', styles['status-details'])}>
               <FormStatusDisplay
+                disabled={mutationsBlocked || discarding}
                 initialData={initialData}
                 workflowStatuses={workflowStatuses}
                 publishedVersion={publishedVersion}
@@ -700,7 +748,13 @@ const FormContent = ({
                 className={cx('byline-form-actions-button', styles['actions-button'])}
                 size="sm"
                 type="submit"
-                disabled={hasChanges === false || isUploading || isSubmitting}
+                disabled={
+                  mutationsBlocked ||
+                  discarding ||
+                  hasChanges === false ||
+                  isUploading ||
+                  isSubmitting
+                }
                 aria-label={isSubmitting ? t('common.actions.save') : undefined}
               >
                 {isUploading ? (
@@ -747,8 +801,9 @@ const FormContent = ({
                     size="sm"
                     type="button"
                     intent={isTerminal ? 'info' : 'success'}
-                    disabled={statusBusy}
+                    disabled={mutationsBlocked || discarding || statusBusy}
                     onOptionSelect={async (value: string) => {
+                      if (mutationBlockedRef.current) return
                       if (hasChanges) {
                         setShowUnsavedModal(true)
                         return
@@ -756,6 +811,8 @@ const FormContent = ({
                       setStatusBusy(true)
                       try {
                         await onStatusChange(value)
+                      } catch (error) {
+                        onMutationError?.(error)
                       } finally {
                         setStatusBusy(false)
                       }
@@ -764,6 +821,7 @@ const FormContent = ({
                       isTerminal
                         ? undefined
                         : async () => {
+                            if (mutationBlockedRef.current) return
                             if (hasChanges) {
                               setShowUnsavedModal(true)
                               return
@@ -771,6 +829,8 @@ const FormContent = ({
                             setStatusBusy(true)
                             try {
                               await onStatusChange(primaryStatus.name)
+                            } catch (error) {
+                              onMutationError?.(error)
                             } finally {
                               setStatusBusy(false)
                             }
@@ -786,6 +846,7 @@ const FormContent = ({
                 </div>
               )}
               <DocumentActions
+                disabled={mutationsBlocked || discarding}
                 publishedVersion={publishedVersion}
                 onUnpublish={onUnpublish}
                 onDelete={onDelete}
@@ -813,10 +874,58 @@ const FormContent = ({
               />
             </div>
           </div>
+          {(mutationIssue || scheduledPublicationsNeedReconfirmation) && (
+            <div
+              ref={warningRef}
+              tabIndex={-1}
+              role="alert"
+              aria-live="assertive"
+              className={cx('byline-document-concurrency', styles.concurrency)}
+            >
+              {mutationIssue && (
+                <Alert
+                  intent="warning"
+                  icon
+                  close={false}
+                  title={t(`documentConcurrency.${mutationIssue}Title`)}
+                >
+                  <p>{t(`documentConcurrency.${mutationIssue}`)}</p>
+                  {mutationIssue !== 'committed' && (
+                    <Button
+                      type="button"
+                      disabled={discarding}
+                      onClick={() => {
+                        setReloadFailed(false)
+                        setDiscarding(true)
+                      }}
+                    >
+                      {t('documentConcurrency.reloadAction')}
+                    </Button>
+                  )}
+                  {reloadFailed && <p>{t('documentConcurrency.reloadFailed')}</p>}
+                </Alert>
+              )}
+              {scheduledPublicationsNeedReconfirmation && (
+                <Alert
+                  intent="warning"
+                  icon
+                  close={false}
+                  title={t('documentConcurrency.schedulesTitle')}
+                >
+                  <p>{t('documentConcurrency.schedules')}</p>
+                  {scheduledPublicationsHref && (
+                    <a href={scheduledPublicationsHref}>
+                      {t('documentConcurrency.reviewSchedules')}
+                    </a>
+                  )}
+                </Alert>
+              )}
+            </div>
+          )}
           <ScheduledPublicationNotice
             state={scheduling.state}
             timeZone={scheduling.timeZone}
-            busy={scheduling.busy}
+            busy={mutationsBlocked || discarding || scheduling.busy}
             onConfirm={scheduling.confirm}
             onReschedule={scheduling.openSchedule}
             onCancel={scheduling.cancel}
@@ -847,6 +956,7 @@ const FormContent = ({
                 (useAsPath ||
                   (typeof initialData?.path === 'string' && initialData.path.length > 0)) && (
                   <PathWidget
+                    disabled={mutationsBlocked || discarding}
                     useAsPath={useAsPath}
                     collectionPath={collectionPath ?? ''}
                     defaultLocale={defaultLocale}
@@ -858,7 +968,10 @@ const FormContent = ({
                 )}
               {tree && mode === 'edit' && typeof initialData?.id === 'string' && (
                 <TreePlacementWidget
-                  expectedRevision={initialData.revision}
+                  disabled={mutationsBlocked || discarding}
+                  onMutationError={onMutationError}
+                  onCommitted={onTreeMutationCommitted}
+                  expectedRevision={observedRevision ?? initialData.revision}
                   collectionPath={collectionPath ?? ''}
                   documentId={initialData.id as string}
                   useAsTitle={useAsTitle}
@@ -866,6 +979,7 @@ const FormContent = ({
               )}
               {advertiseLocales && (
                 <AvailableLocalesWidget
+                  disabled={mutationsBlocked || discarding}
                   contentLocales={contentLocales ?? []}
                   availableVersionLocales={
                     (initialData?._availableVersionLocales as string[] | undefined) ?? []
@@ -876,7 +990,7 @@ const FormContent = ({
             </div>
           </div>
           {showUnsavedModal && <UnsavedChangesModal onClose={() => setShowUnsavedModal(false)} />}
-          {pendingSystemFieldsSubmit != null && (
+          {!mutationsBlocked && !discarding && pendingSystemFieldsSubmit != null && (
             <SystemFieldsConfirmModal
               contentDirty={pendingSystemFieldsSubmit.contentDirty}
               pathDirty={pendingSystemFieldsSubmit.pathDirty}

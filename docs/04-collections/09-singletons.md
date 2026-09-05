@@ -134,16 +134,17 @@ import { getSystemBylineClient } from '@byline/client/server'
 
 export async function seedSiteSettings(): Promise<void> {
   const settings = getSystemBylineClient().singleton('site-settings')
-  if ((await settings.get({ status: 'any' })) != null) return
+  const observed = await settings.getForEdit()
+  if (observed?.state !== 'empty') return
 
   await settings.update({
     siteName: 'Example site',
     siteDescription: 'Default description for search and social previews.',
-  })
+  }, { expectedState: 'empty' })
 }
 ```
 
-Interactive editors should pass the current `versionId` as `expectedVersionId` so a stale form cannot overwrite a newer save.
+Existing-document saves require `expectedRevision` from `getForEdit().document.revision`. An empty slot requires `{ expectedState: 'empty' }`. A published-only read returning `null` does not prove the slot is empty.
 
 → [Client handle](#client-handle)
 
@@ -243,7 +244,7 @@ The handle exposes these operation groups:
 | Purpose | Methods | Unsaved-slot result |
 |---|---|---|
 | Current content | `get(options?)` | `null` |
-| Save | `update(data, options?)` | Materialises the document |
+| Save | `update(data, options)` | Materialises the document |
 | Workflow | `changeStatus()`, `unpublish()` | `ERR_NOT_FOUND` |
 | Scheduling | `schedulePublish()`, `confirmScheduledPublish()`, `cancelScheduledPublish()` | `ERR_NOT_FOUND` |
 | Schedule read | `getScheduledPublish()` | `null` |
@@ -254,7 +255,7 @@ The handle exposes these operation groups:
 
 `get()` accepts the same selection, populate, locale, missing-locale, status, and lenient reconstruction controls as a collection's `findById()`. The returned `SingletonDocument` has `id`, `versionId`, `status`, timestamps, locale metadata, and `fields`, but no `path`.
 
-`update(data, { locale, expectedVersionId })` writes a new immutable version. When `expectedVersionId` does not match the slot's current version, the save rejects with `ERR_CONFLICT`. The first save needs no document id and maps the newly created document to the registered slot.
+`update(data, { locale, expectedRevision })` writes a new immutable version. A stale logical-document revision rejects with `ERR_DOCUMENT_STALE`; missing or malformed observations reject with `ERR_VALIDATION`. The first save requires `{ expectedState: 'empty' }` and maps the newly created document to the registered slot. A competing first save makes that empty-slot observation stale.
 
 Every public method performs the kind-aware ability check before resolving the mapping. Singleton ability keys use `singletons.<path>.read`, `.update`, `.publish`, and `.changeStatus`; collection-only abilities do not apply.
 

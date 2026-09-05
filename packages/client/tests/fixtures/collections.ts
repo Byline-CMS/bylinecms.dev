@@ -24,7 +24,7 @@ export function createTestArticlesCollection(suffix: string | number = Date.now(
       published: { label: 'Published', verb: 'Publish' },
       archived: { label: 'Archived', verb: 'Archive' },
     }),
-    search: { fields: ['title'] },
+    search: { body: ['title'] },
     // Slugify the title field into the document version's `path` column so
     // tests that exercise `findByPath` can resolve docs by a stable slug
     // without each test individually passing an explicit `path` override.

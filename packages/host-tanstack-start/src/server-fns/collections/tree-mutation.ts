@@ -1,5 +1,14 @@
 import type { CollectionHandle, PlaceTreeNodeOptions, RemoveFromTreeOptions } from '@byline/client'
-import { ErrorCodes, TREE_HOOK_COMMITTED_MARKER, TREE_PLACEMENT_STALE_MARKER } from '@byline/core'
+import {
+  ErrorCodes,
+  getDocumentRevisionValidationDetails,
+  getDocumentStaleDetails,
+  getLockConflictDetails,
+  TREE_HOOK_COMMITTED_MARKER,
+  TREE_PLACEMENT_STALE_MARKER,
+} from '@byline/core'
+
+import { structuralReceipt } from '../structural-receipt.js'
 
 function hasErrorCode(error: unknown, code: string): boolean {
   return (
@@ -27,11 +36,11 @@ export function isCommittedTreeHookFailure(error: unknown): boolean {
 }
 
 export type AdminTreeMoveOutcome =
-  | { status: 'ok' }
+  | { status: 'ok'; receipt?: ReturnType<typeof structuralReceipt> }
   | { status: 'suppressed' }
   | { status: 'mutation-failed'; error: unknown; refreshError?: unknown }
   | { status: 'committed-hook-failed'; error: unknown; refreshError?: unknown }
-  | { status: 'refresh-failed'; error: unknown }
+  | { status: 'refresh-failed'; error: unknown; receipt?: ReturnType<typeof structuralReceipt> }
 
 export interface AdminTreeMoveUiEffects {
   rollback: boolean
@@ -93,9 +102,17 @@ export async function executeAdminTreeMove(
   mutate: () => Promise<unknown>,
   refresh: () => Promise<unknown>
 ): Promise<AdminTreeMoveOutcome> {
+  let receipt: ReturnType<typeof structuralReceipt>
   try {
-    await mutate()
+    receipt = structuralReceipt(await mutate())
   } catch (error) {
+    if (
+      getDocumentStaleDetails(error) ||
+      getDocumentRevisionValidationDetails(error) ||
+      getLockConflictDetails(error) ||
+      hasErrorCode(error, ErrorCodes.NOT_FOUND)
+    )
+      return { status: 'mutation-failed', error }
     const status = isCommittedTreeHookFailure(error)
       ? ('committed-hook-failed' as const)
       : ('mutation-failed' as const)
@@ -109,9 +126,9 @@ export async function executeAdminTreeMove(
 
   try {
     await refresh()
-    return { status: 'ok' }
+    return { status: 'ok', ...(receipt ? { receipt } : {}) }
   } catch (error) {
-    return { status: 'refresh-failed', error }
+    return { status: 'refresh-failed', error, ...(receipt ? { receipt } : {}) }
   }
 }
 

@@ -1,3 +1,4 @@
+import { testAdapter } from '../storage/db-adapter.test-helper.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -67,18 +68,18 @@ function createMockDb(options: {
     commands: {
       collections: { lockCollectionRegistration: vi.fn(fail), create, update, delete: vi.fn(fail) },
       documents: {
-        publishSchedules: {} as any,
-        createDocumentVersion: vi.fn(fail) as any,
-        updateDocumentPath: vi.fn(fail) as any,
-        setDocumentAvailableLocales: vi.fn(fail) as any,
+        publishSchedules: testAdapter().commands.documents.publishSchedules,
+        createDocumentVersion: vi.fn(fail),
+        updateDocumentPath: vi.fn(fail),
+        setDocumentAvailableLocales: vi.fn(fail),
         setDocumentStatus: vi.fn(fail),
-        archivePublishedVersions: vi.fn(fail) as any,
-        softDeleteDocument: vi.fn(fail) as any,
-        restoreSoftDeletedDocument: vi.fn(fail) as any,
-        deleteDocumentLocale: vi.fn(fail) as any,
-        setOrderKey: vi.fn(fail) as any,
-        placeTreeNode: vi.fn(fail) as any,
-        removeFromTree: vi.fn(fail) as any,
+        archivePublishedVersions: vi.fn(fail),
+        softDeleteDocument: vi.fn(fail),
+        restoreSoftDeletedDocument: vi.fn(fail),
+        deleteDocumentLocale: vi.fn(fail),
+        setOrderKey: vi.fn(fail),
+        placeTreeNode: vi.fn(fail),
+        removeFromTree: vi.fn(fail),
         promoteChildrenAndRemoveFromTree: vi.fn(async () => ({
           removed: {
             changed: false,
@@ -91,9 +92,9 @@ function createMockDb(options: {
         })),
       },
       counters: {
-        ensureCounterGroup: vi.fn(fail) as any,
-        nextCounterValue: vi.fn(fail) as any,
-        nextScopedCounterValue: vi.fn(fail) as any,
+        ensureCounterGroup: vi.fn(fail),
+        nextCounterValue: vi.fn(fail),
+        nextScopedCounterValue: vi.fn(fail),
       },
       audit: { append: vi.fn(async () => ({ id: 'audit-1' })) },
       singletons: {
@@ -109,14 +110,14 @@ function createMockDb(options: {
         getCollectionById: vi.fn(fail),
       },
       documents: {
-        publishSchedules: {} as any,
+        publishSchedules: testAdapter().queries.documents.publishSchedules,
         getDocumentRevision: async () => {
           throw new Error('Unexpected revision read in this test')
         },
         getDocumentSystemFieldsForUpdate: vi.fn(async () => null),
         getDocumentById: vi.fn(fail),
-        getCurrentVersionMetadata: vi.fn(fail) as any,
-        getCurrentPath: vi.fn(fail) as any,
+        getCurrentVersionMetadata: vi.fn(fail),
+        getCurrentPath: vi.fn(fail),
         getDocumentByPath: vi.fn(fail),
         getDocumentByVersion: vi.fn(fail),
         getDocumentsByVersionIds: vi.fn(fail),
@@ -126,13 +127,13 @@ function createMockDb(options: {
         getPublishedDocumentIds: vi.fn(fail),
         getDocumentCountsByStatus: vi.fn(fail),
         findDocuments: vi.fn(fail),
-        getLastOrderKey: vi.fn(fail) as any,
-        getNeighborOrderKeys: vi.fn(fail) as any,
-        getCanonicalDocumentOrder: vi.fn(fail) as any,
-        getTreeAncestors: vi.fn(fail) as any,
-        getTreeChildren: vi.fn(fail) as any,
-        getTreeParent: vi.fn(fail) as any,
-        getTreeSubtree: vi.fn(fail) as any,
+        getLastOrderKey: vi.fn(fail),
+        getNeighborOrderKeys: vi.fn(fail),
+        getCanonicalDocumentOrder: vi.fn(fail),
+        getTreeAncestors: vi.fn(fail),
+        getTreeChildren: vi.fn(fail),
+        getTreeParent: vi.fn(fail),
+        getTreeSubtree: vi.fn(fail),
       },
       audit: {
         getDocumentAuditLog: vi.fn(async () => ({

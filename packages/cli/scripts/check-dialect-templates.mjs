@@ -62,7 +62,14 @@ try {
             types: ['node'],
             paths: { '~/*': ['./byline/*'] },
           },
-          include: ['byline/server.config.ts', 'byline/generated/collection-types.ts'],
+          include: [
+            'byline/server.config.ts',
+            'byline/generated/collection-types.ts',
+            'byline/scripts/import-docs.ts',
+            'byline/scripts/regenerate-media.ts',
+            'byline/scripts/regenerate-media-operation.ts',
+            'byline/scripts/re-anchor.ts',
+          ],
         },
         null,
         2
@@ -109,9 +116,23 @@ function linkWorkspacePackages(fixture) {
     symlinkSync(packageRoot, resolve(scopeRoot, manifest.name.slice('@byline/'.length)), 'dir')
   }
 
+  // Script dependencies are installed in the first-party application. Resolve
+  // those packages while keeping every @byline import on its built package exports.
+  const appRoot = resolve(packagesRoot, '../apps/webapp')
+  const appManifest = JSON.parse(readFileSync(resolve(appRoot, 'package.json'), 'utf8'))
+  for (const name of Object.keys({ ...appManifest.dependencies, ...appManifest.devDependencies })) {
+    if (name.startsWith('@byline/')) continue
+    const source = resolve(appRoot, 'node_modules', name)
+    const target = resolve(fixture, 'node_modules', name)
+    if (!existsSync(source) || existsSync(target)) continue
+    mkdirSync(dirname(target), { recursive: true })
+    symlinkSync(source, target, 'dir')
+  }
+
   const typesRoot = resolve(fixture, 'node_modules/@types')
   mkdirSync(typesRoot, { recursive: true })
-  symlinkSync(resolve(cliRoot, 'node_modules/@types/node'), resolve(typesRoot, 'node'), 'dir')
+  if (!existsSync(resolve(typesRoot, 'node')))
+    symlinkSync(resolve(cliRoot, 'node_modules/@types/node'), resolve(typesRoot, 'node'), 'dir')
 }
 
 function tscCommand() {

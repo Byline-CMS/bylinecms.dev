@@ -246,3 +246,38 @@ describe('admin tree mutations', () => {
     expect(removeFromTree).toHaveBeenCalledWith('doc-1', { expectedRevision: 2, reconcile: false })
   })
 })
+
+it('does not refresh or replace the observation after a typed stale tree move', async () => {
+  const error = {
+    code: 'ERR_DOCUMENT_STALE',
+    details: {
+      reason: 'revision_mismatch',
+      documentId: 'doc',
+      expectedRevision: 2,
+      currentRevision: 3,
+    },
+  }
+  const refresh = vi.fn()
+  const mutate = vi.fn().mockRejectedValue(error)
+  expect(await executeAdminTreeMove(mutate, refresh)).toEqual({ status: 'mutation-failed', error })
+  expect(mutate).toHaveBeenCalledTimes(1)
+  expect(refresh).not.toHaveBeenCalled()
+})
+
+it('retains the authorized schedule summary when refresh fails after a committed move', async () => {
+  const receipt = {
+    documentId: 'doc',
+    revision: 3,
+    affectedDocuments: [{ documentId: 'sibling', revision: 4 }],
+    scheduledPublicationsNeedReconfirmation: true,
+  }
+  const error = new Error('refresh unavailable')
+  expect(
+    await executeAdminTreeMove(
+      async () => receipt,
+      async () => {
+        throw error
+      }
+    )
+  ).toEqual({ status: 'refresh-failed', error, receipt })
+})

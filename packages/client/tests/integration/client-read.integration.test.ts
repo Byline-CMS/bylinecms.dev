@@ -131,8 +131,8 @@ describe('client.collection().find()', () => {
     const doc = result.docs[0]!
     expect(doc.fields.title).toBeDefined()
     // Other fields should not be present.
-    expect(doc.fields.summary).toBeUndefined()
-    expect(doc.fields.views).toBeUndefined()
+    expect(doc.fields).not.toHaveProperty('summary')
+    expect(doc.fields).not.toHaveProperty('views')
   })
 })
 
@@ -181,7 +181,7 @@ describe('client.collection().findById()', () => {
 
     expect(doc).not.toBeNull()
     expect(doc?.fields.title).toBeDefined()
-    expect(doc?.fields.summary).toBeUndefined()
+    expect(doc?.fields).not.toHaveProperty('summary')
   })
 })
 

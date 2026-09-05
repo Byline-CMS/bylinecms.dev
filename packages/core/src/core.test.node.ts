@@ -3,13 +3,14 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { defineServerConfig, getServerConfig } from './config/config.js'
 import { initBylineCore } from './core.js'
+import { testAdapter } from './storage/db-adapter.test-helper.js'
 import type { IDbAdapter, ServerConfig } from './@types/index.js'
 
 function serverConfig(admin: string): ServerConfig {
   return {
     routes: { admin },
     collections: [],
-    db: {} as IDbAdapter,
+    db: testAdapter({}),
     i18n: {
       admin: { defaultLocale: 'en', locales: [] },
       content: { defaultLocale: 'en', locales: [] },
@@ -36,7 +37,7 @@ it('rejects revision-incompatible storage before any boot database writes', asyn
   const config = serverConfig('/revision-check/admin')
   const write = vi.fn()
   const schemaError = new Error('fence and upgrade the revision schema')
-  config.db = {
+  config.db = testAdapter({
     withTransaction: vi.fn(),
     withReadSnapshot: vi.fn(),
     revisions: {
@@ -52,7 +53,7 @@ it('rejects revision-incompatible storage before any boot database writes', asyn
       counters: { ensureCounterGroup: write },
     },
     backfillSourceLocales: write,
-  } as unknown as IDbAdapter
+  })
   await expect(initBylineCore(config, {} as PinoLogger)).rejects.toBe(schemaError)
   expect(write).not.toHaveBeenCalled()
 })

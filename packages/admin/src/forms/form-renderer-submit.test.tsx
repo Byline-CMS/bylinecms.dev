@@ -46,8 +46,8 @@ vi.mock('@byline/ui/react', async (importOriginal) => {
       Separator: () => <hr />,
     },
     Modal,
-    Input: ({ name, value, onChange }: any) => (
-      <input name={name} value={value ?? ''} onChange={onChange} />
+    Input: ({ id, name, value, onChange, disabled }: React.ComponentProps<'input'>) => (
+      <input id={id} name={name} disabled={disabled} value={value ?? ''} onChange={onChange} />
     ),
   }
 })
@@ -284,5 +284,134 @@ describe('FormRenderer submit contract', () => {
       submission.resolve()
     })
     expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('persistent document concurrency recovery', () => {
+  const original = {
+    id: 'doc',
+    versionId: 'v1',
+    revision: 7,
+    path: 'opened',
+    status: 'draft',
+    fields: { title: 'Opened' },
+    _availableVersionLocales: ['en'],
+  }
+  const props = {
+    mode: 'edit' as const,
+    fields,
+    initialData: original,
+    collectionPath: 'pages',
+    useAsPath: 'title',
+    advertiseLocales: true,
+    contentLocales: [{ code: 'en', label: 'English' }],
+    workflowStatuses: [
+      { name: 'draft', label: 'Draft' },
+      { name: 'published', label: 'Published' },
+    ],
+  }
+  it.each(['stale', 'reload', 'lock', 'unavailable'] as const)(
+    'retains dirty fields and blocks mutations for %s',
+    async (mutationIssue) => {
+      const onSubmit = vi.fn()
+      const onDelete = vi.fn()
+      const onStatusChange = vi.fn()
+      const guard = vi.fn(() => ({ isBlocked: false, stay() {}, proceed() {} }))
+      const render = (blocked: boolean) =>
+        renderInProvider(
+          <FormRenderer
+            {...props}
+            onSubmit={onSubmit}
+            onDelete={onDelete}
+            onStatusChange={onStatusChange}
+            mutationsBlocked={blocked}
+            mutationIssue={blocked ? mutationIssue : null}
+            useNavigationGuard={guard}
+          />
+        )
+      render(false)
+      typeIntoTitle('Unsaved text to copy')
+      render(true)
+      expect(container.querySelector<HTMLInputElement>('input[name="title"]')?.value).toBe(
+        'Unsaved text to copy'
+      )
+      expect(container.querySelector<HTMLInputElement>('input[name="title"]')?.disabled).toBe(false)
+      expect(guard).toHaveBeenLastCalledWith(true)
+      expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(
+        true
+      )
+      expect(container.querySelector<HTMLInputElement>('#system-path')?.disabled).toBe(true)
+      expect(container.querySelector<HTMLInputElement>('#available-locale-en')?.disabled).toBe(true)
+      const warning = container.querySelector('.byline-document-concurrency')
+      expect(warning?.getAttribute('role')).toBe('alert')
+      expect(document.activeElement).toBe(warning)
+      submitForm()
+      await act(async () => {})
+      expect(onSubmit).not.toHaveBeenCalled()
+      expect(onDelete).not.toHaveBeenCalled()
+      expect(onStatusChange).not.toHaveBeenCalled()
+    }
+  )
+  it('disables the dirty navigation guard only after explicit discard and retains it on reload failure', async () => {
+    const guard = vi.fn(() => ({ isBlocked: false, stay() {}, proceed() {} }))
+    const reload = vi.fn(async () => {
+      throw new Error('reload failed')
+    })
+    const render = (blocked: boolean) =>
+      renderInProvider(
+        <FormRenderer
+          {...props}
+          onSubmit={async () => {}}
+          mutationsBlocked={blocked}
+          mutationIssue={blocked ? 'stale' : null}
+          useNavigationGuard={guard}
+          onReloadDocument={reload}
+        />
+      )
+    render(false)
+    typeIntoTitle('Keep until I discard')
+    render(true)
+    expect(reload).not.toHaveBeenCalled()
+    expect(guard).toHaveBeenLastCalledWith(true)
+    const reloadButton = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent === 'Reload and discard my changes'
+    )
+    expect(reloadButton).toBeDefined()
+    await act(async () => {
+      reloadButton?.click()
+    })
+    expect(reload).toHaveBeenCalledTimes(1)
+    expect(guard).toHaveBeenCalledWith(false)
+    expect(guard).toHaveBeenLastCalledWith(true)
+    expect(container.textContent).toContain('Reload failed. Your unsaved changes are still here.')
+    expect(container.querySelector<HTMLInputElement>('input[name="title"]')?.value).toBe(
+      'Keep until I discard'
+    )
+  })
+  it('shows structural schedule suspension separately without marking the form stale or clearing edits', () => {
+    const render = (notice: boolean) =>
+      renderInProvider(
+        <FormRenderer
+          {...props}
+          onSubmit={async () => {}}
+          scheduledPublicationsNeedReconfirmation={notice}
+          scheduledPublicationsHref="/admin/scheduled-publications"
+        />
+      )
+    render(false)
+    typeIntoTitle('Draft retained after tree move')
+    render(true)
+    expect(container.textContent).toContain('The structure was saved.')
+    expect(
+      container.querySelector<HTMLAnchorElement>('a[href="/admin/scheduled-publications"]')
+        ?.textContent
+    ).toBe('Review scheduled publications')
+    expect(container.textContent).not.toContain('Your changes were not saved.')
+    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(
+      false
+    )
+    expect(container.querySelector<HTMLInputElement>('input[name="title"]')?.value).toBe(
+      'Draft retained after tree move'
+    )
   })
 })

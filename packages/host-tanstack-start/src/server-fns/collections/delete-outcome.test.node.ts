@@ -18,6 +18,8 @@ describe('delete outcome transport and admin interpretation', () => {
     const unsafeResult = {
       documentId: 'doc-1',
       revision: 2,
+      affectedDocuments: [{ documentId: 'child', revision: 3 }],
+      scheduledPublicationsNeedReconfirmation: true,
       deletedVersionCount: 2,
       outcome: 'committed-with-side-effect-failures',
       sideEffectFailures: [
@@ -40,6 +42,8 @@ describe('delete outcome transport and admin interpretation', () => {
       status: 'ok',
       documentId: 'doc-1',
       revision: 2,
+      affectedDocuments: [{ documentId: 'child', revision: 3 }],
+      scheduledPublicationsNeedReconfirmation: true,
       deletedVersionCount: 2,
       outcome: 'committed-with-side-effect-failures',
       sideEffectFailures: [
@@ -59,6 +63,8 @@ describe('delete outcome transport and admin interpretation', () => {
     const response = toDeleteDocumentResponse({
       documentId: 'doc-1',
       revision: 2,
+      affectedDocuments: [{ documentId: 'child', revision: 3 }],
+      scheduledPublicationsNeedReconfirmation: true,
       deletedVersionCount: 2,
       outcome: 'committed',
       sideEffectFailures: [],
@@ -68,6 +74,8 @@ describe('delete outcome transport and admin interpretation', () => {
       status: 'ok',
       documentId: 'doc-1',
       revision: 2,
+      affectedDocuments: [{ documentId: 'child', revision: 3 }],
+      scheduledPublicationsNeedReconfirmation: true,
       deletedVersionCount: 2,
       outcome: 'committed',
       sideEffectFailures: [],

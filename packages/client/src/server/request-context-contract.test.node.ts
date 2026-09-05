@@ -44,6 +44,7 @@ vi.mock('@byline/core', async () => {
 })
 
 import { createBylineClient } from '../client.js'
+import { testAdapter } from '../test-adapter.test-helper.js'
 import { getAdminRequestContext } from './admin-context.js'
 
 const BRIDGE_SLOT = Symbol.for('__byline_host_request_bridge__')
@@ -62,7 +63,7 @@ const postsCollection: CollectionDefinition = {
 }
 
 function mockDb(): IDbAdapter {
-  return {
+  return testAdapter({
     commands: { collections: {}, documents: {}, counters: {} },
     queries: {
       collections: {
@@ -73,7 +74,7 @@ function mockDb(): IDbAdapter {
         getDocumentsByDocumentIds: vi.fn().mockResolvedValue([]),
       },
     },
-  } as unknown as IDbAdapter
+  })
 }
 
 describe('request factory ↔ client authority contract', () => {

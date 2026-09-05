@@ -1,3 +1,4 @@
+import { testAdapter } from '../storage/db-adapter.test-helper.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -275,7 +276,7 @@ describe('startBylineScheduler', () => {
     const injectedRun = vi.fn(async () => {})
     const store = fakeStore({ claim: vi.fn(async ({ name }) => claimed(name)) })
     const core = {
-      db: { scheduler: store },
+      db: testAdapter({ scheduler: store }),
       recurringTasks: [task('core-task', coreRun)],
       logger: silentLogger,
     } as unknown as BylineCore
@@ -291,7 +292,7 @@ describe('startBylineScheduler', () => {
     await controller.stop()
 
     expect(() =>
-      startBylineScheduler({ ...core, db: {} } as unknown as BylineCore, {
+      startBylineScheduler({ ...core, db: testAdapter() } as unknown as BylineCore, {
         startupJitterMs: 0,
       })
     ).toThrow(/scheduler capability/i)

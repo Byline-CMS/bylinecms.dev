@@ -10,6 +10,9 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     test: {
       environment: jsdom ? 'jsdom' : 'node',
+      // Built workspace React packages import generated CSS-module JavaScript.
+      // Keep that graph in Vite so Node never receives an unresolved /@fs URL.
+      server: { deps: { inline: jsdom ? [/\/packages\/(ui|i18n|admin|richtext-lexical)\//] : [] } },
       include: jsdom
         ? ['**/*.test.ts', '**/*.test.tsx']
         : ['**/*.test.node.ts', '**/*.test.node.tsx'],

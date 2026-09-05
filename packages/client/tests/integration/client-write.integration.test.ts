@@ -407,18 +407,19 @@ describe('SDK observed revisions', () => {
       { path: 'sdk-revision-race' }
     )
     const observed = await handle.findByIdForEdit(created.documentId)
-    expect(observed?.revision).toBe(1)
+    if (!observed) throw new Error('Expected editable fixture document')
+    expect(observed.revision).toBe(1)
     const winner = await handle.update(
       created.documentId,
       { title: 'Winner', summary: 'Saved' },
-      { expectedRevision: observed?.revision }
+      { expectedRevision: observed.revision }
     )
     expect(winner.revision).toBe(2)
     await expect(
       handle.update(
         created.documentId,
         { title: 'Loser', summary: 'Old draft' },
-        { expectedRevision: observed?.revision }
+        { expectedRevision: observed.revision }
       )
     ).rejects.toMatchObject({
       code: 'ERR_DOCUMENT_STALE',

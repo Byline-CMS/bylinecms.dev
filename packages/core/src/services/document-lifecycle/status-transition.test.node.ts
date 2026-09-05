@@ -1,3 +1,4 @@
+import { testAdapter } from '../../storage/db-adapter.test-helper.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -17,7 +18,7 @@ function createTransitionHarness() {
   let status = 'draft'
   let archived = false
 
-  const db = {
+  const db = testAdapter({
     commands: {
       documents: {
         setDocumentStatus: async ({ status: nextStatus }: { status: string }) => {
@@ -57,7 +58,7 @@ function createTransitionHarness() {
         throw error
       }
     },
-  } as unknown as IDbAdapter
+  })
 
   return {
     db,

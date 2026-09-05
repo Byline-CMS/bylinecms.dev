@@ -10,6 +10,7 @@ import type {
   DeleteDocumentResult,
   DeleteDocumentSideEffectCode,
   DeleteDocumentSideEffectPhase,
+  StructuralMutationReceipt,
 } from '@byline/core'
 import { ErrorCodes } from '@byline/core'
 
@@ -21,26 +22,28 @@ export interface DeleteDocumentPublicSideEffectFailure {
   code: DeleteDocumentPublicSideEffectCode
 }
 
-export type DeleteDocumentResponse =
-  | {
-      status: 'ok'
-      documentId: string
-      revision: number
-      deletedVersionCount: number
-      outcome: 'committed'
-      sideEffectFailures: []
-    }
-  | {
-      status: 'ok'
-      documentId: string
-      revision: number
-      deletedVersionCount: number
-      outcome: 'committed-with-side-effect-failures'
-      sideEffectFailures: [
-        DeleteDocumentPublicSideEffectFailure,
-        ...DeleteDocumentPublicSideEffectFailure[],
-      ]
-    }
+export type DeleteDocumentResponse = StructuralMutationReceipt &
+  (
+    | {
+        status: 'ok'
+        documentId: string
+        revision: number
+        deletedVersionCount: number
+        outcome: 'committed'
+        sideEffectFailures: []
+      }
+    | {
+        status: 'ok'
+        documentId: string
+        revision: number
+        deletedVersionCount: number
+        outcome: 'committed-with-side-effect-failures'
+        sideEffectFailures: [
+          DeleteDocumentPublicSideEffectFailure,
+          ...DeleteDocumentPublicSideEffectFailure[],
+        ]
+      }
+  )
 
 function sanitizePhase(phase: DeleteDocumentSideEffectPhase): DeleteDocumentPublicSideEffectPhase {
   if (phase === 'afterTreeChange' || phase === 'afterDelete') {
@@ -73,6 +76,8 @@ export function toDeleteDocumentResponse(result: DeleteDocumentResult): DeleteDo
     status: 'ok',
     documentId: result.documentId,
     revision: result.revision,
+    affectedDocuments: result.affectedDocuments,
+    scheduledPublicationsNeedReconfirmation: result.scheduledPublicationsNeedReconfirmation,
     deletedVersionCount: result.deletedVersionCount,
     outcome: result.outcome,
     sideEffectFailures: [sanitizeFailure(firstFailure), ...remainingFailures.map(sanitizeFailure)],

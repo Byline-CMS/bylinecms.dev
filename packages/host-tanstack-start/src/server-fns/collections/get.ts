@@ -1,3 +1,4 @@
+import { withEditableRevision } from '../editable-revision.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -150,8 +151,7 @@ const getDocumentFn = createServerFn({ method: 'GET' })
     const serializedSchedule = scheduledPublish == null ? null : serialise(scheduledPublish)
 
     return {
-      ...(parsed as Record<string, any>),
-      revision: document.revision,
+      ...withEditableRevision(parsed, document),
       _publishedVersion: publishedVersion,
       ...(restoreWarnings && restoreWarnings.length > 0
         ? { _restoreWarnings: restoreWarnings }

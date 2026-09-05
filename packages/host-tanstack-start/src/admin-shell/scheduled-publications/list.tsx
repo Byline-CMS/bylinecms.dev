@@ -1,4 +1,7 @@
-'use client'
+import { DocumentMutationNotice } from '../document-mutation-notice.js'
+import { useDocumentMutationState } from '../document-mutation-state.js'
+
+;('use client')
 
 /**
  * This Source Code is subject to the terms of the Mozilla Public
@@ -60,6 +63,7 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
     state?: 'armed' | 'needs_reconfirm'
     page?: number
   }
+  const mutation = useDocumentMutationState(undefined)
   const [cancelling, setCancelling] = useState<string | null>(null)
 
   const applySearch = (patch: Record<string, unknown>) => {
@@ -70,8 +74,10 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
   }
 
   const cancel = async (collection: string, documentId: string, expectedRevision: number) => {
+    if (mutation.blocked || cancelling) return
     setCancelling(documentId)
     try {
+      mutation.assertWritable()
       const result = await cancelCollectionDocumentScheduledPublish({
         data: { collection, id: documentId, expectedRevision },
       })
@@ -95,9 +101,10 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
         search: location.search as Record<string, unknown>,
       })
     } catch (error) {
+      if (mutation.report(error)) return
       toastManager.add({
         title: t('scheduledPublication.toast.failedTitle'),
-        description: (error as Error).message,
+        description: t('documentConcurrency.failed'),
         data: { intent: 'danger', iconType: 'danger', icon: true, close: true },
       })
     } finally {
@@ -110,6 +117,7 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
   return (
     <Section>
       <Container>
+        <DocumentMutationNotice issue={mutation.issue} />
         <div className={cx('byline-scheduled-list-head', styles.head)}>
           <h1 className={styles.title}>{t('scheduledPublication.list.title')}</h1>
           <p className={styles.intro}>{t('scheduledPublication.list.intro')}</p>
@@ -257,7 +265,7 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
                           size="xs"
                           type="button"
                           intent="danger"
-                          disabled={cancelling === schedule.documentId}
+                          disabled={mutation.blocked || cancelling !== null}
                           // The column header already says Actions and the row
                           // is a schedule, so the short label carries here —
                           // unlike the editor's menu, where "Cancel schedule"

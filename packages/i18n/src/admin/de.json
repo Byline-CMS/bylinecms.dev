@@ -633,5 +633,21 @@
   "scheduledPublication.list.columns.authorizer": "Zuletzt autorisiert von",
   "scheduledPublication.list.authorizerMissing": "Dieses Konto existiert nicht mehr; die ID wird angezeigt.",
   "scheduledPublication.list.columns.attempt": "Versuche / letzter Fehler",
-  "scheduledPublication.list.columns.actions": "Aktionen"
+  "scheduledPublication.list.columns.actions": "Aktionen",
+  "documentConcurrency.staleTitle": "Dokument geändert",
+  "documentConcurrency.stale": "Dieses Dokument wurde seit dem Öffnen geändert. Ihre Änderungen wurden nicht gespeichert. Laden Sie das Dokument neu, um fortzufahren. Dabei werden Ihre ungespeicherten Änderungen verworfen.",
+  "documentConcurrency.reloadTitle": "Neuladen erforderlich",
+  "documentConcurrency.reload": "Diesem Editor fehlt eine gültige Dokumentrevision. Ihre Änderungen wurden nicht gespeichert. Laden Sie das Dokument neu, um fortzufahren. Dabei werden Ihre ungespeicherten Änderungen verworfen.",
+  "documentConcurrency.lockTitle": "Dokument ist beschäftigt",
+  "documentConcurrency.lock": "Ein anderer Vorgang stand im Konflikt mit dieser Änderung. Ihre Änderungen wurden zurückgerollt. Laden Sie das Dokument vor einem erneuten Versuch neu. Dabei werden Ihre ungespeicherten Änderungen verworfen.",
+  "documentConcurrency.unavailableTitle": "Dokument nicht verfügbar",
+  "documentConcurrency.unavailable": "Dieses Dokument ist nicht mehr verfügbar. Ihre Änderungen wurden nicht gespeichert. Laden Sie neu, um die Verfügbarkeit zu prüfen. Dabei werden Ihre ungespeicherten Änderungen verworfen.",
+  "documentConcurrency.committedTitle": "Mit Warnung gespeichert",
+  "documentConcurrency.committed": "Ihre Änderungen wurden gespeichert, aber eine Folgeaktion ist fehlgeschlagen. Wiederholen Sie den Speichervorgang nicht.",
+  "documentConcurrency.reloadAction": "Neu laden und meine Änderungen verwerfen",
+  "documentConcurrency.reloadFailed": "Neuladen fehlgeschlagen. Ihre ungespeicherten Änderungen sind noch vorhanden. Versuchen Sie es erneut.",
+  "documentConcurrency.schedulesTitle": "Geplante Veröffentlichungen prüfen",
+  "documentConcurrency.schedules": "Die Struktur wurde gespeichert. Betroffene geplante Veröffentlichungen wurden ausgesetzt und müssen vor ihrer Ausführung geprüft werden.",
+  "documentConcurrency.reviewSchedules": "Geplante Veröffentlichungen prüfen",
+  "documentConcurrency.failed": "Der Vorgang konnte nicht abgeschlossen werden. Ihre ungespeicherten Änderungen sind weiterhin verfügbar."
 }

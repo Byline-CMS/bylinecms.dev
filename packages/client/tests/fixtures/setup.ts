@@ -10,13 +10,12 @@ import { createSuperAdminContext, type RequestContext } from '@byline/auth'
 import {
   type CollectionDefinition,
   defineServerConfig,
-  type IDbAdapter,
   type IStorageProvider,
   type RichTextPopulateFn,
   type SearchProvider,
   type ServerHooksConfig,
 } from '@byline/core'
-import { pgAdapter } from '@byline/db-postgres'
+import { type PgAdapter, pgAdapter } from '@byline/db-postgres'
 
 import { type BylineClient, createBylineClient } from '../../src/index.js'
 
@@ -32,7 +31,7 @@ import { type BylineClient, createBylineClient } from '../../src/index.js'
  */
 export interface MultiCollectionTestContext {
   client: BylineClient
-  db: IDbAdapter
+  db: PgAdapter
   collectionIds: Record<string, string>
 }
 
@@ -58,7 +57,7 @@ export async function setupMultiCollectionTestClient(
      * adapter's pg pool, which doesn't exist until `pgAdapter()` runs here.
      * Used by the search-auth integration test.
      */
-    search?: (db: IDbAdapter) => SearchProvider
+    search?: (db: PgAdapter) => SearchProvider
   } = {}
 ): Promise<MultiCollectionTestContext> {
   const connectionString = process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING
@@ -108,7 +107,7 @@ export async function setupMultiCollectionTestClient(
 
 export interface TestContext {
   client: BylineClient
-  db: IDbAdapter
+  db: PgAdapter
   collectionId: string
   definition: CollectionDefinition
 }

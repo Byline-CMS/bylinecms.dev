@@ -152,6 +152,7 @@ export function createCollectionEditRoute(path: string) {
             ]}
           />
           <EditView
+            key={`${collection}/${id}/${locale}`}
             collectionDefinition={collectionDef}
             adminConfig={adminConfig ?? undefined}
             initialData={data}

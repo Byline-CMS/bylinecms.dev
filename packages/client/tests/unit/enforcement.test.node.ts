@@ -28,6 +28,7 @@ import { createReadContext } from '@byline/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createBylineClient } from '../../src/index.js'
+import { testAdapter } from '../fixtures/test-adapter.js'
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -42,9 +43,11 @@ const postsCollection: CollectionDefinition = {
 }
 
 function mockDb(): IDbAdapter {
-  const findDocuments = vi.fn().mockResolvedValue({ documents: [], total: 0 })
+  const findDocuments = vi
+    .fn<IDbAdapter['queries']['documents']['findDocuments']>()
+    .mockResolvedValue({ documents: [], total: 0 })
   const getCollectionByPath = vi.fn().mockResolvedValue({ id: 'col-1', version: 1 })
-  return {
+  return testAdapter({
     commands: {
       collections: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
       documents: {
@@ -79,7 +82,7 @@ function mockDb(): IDbAdapter {
         getTreeParent: vi.fn().mockResolvedValue({ placed: false, parentDocumentId: null }),
       },
     },
-  } as unknown as IDbAdapter
+  })
 }
 
 // ---------------------------------------------------------------------------

@@ -25,8 +25,8 @@
 import { AdminAuth, createRequestContext, type RequestContext } from '@byline/auth'
 import type { BeforeReadHookFn, IDbAdapter, QueryPredicate } from '@byline/core'
 import { defineCollection, defineWorkflow } from '@byline/core'
+import type { PgAdapter } from '@byline/db-postgres'
 import { migrate, postgresSearch } from '@byline/search-postgres'
-import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { setupMultiCollectionTestClient } from '../fixtures/setup.js'
@@ -97,12 +97,12 @@ beforeAll(async () => {
   const { client, db, collectionIds } = await setupMultiCollectionTestClient([notesDefinition], {
     requestContext: () => currentRequestContext,
     search: (adapter) => {
-      const pool = (adapter as unknown as { pool: Pool }).pool
+      const pool = adapter.pool
       return postgresSearch({ pool, defaultLocale: 'en' })
     },
   })
   // Deterministic schema setup (autoMigrate is fire-and-forget by design).
-  await migrate((db as unknown as { pool: Pool }).pool)
+  await migrate(db.pool)
   ctx = { client, db, collectionId: collectionIds[notesDefinition.path] as string }
 
   const notes = ctx.client.collection(notesDefinition.path)

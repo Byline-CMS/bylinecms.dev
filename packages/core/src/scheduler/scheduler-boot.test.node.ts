@@ -1,3 +1,4 @@
+import { testAdapter } from '../storage/db-adapter.test-helper.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -42,31 +43,33 @@ const task = defineRecurringTask({
 
 describe('initBylineCore scheduler wiring', () => {
   it('rejects recurring tasks registered against an adapter without the scheduler capability', async () => {
-    const config = serverConfig({} as unknown as IDbAdapter)
+    const config = serverConfig(testAdapter({}))
     config.recurringTasks = [task]
 
     await expect(initBylineCore(config, {} as PinoLogger)).rejects.toThrow(/analytics\.rollup/)
   })
 
   it('gates scheduled publication on the scheduler capability and contributes its built-in task', async () => {
-    const unsupported = serverConfig({} as unknown as IDbAdapter)
+    const unsupported = serverConfig(testAdapter({}))
     unsupported.scheduledPublication = { enabled: true }
     await expect(initBylineCore(unsupported, {} as PinoLogger)).rejects.toThrow(
       /documents\.publish-scheduled/
     )
 
-    const capable = serverConfig({
-      scheduler: {} as ISchedulerStore,
-      withTransaction: async (fn: () => Promise<unknown>) => fn(),
-      withReadSnapshot: async () => {
-        throw new Error('Unexpected editable read')
-      },
-      commands: {
-        collections: { lockCollectionRegistration: async () => {} },
-        documents: { publishSchedules: { lockDocuments: async () => {} } },
-      },
-      revisions: { ...unusedRevisionStore, assertCompatibleSchema: async () => {} },
-    } as unknown as IDbAdapter)
+    const capable = serverConfig(
+      testAdapter({
+        scheduler: {} as ISchedulerStore,
+        withTransaction: async (fn) => fn(),
+        withReadSnapshot: async () => {
+          throw new Error('Unexpected editable read')
+        },
+        commands: {
+          collections: { lockCollectionRegistration: async () => {} },
+          documents: { publishSchedules: { lockDocuments: async () => {} } },
+        },
+        revisions: { ...unusedRevisionStore, assertCompatibleSchema: async () => {} },
+      })
+    )
     capable.scheduledPublication = { enabled: true }
     capable.recurringTasks = [task]
     const core = await initBylineCore(capable, {} as PinoLogger)
@@ -82,9 +85,9 @@ describe('initBylineCore scheduler wiring', () => {
   })
 
   it('populates core.recurringTasks with the registered set when the adapter is capable', async () => {
-    const db = {
+    const db = testAdapter({
       scheduler: {} as ISchedulerStore,
-      withTransaction: async (fn: () => Promise<unknown>) => fn(),
+      withTransaction: async (fn) => fn(),
       withReadSnapshot: async () => {
         throw new Error('Unexpected editable read')
       },
@@ -93,7 +96,7 @@ describe('initBylineCore scheduler wiring', () => {
         documents: { publishSchedules: { lockDocuments: async () => {} } },
       },
       revisions: { ...unusedRevisionStore, assertCompatibleSchema: async () => {} },
-    } as unknown as IDbAdapter
+    })
     const config = serverConfig(db)
     config.recurringTasks = [task]
 
@@ -105,9 +108,9 @@ describe('initBylineCore scheduler wiring', () => {
   })
 
   it('freezes the validated snapshot so post-init mutation of the caller input cannot alter it', async () => {
-    const db = {
+    const db = testAdapter({
       scheduler: {} as ISchedulerStore,
-      withTransaction: async (fn: () => Promise<unknown>) => fn(),
+      withTransaction: async (fn) => fn(),
       withReadSnapshot: async () => {
         throw new Error('Unexpected editable read')
       },
@@ -116,7 +119,7 @@ describe('initBylineCore scheduler wiring', () => {
         documents: { publishSchedules: { lockDocuments: async () => {} } },
       },
       revisions: { ...unusedRevisionStore, assertCompatibleSchema: async () => {} },
-    } as unknown as IDbAdapter
+    })
     const localTask = defineRecurringTask({
       name: 'analytics.local',
       intervalMs: 3_600_000,

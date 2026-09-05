@@ -33,7 +33,7 @@
     "test": "vitest run --mode=node",
     "test:watch": "vitest --mode=node",
     "test:integration": "vitest run --mode=integration",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
   },
   "exports": {
     ".": {

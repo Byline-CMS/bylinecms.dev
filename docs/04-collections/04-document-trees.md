@@ -168,8 +168,8 @@ These locked snapshots drive audit rows and post-commit invalidation fan-out.
 
 The lifecycle and collection handle deliberately narrow those internals:
 `CollectionHandle.placeTreeNode(documentId, options)` resolves to
-`{ orderKey: string }`, while `CollectionHandle.removeFromTree(documentId,
-options)` resolves to `void`. `ifUnplaced` and `includeSubtree` are internal
+`{ orderKey, documentId, revision, affectedDocuments, scheduledPublicationsNeedReconfirmation }`, while `CollectionHandle.removeFromTree(documentId,
+options)` returns the same structural receipt without `orderKey`. Both require `options.expectedRevision` from an editable observation. `ifUnplaced` and `includeSubtree` are internal
 adapter controls, not SDK options.
 
 Neighbour ids are assertions about one exact target gap, not loose ordering

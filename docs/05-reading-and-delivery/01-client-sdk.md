@@ -298,7 +298,7 @@ The mode threads through populate, so a published-mode read of `news` populating
 
 ### 9. Create / update / delete
 
-Writes delegate to the corresponding `document-lifecycle` service. Collection hooks (`beforeCreate`, `afterUpdate`, etc.) fire the same way they do when the admin UI writes. `update` accepts whole-document `data`: patches are admin-UI internal.
+Read an existing document with `findByIdForEdit()` before editing and pass its `revision` as `expectedRevision`. For deliberate sequential writes, carry forward each successful receipt. A rejected write requires a fresh editorial decision after reload; never fetch a newer revision and retry automatically. Writes delegate to the corresponding `document-lifecycle` service. Collection hooks (`beforeCreate`, `afterUpdate`, etc.) fire the same way they do when the admin UI writes. `update` accepts whole-document `data`: patches are admin-UI internal.
 
 ```ts
 const created = await client.collection('news').create(
@@ -306,15 +306,19 @@ const created = await client.collection('news').create(
   { locale: 'en' /* status?: optional; defaults to the workflow's first status */ }
 )
 
-await client.collection('news').update(
+const updated = await client.collection('news').update(
   created.documentId,
   { title: 'Revised title' },
-  { locale: 'en' }
+  { locale: 'en', expectedRevision: created.revision }
 )
 
-await client.collection('news').changeStatus(created.documentId, 'published')
+const published = await client.collection('news').changeStatus(created.documentId, 'published', {
+  expectedRevision: updated.revision,
+})
 
-const deleted = await client.collection('news').delete(created.documentId)
+const deleted = await client.collection('news').delete(created.documentId, {
+  expectedRevision: published.revision,
+})
 if (deleted.outcome === 'committed-with-side-effect-failures') {
   console.warn('Delete committed, but follow-up work needs reconciliation', deleted.sideEffectFailures)
 }
@@ -390,10 +394,12 @@ const draft = await news.create(
 )
 
 // UPDATE — whole-document write (patches are admin-UI internal)
-await news.update(draft.documentId, { title: 'Hello, world' }, { locale: 'en' })
+const updated = await news.update(draft.documentId, { title: 'Hello, world' }, {
+  locale: 'en', expectedRevision: draft.revision,
+})
 
 // PUBLISH — walk the workflow forward
-await news.changeStatus(draft.documentId, 'published')
+await news.changeStatus(draft.documentId, 'published', { expectedRevision: updated.revision })
 
 // READ BACK — a published read now resolves the freshly published version
 const fresh = await news.findById(draft.documentId, { status: 'published' })
@@ -404,53 +410,9 @@ process.exit(0) // pgAdapter holds a connection pool; end the process when done
 
 Every write resolves the configured `requestContext` and runs `assertActorCanPerform`; the super-admin context here passes every check (use a real scoped context to exercise authorization). The same shape fits seeds, content imports, and one-shot maintenance jobs.
 
-The advanced example below is a real maintenance job that iterates a collection, regenerates the bytes behind every `media` document, and writes the new value back. The script:
+The media-regeneration maintenance job reads editable observations, prepares replacement files, and calls `replaceDocumentFieldsPreservingStatus` from `@byline/core/services` with each document's observed revision and status. The operation preserves that status by construction and archives a superseded published version. It does not emit a status-change audit entry because no status change occurred. A stale write rejects; it never fetches a newer revision and retries.
 
-- side-effect imports `server.config.ts` so `initBylineCore()` registers config + collections;
-- builds a client from `getServerConfig()` and a super-admin context;
-- pages through `media` with `status: 'any'` + `_bypassBeforeRead: true` (admin-only escape hatches);
-- runs the core upload service to re-derive variants, then `handle.update(...)` to point the document at the new `storedFile`;
-- walks the workflow ladder forward via `changeStatus` to restore each doc's original status (since `update` always stamps a new version with the workflow's default status).
-
-The full source (including orphan-file cleanup and the workflow-restore helper) lives at [`apps/webapp/byline/scripts/regenerate-media.ts`](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/apps/webapp/byline/scripts/regenerate-media.ts). The shape, condensed:
-
-```ts
-import 'dotenv/config'
-import '../server.config.js'
-
-import { createSuperAdminContext } from '@byline/auth'
-import { createBylineClient } from '@byline/client'
-import { getServerConfig } from '@byline/core'
-
-const client = createBylineClient({
-  config: getServerConfig(),
-  requestContext: createSuperAdminContext({ id: 'regenerate-media-script' }),
-})
-
-const handle = client.collection('media')
-
-// Snapshot the full set up-front — every update bumps `updated_at` and
-// would reorder a moving paged window.
-const allDocs: { id: string; status: string; fields: Record<string, any> }[] = []
-for (let page = 1; ; page++) {
-  const result = await handle.find({
-    page,
-    pageSize: 100,
-    status: 'any',
-    _bypassBeforeRead: true,
-  })
-  for (const d of result.docs) {
-    allDocs.push({ id: d.id, status: d.status, fields: d.fields as Record<string, any> })
-  }
-  if (result.docs.length < 100) break
-}
-
-for (const doc of allDocs) {
-  // ...regenerate variants via the core upload service, then:
-  await handle.update(doc.id, { ...doc.fields, image: newStoredFile })
-  // ...walk the workflow forward to restore doc.status (see the full source).
-}
-```
+The script distinguishes rejected writes from committed after-hook failures before cleaning up prepared files. See the [regeneration script](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/apps/webapp/byline/scripts/regenerate-media.ts) and its [operation helper](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/apps/webapp/byline/scripts/regenerate-media-operation.ts) for the complete storage cleanup and authorization flow.
 
 Run it with `pnpm tsx byline/scripts/regenerate-media.ts` (the script imports `byline/load-env.ts`, which loads `.env.local` + `.env`; no `--env-file` flag needed). The same pattern fits seeds, migrations, content imports, and one-shot maintenance jobs.
 
@@ -682,10 +644,10 @@ there.
 
 ```ts
 client.collection('news').create(data, { locale?, path?, status? })
-client.collection('news').update(id, data, { locale?, path? })
-client.collection('news').delete(id)
-client.collection('news').changeStatus(id, nextStatus)
-client.collection('news').unpublish(id)
+client.collection('news').update(id, data, { expectedRevision, locale?, path? })
+client.collection('news').delete(id, { expectedRevision })
+client.collection('news').changeStatus(id, nextStatus, { expectedRevision })
+client.collection('news').unpublish(id, { expectedRevision })
 ```
 
 Each method delegates to the corresponding `document-lifecycle` service. The handle resolves the collection id once, builds a `DocumentLifecycleContext`, and invokes the service: collection hooks (`beforeCreate`, `afterUpdate`, etc.) fire the same way they do when the admin UI writes.

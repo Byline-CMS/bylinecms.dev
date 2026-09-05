@@ -1,3 +1,4 @@
+import { testAdapter } from '../storage/db-adapter.test-helper.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -156,12 +157,12 @@ describe('createRichTextDocumentReader', () => {
     const getCollectionByPath = vi.fn().mockResolvedValue({ id: 'media-id', path: 'media' })
     const getDocumentsByDocumentIds = vi.fn().mockResolvedValue([])
     return {
-      db: {
+      db: testAdapter({
         queries: {
           collections: { getCollectionByPath },
           documents: { getDocumentsByDocumentIds },
         },
-      } as unknown as IDbAdapter,
+      }),
       getCollectionByPath,
       getDocumentsByDocumentIds,
     }

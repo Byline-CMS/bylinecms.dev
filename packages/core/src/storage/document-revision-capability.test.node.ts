@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { testAdapter } from './db-adapter.test-helper.js'
 import { assertDocumentRevisionCapability } from './document-revision-capability.js'
-import type { IDbAdapter } from '../@types/db-types.js'
 
 describe('document revision adapter capability', () => {
   const adapter = () =>
-    ({
+    testAdapter({
       commands: {
         collections: { lockCollectionRegistration: vi.fn() },
         documents: { publishSchedules: { lockDocuments: vi.fn() } },
@@ -19,7 +19,7 @@ describe('document revision adapter capability', () => {
         readStructure: vi.fn(),
         advance: vi.fn(),
       },
-    }) as unknown as IDbAdapter
+    })
   for (const missing of [
     'assertCompatibleSchema',
     'isInTransaction',
@@ -29,7 +29,7 @@ describe('document revision adapter capability', () => {
   ]) {
     it(`rejects JavaScript adapters missing ${missing}`, async () => {
       const db = adapter()
-      delete (db.revisions as unknown as Record<string, unknown>)[missing]
+      Reflect.deleteProperty(db.revisions, missing)
       await expect(assertDocumentRevisionCapability(db)).rejects.toMatchObject({
         code: 'ERR_DATABASE',
         message: expect.stringContaining('Upgrade the adapter'),
@@ -38,7 +38,7 @@ describe('document revision adapter capability', () => {
   }
   it('rejects JavaScript adapters without coherent read snapshots before schema work', async () => {
     const db = adapter()
-    delete (db as unknown as Record<string, unknown>).withReadSnapshot
+    Reflect.deleteProperty(db, 'withReadSnapshot')
     await expect(assertDocumentRevisionCapability(db)).rejects.toMatchObject({
       code: 'ERR_DATABASE',
     })
@@ -46,7 +46,7 @@ describe('document revision adapter capability', () => {
   })
   it('rejects old adapters with no revision surface', async () => {
     await expect(
-      assertDocumentRevisionCapability({ withTransaction: vi.fn() } as unknown as IDbAdapter)
+      Reflect.apply(assertDocumentRevisionCapability, undefined, [{ withTransaction: vi.fn() }])
     ).rejects.toMatchObject({ code: 'ERR_DATABASE' })
   })
   it('awaits schema validation and preserves the actionable upgrade error', async () => {

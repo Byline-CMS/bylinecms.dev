@@ -1,3 +1,4 @@
+import { testAdapter } from '../storage/db-adapter.test-helper.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -77,7 +78,9 @@ function createHarness(options: HarnessOptions = {}) {
   let transactionDepth = 0
   let committedTransactions = 0
   let versionCounter = 0
-  const withTransaction = vi.fn(async <T>(operation: () => Promise<T>): Promise<T> => {
+  const withTransaction = vi.fn()
+  const transact = async <T>(operation: () => Promise<T>): Promise<T> => {
+    withTransaction()
     const isOuter = transactionDepth === 0
     const snapshot = isOuter
       ? {
@@ -106,7 +109,7 @@ function createHarness(options: HarnessOptions = {}) {
       }
       throw error
     }
-  })
+  }
   const lockSlot = vi.fn(async () => {
     expect(transactionDepth).toBeGreaterThan(0)
   })
@@ -151,7 +154,7 @@ function createHarness(options: HarnessOptions = {}) {
     (_error: unknown): DbErrorClassification => ({ code: DbErrorCodes.UNKNOWN })
   )
 
-  const db = {
+  const db = testAdapter({
     classifyError,
     revisions: {
       isInTransaction: () => transactionDepth > 0,
@@ -189,7 +192,7 @@ function createHarness(options: HarnessOptions = {}) {
       documents: {
         createDocumentVersion,
         publishSchedules: {
-          suspendForContentEdit: vi.fn(async () => ({ status: 'schedule_not_found' })),
+          suspendForContentEdit: vi.fn(async () => ({ status: 'schedule_not_found' as const })),
         },
       },
       counters: {
@@ -213,8 +216,8 @@ function createHarness(options: HarnessOptions = {}) {
       },
       singletons: { getMappedDocumentId },
     },
-    withTransaction,
-  } as unknown as IDbAdapter
+    withTransaction: transact,
+  })
   const actor = new AdminAuth({
     id: 'editor',
     abilities: ['singletons.site-settings.update'],

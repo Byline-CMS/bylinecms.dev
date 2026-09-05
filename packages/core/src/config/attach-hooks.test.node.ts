@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { resolveHooks, resolveUploadHooks } from '../@types/collection-types.js'
 import { initBylineCore } from '../core.js'
+import { testAdapter } from '../storage/db-adapter.test-helper.js'
 import { commitHookAttachment, prepareHookAttachment } from './attach-hooks.js'
 import type {
   BeforeSingletonSaveContext,
@@ -267,7 +268,7 @@ describe('server hook attachment', () => {
 
     const invalid: ServerConfig = {
       collections: [definition],
-      db: {} as IDbAdapter,
+      db: testAdapter({}),
       hooks: { collections: { documents: replacement } },
       i18n: {
         admin: { defaultLocale: 'en', locales: ['en'] },

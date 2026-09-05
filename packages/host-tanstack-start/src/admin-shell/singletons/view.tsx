@@ -13,7 +13,6 @@ import { useRouter } from '@tanstack/react-router'
 import { FormRenderer } from '@byline/admin/react'
 import type { SingletonAdminConfig, SingletonDefinition } from '@byline/core'
 import {
-  ErrorCodes,
   getDefaultStatus,
   getWorkflow,
   getWorkflowStatuses,
@@ -38,6 +37,7 @@ import {
 } from '../../server-fns/singletons/index.js'
 import { useNavigate } from '../chrome/loose-router.js'
 import { useTanStackNavigationGuard } from '../collections/tanstack-navigation-guard.js'
+import { useDocumentMutationState } from '../document-mutation-state.js'
 import { SingletonViewMenu } from './view-menu.js'
 import type { ContentLocaleOption } from '../collections/view-menu.js'
 
@@ -47,16 +47,10 @@ type SingletonDocument = Record<string, any> & {
   fields: Record<string, any>
 }
 
-function errorCode(error: unknown): string | null {
-  return typeof (error as { code?: unknown })?.code === 'string'
-    ? (error as { code: string }).code
-    : null
-}
-
 export function SingletonView({
   singletonDefinition,
   adminConfig,
-  document,
+  document: loadedDocument,
   initialData,
   locale,
   contentLocales,
@@ -71,6 +65,8 @@ export function SingletonView({
   contentLocales: ReadonlyArray<ContentLocaleOption>
   defaultContentLocale: string
 }) {
+  const mutation = useDocumentMutationState(loadedDocument)
+  const document = mutation.document ?? null
   const router = useRouter()
   const navigate = useNavigate()
   const toastManager = useToastManager()
@@ -132,6 +128,7 @@ export function SingletonView({
 
   const handleSubmit = async ({ data }: { data: Record<string, any> }) => {
     try {
+      mutation.assertWritable()
       const result = await updateSingleton({
         data: {
           singleton: path,
@@ -139,9 +136,10 @@ export function SingletonView({
           locale: locale ?? defaultContentLocale,
           ...(document == null
             ? { expectedState: 'empty' as const }
-            : { expectedRevision: document.revision }),
+            : { expectedRevision: mutation.expectedRevision() }),
         },
       })
+      mutation.adopt(result)
       if (document != null) notifyScheduleSuspended()
       if (hasCommittedDocumentHookFailure(result)) {
         notifyCommittedHookFailure()
@@ -154,13 +152,16 @@ export function SingletonView({
       }
       await reload()
     } catch (err) {
-      const code = errorCode(err)
-      const description =
-        code === ErrorCodes.CONFLICT
-          ? t('singletons.edit.conflictDescription')
-          : code === ErrorCodes.NOT_FOUND
-            ? t('singletons.edit.notConfiguredDescription')
-            : t('singletons.edit.updateFailedDescription', { label: label.toLowerCase() })
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        await reload()
+        return
+      }
+      const description = t('singletons.edit.updateFailedDescription', {
+        label: label.toLowerCase(),
+      })
       toast(t('singletons.edit.updateTitle', { label }), description, 'danger')
 
       // FormRenderer commits its clean baseline only when this promise
@@ -172,9 +173,11 @@ export function SingletonView({
 
   const handleStatusChange = async (status: string) => {
     try {
-      await changeSingletonStatus({
-        data: { expectedRevision: document?.revision, singleton: path, status },
+      mutation.assertWritable()
+      const result = await changeSingletonStatus({
+        data: { expectedRevision: mutation.expectedRevision(), singleton: path, status },
       })
+      mutation.adopt(result)
       toast(
         t('collections.edit.statusUpdateTitle', { label }),
         t('collections.edit.statusChangedDescription', { status }),
@@ -182,9 +185,18 @@ export function SingletonView({
       )
       await reload()
     } catch (err) {
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        await reload()
+        return
+      }
       toast(
         t('collections.edit.statusUpdateTitle', { label }),
-        t('collections.edit.statusChangeFailedDescription', { message: (err as Error).message }),
+        t('collections.edit.statusChangeFailedDescription', {
+          message: t('documentConcurrency.failed'),
+        }),
         'danger'
       )
       throw err
@@ -193,7 +205,11 @@ export function SingletonView({
 
   const handleUnpublish = async () => {
     try {
-      await unpublishSingleton({ data: { expectedRevision: document?.revision, singleton: path } })
+      mutation.assertWritable()
+      const result = await unpublishSingleton({
+        data: { expectedRevision: mutation.expectedRevision(), singleton: path },
+      })
+      mutation.adopt(result)
       toast(
         t('collections.edit.unpublishTitle', { label }),
         t('collections.edit.unpublishedDescription'),
@@ -201,9 +217,18 @@ export function SingletonView({
       )
       await reload()
     } catch (err) {
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        await reload()
+        return
+      }
       toast(
         t('collections.edit.unpublishTitle', { label }),
-        t('collections.edit.unpublishFailedDescription', { message: (err as Error).message }),
+        t('collections.edit.unpublishFailedDescription', {
+          message: t('documentConcurrency.failed'),
+        }),
         'danger'
       )
       throw err
@@ -218,15 +243,17 @@ export function SingletonView({
     overwrite: boolean
   }) => {
     try {
+      mutation.assertWritable()
       const result = await copySingletonToLocale({
         data: {
-          expectedRevision: document?.revision,
+          expectedRevision: mutation.expectedRevision(),
           singleton: path,
           sourceLocale: locale ?? defaultContentLocale,
           targetLocale,
           overwrite,
         },
       })
+      mutation.adopt(result)
       const sourceLocale = locale ?? defaultContentLocale
       const sourceLabel =
         contentLocales.find((entry) => entry.code === sourceLocale)?.label ?? sourceLocale
@@ -251,9 +278,16 @@ export function SingletonView({
         search: { locale: targetLocale },
       })
     } catch (err) {
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        await reload()
+        return
+      }
       toast(
         t('collections.edit.copyToLocaleTitle', { label }),
-        t('collections.edit.copyFailedDescription', { message: (err as Error).message }),
+        t('collections.edit.copyFailedDescription', { message: t('documentConcurrency.failed') }),
         'danger'
       )
       throw err
@@ -262,14 +296,16 @@ export function SingletonView({
 
   const handleSchedulePublication = async ({ publishAt }: { publishAt: string }) => {
     try {
-      await scheduleSingletonPublish({
+      mutation.assertWritable()
+      const result = await scheduleSingletonPublish({
         data: {
-          expectedRevision: document?.revision,
+          expectedRevision: mutation.expectedRevision(),
           singleton: path,
           publishAt,
           expectedVersionId: String(document?.versionId),
         },
       })
+      mutation.adopt(result)
       toast(
         t('scheduledPublication.toast.scheduledTitle'),
         t('scheduledPublication.toast.scheduledDescription'),
@@ -277,20 +313,29 @@ export function SingletonView({
       )
       await reload()
     } catch (err) {
-      toast(t('scheduledPublication.toast.failedTitle'), (err as Error).message, 'danger')
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        await reload()
+        return
+      }
+      toast(t('scheduledPublication.toast.failedTitle'), t('documentConcurrency.failed'), 'danger')
       throw err
     }
   }
 
   const handleConfirmScheduledPublication = async () => {
     try {
-      await confirmSingletonScheduledPublish({
+      mutation.assertWritable()
+      const result = await confirmSingletonScheduledPublish({
         data: {
-          expectedRevision: document?.revision,
+          expectedRevision: mutation.expectedRevision(),
           singleton: path,
           expectedVersionId: String(document?.versionId),
         },
       })
+      mutation.adopt(result)
       toast(
         t('scheduledPublication.toast.confirmedTitle'),
         t('scheduledPublication.toast.confirmedDescription'),
@@ -298,16 +343,25 @@ export function SingletonView({
       )
       await reload()
     } catch (err) {
-      toast(t('scheduledPublication.toast.failedTitle'), (err as Error).message, 'danger')
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        await reload()
+        return
+      }
+      toast(t('scheduledPublication.toast.failedTitle'), t('documentConcurrency.failed'), 'danger')
       throw err
     }
   }
 
   const handleCancelScheduledPublication = async () => {
     try {
-      await cancelSingletonScheduledPublish({
-        data: { expectedRevision: document?.revision, singleton: path },
+      mutation.assertWritable()
+      const result = await cancelSingletonScheduledPublish({
+        data: { expectedRevision: mutation.expectedRevision(), singleton: path },
       })
+      mutation.adopt({ ...result, documentId: String(document?.id) })
       toast(
         t('scheduledPublication.toast.cancelledTitle'),
         t('scheduledPublication.toast.cancelledDescription'),
@@ -315,7 +369,14 @@ export function SingletonView({
       )
       await reload()
     } catch (err) {
-      toast(t('scheduledPublication.toast.failedTitle'), (err as Error).message, 'danger')
+      const handled = mutation.report(err)
+      if (handled === 'blocked') throw err
+      if (handled === 'committed') {
+        notifyCommittedHookFailure()
+        await reload()
+        return
+      }
+      toast(t('scheduledPublication.toast.failedTitle'), t('documentConcurrency.failed'), 'danger')
       throw err
     }
   }
@@ -324,6 +385,10 @@ export function SingletonView({
     <Section>
       <Container>
         <FormRenderer
+          mutationIssue={mutation.issue}
+          mutationsBlocked={mutation.blocked}
+          observedRevision={mutation.revision}
+          onMutationError={mutation.report}
           mode={document == null ? 'create' : 'edit'}
           fields={fields}
           onSubmit={handleSubmit}

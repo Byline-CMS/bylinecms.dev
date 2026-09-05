@@ -93,18 +93,27 @@ export async function updateDocumentSystemFields(
 ): Promise<UpdateDocumentSystemFieldsResult> {
   params = { ...params, availableLocales: params.availableLocales?.slice() }
   assertActorCanPerform(ctx.requestContext, ctx.definition, 'update')
-  const committed = await commitGuardedDocumentMutation(ctx, params, async (locked) => {
-    const value = await writeSystemFieldsInTransaction(ctx, params, locked)
-    const changed = value.pathChanged || value.availableLocalesChanged
-    if (changed)
-      await suspendPublishScheduleForEdit(
-        ctx,
-        requireAuditCapability(ctx.db),
-        params.documentId,
-        'document_metadata_changed'
-      )
-    return { value: { ...value, documentVersionId: locked.currentVersionId ?? '' }, changed }
-  })
+  // Locale controls path semantics, not version ancestry: metadata-only writes
+  // do not create a version and carry only a document revision precondition.
+  const committed = await commitGuardedDocumentMutation(
+    ctx,
+    {
+      documentId: params.documentId,
+      expectedRevision: params.expectedRevision,
+    },
+    async (locked) => {
+      const value = await writeSystemFieldsInTransaction(ctx, params, locked)
+      const changed = value.pathChanged || value.availableLocalesChanged
+      if (changed)
+        await suspendPublishScheduleForEdit(
+          ctx,
+          requireAuditCapability(ctx.db),
+          params.documentId,
+          'document_metadata_changed'
+        )
+      return { value: { ...value, documentVersionId: locked.currentVersionId ?? '' }, changed }
+    }
+  )
   return finishSystemFieldMutation(ctx, params, committed.value, committed.revision)
 }
 

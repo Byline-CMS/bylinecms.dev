@@ -99,14 +99,19 @@ Every one of these happens inside the same transaction as the operation that tri
 
 ```ts
 const news = client.collection('news')
+const observed = await news.findByIdForEdit(documentId)
+if (!observed) throw new Error('Document is unavailable')
 
-await news.schedulePublish(documentId, {
+const armed = await news.schedulePublish(documentId, {
+  expectedRevision: observed.revision,
   publishAt: '2026-09-01T09:00:00.000Z', // absolute instant, ISO only
-  expectedVersionId: currentVersionId, // optimistic guard
+  expectedVersionId: observed.versionId, // version reviewed by the editor
 })
 
-await news.confirmScheduledPublish(documentId, { expectedVersionId })
-await news.cancelScheduledPublish(documentId)
+const reconfirmed = await news.confirmScheduledPublish(documentId, {
+  expectedRevision: armed.revision, expectedVersionId: observed.versionId,
+})
+await news.cancelScheduledPublish(documentId, { expectedRevision: reconfirmed.revision })
 const schedule = await news.getScheduledPublish(documentId)
 ```
 

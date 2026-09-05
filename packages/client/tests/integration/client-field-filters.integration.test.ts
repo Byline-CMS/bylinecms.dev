@@ -163,7 +163,7 @@ describe('field-level filters via find()', () => {
 
     expect(result.docs.length).toBe(1)
     expect(result.docs[0]?.fields.title).toBeDefined()
-    expect(result.docs[0]?.fields.views).toBeUndefined()
+    expect(result.docs[0]?.fields).not.toHaveProperty('views')
   })
 
   it('should support pagination with field filters', async () => {

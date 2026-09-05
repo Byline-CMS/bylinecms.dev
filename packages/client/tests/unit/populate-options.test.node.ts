@@ -11,6 +11,7 @@ import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createBylineClient } from '../../src/index.js'
+import { testAdapter } from '../fixtures/test-adapter.js'
 
 const superAdmin = createSuperAdminContext({ id: 'test-super-admin' })
 
@@ -77,22 +78,26 @@ function rawDoc(collectionId: string, documentId: string, fields: Record<string,
 
 function makeAdapter(fetchMap: Record<string, Record<string, any>> = {}) {
   const getCollectionByPath = vi.fn(async (path: string) => ({ id: path, path }))
-  const findDocuments = vi.fn(
+  const findDocuments = vi.fn<IDbAdapter['queries']['documents']['findDocuments']>(
     async (_params: any): Promise<{ documents: any[]; total: number }> => ({
       documents: [],
       total: 0,
     })
   )
-  const getDocumentById = vi.fn(async (_params: any) => null)
-  const getDocumentByPath = vi.fn(async (_params: any) => null)
-  const getDocumentsByDocumentIds = vi.fn(
-    async (params: { collection_id: string; document_ids: string[] }) => {
-      const bucket = fetchMap[params.collection_id] ?? {}
-      return params.document_ids.map((id) => bucket[id]).filter(Boolean)
-    }
+  const getDocumentById = vi.fn<IDbAdapter['queries']['documents']['getDocumentById']>(
+    async (_params: any) => null
   )
+  const getDocumentByPath = vi.fn<IDbAdapter['queries']['documents']['getDocumentByPath']>(
+    async (_params: any) => null
+  )
+  const getDocumentsByDocumentIds = vi.fn<
+    IDbAdapter['queries']['documents']['getDocumentsByDocumentIds']
+  >(async (params: { collection_id: string; document_ids: string[] }) => {
+    const bucket = fetchMap[params.collection_id] ?? {}
+    return params.document_ids.map((id) => bucket[id]).filter(Boolean)
+  })
 
-  const db = {
+  const db = testAdapter({
     commands: {
       collections: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
       documents: {
@@ -128,7 +133,7 @@ function makeAdapter(fetchMap: Record<string, Record<string, any>> = {}) {
         findDocuments,
       },
     },
-  } satisfies IDbAdapter
+  })
 
   return { db, findDocuments, getDocumentById, getDocumentByPath, getDocumentsByDocumentIds }
 }

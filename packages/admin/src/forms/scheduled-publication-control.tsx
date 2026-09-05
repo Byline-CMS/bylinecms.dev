@@ -110,6 +110,7 @@ function seedScheduleInstant(schedule: ScheduledPublicationInfo | null): Date {
 }
 
 export interface UseScheduledPublicationArgs {
+  disabled?: boolean
   schedule: ScheduledPublicationInfo | null
   onSchedule?: (input: SchedulePublicationInput) => Promise<void>
   onConfirm?: () => Promise<void>
@@ -132,6 +133,7 @@ export interface UseScheduledPublicationReturn {
 }
 
 export function useScheduledPublication({
+  disabled = false,
   schedule,
   onSchedule,
   onConfirm,
@@ -171,15 +173,16 @@ export function useScheduledPublication({
   // to be resolved before any of these operations can name a version. Cancel
   // is exempt: withdrawing a schedule says nothing about content.
   const openSchedule = useCallback(() => {
+    if (disabled) return
     if (hasUnsavedChanges) {
       onUnsavedChanges()
       return
     }
     setShowSchedule(true)
-  }, [hasUnsavedChanges, onUnsavedChanges])
+  }, [disabled, hasUnsavedChanges, onUnsavedChanges])
 
   const confirm = useCallback(async () => {
-    if (onConfirm == null) return
+    if (disabled || onConfirm == null) return
     if (hasUnsavedChanges) {
       onUnsavedChanges()
       return
@@ -187,37 +190,43 @@ export function useScheduledPublication({
     setBusy(true)
     try {
       await onConfirm()
+    } catch {
+      // The host reports the failure; keep this view open.
     } finally {
       setBusy(false)
     }
-  }, [onConfirm, hasUnsavedChanges, onUnsavedChanges])
+  }, [disabled, onConfirm, hasUnsavedChanges, onUnsavedChanges])
 
   const cancel = useCallback(async () => {
-    if (onCancel == null) return
+    if (disabled || onCancel == null) return
     setBusy(true)
     try {
       await onCancel()
+    } catch {
+      // The host reports the failure; keep this view open.
     } finally {
       setBusy(false)
     }
-  }, [onCancel])
+  }, [disabled, onCancel])
 
   const modal = showSchedule ? (
     <ScheduleModal
       schedule={schedule}
       timeZone={timeZone}
       onSubmit={async (input) => {
-        if (onSchedule == null) return
+        if (disabled || onSchedule == null) return
         setBusy(true)
         try {
           await onSchedule(input)
           setShowSchedule(false)
+        } catch {
+          // The host reports the failure; keep this view open.
         } finally {
           setBusy(false)
         }
       }}
       onDismiss={() => setShowSchedule(false)}
-      busy={busy}
+      busy={disabled || busy}
     />
   ) : null
 

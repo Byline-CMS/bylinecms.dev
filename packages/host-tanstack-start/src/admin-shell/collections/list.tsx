@@ -1,3 +1,5 @@
+import { DocumentMutationNotice } from '../document-mutation-notice.js'
+import { useDocumentMutationState } from '../document-mutation-state.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -178,6 +180,7 @@ export const ListView = ({
   const navigate = useNavigate()
   const router = useRouter()
   const toastManager = useToastManager()
+  const mutation = useDocumentMutationState(undefined)
   const { t } = useTranslation('byline-admin')
   const location = useRouterState({ select: (s) => s.location })
 
@@ -191,10 +194,10 @@ export const ListView = ({
   const [localDocs, setLocalDocs] = useState(data.docs)
   const [isReordering, setIsReordering] = useState(false)
   useEffect(() => {
-    if (!isReordering) {
+    if (!isReordering && !mutation.blocked) {
       setLocalDocs(data.docs)
     }
-  }, [data.docs, isReordering])
+  }, [data.docs, isReordering, mutation.blocked])
 
   // Drag is only meaningful in the canonical view: the default order_key
   // sort, no search, no status filter. Otherwise the visible order isn't
@@ -209,7 +212,7 @@ export const ListView = ({
   }
   const isCanonicalView =
     !searchParams.order && !searchParams.desc && !searchParams.query && !searchParams.status
-  const dragEnabled = orderable && isCanonicalView && !!onReorder
+  const dragEnabled = orderable && isCanonicalView && !!onReorder && !mutation.blocked
 
   // The *effective* sort for the header indicators: explicit URL params win;
   // otherwise the server echoes a configured `defaultSort` (admin config)
@@ -226,7 +229,7 @@ export const ListView = ({
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
-    if (!over || active.id === over.id || !onReorder) return
+    if (mutation.blocked || isReordering || !over || active.id === over.id || !onReorder) return
     const oldIndex = localDocs.findIndex((d) => d.id === active.id)
     const newIndex = localDocs.findIndex((d) => d.id === over.id)
     if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return
@@ -242,14 +245,26 @@ export const ListView = ({
     const before = next[newIndex - 1]?.id ?? null
     const after = next[newIndex + 1]?.id ?? null
     try {
-      await onReorder({
+      mutation.assertWritable()
+      const receipt = await onReorder({
         documentId: String(active.id),
         beforeDocumentId: before,
         afterDocumentId: after,
       })
-      await router.invalidate()
+      mutation.reportStructure(receipt)
+      try {
+        await router.invalidate()
+      } catch {
+        // The mutation committed; a failed refresh must not undo its UI receipt.
+        toastManager.add({
+          title: t('collections.list.treeRefreshFailedToast'),
+          description: t('collections.list.treeRefreshFailedDescription'),
+          data: { intent: 'warning', iconType: 'warning', icon: true, close: true },
+        })
+      }
     } catch (_err) {
       setLocalDocs(previousDocs)
+      if (mutation.report(_err)) return
       toastManager.add({
         title: t('collections.list.reorderFailedToast'),
         description: t('collections.list.reorderFailedDescription'),
@@ -359,6 +374,7 @@ export const ListView = ({
   return (
     <Section>
       <Container>
+        <DocumentMutationNotice issue={mutation.issue} scheduleNotice={mutation.scheduleNotice} />
         <div className={cx('byline-coll-list-head', styles.head)}>
           <h1 className={cx('byline-coll-list-title', styles.title)}>
             {data.included.collection.labels.plural as string}

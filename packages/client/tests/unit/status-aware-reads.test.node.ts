@@ -11,6 +11,7 @@ import type { CollectionDefinition, IDbAdapter } from '@byline/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createBylineClient } from '../../src/index.js'
+import { testAdapter } from '../fixtures/test-adapter.js'
 
 const superAdmin = createSuperAdminContext({ id: 'test-super-admin' })
 
@@ -56,12 +57,21 @@ function rawDoc(collectionId: string, documentId: string, fields: Record<string,
 
 function makeAdapter() {
   const getCollectionByPath = vi.fn(async (path: string) => ({ id: path, path }))
-  const findDocuments = vi.fn(async () => ({ documents: [], total: 0 }))
-  const getDocumentById = vi.fn(async () => null)
-  const getDocumentByPath = vi.fn(async () => null)
-  const getDocumentsByDocumentIds = vi.fn(async () => [])
+  const findDocuments = vi.fn<IDbAdapter['queries']['documents']['findDocuments']>(async () => ({
+    documents: [],
+    total: 0,
+  }))
+  const getDocumentById = vi.fn<IDbAdapter['queries']['documents']['getDocumentById']>(
+    async () => null
+  )
+  const getDocumentByPath = vi.fn<IDbAdapter['queries']['documents']['getDocumentByPath']>(
+    async () => null
+  )
+  const getDocumentsByDocumentIds = vi.fn<
+    IDbAdapter['queries']['documents']['getDocumentsByDocumentIds']
+  >(async () => [])
 
-  const db = {
+  const db = testAdapter({
     commands: {
       collections: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
       documents: {
@@ -97,7 +107,7 @@ function makeAdapter() {
         findDocuments,
       },
     },
-  } satisfies IDbAdapter
+  })
 
   return { db, findDocuments, getDocumentById, getDocumentByPath, getDocumentsByDocumentIds }
 }

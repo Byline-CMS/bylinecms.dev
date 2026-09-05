@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { defineAdmin, defineSingletonAdmin } from '../@types/admin-types.js'
 import { defineCollection, defineSingleton } from '../@types/collection-types.js'
+import { testAdapter } from '../storage/db-adapter.test-helper.js'
 import {
   defineAdminConfig,
   defineServerConfig,
@@ -61,7 +62,7 @@ describe('collection definition config preference', () => {
     defineAdminConfig({ collections: [client], i18n })
     defineServerConfig({
       collections: [server],
-      db: {} as IDbAdapter,
+      db: testAdapter({}),
       hooks: { collections: { docs: hooks } },
       i18n,
     } satisfies ServerConfig)

@@ -1,3 +1,4 @@
+import { testAdapter } from '../storage/db-adapter.test-helper.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -179,7 +180,7 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
         delete: vi.fn(),
       },
       documents: {
-        publishSchedules: {} as any,
+        publishSchedules: testAdapter().commands.documents.publishSchedules,
         createDocumentVersion: vi.fn(),
         updateDocumentPath: vi.fn(),
         setDocumentAvailableLocales: vi.fn(),
@@ -221,7 +222,7 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
         getCollectionById,
       },
       documents: {
-        publishSchedules: {} as any,
+        publishSchedules: testAdapter().queries.documents.publishSchedules,
         getDocumentRevision: async () => {
           throw new Error('Unexpected revision read in this test')
         },

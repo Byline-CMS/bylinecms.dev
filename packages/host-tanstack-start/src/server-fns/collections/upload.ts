@@ -14,6 +14,7 @@ import { getLogger, withLogContext } from '@byline/core/logger'
 import { uploadField as coreUploadField } from '@byline/core/services'
 
 import { ensureDocumentResource } from '../../integrations/api-utils.js'
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 
 /**
  * Result of an upload through the host transport. The legacy top-level
@@ -150,88 +151,90 @@ function resolveUploadField(
  */
 export const uploadCollectionField = createServerFn({ method: 'POST' })
   .validator(parseUploadFormData)
-  .handler(async ({ data }) => {
-    const { collectionPath, shouldCreateDocument, fieldName, file, fields } = data
-    const logger = getLogger()
+  .handler(
+    withDocumentMutationErrors(async ({ data }) => {
+      const { collectionPath, shouldCreateDocument, fieldName, file, fields } = data
+      const logger = getLogger()
 
-    return withLogContext(
-      { domain: 'api', module: 'upload', function: 'uploadCollectionField' },
-      async () => {
-        // Upload is the one field transport shared by both document-resource
-        // kinds. The core service selects the kind-aware ability and rejects
-        // singleton document creation before hooks or storage; the admin form
-        // always requests the field-only branch (`createDocument=false`).
-        const config = await ensureDocumentResource(collectionPath)
-        if (config == null) {
-          throw ERR_NOT_FOUND(
-            {
-              message: 'Document resource not found.',
-              details: { collectionPath },
+      return withLogContext(
+        { domain: 'api', module: 'upload', function: 'uploadCollectionField' },
+        async () => {
+          // Upload is the one field transport shared by both document-resource
+          // kinds. The core service selects the kind-aware ability and rejects
+          // singleton document creation before hooks or storage; the admin form
+          // always requests the field-only branch (`createDocument=false`).
+          const config = await ensureDocumentResource(collectionPath)
+          if (config == null) {
+            throw ERR_NOT_FOUND(
+              {
+                message: 'Document resource not found.',
+                details: { collectionPath },
+              },
+              uploadCollectionField
+            ).log(logger)
+          }
+
+          const serverConfig = getServerConfig()
+          const targetField = resolveUploadField(config.definition, collectionPath, fieldName)
+          // Per-field storage routing falls through to the site-wide default.
+          const storage = targetField.upload?.storage ?? serverConfig.storage
+          if (!storage) {
+            throw new Error(
+              `No storage provider configured for field '${targetField.name}' on collection ` +
+                `'${collectionPath}'. Set either field.upload.storage or the site-wide ` +
+                'ServerConfig.storage.'
+            )
+          }
+
+          let buffer: Buffer
+          try {
+            buffer = Buffer.from(await file.arrayBuffer())
+          } catch (err: unknown) {
+            logger.error({ err, collectionPath }, 'failed to read file buffer')
+            throw new Error('Failed to read uploaded file.')
+          }
+
+          const ctx: FieldUploadContext = {
+            db: serverConfig.db,
+            definition: config.definition,
+            collectionId: config.collection.id,
+            collectionVersion: config.collection.version,
+            collectionPath,
+            fieldName: targetField.name,
+            storage,
+            logger,
+            defaultLocale: serverConfig.i18n.content.defaultLocale,
+            slugifier: serverConfig.slugifier,
+            filenameSlugifier: serverConfig.uploads?.filenameSlugifier,
+            requestContext: await getAdminRequestContext(),
+            imageProcessor: {
+              extractMeta: extractImageMeta,
+              isBypassMimeType,
+              generateVariants: ({ buffer, mimeType, storedFile, storage, upload, logger }) =>
+                generateImageVariants(
+                  buffer,
+                  mimeType,
+                  storedFile,
+                  storage,
+                  upload.sizes ?? [],
+                  logger
+                ),
             },
-            uploadCollectionField
-          ).log(logger)
-        }
+          }
 
-        const serverConfig = getServerConfig()
-        const targetField = resolveUploadField(config.definition, collectionPath, fieldName)
-        // Per-field storage routing falls through to the site-wide default.
-        const storage = targetField.upload?.storage ?? serverConfig.storage
-        if (!storage) {
-          throw new Error(
-            `No storage provider configured for field '${targetField.name}' on collection ` +
-              `'${collectionPath}'. Set either field.upload.storage or the site-wide ` +
-              'ServerConfig.storage.'
-          )
+          return coreUploadField(ctx, {
+            buffer,
+            originalFilename: file.name || 'upload',
+            mimeType: file.type || 'application/octet-stream',
+            fileSize: file.size,
+            fields,
+            shouldCreateDocument,
+            locale: serverConfig.i18n.content.defaultLocale,
+          })
         }
-
-        let buffer: Buffer
-        try {
-          buffer = Buffer.from(await file.arrayBuffer())
-        } catch (err: unknown) {
-          logger.error({ err, collectionPath }, 'failed to read file buffer')
-          throw new Error('Failed to read uploaded file.')
-        }
-
-        const ctx: FieldUploadContext = {
-          db: serverConfig.db,
-          definition: config.definition,
-          collectionId: config.collection.id,
-          collectionVersion: config.collection.version,
-          collectionPath,
-          fieldName: targetField.name,
-          storage,
-          logger,
-          defaultLocale: serverConfig.i18n.content.defaultLocale,
-          slugifier: serverConfig.slugifier,
-          filenameSlugifier: serverConfig.uploads?.filenameSlugifier,
-          requestContext: await getAdminRequestContext(),
-          imageProcessor: {
-            extractMeta: extractImageMeta,
-            isBypassMimeType,
-            generateVariants: ({ buffer, mimeType, storedFile, storage, upload, logger }) =>
-              generateImageVariants(
-                buffer,
-                mimeType,
-                storedFile,
-                storage,
-                upload.sizes ?? [],
-                logger
-              ),
-          },
-        }
-
-        return coreUploadField(ctx, {
-          buffer,
-          originalFilename: file.name || 'upload',
-          mimeType: file.type || 'application/octet-stream',
-          fileSize: file.size,
-          fields,
-          shouldCreateDocument,
-          locale: serverConfig.i18n.content.defaultLocale,
-        })
-      }
-    )
-  })
+      )
+    })
+  )
 
 /**
  * Upload a file to an upload-enabled collection.

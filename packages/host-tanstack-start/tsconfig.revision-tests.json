@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true
+  },
+  "include": [
+    "src/server-fns/document-mutation-transport.test.node.ts",
+    "src/server-fns/editable-revision.test.node.ts",
+    "src/server-fns/collections/revision-input.test.node.ts",
+    "src/server-fns/collections/upload-singleton.test.node.ts",
+    "src/admin-shell/document-mutation-state.test.tsx",
+    "src/admin-shell/collections/save-navigation.test.tsx",
+    "src/admin-shell/singletons/view.test.tsx",
+    "src/server-fns/collections/tree-mutation.test.node.ts",
+    "src/server-fns/collections/delete-outcome.test.node.ts",
+    "src/declarations.d.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

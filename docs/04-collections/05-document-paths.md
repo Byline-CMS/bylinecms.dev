@@ -60,14 +60,16 @@ Both `CollectionHandle.create` and `CollectionHandle.update` accept a top-level 
 **Edit:** any write call site, typically a seed under `apps/webapp/byline/seeds/` or a one-off script.
 
 ```ts
-await client.collection('news').create({
-  data: { title: 'Launch announcement' },
+await client.collection('news').create({ title: 'Launch announcement' }, {
   path: 'launch-2026',           // ← overrides the useAsPath derivation
   locale: 'en',
 })
 
-await client.collection('news').update(id, {
-  data: { title: 'Revised title' },
+const news = client.collection('news')
+const observed = await news.findByIdForEdit(id)
+if (!observed) throw new Error('Document is unavailable')
+await news.update(id, { ...observed.fields, title: 'Revised title' }, {
+  expectedRevision: observed.revision,
   path: 'new-canonical-slug',    // ← only honoured on source-locale writes
 })
 ```
@@ -109,9 +111,12 @@ path for the *same* live document is idempotent.
 ```ts
 import { BylineError, ErrorCodes } from '@byline/core'
 
+const news = client.collection('news')
+const observed = await news.findByIdForEdit(id)
+if (!observed) throw new Error('Document is unavailable')
 try {
-  await client.collection('news').update(id, {
-    data: { title },
+  await news.update(id, { ...observed.fields, title }, {
+    expectedRevision: observed.revision,
     path: requestedPath,
   })
 } catch (err) {

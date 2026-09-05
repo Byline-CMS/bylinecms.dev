@@ -9,11 +9,23 @@
 import type React from 'react'
 import { act } from 'react'
 
-import { type MultiCollectionDefinition, SINGLE_STATUS_WORKFLOW } from '@byline/core'
+import {
+  DEFAULT_WORKFLOW,
+  ERR_DOCUMENT_STALE,
+  ERR_LOCK_CONFLICT,
+  type MultiCollectionDefinition,
+  SINGLE_STATUS_WORKFLOW,
+} from '@byline/core'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
+  status: vi.fn(),
+  deletion: vi.fn(),
+  schedule: vi.fn(),
+  confirm: vi.fn(),
+  cancelSchedule: vi.fn(),
+  unpublish: vi.fn(),
   copyToLocale: vi.fn(),
   create: vi.fn(),
   deleteLocale: vi.fn(),
@@ -60,21 +72,21 @@ vi.mock('../../routes/list-return-storage.js', () => ({
 }))
 
 vi.mock('../../server-fns/collections/index.js', () => ({
-  cancelCollectionDocumentScheduledPublish: vi.fn(),
-  confirmCollectionDocumentScheduledPublish: vi.fn(),
+  cancelCollectionDocumentScheduledPublish: mocks.cancelSchedule,
+  confirmCollectionDocumentScheduledPublish: mocks.confirm,
   copyDocumentToLocale: mocks.copyToLocale,
   createCollectionDocument: mocks.create,
-  deleteDocument: vi.fn(),
+  deleteDocument: mocks.deletion,
   deleteDocumentLocale: mocks.deleteLocale,
   duplicateCollectionDocument: mocks.duplicate,
   hasCommittedDocumentHookFailure: (result: { status: string }) =>
     result.status === 'committed-hook-failed',
   hasDeleteSideEffectFailures: () => false,
-  scheduleCollectionDocumentPublish: vi.fn(),
-  unpublishDocument: vi.fn(),
+  scheduleCollectionDocumentPublish: mocks.schedule,
+  unpublishDocument: mocks.unpublish,
   updateCollectionDocumentSystemFields: mocks.updateSystemFields,
   updateCollectionDocumentWithPatches: mocks.update,
-  updateDocumentStatus: vi.fn(),
+  updateDocumentStatus: mocks.status,
 }))
 
 vi.mock('../chrome/loose-router.js', () => ({
@@ -128,11 +140,12 @@ beforeEach(() => {
     documentId: 'language-th',
     documentVersionId: 'version-created',
   })
-  mocks.update.mockResolvedValue({ status: 'ok' })
+  mocks.update.mockResolvedValue({ status: 'ok', documentId: 'language-en', revision: 8 })
   mocks.updateSystemFields.mockResolvedValue({ status: 'ok' })
   mocks.copyToLocale.mockResolvedValue({
     documentId: 'language-en',
     documentVersionId: 'version-2',
+    revision: 8,
     sourceLocale: 'en',
     targetLocale: 'th',
     fieldsUpdated: 1,
@@ -140,6 +153,7 @@ beforeEach(() => {
   mocks.deleteLocale.mockResolvedValue({
     documentId: 'language-en',
     documentVersionId: 'version-2',
+    revision: 8,
     locale: 'th',
   })
   mocks.duplicate.mockResolvedValue({
@@ -328,6 +342,7 @@ describe('collection post-save navigation', () => {
       status: 'committed-hook-failed',
       documentId: 'language-en',
       documentVersionId: 'version-2',
+      revision: 8,
       sideEffectFailure: { phase: 'afterUpdate', code: 'ERR_UNHANDLED' },
     })
     act(() => {
@@ -390,6 +405,7 @@ describe('collection post-save navigation', () => {
       status: 'committed-hook-failed',
       documentId: testCase.expectedId,
       documentVersionId: 'version-committed',
+      revision: 8,
       sideEffectFailure: { phase: testCase.phase, code: 'ERR_UNHANDLED' },
     })
     act(() => {
@@ -420,4 +436,97 @@ describe('collection post-save navigation', () => {
       search: testCase.expectedSearch,
     })
   })
+})
+
+describe('collection editor mutation lockout', () => {
+  const stale = ERR_DOCUMENT_STALE({
+    message: 'Test failure',
+    details: {
+      reason: 'revision_mismatch',
+      documentId: 'language-en',
+      expectedRevision: 7,
+      currentRevision: 8,
+    },
+  })
+  const opened = {
+    ...initialData,
+    _publishedVersion: initialData,
+    status: 'draft',
+    _scheduledPublicationEnabled: true,
+    _canSchedulePublication: true,
+    _scheduledPublish: { state: 'needs_reconfirm' },
+  }
+  const renderEditor = () =>
+    act(() =>
+      root.render(
+        <EditView
+          collectionDefinition={{ ...collection, workflow: DEFAULT_WORKFLOW }}
+          initialData={opened as never}
+          contentLocales={[
+            { code: 'en', label: 'English' },
+            { code: 'th', label: 'Thai' },
+          ]}
+          defaultContentLocale="en"
+          locale="en"
+        />
+      )
+    )
+  const operations = [
+    ['onSubmit', mocks.update, { patches: [], contentDirty: true }],
+    ['onStatusChange', mocks.status, 'published'],
+    ['onDelete', mocks.deletion, undefined],
+    ['onDuplicate', mocks.duplicate, undefined],
+    ['onCopyToLocale', mocks.copyToLocale, { targetLocale: 'th', overwrite: true }],
+    ['onDeleteLocale', mocks.deleteLocale, { targetLocale: 'th' }],
+    ['onUnpublish', mocks.unpublish, undefined],
+    ['onSchedulePublication', mocks.schedule, { publishAt: '2030-01-01T00:00:00Z' }],
+    ['onConfirmScheduledPublication', mocks.confirm, undefined],
+    ['onCancelScheduledPublication', mocks.cancelSchedule, undefined],
+  ] as const
+  it.each(operations)(
+    'blocks subsequent writes after %s reports stale',
+    async (name, operation, argument) => {
+      operation.mockRejectedValueOnce(stale)
+      renderEditor()
+      await act(async () => {
+        await expect(latestAction(name)(argument)).rejects.toBe(stale)
+      })
+      expect(mocks.formProps.at(-1)).toMatchObject({
+        mutationIssue: 'stale',
+        mutationsBlocked: true,
+        observedRevision: 7,
+      })
+      for (const [otherName, , otherArgument] of operations) {
+        await act(async () => {
+          await expect(latestAction(otherName)(otherArgument)).rejects.toBe(stale)
+        })
+      }
+      expect(operations.reduce((total, [, mock]) => total + mock.mock.calls.length, 0)).toBe(1)
+      expect(mocks.navigate).not.toHaveBeenCalled()
+      expect(mocks.toastAdd).not.toHaveBeenCalled()
+    }
+  )
+  it.each([
+    ['onSubmit', mocks.update, { patches: [], contentDirty: true }],
+    ['onDelete', mocks.deletion, undefined],
+  ] as const)(
+    'presents confirmed lock rollback safely for %s',
+    async (name, operation, argument) => {
+      const failure = ERR_LOCK_CONFLICT({
+        message: 'raw InnoDB private SQL',
+        details: { reason: 'lock_conflict', rolledBack: true, retryable: true },
+      })
+      operation.mockRejectedValueOnce(failure)
+      renderEditor()
+      await act(async () => {
+        await expect(latestAction(name)(argument)).rejects.toBe(failure)
+      })
+      expect(mocks.formProps.at(-1)).toMatchObject({
+        mutationIssue: 'lock',
+        mutationsBlocked: true,
+        observedRevision: 7,
+      })
+      expect(mocks.toastAdd).not.toHaveBeenCalled()
+    }
+  )
 })

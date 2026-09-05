@@ -633,5 +633,21 @@
   "scheduledPublication.list.columns.authorizer": "最后授权者",
   "scheduledPublication.list.authorizerMissing": "该账户已不存在，显示其 ID。",
   "scheduledPublication.list.columns.attempt": "尝试次数 / 最后错误",
-  "scheduledPublication.list.columns.actions": "操作"
+  "scheduledPublication.list.columns.actions": "操作",
+  "documentConcurrency.staleTitle": "文档已更改",
+  "documentConcurrency.stale": "此文档自您打开后已被更改。您的更改未保存。请重新加载文档以继续。重新加载将丢弃您未保存的更改。",
+  "documentConcurrency.reloadTitle": "需要重新加载",
+  "documentConcurrency.reload": "此编辑器缺少有效的文档修订号。您的更改未保存。请重新加载文档以继续。重新加载将丢弃您未保存的更改。",
+  "documentConcurrency.lockTitle": "文档忙碌",
+  "documentConcurrency.lock": "另一项操作与此更改发生冲突。您的更改已回滚。请重新加载文档后再试。重新加载将丢弃您未保存的更改。",
+  "documentConcurrency.unavailableTitle": "文档不可用",
+  "documentConcurrency.unavailable": "此文档已不可用。您的更改未保存。请重新加载以检查其可用性。重新加载将丢弃您未保存的更改。",
+  "documentConcurrency.committedTitle": "已保存，但有警告",
+  "documentConcurrency.committed": "您的更改已保存，但后续操作失败。请勿重复保存。",
+  "documentConcurrency.reloadAction": "重新加载并丢弃我的更改",
+  "documentConcurrency.reloadFailed": "重新加载失败。您未保存的更改仍在。请重试。",
+  "documentConcurrency.schedulesTitle": "计划发布需要审核",
+  "documentConcurrency.schedules": "结构已保存。受此更改影响的计划发布已暂停，需要审核后才能执行。",
+  "documentConcurrency.reviewSchedules": "审核计划发布",
+  "documentConcurrency.failed": "操作未能完成。您未保存的更改仍然可用。"
 }

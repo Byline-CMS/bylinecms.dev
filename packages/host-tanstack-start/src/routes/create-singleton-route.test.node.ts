@@ -1,3 +1,4 @@
+import { testAdapter } from '../../../core/src/storage/db-adapter.test-helper.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -61,7 +62,7 @@ vi.mock('@byline/core', () => ({
   getServerConfig: () => ({
     i18n: { content: { defaultLocale: 'en' } },
     scheduledPublication: { enabled: mocks.scheduledPublicationEnabled },
-    db: { queries: { documents: { getPublishedVersion: mocks.getPublishedVersion } } },
+    db: testAdapter({ queries: { documents: { getPublishedVersion: mocks.getPublishedVersion } } }),
   }),
   getSingletonAdminConfig: () => null,
 }))

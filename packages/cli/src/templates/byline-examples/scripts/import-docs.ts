@@ -1,3 +1,4 @@
+import { walkToStatus } from './lib/walk-document-status.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -185,20 +186,7 @@ function derivePath(frontmatter: DocFrontmatter, locale: string): string {
  * through any intermediate statuses (e.g. needs_review). No-op when the
  * workflow doesn't include the target or when already at/past it.
  */
-async function walkToStatus(
-  handle: DocsHandle,
-  documentId: string,
-  workflowStatuses: readonly { name: string }[],
-  currentStatus: string,
-  targetStatus: string
-): Promise<void> {
-  const currentIdx = workflowStatuses.findIndex((s) => s.name === currentStatus)
-  const targetIdx = workflowStatuses.findIndex((s) => s.name === targetStatus)
-  if (currentIdx === -1 || targetIdx === -1 || targetIdx <= currentIdx) return
-  for (let i = currentIdx + 1; i <= targetIdx; i++) {
-    await handle.changeStatus(documentId, workflowStatuses[i].name)
-  }
-}
+
 
 interface ProcessResult {
   filePath: string
@@ -302,11 +290,14 @@ async function processFile(
   const workflowStatuses = definition?.workflow?.statuses ?? []
   const defaultStatus = workflowStatuses[0]?.name ?? 'draft'
 
-  const existing = await handle.findByPath(docPath, {
+  const selected = await handle.findByPath(docPath, {
     locale,
     status: 'any',
     _bypassBeforeRead: true,
   })
+
+  const existing = selected == null ? null : await handle.findByIdForEdit(selected.id, { locale, _bypassBeforeRead: true })
+  if (selected != null && existing == null) throw new Error('Import target is no longer available; rerun the import.')
 
   if (existing) {
     // Don't clobber publishedOn if Byline already has one.
@@ -314,6 +305,7 @@ async function processFile(
       delete payload.publishedOn
     }
     const result = await handle.update(existing.id, payload, {
+      expectedRevision: existing.revision,
       locale,
       // Advertise the imported locale (editorial available-locales set), merged
       // with whatever is already advertised so a later-locale re-import doesn't
@@ -321,8 +313,8 @@ async function processFile(
       // completeness ledger (intersection). See docs/08-internationalization/index.md.
       availableLocales: [...new Set([...(existing.availableLocales ?? []), locale])],
     })
-    await walkToStatus(handle, result.documentId, workflowStatuses, defaultStatus, desiredStatus)
-    return { filePath, action: 'updated', documentId: result.documentId, revision: result.revision, path: docPath }
+    const revision = await walkToStatus(handle, result.documentId, workflowStatuses, defaultStatus, desiredStatus, result.revision)
+    return { filePath, action: 'updated', documentId: result.documentId, revision, path: docPath }
   }
 
   const result = await handle.create(payload, {

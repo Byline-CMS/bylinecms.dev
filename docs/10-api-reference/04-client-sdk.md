@@ -154,15 +154,15 @@ Both use a per-client cache. Lifecycle writes use the version to stamp `collecti
 |---|---|---|
 | `get(options?)` | `Promise<SingletonDocument<TFields> \| null>` | `null` |
 | `update(data, options)` | `Promise<UpdateSingletonResult>` | Creates the backing document, first version, and slot mapping |
-| `changeStatus(nextStatus)` | `Promise<ChangeStatusResult>` | `ERR_NOT_FOUND` |
-| `unpublish()` | `Promise<UnpublishResult>` | `ERR_NOT_FOUND` |
-| `schedulePublish(options)` | `Promise<DocumentPublishScheduleInfo>` | `ERR_NOT_FOUND` |
-| `confirmScheduledPublish(options)` | `Promise<DocumentPublishScheduleInfo>` | `ERR_NOT_FOUND` |
-| `cancelScheduledPublish()` | `Promise<DocumentPublishScheduleInfo \| null>` | `ERR_NOT_FOUND` |
+| `changeStatus(nextStatus, options)` | `Promise<ChangeStatusResult>` | `ERR_NOT_FOUND` |
+| `unpublish(options)` | `Promise<UnpublishResult>` | `ERR_NOT_FOUND` |
+| `schedulePublish(options)` | `Promise<DocumentPublishScheduleInfo & { revision: number }>` | `ERR_NOT_FOUND` |
+| `confirmScheduledPublish(options)` | `Promise<DocumentPublishScheduleInfo & { revision: number }>` | `ERR_NOT_FOUND` |
+| `cancelScheduledPublish(options)` | `Promise<{ schedule: DocumentPublishScheduleInfo \| null; revision: number }>` | `ERR_NOT_FOUND` |
 | `getScheduledPublish()` | `Promise<DocumentPublishScheduleInfo \| null>` | `null` |
 | `history(options?)` | `Promise<FindResult<F>>` | Empty page with caller defaults |
 | `findByVersion(versionId, options?)` | `Promise<ClientDocument<F> \| null>` | `null` |
-| `restoreVersion(sourceVersionId)` | `Promise<SingletonSaveResult>` | `ERR_NOT_FOUND` |
+| `restoreVersion(sourceVersionId, options)` | `Promise<SingletonSaveResult>` | `ERR_NOT_FOUND` |
 | `copyToLocale(args)` | `Promise<SingletonSaveResult>` | `ERR_NOT_FOUND` |
 
 ### `get(options?)`
@@ -211,14 +211,17 @@ Save preparation hooks run before the final transaction. The service rechecks th
 ### Workflow methods
 
 ```ts
-handle.changeStatus(nextStatus: string): Promise<ChangeStatusResult>
-handle.unpublish(): Promise<UnpublishResult>
+handle.changeStatus(nextStatus: string, options: DocumentWritePrecondition): Promise<ChangeStatusResult>
+handle.unpublish(options: DocumentWritePrecondition): Promise<UnpublishResult>
 ```
 
-`changeStatus()` requires `singletons.<path>.changeStatus`; a transition to `published` additionally requires `.publish`. It returns `{ previousStatus, newStatus }`. `unpublish()` requires `.changeStatus` and returns `{ archivedCount }`. Both use the definition's workflow and reject an unmaterialised slot with `ERR_NOT_FOUND`.
+`changeStatus()` requires `singletons.<path>.changeStatus`; a transition to `published` additionally requires `.publish`. It returns `{ documentId, previousStatus, newStatus, revision }`. `unpublish()` requires `.changeStatus` and returns `{ documentId, archivedCount, revision }`. Both use the definition's workflow and reject an unmaterialised slot with `ERR_NOT_FOUND`.
 
 ```ts
-await client.singleton('announcement').changeStatus('published')
+const handle = client.singleton('announcement')
+const observed = await handle.getForEdit()
+if (observed?.state !== 'document') throw new Error('Announcement is unavailable')
+await handle.changeStatus('published', { expectedRevision: observed.document.revision })
 ```
 
 ### Scheduled publication methods
@@ -226,26 +229,28 @@ await client.singleton('announcement').changeStatus('published')
 ```ts
 handle.schedulePublish(
   options: SchedulePublishOptions
-): Promise<DocumentPublishScheduleInfo>
+): Promise<DocumentPublishScheduleInfo & { revision: number }>
 
 handle.confirmScheduledPublish(
   options: ConfirmScheduledPublishOptions
-): Promise<DocumentPublishScheduleInfo>
+): Promise<DocumentPublishScheduleInfo & { revision: number }>
 
-handle.cancelScheduledPublish(): Promise<DocumentPublishScheduleInfo | null>
+handle.cancelScheduledPublish(options: DocumentWritePrecondition): Promise<{ schedule: DocumentPublishScheduleInfo | null; revision: number }>
 handle.getScheduledPublish(): Promise<DocumentPublishScheduleInfo | null>
 ```
 
-`SchedulePublishOptions` is `{ publishAt: string, expectedVersionId: string }`; `ConfirmScheduledPublishOptions` is `{ expectedVersionId: string }`. All four methods require `.changeStatus` and `.publish`. `publishAt` must be a future ISO instant with an explicit offset or `Z`.
+`SchedulePublishOptions` is `{ publishAt: string, expectedVersionId: string, expectedRevision: number }`; `ConfirmScheduledPublishOptions` is `{ expectedVersionId: string, expectedRevision: number }`. All four methods require `.changeStatus` and `.publish`. `publishAt` must be a future ISO instant with an explicit offset or `Z`.
 
-`cancelScheduledPublish()` returns `null` when no row remains after its transaction wins the lock. `getScheduledPublish()` returns `null` when the slot or schedule is absent. The returned `DocumentPublishScheduleInfo` omits internal execution fencing fields.
+`cancelScheduledPublish()` returns `{ schedule: null, revision }` when no row remains after its transaction wins the lock. `getScheduledPublish()` returns `null` when the slot or schedule is absent. The returned `DocumentPublishScheduleInfo` omits internal execution fencing fields.
 
 ```ts
 const handle = client.singleton('announcement')
-const current = await handle.get({ status: 'any' })
-if (current == null) throw new Error('Announcement has not been saved')
+const observed = await handle.getForEdit()
+if (observed?.state !== 'document') throw new Error('Announcement has not been saved')
+const current = observed.document
 await handle.schedulePublish({
   publishAt: '2027-01-15T09:00:00Z', expectedVersionId: current.versionId,
+  expectedRevision: current.revision,
 })
 ```
 
@@ -275,9 +280,10 @@ const version = versionId
 ### Restore and locale copy
 
 ```ts
-handle.restoreVersion(sourceVersionId: string): Promise<SingletonSaveResult>
+handle.restoreVersion(sourceVersionId: string, options: DocumentWritePrecondition): Promise<SingletonSaveResult>
 
 handle.copyToLocale(args: {
+  expectedRevision: number
   sourceLocale: string
   targetLocale: string
   overwrite?: boolean
@@ -287,7 +293,11 @@ handle.copyToLocale(args: {
 Both methods require `.update` and throw `ERR_NOT_FOUND` before materialisation. `restoreVersion()` requires a historical version owned by the currently mapped document, reconstructs its complete all-locale field tree, and writes a new version at the workflow default status. `copyToLocale()` requires different source and target locales; `overwrite` defaults to `false`.
 
 ```ts
-await client.singleton('site-settings').copyToLocale({
+const settings = client.singleton('site-settings')
+const observed = await settings.getForEdit()
+if (observed?.state !== 'document') throw new Error('Settings are unavailable')
+await settings.copyToLocale({
+  expectedRevision: observed.document.revision,
   sourceLocale: 'en',
   targetLocale: 'fr',
 })
@@ -304,14 +314,14 @@ await client.singleton('site-settings').copyToLocale({
 | `search(options)` | `Promise<ClientSearchResults>` | Ranked search scoped to this collection. |
 | `create(data, options?)` | `Promise<CreateDocumentResult>` | Creates a logical document and first immutable version. |
 | `update(id, data, options)` | `Promise<UpdateDocumentResult>` | Full-document replacement that creates a new immutable version. |
-| `changeStatus(id, nextStatus)` | `Promise<ChangeStatusResult>` | Applies one valid workflow transition. |
-| `schedulePublish(id, options)` | `Promise<DocumentPublishScheduleInfo>` | Arms or reschedules publication of one reviewed current version. |
-| `confirmScheduledPublish(id, options)` | `Promise<DocumentPublishScheduleInfo>` | Re-authorizes a suspended schedule against the reviewed current version. |
-| `cancelScheduledPublish(id)` | `Promise<DocumentPublishScheduleInfo \| null>` | Cancels a pending schedule and reports the actual transaction winner. |
+| `changeStatus(id, nextStatus, options)` | `Promise<ChangeStatusResult>` | Applies one valid workflow transition. |
+| `schedulePublish(id, options)` | `Promise<DocumentPublishScheduleInfo & { revision: number }>` | Arms or reschedules publication of one reviewed current version. |
+| `confirmScheduledPublish(id, options)` | `Promise<DocumentPublishScheduleInfo & { revision: number }>` | Re-authorizes a suspended schedule against the reviewed current version. |
+| `cancelScheduledPublish(id, options)` | `Promise<{ schedule: DocumentPublishScheduleInfo \| null; revision: number }>` | Cancels a pending schedule and reports the actual transaction winner. |
 | `getScheduledPublish(id)` | `Promise<DocumentPublishScheduleInfo \| null>` | Reads the document's active or suspended schedule. |
-| `unpublish(id)` | `Promise<UnpublishResult>` | Archives the currently published version or versions. |
-| `restoreVersion(id, sourceVersionId)` | `Promise<RestoreVersionResult>` | Copies historical content into a new current version. |
-| `delete(id)` | `Promise<DeleteDocumentResult>` | Soft-deletes the document and reconciles associated structural state. |
+| `unpublish(id, options)` | `Promise<UnpublishResult>` | Archives the currently published version or versions. |
+| `restoreVersion(id, sourceVersionId, options)` | `Promise<RestoreVersionResult>` | Copies historical content into a new current version. |
+| `delete(id, options)` | `Promise<DeleteDocumentResult>` | Soft-deletes the document and reconciles associated structural state. |
 | `count(options?)` | `Promise<number>` | Editorial current-version count, optionally for one exact status. |
 | `countByStatus()` | `Promise<Array<{ status, count }>>` | Editorial counts grouped by workflow status. |
 | `history(id, options?)` | `Promise<FindResult<F>>` | Paginated immutable version history. |
@@ -320,8 +330,8 @@ await client.singleton('site-settings').copyToLocale({
 | `indexDocument(id)` | `Promise<void>` | Reconciles one document's published locale projections into search. |
 | `removeFromIndex(id)` | `Promise<void>` | Removes one document's projections from search. |
 | `reindex()` | `Promise<ReindexResult>` | Clears and rebuilds this collection's search index. |
-| `placeTreeNode(id, options)` | `Promise<{ orderKey: string }>` | Places, reorders, or reparents one node in a tree collection. |
-| `removeFromTree(id, options?)` | `Promise<void>` | Makes a tree document unplaced without deleting it. |
+| `placeTreeNode(id, options)` | `Promise<{ orderKey: string } & StructuralMutationReceipt>` | Places, reorders, or reparents one node in a tree collection. |
+| `removeFromTree(id, options)` | `Promise<StructuralMutationReceipt>` | Makes a tree document unplaced without deleting it. |
 | `getSubtree(options?)` | `Promise<TreeNode<F>[]>` | Reads a nested tree or subtree. |
 | `getAncestors(id, options?)` | `Promise<ClientDocument<F>[]>` | Reads root-first breadcrumbs excluding the queried node. |
 | `getTreeParent(id, options?)` | `Promise<TreeParentResult>` | Reads placed/root/child state with hidden-parent redaction. |
@@ -518,7 +528,9 @@ Dedicated editable reads select current content and return its observed logical-
 
 Population and `afterRead` hooks run after the source snapshot closes. Field and optional metadata redaction retain their normal behavior. Source identity, current version identity, workflow status, and revision are reserved observations and cannot be substituted by a hook. Related targets retain ordinary population semantics; they are not part of a cross-document snapshot. Failed snapshots return no editable payload and do not replay hooks. JavaScript callers supplying status or version selectors to editable reads receive a validation error.
 
-A revision may become stale immediately after the read. These APIs provide the read foundation for document-wide optimistic concurrency; conversion of all mutation entry points to required revision guards is a separate implementation stage. This read capability alone does not establish universal stale-write protection.
+A revision may become stale immediately after the read. Supported lifecycle mutations require that observation and recheck it under lock before writing. A successful mutation returns the resulting revision; use that receipt for the next deliberate mutation in the same operation. Never fetch the latest revision and automatically retry a rejected write.
+
+`ERR_DOCUMENT_STALE` identifies a revision mismatch, a version-parent mismatch, or a changed singleton slot. Missing and invalid observations use `ERR_VALIDATION` with `missing_document_revision` or `invalid_document_revision` details. `ERR_LOCK_CONFLICT` is distinct: it reports a provider lock failure only after full rollback is confirmed. Neither connection loss nor an uncertain commit is classified as safely retryable. `ERR_DOCUMENT_HOOK_COMMITTED` means the write committed and carries its committed revision; do not resubmit the write. The TanStack host preserves these validated details through server-function serialization without exposing database or hook diagnostics.
 
 ## Writes
 
@@ -556,11 +568,12 @@ Updates use whole-document replacement semantics and mint a new immutable versio
 ### Workflow and restoration
 
 ```ts
-handle.changeStatus(documentId: string, nextStatus: string): Promise<ChangeStatusResult>
-handle.unpublish(documentId: string): Promise<UnpublishResult>
+handle.changeStatus(documentId: string, nextStatus: string, options: DocumentWritePrecondition): Promise<ChangeStatusResult>
+handle.unpublish(documentId: string, options: DocumentWritePrecondition): Promise<UnpublishResult>
 handle.restoreVersion(
   documentId: string,
-  sourceVersionId: string
+  sourceVersionId: string,
+  options: DocumentWritePrecondition
 ): Promise<RestoreVersionResult>
 ```
 
@@ -570,27 +583,30 @@ handle.restoreVersion(
 
 ```ts
 interface SchedulePublishOptions {
+  expectedRevision: number
   publishAt: string
   expectedVersionId: string
 }
 
 interface ConfirmScheduledPublishOptions {
+  expectedRevision: number
   expectedVersionId: string
 }
 
 handle.schedulePublish(
   documentId: string,
   options: SchedulePublishOptions
-): Promise<DocumentPublishScheduleInfo>
+): Promise<DocumentPublishScheduleInfo & { revision: number }>
 
 handle.confirmScheduledPublish(
   documentId: string,
   options: ConfirmScheduledPublishOptions
-): Promise<DocumentPublishScheduleInfo>
+): Promise<DocumentPublishScheduleInfo & { revision: number }>
 
 handle.cancelScheduledPublish(
-  documentId: string
-): Promise<DocumentPublishScheduleInfo | null>
+  documentId: string,
+  options: DocumentWritePrecondition
+): Promise<{ schedule: DocumentPublishScheduleInfo | null; revision: number }>
 
 handle.getScheduledPublish(
   documentId: string
@@ -599,14 +615,14 @@ handle.getScheduledPublish(
 
 All four methods require both the collection's `changeStatus` and `publish` abilities. `publishAt` must be an ISO instant with an explicit offset or `Z` and must be later than database time. `expectedVersionId` binds the authorization to the exact current version the caller reviewed. A later content edit preserves the schedule but moves it to `needs_reconfirm`; confirmation targets the new current version while preserving the original publication instant. Ordinary status changes, unpublishing, and deletion cancel the pending intent through their normal lifecycle transactions.
 
-`cancelScheduledPublish()` returns `null` when no schedule remained after its transaction acquired the row lock. Callers should report that result as a lost cancellation race, not as a successful cancellation. `getScheduledPublish()` returns either `armed` or `needs_reconfirm` state. The `DocumentPublishScheduleInfo` result includes editorial timing, authorization, suspension, attempt, and bounded error metadata; it deliberately omits the sweep's execution token and lease expiry.
+`cancelScheduledPublish()` returns `{ schedule: null, revision }` when no schedule remained after its transaction acquired the row lock. Callers should report that result as a lost cancellation race, not as a successful cancellation. `getScheduledPublish()` returns either `armed` or `needs_reconfirm` state. The `DocumentPublishScheduleInfo` result includes editorial timing, authorization, suspension, attempt, and bounded error metadata; it deliberately omits the sweep's execution token and lease expiry.
 
-The subsystem is optional and never authorizes publication. `changeStatus(documentId, 'published')` continues to work without a schedule row, including for an external orchestrator. When a row does exist, publication removes it as transactional consistency cleanup—schedule state is an effect of publishing, never an input to it.
+The subsystem is optional and never authorizes publication. `changeStatus(documentId, 'published', { expectedRevision })` continues to work without a schedule row, including for an external orchestrator. When a row does exist, publication removes it as transactional consistency cleanup—schedule state is an effect of publishing, never an input to it.
 
 ### `delete(id)`
 
 ```ts
-handle.delete(documentId: string): Promise<DeleteDocumentResult>
+handle.delete(documentId: string, options: DocumentWritePrecondition): Promise<DeleteDocumentResult>
 ```
 
 Soft-deletes every version and path row, appends audit data, reconciles tree edges where applicable, and then runs post-commit consumers. The result distinguishes a clean commit from a commit whose post-commit side effects failed. Do not retry a committed delete merely because a post-commit hook failed.
@@ -722,22 +738,23 @@ Every tree method requires `CollectionDefinition.tree: true`. Tree writes use th
 
 ```ts
 handle.placeTreeNode(documentId: string, options: {
+  expectedRevision: number
   parentDocumentId: string | null
   beforeDocumentId?: string | null
   afterDocumentId?: string | null
   reconcile?: boolean
-}): Promise<{ orderKey: string }>
+}): Promise<{ orderKey: string } & StructuralMutationReceipt>
 ```
 
 `beforeDocumentId` is the left neighbor, so the node lands immediately after it. `afterDocumentId` is the right neighbor, so the node lands immediately before it. Both are resolved within the target parent group. `reconcile` re-runs post-commit tree consumers for an otherwise exact no-op.
 
-### `removeFromTree(id, options?)`
+### `removeFromTree(id, options)`
 
 ```ts
 handle.removeFromTree(
   documentId: string,
-  options?: { reconcile?: boolean }
-): Promise<void>
+  options: { expectedRevision: number; reconcile?: boolean }
+): Promise<StructuralMutationReceipt>
 ```
 
 Deletes the structural edge and makes the document unplaced. It does not delete the document or mint a version.

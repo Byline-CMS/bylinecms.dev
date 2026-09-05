@@ -134,14 +134,18 @@ function createMockDb() {
   const auditAppend = vi.fn().mockResolvedValue({ id: 'audit-1' })
   let transactionDepth = 0
   const revisions = new Map<string, number>()
-  const withTransaction = vi.fn(async (fn: () => Promise<unknown>) => {
-    transactionDepth++
-    try {
-      return await fn()
-    } finally {
-      transactionDepth--
-    }
-  })
+  const transaction = {
+    run: async <T>(fn: () => Promise<T>): Promise<T> => {
+      transactionDepth++
+      try {
+        return await fn()
+      } finally {
+        transactionDepth--
+      }
+    },
+  }
+  const withTransaction = vi.spyOn(transaction, 'run')
+
   const fail = () => {
     throw new Error('unexpected singleton mapping call')
   }
@@ -258,7 +262,7 @@ function createMockDb() {
         clearMapping: vi.fn(fail),
       },
     },
-    withTransaction: withTransaction as any,
+    withTransaction: transaction.run,
     queries: {
       collections: {
         getAllCollections: vi.fn(),
@@ -2425,10 +2429,10 @@ describe('Document lifecycle service', () => {
       const { db, getDocumentSystemFieldsForUpdate, auditAppend, withTransaction } = createMockDb()
       setupDoc(getDocumentSystemFieldsForUpdate)
       const order: string[] = []
-      ;(db.commands.documents.updateDocumentPath as any).mockImplementation(async () => {
+      vi.mocked(db.commands.documents.updateDocumentPath).mockImplementation(async () => {
         order.push('path-write')
       })
-      ;(db.commands.documents.setDocumentAvailableLocales as any).mockImplementation(async () => {
+      vi.mocked(db.commands.documents.setDocumentAvailableLocales).mockImplementation(async () => {
         order.push('locales-write')
       })
       auditAppend.mockImplementation(async () => {
@@ -2651,7 +2655,7 @@ describe('Document lifecycle service', () => {
       const mocks = createMockDb()
       const { db } = mocks
 
-      ;(db.queries.documents.getDocumentByVersion as any).mockResolvedValue({
+      vi.mocked(db.queries.documents.getDocumentByVersion).mockResolvedValue({
         document_version_id: sourceVersionId,
         document_id: sourceDocumentId,
         path: 'long-ago-path',
@@ -2766,7 +2770,7 @@ describe('Document lifecycle service', () => {
       const sourceVersionId = 'ver-source'
       const mocks = createMockDb()
       const { db } = mocks
-      ;(db.queries.documents.getDocumentByVersion as any).mockResolvedValue({
+      vi.mocked(db.queries.documents.getDocumentByVersion).mockResolvedValue({
         document_version_id: sourceVersionId,
         document_id: 'doc-1',
         path: 'p',

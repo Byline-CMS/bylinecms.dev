@@ -1,3 +1,4 @@
+import { testAdapter } from '../../../../core/src/storage/db-adapter.test-helper.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -112,7 +113,7 @@ beforeAll(() => {
   )
   defineServerConfig({
     collections: [singleton],
-    db: {} as IDbAdapter,
+    db: testAdapter(),
     storage,
     i18n: {
       admin: { defaultLocale: 'en', locales: ['en'] },

@@ -11,7 +11,6 @@ import { useParams, useRouter, useRouterState } from '@tanstack/react-router'
 import { AdminTabs, renderFormatted, StatusBadge } from '@byline/admin/react'
 import { useBylineAdminServices } from '@byline/admin/services'
 import type { CollectionAdminConfig, MultiCollectionDefinition, WorkflowStatus } from '@byline/core'
-import { parseDocumentRevision } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { useTranslation } from '@byline/i18n/react'
 import { Button, Container, Section, Table } from '@byline/ui/react'
@@ -156,6 +155,7 @@ export const HistoryView = ({
       currentVersionId,
       restoreStatusLabel,
       openCompare,
+      mutationsBlocked,
       openRestore,
     }) =>
       columns.flatMap((column) => {
@@ -214,6 +214,7 @@ export const HistoryView = ({
                     variant="outlined"
                     size="xs"
                     intent="noeffect"
+                    disabled={mutationsBlocked}
                     onClick={openRestore}
                     className={cx('byline-coll-history-restore-button', styles.restoreButton)}
                     title={t('collections.history.restoreButtonTitle', {
@@ -280,10 +281,10 @@ export const HistoryView = ({
               rowPresentation={rowPresentation}
               loadHistoricalVersion={getCollectionDocumentVersion}
               onPageSizeChange={handlePageSizeChange}
-              restoreVersion={(versionId) =>
+              restoreVersion={(versionId, expectedRevision) =>
                 restoreDocumentVersion({
                   data: {
-                    expectedRevision: parseDocumentRevision(currentDocument?.revision),
+                    expectedRevision,
                     collection,
                     id,
                     versionId,

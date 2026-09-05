@@ -265,6 +265,26 @@
   min-height: 28px;
 }
 
+/*
+ * Concurrency alerts (stale document, lock conflict, schedule reconfirmation).
+ * Separated from the status bar above and from the form layout below, which
+ * otherwise carries its standing top padding on top of the alert's own gap.
+ */
+.concurrency,
+:global(.byline-document-concurrency) {
+  margin-top: var(--spacing-16);
+}
+
+.concurrency button,
+:global(.byline-document-concurrency) button {
+  margin-top: var(--spacing-12);
+}
+
+.concurrency ~ .layout,
+:global(.byline-document-concurrency) ~ :global(.byline-form-layout) {
+  padding-top: var(--spacing-16);
+}
+
 .layout,
 :global(.byline-form-layout) {
   display: flex;
