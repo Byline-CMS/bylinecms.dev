@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "4180630b-b266-48b6-b742-9f966150b689",
+  "id": "0fe1209b-40b5-4b0a-85ea-008db66c52b6",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "byline_admin_permissions": {
@@ -1454,6 +1454,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "authorized_revision": {
+          "name": "authorized_revision",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "publish_at": {
           "name": "publish_at",
           "type": "datetime(6)",
@@ -1633,13 +1640,17 @@
       },
       "uniqueConstraints": {},
       "checkConstraint": {
+        "check_publish_schedules_authorized_revision": {
+          "name": "check_publish_schedules_authorized_revision",
+          "value": "`byline_document_publish_schedules`.`authorized_revision` IS NULL OR `byline_document_publish_schedules`.`authorized_revision` BETWEEN 1 AND 9007199254740991"
+        },
         "check_publish_schedules_state": {
           "name": "check_publish_schedules_state",
           "value": "`byline_document_publish_schedules`.`state` IN ('armed', 'needs_reconfirm')"
         },
         "check_publish_schedules_suspended_reason": {
           "name": "check_publish_schedules_suspended_reason",
-          "value": "`byline_document_publish_schedules`.`suspended_reason` IS NULL OR `byline_document_publish_schedules`.`suspended_reason` = 'content_edited'"
+          "value": "`byline_document_publish_schedules`.`suspended_reason` IS NULL OR `byline_document_publish_schedules`.`suspended_reason` IN ('content_edited', 'document_metadata_changed', 'upgrade_invalidated')"
         }
       }
     },
@@ -1992,6 +2003,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "revision": {
+          "name": "revision",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "datetime(6)",
@@ -2058,7 +2076,12 @@
           ]
         }
       },
-      "checkConstraint": {}
+      "checkConstraint": {
+        "check_documents_revision": {
+          "name": "check_documents_revision",
+          "value": "`byline_documents`.`revision` BETWEEN 1 AND 9007199254740991"
+        }
+      }
     },
     "byline_store_file": {
       "name": "byline_store_file",

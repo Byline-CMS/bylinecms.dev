@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1787797717481,
-      "tag": "0000_quiet_johnny_blaze",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1788587460302,
-      "tag": "0001_glorious_nehzno",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1788622556235,
-      "tag": "0002_tiny_callisto",
+      "when": 1788642365591,
+      "tag": "0000_yielding_vulture",
       "breakpoints": true
     }
   ]
