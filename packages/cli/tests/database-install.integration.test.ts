@@ -59,6 +59,22 @@ describe.each(configurations)('$adapter CLI database installation', (configurati
     expect(await tableExists(configuration, configuration.freshDatabase, CANONICAL_TABLE)).toBe(
       true
     )
+    expect(
+      await columnDefinition(
+        configuration,
+        configuration.freshDatabase,
+        CANONICAL_TABLE,
+        'revision'
+      )
+    ).toEqual({ dataType: 'bigint', nullable: false, defaultValue: null })
+    expect(
+      await columnDefinition(
+        configuration,
+        configuration.freshDatabase,
+        'byline_document_publish_schedules',
+        'authorized_revision'
+      )
+    ).toEqual({ dataType: 'bigint', nullable: true, defaultValue: null })
 
     const provisioner = databaseProvisioner(configuration.adapter)
     expect(
@@ -198,6 +214,70 @@ async function tableExists(
       [database, table]
     )
     return rows.length > 0
+  } finally {
+    await connection.end()
+  }
+}
+
+async function columnDefinition(
+  configuration: DatabaseSmokeConfiguration,
+  database: string,
+  table: string,
+  column: string
+): Promise<{ dataType: string; nullable: boolean; defaultValue: string | null } | null> {
+  if (configuration.adapter === 'postgres') {
+    const target = new Client({
+      connectionString: postgresDatabaseUrl(configuration.adminUrl, database),
+    })
+    await target.connect()
+    try {
+      const result = await target.query<{
+        data_type: string
+        is_nullable: 'YES' | 'NO'
+        column_default: string | null
+      }>(
+        `SELECT data_type, is_nullable, column_default
+           FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`,
+        [table, column]
+      )
+      const row = result.rows[0]
+      return row
+        ? {
+            dataType: row.data_type,
+            nullable: row.is_nullable === 'YES',
+            defaultValue: row.column_default,
+          }
+        : null
+    } finally {
+      await target.end()
+    }
+  }
+
+  const connection = await createConnection(configuration.adminUrl)
+  try {
+    const [rows] = await connection.query<
+      Array<
+        RowDataPacket & {
+          DATA_TYPE: string
+          IS_NULLABLE: 'YES' | 'NO'
+          COLUMN_DEFAULT: string | null
+        }
+      >
+    >(
+      `SELECT DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT
+         FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+      [database, table, column]
+    )
+    const row = rows[0]
+    return row
+      ? {
+          dataType: row.DATA_TYPE,
+          nullable: row.IS_NULLABLE === 'YES',
+          defaultValue: row.COLUMN_DEFAULT,
+        }
+      : null
   } finally {
     await connection.end()
   }

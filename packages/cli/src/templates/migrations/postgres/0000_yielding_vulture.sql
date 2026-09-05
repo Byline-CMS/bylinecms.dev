@@ -163,6 +163,7 @@ CREATE TABLE "byline_document_publish_schedules" (
 	"document_id" uuid PRIMARY KEY NOT NULL,
 	"collection_id" uuid NOT NULL,
 	"target_version_id" uuid NOT NULL,
+	"authorized_revision" bigint,
 	"publish_at" timestamp (6) with time zone NOT NULL,
 	"state" varchar(32) DEFAULT 'armed' NOT NULL,
 	"suspended_at" timestamp (6) with time zone,
@@ -178,8 +179,9 @@ CREATE TABLE "byline_document_publish_schedules" (
 	"next_attempt_at" timestamp (6) with time zone NOT NULL,
 	"attempt_count" integer DEFAULT 0 NOT NULL,
 	"last_error" text,
+	CONSTRAINT "check_publish_schedules_authorized_revision" CHECK ("byline_document_publish_schedules"."authorized_revision" IS NULL OR "byline_document_publish_schedules"."authorized_revision" BETWEEN 1 AND 9007199254740991),
 	CONSTRAINT "check_document_publish_schedules_state" CHECK ("byline_document_publish_schedules"."state" IN ('armed', 'needs_reconfirm')),
-	CONSTRAINT "check_document_publish_schedules_suspended_reason" CHECK ("byline_document_publish_schedules"."suspended_reason" IS NULL OR "byline_document_publish_schedules"."suspended_reason" = 'content_edited')
+	CONSTRAINT "check_document_publish_schedules_suspended_reason" CHECK ("byline_document_publish_schedules"."suspended_reason" IS NULL OR "byline_document_publish_schedules"."suspended_reason" IN ('content_edited', 'document_metadata_changed', 'upgrade_invalidated'))
 );
 --> statement-breakpoint
 CREATE TABLE "byline_document_relationships" (
@@ -217,9 +219,11 @@ CREATE TABLE "byline_documents" (
 	"collection_id" uuid NOT NULL,
 	"order_key" varchar(128) COLLATE "C",
 	"source_locale" varchar(10) NOT NULL,
+	"revision" bigint NOT NULL,
 	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "uq_documents_collection_id_id" UNIQUE("collection_id","id")
+	CONSTRAINT "uq_documents_collection_id_id" UNIQUE("collection_id","id"),
+	CONSTRAINT "check_documents_revision" CHECK ("byline_documents"."revision" BETWEEN 1 AND 9007199254740991)
 );
 --> statement-breakpoint
 CREATE TABLE "byline_store_file" (

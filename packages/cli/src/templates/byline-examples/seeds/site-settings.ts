@@ -11,14 +11,17 @@ import { getSystemBylineClient } from '@byline/client/server'
 /** Seed the singleton slot once, without overwriting later editorial changes. */
 export async function seedSiteSettings(): Promise<'seeded' | 'unchanged'> {
   const settings = getSystemBylineClient().singleton('site-settings')
-  const existing = await settings.get({ status: 'any' })
-  if (existing != null) return 'unchanged'
+  const existing = await settings.getForEdit()
+  if (existing?.state !== 'empty') return 'unchanged'
 
-  await settings.update({
-    siteName: 'Example site',
-    siteDescription:
-      'A concise description of this site for search results and social media previews.',
-  })
+  await settings.update(
+    {
+      siteName: 'Example site',
+      siteDescription:
+        'A concise description of this site for search results and social media previews.',
+    },
+    { expectedState: 'empty' }
+  )
   console.log('Seeded site settings')
   return 'seeded'
 }
