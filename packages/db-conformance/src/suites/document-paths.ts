@@ -37,6 +37,20 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { ConformanceHooks } from '../index.js'
 
+async function bounded<T>(promise: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Document path race barrier timed out')), 10000)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 const timestamp = Date.now()
 let pathSequence = 0
 
@@ -69,7 +83,10 @@ export function documentPathsSuite(hooks: ConformanceHooks): void {
   const uniquePath = (label: string): string => `${label}-${timestamp}-${pathSequence++}`
 
   const restoreSoftDeletedDocument = (documentId: string): Promise<number> =>
-    adapter.commands.documents.restoreSoftDeletedDocument({ document_id: documentId })
+    adapter.commands.documents.restoreSoftDeletedDocument({
+      expectedRevision: 1,
+      document_id: documentId,
+    })
 
   const createDocument = async ({
     documentId,
@@ -305,6 +322,7 @@ export function documentPathsSuite(hooks: ConformanceHooks): void {
         })
 
         const duplicate = await duplicateDocument(lifecycleContext(), {
+          expectedRevision: 1,
           sourceDocumentId: source.document.document_id,
         })
 
@@ -331,6 +349,7 @@ export function documentPathsSuite(hooks: ConformanceHooks): void {
         })
 
         const duplicate = await duplicateDocument(lifecycleContext(), {
+          expectedRevision: 1,
           sourceDocumentId: source.document.document_id,
         })
 
@@ -426,6 +445,59 @@ export function documentPathsSuite(hooks: ConformanceHooks): void {
         await expect(restoreSoftDeletedDocument(live.document.document_id)).resolves.toBe(0)
       })
 
+      it('requires an observed revision for un-delete and rejects a stale no-op', async () => {
+        const created = await createDocument({ path: uniquePath('guarded-undelete') })
+        const documentId = created.document.document_id
+        await adapter.withTransaction(() =>
+          adapter.commands.documents.publishSchedules.schedule({
+            authorizedRevision: 1,
+            documentId,
+            collectionId: testCollection.id,
+            expectedVersionId: created.document.id,
+            publishAt: new Date(Date.now() + 3600000),
+            actorId: null,
+          })
+        )
+        await adapter.commands.documents.softDeleteDocument({ document_id: documentId })
+        const missing = JSON.parse('{}')
+        await expect(
+          adapter.commands.documents.restoreSoftDeletedDocument({
+            document_id: documentId,
+            expectedRevision: missing.expectedRevision,
+          })
+        ).rejects.toMatchObject({ code: 'ERR_VALIDATION' })
+        await expect(
+          adapter.commands.documents.restoreSoftDeletedDocument({
+            document_id: documentId,
+            expectedRevision: 1,
+          })
+        ).resolves.toBe(1)
+        expect(
+          await adapter.queries.documents.publishSchedules.get({
+            documentId,
+            collectionId: testCollection.id,
+          })
+        ).toBeNull()
+        expect(
+          await adapter.queries.documents.getDocumentRevision({
+            collection_id: testCollection.id,
+            document_id: documentId,
+          })
+        ).toBe(2)
+        await expect(
+          adapter.commands.documents.restoreSoftDeletedDocument({
+            document_id: documentId,
+            expectedRevision: 1,
+          })
+        ).rejects.toMatchObject({ code: 'ERR_DOCUMENT_STALE' })
+        await expect(
+          adapter.commands.documents.restoreSoftDeletedDocument({
+            document_id: documentId,
+            expectedRevision: 2,
+          })
+        ).resolves.toBe(0)
+      })
+
       it('rejects a new version for an existing fully deleted document', async () => {
         const path = uniquePath('deleted-version-guard')
         const first = await createDocument({ path, title: 'Original' })
@@ -446,23 +518,54 @@ export function documentPathsSuite(hooks: ConformanceHooks): void {
         expect(history.documents[0]?.document_id).toBe(documentId)
       })
 
-      it('serializes an existing-document write with soft delete', async () => {
+      it('rejects an existing-document write after a concurrent soft delete acquires its locks', async () => {
+        const observe = hooks.observeRevisionContention
+        if (!observe) throw new Error('Document path race requires a physical-connection barrier')
         const path = uniquePath('delete-write-race')
         const first = await createDocument({ path, title: 'Original' })
         const documentId = first.document.document_id
+        let signalDeleted!: () => void
+        const deletedUnderLock = new Promise<void>((resolve) => {
+          signalDeleted = resolve
+        })
 
-        const [write, deletion] = await Promise.allSettled([
-          createDocument({
-            documentId,
-            path,
-            title: 'Concurrent update',
-            previousVersionId: first.document.id,
-          }),
-          adapter.commands.documents.softDeleteDocument({ document_id: documentId }),
-        ])
-
-        expect(deletion.status).toBe('fulfilled')
-        expect(['fulfilled', 'rejected']).toContain(write.status)
+        const observation = await observe(async (waitForTwoConnections) => {
+          const deletion = adapter
+            .withTransaction(async () => {
+              const count = await adapter.commands.documents.softDeleteDocument({
+                document_id: documentId,
+              })
+              // Keep the deletion's collection/document locks until the competing
+              // writer has checked out a distinct physical connection.
+              signalDeleted()
+              await bounded(waitForTwoConnections())
+              return count
+            })
+            .finally(signalDeleted)
+          const write = (async () => {
+            await bounded(deletedUnderLock)
+            return createDocument({
+              documentId,
+              path,
+              title: 'Concurrent update',
+              previousVersionId: first.document.id,
+            })
+          })()
+          // Drain both operations on failure too; a timed-out barrier is never
+          // accepted as a legitimate losing writer.
+          return Promise.allSettled([write, deletion])
+        })
+        expect(observation.maxConcurrentConnections).toBeGreaterThanOrEqual(2)
+        const [write, deletion] = observation.result
+        expect(deletion).toMatchObject({ status: 'fulfilled', value: 1 })
+        expect(write).toMatchObject({
+          status: 'rejected',
+          reason: {
+            code: 'ERR_CONFLICT',
+            message: 'cannot add a version to a soft-deleted document',
+          },
+        })
+        expect((await getHistory(documentId)).documents).toHaveLength(1)
         const deleted = await adapter.queries.documents.getDocumentByPath({
           collection_id: testCollection.id,
           path,

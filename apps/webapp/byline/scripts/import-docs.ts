@@ -190,13 +190,17 @@ async function walkToStatus(
   documentId: string,
   workflowStatuses: readonly { name: string }[],
   currentStatus: string,
-  targetStatus: string
+  targetStatus: string,
+  expectedRevision: number
 ): Promise<void> {
   const currentIdx = workflowStatuses.findIndex((s) => s.name === currentStatus)
   const targetIdx = workflowStatuses.findIndex((s) => s.name === targetStatus)
   if (currentIdx === -1 || targetIdx === -1 || targetIdx <= currentIdx) return
   for (let i = currentIdx + 1; i <= targetIdx; i++) {
-    await handle.changeStatus(documentId, workflowStatuses[i].name)
+    const result = await handle.changeStatus(documentId, workflowStatuses[i].name, {
+      expectedRevision,
+    })
+    expectedRevision = result.revision
   }
 }
 
@@ -204,6 +208,7 @@ interface ProcessResult {
   filePath: string
   action: 'created' | 'updated' | 'skipped'
   documentId?: string
+  revision?: number
   path: string
 }
 
@@ -306,11 +311,18 @@ async function processFile(
   const workflowStatuses = definition?.workflow?.statuses ?? []
   const defaultStatus = workflowStatuses[0]?.name ?? 'draft'
 
-  const existing = await handle.findByPath(docPath, {
+  const selected = await handle.findByPath(docPath, {
     locale,
     status: 'any',
     _bypassBeforeRead: true,
   })
+
+  const existing =
+    selected == null
+      ? null
+      : await handle.findByIdForEdit(selected.id, { locale, _bypassBeforeRead: true })
+  if (selected != null && existing == null)
+    throw new Error('Import target is no longer available; rerun the import.')
 
   const updateExisting = async (document: NonNullable<typeof existing>): Promise<ProcessResult> => {
     // Don't clobber publishedOn if Byline already has one.
@@ -318,6 +330,7 @@ async function processFile(
       delete payload.publishedOn
     }
     const result = await handle.update(document.id, payload, {
+      expectedRevision: document.revision,
       locale,
       // Advertise the imported locale (editorial available-locales set), merged
       // with whatever is already advertised so a later-locale re-import doesn't
@@ -325,8 +338,21 @@ async function processFile(
       // completeness ledger (intersection). See docs/08-internationalization/index.md.
       availableLocales: [...new Set([...(document.availableLocales ?? []), locale])],
     })
-    await walkToStatus(handle, result.documentId, workflowStatuses, defaultStatus, desiredStatus)
-    return { filePath, action: 'updated', documentId: result.documentId, path: docPath }
+    await walkToStatus(
+      handle,
+      result.documentId,
+      workflowStatuses,
+      defaultStatus,
+      desiredStatus,
+      result.revision
+    )
+    return {
+      filePath,
+      action: 'updated',
+      documentId: result.documentId,
+      revision: result.revision,
+      path: docPath,
+    }
   }
 
   if (existing) {
@@ -341,7 +367,13 @@ async function processFile(
     // intersection of this editorial set with the completeness ledger.
     availableLocales: [locale],
   })
-  return { filePath, action: 'created', documentId: result.documentId, path: docPath }
+  return {
+    filePath,
+    action: 'created',
+    documentId: result.documentId,
+    revision: result.revision,
+    path: docPath,
+  }
 }
 
 async function run(): Promise<void> {

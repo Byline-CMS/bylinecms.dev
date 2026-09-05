@@ -11,6 +11,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { commitHookAttachment, prepareHookAttachment } from '../config/attach-hooks.js'
 import { BylineError, ErrorCodes } from '../lib/errors.js'
+import { unusedRevisionStore } from '../storage/revision-store.test-helper.js'
 import { uploadField } from './field-upload.js'
 import type { CollectionDefinition, IDbAdapter, IStorageProvider } from '../@types/index.js'
 import type { BylineLogger } from '../lib/logger.js'
@@ -68,8 +69,13 @@ function createMockDb() {
   })
 
   const db: IDbAdapter = {
+    revisions: unusedRevisionStore,
+    withReadSnapshot: async () => {
+      throw new Error('Unexpected editable snapshot in this test')
+    },
     commands: {
       collections: {
+        lockCollectionRegistration: vi.fn(async () => {}),
         create: vi.fn(),
         update: vi.fn(),
         delete: vi.fn(),
@@ -118,6 +124,9 @@ function createMockDb() {
       },
       documents: {
         publishSchedules: {} as any,
+        getDocumentRevision: async () => {
+          throw new Error('Unexpected revision read in this test')
+        },
         getDocumentSystemFieldsForUpdate: vi.fn(async () => null),
         getDocumentById: vi.fn(),
         getCurrentVersionMetadata: vi.fn(),
@@ -450,6 +459,8 @@ describe('uploadField service', () => {
       locale: 'en',
     })
 
+    expect(result.revision).toBe(1)
+
     // beforeStore receives the rich context.
     expect(beforeStore).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -698,6 +709,34 @@ describe('uploadField service', () => {
     expect(afterStore).toHaveBeenCalledOnce()
     expect(del).not.toHaveBeenCalled()
     expect(result.storedFile.filename).toBe('hero.png')
+  })
+
+  it('preserves uploaded files and the receipt after a committed creation hook fails', async () => {
+    const { ctx, createDocumentVersion, del, storedPaths } = buildCtx({
+      definition: {
+        ...uploadCollection,
+        hooks: {
+          afterCreate: () => {
+            throw new Error('index unavailable')
+          },
+        },
+      },
+    })
+    await expect(
+      uploadField(ctx, {
+        buffer: Buffer.from('png'),
+        originalFilename: 'hero.png',
+        mimeType: 'image/png',
+        fileSize: 3,
+        shouldCreateDocument: true,
+      })
+    ).rejects.toMatchObject({
+      code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
+      details: { phase: 'afterCreate', revision: 1 },
+    })
+    expect(createDocumentVersion).toHaveBeenCalledOnce()
+    expect(del).not.toHaveBeenCalled()
+    expect(storedPaths.has('media/original.png')).toBe(true)
   })
 
   it('rolls back stored files when document creation fails', async () => {

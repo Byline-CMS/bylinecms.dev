@@ -148,7 +148,7 @@ beforeAll(async () => {
   const seed = async (collectionPath: string, fields: Record<string, string>): Promise<string> => {
     const handle = ctx.client.collection(collectionPath)
     const created = await handle.create(fields)
-    await handle.changeStatus(created.documentId, 'published')
+    await handle.changeStatus(created.documentId, 'published', { expectedRevision: 1 })
     await handle.indexDocument(created.documentId)
     return created.documentId
   }
@@ -364,7 +364,7 @@ describe('zone (cross-collection) search', () => {
     // Delete an article *without* index maintenance (this collection wires no
     // lifecycle hooks), leaving a stale index row behind.
     setSuperActor('super')
-    await ctx.client.collection(articlesPath).delete(articleTwo)
+    await ctx.client.collection(articlesPath).delete(articleTwo, { expectedRevision: 2 })
 
     const stale = await ctx.client.search({ query: 'zonal', zone })
     expect(stale.hits.some((h) => h.documentId === articleTwo)).toBe(true) // still ranked

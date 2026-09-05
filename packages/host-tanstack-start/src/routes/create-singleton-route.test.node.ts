@@ -112,6 +112,7 @@ describe('singleton editor route loader', () => {
 
     await expect(load('fr')).resolves.toEqual({
       document: null,
+      expectedEmpty: true,
       initialData: { title: 'Default title' },
     })
     expect(mocks.read).toHaveBeenCalledWith({
@@ -130,6 +131,12 @@ describe('singleton editor route loader', () => {
       versionId: 'version-current',
       status: 'draft',
       fields: { title: 'Loaded' },
+      revision: 7,
+      scheduledPublication: {
+        state: 'armed',
+        publishAt: '2026-09-01T00:00:00.000Z',
+        targetVersionId: 'version-current',
+      },
     })
     mocks.getPublishedVersion.mockResolvedValue({
       document_id: 'document-settings',
@@ -167,6 +174,6 @@ describe('singleton editor route loader', () => {
       collection_id: 'collection-settings',
       document_id: 'document-settings',
     })
-    expect(mocks.getScheduledPublish).toHaveBeenCalledTimes(1)
+    expect(mocks.getScheduledPublish).not.toHaveBeenCalled()
   })
 })

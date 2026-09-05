@@ -137,7 +137,9 @@ export function SingletonView({
           singleton: path,
           data,
           locale: locale ?? defaultContentLocale,
-          expectedVersionId: document?.versionId,
+          ...(document == null
+            ? { expectedState: 'empty' as const }
+            : { expectedRevision: document.revision }),
         },
       })
       if (document != null) notifyScheduleSuspended()
@@ -170,7 +172,9 @@ export function SingletonView({
 
   const handleStatusChange = async (status: string) => {
     try {
-      await changeSingletonStatus({ data: { singleton: path, status } })
+      await changeSingletonStatus({
+        data: { expectedRevision: document?.revision, singleton: path, status },
+      })
       toast(
         t('collections.edit.statusUpdateTitle', { label }),
         t('collections.edit.statusChangedDescription', { status }),
@@ -189,7 +193,7 @@ export function SingletonView({
 
   const handleUnpublish = async () => {
     try {
-      await unpublishSingleton({ data: { singleton: path } })
+      await unpublishSingleton({ data: { expectedRevision: document?.revision, singleton: path } })
       toast(
         t('collections.edit.unpublishTitle', { label }),
         t('collections.edit.unpublishedDescription'),
@@ -216,6 +220,7 @@ export function SingletonView({
     try {
       const result = await copySingletonToLocale({
         data: {
+          expectedRevision: document?.revision,
           singleton: path,
           sourceLocale: locale ?? defaultContentLocale,
           targetLocale,
@@ -258,7 +263,12 @@ export function SingletonView({
   const handleSchedulePublication = async ({ publishAt }: { publishAt: string }) => {
     try {
       await scheduleSingletonPublish({
-        data: { singleton: path, publishAt, expectedVersionId: String(document?.versionId) },
+        data: {
+          expectedRevision: document?.revision,
+          singleton: path,
+          publishAt,
+          expectedVersionId: String(document?.versionId),
+        },
       })
       toast(
         t('scheduledPublication.toast.scheduledTitle'),
@@ -275,7 +285,11 @@ export function SingletonView({
   const handleConfirmScheduledPublication = async () => {
     try {
       await confirmSingletonScheduledPublish({
-        data: { singleton: path, expectedVersionId: String(document?.versionId) },
+        data: {
+          expectedRevision: document?.revision,
+          singleton: path,
+          expectedVersionId: String(document?.versionId),
+        },
       })
       toast(
         t('scheduledPublication.toast.confirmedTitle'),
@@ -291,7 +305,9 @@ export function SingletonView({
 
   const handleCancelScheduledPublication = async () => {
     try {
-      await cancelSingletonScheduledPublish({ data: { singleton: path } })
+      await cancelSingletonScheduledPublish({
+        data: { expectedRevision: document?.revision, singleton: path },
+      })
       toast(
         t('scheduledPublication.toast.cancelledTitle'),
         t('scheduledPublication.toast.cancelledDescription'),

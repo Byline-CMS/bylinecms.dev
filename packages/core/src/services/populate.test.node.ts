@@ -10,6 +10,7 @@ import { AdminAuth, createRequestContext } from '@byline/auth'
 import { describe, expect, it, vi } from 'vitest'
 
 import { BylineError, ErrorCodes } from '../lib/errors.js'
+import { unusedRevisionStore } from '../storage/revision-store.test-helper.js'
 import { __internal, createReadContext, type PopulateSpec, populateDocuments } from './populate.js'
 import type { CollectionDefinition, IDbAdapter } from '../@types/index.js'
 
@@ -164,8 +165,19 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
   })
 
   const db = {
+    revisions: unusedRevisionStore,
+    withReadSnapshot: async () => {
+      throw new Error('Unexpected editable snapshot in this test')
+    },
     commands: {
-      collections: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+      collections: {
+        lockCollectionRegistration: vi.fn(async () => {
+          throw new Error('Unexpected collection lock')
+        }),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+      },
       documents: {
         publishSchedules: {} as any,
         createDocumentVersion: vi.fn(),
@@ -210,6 +222,9 @@ function makeMockAdapter(store: FetchMap = {}, pathByCollectionId: Record<string
       },
       documents: {
         publishSchedules: {} as any,
+        getDocumentRevision: async () => {
+          throw new Error('Unexpected revision read in this test')
+        },
         getDocumentSystemFieldsForUpdate: vi.fn(async () => null),
         getDocumentById: vi.fn(),
         getCurrentVersionMetadata: vi.fn(),

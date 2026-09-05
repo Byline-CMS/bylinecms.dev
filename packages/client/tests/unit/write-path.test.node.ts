@@ -35,6 +35,7 @@ function scheduleRow(overrides: Partial<DocumentPublishSchedule> = {}): Document
     targetVersionId: 'ver:current',
     publishAt: new Date('2026-08-23T12:00:00.000Z'),
     state: 'armed',
+    authorizedRevision: null,
     suspendedAt: null,
     suspendedReason: null,
     scheduledBy: null,
@@ -60,6 +61,7 @@ interface AdapterOverrides {
 }
 
 function makeAdapter(overrides: AdapterOverrides = {}) {
+  let revision = 1
   const {
     currentStatus = 'draft',
     currentVersionId = 'ver:current',
@@ -125,10 +127,38 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
   }))
 
   const db = {
+    revisions: {
+      readStructure: async () => {
+        throw new Error('Structural reads are outside this fixture')
+      },
+      isInTransaction: () => false,
+      assertCompatibleSchema: vi.fn(),
+      lock: vi.fn(async () => [
+        {
+          documentId: 'doc:1',
+          collectionId: 'col:posts',
+          revision,
+          currentVersionId,
+          status: currentStatus,
+          sourceLocale: 'en',
+          path: 'original-path',
+          availableLocales: ['en'],
+        },
+      ]),
+      advance: vi.fn(async () => ({ documentId: 'doc:1', revision: ++revision })),
+    },
+    withReadSnapshot: (async (fn) => fn(db.queries)) satisfies IDbAdapter['withReadSnapshot'],
     commands: {
-      collections: { create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+      singletons: { lockSlot: vi.fn(async () => {}) },
+      collections: {
+        lockCollectionRegistration: vi.fn(async () => {}),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+      },
       documents: {
         publishSchedules: {
+          lockDocuments: vi.fn(),
           schedule: schedulePublish,
           confirm: confirmScheduledPublish,
           cancel: cancelScheduledPublish,
@@ -139,6 +169,8 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
           suspendClaimForContentEdit: vi.fn(async () => false),
           releaseClaim: vi.fn(async () => false),
         },
+        updateDocumentPath: vi.fn(),
+        setDocumentAvailableLocales: vi.fn(),
         createDocumentVersion,
         setDocumentStatus,
         archivePublishedVersions,
@@ -161,9 +193,11 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
       },
       documents: {
         publishSchedules: {
+          lockDocuments: vi.fn(),
           get: getScheduledPublish,
           list: vi.fn(async () => ({ schedules: [], total: 0 })),
         },
+        getDocumentRevision: vi.fn(async () => revision),
         getDocumentById,
         getCurrentVersionMetadata,
         getCurrentPath: vi.fn(async () => 'original-path'),
@@ -225,7 +259,7 @@ describe('CollectionHandle.create', () => {
         locale: 'en',
       })
     )
-    expect(result).toEqual({ documentId: 'doc:new', documentVersionId: 'ver:new' })
+    expect(result).toEqual({ documentId: 'doc:new', documentVersionId: 'ver:new', revision: 1 })
   })
 
   it('invokes beforeCreate and afterCreate hooks in order', async () => {
@@ -318,7 +352,9 @@ describe('CollectionHandle.update', () => {
       collections: allCollections,
     })
 
-    await client.collection('posts').update('doc:1', { title: 'Updated', path: 'updated' })
+    await client
+      .collection('posts')
+      .update('doc:1', { title: 'Updated', path: 'updated' }, { expectedRevision: 1 })
 
     expect(getDocumentById).toHaveBeenCalledWith(
       expect.objectContaining({ collection_id: 'col:posts', document_id: 'doc:1' })
@@ -333,7 +369,7 @@ describe('CollectionHandle.update', () => {
     )
   })
 
-  it('passes availableLocales through to createDocumentVersion (empty array clears)', async () => {
+  it('clears availableLocales inside the guarded save before creating its version)', async () => {
     const { db, createDocumentVersion } = makeAdapter({ currentVersionId: 'ver:old' })
     const client = createBylineClient({
       db,
@@ -341,10 +377,15 @@ describe('CollectionHandle.update', () => {
       collections: allCollections,
     })
 
-    await client.collection('posts').update('doc:1', { title: 'X' }, { availableLocales: [] })
+    await client
+      .collection('posts')
+      .update('doc:1', { title: 'X' }, { expectedRevision: 1, availableLocales: [] })
+    expect(db.commands.documents.setDocumentAvailableLocales).toHaveBeenCalledWith(
+      expect.objectContaining({ availableLocales: [] })
+    )
 
     expect(createDocumentVersion).toHaveBeenCalledWith(
-      expect.objectContaining({ documentId: 'doc:1', action: 'update', availableLocales: [] })
+      expect.objectContaining({ documentId: 'doc:1', action: 'update' })
     )
   })
 
@@ -365,7 +406,7 @@ describe('CollectionHandle.update', () => {
     })
     const client = createBylineClient({ db, requestContext: superAdmin, collections: [collection] })
 
-    await client.collection('posts').update('doc:1', { title: 'After' })
+    await client.collection('posts').update('doc:1', { title: 'After' }, { expectedRevision: 1 })
 
     expect(beforeUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -393,9 +434,16 @@ describe('CollectionHandle.changeStatus', () => {
       collections: allCollections,
     })
 
-    const result = await client.collection('posts').changeStatus('doc:1', 'published')
+    const result = await client
+      .collection('posts')
+      .changeStatus('doc:1', 'published', { expectedRevision: 1 })
 
-    expect(result).toEqual({ previousStatus: 'draft', newStatus: 'published' })
+    expect(result).toEqual({
+      documentId: 'doc:1',
+      revision: 2,
+      previousStatus: 'draft',
+      newStatus: 'published',
+    })
     expect(setDocumentStatus).toHaveBeenCalledWith({
       document_version_id: 'ver:current',
       status: 'published',
@@ -426,7 +474,7 @@ describe('CollectionHandle.changeStatus', () => {
     // a separate case: archived→archived or similar.
     // Simpler: verify that a draft→archived call rejects (invalid transition).
     await expect(
-      client.collection('posts').changeStatus('doc:1', 'archived')
+      client.collection('posts').changeStatus('doc:1', 'archived', { expectedRevision: 1 })
     ).rejects.toThrowError()
 
     expect(archivePublishedVersions).not.toHaveBeenCalled()
@@ -456,6 +504,7 @@ describe('CollectionHandle scheduled publication', () => {
 
     const scheduled = await handle.schedulePublish('doc:1', {
       publishAt,
+      expectedRevision: 1,
       expectedVersionId: 'ver:current',
     })
     expect(scheduled).toMatchObject({ documentId: 'doc:1', targetVersionId: 'ver:current' })
@@ -465,22 +514,30 @@ describe('CollectionHandle scheduled publication', () => {
       documentId: 'doc:1',
       collectionId: 'col:posts',
       expectedVersionId: 'ver:current',
+      authorizedRevision: 2,
       publishAt: new Date(publishAt),
       actorId: null,
     })
 
     await expect(
-      handle.confirmScheduledPublish('doc:1', { expectedVersionId: 'ver:current' })
+      handle.confirmScheduledPublish('doc:1', {
+        expectedRevision: 2,
+        expectedVersionId: 'ver:current',
+      })
     ).resolves.toMatchObject({ state: 'armed' })
     expect(confirmScheduledPublish).toHaveBeenCalledWith({
       documentId: 'doc:1',
       collectionId: 'col:posts',
       expectedVersionId: 'ver:current',
+      authorizedRevision: 3,
       actorId: null,
     })
 
-    await expect(handle.cancelScheduledPublish('doc:1')).resolves.toMatchObject({
-      documentId: 'doc:1',
+    await expect(
+      handle.cancelScheduledPublish('doc:1', { expectedRevision: 3 })
+    ).resolves.toMatchObject({
+      revision: 4,
+      schedule: { documentId: 'doc:1' },
     })
     expect(cancelScheduledPublish).toHaveBeenCalledWith({
       documentId: 'doc:1',
@@ -511,10 +568,10 @@ describe('CollectionHandle.unpublish', () => {
       collections: allCollections,
     })
 
-    const result = await client.collection('posts').unpublish('doc:1')
+    const result = await client.collection('posts').unpublish('doc:1', { expectedRevision: 1 })
 
     expect(archivePublishedVersions).toHaveBeenCalledWith({ document_id: 'doc:1' })
-    expect(result).toEqual({ archivedCount: 1 })
+    expect(result).toEqual({ documentId: 'doc:1', revision: 2, archivedCount: 1 })
   })
 })
 
@@ -531,11 +588,15 @@ describe('CollectionHandle.delete', () => {
       collections: allCollections,
     })
 
-    const result = await client.collection('posts').delete('doc:1')
+    const result = await client.collection('posts').delete('doc:1', { expectedRevision: 1 })
 
     expect(getDocumentById).toHaveBeenCalled()
     expect(softDeleteDocument).toHaveBeenCalledWith({ document_id: 'doc:1' })
     expect(result).toEqual({
+      documentId: 'doc:1',
+      revision: 2,
+      affectedDocuments: [{ documentId: 'doc:1', revision: 2 }],
+      scheduledPublicationsNeedReconfirmation: false,
       deletedVersionCount: 3,
       outcome: 'committed',
       sideEffectFailures: [],
@@ -550,9 +611,9 @@ describe('CollectionHandle.delete', () => {
       collections: allCollections,
     })
 
-    await expect(client.collection('posts').delete('doc:missing')).rejects.toThrowError(
-      /document not found/
-    )
+    await expect(
+      client.collection('posts').delete('doc:missing', { expectedRevision: 1 })
+    ).rejects.toThrowError(/document not found/)
     expect(softDeleteDocument).not.toHaveBeenCalled()
   })
 
@@ -567,9 +628,13 @@ describe('CollectionHandle.delete', () => {
     const { db } = makeAdapter()
     const client = createBylineClient({ db, requestContext: superAdmin, collections: [collection] })
 
-    const result = await client.collection('posts').delete('doc:1')
+    const result = await client.collection('posts').delete('doc:1', { expectedRevision: 1 })
 
     expect(result).toEqual({
+      documentId: 'doc:1',
+      revision: 2,
+      affectedDocuments: [{ documentId: 'doc:1', revision: 2 }],
+      scheduledPublicationsNeedReconfirmation: false,
       deletedVersionCount: 3,
       outcome: 'committed-with-side-effect-failures',
       sideEffectFailures: [{ phase: 'afterDelete', code: 'ERR_UNHANDLED' }],

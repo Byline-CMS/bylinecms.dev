@@ -37,6 +37,7 @@ import type { ConformanceHooks } from '../index.js'
 const timestamp = Date.now()
 const slotNames = [
   'concurrent',
+  'guards',
   'locale',
   'published',
   'after-save',
@@ -212,53 +213,61 @@ export function singletonLifecycleSuite(hooks: ConformanceHooks): void {
       }
     })
 
-    it('serializes concurrent first saves through the registered-slot lock', async () => {
+    it('rejects a competing first save under the registered-slot lock', async () => {
       const observe = hooks.observeSingletonContention
-      if (observe == null) {
-        throw new Error('singleton lifecycle conformance requires observeSingletonContention')
-      }
-      let releaseFirst!: () => void
+      if (!observe) throw new Error('Singleton contention observer required')
+      let releaseFirst!: () => void, enteredFirst!: () => void
       const release = new Promise<void>((resolve) => {
         releaseFirst = resolve
       })
-      let firstHookEntered!: () => void
       const entered = new Promise<void>((resolve) => {
-        firstHookEntered = resolve
+        enteredFirst = resolve
       })
-      const initialFlags: boolean[] = []
-      definitions.concurrent.hooks = {
-        beforeSave: async (hookContext) => {
-          initialFlags.push(hookContext.isInitialSave)
-          if (initialFlags.length === 1) {
-            firstHookEntered()
-            await release
+      const original = adapter.commands.singletons.lockSlot.bind(adapter.commands.singletons)
+      const spy = vi
+        .spyOn(adapter.commands.singletons, 'lockSlot')
+        .mockImplementationOnce(async (id) => {
+          await original(id)
+          enteredFirst()
+          await release
+        })
+      try {
+        const observation = await observe(async (waitForTwoConnections) => {
+          const first = updateSingleton(context('concurrent'), {
+            expectedState: 'empty',
+            data: { title: 'First' },
+          })
+          await entered
+          const second = updateSingleton(context('concurrent'), {
+            expectedState: 'empty',
+            data: { title: 'Second' },
+          })
+          const results = Promise.allSettled([first, second])
+          try {
+            await waitForTwoConnections()
+          } finally {
+            releaseFirst()
           }
-        },
-      }
-
-      const observation = await observe(async (waitForTwoConnections) => {
-        const first = updateSingleton(context('concurrent'), { data: { title: 'First' } })
-        await entered
-        const second = updateSingleton(context('concurrent'), { data: { title: 'Second' } })
-        await waitForTwoConnections()
-        expect(initialFlags).toEqual([true])
+          return results
+        })
+        expect(observation.maxConcurrentConnections).toBeGreaterThanOrEqual(2)
+        expect(observation.result[0]).toMatchObject({ status: 'fulfilled', value: { revision: 1 } })
+        expect(observation.result[1]).toMatchObject({
+          status: 'rejected',
+          reason: { code: 'ERR_DOCUMENT_STALE', details: { reason: 'singleton_slot_changed' } },
+        })
+        expect((await read('concurrent', 'en'))?.fields.title).toBe('First')
+      } finally {
         releaseFirst()
-        return Promise.all([first, second])
-      })
-
-      expect(observation.maxConcurrentConnections).toBeGreaterThanOrEqual(2)
-      expect(observation.result[0].documentId).toBe(observation.result[1].documentId)
-      expect(observation.result[0].documentVersionId).not.toBe(
-        observation.result[1].documentVersionId
-      )
-      expect(initialFlags).toEqual([true, false])
-      await expect(
-        adapter.queries.singletons.getMappedDocumentId(collectionIds.concurrent)
-      ).resolves.toBe(observation.result[0].documentId)
+        spy.mockRestore()
+      }
     })
 
     it('writes later locales onto the same logical singleton document', async () => {
-      const initial = await updateSingleton(context('locale'), { data: { title: 'English' } })
+      const initial = await updateSingleton(context('locale'), {
+        expectedState: 'empty',
+        data: { title: 'English' },
+      })
 
       await expect(read('locale', 'th')).resolves.toBeNull()
       expect((await read('locale', 'th', 'any', 'fallback'))?.fields).toMatchObject({
@@ -267,6 +276,7 @@ export function singletonLifecycleSuite(hooks: ConformanceHooks): void {
       expect((await read('locale', 'th', 'any', 'empty'))?.fields.title).toBeUndefined()
 
       const translated = await updateSingleton(context('locale'), {
+        expectedRevision: 1,
         data: { title: 'ภาษาไทย' },
         locale: 'th',
       })
@@ -276,34 +286,116 @@ export function singletonLifecycleSuite(hooks: ConformanceHooks): void {
       expect((await read('locale', 'th'))?.fields).toMatchObject({ title: 'ภาษาไทย' })
     })
 
+    it('guards singleton status, unpublish, restore and copy before hooks and returns committed receipts', async () => {
+      const scoped = context('guards')
+      const first = await updateSingleton(scoped, {
+        expectedState: 'empty',
+        data: { title: 'English' },
+      })
+      const second = await updateSingleton(scoped, {
+        expectedRevision: first.revision,
+        locale: 'th',
+        data: { title: 'Thai' },
+      })
+      const hook = vi.fn()
+      definitions.guards.hooks = {
+        beforeSave: hook,
+        afterSave: hook,
+        beforeStatusChange: hook,
+        afterStatusChange: hook,
+        beforeUnpublish: hook,
+        afterUnpublish: hook,
+      }
+      const operations = [
+        (expectedRevision: number) =>
+          changeDocumentStatus(scoped, {
+            documentId: first.documentId,
+            nextStatus: 'published',
+            expectedRevision,
+          }),
+        (expectedRevision: number) =>
+          unpublishDocument(scoped, { documentId: first.documentId, expectedRevision }),
+        (expectedRevision: number) =>
+          restoreSingletonVersion(scoped, {
+            sourceVersionId: first.documentVersionId,
+            expectedRevision,
+          }),
+        (expectedRevision: number) =>
+          copySingletonToLocale(scoped, {
+            sourceLocale: 'en',
+            targetLocale: 'th',
+            overwrite: true,
+            expectedRevision,
+          }),
+      ]
+      for (const operation of operations) {
+        await expect(operation(first.revision)).rejects.toMatchObject({
+          code: 'ERR_DOCUMENT_STALE',
+        })
+        await expect(operation(JSON.parse('{}').expectedRevision)).rejects.toMatchObject({
+          code: 'ERR_VALIDATION',
+          details: { reason: 'missing_document_revision' },
+        })
+      }
+      expect(hook).not.toHaveBeenCalled()
+      const copied = await copySingletonToLocale(scoped, {
+        sourceLocale: 'en',
+        targetLocale: 'th',
+        overwrite: true,
+        expectedRevision: second.revision,
+      })
+      expect(copied.revision).toBe(3)
+      const unchanged = await copySingletonToLocale(scoped, {
+        sourceLocale: 'en',
+        targetLocale: 'th',
+        overwrite: false,
+        expectedRevision: copied.revision,
+      })
+      expect(unchanged.revision).toBe(copied.revision)
+      expect(unchanged.documentVersionId).toBe(copied.documentVersionId)
+      const restored = await restoreSingletonVersion(scoped, {
+        sourceVersionId: first.documentVersionId,
+        expectedRevision: unchanged.revision,
+      })
+      expect(restored.revision).toBe(4)
+      expect((await read('guards', 'en'))?.fields.title).toBe('English')
+    })
+
     it('inherits single-status and default workflow behaviour', async () => {
       const singleStatus = await updateSingleton(context('single-status'), {
+        expectedState: 'empty',
         data: { title: 'Immediately public' },
       })
       expect((await read('single-status', 'en', 'published'))?.status).toBe('published')
       expect(getAvailableTransitions(SINGLE_STATUS_WORKFLOW, 'published')).toEqual([])
       await expect(
         changeDocumentStatus(context('single-status'), {
+          expectedRevision: 1,
           documentId: singleStatus.documentId,
           nextStatus: 'draft',
         })
       ).rejects.toMatchObject({ code: 'ERR_INVALID_TRANSITION' })
 
       const editorial = await updateSingleton(context('workflow'), {
+        expectedState: 'empty',
         data: { title: 'Editorial singleton' },
       })
       expect((await read('workflow', 'en', 'any'))?.status).toBe('draft')
       expect(await read('workflow', 'en', 'published')).toBeNull()
 
       await changeDocumentStatus(context('workflow'), {
+        expectedRevision: 1,
         documentId: editorial.documentId,
         nextStatus: 'published',
       })
       expect((await read('workflow', 'en', 'published'))?.status).toBe('published')
 
       await expect(
-        unpublishDocument(context('workflow'), { documentId: editorial.documentId })
-      ).resolves.toEqual({ archivedCount: 1 })
+        unpublishDocument(context('workflow'), {
+          expectedRevision: 2,
+          documentId: editorial.documentId,
+        })
+      ).resolves.toMatchObject({ archivedCount: 1, revision: 3 })
       expect(await read('workflow', 'en', 'published')).toBeNull()
     })
 
@@ -318,9 +410,11 @@ export function singletonLifecycleSuite(hooks: ConformanceHooks): void {
         },
       }
       const saved = await updateSingleton(context('schedule'), {
+        expectedState: 'empty',
         data: { title: 'Scheduled singleton' },
       })
       await scheduleDocumentPublish(context('schedule'), {
+        expectedRevision: 1,
         documentId: saved.documentId,
         expectedVersionId: saved.documentVersionId,
         publishAt: new Date(Date.now() + 250).toISOString(),
@@ -342,9 +436,11 @@ export function singletonLifecycleSuite(hooks: ConformanceHooks): void {
 
     it('accumulates history and restores a version through singleton save hooks', async () => {
       const first = await updateSingleton(context('history-restore'), {
+        expectedState: 'empty',
         data: { title: 'First version' },
       })
       const second = await updateSingleton(context('history-restore'), {
+        expectedRevision: 1,
         data: { title: 'Second version' },
       })
       const hookEvents: string[] = []
@@ -358,6 +454,7 @@ export function singletonLifecycleSuite(hooks: ConformanceHooks): void {
       }
 
       const restored = await restoreSingletonVersion(context('history-restore'), {
+        expectedRevision: second.revision,
         sourceVersionId: first.documentVersionId,
       })
       expect(restored.documentId).toBe(first.documentId)
@@ -409,6 +506,7 @@ export function singletonLifecycleSuite(hooks: ConformanceHooks): void {
         status: 'published',
       })
       const saved = await updateSingleton(context('populate'), {
+        expectedState: 'empty',
         data: {
           title: 'Populated singleton',
           featured: {
@@ -483,7 +581,10 @@ export function singletonLifecycleSuite(hooks: ConformanceHooks): void {
           },
         ]),
       }
-      await updateSingleton(context('upload'), { data: { title: 'Before upload' } })
+      await updateSingleton(context('upload'), {
+        expectedState: 'empty',
+        data: { title: 'Before upload' },
+      })
       const uploaded = await uploadField(
         {
           ...context('upload'),
@@ -500,9 +601,20 @@ export function singletonLifecycleSuite(hooks: ConformanceHooks): void {
         }
       )
       const saved = await updateSingleton(context('upload'), {
+        expectedRevision: 1,
         data: { title: 'After upload', hero: uploaded.storedFile },
       })
 
+      await expect(
+        updateSingleton(context('upload'), {
+          expectedRevision: 1,
+          data: {
+            title: 'Stale attachment',
+            hero: { ...uploaded.storedFile, storagePath: 'singletons/unattached.png' },
+          },
+        })
+      ).rejects.toMatchObject({ code: 'ERR_DOCUMENT_STALE' })
+      expect(saved.revision).toBe(2)
       expect(storage.upload).toHaveBeenCalledOnce()
       expect(imageProcessor.generateVariants).toHaveBeenCalledOnce()
       expect((await read('upload', 'en'))?.fields).toMatchObject({
@@ -529,13 +641,17 @@ export function singletonLifecycleSuite(hooks: ConformanceHooks): void {
 
     it('keeps published content readable behind a newer current draft', async () => {
       const first = await updateSingleton(context('published'), {
+        expectedState: 'empty',
         data: { title: 'Published value' },
       })
       await adapter.commands.documents.setDocumentStatus({
         document_version_id: first.documentVersionId,
         status: 'published',
       })
-      await updateSingleton(context('published'), { data: { title: 'Draft value' } })
+      await updateSingleton(context('published'), {
+        expectedRevision: 1,
+        data: { title: 'Draft value' },
+      })
 
       expect((await read('published', 'en', 'published'))?.fields).toMatchObject({
         title: 'Published value',
@@ -563,7 +679,10 @@ export function singletonLifecycleSuite(hooks: ConformanceHooks): void {
       }
 
       await expect(
-        updateSingleton(context('after-save'), { data: { title: 'Committed value' } })
+        updateSingleton(context('after-save'), {
+          expectedState: 'empty',
+          data: { title: 'Committed value' },
+        })
       ).rejects.toMatchObject({
         code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
         details: { phase: 'afterSave', sideEffectCode: ErrorCodes.UNHANDLED },
@@ -575,9 +694,11 @@ export function singletonLifecycleSuite(hooks: ConformanceHooks): void {
 
     it('copies locale data on the mapped document without creating another slot', async () => {
       const initial = await updateSingleton(context('copy'), {
+        expectedState: 'empty',
         data: { title: 'English', tagline: 'Source' },
       })
       const translated = await updateSingleton(context('copy'), {
+        expectedRevision: 1,
         data: { title: 'ภาษาไทย', tagline: '' },
         locale: 'th',
       })
@@ -592,6 +713,7 @@ export function singletonLifecycleSuite(hooks: ConformanceHooks): void {
       }
 
       const copied = await copySingletonToLocale(context('copy'), {
+        expectedRevision: translated.revision,
         sourceLocale: 'en',
         targetLocale: 'th',
         overwrite: true,
@@ -623,24 +745,30 @@ export function singletonLifecycleSuite(hooks: ConformanceHooks): void {
         },
       }
       const first = await updateSingleton(context('discriminators'), {
+        expectedState: 'empty',
         data: { title: 'First', tagline: 'Fill me' },
       })
       await updateSingleton(context('discriminators'), {
+        expectedRevision: 1,
         data: { title: 'Current', tagline: 'Current tagline' },
       })
       await restoreSingletonVersion(context('discriminators'), {
+        expectedRevision: 2,
         sourceVersionId: first.documentVersionId,
       })
       await updateSingleton(context('discriminators'), {
+        expectedRevision: 3,
         data: { title: 'เป้าหมาย', tagline: '' },
         locale: 'th',
       })
       await copySingletonToLocale(context('discriminators'), {
+        expectedRevision: 4,
         sourceLocale: 'en',
         targetLocale: 'th',
         overwrite: false,
       })
       await copySingletonToLocale(context('discriminators'), {
+        expectedRevision: 5,
         sourceLocale: 'en',
         targetLocale: 'th',
         overwrite: true,

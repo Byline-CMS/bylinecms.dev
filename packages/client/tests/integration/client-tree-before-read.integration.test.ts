@@ -1,3 +1,4 @@
+import { observedRevision } from '../fixtures/observed-revision.js'
 /**
  * Tree reads apply the same SQL-compiled beforeRead predicate to structure and
  * hydration. Hidden nodes break an edge; descendants are not promoted.
@@ -74,7 +75,7 @@ beforeAll(async () => {
   const tree = client.collection(treeDefinition.path)
   const make = async (title: string, tenantId: string, ownerId: string): Promise<string> => {
     const created = await tree.create({ title, tenantId, ownerId })
-    await tree.changeStatus(created.documentId, 'published')
+    await tree.changeStatus(created.documentId, 'published', { expectedRevision: 1 })
     return created.documentId
   }
 
@@ -84,11 +85,28 @@ beforeAll(async () => {
   hiddenTenant = await make('Hidden tenant', 'bob', 'alice')
   leaf = await make('Leaf', 'alice', 'alice')
 
-  await tree.placeTreeNode(root, { parentDocumentId: null })
-  await tree.placeTreeNode(visible, { parentDocumentId: root })
-  await tree.placeTreeNode(hiddenOwner, { parentDocumentId: root, beforeDocumentId: visible })
-  await tree.placeTreeNode(leaf, { parentDocumentId: hiddenOwner })
-  await tree.placeTreeNode(hiddenTenant, { parentDocumentId: root, beforeDocumentId: hiddenOwner })
+  await tree.placeTreeNode(root, {
+    expectedRevision: await observedRevision(tree, root),
+    parentDocumentId: null,
+  })
+  await tree.placeTreeNode(visible, {
+    expectedRevision: await observedRevision(tree, visible),
+    parentDocumentId: root,
+  })
+  await tree.placeTreeNode(hiddenOwner, {
+    expectedRevision: await observedRevision(tree, hiddenOwner),
+    parentDocumentId: root,
+    beforeDocumentId: visible,
+  })
+  await tree.placeTreeNode(leaf, {
+    expectedRevision: await observedRevision(tree, leaf),
+    parentDocumentId: hiddenOwner,
+  })
+  await tree.placeTreeNode(hiddenTenant, {
+    expectedRevision: await observedRevision(tree, hiddenTenant),
+    parentDocumentId: root,
+    beforeDocumentId: hiddenOwner,
+  })
 }, 30_000)
 
 afterAll(async () => {

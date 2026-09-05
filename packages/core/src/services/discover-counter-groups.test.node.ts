@@ -8,6 +8,7 @@
 
 import { describe, expect, it, vi } from 'vitest'
 
+import { unusedRevisionStore } from '../storage/revision-store.test-helper.js'
 import { discoverCounterGroups } from './discover-counter-groups.js'
 import type { CollectionDefinition, IDbAdapter } from '../@types/index.js'
 
@@ -29,8 +30,19 @@ function makeAdapter(options?: {
     throw new Error('unexpected call')
   }
   const db: IDbAdapter = {
+    revisions: unusedRevisionStore,
+    withReadSnapshot: async () => {
+      throw new Error('Unexpected editable snapshot in this test')
+    },
     commands: {
-      collections: { create: vi.fn(fail), update: vi.fn(fail), delete: vi.fn(fail) },
+      collections: {
+        lockCollectionRegistration: vi.fn(async () => {
+          throw new Error('Unexpected collection lock')
+        }),
+        create: vi.fn(fail),
+        update: vi.fn(fail),
+        delete: vi.fn(fail),
+      },
       documents: {
         publishSchedules: {} as any,
         createDocumentVersion: vi.fn(fail) as any,
@@ -75,6 +87,9 @@ function makeAdapter(options?: {
       },
       documents: {
         publishSchedules: {} as any,
+        getDocumentRevision: async () => {
+          throw new Error('Unexpected revision read in this test')
+        },
         getDocumentSystemFieldsForUpdate: vi.fn(async () => null),
         getDocumentById: vi.fn(fail),
         getCurrentVersionMetadata: vi.fn(fail) as any,

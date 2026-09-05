@@ -6,7 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { ERR_DOCUMENT_HOOK_COMMITTED, ErrorCodes } from '@byline/core'
+import {
+  ERR_DOCUMENT_HOOK_COMMITTED,
+  ERR_LOCK_CONFLICT,
+  ErrorCodes,
+  getLockConflictDetails,
+} from '@byline/core'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -57,7 +62,7 @@ const invoke = (serverFunction: unknown, data: Record<string, any>) =>
   (serverFunction as ServerFunction)({ data })
 
 const handle = {
-  get: vi.fn(),
+  getForEdit: vi.fn(),
   update: vi.fn(),
   changeStatus: vi.fn(),
   unpublish: vi.fn(),
@@ -84,14 +89,13 @@ describe('singleton server functions', () => {
     const cases = [
       {
         serverFunction: getSingleton,
-        method: 'get',
+        method: 'getForEdit',
         input: { singleton: 'site-settings', locale: 'fr' },
         args: [
           {
             locale: 'fr',
             populate: undefined,
             depth: undefined,
-            status: 'any',
             onMissingLocale: 'empty',
             lenient: true,
           },
@@ -105,23 +109,23 @@ describe('singleton server functions', () => {
           singleton: 'site-settings',
           data: { title: 'Changed' },
           locale: 'fr',
-          expectedVersionId: 'version-1',
+          expectedRevision: 7,
         },
-        args: [{ title: 'Changed' }, { locale: 'fr', expectedVersionId: 'version-1' }],
+        args: [{ title: 'Changed' }, { locale: 'fr', expectedRevision: 7 }],
         result: { versionId: 'version-2' },
       },
       {
         serverFunction: changeSingletonStatus,
         method: 'changeStatus',
-        input: { singleton: 'site-settings', status: 'published' },
-        args: ['published'],
+        input: { singleton: 'site-settings', status: 'published', expectedRevision: 7 },
+        args: ['published', { expectedRevision: 7 }],
         result: { newStatus: 'published' },
       },
       {
         serverFunction: unpublishSingleton,
         method: 'unpublish',
-        input: { singleton: 'site-settings' },
-        args: [],
+        input: { singleton: 'site-settings', expectedRevision: 7 },
+        args: [{ expectedRevision: 7 }],
         result: { archivedCount: 1 },
       },
       {
@@ -130,11 +134,13 @@ describe('singleton server functions', () => {
         input: {
           singleton: 'site-settings',
           publishAt: '2026-09-01T10:00:00Z',
+          expectedRevision: 7,
           expectedVersionId: 'version-2',
         },
         args: [
           {
             publishAt: '2026-09-01T10:00:00Z',
+            expectedRevision: 7,
             expectedVersionId: 'version-2',
           },
         ],
@@ -143,15 +149,15 @@ describe('singleton server functions', () => {
       {
         serverFunction: confirmSingletonScheduledPublish,
         method: 'confirmScheduledPublish',
-        input: { singleton: 'site-settings', expectedVersionId: 'version-3' },
-        args: [{ expectedVersionId: 'version-3' }],
+        input: { singleton: 'site-settings', expectedRevision: 7, expectedVersionId: 'version-3' },
+        args: [{ expectedRevision: 7, expectedVersionId: 'version-3' }],
         result: { state: 'armed' },
       },
       {
         serverFunction: cancelSingletonScheduledPublish,
         method: 'cancelScheduledPublish',
-        input: { singleton: 'site-settings' },
-        args: [],
+        input: { singleton: 'site-settings', expectedRevision: 7 },
+        args: [{ expectedRevision: 7 }],
         result: { state: 'cancelled' },
       },
       {
@@ -185,8 +191,8 @@ describe('singleton server functions', () => {
       {
         serverFunction: restoreSingletonVersion,
         method: 'restoreVersion',
-        input: { singleton: 'site-settings', versionId: 'version-1' },
-        args: ['version-1'],
+        input: { singleton: 'site-settings', versionId: 'version-1', expectedRevision: 7 },
+        args: ['version-1', { expectedRevision: 7 }],
         result: { versionId: 'version-4' },
       },
       {
@@ -194,18 +200,23 @@ describe('singleton server functions', () => {
         method: 'copyToLocale',
         input: {
           singleton: 'site-settings',
+          expectedRevision: 7,
           sourceLocale: 'en',
           targetLocale: 'fr',
           overwrite: true,
         },
-        args: [{ sourceLocale: 'en', targetLocale: 'fr', overwrite: true }],
+        args: [{ expectedRevision: 7, sourceLocale: 'en', targetLocale: 'fr', overwrite: true }],
         result: { versionId: 'version-5' },
       },
     ] as const
 
     for (const testCase of cases) {
       const method = handle[testCase.method]
-      method.mockResolvedValueOnce(testCase.result)
+      method.mockResolvedValueOnce(
+        testCase.method === 'getForEdit'
+          ? { state: 'document', document: testCase.result }
+          : testCase.result
+      )
 
       const result = await invoke(testCase.serverFunction, testCase.input)
 
@@ -219,18 +230,18 @@ describe('singleton server functions', () => {
     }
   })
 
-  it('forwards the optimistic version to update unchanged', async () => {
+  it('forwards the observed revision to update unchanged', async () => {
     handle.update.mockResolvedValueOnce({ versionId: 'version-next' })
 
     await invoke(updateSingleton, {
       singleton: 'site-settings',
       data: { title: 'Changed' },
-      expectedVersionId: 'version-current',
+      expectedRevision: 7,
     })
 
     expect(handle.update).toHaveBeenCalledWith(
       { title: 'Changed' },
-      { locale: undefined, expectedVersionId: 'version-current' }
+      { locale: undefined, expectedRevision: 7 }
     )
   })
 
@@ -254,6 +265,7 @@ describe('singleton server functions', () => {
           phase: 'afterSave',
           documentId: 'doc-settings',
           documentVersionId: 'version-next',
+          revision: 8,
           sideEffectCode: ErrorCodes.UNHANDLED,
         },
       })
@@ -263,13 +275,14 @@ describe('singleton server functions', () => {
       status: 'committed-hook-failed',
       documentId: 'doc-settings',
       documentVersionId: 'version-next',
+      revision: 8,
       sideEffectFailure: { phase: 'afterSave', code: ErrorCodes.UNHANDLED },
     })
   })
 
   it('preserves authentication failures from the handle', async () => {
     const error = { code: 'ERR_UNAUTHENTICATED', message: 'sign in required' }
-    handle.get.mockRejectedValueOnce(error)
+    handle.getForEdit.mockRejectedValueOnce(error)
 
     await expect(invoke(getSingleton, { singleton: 'site-settings' })).rejects.toBe(error)
   })
@@ -301,9 +314,34 @@ describe('singleton server functions', () => {
     expect(mocks.resolveActorLabels).toHaveBeenCalledWith([])
   })
 
+  it('preserves confirmed lock failures through the host and message-only transport', async () => {
+    const conflict = ERR_LOCK_CONFLICT({
+      message: 'private diagnostic',
+      cause: new Error('driver SQL'),
+    })
+    handle.update.mockRejectedValueOnce(conflict)
+    let received: unknown
+    try {
+      await invoke(updateSingleton, {
+        singleton: 'site-settings',
+        data: { title: 'Changed' },
+        expectedRevision: 6,
+      })
+    } catch (error) {
+      received = error
+    }
+    expect(received).toBe(conflict)
+    expect(getLockConflictDetails(new Error(conflict.message))).toEqual({
+      reason: 'lock_conflict',
+      rolledBack: true,
+      retryable: true,
+    })
+    expect(handle.update).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps missing-slot and stale-write failures distinguishable', async () => {
     const missing = { code: 'ERR_NOT_FOUND', message: 'slot is empty' }
-    const stale = { code: 'ERR_CONFLICT', message: 'version changed' }
+    const stale = { code: 'ERR_DOCUMENT_STALE', message: 'document changed' }
     handle.changeStatus.mockRejectedValueOnce(missing)
     handle.update.mockRejectedValueOnce(stale)
 
@@ -314,9 +352,9 @@ describe('singleton server functions', () => {
       invoke(updateSingleton, {
         singleton: 'site-settings',
         data: { title: 'Changed' },
-        expectedVersionId: 'stale',
+        expectedRevision: 6,
       })
-    ).rejects.toMatchObject({ code: 'ERR_CONFLICT' })
+    ).rejects.toMatchObject({ code: 'ERR_DOCUMENT_STALE' })
   })
 
   it('serialises schedule dates at the transport boundary', async () => {

@@ -16,6 +16,8 @@ describe('delete outcome transport and admin interpretation', () => {
     // Simulate malformed runtime data from an older or compromised source. The
     // core type rejects this shape, but the transport still sanitizes it.
     const unsafeResult = {
+      documentId: 'doc-1',
+      revision: 2,
       deletedVersionCount: 2,
       outcome: 'committed-with-side-effect-failures',
       sideEffectFailures: [
@@ -36,6 +38,8 @@ describe('delete outcome transport and admin interpretation', () => {
 
     expect(response).toEqual({
       status: 'ok',
+      documentId: 'doc-1',
+      revision: 2,
       deletedVersionCount: 2,
       outcome: 'committed-with-side-effect-failures',
       sideEffectFailures: [
@@ -53,6 +57,8 @@ describe('delete outcome transport and admin interpretation', () => {
 
   it('preserves the committed success discriminant and empty failures', () => {
     const response = toDeleteDocumentResponse({
+      documentId: 'doc-1',
+      revision: 2,
       deletedVersionCount: 2,
       outcome: 'committed',
       sideEffectFailures: [],
@@ -60,6 +66,8 @@ describe('delete outcome transport and admin interpretation', () => {
 
     expect(response).toEqual({
       status: 'ok',
+      documentId: 'doc-1',
+      revision: 2,
       deletedVersionCount: 2,
       outcome: 'committed',
       sideEffectFailures: [],

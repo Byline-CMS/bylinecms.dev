@@ -9,7 +9,13 @@
 import { AdminAuth, createRequestContext } from '@byline/auth'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { type DbErrorClassification, DbErrorCodes, ErrorCodes } from '../lib/errors.js'
+import {
+  type DbErrorClassification,
+  DbErrorCodes,
+  ERR_DOCUMENT_STALE,
+  ErrorCodes,
+} from '../lib/errors.js'
+import { runReadSnapshot } from '../storage/read-snapshot.js'
 import {
   copySingletonToLocale,
   resolveSingletonDocumentId,
@@ -67,6 +73,7 @@ function createHarness(options: HarnessOptions = {}) {
     views.set('all', { fields: { title: { en: 'Before' }, count: 1 } })
   }
 
+  let revision = 1
   let transactionDepth = 0
   let committedTransactions = 0
   let versionCounter = 0
@@ -78,6 +85,7 @@ function createHarness(options: HarnessOptions = {}) {
           currentVersion,
           views: new Map(views),
           versionCounter,
+          revision,
         }
       : null
     transactionDepth++
@@ -94,6 +102,7 @@ function createHarness(options: HarnessOptions = {}) {
         views.clear()
         for (const [locale, view] of snapshot.views) views.set(locale, view)
         versionCounter = snapshot.versionCounter
+        revision = snapshot.revision
       }
       throw error
     }
@@ -144,7 +153,39 @@ function createHarness(options: HarnessOptions = {}) {
 
   const db = {
     classifyError,
+    revisions: {
+      isInTransaction: () => transactionDepth > 0,
+      lock: vi.fn(async (targets: Parameters<IDbAdapter['revisions']['lock']>[0]) =>
+        targets.map((target) => {
+          expect(transactionDepth).toBeGreaterThan(0)
+          if (target.expectedRevision !== revision)
+            throw ERR_DOCUMENT_STALE({
+              message: 'Reload before saving',
+              details: {
+                reason: 'revision_mismatch',
+                documentId: target.documentId,
+                expectedRevision: target.expectedRevision,
+                currentRevision: revision,
+              },
+            })
+          return {
+            documentId: target.documentId,
+            collectionId: 'col-1',
+            revision,
+            currentVersionId: currentVersion?.document_version_id ?? null,
+            status: currentVersion?.status ?? null,
+            sourceLocale: 'en',
+            path: 'settings',
+            availableLocales: ['en'],
+          }
+        })
+      ),
+      advance: vi.fn(async (locked) => ({ documentId: locked.documentId, revision: ++revision })),
+    },
+    withReadSnapshot: ((callback) =>
+      runReadSnapshot(db.queries, callback)) satisfies IDbAdapter['withReadSnapshot'],
     commands: {
+      collections: { lockCollectionRegistration: vi.fn(async () => {}) },
       documents: {
         createDocumentVersion,
         publishSchedules: {
@@ -166,6 +207,7 @@ function createHarness(options: HarnessOptions = {}) {
     queries: {
       documents: {
         getCurrentVersionMetadata,
+        getDocumentRevision: vi.fn(async () => revision),
         getDocumentById,
         getDocumentByVersion,
       },
@@ -225,7 +267,7 @@ describe('singleton lifecycle service', () => {
     harness = createHarness({
       hooks: {
         beforeSave: (context) => {
-          expect(harness.isInTransaction()).toBe(true)
+          expect(harness.isInTransaction()).toBe(false)
           contexts.push({ phase: 'before', ...context })
           context.data.title = 'Mutated by hook'
         },
@@ -237,9 +279,12 @@ describe('singleton lifecycle service', () => {
       },
     })
 
-    const result = await updateSingleton(harness.ctx, { data: { title: 'Incoming' } })
+    const result = await updateSingleton(harness.ctx, {
+      expectedState: 'empty',
+      data: { title: 'Incoming' },
+    })
 
-    expect(result).toEqual({ documentId: 'doc-1', documentVersionId: 'ver-1' })
+    expect(result).toEqual({ documentId: 'doc-1', documentVersionId: 'ver-1', revision: 1 })
     expect(harness.lockSlot).toHaveBeenCalledOnce()
     expect(harness.setMapping).toHaveBeenCalledWith('col-1', 'doc-1')
     expect(harness.createDocumentVersion).toHaveBeenCalledWith(
@@ -283,10 +328,10 @@ describe('singleton lifecycle service', () => {
       })
 
       await expect(
-        updateSingleton(harness.ctx, { data: { title: 'Losing write' } })
+        updateSingleton(harness.ctx, { expectedState: 'empty', data: { title: 'Losing write' } })
       ).rejects.toMatchObject({
-        code: 'ERR_CONFLICT',
-        message: "singleton 'site-settings' was materialised concurrently",
+        code: 'ERR_DOCUMENT_STALE',
+        details: { reason: 'singleton_slot_changed' },
       })
 
       expect(harness.classifyError).toHaveBeenCalledWith(uniqueViolation)
@@ -307,7 +352,7 @@ describe('singleton lifecycle service', () => {
 
     await updateSingleton(harness.ctx, {
       data: { title: 'After', count: '2' },
-      expectedVersionId: 'ver-current',
+      expectedRevision: 1,
     })
 
     expect(harness.setMapping).not.toHaveBeenCalled()
@@ -337,35 +382,37 @@ describe('singleton lifecycle service', () => {
       actor: new AdminAuth({ id: 'reader', abilities: ['singletons.site-settings.read'] }),
     })
 
-    await expect(updateSingleton(harness.ctx, { data: { title: 'No' } })).rejects.toMatchObject({
+    await expect(
+      updateSingleton(harness.ctx, { expectedState: 'empty', data: { title: 'No' } })
+    ).rejects.toMatchObject({
       code: 'ERR_FORBIDDEN',
     })
     expect(harness.lockSlot).not.toHaveBeenCalled()
     expect(harness.getMappedDocumentId).not.toHaveBeenCalled()
   })
 
-  it('enforces expectedVersionId under the locked slot state', async () => {
+  it('requires the observed revision or an explicitly empty slot', async () => {
     const current = createHarness({ mapped: true })
     await expect(
       updateSingleton(current.ctx, {
         data: { title: 'Yes' },
-        expectedVersionId: 'ver-current',
+        expectedRevision: 1,
       })
     ).resolves.toMatchObject({ documentId: 'doc-1' })
 
     const stale = createHarness({ mapped: true })
     await expect(
-      updateSingleton(stale.ctx, { data: { title: 'No' }, expectedVersionId: 'ver-stale' })
-    ).rejects.toMatchObject({ code: 'ERR_CONFLICT' })
+      updateSingleton(stale.ctx, { data: { title: 'No' }, expectedRevision: 2 })
+    ).rejects.toMatchObject({ code: 'ERR_DOCUMENT_STALE' })
     expect(stale.createDocumentVersion).not.toHaveBeenCalled()
 
     const unmaterialised = createHarness()
     await expect(
       updateSingleton(unmaterialised.ctx, {
         data: { title: 'No' },
-        expectedVersionId: 'ver-believed-current',
+        expectedRevision: 1,
       })
-    ).rejects.toMatchObject({ code: 'ERR_CONFLICT' })
+    ).rejects.toMatchObject({ code: 'ERR_NOT_FOUND' })
     expect(unmaterialised.createDocumentVersion).not.toHaveBeenCalled()
   })
 
@@ -374,7 +421,7 @@ describe('singleton lifecycle service', () => {
     const harness = createHarness({ hooks: { beforeSave } })
 
     await expect(
-      updateSingleton(harness.ctx, { data: { title: 'ไทย' }, locale: 'th' })
+      updateSingleton(harness.ctx, { expectedState: 'empty', data: { title: 'ไทย' }, locale: 'th' })
     ).rejects.toMatchObject({ code: 'ERR_VALIDATION' })
     expect(beforeSave).not.toHaveBeenCalled()
     expect(harness.createDocumentVersion).not.toHaveBeenCalled()
@@ -385,8 +432,8 @@ describe('singleton lifecycle service', () => {
     const harness = createHarness({ mapped: true, softDeleted: true })
 
     await expect(
-      updateSingleton(harness.ctx, { data: { title: 'Replacement' } })
-    ).rejects.toMatchObject({ code: 'ERR_CONFLICT' })
+      updateSingleton(harness.ctx, { expectedRevision: 1, data: { title: 'Replacement' } })
+    ).rejects.toMatchObject({ code: 'ERR_NOT_FOUND' })
     expect(harness.mappedDocumentId()).toBe('doc-1')
     expect(harness.createDocumentVersion).not.toHaveBeenCalled()
     expect(harness.setMapping).not.toHaveBeenCalled()
@@ -402,7 +449,7 @@ describe('singleton lifecycle service', () => {
     })
 
     await expect(
-      updateSingleton(harness.ctx, { data: { title: 'Committed' } })
+      updateSingleton(harness.ctx, { expectedState: 'empty', data: { title: 'Committed' } })
     ).rejects.toMatchObject({
       code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
       details: {
@@ -427,7 +474,10 @@ describe('singleton lifecycle service', () => {
       fields: { title: { en: 'Historic', th: 'อดีต' }, count: 1 },
     })
 
-    await restoreSingletonVersion(harness.ctx, { sourceVersionId: 'ver-source' })
+    await restoreSingletonVersion(harness.ctx, {
+      expectedRevision: 1,
+      sourceVersionId: 'ver-source',
+    })
 
     const hookShape = expect.objectContaining({
       data: { title: { en: 'Historic', th: 'อดีต' }, count: 1 },
@@ -451,6 +501,7 @@ describe('singleton lifecycle service', () => {
       harness.views.set('th', { fields: { title: 'Target', count: 1 } })
 
       await copySingletonToLocale(harness.ctx, {
+        expectedRevision: 1,
         sourceLocale: 'en',
         targetLocale: 'th',
         overwrite,

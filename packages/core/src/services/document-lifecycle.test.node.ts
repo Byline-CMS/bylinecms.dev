@@ -15,7 +15,15 @@ import {
 } from '@byline/auth'
 import { describe, expect, it, vi } from 'vitest'
 
-import { BylineError, DbErrorCodes, ErrorCodes } from '../lib/errors.js'
+import {
+  BylineError,
+  DbErrorCodes,
+  ERR_DOCUMENT_STALE,
+  ERR_NOT_FOUND,
+  ErrorCodes,
+} from '../lib/errors.js'
+import { runReadSnapshot } from '../storage/read-snapshot.js'
+import { unusedRevisionStore } from '../storage/revision-store.test-helper.js'
 import {
   cancelDocumentScheduledPublish,
   changeDocumentStatus,
@@ -72,6 +80,7 @@ function publishScheduleRow(
     documentId: 'doc-1',
     collectionId: 'col-1',
     targetVersionId: 'ver-1',
+    authorizedRevision: 1,
     publishAt: new Date('2026-08-23T12:00:00.000Z'),
     state: 'armed',
     suspendedAt: null,
@@ -101,7 +110,10 @@ function createMockDb() {
   const archivePublishedVersions = vi.fn().mockResolvedValue(0)
   const softDeleteDocument = vi.fn().mockResolvedValue(1)
   const deleteDocumentLocale = vi.fn().mockResolvedValue({ newVersionId: 'ver-2' })
-  const getDocumentById = vi.fn().mockResolvedValue(null)
+  const getDocumentById = vi.fn().mockImplementation(async () => {
+    const metadata = await getCurrentVersionMetadata()
+    return metadata == null ? null : { ...metadata, fields: {}, path: await getCurrentPath() }
+  })
   const getDocumentSystemFieldsForUpdate = vi.fn().mockResolvedValue(null)
   const getCurrentVersionMetadata = vi.fn().mockResolvedValue(null)
   const getCurrentPath = vi.fn().mockResolvedValue('current-path')
@@ -120,7 +132,16 @@ function createMockDb() {
   // in unit tests (runs the unit of work immediately, no real tx); `append`
   // records the calls so write-point tests can assert the audit rows emitted.
   const auditAppend = vi.fn().mockResolvedValue({ id: 'audit-1' })
-  const withTransaction = vi.fn(async (fn: () => Promise<unknown>) => fn())
+  let transactionDepth = 0
+  const revisions = new Map<string, number>()
+  const withTransaction = vi.fn(async (fn: () => Promise<unknown>) => {
+    transactionDepth++
+    try {
+      return await fn()
+    } finally {
+      transactionDepth--
+    }
+  })
   const fail = () => {
     throw new Error('unexpected singleton mapping call')
   }
@@ -140,14 +161,59 @@ function createMockDb() {
 
   const db: IDbAdapter = {
     classifyError,
+    revisions: {
+      ...unusedRevisionStore,
+      isInTransaction: () => transactionDepth > 0,
+      lock: vi.fn(async (targets) => {
+        const observations = []
+        for (const target of targets) {
+          const revision = revisions.get(target.documentId) ?? 1
+          if (target.expectedRevision !== revision)
+            throw ERR_DOCUMENT_STALE({
+              message: 'stale',
+              details: {
+                reason: 'revision_mismatch',
+                documentId: target.documentId,
+                expectedRevision: target.expectedRevision,
+                currentRevision: revision,
+              },
+            })
+          const system = await getDocumentSystemFieldsForUpdate({
+            collection_id: target.collectionId,
+            document_id: target.documentId,
+          })
+          const source = await getDocumentById.mock.results.at(-1)?.value
+          if (!system && !source) throw ERR_NOT_FOUND({ message: 'document not found' })
+          observations.push({
+            documentId: target.documentId,
+            collectionId: target.collectionId,
+            revision,
+            currentVersionId: source?.document_version_id ?? 'ver-1',
+            status: source?.status ?? 'draft',
+            sourceLocale: system?.source_locale ?? source?.source_locale ?? 'en',
+            path: system?.path ?? source?.path ?? null,
+            availableLocales: system?.availableLocales ?? source?.availableLocales ?? [],
+          })
+        }
+        return observations
+      }),
+      advance: vi.fn(async (locked) => {
+        const revision = locked.revision + 1
+        revisions.set(locked.documentId, revision)
+        return { documentId: locked.documentId, revision }
+      }),
+    },
+    withReadSnapshot: (fn) => runReadSnapshot(db.queries, fn),
     commands: {
       collections: {
+        lockCollectionRegistration: vi.fn(async () => {}),
         create: vi.fn(),
         update: vi.fn(),
         delete: vi.fn(),
       },
       documents: {
         publishSchedules: {
+          lockDocuments: vi.fn(async () => {}),
           schedule: publishSchedule,
           confirm: confirmPublishSchedule,
           cancel: cancelPublishSchedule,
@@ -187,7 +253,7 @@ function createMockDb() {
       },
       audit: { append: auditAppend },
       singletons: {
-        lockSlot: vi.fn(fail),
+        lockSlot: vi.fn(async () => {}),
         setMapping: vi.fn(fail),
         clearMapping: vi.fn(fail),
       },
@@ -204,6 +270,7 @@ function createMockDb() {
           get: getPublishSchedule,
           list: listPublishSchedules,
         },
+        getDocumentRevision: async ({ document_id }) => revisions.get(document_id) ?? 1,
         getDocumentSystemFieldsForUpdate,
         getDocumentById,
         getCurrentVersionMetadata,
@@ -685,12 +752,53 @@ describe('Document lifecycle service', () => {
   // updateDocument (PUT)
   // -----------------------------------------------------------------------
   describe('updateDocument', () => {
+    it('normalizes a stale parent from persistence without firing success hooks', async () => {
+      const { db, getDocumentById, createDocumentVersion } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'observed',
+        status: 'draft',
+        fields: { title: 'Old' },
+      })
+      const raw = new BylineError(ErrorCodes.CONFLICT, {
+        message: 'previous document version is stale',
+        details: {
+          reason: 'stale',
+          documentId: 'doc-1',
+          previousVersionId: 'observed',
+          currentVersionId: 'concurrent',
+        },
+      })
+      createDocumentVersion.mockRejectedValue(raw)
+      const afterUpdate = vi.fn()
+
+      await expect(
+        updateDocument(buildCtx(db, { ...minimalCollection, hooks: { afterUpdate } }), {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          data: { title: 'New' },
+        })
+      ).rejects.toMatchObject({
+        code: ErrorCodes.DOCUMENT_STALE,
+        cause: raw,
+        details: {
+          reason: 'version_parent_mismatch',
+          documentId: 'doc-1',
+          previousVersionId: 'observed',
+          currentVersionId: 'concurrent',
+        },
+      })
+      expect(createDocumentVersion).toHaveBeenCalledOnce()
+      expect(afterUpdate).not.toHaveBeenCalled()
+      expect(db.commands.documents.publishSchedules.suspendForContentEdit).not.toHaveBeenCalled()
+    })
+
     it('passes the acting user id as createdBy for the audit trail', async () => {
       const { db, getDocumentById, createDocumentVersion } = createMockDb()
       getDocumentById.mockResolvedValue({ status: 'draft', fields: { title: 'Old' } })
       const ctx = buildCtx(db)
 
       await updateDocument(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         data: { title: 'New' },
       })
@@ -707,6 +815,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db, definition)
 
       await updateDocument(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         data: { title: 'New' },
       })
@@ -734,6 +843,7 @@ describe('Document lifecycle service', () => {
       const definition = { ...numericCollection, hooks: { beforeUpdate } }
 
       await updateDocument(buildCtx(db, definition), {
+        expectedRevision: 1,
         documentId: 'doc-1',
         data: { quantity: '2', score: '2.5e1', price: 4.25 },
       })
@@ -754,6 +864,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db, definition)
 
       await updateDocument(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         data: { title: 'New' },
       })
@@ -774,6 +885,7 @@ describe('Document lifecycle service', () => {
 
       await expect(
         updateDocument(buildCtx(db, definition), {
+          expectedRevision: 1,
           documentId: 'doc-1',
           data: { title: 'New' },
         })
@@ -802,7 +914,11 @@ describe('Document lifecycle service', () => {
       const definition = { ...minimalCollection, hooks: { afterUpdate } }
       const ctx = buildCtx(db, definition)
 
-      await updateDocument(ctx, { documentId: 'doc-1', data: { title: 'New' } })
+      await updateDocument(ctx, {
+        expectedRevision: 1,
+        documentId: 'doc-1',
+        data: { title: 'New' },
+      })
 
       expect(afterUpdate).toHaveBeenCalledWith(expect.objectContaining({ path: 'sticky-path' }))
     })
@@ -820,6 +936,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db, definition)
 
       await updateDocument(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         data: { title: 'New' },
         path: 'new-path',
@@ -840,6 +957,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db, definition)
 
       await updateDocument(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         data: { title: 'Brand New Title' },
       })
@@ -860,6 +978,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db)
 
       await updateDocument(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         data: { title: 'New' },
         path: 'manually-set',
@@ -877,6 +996,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db)
 
       await updateDocument(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         data: { title: 'Updated' },
       })
@@ -898,6 +1018,7 @@ describe('Document lifecycle service', () => {
       warn.mockClear()
 
       await updateDocument(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         data: { title: 'À propos' },
         locale: 'fr',
@@ -938,6 +1059,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db)
 
       await updateDocument(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         data: { title: 'Über uns — neu' },
         locale: 'de',
@@ -960,6 +1082,7 @@ describe('Document lifecycle service', () => {
       warn.mockClear()
 
       await updateDocument(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         data: { title: 'À propos' },
         locale: 'fr',
@@ -985,6 +1108,7 @@ describe('Document lifecycle service', () => {
 
       try {
         await updateDocument(ctx, {
+          expectedRevision: 1,
           documentId: 'doc-1',
           data: { title: 'About' },
           path: 'home', // collides
@@ -1018,7 +1142,12 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db)
 
       await expect(
-        updateDocument(ctx, { documentId: 'doc-1', data: { title: 'X' }, path: 'home' })
+        updateDocument(ctx, {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          data: { title: 'X' },
+          path: 'home',
+        })
       ).rejects.toBe(original)
     })
 
@@ -1028,14 +1157,20 @@ describe('Document lifecycle service', () => {
       const hooks = {
         beforeUpdate: [
           vi.fn(async () => {
+            expect(db.revisions.isInTransaction()).toBe(false)
             callOrder.push('before-1')
           }),
           vi.fn(async () => {
             callOrder.push('before-2')
           }),
         ],
+        afterSystemFieldsChange: () => {
+          expect(db.revisions.isInTransaction()).toBe(false)
+          callOrder.push('after-system')
+        },
         afterUpdate: [
           vi.fn(async () => {
+            expect(db.revisions.isInTransaction()).toBe(false)
             callOrder.push('after-1')
           }),
           vi.fn(async () => {
@@ -1054,9 +1189,21 @@ describe('Document lifecycle service', () => {
       const definition = { ...minimalCollection, hooks }
       const ctx = buildCtx(db, definition)
 
-      await updateDocument(ctx, { documentId: 'doc-1', data: { title: 'New' } })
+      await updateDocument(ctx, {
+        expectedRevision: 1,
+        documentId: 'doc-1',
+        data: { title: 'New' },
+        availableLocales: ['en', 'fr'],
+      })
 
-      expect(callOrder).toEqual(['before-1', 'before-2', 'persist', 'after-1', 'after-2'])
+      expect(callOrder).toEqual([
+        'before-1',
+        'before-2',
+        'persist',
+        'after-system',
+        'after-1',
+        'after-2',
+      ])
     })
   })
 
@@ -1071,6 +1218,7 @@ describe('Document lifecycle service', () => {
 
       await expect(
         updateDocumentWithPatches(ctx, {
+          expectedRevision: 1,
           documentId: 'doc-missing',
           patches: [],
         })
@@ -1094,8 +1242,8 @@ describe('Document lifecycle service', () => {
 
       await expect(
         updateDocumentWithPatches(buildCtx(db, definition), {
+          expectedRevision: 1,
           documentId: 'doc-1',
-          documentVersionId: 'previous-version',
           patches: [{ kind: 'field.set', path: 'title', value: 'New' }],
         })
       ).rejects.toMatchObject({
@@ -1111,7 +1259,7 @@ describe('Document lifecycle service', () => {
       expect(createDocumentVersion).toHaveBeenCalledOnce()
     })
 
-    it('throws ERR_CONFLICT on version mismatch', async () => {
+    it('throws ERR_DOCUMENT_STALE on revision mismatch', async () => {
       const { db, getDocumentById } = createMockDb()
       getDocumentById.mockResolvedValue({
         document_version_id: 'ver-current',
@@ -1120,13 +1268,9 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db)
 
       await expect(
-        updateDocumentWithPatches(ctx, {
-          documentId: 'doc-1',
-          patches: [],
-          documentVersionId: 'ver-stale',
-        })
+        updateDocumentWithPatches(ctx, { expectedRevision: 2, documentId: 'doc-1', patches: [] })
       ).rejects.toSatisfy(
-        (err: BylineError) => err instanceof BylineError && err.code === ErrorCodes.CONFLICT
+        (err: BylineError) => err instanceof BylineError && err.code === ErrorCodes.DOCUMENT_STALE
       )
     })
 
@@ -1138,6 +1282,7 @@ describe('Document lifecycle service', () => {
       // array.move on a top-level (non-array) field should produce an error
       await expect(
         updateDocumentWithPatches(ctx, {
+          expectedRevision: 1,
           documentId: 'doc-1',
           patches: [{ kind: 'array.move', path: 'title', itemId: 'x', toIndex: 0 }],
         })
@@ -1155,6 +1300,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db, definition)
 
       await updateDocumentWithPatches(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         patches: [{ kind: 'field.set', path: 'title', value: 'Patched' }],
       })
@@ -1184,6 +1330,7 @@ describe('Document lifecycle service', () => {
 
       await expect(
         updateDocumentWithPatches(ctx, {
+          expectedRevision: 1,
           documentId: 'doc-1',
           patches: [],
           path: 'new-slug',
@@ -1213,6 +1360,7 @@ describe('Document lifecycle service', () => {
       const definition = { ...numericCollection, hooks: { beforeUpdate } }
 
       await updateDocumentWithPatches(buildCtx(db, definition), {
+        expectedRevision: 1,
         documentId: 'doc-1',
         patches: [
           { kind: 'field.set', path: 'quantity', value: '7.0' },
@@ -1250,11 +1398,12 @@ describe('Document lifecycle service', () => {
 
       await expect(
         scheduleDocumentPublish(ctx, {
+          expectedRevision: 1,
           documentId: 'doc-1',
           expectedVersionId: 'ver-1',
           publishAt: schedule.publishAt.toISOString(),
         })
-      ).resolves.toEqual(schedule)
+      ).resolves.toEqual({ ...schedule, revision: 2 })
       expect(publishSchedule).toHaveBeenCalledWith(
         expect.objectContaining({
           documentId: 'doc-1',
@@ -1277,6 +1426,7 @@ describe('Document lifecycle service', () => {
       })
       await expect(
         scheduleDocumentPublish(restricted, {
+          expectedRevision: 1,
           documentId: 'doc-1',
           expectedVersionId: 'ver-1',
           publishAt: schedule.publishAt.toISOString(),
@@ -1291,6 +1441,7 @@ describe('Document lifecycle service', () => {
 
       await expect(
         scheduleDocumentPublish(buildCtx(db), {
+          expectedRevision: 1,
           documentId: 'doc-1',
           expectedVersionId: 'ver-1',
           publishAt: new Date(Date.now() + 60_000).toISOString(),
@@ -1303,11 +1454,15 @@ describe('Document lifecycle service', () => {
       })
       await expect(
         scheduleDocumentPublish(buildCtx(db), {
+          expectedRevision: 1,
           documentId: 'doc-1',
           expectedVersionId: 'ver-1',
           publishAt: new Date(Date.now() + 60_000).toISOString(),
         })
-      ).rejects.toMatchObject({ code: ErrorCodes.CONFLICT })
+      ).rejects.toMatchObject({
+        code: ErrorCodes.DOCUMENT_STALE,
+        details: { reason: 'version_parent_mismatch' },
+      })
     })
 
     it('rejects date strings that are valid to JavaScript but are not ISO instants', async () => {
@@ -1316,6 +1471,7 @@ describe('Document lifecycle service', () => {
 
       await expect(
         scheduleDocumentPublish(buildCtx(db), {
+          expectedRevision: 1,
           documentId: 'doc-1',
           expectedVersionId: 'ver-1',
           publishAt: 'August 23, 2026 12:00:00 UTC',
@@ -1348,13 +1504,14 @@ describe('Document lifecycle service', () => {
 
       await expect(
         confirmDocumentScheduledPublish(buildCtx(db), {
+          expectedRevision: 1,
           documentId: 'doc-1',
           expectedVersionId: 'ver-1',
         })
-      ).resolves.toEqual(confirmed)
+      ).resolves.toEqual({ ...confirmed, revision: 2 })
       await expect(
-        cancelDocumentScheduledPublish(buildCtx(db), { documentId: 'doc-1' })
-      ).resolves.toEqual(confirmed)
+        cancelDocumentScheduledPublish(buildCtx(db), { expectedRevision: 2, documentId: 'doc-1' })
+      ).resolves.toEqual({ schedule: confirmed, revision: 3 })
       expect(auditAppend).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'document.publish.reconfirmed' })
       )
@@ -1381,11 +1538,13 @@ describe('Document lifecycle service', () => {
       suspendPublishSchedule.mockResolvedValue({ status: 'suspended', schedule })
 
       await updateDocument(buildCtx(db), {
+        expectedRevision: 1,
         documentId: 'doc-1',
         data: { title: 'After' },
       })
 
       expect(suspendPublishSchedule).toHaveBeenCalledWith({
+        reason: 'content_edited',
         documentId: 'doc-1',
         collectionId: 'col-1',
       })
@@ -1413,10 +1572,11 @@ describe('Document lifecycle service', () => {
         }),
       })
 
-      await deleteLocale(buildCtx(db), { documentId: 'doc-1', locale: 'fr' })
+      await deleteLocale(buildCtx(db), { expectedRevision: 1, documentId: 'doc-1', locale: 'fr' })
 
       expect(deleteDocumentLocale).toHaveBeenCalledOnce()
       expect(suspendPublishSchedule).toHaveBeenCalledWith({
+        reason: 'content_edited',
         documentId: 'doc-1',
         collectionId: 'col-1',
       })
@@ -1440,7 +1600,11 @@ describe('Document lifecycle service', () => {
       }
 
       await expect(
-        deleteLocale(buildCtx(db, definition), { documentId: 'doc-1', locale: 'fr' })
+        deleteLocale(buildCtx(db, definition), {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          locale: 'fr',
+        })
       ).rejects.toMatchObject({
         code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
         details: {
@@ -1459,6 +1623,7 @@ describe('Document lifecycle service', () => {
       cancelPublishSchedule.mockResolvedValue(publishScheduleRow())
 
       await changeDocumentStatus(buildCtx(db), {
+        expectedRevision: 1,
         documentId: 'doc-1',
         nextStatus: 'published',
       })
@@ -1531,6 +1696,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db)
 
       const result = await changeDocumentStatus(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         nextStatus: 'published',
       })
@@ -1548,10 +1714,14 @@ describe('Document lifecycle service', () => {
       getCurrentVersionMetadata.mockResolvedValue({ ...metadataRow })
       const ctx = buildCtx(db)
 
-      await changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'published' })
+      await changeDocumentStatus(ctx, {
+        expectedRevision: 1,
+        documentId: 'doc-1',
+        nextStatus: 'published',
+      })
 
-      // The mutation + audit row run inside one withTransaction (docs/07-auth-and-security/02-auditability.md).
-      expect(withTransaction).toHaveBeenCalledOnce()
+      // The guarded transaction contains a nested status savepoint (docs/07-auth-and-security/02-auditability.md).
+      expect(withTransaction).toHaveBeenCalledTimes(2)
       expect(auditAppend).toHaveBeenCalledWith(
         expect.objectContaining({
           documentId: 'doc-1',
@@ -1572,7 +1742,11 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db)
 
       await expect(
-        changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'published' })
+        changeDocumentStatus(ctx, {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          nextStatus: 'published',
+        })
       ).rejects.toSatisfy(
         (err: BylineError) => err instanceof BylineError && err.code === ErrorCodes.NOT_FOUND
       )
@@ -1585,7 +1759,11 @@ describe('Document lifecycle service', () => {
 
       // draft → archived skips 'published', which is not ±1
       await expect(
-        changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'archived' })
+        changeDocumentStatus(ctx, {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          nextStatus: 'archived',
+        })
       ).rejects.toSatisfy(
         (err: BylineError) =>
           err instanceof BylineError && err.code === ErrorCodes.INVALID_TRANSITION
@@ -1612,7 +1790,11 @@ describe('Document lifecycle service', () => {
       const definition = { ...minimalCollection, hooks }
       const ctx = buildCtx(db, definition)
 
-      await changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'published' })
+      await changeDocumentStatus(ctx, {
+        expectedRevision: 1,
+        documentId: 'doc-1',
+        nextStatus: 'published',
+      })
 
       expect(callOrder).toEqual(['before', 'persist', 'after'])
       expect(hooks.beforeStatusChange).toHaveBeenCalledWith(
@@ -1642,7 +1824,11 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db, definition)
 
       await expect(
-        changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'archived' })
+        changeDocumentStatus(ctx, {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          nextStatus: 'archived',
+        })
       ).rejects.toSatisfy(
         (err: BylineError) =>
           err instanceof BylineError && err.code === ErrorCodes.INVALID_TRANSITION
@@ -1657,7 +1843,11 @@ describe('Document lifecycle service', () => {
       getCurrentVersionMetadata.mockResolvedValue({ ...metadataRow })
       const ctx = buildCtx(db)
 
-      await changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'published' })
+      await changeDocumentStatus(ctx, {
+        expectedRevision: 1,
+        documentId: 'doc-1',
+        nextStatus: 'published',
+      })
 
       expect(archivePublishedVersions).toHaveBeenCalledWith({
         document_id: 'doc-1',
@@ -1696,7 +1886,11 @@ describe('Document lifecycle service', () => {
       const definition = { ...minimalCollection, hooks }
       const ctx = buildCtx(db, definition)
 
-      await changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'published' })
+      await changeDocumentStatus(ctx, {
+        expectedRevision: 1,
+        documentId: 'doc-1',
+        nextStatus: 'published',
+      })
 
       expect(callOrder).toEqual(['before-1', 'before-2', 'persist', 'after-1', 'after-2'])
     })
@@ -1708,19 +1902,33 @@ describe('Document lifecycle service', () => {
   describe('unpublishDocument', () => {
     it('calls archivePublishedVersions and returns count', async () => {
       const { db, archivePublishedVersions } = createMockDb()
+      vi.mocked(db.queries.documents.getDocumentById).mockResolvedValue({
+        document_id: 'doc-1',
+        document_version_id: 'ver-1',
+        status: 'published',
+        path: 'current-path',
+        fields: {},
+      })
       archivePublishedVersions.mockResolvedValue(1)
       const ctx = buildCtx(db)
 
-      const result = await unpublishDocument(ctx, { documentId: 'doc-1' })
+      const result = await unpublishDocument(ctx, { expectedRevision: 1, documentId: 'doc-1' })
       expect(result.archivedCount).toBe(1)
       expect(archivePublishedVersions).toHaveBeenCalledWith({ document_id: 'doc-1' })
     })
 
     it('records an atomic published to archived status audit when versions change', async () => {
       const { db, archivePublishedVersions, auditAppend, withTransaction } = createMockDb()
+      vi.mocked(db.queries.documents.getDocumentById).mockResolvedValue({
+        document_id: 'doc-1',
+        document_version_id: 'ver-1',
+        status: 'published',
+        path: 'current-path',
+        fields: {},
+      })
       archivePublishedVersions.mockResolvedValue(2)
 
-      await unpublishDocument(buildCtx(db), { documentId: 'doc-1' })
+      await unpublishDocument(buildCtx(db), { expectedRevision: 1, documentId: 'doc-1' })
 
       expect(withTransaction).toHaveBeenCalledOnce()
       expect(auditAppend).toHaveBeenCalledWith(
@@ -1739,9 +1947,16 @@ describe('Document lifecycle service', () => {
 
     it('does not record an audit row when no published version changes', async () => {
       const { db, archivePublishedVersions, auditAppend } = createMockDb()
+      vi.mocked(db.queries.documents.getDocumentById).mockResolvedValue({
+        document_id: 'doc-1',
+        document_version_id: 'ver-1',
+        status: 'published',
+        path: 'current-path',
+        fields: {},
+      })
       archivePublishedVersions.mockResolvedValue(0)
 
-      await unpublishDocument(buildCtx(db), { documentId: 'doc-1' })
+      await unpublishDocument(buildCtx(db), { expectedRevision: 1, documentId: 'doc-1' })
 
       expect(auditAppend).not.toHaveBeenCalled()
     })
@@ -1749,11 +1964,19 @@ describe('Document lifecycle service', () => {
     it('does not run afterUnpublish when the atomic audit unit fails', async () => {
       const afterUnpublish = vi.fn()
       const { db, archivePublishedVersions, auditAppend } = createMockDb()
+      vi.mocked(db.queries.documents.getDocumentById).mockResolvedValue({
+        document_id: 'doc-1',
+        document_version_id: 'ver-1',
+        status: 'published',
+        path: 'current-path',
+        fields: {},
+      })
       archivePublishedVersions.mockResolvedValue(1)
       auditAppend.mockRejectedValue(new Error('audit failed'))
 
       await expect(
         unpublishDocument(buildCtx(db, { ...minimalCollection, hooks: { afterUnpublish } }), {
+          expectedRevision: 1,
           documentId: 'doc-1',
         })
       ).rejects.toThrow('audit failed')
@@ -1772,6 +1995,13 @@ describe('Document lifecycle service', () => {
       }
 
       const { db, archivePublishedVersions } = createMockDb()
+      vi.mocked(db.queries.documents.getDocumentById).mockResolvedValue({
+        document_id: 'doc-1',
+        document_version_id: 'ver-1',
+        status: 'published',
+        path: 'current-path',
+        fields: {},
+      })
       archivePublishedVersions.mockImplementation(async () => {
         callOrder.push('archive')
         return 2
@@ -1780,7 +2010,7 @@ describe('Document lifecycle service', () => {
       const definition = { ...minimalCollection, hooks }
       const ctx = buildCtx(db, definition)
 
-      await unpublishDocument(ctx, { documentId: 'doc-1' })
+      await unpublishDocument(ctx, { expectedRevision: 1, documentId: 'doc-1' })
 
       expect(callOrder).toEqual(['before', 'archive', 'after'])
       expect(hooks.beforeUnpublish).toHaveBeenCalledWith(
@@ -1797,10 +2027,17 @@ describe('Document lifecycle service', () => {
 
     it('works when no hooks are defined', async () => {
       const { db, archivePublishedVersions } = createMockDb()
+      vi.mocked(db.queries.documents.getDocumentById).mockResolvedValue({
+        document_id: 'doc-1',
+        document_version_id: 'ver-1',
+        status: 'published',
+        path: 'current-path',
+        fields: {},
+      })
       archivePublishedVersions.mockResolvedValue(0)
       const ctx = buildCtx(db)
 
-      const result = await unpublishDocument(ctx, { documentId: 'doc-1' })
+      const result = await unpublishDocument(ctx, { expectedRevision: 1, documentId: 'doc-1' })
       expect(result.archivedCount).toBe(0)
     })
 
@@ -1827,6 +2064,13 @@ describe('Document lifecycle service', () => {
       }
 
       const { db, archivePublishedVersions } = createMockDb()
+      vi.mocked(db.queries.documents.getDocumentById).mockResolvedValue({
+        document_id: 'doc-1',
+        document_version_id: 'ver-1',
+        status: 'published',
+        path: 'current-path',
+        fields: {},
+      })
       archivePublishedVersions.mockImplementation(async () => {
         callOrder.push('archive')
         return 2
@@ -1835,7 +2079,7 @@ describe('Document lifecycle service', () => {
       const definition = { ...minimalCollection, hooks }
       const ctx = buildCtx(db, definition)
 
-      await unpublishDocument(ctx, { documentId: 'doc-1' })
+      await unpublishDocument(ctx, { expectedRevision: 1, documentId: 'doc-1' })
 
       expect(callOrder).toEqual(['before-1', 'before-2', 'archive', 'after-1', 'after-2'])
     })
@@ -1859,7 +2103,7 @@ describe('Document lifecycle service', () => {
       const definition = { ...minimalCollection, hooks: { beforeDelete, afterDelete } }
       const ctx = buildCtx(db, definition)
 
-      await deleteDocument(ctx, { documentId: 'doc-1' })
+      await deleteDocument(ctx, { expectedRevision: 1, documentId: 'doc-1' })
 
       expect(beforeDelete).toHaveBeenCalledWith(
         expect.objectContaining({ documentId: 'doc-1', path: 'doc-to-delete' })
@@ -1880,7 +2124,7 @@ describe('Document lifecycle service', () => {
       })
       const ctx = buildCtx(db)
 
-      await deleteDocument(ctx, { documentId: 'doc-1' })
+      await deleteDocument(ctx, { expectedRevision: 1, documentId: 'doc-1' })
 
       expect(withTransaction).toHaveBeenCalledOnce()
       expect(softDeleteDocument).toHaveBeenCalledWith({ document_id: 'doc-1' })
@@ -1909,7 +2153,7 @@ describe('Document lifecycle service', () => {
       const definition = { ...minimalCollection, hooks: { beforeDelete, afterDelete } }
 
       await expect(
-        deleteDocument(buildCtx(db, definition), { documentId: 'doc-1' })
+        deleteDocument(buildCtx(db, definition), { expectedRevision: 1, documentId: 'doc-1' })
       ).rejects.toThrow('pre-commit hook failed')
 
       expect(softDeleteDocument).not.toHaveBeenCalled()
@@ -1959,9 +2203,9 @@ describe('Document lifecycle service', () => {
         storage: { delete: storageDelete } as any,
       }
 
-      await deleteDocument(ctx, { documentId: 'doc-1' })
+      await deleteDocument(ctx, { expectedRevision: 1, documentId: 'doc-1' })
 
-      expect(getDocumentById).toHaveBeenCalledWith(expect.objectContaining({ reconstruct: false }))
+      expect(getDocumentById).toHaveBeenCalledWith(expect.objectContaining({ reconstruct: true }))
       expect(storageDelete).not.toHaveBeenCalled()
     })
 
@@ -2006,10 +2250,14 @@ describe('Document lifecycle service', () => {
         logger: { ...noopLogger, error: vi.fn() },
       }
 
-      const result = await deleteDocument(ctx, { documentId: 'doc-1' })
+      const result = await deleteDocument(ctx, { expectedRevision: 1, documentId: 'doc-1' })
 
       expect(storageDelete).not.toHaveBeenCalled()
       expect(result).toEqual({
+        affectedDocuments: [{ documentId: 'doc-1', revision: 2 }],
+        scheduledPublicationsNeedReconfirmation: false,
+        documentId: 'doc-1',
+        revision: 2,
         deletedVersionCount: 1,
         outcome: 'committed-with-side-effect-failures',
         sideEffectFailures: [{ phase: 'afterDelete', code: 'ERR_UNHANDLED' }],
@@ -2054,6 +2302,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db)
 
       const result = await updateDocumentSystemFields(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         path: 'new-slug',
       })
@@ -2085,6 +2334,7 @@ describe('Document lifecycle service', () => {
 
       await expect(
         updateDocumentSystemFields(ctx, {
+          expectedRevision: 1,
           documentId: 'doc-1',
           path: 'new-slug',
         })
@@ -2110,6 +2360,7 @@ describe('Document lifecycle service', () => {
       })
 
       const result = await updateDocumentSystemFields(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         path: 'old-slug',
       })
@@ -2127,6 +2378,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db)
 
       const result = await updateDocumentSystemFields(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         availableLocales: ['en', 'fr'],
       })
@@ -2157,6 +2409,7 @@ describe('Document lifecycle service', () => {
       })
 
       const result = await updateDocumentSystemFields(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         availableLocales: ['fr', 'en', 'fr'],
       })
@@ -2200,6 +2453,7 @@ describe('Document lifecycle service', () => {
       })
 
       await updateDocumentSystemFields(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         path: 'new-slug',
         availableLocales: ['fr', 'en', 'fr'],
@@ -2239,7 +2493,11 @@ describe('Document lifecycle service', () => {
       })
 
       await expect(
-        updateDocumentSystemFields(ctx, { documentId: 'doc-1', path: 'new-slug' })
+        updateDocumentSystemFields(ctx, {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          path: 'new-slug',
+        })
       ).rejects.toThrow('audit failed')
 
       expect(db.commands.documents.updateDocumentPath).toHaveBeenCalledOnce()
@@ -2265,8 +2523,15 @@ describe('Document lifecycle service', () => {
       })
 
       await expect(
-        updateDocumentSystemFields(ctx, { documentId: 'doc-1', availableLocales: ['en', 'fr'] })
-      ).rejects.toThrow('cache unavailable')
+        updateDocumentSystemFields(ctx, {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          availableLocales: ['en', 'fr'],
+        })
+      ).rejects.toMatchObject({
+        code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
+        details: { revision: 2 },
+      })
 
       expect(committed).toBe(true)
       expect(db.commands.documents.setDocumentAvailableLocales).toHaveBeenCalledOnce()
@@ -2286,11 +2551,19 @@ describe('Document lifecycle service', () => {
       })
 
       await expect(
-        updateDocumentSystemFields(ctx, { documentId: 'doc-1', path: 'new-slug' })
-      ).rejects.toThrow('search unavailable')
+        updateDocumentSystemFields(ctx, {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          path: 'new-slug',
+        })
+      ).rejects.toMatchObject({
+        code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
+        details: { revision: 2 },
+      })
 
       setupDoc(getDocumentSystemFieldsForUpdate, { path: 'new-slug' })
       const retry = await updateDocumentSystemFields(ctx, {
+        expectedRevision: 2,
         documentId: 'doc-1',
         path: 'new-slug',
         reconcile: true,
@@ -2329,6 +2602,7 @@ describe('Document lifecycle service', () => {
       })
 
       await updateDocumentSystemFields(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         path: 'final-path',
         availableLocales: ['de'],
@@ -2413,6 +2687,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db)
 
       const result = await restoreDocumentVersion(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         sourceVersionId,
       })
@@ -2430,6 +2705,7 @@ describe('Document lifecycle service', () => {
       expect(result).toEqual({
         documentId: 'doc-1',
         documentVersionId: 'ver-restored',
+        revision: 2,
         sourceVersionId,
       })
     })
@@ -2438,7 +2714,11 @@ describe('Document lifecycle service', () => {
       const { db, createDocumentVersion, sourceVersionId } = setupRestore()
       const ctx = buildCtx(db)
 
-      await restoreDocumentVersion(ctx, { documentId: 'doc-1', sourceVersionId })
+      await restoreDocumentVersion(ctx, {
+        expectedRevision: 1,
+        documentId: 'doc-1',
+        sourceVersionId,
+      })
 
       // Source version was 'archived'; default status for minimalCollection is 'draft'.
       expect(createDocumentVersion.mock.calls[0]?.[0].status).toBe('draft')
@@ -2450,7 +2730,11 @@ describe('Document lifecycle service', () => {
       })
       const ctx = buildCtx(db)
 
-      await restoreDocumentVersion(ctx, { documentId: 'doc-1', sourceVersionId })
+      await restoreDocumentVersion(ctx, {
+        expectedRevision: 1,
+        documentId: 'doc-1',
+        sourceVersionId,
+      })
 
       // Restore never changes a document's path: the existing
       // byline_document_paths row carries forward unchanged. The storage
@@ -2465,7 +2749,11 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db)
 
       try {
-        await restoreDocumentVersion(ctx, { documentId: 'doc-1', sourceVersionId })
+        await restoreDocumentVersion(ctx, {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          sourceVersionId,
+        })
         expect.fail('expected ERR_VALIDATION')
       } catch (err) {
         expect(err).toBeInstanceOf(BylineError)
@@ -2497,7 +2785,11 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(db)
 
       try {
-        await restoreDocumentVersion(ctx, { documentId: 'doc-1', sourceVersionId })
+        await restoreDocumentVersion(ctx, {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          sourceVersionId,
+        })
         expect.fail('expected ERR_INVALID_TRANSITION')
       } catch (err) {
         expect((err as BylineError).code).toBe(ErrorCodes.INVALID_TRANSITION)
@@ -2512,7 +2804,11 @@ describe('Document lifecycle service', () => {
       const definition = { ...minimalCollection, hooks: { beforeUpdate, afterUpdate } }
       const ctx = buildCtx(db, definition)
 
-      await restoreDocumentVersion(ctx, { documentId: 'doc-1', sourceVersionId })
+      await restoreDocumentVersion(ctx, {
+        expectedRevision: 1,
+        documentId: 'doc-1',
+        sourceVersionId,
+      })
 
       expect(beforeUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -2543,6 +2839,7 @@ describe('Document lifecycle service', () => {
 
       await expect(
         restoreDocumentVersion(buildCtx(db, definition), {
+          expectedRevision: 1,
           documentId: 'doc-1',
           sourceVersionId,
         })
@@ -2568,7 +2865,11 @@ describe('Document lifecycle service', () => {
       ctx.requestContext = createRequestContext({ actor })
 
       try {
-        await restoreDocumentVersion(ctx, { documentId: 'doc-1', sourceVersionId })
+        await restoreDocumentVersion(ctx, {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          sourceVersionId,
+        })
         expect.fail('expected ERR_FORBIDDEN')
       } catch (err) {
         expect((err as AuthError).code).toBe(AuthErrorCodes.FORBIDDEN)
@@ -2585,7 +2886,11 @@ describe('Document lifecycle service', () => {
       })
       ctx.requestContext = createRequestContext({ actor })
 
-      await restoreDocumentVersion(ctx, { documentId: 'doc-1', sourceVersionId })
+      await restoreDocumentVersion(ctx, {
+        expectedRevision: 1,
+        documentId: 'doc-1',
+        sourceVersionId,
+      })
       expect(createDocumentVersion).toHaveBeenCalledOnce()
     })
   })
@@ -2640,7 +2945,7 @@ describe('Document lifecycle service', () => {
       const { sourceDocumentId } = setupSource(mocks)
       const ctx = buildCtx(mocks.db, localizedCollection)
 
-      const result = await duplicateDocument(ctx, { sourceDocumentId })
+      const result = await duplicateDocument(ctx, { expectedRevision: 1, sourceDocumentId })
 
       expect(mocks.getDocumentById).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -2672,7 +2977,7 @@ describe('Document lifecycle service', () => {
       })
       const ctx = buildCtx(mocks.db, localizedCollection)
 
-      await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+      await duplicateDocument(ctx, { expectedRevision: 1, sourceDocumentId: 'doc-source' })
 
       const call = mocks.createDocumentVersion.mock.calls[0]?.[0]
       expect(call.documentData.title).toEqual({
@@ -2700,7 +3005,7 @@ describe('Document lifecycle service', () => {
       })
       const ctx = buildCtx(mocks.db, nonLocalizedCollection)
 
-      await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+      await duplicateDocument(ctx, { expectedRevision: 1, sourceDocumentId: 'doc-source' })
 
       const call = mocks.createDocumentVersion.mock.calls[0]?.[0]
       expect(call.documentData.title).toBe('Hello (copy)')
@@ -2716,7 +3021,10 @@ describe('Document lifecycle service', () => {
       })
       const ctx = buildCtx(mocks.db, localizedCollection)
 
-      const result = await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+      const result = await duplicateDocument(ctx, {
+        expectedRevision: 1,
+        sourceDocumentId: 'doc-source',
+      })
 
       const call = mocks.createDocumentVersion.mock.calls[0]?.[0]
       // Default locale is 'en'; "Hello World (copy)" slugifies to "hello-world-copy".
@@ -2745,7 +3053,7 @@ describe('Document lifecycle service', () => {
       })
       const ctx = buildCtx(mocks.db, localizedCollection)
 
-      await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+      await duplicateDocument(ctx, { expectedRevision: 1, sourceDocumentId: 'doc-source' })
 
       const call = mocks.createDocumentVersion.mock.calls[0]?.[0]
       const sections = call.documentData.sections as any[]
@@ -2780,7 +3088,7 @@ describe('Document lifecycle service', () => {
       })
       const ctx = buildCtx(mocks.db, localizedCollection)
 
-      await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+      await duplicateDocument(ctx, { expectedRevision: 1, sourceDocumentId: 'doc-source' })
 
       // Source title should be unchanged in memory.
       expect(originalFields.title).toEqual({ en: 'Hello', fr: 'Bonjour' })
@@ -2806,7 +3114,10 @@ describe('Document lifecycle service', () => {
         })
       })
 
-      const result = await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+      const result = await duplicateDocument(ctx, {
+        expectedRevision: 1,
+        sourceDocumentId: 'doc-source',
+      })
 
       expect(mocks.createDocumentVersion).toHaveBeenCalledTimes(2)
       const firstPath = mocks.createDocumentVersion.mock.calls[0]?.[0].path as string
@@ -2831,7 +3142,7 @@ describe('Document lifecycle service', () => {
 
       let thrown: unknown
       try {
-        await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+        await duplicateDocument(ctx, { expectedRevision: 1, sourceDocumentId: 'doc-source' })
       } catch (err) {
         thrown = err
       }
@@ -2856,7 +3167,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(mocks.db, localizedCollection)
 
       try {
-        await duplicateDocument(ctx, { sourceDocumentId: 'doc-missing' })
+        await duplicateDocument(ctx, { expectedRevision: 1, sourceDocumentId: 'doc-missing' })
         expect.fail('expected ERR_NOT_FOUND')
       } catch (err) {
         expect((err as BylineError).code).toBe(ErrorCodes.NOT_FOUND)
@@ -2878,7 +3189,7 @@ describe('Document lifecycle service', () => {
       setupSource(mocks, { sourceDocumentId: 'doc-source' })
       const ctx = buildCtx(mocks.db, withHooks)
 
-      await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+      await duplicateDocument(ctx, { expectedRevision: 1, sourceDocumentId: 'doc-source' })
 
       expect(beforeCreate).toHaveBeenCalledOnce()
       const beforeCtx = beforeCreate.mock.calls[0]?.[0]
@@ -2909,7 +3220,10 @@ describe('Document lifecycle service', () => {
       setupSource(mocks)
 
       await expect(
-        duplicateDocument(buildCtx(mocks.db, withHooks), { sourceDocumentId: 'doc-source' })
+        duplicateDocument(buildCtx(mocks.db, withHooks), {
+          expectedRevision: 1,
+          sourceDocumentId: 'doc-source',
+        })
       ).rejects.toMatchObject({
         code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
         details: {
@@ -2934,7 +3248,7 @@ describe('Document lifecycle service', () => {
       ctx.requestContext = createRequestContext({ actor })
 
       try {
-        await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+        await duplicateDocument(ctx, { expectedRevision: 1, sourceDocumentId: 'doc-source' })
         expect.fail('expected ERR_FORBIDDEN')
       } catch (err) {
         expect((err as AuthError).code).toBe(AuthErrorCodes.FORBIDDEN)
@@ -2950,7 +3264,7 @@ describe('Document lifecycle service', () => {
       ;(ctx as any).requestContext = undefined
 
       try {
-        await duplicateDocument(ctx, { sourceDocumentId: 'doc-source' })
+        await duplicateDocument(ctx, { expectedRevision: 1, sourceDocumentId: 'doc-source' })
         expect.fail('expected ERR_UNAUTHENTICATED')
       } catch (err) {
         expect((err as AuthError).code).toBe(AuthErrorCodes.UNAUTHENTICATED)
@@ -3040,6 +3354,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(mocks.db, mixedCollection)
 
       const result = await copyToLocale(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         sourceLocale: 'en',
         targetLocale: 'fr',
@@ -3084,6 +3399,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(mocks.db, mixedCollection)
 
       const result = await copyToLocale(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         sourceLocale: 'en',
         targetLocale: 'fr',
@@ -3118,6 +3434,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(mocks.db, mixedCollection)
 
       await copyToLocale(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         sourceLocale: 'en',
         targetLocale: 'fr',
@@ -3136,6 +3453,7 @@ describe('Document lifecycle service', () => {
       const { mocks } = setupSourceTarget()
       const ctx = buildCtx(mocks.db, mixedCollection)
       await copyToLocale(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         sourceLocale: 'en',
         targetLocale: 'fr',
@@ -3150,6 +3468,7 @@ describe('Document lifecycle service', () => {
 
       try {
         await copyToLocale(ctx, {
+          expectedRevision: 1,
           documentId: 'doc-1',
           sourceLocale: 'en',
           targetLocale: 'en',
@@ -3169,6 +3488,7 @@ describe('Document lifecycle service', () => {
 
       try {
         await copyToLocale(ctx, {
+          expectedRevision: 1,
           documentId: 'doc-1',
           sourceLocale: 'en',
           targetLocale: 'fr',
@@ -3202,6 +3522,7 @@ describe('Document lifecycle service', () => {
 
       try {
         await copyToLocale(ctx, {
+          expectedRevision: 1,
           documentId: 'doc-1',
           sourceLocale: 'en',
           targetLocale: 'fr',
@@ -3225,6 +3546,7 @@ describe('Document lifecycle service', () => {
       const ctx = buildCtx(mocks.db, withHooks)
 
       await copyToLocale(ctx, {
+        expectedRevision: 1,
         documentId: 'doc-1',
         sourceLocale: 'en',
         targetLocale: 'fr',
@@ -3254,6 +3576,7 @@ describe('Document lifecycle service', () => {
 
       await expect(
         copyToLocale(buildCtx(mocks.db, withHooks), {
+          expectedRevision: 1,
           documentId: 'doc-1',
           sourceLocale: 'en',
           targetLocale: 'fr',
@@ -3282,6 +3605,7 @@ describe('Document lifecycle service', () => {
 
       try {
         await copyToLocale(ctx, {
+          expectedRevision: 1,
           documentId: 'doc-1',
           sourceLocale: 'en',
           targetLocale: 'fr',
@@ -3302,6 +3626,7 @@ describe('Document lifecycle service', () => {
 
       try {
         await copyToLocale(ctx, {
+          expectedRevision: 1,
           documentId: 'doc-1',
           sourceLocale: 'en',
           targetLocale: 'fr',
@@ -3382,7 +3707,11 @@ describe('Document lifecycle service', () => {
       ctx.requestContext = createRequestContext({ actor })
 
       try {
-        await changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'published' })
+        await changeDocumentStatus(ctx, {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          nextStatus: 'published',
+        })
         expect.fail('expected ERR_FORBIDDEN')
       } catch (err) {
         expect((err as AuthError).code).toBe(AuthErrorCodes.FORBIDDEN)
@@ -3419,7 +3748,11 @@ describe('Document lifecycle service', () => {
       })
       ctx.requestContext = createRequestContext({ actor })
 
-      await changeDocumentStatus(ctx, { documentId: 'doc-1', nextStatus: 'in_review' })
+      await changeDocumentStatus(ctx, {
+        expectedRevision: 1,
+        documentId: 'doc-1',
+        nextStatus: 'in_review',
+      })
       expect(setDocumentStatus).toHaveBeenCalledOnce()
     })
 
@@ -3447,7 +3780,7 @@ describe('Document lifecycle service', () => {
       ctx.requestContext = createRequestContext({ actor })
 
       try {
-        await deleteDocument(ctx, { documentId: 'doc-1' })
+        await deleteDocument(ctx, { expectedRevision: 1, documentId: 'doc-1' })
         expect.fail('expected ERR_FORBIDDEN')
       } catch (err) {
         expect((err as AuthError).code).toBe(AuthErrorCodes.FORBIDDEN)

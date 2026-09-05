@@ -16,12 +16,15 @@ import type {
 } from '@byline/core'
 import {
   assertDocumentVersionParent,
+  documentRevisionFromDatabase,
   ERR_CONFLICT,
+  ERR_DOCUMENT_STALE,
   ERR_NOT_FOUND,
   ERR_VALIDATION,
   flattenFieldSetData,
   generateKeyBetween,
   isSingleton,
+  parseDocumentRevision,
   TREE_PLACEMENT_STALE_MARKER,
 } from '@byline/core'
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm'
@@ -35,6 +38,7 @@ import {
   datetimeStore,
   documentAvailableLocales,
   documentPaths,
+  documentPublishSchedules,
   documentRelationships,
   documents,
   documentVersionLocales,
@@ -46,6 +50,7 @@ import {
   relationStore,
   textStore,
 } from '../../database/schema/index.js'
+import { lockCollectionRegistration } from './collection-registration.js'
 import { DocumentPublishScheduleCommands } from './publish-schedules.js'
 import { prepareFieldInsertBuckets } from './storage-insert.js'
 import { getFirstOrThrow } from './storage-utils.js'
@@ -71,6 +76,8 @@ const staleTreePlacementMessage = (message: string): string =>
 export type ReAnchorStatus = 'reanchored' | 'skipped-incomplete' | 'already-anchored' | 'not-found'
 
 export interface ReAnchorResult {
+  /** Committed or validated revision returned by guarded adapter maintenance. */
+  revision?: number
   documentId: string
   status: ReAnchorStatus
   /** The document's source locale before the operation (when known). */
@@ -97,6 +104,13 @@ export interface ReAnchorReport {
  * CollectionCommands
  */
 export class CollectionCommands implements ICollectionCommands {
+  async lockCollectionRegistration(
+    collectionId: string,
+    mode: 'shared' | 'exclusive'
+  ): Promise<void> {
+    await lockCollectionRegistration(this.dbManager, collectionId, mode)
+  }
+
   constructor(private dbManager: DBManager) {}
 
   /**
@@ -229,6 +243,7 @@ export class DocumentCommands implements IDocumentCommands {
           .insert(documents)
           .values({
             id: documentId,
+            revision: 1,
             collection_id: params.collectionId,
             order_key: params.orderKey ?? null,
             source_locale: sourceLocale,
@@ -1122,18 +1137,33 @@ export class DocumentCommands implements IDocumentCommands {
    * aborts both updates. Tree placement and search/cache projections are not
    * reconstructed by this storage primitive.
    */
-  async restoreSoftDeletedDocument(params: { document_id: string }): Promise<number> {
+  async restoreSoftDeletedDocument(params: {
+    document_id: string
+    expectedRevision: number
+  }): Promise<number> {
+    params = { ...params, expectedRevision: parseDocumentRevision(params.expectedRevision) }
     const restoredAt = new Date()
     return this.db.transaction(async (tx) => {
       const collectionId = await this.lockDocumentCollection(tx, params.document_id)
       if (collectionId == null) return 0
 
       const [document] = await tx
-        .select({ id: documents.id })
+        .select({ id: documents.id, revision: documents.revision })
         .from(documents)
         .where(eq(documents.id, params.document_id))
         .for('update')
       if (document == null) return 0
+      const currentRevision = documentRevisionFromDatabase(document.revision)
+      if (currentRevision !== params.expectedRevision)
+        throw ERR_DOCUMENT_STALE({
+          message: 'This document has changed. Reload before restoring.',
+          details: {
+            reason: 'revision_mismatch',
+            documentId: params.document_id,
+            expectedRevision: params.expectedRevision,
+            currentRevision,
+          },
+        })
 
       const versionLiveness = await this.readDocumentVersionLiveness(tx, params.document_id)
       if (versionLiveness.total === 0 || versionLiveness.live > 0) return 0
@@ -1145,6 +1175,19 @@ export class DocumentCommands implements IDocumentCommands {
           updated_at: restoredAt,
         })
         .where(eq(documentPaths.document_id, params.document_id))
+
+      // Internal restores cannot revive a schedule left by legacy or raw maintenance.
+      // Keep this on the same transaction executor, after the collection/document locks.
+      await tx
+        .delete(documentPublishSchedules)
+        .where(eq(documentPublishSchedules.document_id, params.document_id))
+
+      if (currentRevision === Number.MAX_SAFE_INTEGER)
+        throw ERR_VALIDATION({ message: 'Document revision exhausted' })
+      await tx
+        .update(documents)
+        .set({ revision: currentRevision + 1, updated_at: restoredAt })
+        .where(and(eq(documents.id, params.document_id), eq(documents.revision, currentRevision)))
 
       const result = await tx
         .update(documentVersions)

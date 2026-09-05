@@ -218,7 +218,7 @@ describe('MySQL end-to-end boot smoke (initBylineCore composition, live database
     // read back — a fresh draft isn't visible under the client's default
     // `status: 'published'` mode, so this opts into `status: 'any'`, the
     // same way an admin caller would.
-    const afterCreate = await handle.findById(created.documentId, { status: 'any' })
+    const afterCreate = await handle.findByIdForEdit(created.documentId)
     expect(afterCreate?.fields.title).toBe('Boot Smoke Doc')
     // '(hook-mutated)' only appears here if the collection's `beforeCreate`
     // hook actually ran and its mutation reached persistence — proves the
@@ -230,13 +230,17 @@ describe('MySQL end-to-end boot smoke (initBylineCore composition, live database
     expect(sequenceId as number).toBeGreaterThan(0)
 
     // update — a new immutable version, still draft.
-    await handle.update(created.documentId, { title: 'Boot Smoke Doc', summary: 'second draft' })
+    await handle.update(
+      created.documentId,
+      { title: 'Boot Smoke Doc', summary: 'second draft' },
+      { expectedRevision: afterCreate?.revision }
+    )
     const afterUpdate = await handle.findById(created.documentId, { status: 'any' })
     expect(afterUpdate?.fields.summary).toBe('second draft')
     expect(afterUpdate?.status).toBe('draft')
 
     // publish
-    await handle.changeStatus(created.documentId, 'published')
+    await handle.changeStatus(created.documentId, 'published', { expectedRevision: 2 })
 
     // read published — the client's default read mode, no `status` override.
     const published = await handle.findById(created.documentId)
@@ -248,7 +252,7 @@ describe('MySQL end-to-end boot smoke (initBylineCore composition, live database
     expect(listed.docs.map((d) => d.id)).toContain(created.documentId)
 
     // delete — soft delete; the document disappears from every read mode.
-    await handle.delete(created.documentId)
+    await handle.delete(created.documentId, { expectedRevision: 3 })
     const afterDelete = await handle.findById(created.documentId, { status: 'any' })
     expect(afterDelete).toBeNull()
     const listedAfterDelete = await handle.find({ status: 'any' })

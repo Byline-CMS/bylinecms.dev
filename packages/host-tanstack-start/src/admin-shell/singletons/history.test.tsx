@@ -194,6 +194,7 @@ const data: VersionHistoryData = {
 }
 
 const currentDocument = {
+  revision: 7,
   id: 'document-settings',
   versionId: 'version-current',
   status: 'published',
@@ -266,7 +267,7 @@ describe('singleton version history', () => {
     await act(async () => confirm?.click())
 
     expect(mocks.restoreSingleton).toHaveBeenCalledWith({
-      data: { singleton: 'site-settings', versionId: 'version-old' },
+      data: { singleton: 'site-settings', versionId: 'version-old', expectedRevision: 7 },
     })
     expect(mocks.invalidate).toHaveBeenCalledTimes(1)
     expect(mocks.navigate).toHaveBeenLastCalledWith({
@@ -395,6 +396,7 @@ describe('singleton version history', () => {
 
     expect(mocks.restoreCollection).toHaveBeenCalledWith({
       data: {
+        expectedRevision: 7,
         collection: 'articles',
         id: 'document-article',
         versionId: 'version-old',

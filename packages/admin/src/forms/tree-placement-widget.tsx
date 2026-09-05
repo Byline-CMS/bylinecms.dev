@@ -20,6 +20,7 @@ import { RelationPicker } from '../fields/relation/relation-picker.js'
 import styles from './tree-placement-widget.module.css'
 
 export interface TreePlacementWidgetProps {
+  expectedRevision: number
   /** The collection path (`tree: true`). */
   collectionPath: string
   /** The logical id of the document being edited. */
@@ -44,6 +45,7 @@ export interface TreePlacementWidgetProps {
  */
 export const TreePlacementWidget = ({
   collectionPath,
+  expectedRevision,
   documentId,
   useAsTitle,
 }: TreePlacementWidgetProps) => {
@@ -107,7 +109,12 @@ export const TreePlacementWidget = ({
       setParent(optimistic)
       setPlaced(true)
       try {
-        await placeTreeNode({ collection: collectionPath, documentId, parentDocumentId })
+        await placeTreeNode({
+          expectedRevision,
+          collection: collectionPath,
+          documentId,
+          parentDocumentId,
+        })
       } catch {
         setParent(previousParent)
         setPlaced(previousPlaced)
@@ -116,7 +123,7 @@ export const TreePlacementWidget = ({
         setBusy(false)
       }
     },
-    [placeTreeNode, busy, parent, placed, collectionPath, documentId, t]
+    [placeTreeNode, busy, parent, placed, collectionPath, documentId, t, expectedRevision]
   )
 
   const handlePick = useCallback(

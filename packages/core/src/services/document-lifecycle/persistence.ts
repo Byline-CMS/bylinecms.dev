@@ -6,8 +6,11 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { requireAuditCapability } from './audit.js'
 import { actorId } from './internals.js'
 import { commitContentVersionWithScheduleSuspension } from './publish-schedule-consistency.js'
+import { normalizeDocumentVersionParentError } from './stale-document.js'
+import { appendTreeRoot } from './tree.js'
 import type { IDocumentCommands } from '../../@types/index.js'
 import type { DocumentLifecycleContext } from './context.js'
 
@@ -36,16 +39,24 @@ type ExistingDocumentVersionWrite = Omit<
  * counters, path derivation, ordering, and rich-text work stay in the caller
  * so their sequencing remains explicit.
  */
-export function persistInitialDocumentVersion(
+export async function persistInitialDocumentVersion(
   ctx: DocumentLifecycleContext,
   write: InitialDocumentVersionWrite
 ): ReturnType<IDocumentCommands['createDocumentVersion']> {
-  return ctx.db.commands.documents.createDocumentVersion({
-    ...write,
-    collectionId: ctx.collectionId,
-    collectionVersion: ctx.collectionVersion,
-    collectionConfig: ctx.definition,
-    createdBy: actorId(ctx),
+  return requireAuditCapability(ctx.db).withTransaction(async () => {
+    await ctx.db.commands.collections.lockCollectionRegistration(
+      ctx.collectionId,
+      ctx.definition.tree === true || ctx.definition.singleton === true ? 'exclusive' : 'shared'
+    )
+    const result = await ctx.db.commands.documents.createDocumentVersion({
+      ...write,
+      collectionId: ctx.collectionId,
+      collectionVersion: ctx.collectionVersion,
+      collectionConfig: ctx.definition,
+      createdBy: actorId(ctx),
+    })
+    if (ctx.definition.tree === true) await appendTreeRoot(ctx, result.document.document_id)
+    return result
   })
 }
 
@@ -69,5 +80,7 @@ export function persistExistingDocumentVersion(
         collectionConfig: ctx.definition,
         createdBy: actorId(ctx),
       }),
+  }).catch((error: unknown) => {
+    throw normalizeDocumentVersionParentError(error)
   })
 }

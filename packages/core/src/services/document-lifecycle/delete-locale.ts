@@ -14,9 +14,11 @@ import { getDefaultStatus } from '../../workflow/workflow.js'
 import { runCommittedDocumentHook } from './committed-hook.js'
 import { actorId, invokeHook } from './internals.js'
 import { commitContentVersionWithScheduleSuspension } from './publish-schedule-consistency.js'
+import { commitGuardedDocumentMutation, readDocumentForMutation } from './revision-guard.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface DeleteLocaleResult {
+  revision: number
   documentId: string
   /** The newly-created version that omits the deleted locale's content. */
   documentVersionId: string
@@ -30,7 +32,7 @@ export interface DeleteLocaleResult {
  * store rows (every other locale and all non-localized `'all'` rows are
  * carried forward by the storage primitive).
  *
- * The default content locale is the document's anchor (path + source_locale)
+ * The document's source content locale is its anchor (path + source_locale)
  * and can never be removed — rejected up front. The new version lands as the
  * workflow's default status (a fresh draft), exactly like `copyToLocale`: the
  * previously-published version keeps serving — including the locale being
@@ -40,7 +42,7 @@ export interface DeleteLocaleResult {
  *
  * Flow:
  *   1. `assertActorCanPerform('update')` — removing a translation is an edit.
- *   2. Reject `locale === defaultLocale`.
+ *   2. Reject deletion of the document’s source locale.
  *   3. Read the document in the target locale (validates existence; supplies
  *      `originalData` for hooks and the availability set for the presence
  *      check).
@@ -53,20 +55,25 @@ export async function deleteLocale(
   ctx: DocumentLifecycleContext,
   params: {
     documentId: string
+    expectedRevision: number
     locale: string
   }
 ): Promise<DeleteLocaleResult> {
+  params = { ...params }
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'deleteLocale' },
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
       assertActorCanPerform(ctx.requestContext, definition, 'update')
+      const target = await readDocumentForMutation(ctx, { ...params, lenient: true })
+      const previousVersionId = target.document_version_id as string
 
-      // The default locale anchors the document's path and source_locale —
+      // The document's source locale anchors its path and fallback reads —
       // it cannot be deleted (the other locales fall back to it).
-      if (params.locale === defaultLocale) {
+      const sourceLocale = target.source_locale ?? defaultLocale
+      if (params.locale === sourceLocale) {
         throw ERR_VALIDATION({
-          message: `cannot delete the default content locale ('${defaultLocale}')`,
+          message: `cannot delete the source content locale ('${sourceLocale}')`,
           details: { documentId: params.documentId, locale: params.locale, collectionPath },
         }).log(ctx.logger)
       }
@@ -74,22 +81,6 @@ export async function deleteLocale(
       // Read the document in the locale being removed — validates existence,
       // supplies originalData for hooks, and the availability set for the
       // content-presence check below.
-      const target = await db.queries.documents.getDocumentById({
-        collection_id: collectionId,
-        document_id: params.documentId,
-        locale: params.locale,
-        reconstruct: true,
-        lenient: true,
-        requestContext: ctx.requestContext,
-      })
-
-      if (target == null) {
-        throw ERR_NOT_FOUND({
-          message: 'document not found',
-          details: { documentId: params.documentId, collectionPath },
-        }).log(ctx.logger)
-      }
-
       const targetRecord = target as Record<string, any>
       // `_availableVersionLocales` is the derived (path-coverage) set; it is
       // the same source the editor's Delete-Locale picker is built from, so a
@@ -114,25 +105,34 @@ export async function deleteLocale(
         deleteLocale: deleteLocaleMarker,
       })
 
-      const result = await commitContentVersionWithScheduleSuspension({
+      const committed = await commitGuardedDocumentMutation(
         ctx,
-        documentId: params.documentId,
-        write: async () => {
-          const deleted = await db.commands.documents.deleteDocumentLocale({
+        { ...params, previousVersionId },
+        async () => {
+          const result = await commitContentVersionWithScheduleSuspension({
+            ctx,
             documentId: params.documentId,
-            locale: params.locale,
-            status: getDefaultStatus(definition),
-            createdBy: actorId(ctx),
+            write: async () => {
+              const deleted = await db.commands.documents.deleteDocumentLocale({
+                documentId: params.documentId,
+                locale: params.locale,
+                status: getDefaultStatus(definition),
+                createdBy: actorId(ctx),
+              })
+              if (deleted == null) {
+                throw ERR_NOT_FOUND({
+                  message: 'document not found',
+                  details: { documentId: params.documentId, collectionPath },
+                }).log(ctx.logger)
+              }
+              return deleted
+            },
           })
-          if (deleted == null) {
-            throw ERR_NOT_FOUND({
-              message: 'document not found',
-              details: { documentId: params.documentId, collectionPath },
-            }).log(ctx.logger)
-          }
-          return deleted
-        },
-      })
+          return { value: result, changed: true }
+        }
+      )
+      const result = committed.value
+      const revision = committed.revision
 
       await runCommittedDocumentHook(
         ctx,
@@ -140,6 +140,7 @@ export async function deleteLocale(
           phase: 'afterUpdate',
           documentId: params.documentId,
           documentVersionId: result.newVersionId,
+          revision,
         },
         () =>
           invokeHook(hooks?.afterUpdate, {
@@ -159,6 +160,7 @@ export async function deleteLocale(
         documentId: params.documentId,
         documentVersionId: result.newVersionId,
         locale: params.locale,
+        revision,
       }
     }
   )

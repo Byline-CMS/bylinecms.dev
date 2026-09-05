@@ -44,6 +44,7 @@ function claim(documentId: string): ClaimedDocumentPublishSchedule {
     documentId,
     collectionId: 'unregistered-collection',
     targetVersionId: `version-${documentId}`,
+    authorizedRevision: 1,
     publishAt: now,
     state: 'armed',
     suspendedAt: null,
@@ -114,7 +115,22 @@ describe('runScheduledPublicationSweep', () => {
       collectionRecords: new Map(),
       db: {
         withTransaction: async <T>(fn: () => Promise<T>) => fn(),
+        withReadSnapshot: async (
+          fn: (queries: {
+            documents: {
+              getCurrentVersionMetadata: () => Promise<null>
+              getDocumentRevision: () => Promise<number>
+            }
+          }) => Promise<unknown>
+        ) =>
+          fn({
+            documents: {
+              getCurrentVersionMetadata: async () => null,
+              getDocumentRevision: async () => 1,
+            },
+          }),
         commands: {
+          collections: { lockCollectionRegistration: vi.fn(async () => {}) },
           audit: { append: vi.fn().mockResolvedValue({ id: 'audit-1' }) },
           documents: {
             publishSchedules: { claimDue, lockClaim, deleteClaim, releaseClaim },

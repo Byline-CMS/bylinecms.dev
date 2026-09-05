@@ -16,12 +16,16 @@ import { countersSuite } from './suites/counters.js'
 import { deleteLocaleSuite } from './suites/delete-locale.js'
 import { documentAvailableLocalesSuite } from './suites/document-available-locales.js'
 import { documentPathsSuite } from './suites/document-paths.js'
+import { documentRevisionsSuite } from './suites/document-revisions.js'
 import { documentTreeSuite } from './suites/document-tree.js'
 import { documentTreeAuditSuite } from './suites/document-tree-audit.js'
+import { editableSnapshotsSuite } from './suites/editable-snapshots.js'
 import { fieldTypesSuite } from './suites/field-types.js'
+import { guardedSavesSuite } from './suites/guarded-saves.js'
 import { localeFallbackSuite } from './suites/locale-fallback.js'
 import { publishSchedulesSuite } from './suites/publish-schedules.js'
 import { restoreSuite } from './suites/restore.js'
+import { scheduledStructuralRevisionsSuite } from './suites/scheduled-structural-revisions.js'
 import { schedulerSuite } from './suites/scheduler.js'
 import { singletonLifecycleSuite } from './suites/singleton-lifecycle.js'
 import { singletonMappingSuite } from './suites/singleton-mapping.js'
@@ -70,6 +74,15 @@ export { versioningSuite } from './suites/versioning.js'
  * its own hooks.
  */
 export interface ConformanceHooks {
+  /** Test-only interposition between source SELECT and field reconstruction. */
+  withSourceReadBarrier<T>(writer: () => Promise<void>, read: () => Promise<T>): Promise<T>
+  observeRevisionContention?: SingletonContentionObserver
+  revisionTestTools?: {
+    makeScheduleDue(documentId: string): Promise<void>
+    withShortLockWait<T>(work: () => Promise<T>): Promise<T>
+    setRevision(documentId: string, revision: number): Promise<void>
+    readRevision(documentId: string): Promise<number>
+  }
   /**
    * Construct the adapter under test against the test database. Called once
    * per suite (~14× per run — see `runAdapterConformanceSuite` below), all of
@@ -178,6 +191,10 @@ export function runAdapterConformanceSuite(hooks: ConformanceHooks): void {
     await hooks.teardown()
   })
 
+  editableSnapshotsSuite(hooks)
+  documentRevisionsSuite(hooks)
+  guardedSavesSuite(hooks)
+  scheduledStructuralRevisionsSuite(hooks)
   versioningSuite(hooks)
   fieldTypesSuite(hooks)
   documentPathsSuite(hooks)

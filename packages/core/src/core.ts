@@ -36,6 +36,7 @@ import { validateTreeAuditCapability } from './services/document-lifecycle/audit
 import { validateTranslations } from './services/i18n-validator.js'
 import { validateRichTextFieldFlags } from './services/richtext-populate.js'
 import { validateSearchConfig } from './services/validate-search-config.js'
+import { assertDocumentRevisionCapability } from './storage/document-revision-capability.js'
 import type {
   CollectionDefinition,
   IDbAdapter,
@@ -222,6 +223,8 @@ export const initBylineCore = async <TAdminStore = unknown>(
   // Reconcile collection definitions with the database: insert new rows,
   // bump schema versions when the fingerprint has drifted, and build the
   // in-memory record cache used by the lifecycle/upload/client paths.
+  await assertDocumentRevisionCapability(composed.db)
+
   const collectionRecords = await ensureCollections({
     definitions: composed.collections,
     db: composed.db,
@@ -274,6 +277,12 @@ export const initBylineCore = async <TAdminStore = unknown>(
   // abilities. Plugins and subsystems add their own via
   // `core.registerAbility()` or `core.abilities.register()`.
   const abilities = new AbilityRegistry()
+  abilities.register({
+    key: 'system.documentMaintenance',
+    label: 'Maintain document fields while preserving status',
+    group: 'system',
+    source: 'core',
+  })
   for (const definition of composed.collections) {
     registerDocumentAbilities(abilities, definition)
   }

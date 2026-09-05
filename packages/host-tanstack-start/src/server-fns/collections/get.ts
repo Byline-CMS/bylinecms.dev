@@ -51,13 +51,16 @@ const getDocumentFn = createServerFn({ method: 'GET' })
     const client = getAdminBylineClient()
     const handle = client.collection(path)
 
-    const { options: readOptions, populatedTree } = resolveAdminDocumentRead(config.definition, {
+    const {
+      options: { status: _status, ...readOptions },
+      populatedTree,
+    } = resolveAdminDocumentRead(config.definition, {
       locale,
       depth,
       populateRelations,
     })
 
-    const document = await handle.findById(id, {
+    const document = await handle.findByIdForEdit(id, {
       ...readOptions,
     })
 
@@ -141,13 +144,14 @@ const getDocumentFn = createServerFn({ method: 'GET' })
         actor?.hasAbility(documentAbilityKey(config.definition, 'changeStatus')) === true &&
         actor.hasAbility(documentAbilityKey(config.definition, 'publish'))
       if (canSchedulePublication) {
-        scheduledPublish = await handle.getScheduledPublish(id)
+        scheduledPublish = document.scheduledPublication
       }
     }
     const serializedSchedule = scheduledPublish == null ? null : serialise(scheduledPublish)
 
     return {
       ...(parsed as Record<string, any>),
+      revision: document.revision,
       _publishedVersion: publishedVersion,
       ...(restoreWarnings && restoreWarnings.length > 0
         ? { _restoreWarnings: restoreWarnings }

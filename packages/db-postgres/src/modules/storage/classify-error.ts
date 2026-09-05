@@ -26,6 +26,9 @@ export function classifyError(err: unknown): DbErrorClassification {
     if (e.code === '23503') {
       return { code: DbErrorCodes.FOREIGN_KEY_VIOLATION, constraint: e.constraint }
     }
+    if (e.code === '40P01' || e.code === '40001' || e.code === '55P03') {
+      return { code: DbErrorCodes.LOCK_CONFLICT }
+    }
     e = e.cause as PgLikeError | undefined
   }
   return { code: DbErrorCodes.UNKNOWN }

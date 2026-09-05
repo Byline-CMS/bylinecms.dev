@@ -149,6 +149,7 @@ const locales = [
 const loadedDocument = {
   id: 'doc-settings',
   versionId: 'version-1',
+  revision: 7,
   path: '__singleton__/site-settings',
   status: 'draft',
   fields: { title: 'Loaded title', attachment: null },
@@ -316,7 +317,7 @@ describe('SingletonView', () => {
     expect(container.querySelector('.byline-preview-link')).toBeNull()
   })
 
-  it('saves full data with the active locale and the correct optimistic version', async () => {
+  it('saves full data with the active locale and the observed revision or explicit empty slot', async () => {
     render(null, 'en')
     typeIntoTitle('First save')
     await submit()
@@ -326,7 +327,7 @@ describe('SingletonView', () => {
         singleton: 'site-settings',
         data: { title: 'First save', attachment: undefined },
         locale: 'en',
-        expectedVersionId: undefined,
+        expectedState: 'empty',
       },
     })
     expect(mocks.invalidate).toHaveBeenCalledTimes(1)
@@ -342,7 +343,7 @@ describe('SingletonView', () => {
         singleton: 'site-settings',
         data: { title: 'Second save', attachment: null },
         locale: 'fr',
-        expectedVersionId: 'version-1',
+        expectedRevision: 7,
       },
     })
     expect(mocks.invalidate).toHaveBeenCalledTimes(2)

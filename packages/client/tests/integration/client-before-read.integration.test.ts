@@ -205,14 +205,16 @@ beforeAll(async () => {
     .create({ name: 'Alice', tenantId: 'alice' })
   aliceAuthorId = aliceAuthor.documentId
   aliceAuthorVersionId = aliceAuthor.documentVersionId
-  await ctx.client.collection(authorsDefinition.path).changeStatus(aliceAuthorId, 'published')
+  await ctx.client
+    .collection(authorsDefinition.path)
+    .changeStatus(aliceAuthorId, 'published', { expectedRevision: 1 })
 
   const bobAuthor = await ctx.client
     .collection(authorsDefinition.path)
     .create({ name: 'Bob', tenantId: 'bob' })
   await ctx.client
     .collection(authorsDefinition.path)
-    .changeStatus(bobAuthor.documentId, 'published')
+    .changeStatus(bobAuthor.documentId, 'published', { expectedRevision: 1 })
 
   // Three posts: alice's draft, bob's draft, alice's published.
   // Each post links to the alice-author so the populate fanout can be
@@ -239,7 +241,9 @@ beforeAll(async () => {
     author: { targetDocumentId: aliceAuthorId, targetCollectionId: ctx.authorsCollectionId },
   })
   alicePublishedId = alicePub.documentId
-  await ctx.client.collection(postsDefinition.path).changeStatus(alicePublishedId, 'published')
+  await ctx.client
+    .collection(postsDefinition.path)
+    .changeStatus(alicePublishedId, 'published', { expectedRevision: 1 })
 
   const ownershipChanged = await ctx.client.collection(postsDefinition.path).create({
     title: 'Ownership changed',
@@ -247,11 +251,15 @@ beforeAll(async () => {
     author: { targetDocumentId: aliceAuthorId, targetCollectionId: ctx.authorsCollectionId },
   })
   ownershipChangedId = ownershipChanged.documentId
-  await ctx.client.collection(postsDefinition.path).update(ownershipChangedId, {
-    title: 'Ownership changed',
-    authorId: 'bob',
-    author: { targetDocumentId: aliceAuthorId, targetCollectionId: ctx.authorsCollectionId },
-  })
+  await ctx.client.collection(postsDefinition.path).update(
+    ownershipChangedId,
+    {
+      title: 'Ownership changed',
+      authorId: 'bob',
+      author: { targetDocumentId: aliceAuthorId, targetCollectionId: ctx.authorsCollectionId },
+    },
+    { expectedRevision: 1 }
+  )
 }, 60_000)
 
 afterAll(async () => {

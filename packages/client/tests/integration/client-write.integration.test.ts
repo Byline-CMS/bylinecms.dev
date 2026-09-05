@@ -1,3 +1,4 @@
+import { observedRevision } from '../fixtures/observed-revision.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -6,7 +7,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { ERR_LOCK_CONFLICT, getLockConflictDetails } from '@byline/core'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { createTestArticlesCollection } from '../fixtures/collections.js'
 import { setupTestClient, type TestContext, teardownTestClient } from '../fixtures/setup.js'
@@ -34,6 +36,32 @@ afterAll(async () => {
 // ---------------------------------------------------------------------------
 // create()
 // ---------------------------------------------------------------------------
+
+describe('confirmed lock conflicts through the SDK', () => {
+  it('propagates the error without retrying or replacing the observation', async () => {
+    const handle = ctx.client.collection(ctx.definition.path)
+    const doc = await handle.create({ title: 'Lock conflict', path: 'lock-conflict' })
+    const conflict = ERR_LOCK_CONFLICT({
+      message: 'confirmed rollback',
+      cause: new Error('driver diagnostic'),
+    })
+    const spy = vi.spyOn(ctx.db.revisions, 'lock').mockRejectedValueOnce(conflict)
+    try {
+      await expect(
+        handle.update(
+          doc.documentId,
+          { title: 'Must not retry' },
+          { expectedRevision: doc.revision }
+        )
+      ).rejects.toBe(conflict)
+      expect(spy).toHaveBeenCalledTimes(1)
+      expect(getLockConflictDetails(conflict)).toMatchObject({ rolledBack: true })
+    } finally {
+      spy.mockRestore()
+    }
+    expect(await observedRevision(handle, doc.documentId)).toBe(doc.revision)
+  })
+})
 
 describe('client.collection().create()', () => {
   it('creates a document that is immediately readable via find/findById', async () => {
@@ -92,12 +120,16 @@ describe('client.collection().update()', () => {
       views: 1,
     })
 
-    const updated = await handle.update(created.documentId, {
-      title: 'Revised',
-      path: 'update-target',
-      summary: 'revised summary',
-      views: 2,
-    })
+    const updated = await handle.update(
+      created.documentId,
+      {
+        title: 'Revised',
+        path: 'update-target',
+        summary: 'revised summary',
+        views: 2,
+      },
+      { expectedRevision: 1 }
+    )
 
     expect(updated.documentId).toBe(created.documentId)
     expect(updated.documentVersionId).not.toBe(created.documentVersionId)
@@ -125,6 +157,7 @@ describe('client scheduled-publication operations', () => {
 
     const armed = await handle.schedulePublish(created.documentId, {
       publishAt,
+      expectedRevision: created.revision,
       expectedVersionId: created.documentVersionId,
     })
     expect(armed).toMatchObject({
@@ -136,17 +169,22 @@ describe('client scheduled-publication operations', () => {
       publishAt
     )
 
-    const updated = await handle.update(created.documentId, {
-      title: 'Schedule lifecycle revised',
-      path: 'schedule-lifecycle',
-      summary: 'revised',
-    })
+    const updated = await handle.update(
+      created.documentId,
+      {
+        title: 'Schedule lifecycle revised',
+        path: 'schedule-lifecycle',
+        summary: 'revised',
+      },
+      { expectedRevision: armed.revision }
+    )
     expect(await handle.getScheduledPublish(created.documentId)).toMatchObject({
       state: 'needs_reconfirm',
       targetVersionId: created.documentVersionId,
     })
 
     const confirmed = await handle.confirmScheduledPublish(created.documentId, {
+      expectedRevision: updated.revision,
       expectedVersionId: updated.documentVersionId,
     })
     expect(confirmed).toMatchObject({
@@ -154,9 +192,13 @@ describe('client scheduled-publication operations', () => {
       targetVersionId: updated.documentVersionId,
     })
 
-    expect(await handle.cancelScheduledPublish(created.documentId)).toMatchObject({
-      documentId: created.documentId,
-      state: 'armed',
+    expect(
+      await handle.cancelScheduledPublish(created.documentId, {
+        expectedRevision: confirmed.revision,
+      })
+    ).toMatchObject({
+      revision: confirmed.revision + 1,
+      schedule: { documentId: created.documentId, state: 'armed' },
     })
     expect(await handle.getScheduledPublish(created.documentId)).toBeNull()
   })
@@ -188,7 +230,11 @@ describe('client write path — availableLocales', () => {
     )
 
     // Update with no availableLocales — advertising must carry forward.
-    await handle.update(documentId, { title: 'Sticky v2', path: 'advertised-sticky', summary: 's' })
+    await handle.update(
+      documentId,
+      { title: 'Sticky v2', path: 'advertised-sticky', summary: 's' },
+      { expectedRevision: 1 }
+    )
 
     const doc = await handle.findById(documentId, any)
     // Order follows configured content-locale order (fixture: content.locales =
@@ -208,7 +254,7 @@ describe('client write path — availableLocales', () => {
     await handle.update(
       documentId,
       { title: 'Replace v2', path: 'advertised-replace', summary: 's' },
-      { availableLocales: ['de'] }
+      { expectedRevision: 1, availableLocales: ['de'] }
     )
 
     const doc = await handle.findById(documentId, any)
@@ -226,7 +272,7 @@ describe('client write path — availableLocales', () => {
     await handle.update(
       documentId,
       { title: 'Clear v2', path: 'advertised-clear', summary: 's' },
-      { availableLocales: [] }
+      { expectedRevision: 1, availableLocales: [] }
     )
 
     const doc = await handle.findById(documentId, any)
@@ -248,8 +294,13 @@ describe('client.collection().changeStatus()', () => {
       summary: 's',
     })
 
-    const result = await handle.changeStatus(documentId, 'published')
-    expect(result).toEqual({ previousStatus: 'draft', newStatus: 'published' })
+    const result = await handle.changeStatus(documentId, 'published', { expectedRevision: 1 })
+    expect(result).toEqual({
+      documentId,
+      revision: 2,
+      previousStatus: 'draft',
+      newStatus: 'published',
+    })
 
     // No `any` here — the doc is now published, so the default
     // status-aware read should find it.
@@ -266,7 +317,9 @@ describe('client.collection().changeStatus()', () => {
       summary: 's',
     })
 
-    await expect(handle.changeStatus(documentId, 'archived')).rejects.toThrowError()
+    await expect(
+      handle.changeStatus(documentId, 'archived', { expectedRevision: 1 })
+    ).rejects.toThrowError()
   })
 })
 
@@ -283,12 +336,12 @@ describe('client.collection().unpublish()', () => {
       path: 'to-unpublish',
       summary: 's',
     })
-    await handle.changeStatus(documentId, 'published')
+    await handle.changeStatus(documentId, 'published', { expectedRevision: 1 })
 
     const before = await handle.findById(documentId)
     expect(before?.status).toBe('published')
 
-    const result = await handle.unpublish(documentId)
+    const result = await handle.unpublish(documentId, { expectedRevision: 2 })
     expect(result.archivedCount).toBeGreaterThan(0)
 
     // After unpublish the doc is archived — no longer published, so pass
@@ -326,7 +379,7 @@ describe('client.collection().delete()', () => {
     const before = await handle.findById(documentId, any)
     expect(before?.id).toBe(documentId)
 
-    const result = await handle.delete(documentId)
+    const result = await handle.delete(documentId, { expectedRevision: 1 })
     expect(result.deletedVersionCount).toBeGreaterThan(0)
 
     // Both views filter soft-deleted rows, so neither mode returns the doc.
@@ -339,7 +392,55 @@ describe('client.collection().delete()', () => {
 
   it('throws when the document does not exist', async () => {
     await expect(
-      ctx.client.collection(ctx.definition.path).delete('00000000-0000-0000-0000-000000000000')
+      ctx.client
+        .collection(ctx.definition.path)
+        .delete('00000000-0000-0000-0000-000000000000', { expectedRevision: 1 })
     ).rejects.toThrowError(/document not found/)
+  })
+})
+
+describe('SDK observed revisions', () => {
+  it('rejects a stale full replacement and leaves the winning data intact', async () => {
+    const handle = ctx.client.collection(ctx.definition.path)
+    const created = await handle.create(
+      { title: 'Original', summary: 'Original' },
+      { path: 'sdk-revision-race' }
+    )
+    const observed = await handle.findByIdForEdit(created.documentId)
+    expect(observed?.revision).toBe(1)
+    const winner = await handle.update(
+      created.documentId,
+      { title: 'Winner', summary: 'Saved' },
+      { expectedRevision: observed?.revision }
+    )
+    expect(winner.revision).toBe(2)
+    await expect(
+      handle.update(
+        created.documentId,
+        { title: 'Loser', summary: 'Old draft' },
+        { expectedRevision: observed?.revision }
+      )
+    ).rejects.toMatchObject({
+      code: 'ERR_DOCUMENT_STALE',
+      details: { expectedRevision: 1, currentRevision: 2 },
+    })
+    expect(await handle.findByIdForEdit(created.documentId)).toMatchObject({
+      revision: 2,
+      fields: { title: 'Winner' },
+    })
+  })
+  it('rejects a JavaScript SDK update that omits the revision', async () => {
+    const handle = ctx.client.collection(ctx.definition.path)
+    const created = await handle.create(
+      { title: 'Original', summary: 'Original' },
+      { path: 'sdk-missing-revision' }
+    )
+    await expect(
+      Reflect.apply(handle.update, handle, [created.documentId, { title: 'Invalid' }])
+    ).rejects.toMatchObject({
+      code: 'ERR_VALIDATION',
+      details: { reason: 'missing_document_revision' },
+    })
+    expect((await handle.findByIdForEdit(created.documentId))?.revision).toBe(1)
   })
 })

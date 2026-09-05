@@ -9,6 +9,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { fingerprintCollection } from '../storage/collection-fingerprint.js'
+import { unusedRevisionStore } from '../storage/revision-store.test-helper.js'
 import { ensureCollections } from './collection-bootstrap.js'
 import type { CollectionDefinition, IDbAdapter } from '../@types/index.js'
 
@@ -59,8 +60,12 @@ function createMockDb(options: {
     : vi.fn().mockResolvedValue([{ id: options.existingRow?.id ?? 'col-new' }])
 
   const db: IDbAdapter = {
+    revisions: unusedRevisionStore,
+    withReadSnapshot: async () => {
+      throw new Error('Unexpected editable snapshot in this test')
+    },
     commands: {
-      collections: { create, update, delete: vi.fn(fail) },
+      collections: { lockCollectionRegistration: vi.fn(fail), create, update, delete: vi.fn(fail) },
       documents: {
         publishSchedules: {} as any,
         createDocumentVersion: vi.fn(fail) as any,
@@ -105,6 +110,9 @@ function createMockDb(options: {
       },
       documents: {
         publishSchedules: {} as any,
+        getDocumentRevision: async () => {
+          throw new Error('Unexpected revision read in this test')
+        },
         getDocumentSystemFieldsForUpdate: vi.fn(async () => null),
         getDocumentById: vi.fn(fail),
         getCurrentVersionMetadata: vi.fn(fail) as any,

@@ -22,10 +22,12 @@
  */
 
 import type { CollectionDefinition } from '@byline/core'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { type PgAdapter, pgAdapter } from '../../../index.js'
 import { setupTestDB, teardownTestDB } from '../../../lib/test-helper.js'
 
+let adapter: PgAdapter
 let commandBuilders: ReturnType<typeof import('../storage-commands.js').createCommandBuilders>
 let queryBuilders: ReturnType<typeof import('../storage-queries.js').createQueryBuilders>
 
@@ -41,6 +43,11 @@ let testCollection: { id: string; name: string } = {} as any
 
 describe('byline_document_paths — getCurrentPath re-anchor (Postgres)', () => {
   beforeAll(async () => {
+    adapter = pgAdapter({
+      connectionString: process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING!,
+      collections: [PathsCollectionConfig],
+      defaultContentLocale: 'en',
+    })
     const testDB = setupTestDB([PathsCollectionConfig])
     commandBuilders = testDB.commandBuilders
     queryBuilders = testDB.queryBuilders
@@ -62,6 +69,7 @@ describe('byline_document_paths — getCurrentPath re-anchor (Postgres)', () => 
     } catch (error) {
       console.error('Failed to cleanup test collection:', error)
     }
+    await adapter.pool.end()
     await teardownTestDB()
   })
 
@@ -98,5 +106,143 @@ describe('byline_document_paths — getCurrentPath re-anchor (Postgres)', () => 
       document_id: documentId,
     })
     expect(path).toBe(canonicalPath)
+  })
+  const create = async () => {
+    const result = await commandBuilders.documents.createDocumentVersion({
+      collectionId: testCollection.id,
+      collectionVersion: 1,
+      collectionConfig: PathsCollectionConfig,
+      action: 'create',
+      documentData: { title: 'Maintenance' },
+      path: crypto.randomUUID(),
+      locale: 'all',
+      status: 'published',
+    })
+    return {
+      documentId: result.document.document_id as string,
+      versionId: result.document.id as string,
+    }
+  }
+  it('guarded maintenance validates dry runs and no-ops, then advances once and archives the superseded publication', async () => {
+    const doc = await create()
+    const target = { documentId: doc.documentId, expectedRevision: 1, targetLocale: 'fr' }
+    expect(await adapter.reAnchorDocument({ ...target, dryRun: true })).toMatchObject({
+      status: 'reanchored',
+      revision: 1,
+    })
+    const changed = await adapter.reAnchorDocument(target)
+    expect(changed).toMatchObject({ status: 'reanchored', revision: 2 })
+    expect(await adapter.reAnchorDocument({ ...target, expectedRevision: 2 })).toMatchObject({
+      status: 'already-anchored',
+      revision: 2,
+    })
+    expect(
+      (await queryBuilders.documents.getDocumentByVersion({ document_version_id: doc.versionId }))
+        ?.status
+    ).toBe('archived')
+    await expect(adapter.reAnchorDocument(target)).rejects.toMatchObject({
+      code: 'ERR_DOCUMENT_STALE',
+    })
+    await expect(adapter.reAnchorDocument({ ...target, dryRun: true })).rejects.toMatchObject({
+      code: 'ERR_DOCUMENT_STALE',
+    })
+  })
+  it('rejects missing observations and externally owned transactions', async () => {
+    const doc = await create(),
+      missing = JSON.parse('{}')
+    await expect(
+      adapter.reAnchorDocument({
+        documentId: doc.documentId,
+        targetLocale: 'fr',
+        expectedRevision: missing.expectedRevision,
+      })
+    ).rejects.toMatchObject({ code: 'ERR_VALIDATION' })
+    await expect(
+      adapter.withTransaction(() =>
+        adapter.reAnchorDocument({
+          documentId: doc.documentId,
+          targetLocale: 'fr',
+          expectedRevision: 1,
+        })
+      )
+    ).rejects.toMatchObject({
+      code: 'ERR_VALIDATION',
+      details: { reason: 'external_lifecycle_transaction' },
+    })
+  })
+  it('rolls back anchor, version, audit, schedule and publication on revision failure', async () => {
+    const doc = await create()
+    await adapter.commands.documents.publishSchedules.schedule({
+      authorizedRevision: 1,
+      documentId: doc.documentId,
+      collectionId: testCollection.id,
+      expectedVersionId: doc.versionId,
+      publishAt: new Date(Date.now() + 3600000),
+      actorId: null,
+    })
+    const snapshot = async () => ({
+      document: await adapter.queries.documents.getDocumentById({
+        document_id: doc.documentId,
+        collection_id: testCollection.id,
+        locale: 'all',
+        reconstruct: true,
+        readMode: 'any',
+      }),
+      revision: await adapter.queries.documents.getDocumentRevision({
+        document_id: doc.documentId,
+        collection_id: testCollection.id,
+      }),
+      audit: await adapter.queries.audit.getDocumentAuditLog({ document_id: doc.documentId }),
+      schedule: await adapter.queries.documents.publishSchedules.get({
+        documentId: doc.documentId,
+        collectionId: testCollection.id,
+      }),
+    })
+    const before = await snapshot()
+    const failure = vi
+      .spyOn(adapter.revisions, 'advance')
+      .mockRejectedValueOnce(new Error('re-anchor rollback'))
+    try {
+      await expect(
+        adapter.reAnchorDocument({
+          documentId: doc.documentId,
+          expectedRevision: 1,
+          targetLocale: 'fr',
+        })
+      ).rejects.toThrow('re-anchor rollback')
+      expect(await snapshot()).toEqual(before)
+    } finally {
+      failure.mockRestore()
+    }
+  })
+  it('uses explicit batch observations and fails on stale targets without refreshing them', async () => {
+    const first = await create(),
+      second = await create()
+    await adapter.reAnchorDocument({
+      documentId: second.documentId,
+      expectedRevision: 1,
+      targetLocale: 'fr',
+    })
+    await expect(
+      adapter.reAnchorDocuments({
+        targets: [first, second].map((doc) => ({
+          documentId: doc.documentId,
+          expectedRevision: 1,
+        })),
+        targetLocale: 'fr',
+      })
+    ).rejects.toMatchObject({ code: 'ERR_DOCUMENT_STALE' })
+    expect(
+      await adapter.queries.documents.getDocumentRevision({
+        document_id: first.documentId,
+        collection_id: testCollection.id,
+      })
+    ).toBe(2)
+    expect(
+      await adapter.queries.documents.getDocumentRevision({
+        document_id: second.documentId,
+        collection_id: testCollection.id,
+      })
+    ).toBe(2)
   })
 })

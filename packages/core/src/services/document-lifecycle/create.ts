@@ -27,10 +27,11 @@ import {
   rethrowPathConflict,
 } from './internals.js'
 import { persistInitialDocumentVersion } from './persistence.js'
-import { appendTreeRoot } from './tree.js'
+import { assertLifecycleTransactionOwnership } from './revision-guard.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface CreateDocumentResult {
+  revision: number
   documentId: string
   documentVersionId: string
 }
@@ -76,6 +77,7 @@ export async function createDocument(
     async () => {
       const { db, definition, collectionPath, defaultLocale } = ctx
       assertActorCanPerform(ctx.requestContext, definition, 'create')
+      assertLifecycleTransactionOwnership(ctx)
       // Reject unsupported tree adapters before hooks, counters, or persistence
       // can create a document that cannot be placed and audited safely.
       if (definition.tree === true) requireTreeAuditCapability(db)
@@ -136,26 +138,9 @@ export async function createDocument(
       const documentId = extractDocumentId(result.document)
       const documentVersionId = extractVersionId(result.document)
 
-      // `tree: true` collections place every document in the tree by default:
-      // a new document is appended as a root (a top-level nav entry) so it is
-      // never stranded in the "unplaced" limbo. This is a system step of create
-      // (the actor already passed the `create` ability), so it uses the internal
-      // placement primitive without an `update` re-assertion or separate tree
-      // event (afterCreate covers invalidation). Placement + audit are atomic.
-      // Post-version and best-effort: a runtime audit/storage failure leaves the
-      // document created-but-unplaced and is logged. Missing capability was
-      // rejected before persistence above.
-      if (definition.tree === true) {
-        try {
-          await appendTreeRoot(ctx, documentId)
-        } catch (err: unknown) {
-          ctx.logger.error({ err, documentId }, 'failed to auto-place new document in tree')
-        }
-      }
-
       await runCommittedDocumentHook(
         ctx,
-        { phase: 'afterCreate', documentId, documentVersionId },
+        { phase: 'afterCreate', documentId, documentVersionId, revision: 1 },
         () =>
           invokeHook(hooks?.afterCreate, {
             data,
@@ -166,7 +151,7 @@ export async function createDocument(
           })
       )
 
-      return { documentId, documentVersionId }
+      return { documentId, documentVersionId, revision: 1 }
     }
   )
 }

@@ -18,8 +18,9 @@ import type { SingletonSaveResult } from './internals.js'
 /** Restore one historical singleton version as the new current version. */
 export async function restoreSingletonVersion(
   ctx: DocumentLifecycleContext,
-  params: { sourceVersionId: string }
+  params: { sourceVersionId: string; expectedRevision: number }
 ): Promise<SingletonSaveResult> {
+  params = { ...params }
   return withLogContext(
     { domain: 'services', module: 'singleton-lifecycle', function: 'restoreSingletonVersion' },
     async () => {
@@ -27,6 +28,7 @@ export async function restoreSingletonVersion(
       return commitSingletonSave({
         ctx,
         definition,
+        expectedRevision: params.expectedRevision,
         operation: { type: 'restore', sourceVersionId: params.sourceVersionId },
         prepare: async (slot) => {
           if (slot.documentId == null || slot.currentVersion == null) {
@@ -86,8 +88,8 @@ export async function restoreSingletonVersion(
             data,
             originalData,
             locale: 'all',
+            prepareWrite: () => applyRichTextEmbed(ctx, data),
             write: async () => {
-              await applyRichTextEmbed(ctx, data)
               return persistExistingDocumentVersion(ctx, {
                 documentId: slot.documentId as string,
                 action: 'restore',

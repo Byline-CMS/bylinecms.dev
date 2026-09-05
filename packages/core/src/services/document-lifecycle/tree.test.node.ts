@@ -11,6 +11,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { isSingleton } from '../../@types/index.js'
 import { TREE_HOOK_COMMITTED_MARKER } from '../../lib/errors.js'
+import { runReadSnapshot } from '../../storage/read-snapshot.js'
+import { unusedRevisionStore } from '../../storage/revision-store.test-helper.js'
 import { validateTreeAuditCapability } from './audit.js'
 import { createDocument } from './create.js'
 import { deleteDocument } from './delete.js'
@@ -47,6 +49,8 @@ function createHarness(
   let key = 0
   let writes = 0
   let deleted = false
+  let revisions = new Map<string, number>()
+  let transactionDepth = 0
   const calls: string[] = []
 
   const snapshot = (documentId: string): { state: TreePlacementState; siblings: string[] } => {
@@ -226,10 +230,12 @@ function createHarness(
     return ids.map((document_id) => ({ document_id }))
   })
   const withTransaction = vi.fn(async <T>(fn: () => Promise<T>): Promise<T> => {
+    transactionDepth++
     calls.push('tx:start')
     const placementSnapshot = new Map(placements)
     const auditSnapshot = [...auditRows]
     const deletedSnapshot = deleted
+    const revisionSnapshot = new Map(revisions)
     try {
       const result = await fn()
       calls.push('tx:commit')
@@ -238,8 +244,11 @@ function createHarness(
       placements = placementSnapshot
       auditRows = auditSnapshot
       deleted = deletedSnapshot
+      revisions = revisionSnapshot
       calls.push('tx:rollback')
       throw error
+    } finally {
+      transactionDepth--
     }
   })
 
@@ -265,9 +274,13 @@ function createHarness(
   } satisfies BylineLogger
   const db = {
     commands: {
+      collections: { lockCollectionRegistration: vi.fn(async () => {}) },
+      singletons: { lockSlot: vi.fn(async () => {}) },
       documents: {
         publishSchedules: {
+          lockDocuments: vi.fn(async () => {}),
           cancel: vi.fn(async () => null),
+          suspendForContentEdit: vi.fn(async () => ({ status: 'schedule_not_found' })),
         },
         placeTreeNode: place,
         removeFromTree: remove,
@@ -280,13 +293,60 @@ function createHarness(
       audit: { append },
     },
     queries: {
+      collections: {},
+      audit: {},
+      singletons: {},
       documents: {
         getTreeParent,
         getTreeChildren,
         getTreeSubtree,
-        getDocumentById: vi.fn(async () => ({ path: '/node', fields: {} })),
+        getDocumentById: vi.fn(async () => ({
+          document_version_id: 'version-1',
+          path: '/node',
+          fields: {},
+        })),
+        getDocumentRevision: async ({ document_id }: { document_id: string }) =>
+          revisions.get(document_id) ?? 1,
+        publishSchedules: {},
       },
     },
+    withReadSnapshot: (fn: Parameters<IDbAdapter['withReadSnapshot']>[0]) =>
+      runReadSnapshot(db.queries, fn),
+    revisions: {
+      ...unusedRevisionStore,
+      isInTransaction: () => transactionDepth > 0,
+      readStructure: async ({ documentIds, parentDocumentId }) => {
+        const ids = new Set(documentIds ?? [...placements.keys()])
+        if (parentDocumentId)
+          for (const [id, placement] of placements)
+            if (placement.parentDocumentId === parentDocumentId) ids.add(id)
+        return [...ids].map((documentId) => ({
+          documentId,
+          revision: revisions.get(documentId) ?? 1,
+          orderKey: null,
+          placed: placements.has(documentId),
+          parentDocumentId: placements.get(documentId)?.parentDocumentId ?? null,
+          treeOrderKey: placements.get(documentId)?.orderKey ?? null,
+          live: true,
+        }))
+      },
+      lock: async (targets) =>
+        targets.map((target) => ({
+          documentId: target.documentId,
+          collectionId: target.collectionId,
+          revision: revisions.get(target.documentId) ?? 1,
+          currentVersionId: 'version-1',
+          status: 'draft',
+          sourceLocale: 'en',
+          path: '/node',
+          availableLocales: ['en'],
+        })),
+      advance: async (locked) => {
+        const revision = locked.revision + 1
+        revisions.set(locked.documentId, revision)
+        return { documentId: locked.documentId, revision }
+      },
+    } satisfies IDbAdapter['revisions'],
     withTransaction,
   } as unknown as IDbAdapter
   const ctx: DocumentLifecycleContext = {
@@ -347,9 +407,18 @@ describe('document-tree lifecycle audit contract', () => {
       initial: { left: { parentDocumentId: 'parent', orderKey: 'left-key' } },
     })
 
-    await placeTreeNode(harness.ctx, { documentId: 'node', parentDocumentId: null })
-    await placeTreeNode(harness.ctx, { documentId: 'node', parentDocumentId: 'parent' })
     await placeTreeNode(harness.ctx, {
+      expectedRevision: 1,
+      documentId: 'node',
+      parentDocumentId: null,
+    })
+    await placeTreeNode(harness.ctx, {
+      expectedRevision: 2,
+      documentId: 'node',
+      parentDocumentId: 'parent',
+    })
+    await placeTreeNode(harness.ctx, {
+      expectedRevision: 3,
       documentId: 'node',
       parentDocumentId: 'parent',
       afterDocumentId: 'left',
@@ -384,8 +453,8 @@ describe('document-tree lifecycle audit contract', () => {
       initial: { node: { parentDocumentId: 'parent', orderKey: 'old-key' } },
     })
 
-    await removeFromTree(harness.ctx, { documentId: 'node' })
-    await removeFromTree(harness.ctx, { documentId: 'node' })
+    await removeFromTree(harness.ctx, { expectedRevision: 1, documentId: 'node' })
+    await removeFromTree(harness.ctx, { expectedRevision: 2, documentId: 'node' })
 
     expect(harness.remove).toHaveBeenCalledTimes(2)
     expect(harness.writes()).toBe(1)
@@ -415,8 +484,18 @@ describe('document-tree lifecycle audit contract', () => {
     })
 
     await expect(
-      placeTreeNode(harness.ctx, { documentId: 'node', parentDocumentId: null })
-    ).resolves.toEqual({ orderKey: 'b-key' })
+      placeTreeNode(harness.ctx, {
+        expectedRevision: 1,
+        documentId: 'node',
+        parentDocumentId: null,
+      })
+    ).resolves.toEqual({
+      orderKey: 'b-key',
+      documentId: 'node',
+      revision: 1,
+      affectedDocuments: [],
+      scheduledPublicationsNeedReconfirmation: false,
+    })
 
     expect(harness.writes()).toBe(0)
     expect(harness.auditRows()).toEqual([])
@@ -432,15 +511,26 @@ describe('document-tree lifecycle audit contract', () => {
     const harness = createHarness({ afterTreeChange: hook })
 
     await expect(
-      placeTreeNode(harness.ctx, { documentId: 'node', parentDocumentId: null })
+      placeTreeNode(harness.ctx, {
+        expectedRevision: 1,
+        documentId: 'node',
+        parentDocumentId: null,
+      })
     ).rejects.toThrow('hook failed')
     await expect(
       placeTreeNode(harness.ctx, {
+        expectedRevision: 2,
         documentId: 'node',
         parentDocumentId: null,
         reconcile: true,
       })
-    ).resolves.toEqual({ orderKey: 'key-1' })
+    ).resolves.toEqual({
+      orderKey: 'key-1',
+      documentId: 'node',
+      revision: 2,
+      affectedDocuments: [],
+      scheduledPublicationsNeedReconfirmation: false,
+    })
 
     expect(harness.writes()).toBe(1)
     expect(harness.auditRows()).toHaveLength(1)
@@ -472,12 +562,14 @@ describe('document-tree lifecycle audit contract', () => {
       afterTreeChange: hook,
     })
 
-    await expect(removeFromTree(harness.ctx, { documentId: 'node' })).rejects.toThrow('hook failed')
+    await expect(
+      removeFromTree(harness.ctx, { expectedRevision: 1, documentId: 'node' })
+    ).rejects.toThrow('hook failed')
     expect(events[0]?.affectedDocumentIds).toEqual(
       expect.arrayContaining(['node', 'child', 'grandchild', 'parent'])
     )
 
-    await removeFromTree(harness.ctx, { documentId: 'node', reconcile: true })
+    await removeFromTree(harness.ctx, { expectedRevision: 2, documentId: 'node', reconcile: true })
 
     expect(harness.writes()).toBe(1)
     expect(harness.auditRows()).toHaveLength(1)
@@ -496,7 +588,7 @@ describe('document-tree lifecycle audit contract', () => {
       },
     })
 
-    await promoteChildrenAndRemove(harness.ctx, { documentId: 'deleted' })
+    await promoteChildrenAndRemove(harness.ctx, { expectedRevision: 1, documentId: 'deleted' })
 
     expect(harness.placement('deleted')).toBeUndefined()
     expect(harness.placement('childA')?.parentDocumentId).toBeNull()
@@ -544,8 +636,12 @@ describe('document-tree lifecycle audit contract', () => {
       },
     })
 
-    await expect(deleteDocument(harness.ctx, { documentId: 'deleted' })).resolves.toEqual({
+    await expect(
+      deleteDocument(harness.ctx, { expectedRevision: 1, documentId: 'deleted' })
+    ).resolves.toMatchObject({
       deletedVersionCount: 1,
+      documentId: 'deleted',
+      revision: 2,
       outcome: 'committed',
       sideEffectFailures: [],
     })
@@ -570,9 +666,9 @@ describe('document-tree lifecycle audit contract', () => {
       failAuditAt: 3,
     })
 
-    await expect(deleteDocument(harness.ctx, { documentId: 'deleted' })).rejects.toThrow(
-      'audit failed'
-    )
+    await expect(
+      deleteDocument(harness.ctx, { expectedRevision: 1, documentId: 'deleted' })
+    ).rejects.toThrow('audit failed')
 
     expect(harness.deleted()).toBe(false)
     expect(harness.placement('deleted')).toEqual({
@@ -599,8 +695,12 @@ describe('document-tree lifecycle audit contract', () => {
       afterDelete,
     })
 
-    await expect(deleteDocument(harness.ctx, { documentId: 'deleted' })).resolves.toEqual({
+    await expect(
+      deleteDocument(harness.ctx, { expectedRevision: 1, documentId: 'deleted' })
+    ).resolves.toMatchObject({
       deletedVersionCount: 1,
+      documentId: 'deleted',
+      revision: 2,
       outcome: 'committed-with-side-effect-failures',
       sideEffectFailures: [{ phase: 'afterTreeChange', code: 'ERR_UNHANDLED' }],
     })
@@ -632,10 +732,12 @@ describe('document-tree lifecycle audit contract', () => {
       afterDelete,
     })
 
-    const result = await deleteDocument(harness.ctx, { documentId: 'deleted' })
+    const result = await deleteDocument(harness.ctx, { expectedRevision: 1, documentId: 'deleted' })
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       deletedVersionCount: 1,
+      documentId: 'deleted',
+      revision: 2,
       outcome: 'committed-with-side-effect-failures',
       sideEffectFailures: [
         { phase: 'afterTreeChange', code: 'ERR_UNHANDLED' },
@@ -680,8 +782,12 @@ describe('document-tree lifecycle audit contract', () => {
     })
     harness.ctx.logger.error = loggerError
 
-    await expect(deleteDocument(harness.ctx, { documentId: 'deleted' })).resolves.toEqual({
+    await expect(
+      deleteDocument(harness.ctx, { expectedRevision: 1, documentId: 'deleted' })
+    ).resolves.toMatchObject({
       deletedVersionCount: 1,
+      documentId: 'deleted',
+      revision: 2,
       outcome: 'committed-with-side-effect-failures',
       sideEffectFailures: [{ phase: 'afterDelete', code: 'ERR_UNHANDLED' }],
     })
@@ -698,7 +804,11 @@ describe('document-tree lifecycle audit contract', () => {
     })
 
     await expect(
-      placeTreeNode(harness.ctx, { documentId: 'node', parentDocumentId: 'new-parent' })
+      placeTreeNode(harness.ctx, {
+        expectedRevision: 1,
+        documentId: 'node',
+        parentDocumentId: 'new-parent',
+      })
     ).rejects.toThrow('audit failed')
 
     expect(harness.placement('node')).toEqual({ parentDocumentId: null, orderKey: 'old-key' })
@@ -712,9 +822,9 @@ describe('document-tree lifecycle audit contract', () => {
       initial: { node: { parentDocumentId: 'parent', orderKey: 'old-key' } },
       failAudit: true,
     })
-    await expect(removeFromTree(removeHarness.ctx, { documentId: 'node' })).rejects.toThrow(
-      'audit failed'
-    )
+    await expect(
+      removeFromTree(removeHarness.ctx, { expectedRevision: 1, documentId: 'node' })
+    ).rejects.toThrow('audit failed')
     expect(removeHarness.placement('node')).toEqual({
       parentDocumentId: 'parent',
       orderKey: 'old-key',
@@ -728,7 +838,7 @@ describe('document-tree lifecycle audit contract', () => {
       failAudit: true,
     })
     await expect(
-      promoteChildrenAndRemove(promoteHarness.ctx, { documentId: 'deleted' })
+      promoteChildrenAndRemove(promoteHarness.ctx, { expectedRevision: 1, documentId: 'deleted' })
     ).rejects.toThrow('audit failed')
     expect(promoteHarness.placement('deleted')).toEqual({
       parentDocumentId: null,
@@ -744,7 +854,11 @@ describe('document-tree lifecycle audit contract', () => {
     const harness = createHarness({ failPlace: true })
 
     await expect(
-      placeTreeNode(harness.ctx, { documentId: 'node', parentDocumentId: null })
+      placeTreeNode(harness.ctx, {
+        expectedRevision: 1,
+        documentId: 'node',
+        parentDocumentId: null,
+      })
     ).rejects.toThrow('tree write failed')
 
     expect(harness.append).not.toHaveBeenCalled()
@@ -758,7 +872,11 @@ describe('document-tree lifecycle audit contract', () => {
     const harness = createHarness({ afterTreeChange: hook })
 
     await expect(
-      placeTreeNode(harness.ctx, { documentId: 'node', parentDocumentId: null })
+      placeTreeNode(harness.ctx, {
+        expectedRevision: 1,
+        documentId: 'node',
+        parentDocumentId: null,
+      })
     ).rejects.toMatchObject({
       name: 'BylineError',
       code: 'ERR_TREE_HOOK_COMMITTED',
@@ -802,7 +920,7 @@ describe('document-tree lifecycle audit contract', () => {
     expect(harness.ctx.logger.error).not.toHaveBeenCalled()
   })
 
-  it('keeps create-time placement best-effort and unplaced when audit append fails', async () => {
+  it('rolls back initiating creation and placement when its audit append fails', async () => {
     const harness = createHarness({ failAudit: true })
     const createDocumentVersion = vi.fn(async () => ({
       document: { id: 'version-1', document_id: 'created-node' },
@@ -812,14 +930,11 @@ describe('document-tree lifecycle audit contract', () => {
 
     await expect(
       createDocument(harness.ctx, { data: { title: 'Created' }, locale: 'en' })
-    ).resolves.toEqual({ documentId: 'created-node', documentVersionId: 'version-1' })
+    ).rejects.toThrow('audit failed')
 
     expect(harness.place).toHaveBeenCalledOnce()
     expect(harness.placement('created-node')).toBeUndefined()
     expect(harness.auditRows()).toEqual([])
-    expect(harness.ctx.logger.error).toHaveBeenCalledWith(
-      expect.objectContaining({ documentId: 'created-node' }),
-      'failed to auto-place new document in tree'
-    )
+    expect(harness.calls).toContain('tx:rollback')
   })
 })

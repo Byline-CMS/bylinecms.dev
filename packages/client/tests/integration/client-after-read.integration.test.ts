@@ -72,7 +72,7 @@ describe('afterRead integration', () => {
       title: 'AfterRead FindById',
       secret: 'visible',
     })
-    await handle.changeStatus(documentId, 'published')
+    await handle.changeStatus(documentId, 'published', { expectedRevision: 1 })
 
     hookCalls.length = 0
     const doc = await handle.findById(documentId)
@@ -92,7 +92,7 @@ describe('afterRead integration', () => {
     const published = await ctx.client
       .collection(ctx.definition.path)
       .findByPath('afterread-bypath', { status: 'any' })
-    await handle.changeStatus(published?.id, 'published')
+    await handle.changeStatus(published?.id, 'published', { expectedRevision: 1 })
 
     hookCalls.length = 0
     const doc = await handle.findByPath('afterread-bypath')
@@ -108,7 +108,7 @@ describe('afterRead integration', () => {
         title: `AfterRead List ${i}`,
         secret: 'visible',
       })
-      await handle.changeStatus(documentId, 'published')
+      await handle.changeStatus(documentId, 'published', { expectedRevision: 1 })
     }
 
     hookCalls.length = 0
@@ -128,7 +128,7 @@ describe('afterRead integration', () => {
       title: 'AfterRead Dedup',
       secret: 'visible',
     })
-    await handle.changeStatus(documentId, 'published')
+    await handle.changeStatus(documentId, 'published', { expectedRevision: 1 })
 
     hookCalls.length = 0
     const rc = createReadContext()
@@ -149,7 +149,7 @@ describe('afterRead integration', () => {
       title: 'AfterRead Fresh',
       secret: 'visible',
     })
-    await handle.changeStatus(documentId, 'published')
+    await handle.changeStatus(documentId, 'published', { expectedRevision: 1 })
 
     hookCalls.length = 0
     await handle.findById(documentId)

@@ -35,7 +35,7 @@ import {
  * TanStack Start's transport layer for the client to branch on.
  */
 export const duplicateCollectionDocument = createServerFn({ method: 'POST' })
-  .validator((input: { collection: string; id: string }) => input)
+  .validator((input: { expectedRevision: number; collection: string; id: string }) => input)
   .handler(
     async ({
       data: input,
@@ -64,7 +64,10 @@ export const duplicateCollectionDocument = createServerFn({ method: 'POST' })
       }
 
       try {
-        return await duplicateDocument(ctx, { sourceDocumentId })
+        return await duplicateDocument(ctx, {
+          sourceDocumentId,
+          expectedRevision: input.expectedRevision,
+        })
       } catch (error) {
         const committedFailure = toCommittedDocumentHookFailureResponse(error)
         if (committedFailure != null) return committedFailure

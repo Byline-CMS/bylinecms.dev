@@ -16,6 +16,7 @@ import { serialise } from '../serialise.js'
 export const copySingletonToLocale = createServerFn({ method: 'POST' })
   .validator(
     (input: {
+      expectedRevision: number
       singleton: string
       sourceLocale: string
       targetLocale: string
@@ -26,6 +27,7 @@ export const copySingletonToLocale = createServerFn({ method: 'POST' })
     try {
       return serialise(
         await getAdminBylineClient().singleton(data.singleton).copyToLocale({
+          expectedRevision: data.expectedRevision,
           sourceLocale: data.sourceLocale,
           targetLocale: data.targetLocale,
           overwrite: data.overwrite,

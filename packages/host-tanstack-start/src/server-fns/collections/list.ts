@@ -131,7 +131,7 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
     const hasRelations = Object.keys(populateMap).length > 0
     const populate: PopulateSpec | undefined = hasRelations ? populateMap : undefined
 
-    const result = await handle.find({
+    const result = await handle.findForEdit({
       where: Object.keys(where).length > 0 ? where : undefined,
       sort: viewState.sort,
       locale: params.locale ?? 'en',
@@ -140,7 +140,6 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
       select: params.fields,
       populate,
       depth: hasRelations ? 1 : undefined,
-      status: 'any',
       // Admin list: show the raw per-locale state (untranslated docs render
       // empty in the active locale's columns) rather than falling back to the
       // default locale. Consistent with the edit view; overrides the client's
@@ -205,5 +204,12 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
       return serialised as unknown as ReturnType<typeof list.parse>
     }
 
-    return list.parse(serialised)
+    const parsed = list.parse(serialised)
+    return {
+      ...parsed,
+      docs: parsed.docs.map((doc, index) => ({
+        ...doc,
+        revision: result.docs[index]?.revision,
+      })),
+    }
   })

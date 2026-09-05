@@ -9,26 +9,28 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { getAdminBylineClient } from '@byline/client/server'
+import type { SingletonSavePrecondition } from '@byline/core'
 
 import { toCommittedDocumentHookFailureResponse } from '../collections/save-outcome.js'
 import { serialise } from '../serialise.js'
 
-export interface UpdateSingletonInput {
+export type UpdateSingletonInput = SingletonSavePrecondition & {
   singleton: string
   data: Record<string, any>
   locale?: string
-  expectedVersionId?: string
 }
 
 export const updateSingleton = createServerFn({ method: 'POST' })
   .validator((input: UpdateSingletonInput) => input)
   .handler(async ({ data }) => {
-    const { singleton, data: fields, locale, expectedVersionId } = data
+    const { singleton, data: fields, locale, ...precondition } = data
     try {
-      const result = await getAdminBylineClient().singleton(singleton).update(fields, {
-        locale,
-        expectedVersionId,
-      })
+      const result = await getAdminBylineClient()
+        .singleton(singleton)
+        .update(fields, {
+          locale,
+          ...precondition,
+        })
       return serialise(result)
     } catch (error) {
       const committedFailure = toCommittedDocumentHookFailureResponse(error)

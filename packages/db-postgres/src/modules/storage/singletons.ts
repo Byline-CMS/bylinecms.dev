@@ -6,16 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import {
-  ERR_DATABASE,
-  ERR_NOT_FOUND,
-  type ISingletonCommands,
-  type ISingletonQueries,
-} from '@byline/core'
-import { eq, sql } from 'drizzle-orm'
+import type { ISingletonCommands, ISingletonQueries } from '@byline/core'
+import { eq } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
 import { singletonDocuments } from '../../database/schema/index.js'
+import { lockCollectionRegistration } from './collection-registration.js'
 import type * as schema from '../../database/schema/index.js'
 import type { DBManager } from '../../lib/db-manager.js'
 
@@ -33,24 +29,7 @@ export class SingletonCommands implements ISingletonCommands {
   }
 
   async lockSlot(collectionId: string): Promise<void> {
-    if (!this.dbManager.isInTransaction()) {
-      throw ERR_DATABASE({
-        message: 'singleton slot locks require an active transaction',
-        details: { collectionId },
-      })
-    }
-
-    const locked = await this.db.execute(sql`
-      SELECT id FROM byline_collections
-      WHERE id = ${collectionId}::uuid
-      FOR UPDATE
-    `)
-    if (locked.rows.length === 0) {
-      throw ERR_NOT_FOUND({
-        message: 'singleton slot registration not found',
-        details: { collectionId },
-      })
-    }
+    await lockCollectionRegistration(this.dbManager, collectionId, 'exclusive')
   }
 
   async setMapping(collectionId: string, documentId: string): Promise<void> {

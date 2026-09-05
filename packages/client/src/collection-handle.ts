@@ -16,10 +16,13 @@ import type {
   DocumentFilter,
   DocumentLifecycleContext,
   DocumentPublishSchedule,
+  DocumentWritePrecondition,
   PopulateSpec,
   ReadContext,
   ReadMode,
+  ReadSnapshotQueries,
   RestoreVersionResult,
+  StructuralMutationReceipt,
   UnpublishResult,
   UpdateDocumentResult,
 } from '@byline/core'
@@ -34,6 +37,8 @@ import {
   createReadContext,
   createRichTextDocumentReader,
   deleteDocument,
+  documentAbilityKey,
+  documentRevisionFromDatabase,
   ERR_VALIDATION,
   getDocumentScheduledPublish,
   type PopulateMap,
@@ -55,7 +60,11 @@ import {
   resolveReadRequestContext,
   resolveReadSecurityFilters,
 } from './read-context.js'
-import { type DocumentBoundFindByVersionOptions, expectedDocumentId } from './read-internals.js'
+import {
+  type DocumentBoundFindByVersionOptions,
+  expectedDocumentId,
+  readSingletonForEdit,
+} from './read-internals.js'
 import { shapeDocument, shapePopulatedInPlace } from './response.js'
 import { assertSearchFieldScope, assertSearchQueryLength, finalizeSearchHits } from './search.js'
 import type { BylineClient } from './client.js'
@@ -67,13 +76,20 @@ import type {
   ConfirmScheduledPublishOptions,
   CreateOptions,
   DocumentPublishScheduleInfo,
+  EditableDocument,
+  EditableFindResult,
+  EditableSingleton,
+  EditableTreeNode,
+  FindByIdForEditOptions,
   FindByIdOptions,
   FindByPathOptions,
   FindByVersionOptions,
+  FindForEditOptions,
   FindOneOptions,
   FindOptions,
   FindResult,
   GetAncestorsOptions,
+  GetSubtreeForEditOptions,
   GetSubtreeOptions,
   GetTreeParentOptions,
   HistoryOptions,
@@ -187,6 +203,95 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
 
     return {
       docs: result.documents.map((d) => this.shapeWithPopulated<F>(d)),
+      meta: {
+        total: result.total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(result.total / pageSize),
+      },
+    }
+  }
+
+  async findForEdit<F = TFields>(
+    options: FindForEditOptions<F> = {}
+  ): Promise<EditableFindResult<F>> {
+    assertEditableOptions(options)
+    const readMode = 'any' as const
+    const readCtx = options._readContext ?? createReadContext()
+    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const {
+      where,
+      select,
+      sort,
+      locale = this.client.defaultLocale,
+      page = 1,
+      pageSize = 20,
+    } = options
+    const securityFilters = await this.resolveBeforeReadFilters(
+      requestContext,
+      readCtx,
+      options._bypassBeforeRead
+    )
+    const parsedWhere = await parseWhere(where, this.definition, {
+      collections: this.client.collections,
+      resolveCollectionId: (path) => this.client.resolveCollectionId(path),
+      logger: this.client.logger,
+    })
+    if (securityFilters) parsedWhere.filters.push(...securityFilters)
+    const collectionId = await this.client.resolveCollectionId(this.definition.path)
+    const parsedSort = parseSort(sort, this.definition)
+
+    const { result, observations } = await this.client.db.withReadSnapshot(async (queries) => {
+      const result = await queries.documents.findDocuments({
+        collection_id: collectionId,
+        filters: parsedWhere.filters,
+        status: parsedWhere.status,
+        pathFilter: parsedWhere.pathFilter,
+        query: parsedWhere.query,
+        sort: parsedSort.fieldSort,
+        orderBy: parsedSort.orderBy,
+        orderDirection: parsedSort.orderDirection,
+        locale,
+        page,
+        pageSize,
+        fields: select as string[] | undefined,
+        readMode,
+        onMissingLocale: options.onMissingLocale ?? 'fallback',
+      })
+      const observations = await this.captureEditObservations(
+        queries,
+        collectionId,
+        result.documents,
+        requestContext
+      )
+      return { result, observations }
+    })
+
+    await this.populateIfRequested(
+      collectionId,
+      result.documents,
+      locale,
+      readMode,
+      requestContext,
+      {
+        ...options,
+        _readContext: readCtx,
+      }
+    )
+
+    await this.finishReadDocuments(
+      result.documents,
+      readCtx,
+      requestContext,
+      locale,
+      readMode,
+      options._bypassBeforeRead,
+      select as string[] | undefined,
+      readMaterialization(options.populate, options.depth)
+    )
+
+    return {
+      docs: result.documents.map((d, index) => this.shapeEditable<F>(d, observations[index]!)),
       meta: {
         total: result.total,
         page,
@@ -498,6 +603,101 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     return this.shapeWithPopulated<F>(raw as Record<string, any>)
   }
 
+  async findByIdForEdit<F = TFields>(
+    documentId: string,
+    options: FindByIdForEditOptions<F> = {}
+  ): Promise<EditableDocument<F> | null> {
+    if (typeof documentId !== 'string' || !documentId)
+      throw ERR_VALIDATION({ message: 'A document ID is required' })
+    const result = await this.readOneForEdit<F>(documentId, options)
+    return result === 'empty' ? null : result
+  }
+
+  async [readSingletonForEdit]<F = TFields>(
+    options: FindByIdForEditOptions<F> = {}
+  ): Promise<EditableSingleton<F> | null> {
+    const result = await this.readOneForEdit<F>(null, options)
+    if (result === 'empty') return { state: 'empty' }
+    if (result == null) return null
+    const { path: _path, ...document } = result
+    return { state: 'document', document }
+  }
+
+  private async readOneForEdit<F = TFields>(
+    documentId: string | null,
+    options: FindByIdForEditOptions<F> = {}
+  ): Promise<EditableDocument<F> | 'empty' | null> {
+    assertEditableOptions(options)
+    const readMode = 'any' as const
+    const readCtx = options._readContext ?? createReadContext()
+    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const { locale = this.client.defaultLocale } = options
+
+    const filters = await this.resolveBeforeReadFilters(
+      requestContext,
+      readCtx,
+      options._bypassBeforeRead
+    )
+    const collectionId = await this.client.resolveCollectionId(this.definition.path)
+
+    const snapshot = await this.client.db.withReadSnapshot(async (queries) => {
+      const sourceId = documentId ?? (await queries.singletons.getMappedDocumentId(collectionId))
+      if (sourceId == null) return 'empty' as const
+      const raw = await queries.documents.getDocumentById({
+        collection_id: collectionId,
+        document_id: sourceId,
+        locale,
+        reconstruct: true,
+        readMode,
+        filters,
+        lenient: options.lenient,
+        onMissingLocale: options.onMissingLocale ?? 'fallback',
+      })
+
+      if (raw == null) return null
+      const observations = await this.captureEditObservations(
+        queries,
+        collectionId,
+        [raw],
+        requestContext
+      )
+      return { raw, observation: observations[0]! }
+    })
+    if (snapshot == null || snapshot === 'empty') return snapshot
+    const { raw, observation } = snapshot
+
+    // Trim to selected fields BEFORE populate so populate doesn't waste work
+    // on relations the caller filtered out. Mutates `raw.fields` in place.
+    if (options.select?.length) {
+      trimFields(raw as Record<string, any>, options.select as string[])
+    }
+
+    await this.populateIfRequested(
+      collectionId,
+      [raw as Record<string, any>],
+      locale,
+      readMode,
+      requestContext,
+      {
+        ...options,
+        _readContext: readCtx,
+      }
+    )
+
+    await this.finishReadDocuments(
+      [raw as Record<string, any>],
+      readCtx,
+      requestContext,
+      locale,
+      readMode,
+      options._bypassBeforeRead,
+      options.select as string[] | undefined,
+      readMaterialization(options.populate, options.depth)
+    )
+
+    return this.shapeEditable<F>(raw, observation)
+  }
+
   /**
    * Find a document by its URL path/slug. Returns `null` when no document
    * exists at the given path (the storage adapter resolves missing paths
@@ -603,15 +803,16 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   async update(
     documentId: string,
     data: Record<string, any>,
-    options: UpdateOptions = {}
+    options: UpdateOptions
   ): Promise<UpdateDocumentResult> {
     const ctx = await this.buildLifecycleContext()
     return updateDocument(ctx, {
       documentId,
       data,
-      locale: options.locale,
-      path: options.path,
-      availableLocales: options.availableLocales,
+      expectedRevision: options?.expectedRevision,
+      locale: options?.locale,
+      path: options?.path,
+      availableLocales: options?.availableLocales,
     })
   }
 
@@ -621,9 +822,17 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * transitioning to `'published'` auto-archives any other published
    * versions of the same document.
    */
-  async changeStatus(documentId: string, nextStatus: string): Promise<ChangeStatusResult> {
+  async changeStatus(
+    documentId: string,
+    nextStatus: string,
+    options: DocumentWritePrecondition
+  ): Promise<ChangeStatusResult> {
     const ctx = await this.buildLifecycleContext()
-    return changeDocumentStatus(ctx, { documentId, nextStatus })
+    return changeDocumentStatus(ctx, {
+      documentId,
+      nextStatus,
+      expectedRevision: options?.expectedRevision,
+    })
   }
 
   /**
@@ -634,18 +843,20 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   async schedulePublish(
     documentId: string,
     options: SchedulePublishOptions
-  ): Promise<DocumentPublishScheduleInfo> {
+  ): Promise<DocumentPublishScheduleInfo & { revision: number }> {
     const ctx = await this.buildLifecycleContext()
-    return toScheduleInfo(await scheduleDocumentPublish(ctx, { documentId, ...options }))
+    const result = await scheduleDocumentPublish(ctx, { documentId, ...options })
+    return { ...toScheduleInfo(result), revision: result.revision }
   }
 
   /** Re-authorize a content-edited schedule against the reviewed version. */
   async confirmScheduledPublish(
     documentId: string,
     options: ConfirmScheduledPublishOptions
-  ): Promise<DocumentPublishScheduleInfo> {
+  ): Promise<DocumentPublishScheduleInfo & { revision: number }> {
     const ctx = await this.buildLifecycleContext()
-    return toScheduleInfo(await confirmDocumentScheduledPublish(ctx, { documentId, ...options }))
+    const result = await confirmDocumentScheduledPublish(ctx, { documentId, ...options })
+    return { ...toScheduleInfo(result), revision: result.revision }
   }
 
   /**
@@ -653,10 +864,19 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * the cancellation transaction acquired the row lock; callers must not
    * report that outcome as a successful cancellation.
    */
-  async cancelScheduledPublish(documentId: string): Promise<DocumentPublishScheduleInfo | null> {
+  async cancelScheduledPublish(
+    documentId: string,
+    options: DocumentWritePrecondition
+  ): Promise<{ schedule: DocumentPublishScheduleInfo | null; revision: number }> {
     const ctx = await this.buildLifecycleContext()
-    const schedule = await cancelDocumentScheduledPublish(ctx, { documentId })
-    return schedule == null ? null : toScheduleInfo(schedule)
+    const result = await cancelDocumentScheduledPublish(ctx, {
+      documentId,
+      expectedRevision: options?.expectedRevision,
+    })
+    return {
+      schedule: result.schedule == null ? null : toScheduleInfo(result.schedule),
+      revision: result.revision,
+    }
   }
 
   /** Read the active document-grain schedule under the same two abilities. */
@@ -669,9 +889,12 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   /**
    * Archive the currently-published version(s) of a document.
    */
-  async unpublish(documentId: string): Promise<UnpublishResult> {
+  async unpublish(
+    documentId: string,
+    options: DocumentWritePrecondition
+  ): Promise<UnpublishResult> {
     const ctx = await this.buildLifecycleContext()
-    return unpublishDocument(ctx, { documentId })
+    return unpublishDocument(ctx, { documentId, expectedRevision: options?.expectedRevision })
   }
 
   /**
@@ -685,9 +908,17 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * a `restore: { sourceVersionId }` field on the hook context so userland
    * hooks can branch.
    */
-  async restoreVersion(documentId: string, sourceVersionId: string): Promise<RestoreVersionResult> {
+  async restoreVersion(
+    documentId: string,
+    sourceVersionId: string,
+    options: DocumentWritePrecondition
+  ): Promise<RestoreVersionResult> {
     const ctx = await this.buildLifecycleContext()
-    return restoreDocumentVersion(ctx, { documentId, sourceVersionId })
+    return restoreDocumentVersion(ctx, {
+      documentId,
+      sourceVersionId,
+      expectedRevision: options?.expectedRevision,
+    })
   }
 
   /**
@@ -698,9 +929,12 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * every persisted variant on each upload-capable field are removed
    * after the DB soft-delete — failures there are logged but non-fatal.
    */
-  async delete(documentId: string): Promise<DeleteDocumentResult> {
+  async delete(
+    documentId: string,
+    options: DocumentWritePrecondition
+  ): Promise<DeleteDocumentResult> {
     const ctx = await this.buildLifecycleContext()
-    return deleteDocument(ctx, { documentId })
+    return deleteDocument(ctx, { documentId, expectedRevision: options?.expectedRevision })
   }
 
   /**
@@ -920,11 +1154,12 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   async placeTreeNode(
     documentId: string,
     options: PlaceTreeNodeOptions
-  ): Promise<{ orderKey: string }> {
+  ): Promise<{ orderKey: string } & StructuralMutationReceipt> {
     this.assertTreeCollection()
     const ctx = await this.buildLifecycleContext()
     return placeTreeNodeLifecycle(ctx, {
       documentId,
+      expectedRevision: options?.expectedRevision,
       parentDocumentId: options.parentDocumentId,
       beforeDocumentId: options.beforeDocumentId ?? null,
       afterDocumentId: options.afterDocumentId ?? null,
@@ -937,10 +1172,17 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * in the collection, but not in any table of contents). Distinct from
    * deleting the document. No-op when already unplaced.
    */
-  async removeFromTree(documentId: string, options: RemoveFromTreeOptions = {}): Promise<void> {
+  async removeFromTree(
+    documentId: string,
+    options: RemoveFromTreeOptions
+  ): Promise<StructuralMutationReceipt> {
     this.assertTreeCollection()
     const ctx = await this.buildLifecycleContext()
-    await removeFromTreeLifecycle(ctx, { documentId, reconcile: options.reconcile })
+    return removeFromTreeLifecycle(ctx, {
+      documentId,
+      expectedRevision: options?.expectedRevision,
+      reconcile: options.reconcile,
+    })
   }
 
   /**
@@ -1007,6 +1249,132 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       }
     }
     return roots
+  }
+
+  async getSubtreeForEdit<F = TFields>(
+    options: GetSubtreeForEditOptions<F> = {}
+  ): Promise<EditableTreeNode<F>[]> {
+    return (await this.readTreeForEdit<F>(options, false)).forest
+  }
+
+  /** Whole admin tree and scoped unplaced documents share one structural snapshot. */
+  async getTreeForEdit<F = TFields>(
+    options: Omit<GetSubtreeForEditOptions<F>, 'rootDocumentId' | 'depth'> = {}
+  ): Promise<{ forest: EditableTreeNode<F>[]; unplaced: EditableDocument<F>[] }> {
+    return this.readTreeForEdit<F>(options, true)
+  }
+
+  private async readTreeForEdit<F = TFields>(
+    options: GetSubtreeForEditOptions<F>,
+    includeUnplaced: boolean
+  ): Promise<{ forest: EditableTreeNode<F>[]; unplaced: EditableDocument<F>[] }> {
+    this.assertTreeCollection()
+    assertEditableOptions(options)
+    const readMode = 'any' as const
+    const readCtx = options._readContext ?? createReadContext()
+    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const locale = options.locale ?? this.client.defaultLocale
+    const filters = await this.resolveBeforeReadFilters(
+      requestContext,
+      readCtx,
+      options._bypassBeforeRead
+    )
+    const collectionId = await this.client.resolveCollectionId(this.definition.path)
+
+    const { structure, raws, observations } = await this.client.db.withReadSnapshot(
+      async (queries) => {
+        const structure = await queries.documents.getTreeSubtree({
+          collectionId,
+          rootDocumentId: options.rootDocumentId ?? null,
+          maxDepth: options.depth,
+          readMode,
+          locale,
+          filters,
+        })
+        const raws =
+          structure.length === 0
+            ? []
+            : await queries.documents.getDocumentsByDocumentIds({
+                collection_id: collectionId,
+                document_ids: structure.map((row) => row.document_id),
+                locale,
+                readMode,
+                filters,
+                fields: options.select as string[] | undefined,
+              })
+        if (includeUnplaced) {
+          const seen = new Set(raws.map((raw) => raw.document_id))
+          // Preserve the admin's scoped unplaced read, with all pages in the same snapshot.
+          for (let page = 1; ; page++) {
+            const result = await queries.documents.findDocuments({
+              collection_id: collectionId,
+              filters,
+              locale,
+              readMode,
+              fields: options.select as string[] | undefined,
+              page,
+              pageSize: 1000,
+              orderBy: 'document_id',
+              orderDirection: 'asc',
+            })
+            for (const raw of result.documents) {
+              if (!seen.has(raw.document_id)) {
+                raws.push(raw)
+                seen.add(raw.document_id)
+              }
+            }
+            if (page * 1000 >= result.total) break
+          }
+        }
+        const observations = await this.captureEditObservations(
+          queries,
+          collectionId,
+          raws,
+          requestContext
+        )
+        return { structure, raws, observations }
+      }
+    )
+    await this.finishReadDocuments(
+      raws,
+      readCtx,
+      requestContext,
+      locale,
+      readMode,
+      options._bypassBeforeRead,
+      options.select as string[] | undefined,
+      'tree'
+    )
+    const shapedById = new Map(
+      raws.map((raw, index) => {
+        const document = this.shapeEditable<F>(raw, observations[index]!)
+        return [document.id, document] as const
+      })
+    )
+
+    // Assemble the nested forest. Rows arrive pre-order, so a parent is always
+    // materialised before its children; a row whose parent is not in the result
+    // set (null parent, or the requested root's own parent) is a top-level node.
+    const structuralIds = new Set(structure.map((row) => row.document_id))
+    const nodeById = new Map<string, EditableTreeNode<F>>()
+    const roots: EditableTreeNode<F>[] = []
+    for (const row of structure) {
+      const document = shapedById.get(row.document_id)
+      if (document == null) continue
+      const node: EditableTreeNode<F> = { document, depth: row.depth, children: [] }
+      nodeById.set(row.document_id, node)
+      const parent =
+        row.parent_document_id != null ? nodeById.get(row.parent_document_id) : undefined
+      if (parent) {
+        parent.children.push(node)
+      } else if (row.parent_document_id == null || !structuralIds.has(row.parent_document_id)) {
+        roots.push(node)
+      }
+    }
+    return {
+      forest: roots,
+      unplaced: [...shapedById.values()].filter((doc) => !structuralIds.has(doc.id)),
+    }
   }
 
   /**
@@ -1109,6 +1477,54 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   // -------------------------------------------------------------------------
   // Internals
   // -------------------------------------------------------------------------
+
+  private async captureEditObservations(
+    queries: ReadSnapshotQueries,
+    collectionId: string,
+    raws: Record<string, any>[],
+    requestContext: RequestContext
+  ): Promise<EditObservation[]> {
+    const actor = requestContext.actor
+    const canSchedule =
+      actor?.hasAbility(documentAbilityKey(this.definition, 'changeStatus')) === true &&
+      actor.hasAbility(documentAbilityKey(this.definition, 'publish'))
+    const observations: EditObservation[] = []
+    for (const raw of raws) {
+      const revision = documentRevisionFromDatabase(
+        await queries.documents.getDocumentRevision({
+          collection_id: collectionId,
+          document_id: raw.document_id,
+        })
+      )
+      const schedule = canSchedule
+        ? await queries.documents.publishSchedules.get({
+            collectionId,
+            documentId: raw.document_id,
+          })
+        : null
+      // Capture action identity and status independently of mutable hook input.
+      const { id, versionId, status } = shapeDocument(raw)
+      const source = { id, versionId, status }
+      observations.push({
+        source: structuredClone(source),
+        revision,
+        scheduledPublication: schedule == null ? null : toScheduleInfo(schedule),
+      })
+    }
+    return observations
+  }
+
+  private shapeEditable<F>(
+    raw: Record<string, any>,
+    observation: EditObservation
+  ): EditableDocument<F> {
+    return {
+      ...this.shapeWithPopulated<F>(raw),
+      ...observation.source,
+      revision: observation.revision,
+      scheduledPublication: observation.scheduledPublication,
+    }
+  }
 
   /**
    * Build a fresh `DocumentLifecycleContext` for a write call. Pulls the
@@ -1389,5 +1805,23 @@ function trimFields(raw: Record<string, any>, select: string[]): void {
   const allowed = new Set(select)
   for (const k of Object.keys(fields)) {
     if (!allowed.has(k)) delete fields[k]
+  }
+}
+
+interface EditObservation {
+  source: Pick<ClientDocument<any>, 'id' | 'versionId' | 'status'>
+  revision: number
+  scheduledPublication: DocumentPublishScheduleInfo | null
+}
+function assertEditableOptions(options: object): void {
+  const input = options as Record<string, unknown>
+  if (
+    input.status !== undefined ||
+    input.versionId !== undefined ||
+    input.documentVersionId !== undefined
+  ) {
+    throw ERR_VALIDATION({
+      message: 'Editable reads select current state and do not accept status or version selectors',
+    })
   }
 }

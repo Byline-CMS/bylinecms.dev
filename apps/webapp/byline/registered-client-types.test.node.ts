@@ -64,6 +64,7 @@ describe('application Byline client types', () => {
     expectTypeOf<InferredFields>().toEqualTypeOf<SiteSettingsFields>()
     expectTypeOf<SingletonMethods>().toEqualTypeOf<
       | 'get'
+      | 'getForEdit'
       | 'update'
       | 'changeStatus'
       | 'unpublish'

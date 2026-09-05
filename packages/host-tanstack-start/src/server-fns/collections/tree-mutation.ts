@@ -140,24 +140,24 @@ export function createAdminTreeMoveController(): AdminTreeMoveController {
   }
 }
 
-/** Admin retries reconcile post-commit tree hooks unless explicitly disabled. */
+/** Request reconciliation for explicit caller actions; never retry or replace their revision. */
 export function placeAdminTreeNode(
   handle: Pick<CollectionHandle, 'placeTreeNode'>,
   documentId: string,
   options: PlaceTreeNodeOptions
-): Promise<{ orderKey: string }> {
+): ReturnType<CollectionHandle['placeTreeNode']> {
   return handle.placeTreeNode(documentId, {
     ...options,
     reconcile: options.reconcile ?? true,
   })
 }
 
-/** Admin retries reconcile post-commit tree hooks unless explicitly disabled. */
+/** Request reconciliation for explicit caller actions; never retry or replace their revision. */
 export function removeAdminTreeNode(
   handle: Pick<CollectionHandle, 'removeFromTree'>,
   documentId: string,
-  options: RemoveFromTreeOptions = {}
-): Promise<void> {
+  options: RemoveFromTreeOptions
+): ReturnType<CollectionHandle['removeFromTree']> {
   return handle.removeFromTree(documentId, {
     ...options,
     reconcile: options.reconcile ?? true,

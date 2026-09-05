@@ -23,6 +23,7 @@ describe('collection save outcome transport', () => {
         phase: 'afterCreate',
         documentId: 'doc-1',
         documentVersionId: 'version-1',
+        revision: 2,
         sideEffectCode: ErrorCodes.STORAGE,
         privatePath: '/private/cache/key',
       },
@@ -34,6 +35,7 @@ describe('collection save outcome transport', () => {
       status: 'committed-hook-failed',
       documentId: 'doc-1',
       documentVersionId: 'version-1',
+      revision: 2,
       sideEffectFailure: { phase: 'afterCreate', code: 'ERR_STORAGE' },
     })
     expect(JSON.stringify(response)).not.toContain('secret hook failure')
@@ -49,6 +51,7 @@ describe('collection save outcome transport', () => {
           phase: 'afterSave',
           documentId: 'doc-singleton',
           documentVersionId: 'version-singleton',
+          revision: 2,
           sideEffectCode: ErrorCodes.UNHANDLED,
         },
       })

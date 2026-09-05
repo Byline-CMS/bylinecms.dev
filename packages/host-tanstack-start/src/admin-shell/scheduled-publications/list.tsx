@@ -69,11 +69,11 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
     })
   }
 
-  const cancel = async (collection: string, documentId: string) => {
+  const cancel = async (collection: string, documentId: string, expectedRevision: number) => {
     setCancelling(documentId)
     try {
       const result = await cancelCollectionDocumentScheduledPublish({
-        data: { collection, id: documentId },
+        data: { collection, id: documentId, expectedRevision },
       })
       const cancelled = result.status === 'cancelled'
       toastManager.add({
@@ -263,7 +263,9 @@ export function ScheduledPublicationsView({ data }: { data: ScheduledPublication
                           // unlike the editor's menu, where "Cancel schedule"
                           // has to distinguish itself from cancelling an edit.
                           aria-label={t('scheduledPublication.actions.cancel')}
-                          onClick={() => cancel(schedule.collectionPath, schedule.documentId)}
+                          onClick={() =>
+                            cancel(schedule.collectionPath, schedule.documentId, schedule.revision)
+                          }
                         >
                           {t('common.actions.cancel')}
                         </Button>

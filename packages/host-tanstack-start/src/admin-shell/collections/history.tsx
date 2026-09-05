@@ -11,6 +11,7 @@ import { useParams, useRouter, useRouterState } from '@tanstack/react-router'
 import { AdminTabs, renderFormatted, StatusBadge } from '@byline/admin/react'
 import { useBylineAdminServices } from '@byline/admin/services'
 import type { CollectionAdminConfig, MultiCollectionDefinition, WorkflowStatus } from '@byline/core'
+import { parseDocumentRevision } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { useTranslation } from '@byline/i18n/react'
 import { Button, Container, Section, Table } from '@byline/ui/react'
@@ -280,7 +281,14 @@ export const HistoryView = ({
               loadHistoricalVersion={getCollectionDocumentVersion}
               onPageSizeChange={handlePageSizeChange}
               restoreVersion={(versionId) =>
-                restoreDocumentVersion({ data: { collection, id, versionId } })
+                restoreDocumentVersion({
+                  data: {
+                    expectedRevision: parseDocumentRevision(currentDocument?.revision),
+                    collection,
+                    id,
+                    versionId,
+                  },
+                })
               }
               onRestoreComplete={async () => {
                 await router.invalidate()

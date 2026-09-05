@@ -13,11 +13,19 @@ import { getAdminBylineClient } from '@byline/client/server'
 import { serialise } from '../serialise.js'
 
 export const scheduleSingletonPublish = createServerFn({ method: 'POST' })
-  .validator((input: { singleton: string; publishAt: string; expectedVersionId: string }) => input)
+  .validator(
+    (input: {
+      expectedRevision: number
+      singleton: string
+      publishAt: string
+      expectedVersionId: string
+    }) => input
+  )
   .handler(async ({ data }) =>
     serialise(
       await getAdminBylineClient().singleton(data.singleton).schedulePublish({
         publishAt: data.publishAt,
+        expectedRevision: data.expectedRevision,
         expectedVersionId: data.expectedVersionId,
       })
     )

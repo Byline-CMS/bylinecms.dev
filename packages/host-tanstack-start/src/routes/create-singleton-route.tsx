@@ -10,7 +10,7 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 
 import type { DocumentPublishScheduleInfo } from '@byline/client'
-import { getAdminBylineClient, getAdminRequestContext } from '@byline/client/server'
+import { getAdminRequestContext } from '@byline/client/server'
 import {
   buildInitialDataFromFields,
   documentAbilityKey,
@@ -51,6 +51,7 @@ export const getSingletonRouteDocument = createServerFn({ method: 'GET' })
     if (document == null) {
       return {
         document: null,
+        expectedEmpty: true,
         initialData: serialise(
           await buildInitialDataFromFields(definition.fields, {
             locale: data.locale ?? getServerConfig().i18n.content.defaultLocale,
@@ -93,9 +94,9 @@ export const getSingletonRouteDocument = createServerFn({ method: 'GET' })
         actor?.hasAbility(documentAbilityKey(definition, 'changeStatus')) === true &&
         actor.hasAbility(documentAbilityKey(definition, 'publish'))
       if (canSchedulePublication) {
-        scheduledPublish = await getAdminBylineClient()
-          .singleton(data.singleton)
-          .getScheduledPublish()
+        scheduledPublish = (
+          document as unknown as { scheduledPublication: DocumentPublishScheduleInfo | null }
+        ).scheduledPublication
       }
     }
     const serializedSchedule = scheduledPublish == null ? null : serialise(scheduledPublish)

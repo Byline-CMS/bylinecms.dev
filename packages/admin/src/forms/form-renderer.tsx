@@ -858,6 +858,7 @@ const FormContent = ({
                 )}
               {tree && mode === 'edit' && typeof initialData?.id === 'string' && (
                 <TreePlacementWidget
+                  expectedRevision={initialData.revision}
                   collectionPath={collectionPath ?? ''}
                   documentId={initialData.id as string}
                   useAsTitle={useAsTitle}

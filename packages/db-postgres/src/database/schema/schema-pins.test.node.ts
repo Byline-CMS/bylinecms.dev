@@ -82,6 +82,7 @@ describe('schema pins — scheduled publication', () => {
     expect(cfg.checks.map((constraint) => constraint.name).sort()).toEqual([
       'check_document_publish_schedules_state',
       'check_document_publish_schedules_suspended_reason',
+      'check_publish_schedules_authorized_revision',
     ])
   })
 
@@ -151,5 +152,22 @@ describe('schema pins — singleton documents', () => {
       'byline_documents'
     )
     expect(ownershipForeignKey?.onDelete).toBe('cascade')
+  })
+})
+
+describe('schema pins — document revisions', () => {
+  it('requires an explicit safe-range revision on every new document', () => {
+    expect(documents.revision.getSQLType()).toBe('bigint')
+    expect(documents.revision.notNull).toBe(true)
+    expect(documents.revision.hasDefault).toBe(false)
+    expect(getTableConfig(documents).checks.map((constraint) => constraint.name)).toContain(
+      'check_documents_revision'
+    )
+  })
+
+  it('allows legacy schedules to have no prior document authorization', () => {
+    expect(documentPublishSchedules.authorized_revision.getSQLType()).toBe('bigint')
+    expect(documentPublishSchedules.authorized_revision.notNull).toBe(false)
+    expect(documentPublishSchedules.authorized_revision.hasDefault).toBe(false)
   })
 })

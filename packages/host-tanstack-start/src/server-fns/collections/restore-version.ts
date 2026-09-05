@@ -21,7 +21,10 @@ import { toCommittedDocumentHookFailureResponse } from './save-outcome.js'
 // ---------------------------------------------------------------------------
 
 export const restoreDocumentVersion = createServerFn({ method: 'POST' })
-  .validator((input: { collection: string; id: string; versionId: string }) => input)
+  .validator(
+    (input: { expectedRevision: number; collection: string; id: string; versionId: string }) =>
+      input
+  )
   .handler(async ({ data: input }) => {
     const { collection: path, id, versionId } = input
     const logger = getLogger()
@@ -49,12 +52,14 @@ export const restoreDocumentVersion = createServerFn({ method: 'POST' })
     try {
       const result = await restoreDocumentVersionService(ctx, {
         documentId: id,
+        expectedRevision: input.expectedRevision,
         sourceVersionId: versionId,
       })
 
       return {
         status: 'ok' as const,
         documentId: result.documentId,
+        revision: result.revision,
         documentVersionId: result.documentVersionId,
         sourceVersionId: result.sourceVersionId,
       }

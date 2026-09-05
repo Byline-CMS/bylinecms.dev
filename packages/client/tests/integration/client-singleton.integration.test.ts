@@ -136,27 +136,37 @@ describe('client.singleton()', () => {
     const handle = client.singleton(neverSavedDefinition.path)
     const expectedNotFound = { code: ErrorCodes.NOT_FOUND }
 
-    await expect(handle.changeStatus('published')).rejects.toMatchObject(expectedNotFound)
-    await expect(handle.unpublish()).rejects.toMatchObject(expectedNotFound)
+    await expect(handle.changeStatus('published', { expectedRevision: 1 })).rejects.toMatchObject(
+      expectedNotFound
+    )
+    await expect(handle.unpublish({ expectedRevision: 1 })).rejects.toMatchObject(expectedNotFound)
     await expect(
       handle.schedulePublish({
+        expectedRevision: 1,
         publishAt: new Date(Date.now() + 3_600_000).toISOString(),
         expectedVersionId: 'missing-version',
       })
     ).rejects.toMatchObject(expectedNotFound)
     await expect(
-      handle.confirmScheduledPublish({ expectedVersionId: 'missing-version' })
+      handle.confirmScheduledPublish({ expectedRevision: 1, expectedVersionId: 'missing-version' })
     ).rejects.toMatchObject(expectedNotFound)
-    await expect(handle.cancelScheduledPublish()).rejects.toMatchObject(expectedNotFound)
-    await expect(handle.restoreVersion('missing-version')).rejects.toMatchObject(expectedNotFound)
+    await expect(handle.cancelScheduledPublish({ expectedRevision: 1 })).rejects.toMatchObject(
+      expectedNotFound
+    )
     await expect(
-      handle.copyToLocale({ sourceLocale: 'en', targetLocale: 'th' })
+      handle.restoreVersion('missing-version', { expectedRevision: 1 })
+    ).rejects.toMatchObject(expectedNotFound)
+    await expect(
+      handle.copyToLocale({ expectedRevision: 1, sourceLocale: 'en', targetLocale: 'th' })
     ).rejects.toMatchObject(expectedNotFound)
   })
 
   it('materializes through update and returns a pathless singleton envelope', async () => {
     const handle = client.singleton(settingsDefinition.path)
-    const saved = await handle.update({ title: 'Byline', enabled: true })
+    const saved = await handle.update(
+      { title: 'Byline', enabled: true },
+      { expectedState: 'empty' }
+    )
 
     expect(saved.documentId).toBeTruthy()
     expect(saved.documentVersionId).toBeTruthy()
@@ -182,7 +192,10 @@ describe('client.singleton()', () => {
 
   it('saves, reads, publishes, and re-reads a singleton through the client handle', async () => {
     const handle = client.singleton(publishedDefinition.path)
-    const saved = await handle.update({ title: 'Live value', enabled: true })
+    const saved = await handle.update(
+      { title: 'Live value', enabled: true },
+      { expectedState: 'empty' }
+    )
 
     await expect(handle.get({ status: 'any' })).resolves.toMatchObject({
       id: saved.documentId,
@@ -191,7 +204,8 @@ describe('client.singleton()', () => {
     })
     await expect(handle.get()).resolves.toBeNull()
 
-    await expect(handle.changeStatus('published')).resolves.toEqual({
+    await expect(handle.changeStatus('published', { expectedRevision: 1 })).resolves.toMatchObject({
+      revision: 2,
       previousStatus: 'draft',
       newStatus: 'published',
     })
@@ -204,7 +218,7 @@ describe('client.singleton()', () => {
 
   it('reads a single-status singleton as published immediately after its first save', async () => {
     const handle = client.singleton(operationalDefinition.path)
-    const saved = await handle.update({ siteName: 'Example site' })
+    const saved = await handle.update({ siteName: 'Example site' }, { expectedState: 'empty' })
 
     await expect(handle.get()).resolves.toMatchObject({
       id: saved.documentId,
@@ -216,8 +230,8 @@ describe('client.singleton()', () => {
 
   it('returns a private singleton only to an authorized actor', async () => {
     const handle = client.singleton(deniedDefinition.path)
-    await handle.update({ title: 'Secret', enabled: false })
-    await handle.changeStatus('published')
+    await handle.update({ title: 'Secret', enabled: false }, { expectedState: 'empty' })
+    await handle.changeStatus('published', { expectedRevision: 1 })
 
     const anonymousClient = createBylineClient({
       db,
@@ -243,16 +257,22 @@ describe('client.singleton()', () => {
 
   it('does not resolve an orphaned version after rematerializing the singleton slot', async () => {
     const other = client.singleton(otherDefinition.path)
-    const first = await other.update({
-      title: 'First singleton document',
-      enabled: true,
-    })
+    const first = await other.update(
+      {
+        title: 'First singleton document',
+        enabled: true,
+      },
+      { expectedState: 'empty' }
+    )
     await db.commands.singletons.clearMapping(collectionIds[otherDefinition.path])
 
-    const second = await other.update({
-      title: 'Rematerialized singleton document',
-      enabled: false,
-    })
+    const second = await other.update(
+      {
+        title: 'Rematerialized singleton document',
+        enabled: false,
+      },
+      { expectedState: 'empty' }
+    )
 
     expect(second.documentId).not.toBe(first.documentId)
     await expect(other.findByVersion(first.documentVersionId)).resolves.toBeNull()
@@ -279,18 +299,27 @@ describe('client.singleton()', () => {
       run: (handle: LooseHandle) => Promise<unknown>
     }> = [
       { name: 'get', ability: 'read', run: (handle) => handle.get({ status: 'any' }) },
-      { name: 'update', ability: 'update', run: (handle) => handle.update({ title: 'Denied' }) },
+      {
+        name: 'update',
+        ability: 'update',
+        run: (handle) => handle.update({ title: 'Denied' }, { expectedState: 'empty' }),
+      },
       {
         name: 'changeStatus',
         ability: 'changeStatus',
-        run: (handle) => handle.changeStatus('published'),
+        run: (handle) => handle.changeStatus('published', { expectedRevision: 1 }),
       },
-      { name: 'unpublish', ability: 'changeStatus', run: (handle) => handle.unpublish() },
+      {
+        name: 'unpublish',
+        ability: 'changeStatus',
+        run: (handle) => handle.unpublish({ expectedRevision: 1 }),
+      },
       {
         name: 'schedulePublish',
         ability: 'changeStatus',
         run: (handle) =>
           handle.schedulePublish({
+            expectedRevision: 1,
             publishAt: new Date(Date.now() + 3_600_000).toISOString(),
             expectedVersionId: 'version',
           }),
@@ -298,12 +327,13 @@ describe('client.singleton()', () => {
       {
         name: 'confirmScheduledPublish',
         ability: 'changeStatus',
-        run: (handle) => handle.confirmScheduledPublish({ expectedVersionId: 'version' }),
+        run: (handle) =>
+          handle.confirmScheduledPublish({ expectedRevision: 1, expectedVersionId: 'version' }),
       },
       {
         name: 'cancelScheduledPublish',
         ability: 'changeStatus',
-        run: (handle) => handle.cancelScheduledPublish(),
+        run: (handle) => handle.cancelScheduledPublish({ expectedRevision: 1 }),
       },
       {
         name: 'getScheduledPublish',
@@ -319,12 +349,13 @@ describe('client.singleton()', () => {
       {
         name: 'restoreVersion',
         ability: 'update',
-        run: (handle) => handle.restoreVersion('version'),
+        run: (handle) => handle.restoreVersion('version', { expectedRevision: 1 }),
       },
       {
         name: 'copyToLocale',
         ability: 'update',
-        run: (handle) => handle.copyToLocale({ sourceLocale: 'en', targetLocale: 'th' }),
+        run: (handle) =>
+          handle.copyToLocale({ expectedRevision: 1, sourceLocale: 'en', targetLocale: 'th' }),
       },
     ]
 

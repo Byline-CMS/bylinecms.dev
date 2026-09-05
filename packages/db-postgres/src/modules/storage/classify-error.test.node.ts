@@ -46,3 +46,15 @@ describe('classifyError (postgres)', () => {
     expect(classifyError('boom')).toEqual({ code: 'DB_UNKNOWN' })
   })
 })
+
+describe('lock conflict classification', () => {
+  it.each(['40P01', '40001', '55P03'])(
+    'classifies driver lock failure %s through a cause',
+    (value) => {
+      expect(classifyError({ cause: { code: value } })).toEqual({ code: 'DB_LOCK_CONFLICT' })
+    }
+  )
+  it('does not classify connection loss as safe contention', () => {
+    expect(classifyError({ code: 'ECONNRESET', errno: 2013 })).toEqual({ code: 'DB_UNKNOWN' })
+  })
+})

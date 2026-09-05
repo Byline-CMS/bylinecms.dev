@@ -137,7 +137,7 @@ beforeAll(async () => {
   ]) {
     const handle = ctx.client.collection(ctx.categoriesDefinition.path)
     const created = await handle.create({ name: seed.name, slug: seed.slug })
-    await handle.changeStatus(created.documentId, 'published')
+    await handle.changeStatus(created.documentId, 'published', { expectedRevision: 1 })
     ctx.categoryIds.set(seed.slug, created.documentId)
   }
 
@@ -161,7 +161,7 @@ beforeAll(async () => {
   })
   await ctx.client
     .collection(ctx.categoriesDefinition.path)
-    .changeStatus(subCat.documentId, 'published')
+    .changeStatus(subCat.documentId, 'published', { expectedRevision: 1 })
   ctx.categoryIds.set('breaking', subCat.documentId)
 
   // Seed articles, each categorised into one of the categories.
@@ -184,7 +184,7 @@ beforeAll(async () => {
         targetCollectionId: ctx.categoriesCollectionId,
       },
     })
-    await articlesHandle.changeStatus(created.documentId, 'published')
+    await articlesHandle.changeStatus(created.documentId, 'published', { expectedRevision: 1 })
   }
 }, 60_000)
 

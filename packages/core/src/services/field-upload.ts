@@ -13,7 +13,11 @@ import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
 import { ERR_DATABASE, ERR_STORAGE, ERR_VALIDATION } from '../lib/errors.js'
 import { withLogContext } from '../lib/logger.js'
 import { type FilenameSlugifierFn, resolveUploadFilename } from '../utils/slugify-filename.js'
-import { createDocument, type DocumentLifecycleContext } from './document-lifecycle/index.js'
+import {
+  createDocument,
+  type DocumentLifecycleContext,
+  getDocumentHookCommittedDetails,
+} from './document-lifecycle/index.js'
 import type {
   AfterStoreContext,
   AfterStoreHookFn,
@@ -121,6 +125,7 @@ export interface UploadFieldParams {
 }
 
 export interface UploadFieldResult {
+  revision?: number
   documentId?: string
   documentVersionId?: string
   /**
@@ -553,9 +558,12 @@ export async function uploadField(
         return {
           documentId: result.documentId,
           documentVersionId: result.documentVersionId,
+          revision: result.revision,
           storedFile: storedFileValue,
         }
       } catch (err: unknown) {
+        // A committed document owns these files even when its after-hook fails.
+        if (getDocumentHookCommittedDetails(err) !== null) throw err
         logger.error(
           { err, collectionPath, fieldName },
           'document creation failed — rolling back storage files'

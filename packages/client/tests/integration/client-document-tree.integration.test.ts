@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { observedRevision } from '../fixtures/observed-revision.js'
 /**
  * Exercises the `@byline/client` document-tree API (`placeTreeNode`,
  * `removeFromTree`, `getSubtree`, `getAncestors`) end-to-end against the live
@@ -65,7 +66,7 @@ async function makeDoc(title: string, publish = true): Promise<string> {
   const handle = tree()
   const slug = `${title.toLowerCase().replace(/\s+/g, '-')}-${suffix}-${seq++}`
   const created = await handle.create({ title }, { path: slug })
-  if (publish) await handle.changeStatus(created.documentId, 'published')
+  if (publish) await handle.changeStatus(created.documentId, 'published', { expectedRevision: 1 })
   return created.documentId
 }
 
@@ -77,10 +78,23 @@ describe('client document-tree API', () => {
     const advanced = await makeDoc('Advanced')
     const cli = await makeDoc('CLI')
 
-    await handle.placeTreeNode(guide, { parentDocumentId: null })
-    await handle.placeTreeNode(intro, { parentDocumentId: guide })
-    await handle.placeTreeNode(advanced, { parentDocumentId: guide, beforeDocumentId: intro })
-    await handle.placeTreeNode(cli, { parentDocumentId: advanced })
+    await handle.placeTreeNode(guide, {
+      expectedRevision: await observedRevision(handle, guide),
+      parentDocumentId: null,
+    })
+    await handle.placeTreeNode(intro, {
+      expectedRevision: await observedRevision(handle, intro),
+      parentDocumentId: guide,
+    })
+    await handle.placeTreeNode(advanced, {
+      expectedRevision: await observedRevision(handle, advanced),
+      parentDocumentId: guide,
+      beforeDocumentId: intro,
+    })
+    await handle.placeTreeNode(cli, {
+      expectedRevision: await observedRevision(handle, cli),
+      parentDocumentId: advanced,
+    })
 
     const forest = await handle.getSubtree({ rootDocumentId: guide })
     expect(forest).toHaveLength(1)
@@ -101,9 +115,18 @@ describe('client document-tree API', () => {
     const a = await makeDoc('A')
     const b = await makeDoc('B')
     const c = await makeDoc('C')
-    await handle.placeTreeNode(a, { parentDocumentId: null })
-    await handle.placeTreeNode(b, { parentDocumentId: a })
-    await handle.placeTreeNode(c, { parentDocumentId: b })
+    await handle.placeTreeNode(a, {
+      expectedRevision: await observedRevision(handle, a),
+      parentDocumentId: null,
+    })
+    await handle.placeTreeNode(b, {
+      expectedRevision: await observedRevision(handle, b),
+      parentDocumentId: a,
+    })
+    await handle.placeTreeNode(c, {
+      expectedRevision: await observedRevision(handle, c),
+      parentDocumentId: b,
+    })
 
     const ancestors = await handle.getAncestors(c)
     expect(ancestors.map((d) => d.fields.title)).toEqual(['A', 'B'])
@@ -117,13 +140,25 @@ describe('client document-tree API', () => {
     const x = await makeDoc('X')
     const y = await makeDoc('Y')
     const child = await makeDoc('Child')
-    await handle.placeTreeNode(x, { parentDocumentId: null })
-    await handle.placeTreeNode(y, { parentDocumentId: null })
-    await handle.placeTreeNode(child, { parentDocumentId: x })
+    await handle.placeTreeNode(x, {
+      expectedRevision: await observedRevision(handle, x),
+      parentDocumentId: null,
+    })
+    await handle.placeTreeNode(y, {
+      expectedRevision: await observedRevision(handle, y),
+      parentDocumentId: null,
+    })
+    await handle.placeTreeNode(child, {
+      expectedRevision: await observedRevision(handle, child),
+      parentDocumentId: x,
+    })
 
     expect((await handle.getAncestors(child)).map((d) => d.fields.title)).toEqual(['X'])
 
-    await handle.placeTreeNode(child, { parentDocumentId: y })
+    await handle.placeTreeNode(child, {
+      expectedRevision: await observedRevision(handle, child),
+      parentDocumentId: y,
+    })
     expect((await handle.getAncestors(child)).map((d) => d.fields.title)).toEqual(['Y'])
   })
 
@@ -133,10 +168,23 @@ describe('client document-tree API', () => {
     const pub = await makeDoc('Pub')
     const draft = await makeDoc('Draft', /* publish */ false)
     const leaf = await makeDoc('Leaf')
-    await handle.placeTreeNode(sec, { parentDocumentId: null })
-    await handle.placeTreeNode(pub, { parentDocumentId: sec })
-    await handle.placeTreeNode(draft, { parentDocumentId: sec, beforeDocumentId: pub })
-    await handle.placeTreeNode(leaf, { parentDocumentId: draft })
+    await handle.placeTreeNode(sec, {
+      expectedRevision: await observedRevision(handle, sec),
+      parentDocumentId: null,
+    })
+    await handle.placeTreeNode(pub, {
+      expectedRevision: await observedRevision(handle, pub),
+      parentDocumentId: sec,
+    })
+    await handle.placeTreeNode(draft, {
+      expectedRevision: await observedRevision(handle, draft),
+      parentDocumentId: sec,
+      beforeDocumentId: pub,
+    })
+    await handle.placeTreeNode(leaf, {
+      expectedRevision: await observedRevision(handle, leaf),
+      parentDocumentId: draft,
+    })
 
     // Published (client default): the draft node and its subtree drop out.
     const published = await handle.getSubtree({ rootDocumentId: sec })
@@ -152,20 +200,26 @@ describe('client document-tree API', () => {
     const handle = tree()
     const root = await makeDoc('RemRoot')
     const kid = await makeDoc('RemKid')
-    await handle.placeTreeNode(root, { parentDocumentId: null })
-    await handle.placeTreeNode(kid, { parentDocumentId: root })
+    await handle.placeTreeNode(root, {
+      expectedRevision: await observedRevision(handle, root),
+      parentDocumentId: null,
+    })
+    await handle.placeTreeNode(kid, {
+      expectedRevision: await observedRevision(handle, kid),
+      parentDocumentId: root,
+    })
     expect((await handle.getSubtree({ rootDocumentId: root }))[0]?.children).toHaveLength(1)
 
-    await handle.removeFromTree(kid)
+    await handle.removeFromTree(kid, { expectedRevision: await observedRevision(handle, kid) })
     expect((await handle.getSubtree({ rootDocumentId: root }))[0]?.children).toHaveLength(0)
     expect(await handle.getAncestors(kid)).toEqual([])
   })
 
   it('rejects tree operations on a non-tree collection', async () => {
     const plain = ctx.client.collection(plainDef.path)
-    await expect(plain.placeTreeNode('whatever', { parentDocumentId: null })).rejects.toThrow(
-      /not a document tree/
-    )
+    await expect(
+      plain.placeTreeNode('whatever', { expectedRevision: 1, parentDocumentId: null })
+    ).rejects.toThrow(/not a document tree/)
     await expect(plain.getSubtree()).rejects.toThrow(/not a document tree/)
     await expect(plain.getAncestors('whatever')).rejects.toThrow(/not a document tree/)
   })

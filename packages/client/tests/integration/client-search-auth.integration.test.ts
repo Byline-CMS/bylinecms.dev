@@ -108,7 +108,7 @@ beforeAll(async () => {
   const notes = ctx.client.collection(notesDefinition.path)
   const seed = async (title: string, tenant: string): Promise<string> => {
     const created = await notes.create({ title, tenant })
-    await notes.changeStatus(created.documentId, 'published')
+    await notes.changeStatus(created.documentId, 'published', { expectedRevision: 1 })
     // Indexing is a system operation (reads bypass row scoping) — the index
     // deliberately holds every published document across tenants.
     await notes.indexDocument(created.documentId)

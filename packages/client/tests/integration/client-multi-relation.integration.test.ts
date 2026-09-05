@@ -118,8 +118,8 @@ beforeAll(async () => {
   const b = await people.create({ name: 'Grace Hopper' })
   personA = a.documentId
   personB = b.documentId
-  await people.changeStatus(personA, 'published')
-  await people.changeStatus(personB, 'published')
+  await people.changeStatus(personA, 'published', { expectedRevision: 1 })
+  await people.changeStatus(personB, 'published', { expectedRevision: 1 })
 
   const articles = ctx.client.collection(articlesDefinition.path)
   const created = await articles.create({
@@ -130,7 +130,7 @@ beforeAll(async () => {
     ],
   })
   articleId = created.documentId
-  await articles.changeStatus(articleId, 'published')
+  await articles.changeStatus(articleId, 'published', { expectedRevision: 1 })
 }, 30_000)
 
 afterAll(async () => {
@@ -166,7 +166,7 @@ describe('hasMany relations populate as an ordered array of envelopes', () => {
   })
 
   it('keeps a deleted target as a _resolved:false slot rather than dropping it', async () => {
-    await ctx.client.collection(peopleDefinition.path).delete(personB)
+    await ctx.client.collection(peopleDefinition.path).delete(personB, { expectedRevision: 2 })
 
     const doc = await ctx.client
       .collection(articlesDefinition.path)
@@ -205,8 +205,8 @@ describe('hasMany query quantifiers', () => {
     alan = a.documentId
     katherine = k.documentId
     draftPerson = d.documentId
-    await people.changeStatus(alan, 'published')
-    await people.changeStatus(katherine, 'published')
+    await people.changeStatus(alan, 'published', { expectedRevision: 1 })
+    await people.changeStatus(katherine, 'published', { expectedRevision: 1 })
     // draftPerson stays draft — invisible to published-mode target resolution.
 
     const articles = ctx.client.collection(articlesDefinition.path)
@@ -226,9 +226,9 @@ describe('hasMany query quantifiers', () => {
     artBoth = both.documentId
     artMixed = mixed.documentId
     artNone = none.documentId
-    await articles.changeStatus(artBoth, 'published')
-    await articles.changeStatus(artMixed, 'published')
-    await articles.changeStatus(artNone, 'published')
+    await articles.changeStatus(artBoth, 'published', { expectedRevision: 1 })
+    await articles.changeStatus(artMixed, 'published', { expectedRevision: 1 })
+    await articles.changeStatus(artNone, 'published', { expectedRevision: 1 })
   }, 30_000)
 
   const findIds = async (where: Record<string, unknown>): Promise<Set<string>> => {

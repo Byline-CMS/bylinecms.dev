@@ -11,12 +11,14 @@ import type {
   ChangeStatusResult,
   DocumentLifecycleContext,
   DocumentPublishSchedule,
+  DocumentWritePrecondition,
   ReadContext,
   ReadMode,
   SingletonAbilityVerb,
   SingletonDefinition,
   SingletonSaveResult,
   UnpublishResult,
+  UpdateSingletonResult,
 } from '@byline/core'
 import {
   assertActorCanPerform,
@@ -36,12 +38,18 @@ import {
 
 import { CollectionHandle } from './collection-handle.js'
 import { resolveReadRequestContext } from './read-context.js'
-import { type DocumentBoundFindByVersionOptions, expectedDocumentId } from './read-internals.js'
+import {
+  type DocumentBoundFindByVersionOptions,
+  expectedDocumentId,
+  readSingletonForEdit,
+} from './read-internals.js'
 import type { BylineClient } from './client.js'
 import type {
   ClientDocument,
   ConfirmScheduledPublishOptions,
   DocumentPublishScheduleInfo,
+  EditableSingleton,
+  FindByIdForEditOptions,
   FindByVersionOptions,
   FindResult,
   GetSingletonOptions,
@@ -96,39 +104,64 @@ export class SingletonHandle<TFields extends Record<string, any> = Record<string
     return singleton
   }
 
-  async update(data: TFields, options: UpdateSingletonOptions = {}): Promise<SingletonSaveResult> {
+  async getForEdit(
+    options: FindByIdForEditOptions<TFields> = {}
+  ): Promise<EditableSingleton<TFields> | null> {
+    return this.reader[readSingletonForEdit](options)
+  }
+
+  async update(data: TFields, options: UpdateSingletonOptions): Promise<UpdateSingletonResult> {
     const ctx = await this.buildAuthorizedLifecycleContext(['update'])
     return updateSingleton(ctx, { data, ...options })
   }
 
-  async changeStatus(nextStatus: string): Promise<ChangeStatusResult> {
+  async changeStatus(
+    nextStatus: string,
+    options: DocumentWritePrecondition
+  ): Promise<ChangeStatusResult> {
     const abilities: SingletonAbilityVerb[] = ['changeStatus']
     if (nextStatus === 'published') abilities.push('publish')
     const { ctx, documentId } = await this.resolveRequiredDocument(abilities)
-    return changeDocumentStatus(ctx, { documentId, nextStatus })
+    return changeDocumentStatus(ctx, {
+      documentId,
+      nextStatus,
+      expectedRevision: options?.expectedRevision,
+    })
   }
 
-  async unpublish(): Promise<UnpublishResult> {
+  async unpublish(options: DocumentWritePrecondition): Promise<UnpublishResult> {
     const { ctx, documentId } = await this.resolveRequiredDocument(['changeStatus'])
-    return unpublishDocument(ctx, { documentId })
+    return unpublishDocument(ctx, { documentId, expectedRevision: options?.expectedRevision })
   }
 
-  async schedulePublish(options: SchedulePublishOptions): Promise<DocumentPublishScheduleInfo> {
+  async schedulePublish(
+    options: SchedulePublishOptions
+  ): Promise<DocumentPublishScheduleInfo & { revision: number }> {
     const { ctx, documentId } = await this.resolveRequiredDocument(['changeStatus', 'publish'])
-    return toScheduleInfo(await scheduleDocumentPublish(ctx, { documentId, ...options }))
+    const result = await scheduleDocumentPublish(ctx, { documentId, ...options })
+    return { ...toScheduleInfo(result), revision: result.revision }
   }
 
   async confirmScheduledPublish(
     options: ConfirmScheduledPublishOptions
-  ): Promise<DocumentPublishScheduleInfo> {
+  ): Promise<DocumentPublishScheduleInfo & { revision: number }> {
     const { ctx, documentId } = await this.resolveRequiredDocument(['changeStatus', 'publish'])
-    return toScheduleInfo(await confirmDocumentScheduledPublish(ctx, { documentId, ...options }))
+    const result = await confirmDocumentScheduledPublish(ctx, { documentId, ...options })
+    return { ...toScheduleInfo(result), revision: result.revision }
   }
 
-  async cancelScheduledPublish(): Promise<DocumentPublishScheduleInfo | null> {
+  async cancelScheduledPublish(
+    options: DocumentWritePrecondition
+  ): Promise<{ schedule: DocumentPublishScheduleInfo | null; revision: number }> {
     const { ctx, documentId } = await this.resolveRequiredDocument(['changeStatus', 'publish'])
-    const schedule = await cancelDocumentScheduledPublish(ctx, { documentId })
-    return schedule == null ? null : toScheduleInfo(schedule)
+    const result = await cancelDocumentScheduledPublish(ctx, {
+      documentId,
+      expectedRevision: options?.expectedRevision,
+    })
+    return {
+      schedule: result.schedule == null ? null : toScheduleInfo(result.schedule),
+      revision: result.revision,
+    }
   }
 
   async getScheduledPublish(): Promise<DocumentPublishScheduleInfo | null> {
@@ -167,12 +200,19 @@ export class SingletonHandle<TFields extends Record<string, any> = Record<string
     return this.reader.findByVersion<F>(versionId, boundOptions)
   }
 
-  async restoreVersion(sourceVersionId: string): Promise<SingletonSaveResult> {
+  async restoreVersion(
+    sourceVersionId: string,
+    options: DocumentWritePrecondition
+  ): Promise<SingletonSaveResult> {
     const ctx = await this.buildAuthorizedLifecycleContext(['update'])
-    return restoreSingletonVersion(ctx, { sourceVersionId })
+    return restoreSingletonVersion(ctx, {
+      sourceVersionId,
+      expectedRevision: options?.expectedRevision,
+    })
   }
 
   async copyToLocale(args: {
+    expectedRevision: number
     sourceLocale: string
     targetLocale: string
     overwrite?: boolean

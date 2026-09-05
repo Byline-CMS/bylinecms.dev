@@ -161,9 +161,13 @@ describe('counter field (group: shared-counters)', () => {
     const created = await handle.create({ label: `Nursery-${testSuffix}` })
     const before = await readFacetId(topicsDef.path, created.documentId)
 
-    await handle.update(created.documentId, {
-      label: `Nursery Techniques-${testSuffix}`,
-    })
+    await handle.update(
+      created.documentId,
+      {
+        label: `Nursery Techniques-${testSuffix}`,
+      },
+      { expectedRevision: 1 }
+    )
 
     const after = await readFacetId(topicsDef.path, created.documentId)
     expect(after).toBe(before)
@@ -176,10 +180,14 @@ describe('counter field (group: shared-counters)', () => {
 
     // The client API technically accepts arbitrary keys in the data
     // object — the lifecycle layer is the one that enforces immutability.
-    await handle.update(created.documentId, {
-      label: `Soil-${testSuffix}`,
-      facetId: 999_999 as unknown as never,
-    } as never)
+    await handle.update(
+      created.documentId,
+      {
+        label: `Soil-${testSuffix}`,
+        facetId: 999_999 as unknown as never,
+      } as never,
+      { expectedRevision: 1 }
+    )
 
     const after = await readFacetId(topicsDef.path, created.documentId)
     expect(after).toBe(before)
@@ -244,7 +252,7 @@ describe('counter field (group: shared-counters)', () => {
         logger,
         requestContext: createSuperAdminContext({ id: 'test-super-admin' }),
       },
-      { sourceDocumentId: source.documentId }
+      { expectedRevision: 1, sourceDocumentId: source.documentId }
     )
 
     const dupFacetId = await readFacetId(definition.path, dup.documentId)

@@ -21,7 +21,7 @@ import { createReadContext, ERR_NOT_FOUND, getLogger } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
 import { placeAdminTreeNode, removeAdminTreeNode } from './tree-mutation.js'
-import { getAdminTreeParent, getAdminUnplacedTreeDocuments } from './tree-read.js'
+import { getAdminTreeParent } from './tree-read.js'
 
 // ---------------------------------------------------------------------------
 // Place / move a node within the tree (place / reorder / re-parent)
@@ -30,6 +30,7 @@ import { getAdminTreeParent, getAdminUnplacedTreeDocuments } from './tree-read.j
 export const placeTreeNode = createServerFn({ method: 'POST' })
   .validator(
     (input: {
+      expectedRevision: number
       collection: string
       documentId: string
       parentDocumentId: string | null
@@ -49,12 +50,13 @@ export const placeTreeNode = createServerFn({ method: 'POST' })
     }
     const handle = getAdminBylineClient().collection(path)
     const result = await placeAdminTreeNode(handle, documentId, {
+      expectedRevision: data.expectedRevision,
       parentDocumentId: data.parentDocumentId,
       beforeDocumentId: data.beforeDocumentId ?? null,
       afterDocumentId: data.afterDocumentId ?? null,
       reconcile: data.reconcile,
     })
-    return { status: 'ok' as const, orderKey: result.orderKey }
+    return { status: 'ok' as const, ...result }
   })
 
 // ---------------------------------------------------------------------------
@@ -62,7 +64,14 @@ export const placeTreeNode = createServerFn({ method: 'POST' })
 // ---------------------------------------------------------------------------
 
 export const removeFromTree = createServerFn({ method: 'POST' })
-  .validator((input: { collection: string; documentId: string; reconcile?: boolean }) => input)
+  .validator(
+    (input: {
+      expectedRevision: number
+      collection: string
+      documentId: string
+      reconcile?: boolean
+    }) => input
+  )
   .handler(async ({ data }) => {
     const { collection: path, documentId } = data
     const config = await ensureCollection(path)
@@ -72,10 +81,11 @@ export const removeFromTree = createServerFn({ method: 'POST' })
         details: { collectionPath: path },
       }).log(getLogger())
     }
-    await removeAdminTreeNode(getAdminBylineClient().collection(path), documentId, {
+    const result = await removeAdminTreeNode(getAdminBylineClient().collection(path), documentId, {
+      expectedRevision: data.expectedRevision,
       reconcile: data.reconcile,
     })
-    return { status: 'ok' as const }
+    return { status: 'ok' as const, ...result }
   })
 
 // ---------------------------------------------------------------------------
@@ -135,6 +145,7 @@ export const getTreeParent = createServerFn({ method: 'GET' })
 // ---------------------------------------------------------------------------
 
 export interface CollectionTreeRow {
+  revision: number
   id: string
   /** Parent document id, or `null` for a root or unplaced node. Drives the
    * client-side tree reconstruction for drag-to-reorder / re-parent. */
@@ -168,8 +179,7 @@ export const getCollectionTree = createServerFn({ method: 'GET' })
     // keeps this sharing safe (one request authority per request).
     const readContext = createReadContext()
 
-    const forest = await handle.getSubtree({
-      status: 'any',
+    const { forest, unplaced } = await handle.getTreeForEdit({
       locale: data.locale,
       _readContext: readContext,
     })
@@ -180,6 +190,7 @@ export const getCollectionTree = createServerFn({ method: 'GET' })
         const doc = node.document
         rows.push({
           id: doc.id,
+          revision: doc.revision,
           parentId,
           depth,
           unplaced: false,
@@ -197,10 +208,10 @@ export const getCollectionTree = createServerFn({ method: 'GET' })
 
     // Surface documents not yet in the tree (e.g. freshly created) so they
     // remain reachable. Trees are small by design, so a single wide read is fine.
-    const unplaced = await getAdminUnplacedTreeDocuments(handle, placed, readContext, data.locale)
     for (const doc of unplaced) {
       rows.push({
         id: doc.id,
+        revision: doc.revision,
         parentId: null,
         depth: 0,
         unplaced: true,

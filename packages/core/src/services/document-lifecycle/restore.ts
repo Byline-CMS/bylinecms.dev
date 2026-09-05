@@ -14,9 +14,11 @@ import { getDefaultStatus } from '../../workflow/workflow.js'
 import { runCommittedDocumentHook } from './committed-hook.js'
 import { applyRichTextEmbed, extractDocumentId, extractVersionId, invokeHook } from './internals.js'
 import { persistExistingDocumentVersion } from './persistence.js'
+import { commitGuardedDocumentMutation, readDocumentForMutation } from './revision-guard.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface RestoreVersionResult {
+  revision: number
   documentId: string
   documentVersionId: string
   sourceVersionId: string
@@ -66,14 +68,18 @@ export async function restoreDocumentVersion(
   ctx: DocumentLifecycleContext,
   params: {
     documentId: string
+    expectedRevision: number
     sourceVersionId: string
   }
 ): Promise<RestoreVersionResult> {
+  params = { ...params }
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'restoreDocumentVersion' },
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
       assertActorCanPerform(ctx.requestContext, definition, 'update')
+      const latest = await readDocumentForMutation(ctx, { ...params, locale: 'all' })
+      const previousVersionId = latest.document_version_id as string
       const hooks = await resolveHooks(definition)
 
       // 1. Read source version (full multi-locale tree).
@@ -103,19 +109,7 @@ export async function restoreDocumentVersion(
 
       // 3. Current version metadata — used both for the already-current
       //    guard and for the sticky path resolution.
-      const currentMeta = await db.queries.documents.getCurrentVersionMetadata({
-        collection_id: collectionId,
-        document_id: params.documentId,
-      })
-
-      if (currentMeta == null) {
-        throw ERR_NOT_FOUND({
-          message: 'document not found',
-          details: { documentId: params.documentId },
-        }).log(ctx.logger)
-      }
-
-      if (currentMeta.document_version_id === params.sourceVersionId) {
+      if (previousVersionId === params.sourceVersionId) {
         throw ERR_INVALID_TRANSITION({
           message: 'source version is already the current version of this document',
           details: {
@@ -127,12 +121,6 @@ export async function restoreDocumentVersion(
 
       // 4. originalData for hooks: full reconstruction of the current
       //    version (locale-scoped, matching updateDocument's semantics).
-      const latest = await db.queries.documents.getDocumentById({
-        collection_id: collectionId,
-        document_id: params.documentId,
-        locale: defaultLocale,
-        reconstruct: true,
-      })
       const originalData: Record<string, any> = (latest as Record<string, any>) ?? {}
 
       const sourceFields = (source as Record<string, any>).fields ?? {}
@@ -159,14 +147,23 @@ export async function restoreDocumentVersion(
       //
       // No `path` is passed: restore does not change the document's path
       // (the existing byline_document_paths row stays as-is — sticky).
-      const result = await persistExistingDocumentVersion(ctx, {
-        documentId: params.documentId,
-        action: 'restore',
-        documentData: sourceFields,
-        status: getDefaultStatus(definition),
-        locale: 'all',
-        previousVersionId: currentMeta.document_version_id,
-      })
+      const committed = await commitGuardedDocumentMutation(
+        ctx,
+        { ...params, previousVersionId, locale: 'all' },
+        async () => {
+          const result = await persistExistingDocumentVersion(ctx, {
+            documentId: params.documentId,
+            action: 'restore',
+            documentData: sourceFields,
+            status: getDefaultStatus(definition),
+            locale: 'all',
+            previousVersionId: previousVersionId,
+          })
+          return { value: result, changed: true }
+        }
+      )
+      const result = committed.value
+      const revision = committed.revision
 
       const documentId = extractDocumentId(result.document) || params.documentId
       const documentVersionId = extractVersionId(result.document)
@@ -175,7 +172,7 @@ export async function restoreDocumentVersion(
       //    from the current version's envelope (originalData), not the source.
       await runCommittedDocumentHook(
         ctx,
-        { phase: 'afterUpdate', documentId, documentVersionId },
+        { phase: 'afterUpdate', documentId, documentVersionId, revision },
         () =>
           invokeHook(hooks?.afterUpdate, {
             data: sourceFields,
@@ -192,6 +189,7 @@ export async function restoreDocumentVersion(
         documentId,
         documentVersionId,
         sourceVersionId: params.sourceVersionId,
+        revision,
       }
     }
   )

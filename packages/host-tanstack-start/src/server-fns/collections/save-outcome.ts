@@ -16,6 +16,7 @@ export interface CollectionDocumentCommittedHookFailureResponse {
   status: 'committed-hook-failed'
   documentId: string
   documentVersionId: string
+  revision: number
   sideEffectFailure: {
     phase: DocumentHookCommittedPhase
     code: DocumentHookSideEffectCode
@@ -36,6 +37,7 @@ export function toCommittedDocumentHookFailureResponse(
     status: 'committed-hook-failed',
     documentId: details.documentId,
     documentVersionId: details.documentVersionId,
+    revision: details.revision,
     sideEffectFailure: {
       phase: details.phase,
       code: details.sideEffectCode,

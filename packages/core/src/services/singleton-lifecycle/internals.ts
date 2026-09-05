@@ -8,9 +8,19 @@
 
 import { resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
-import { DbErrorCodes, ERR_CONFLICT, ERR_VALIDATION } from '../../lib/errors.js'
+import { ERR_DOCUMENT_STALE, ERR_NOT_FOUND, ERR_VALIDATION } from '../../lib/errors.js'
+import {
+  documentRevisionFromDatabase,
+  parseDocumentRevision,
+} from '../../storage/document-revision.js'
 import { runCommittedDocumentHook } from '../document-lifecycle/committed-hook.js'
 import { extractDocumentId, extractVersionId } from '../document-lifecycle/internals.js'
+import {
+  assertLifecycleTransactionOwnership,
+  commitGuardedDocumentMutation,
+  readDocumentForMutation,
+} from '../document-lifecycle/revision-guard.js'
+import { sameDocumentData } from '../document-lifecycle/same-document-data.js'
 import type {
   AfterSingletonSaveContext,
   BeforeSingletonSaveContext,
@@ -28,6 +38,7 @@ type CurrentVersionMetadata = NonNullable<
 >
 
 export interface SingletonSaveResult {
+  revision: number
   documentId: string
   documentVersionId: string
 }
@@ -41,6 +52,7 @@ interface PreparedSingletonSave {
   data: Record<string, any>
   originalData: Record<string, any> | null
   locale: string
+  prepareWrite: () => Promise<void>
   write: () => Promise<VersionWriteResult>
 }
 
@@ -72,105 +84,98 @@ export function resolveSingletonDocumentId(ctx: DocumentLifecycleContext): Promi
   return ctx.db.queries.singletons.getMappedDocumentId(ctx.collectionId)
 }
 
-/**
- * Coordinate one singleton version write under the registered-slot lock.
- * `prepare` runs after the mapping and current version have been read while
- * locked. The before hook and write remain inside the outer transaction; the
- * after hook cannot run until that transaction has committed.
- */
+/** Prepare singleton restore/copy outside locks, then commit under S → D → P. */
 export async function commitSingletonSave(params: {
   ctx: DocumentLifecycleContext
   definition: SingletonDefinition
+  expectedRevision: number
   operation: SingletonSaveOperation
   prepare: (slot: LockedSingletonSlot) => Promise<PreparedSingletonSave>
 }): Promise<SingletonSaveResult> {
   const { ctx, definition, operation } = params
-  const hooks = await resolveHooks(definition)
-  const requestContext = ctx.requestContext
-  if (requestContext == null) {
-    throw new Error('singleton authorization completed without a request context')
-  }
-
-  const committed = await ctx.db.withTransaction<CommittedSingletonSave>(async () => {
-    await ctx.db.commands.singletons.lockSlot(ctx.collectionId)
-    const mappedDocumentId = await resolveSingletonDocumentId(ctx)
-    const currentVersion =
-      mappedDocumentId == null
-        ? null
-        : await ctx.db.queries.documents.getCurrentVersionMetadata({
-            collection_id: ctx.collectionId,
-            document_id: mappedDocumentId,
-          })
-
-    if (mappedDocumentId != null && currentVersion == null) {
-      throw ERR_CONFLICT({
-        message:
-          `singleton '${ctx.collectionPath}' is mapped to a deleted or unavailable document; ` +
-          'clear the mapping deliberately before rematerialising the slot',
-        details: { singletonPath: ctx.collectionPath, documentId: mappedDocumentId },
-      }).log(ctx.logger)
-    }
-
-    const slot = { documentId: mappedDocumentId, currentVersion }
-    const prepared = await params.prepare(slot)
-    const isInitialSave = mappedDocumentId == null
-    const beforeSaveContext: BeforeSingletonSaveContext = {
-      data: prepared.data,
-      originalData: prepared.originalData,
-      singletonPath: ctx.collectionPath,
-      locale: prepared.locale,
-      requestContext,
-      isInitialSave,
-      operation,
-      documentId: mappedDocumentId,
-    }
-    await invokeSingletonHook(hooks?.beforeSave, beforeSaveContext)
-
-    const writeResult = await prepared.write()
-    const documentId = extractDocumentId(writeResult.document) || mappedDocumentId || ''
-    const documentVersionId = extractVersionId(writeResult.document)
-    if (documentId === '' || documentVersionId === '') {
-      throw new Error('singleton persistence did not return document and version ids')
-    }
-
-    if (isInitialSave) {
-      try {
-        await ctx.db.commands.singletons.setMapping(ctx.collectionId, documentId)
-      } catch (error) {
-        if (ctx.db.classifyError?.(error)?.code === DbErrorCodes.UNIQUE_VIOLATION) {
-          throw ERR_CONFLICT({
-            message: `singleton '${ctx.collectionPath}' was materialised concurrently`,
-            details: { singletonPath: ctx.collectionPath },
-          }).log(ctx.logger)
-        }
-        throw error
-      }
-    }
-
-    return {
-      documentId,
-      documentVersionId,
-      afterSaveContext: {
-        ...beforeSaveContext,
-        documentId,
-        documentVersionId,
-      },
-    }
+  assertLifecycleTransactionOwnership(ctx)
+  const expectedRevision = parseDocumentRevision(params.expectedRevision)
+  const slot = await ctx.db.withReadSnapshot(async (queries) => {
+    const documentId = await queries.singletons.getMappedDocumentId(ctx.collectionId)
+    if (documentId === null) throw ERR_NOT_FOUND({ message: 'Singleton document is unavailable' })
+    const currentVersion = await queries.documents.getCurrentVersionMetadata({
+      collection_id: ctx.collectionId,
+      document_id: documentId,
+    })
+    if (currentVersion === null)
+      throw ERR_NOT_FOUND({ message: 'Singleton document is unavailable' })
+    const currentRevision = documentRevisionFromDatabase(
+      await queries.documents.getDocumentRevision({
+        collection_id: ctx.collectionId,
+        document_id: documentId,
+      })
+    )
+    if (currentRevision !== expectedRevision)
+      throw ERR_DOCUMENT_STALE({
+        message: 'This singleton has changed. Reload before saving.',
+        details: { reason: 'revision_mismatch', documentId, expectedRevision, currentRevision },
+      })
+    return { documentId, currentVersion }
   })
-
-  await runCommittedDocumentHook(
+  const prepared = await params.prepare(slot)
+  // The operation-specific locale/history reads must still belong to this observation.
+  await readDocumentForMutation(ctx, {
+    documentId: slot.documentId,
+    expectedRevision,
+    locale: prepared.locale,
+    lenient: true,
+  })
+  const baseline = structuredClone(prepared.originalData)
+  const hooks = await resolveHooks(definition)
+  if (!ctx.requestContext)
+    throw new Error('Singleton authorization completed without a request context')
+  const beforeSaveContext: BeforeSingletonSaveContext = {
+    data: prepared.data,
+    originalData: prepared.originalData,
+    singletonPath: ctx.collectionPath,
+    locale: prepared.locale,
+    requestContext: ctx.requestContext,
+    isInitialSave: false,
+    operation,
+    documentId: slot.documentId,
+  }
+  await invokeSingletonHook(hooks?.beforeSave, beforeSaveContext)
+  await prepared.prepareWrite()
+  const committed = await commitGuardedDocumentMutation(
     ctx,
     {
-      phase: 'afterSave',
-      documentId: committed.documentId,
-      documentVersionId: committed.documentVersionId,
+      documentId: slot.documentId,
+      expectedRevision,
+      previousVersionId: slot.currentVersion.document_version_id,
+      locale: prepared.locale,
     },
-    () => invokeSingletonHook(hooks?.afterSave, committed.afterSaveContext)
+    async () => {
+      if (
+        operation.type === 'copyToLocale' &&
+        baseline !== null &&
+        sameDocumentData(prepared.data, baseline)
+      ) {
+        return {
+          value: {
+            documentId: slot.documentId,
+            documentVersionId: slot.currentVersion.document_version_id,
+          },
+          changed: false,
+        }
+      }
+      const writeResult = await prepared.write()
+      const documentId = extractDocumentId(writeResult.document),
+        documentVersionId = extractVersionId(writeResult.document)
+      if (!documentId || !documentVersionId)
+        throw new Error('Singleton persistence returned no document/version identity')
+      return { value: { documentId, documentVersionId }, changed: true }
+    }
   )
-  return {
-    documentId: committed.documentId,
-    documentVersionId: committed.documentVersionId,
-  }
+  const receipt = { ...committed.value, revision: committed.revision }
+  await runCommittedDocumentHook(ctx, { phase: 'afterSave', ...receipt }, () =>
+    invokeSingletonHook(hooks?.afterSave, { ...beforeSaveContext, ...committed.value })
+  )
+  return receipt
 }
 
 async function invokeSingletonHook<Ctx>(

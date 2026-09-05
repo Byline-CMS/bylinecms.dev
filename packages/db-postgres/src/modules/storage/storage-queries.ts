@@ -131,6 +131,20 @@ export class CollectionQueries implements ICollectionQueries {
  * DocumentQueries
  */
 export class DocumentQueries implements IDocumentQueries {
+  async getDocumentRevision(params: {
+    collection_id: string
+    document_id: string
+  }): Promise<number | null> {
+    const rows = await this.db
+      .select({ revision: documents.revision })
+      .from(documents)
+      .where(
+        and(eq(documents.id, params.document_id), eq(documents.collection_id, params.collection_id))
+      )
+      .limit(1)
+    return rows[0]?.revision ?? null
+  }
+
   readonly publishSchedules: DocumentPublishScheduleQueries
   private db: DatabaseConnection
   private transactionDb: DBManager
@@ -2428,6 +2442,7 @@ export class DocumentQueries implements IDocumentQueries {
         : sql`d.order_key ASC NULLS LAST, d.created_at DESC`
     }
     const columnMap: Record<string, string> = {
+      document_id: 'd.document_id',
       created_at: 'd.created_at',
       updated_at: 'd.updated_at',
     }

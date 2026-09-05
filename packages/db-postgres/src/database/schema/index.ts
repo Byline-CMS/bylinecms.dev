@@ -105,9 +105,12 @@ export const documents = pgTable(
     // `backfillSourceLocales()` (boot-auto via initBylineCore).
     //
     source_locale: varchar('source_locale', { length: 10 }).notNull(),
+    // Editorial concurrency counter; content versions remain independently immutable.
+    revision: bigint('revision', { mode: 'number' }).notNull(),
     ...timestamps,
   },
   (table) => [
+    check('check_documents_revision', sql`${table.revision} BETWEEN 1 AND 9007199254740991`),
     index('idx_documents_collection').on(table.collection_id),
     index('idx_documents_collection_order').on(table.collection_id, table.order_key),
     unique('uq_documents_collection_id_id').on(table.collection_id, table.id),
@@ -196,6 +199,7 @@ export const documentPublishSchedules = pgTable(
     target_version_id: uuid('target_version_id')
       .notNull()
       .references(() => documentVersions.id, { onDelete: 'cascade' }),
+    authorized_revision: bigint('authorized_revision', { mode: 'number' }),
     publish_at: timestamp('publish_at', { precision: 6, withTimezone: true }).notNull(),
     state: varchar('state', { length: 32 }).notNull().default('armed'),
     suspended_at: timestamp('suspended_at', { precision: 6, withTimezone: true }),
@@ -231,12 +235,16 @@ export const documentPublishSchedules = pgTable(
   },
   (table) => [
     check(
+      'check_publish_schedules_authorized_revision',
+      sql`${table.authorized_revision} IS NULL OR ${table.authorized_revision} BETWEEN 1 AND 9007199254740991`
+    ),
+    check(
       'check_document_publish_schedules_state',
       sql`${table.state} IN ('armed', 'needs_reconfirm')`
     ),
     check(
       'check_document_publish_schedules_suspended_reason',
-      sql`${table.suspended_reason} IS NULL OR ${table.suspended_reason} = 'content_edited'`
+      sql`${table.suspended_reason} IS NULL OR ${table.suspended_reason} IN ('content_edited', 'document_metadata_changed', 'upgrade_invalidated')`
     ),
     // Partial due index: suspended rows never participate in the claim path.
     // next_attempt_at precedes publish_at because both predicates are required

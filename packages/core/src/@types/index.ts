@@ -9,6 +9,7 @@
 export * from './admin-types.js'
 export * from './collection-types.js'
 export * from './db-types.js'
+export * from './document-revision.js'
 export * from './field-data-types.js'
 export * from './field-types.js'
 export * from './populate-types.js'

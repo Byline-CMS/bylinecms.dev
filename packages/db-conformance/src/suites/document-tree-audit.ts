@@ -21,6 +21,7 @@ import {
 } from '@byline/core'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { bounded, signal } from '../race-barrier.js'
 import type { ConformanceHooks } from '../index.js'
 
 const timestamp = Date.now()
@@ -56,6 +57,16 @@ export function documentTreeAuditSuite(hooks: ConformanceHooks): void {
   let db: IDbAdapter
   let ctx: DocumentLifecycleContext
   let queries: IDbAdapter['queries']
+
+  // Audit scenarios read their next observation before an intentional new mutation.
+  async function revisionOf(documentId: string): Promise<number> {
+    const revision = await db.queries.documents.getDocumentRevision({
+      collection_id: collectionId,
+      document_id: documentId,
+    })
+    if (revision === null) throw new Error('Missing audit fixture revision')
+    return revision
+  }
 
   async function createDoc(title: string): Promise<string> {
     const created = await db.commands.documents.createDocumentVersion({
@@ -105,22 +116,40 @@ export function documentTreeAuditSuite(hooks: ConformanceHooks): void {
       const node = await createDoc('node')
       const sibling = await createDoc('sibling')
 
-      await placeTreeNode(ctx, { documentId: parent, parentDocumentId: null })
-      await placeTreeNode(ctx, { documentId: node, parentDocumentId: null })
-      await placeTreeNode(ctx, { documentId: node, parentDocumentId: parent })
-      await placeTreeNode(ctx, { documentId: sibling, parentDocumentId: parent })
       await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(parent),
+        documentId: parent,
+        parentDocumentId: null,
+      })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(node),
+        documentId: node,
+        parentDocumentId: null,
+      })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(node),
+        documentId: node,
+        parentDocumentId: parent,
+      })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(sibling),
+        documentId: sibling,
+        parentDocumentId: parent,
+      })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(node),
         documentId: node,
         parentDocumentId: parent,
         beforeDocumentId: sibling,
       })
       // Exact retry is a structural no-op: no write and no fifth audit row.
       await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(node),
         documentId: node,
         parentDocumentId: parent,
         beforeDocumentId: sibling,
       })
-      await removeFromTree(ctx, { documentId: node })
+      await removeFromTree(ctx, { expectedRevision: await revisionOf(node), documentId: node })
 
       const nodeAudit = await db.queries.audit?.getDocumentAuditLog({
         document_id: node,
@@ -149,10 +178,25 @@ export function documentTreeAuditSuite(hooks: ConformanceHooks): void {
       const deleted = await createDoc('deleted')
       const childA = await createDoc('child-a')
       const childB = await createDoc('child-b')
-      await placeTreeNode(ctx, { documentId: deleted, parentDocumentId: null })
-      await placeTreeNode(ctx, { documentId: childA, parentDocumentId: deleted })
-      await placeTreeNode(ctx, { documentId: childB, parentDocumentId: deleted })
-      await promoteChildrenAndRemove(ctx, { documentId: deleted })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(deleted),
+        documentId: deleted,
+        parentDocumentId: null,
+      })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(childA),
+        documentId: childA,
+        parentDocumentId: deleted,
+      })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(childB),
+        documentId: childB,
+        parentDocumentId: deleted,
+      })
+      await promoteChildrenAndRemove(ctx, {
+        expectedRevision: await revisionOf(deleted),
+        documentId: deleted,
+      })
 
       expect(await queries.documents.getTreeParent({ document_id: deleted })).toEqual({
         placed: false,
@@ -186,32 +230,59 @@ export function documentTreeAuditSuite(hooks: ConformanceHooks): void {
       })
     })
 
-    it('serializes concurrent moves and audits the locked predecessor state', async () => {
+    it('commits only one move from a shared observation and audits that placement', async () => {
       const parentA = await createDoc('concurrent-a')
       const parentB = await createDoc('concurrent-b')
       const node = await createDoc('concurrent-node')
-      await placeTreeNode(ctx, { documentId: parentA, parentDocumentId: null })
-      await placeTreeNode(ctx, { documentId: parentB, parentDocumentId: null })
-
-      await Promise.all([
-        placeTreeNode(ctx, { documentId: node, parentDocumentId: parentA }),
-        placeTreeNode(ctx, { documentId: node, parentDocumentId: parentB }),
-      ])
-
-      const audit = await db.queries.audit?.getDocumentAuditLog({
-        document_id: node,
-        page_size: 10,
+      await placeTreeNode(ctx, { expectedRevision: 1, documentId: parentA, parentDocumentId: null })
+      await placeTreeNode(ctx, { expectedRevision: 1, documentId: parentB, parentDocumentId: null })
+      const expectedRevision = await revisionOf(node)
+      const observe = hooks.observeRevisionContention
+      if (!observe) throw new Error('Missing connection observer')
+      const ready = signal(),
+        release = signal()
+      const lock = db.revisions.lock.bind(db.revisions)
+      const spy = vi.spyOn(db.revisions, 'lock').mockImplementationOnce(async (targets) => {
+        const rows = await lock(targets)
+        ready.release()
+        await bounded(release.promise)
+        return rows
       })
-      expect(audit?.entries).toHaveLength(2)
-      expect(audit?.entries.map((entry) => entry.action).sort()).toEqual([
-        'document.tree.placed',
-        'document.tree.reparented',
-      ])
-      const reparent = audit?.entries.find((entry) => entry.action === 'document.tree.reparented')
-      expect(reparent?.before).toMatchObject({ placed: true })
-      const before = reparent?.before as { parentDocumentId: string }
-      const after = reparent?.after as { parentDocumentId: string }
-      expect(before.parentDocumentId).not.toBe(after.parentDocumentId)
+      try {
+        const observation = await observe(async (waitForTwoConnections) => {
+          const first = placeTreeNode(ctx, {
+            expectedRevision,
+            documentId: node,
+            parentDocumentId: parentA,
+          })
+          let second: Promise<unknown> | undefined
+          try {
+            await bounded(ready.promise)
+            second = placeTreeNode(ctx, {
+              expectedRevision,
+              documentId: node,
+              parentDocumentId: parentB,
+            })
+            void second.catch(() => {})
+            await bounded(waitForTwoConnections())
+          } finally {
+            release.release()
+            const [winner, loser] = await bounded(Promise.allSettled([first, second]))
+            expect(winner.status).toBe('fulfilled')
+            expect(loser).toMatchObject({
+              status: 'rejected',
+              reason: { code: 'ERR_DOCUMENT_STALE' },
+            })
+          }
+        })
+        expect(observation.maxConcurrentConnections).toBeGreaterThanOrEqual(2)
+      } finally {
+        release.release()
+        spy.mockRestore()
+      }
+      const audit = await db.queries.audit.getDocumentAuditLog({ document_id: node, page_size: 10 })
+      expect(audit.entries).toHaveLength(1)
+      expect(audit.entries[0]?.action).toBe('document.tree.placed')
     })
 
     it('returns locked pre-removal descendants to the post-commit tree event', async () => {
@@ -219,17 +290,36 @@ export function documentTreeAuditSuite(hooks: ConformanceHooks): void {
       const node = await createDoc('affected-node')
       const child = await createDoc('affected-child')
       const grandchild = await createDoc('affected-grandchild')
-      await placeTreeNode(ctx, { documentId: parent, parentDocumentId: null })
-      await placeTreeNode(ctx, { documentId: node, parentDocumentId: parent })
-      await placeTreeNode(ctx, { documentId: child, parentDocumentId: node })
-      await placeTreeNode(ctx, { documentId: grandchild, parentDocumentId: child })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(parent),
+        documentId: parent,
+        parentDocumentId: null,
+      })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(node),
+        documentId: node,
+        parentDocumentId: parent,
+      })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(child),
+        documentId: child,
+        parentDocumentId: node,
+      })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(grandchild),
+        documentId: grandchild,
+        parentDocumentId: child,
+      })
       const hook = vi.fn()
       const hookedCtx: DocumentLifecycleContext = {
         ...ctx,
         definition: { ...config, hooks: { afterTreeChange: hook } },
       }
 
-      await removeFromTree(hookedCtx, { documentId: node })
+      await removeFromTree(hookedCtx, {
+        expectedRevision: await revisionOf(node),
+        documentId: node,
+      })
 
       expect(hook).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -243,8 +333,16 @@ export function documentTreeAuditSuite(hooks: ConformanceHooks): void {
     it('rolls back soft-delete, edge reconciliation, and audit rows together', async () => {
       const deleted = await createDoc('delete-rollback')
       const child = await createDoc('delete-rollback-child')
-      await placeTreeNode(ctx, { documentId: deleted, parentDocumentId: null })
-      await placeTreeNode(ctx, { documentId: child, parentDocumentId: deleted })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(deleted),
+        documentId: deleted,
+        parentDocumentId: null,
+      })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(child),
+        documentId: child,
+        parentDocumentId: deleted,
+      })
       const beforeParentAudit = await db.queries.audit?.getDocumentAuditLog({
         document_id: deleted,
         page_size: 10,
@@ -267,9 +365,12 @@ export function documentTreeAuditSuite(hooks: ConformanceHooks): void {
         },
       }
 
-      await expect(deleteDocument(failingCtx, { documentId: deleted })).rejects.toThrow(
-        'late audit failure'
-      )
+      await expect(
+        deleteDocument(failingCtx, {
+          expectedRevision: await revisionOf(deleted),
+          documentId: deleted,
+        })
+      ).rejects.toThrow('late audit failure')
 
       expect(
         await queries.documents.getDocumentById({
@@ -295,8 +396,16 @@ export function documentTreeAuditSuite(hooks: ConformanceHooks): void {
     it('rolls back the tree mutation when audit append fails', async () => {
       const parent = await createDoc('rollback-parent')
       const node = await createDoc('rollback-node')
-      await placeTreeNode(ctx, { documentId: parent, parentDocumentId: null })
-      await placeTreeNode(ctx, { documentId: node, parentDocumentId: null })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(parent),
+        documentId: parent,
+        parentDocumentId: null,
+      })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(node),
+        documentId: node,
+        parentDocumentId: null,
+      })
 
       const failingCtx: DocumentLifecycleContext = {
         ...ctx,
@@ -314,7 +423,11 @@ export function documentTreeAuditSuite(hooks: ConformanceHooks): void {
       }
 
       await expect(
-        placeTreeNode(failingCtx, { documentId: node, parentDocumentId: parent })
+        placeTreeNode(failingCtx, {
+          expectedRevision: await revisionOf(node),
+          documentId: node,
+          parentDocumentId: parent,
+        })
       ).rejects.toThrow('forced audit failure')
 
       expect(await queries.documents.getTreeParent({ document_id: node })).toEqual({
@@ -331,15 +444,27 @@ export function documentTreeAuditSuite(hooks: ConformanceHooks): void {
     it('writes no audit row when the storage mutation fails', async () => {
       const parent = await createDoc('cycle-parent')
       const child = await createDoc('cycle-child')
-      await placeTreeNode(ctx, { documentId: parent, parentDocumentId: null })
-      await placeTreeNode(ctx, { documentId: child, parentDocumentId: parent })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(parent),
+        documentId: parent,
+        parentDocumentId: null,
+      })
+      await placeTreeNode(ctx, {
+        expectedRevision: await revisionOf(child),
+        documentId: child,
+        parentDocumentId: parent,
+      })
 
       const before = await db.queries.audit?.getDocumentAuditLog({
         document_id: parent,
         page_size: 10,
       })
       await expect(
-        placeTreeNode(ctx, { documentId: parent, parentDocumentId: child })
+        placeTreeNode(ctx, {
+          expectedRevision: await revisionOf(parent),
+          documentId: parent,
+          parentDocumentId: child,
+        })
       ).rejects.toThrow('move would create a cycle')
       const after = await db.queries.audit?.getDocumentAuditLog({
         document_id: parent,

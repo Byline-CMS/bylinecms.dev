@@ -106,6 +106,7 @@ const collection = {
 const initialData = {
   id: 'language-en',
   versionId: 'version-1',
+  revision: 7,
   status: 'published',
   fields: { name: 'English' },
 }
@@ -251,6 +252,44 @@ describe('collection post-save navigation', () => {
       search: { from: 'page=2' },
       ignoreBlocker: true,
     })
+  })
+
+  it('sends content and metadata in one save using the loaded revision', async () => {
+    act(() => {
+      root.render(
+        <EditView
+          collectionDefinition={collection}
+          initialData={initialData as never}
+          contentLocales={[{ code: 'en', label: 'English' }]}
+          defaultContentLocale="en"
+          locale="en"
+        />
+      )
+    })
+    const patches = [{ kind: 'field.set', path: 'name', value: 'English' }]
+    await act(async () => {
+      await latestSubmit()({
+        data: { name: 'English' },
+        patches,
+        contentDirty: true,
+        pathDirty: true,
+        systemPath: 'renamed',
+        availableLocalesDirty: true,
+        systemAvailableLocales: ['en', 'fr'],
+      })
+    })
+    expect(mocks.update).toHaveBeenCalledExactlyOnceWith({
+      data: {
+        collection: 'languages',
+        id: 'language-en',
+        expectedRevision: 7,
+        patches,
+        locale: 'en',
+        path: 'renamed',
+        availableLocales: ['en', 'fr'],
+      },
+    })
+    expect(mocks.updateSystemFields).not.toHaveBeenCalled()
   })
 
   it('bypasses the dirty-form blocker during the successful edit refresh', async () => {

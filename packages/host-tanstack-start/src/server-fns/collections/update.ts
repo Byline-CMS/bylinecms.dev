@@ -11,22 +11,15 @@ import { createServerFn } from '@tanstack/react-start'
 import { getAdminRequestContext } from '@byline/client/server'
 import { ERR_NOT_FOUND, getLogger, getServerConfig } from '@byline/core'
 import type { DocumentPatch } from '@byline/core/patches'
-import type {
-  DocumentLifecycleContext,
-  UpdateDocumentWithPatchesResult,
-} from '@byline/core/services'
-import { updateDocumentSystemFields, updateDocumentWithPatches } from '@byline/core/services'
+import type { DocumentLifecycleContext } from '@byline/core/services'
+import { saveDocument, updateDocumentSystemFields } from '@byline/core/services'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
 import { toCommittedDocumentHookFailureResponse } from './save-outcome.js'
 
 // ---------------------------------------------------------------------------
-// Apply patches (patch-based update — creates a new immutable version)
-//
-// Document-grain system fields (`path`, `availableLocales`) are deliberately
-// NOT handled here: they are written through their own non-versioned path
-// (`updateCollectionDocumentSystemFields` below) so that editing them does not
-// mint a new version or reset workflow status. See docs/08-internationalization/index.md.
+// Save content patches and optional metadata in one guarded transaction.
+// Empty patches retain the non-versioned metadata-only behavior.
 // ---------------------------------------------------------------------------
 
 export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POST' })
@@ -35,12 +28,22 @@ export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POS
       collection: string
       id: string
       patches: DocumentPatch[]
-      versionId?: string
+      expectedRevision: number
+      path?: string | null
+      availableLocales?: string[]
       locale?: string
     }) => input
   )
   .handler(async ({ data: input }) => {
-    const { collection: path, id, patches, versionId, locale } = input
+    const {
+      collection: path,
+      id,
+      patches,
+      expectedRevision,
+      locale,
+      path: explicitPath,
+      availableLocales,
+    } = input
     const logger = getLogger()
     const config = await ensureCollection(path)
     if (!config) {
@@ -63,12 +66,14 @@ export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POS
       requestContext: await getAdminRequestContext(),
     }
 
-    let result: UpdateDocumentWithPatchesResult
+    let result: Awaited<ReturnType<typeof saveDocument>>
     try {
-      result = await updateDocumentWithPatches(ctx, {
+      result = await saveDocument(ctx, {
         documentId: id,
         patches,
-        documentVersionId: versionId,
+        expectedRevision,
+        path: explicitPath ?? undefined,
+        availableLocales,
         locale: locale ?? serverConfig.i18n.content.defaultLocale,
       })
     } catch (error) {
@@ -80,7 +85,8 @@ export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POS
     return {
       status: 'ok' as const,
       documentId: result.documentId,
-      documentVersionId: result.documentVersionId,
+      ...('documentVersionId' in result ? { documentVersionId: result.documentVersionId } : {}),
+      revision: result.revision,
     }
   })
 
@@ -97,6 +103,7 @@ export const updateCollectionDocumentSystemFields = createServerFn({ method: 'PO
     (input: {
       collection: string
       id: string
+      expectedRevision: number
       locale?: string
       /** Path override; `null`/omitted means no path write. */
       path?: string | null
@@ -105,7 +112,14 @@ export const updateCollectionDocumentSystemFields = createServerFn({ method: 'PO
     }) => input
   )
   .handler(async ({ data: input }) => {
-    const { collection: path, id, locale, path: explicitPath, availableLocales } = input
+    const {
+      collection: path,
+      id,
+      expectedRevision,
+      locale,
+      path: explicitPath,
+      availableLocales,
+    } = input
     const logger = getLogger()
     const config = await ensureCollection(path)
     if (!config) {
@@ -128,15 +142,20 @@ export const updateCollectionDocumentSystemFields = createServerFn({ method: 'PO
       requestContext: await getAdminRequestContext(),
     }
 
-    await updateDocumentSystemFields(ctx, {
-      documentId: id,
-      locale: locale ?? serverConfig.i18n.content.defaultLocale,
-      path: explicitPath,
-      availableLocales,
-      // A failed after-hook happens after commit. Retrying this same admin save
-      // must re-run cache/search reconciliation when DB values are now current.
-      reconcile: true,
-    })
-
-    return { status: 'ok' as const }
+    try {
+      const result = await updateDocumentSystemFields(ctx, {
+        expectedRevision,
+        documentId: id,
+        locale: locale ?? serverConfig.i18n.content.defaultLocale,
+        path: explicitPath,
+        availableLocales,
+        // Reconciliation still requires a current observation.
+        reconcile: true,
+      })
+      return { status: 'ok' as const, revision: result.revision }
+    } catch (error) {
+      const committedFailure = toCommittedDocumentHookFailureResponse(error)
+      if (committedFailure != null) return committedFailure
+      throw error
+    }
   })

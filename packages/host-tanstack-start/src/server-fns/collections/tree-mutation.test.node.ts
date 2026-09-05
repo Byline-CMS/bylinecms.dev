@@ -175,51 +175,74 @@ describe('admin tree mutations', () => {
     expect(controller.isMoving()).toBe(false)
   })
 
-  it('opts ordinary placement retries into lifecycle reconciliation', async () => {
-    const placeTreeNode = vi
-      .fn()
-      .mockRejectedValueOnce(new Error('post-commit hook failed'))
-      .mockResolvedValue({ orderKey: 'key-1' })
+  const receipt = {
+    documentId: 'doc-1',
+    revision: 2,
+    affectedDocuments: [{ documentId: 'doc-1', revision: 2 }],
+    scheduledPublicationsNeedReconfirmation: false,
+  }
 
-    const retry = () =>
-      placeAdminTreeNode({ placeTreeNode } as any, 'doc-1', {
+  it('forwards each caller observation and requests reconciliation without retrying', async () => {
+    const placeTreeNode = vi
+      .fn<Parameters<typeof placeAdminTreeNode>[0]['placeTreeNode']>()
+      .mockRejectedValueOnce(new Error('post-commit hook failed'))
+      .mockResolvedValue({ orderKey: 'key-1', ...receipt })
+    const handle = { placeTreeNode }
+    await expect(
+      placeAdminTreeNode(handle, 'doc-1', {
+        expectedRevision: 1,
         parentDocumentId: 'parent-1',
         beforeDocumentId: 'left-1',
       })
-
-    await expect(retry()).rejects.toThrow('post-commit hook failed')
-    await expect(retry()).resolves.toEqual({ orderKey: 'key-1' })
-
-    expect(placeTreeNode).toHaveBeenCalledTimes(2)
-    expect(placeTreeNode).toHaveBeenNthCalledWith(
-      2,
-      'doc-1',
-      expect.objectContaining({ reconcile: true })
-    )
+    ).rejects.toThrow('post-commit hook failed')
+    expect(placeTreeNode).toHaveBeenCalledTimes(1)
+    // A separate caller action carries its newly observed receipt, never an implicit retry.
+    await expect(
+      placeAdminTreeNode(handle, 'doc-1', {
+        expectedRevision: 2,
+        parentDocumentId: 'parent-1',
+        beforeDocumentId: 'left-1',
+      })
+    ).resolves.toEqual({ orderKey: 'key-1', ...receipt })
+    expect(placeTreeNode).toHaveBeenNthCalledWith(2, 'doc-1', {
+      expectedRevision: 2,
+      parentDocumentId: 'parent-1',
+      beforeDocumentId: 'left-1',
+      reconcile: true,
+    })
   })
 
-  it('opts ordinary removal retries into lifecycle reconciliation', async () => {
-    const removeFromTree = vi.fn().mockResolvedValue(undefined)
-
-    await removeAdminTreeNode({ removeFromTree } as any, 'doc-1')
-
-    expect(removeFromTree).toHaveBeenCalledWith('doc-1', { reconcile: true })
+  it('requests reconciliation for removal and preserves the caller revision', async () => {
+    const removeFromTree = vi
+      .fn<Parameters<typeof removeAdminTreeNode>[0]['removeFromTree']>()
+      .mockResolvedValue(receipt)
+    await expect(
+      removeAdminTreeNode({ removeFromTree }, 'doc-1', { expectedRevision: 1 })
+    ).resolves.toEqual(receipt)
+    expect(removeFromTree).toHaveBeenCalledWith('doc-1', { expectedRevision: 1, reconcile: true })
   })
 
   it('preserves an explicit reconciliation override', async () => {
-    const placeTreeNode = vi.fn().mockResolvedValue({ orderKey: 'key-1' })
-    const removeFromTree = vi.fn().mockResolvedValue(undefined)
-
-    await placeAdminTreeNode({ placeTreeNode } as any, 'doc-1', {
+    const placeTreeNode = vi
+      .fn<Parameters<typeof placeAdminTreeNode>[0]['placeTreeNode']>()
+      .mockResolvedValue({ orderKey: 'key-1', ...receipt })
+    const removeFromTree = vi
+      .fn<Parameters<typeof removeAdminTreeNode>[0]['removeFromTree']>()
+      .mockResolvedValue(receipt)
+    await placeAdminTreeNode({ placeTreeNode }, 'doc-1', {
+      expectedRevision: 1,
       parentDocumentId: null,
       reconcile: false,
     })
-    await removeAdminTreeNode({ removeFromTree } as any, 'doc-1', { reconcile: false })
-
+    await removeAdminTreeNode({ removeFromTree }, 'doc-1', {
+      expectedRevision: 2,
+      reconcile: false,
+    })
     expect(placeTreeNode).toHaveBeenCalledWith('doc-1', {
+      expectedRevision: 1,
       parentDocumentId: null,
       reconcile: false,
     })
-    expect(removeFromTree).toHaveBeenCalledWith('doc-1', { reconcile: false })
+    expect(removeFromTree).toHaveBeenCalledWith('doc-1', { expectedRevision: 2, reconcile: false })
   })
 })

@@ -24,12 +24,16 @@ export interface DeleteDocumentPublicSideEffectFailure {
 export type DeleteDocumentResponse =
   | {
       status: 'ok'
+      documentId: string
+      revision: number
       deletedVersionCount: number
       outcome: 'committed'
       sideEffectFailures: []
     }
   | {
       status: 'ok'
+      documentId: string
+      revision: number
       deletedVersionCount: number
       outcome: 'committed-with-side-effect-failures'
       sideEffectFailures: [
@@ -67,6 +71,8 @@ export function toDeleteDocumentResponse(result: DeleteDocumentResult): DeleteDo
   const [firstFailure, ...remainingFailures] = result.sideEffectFailures
   return {
     status: 'ok',
+    documentId: result.documentId,
+    revision: result.revision,
     deletedVersionCount: result.deletedVersionCount,
     outcome: result.outcome,
     sideEffectFailures: [sanitizeFailure(firstFailure), ...remainingFailures.map(sanitizeFailure)],

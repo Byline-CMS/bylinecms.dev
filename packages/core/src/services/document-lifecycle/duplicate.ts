@@ -8,7 +8,6 @@
 
 import { type CollectionDefinition, resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
-import { ERR_NOT_FOUND } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { type SlugifierFn, slugify } from '../../utils/slugify.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
@@ -26,9 +25,12 @@ import {
   stripMetaIdsInPlace,
 } from './internals.js'
 import { persistInitialDocumentVersion } from './persistence.js'
+import { commitGuardedDocumentMutation, readDocumentForMutation } from './revision-guard.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface DuplicateDocumentResult {
+  revision: number
+  sourceRevision: number
   /** The newly-created document's id. */
   documentId: string
   /** The newly-created version id (every duplicate starts at version 1). */
@@ -145,33 +147,26 @@ function deriveDuplicateCandidatePath(
  */
 export async function duplicateDocument(
   ctx: DocumentLifecycleContext,
-  params: { sourceDocumentId: string }
+  params: { sourceDocumentId: string; expectedRevision: number }
 ): Promise<DuplicateDocumentResult> {
+  params = { ...params }
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'duplicateDocument' },
     async () => {
       const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
       assertActorCanPerform(ctx.requestContext, definition, 'create')
+      assertActorCanPerform(ctx.requestContext, definition, 'read')
       const slugifier = ctx.slugifier ?? slugify
-      const hooks = await resolveHooks(definition)
 
       // 1. Read source with locale='all' — single read, full multi-locale tree.
-      const source = await db.queries.documents.getDocumentById({
-        collection_id: collectionId,
-        document_id: params.sourceDocumentId,
+      const source = await readDocumentForMutation(ctx, {
+        documentId: params.sourceDocumentId,
+        expectedRevision: params.expectedRevision,
         locale: 'all',
-        reconstruct: true,
         lenient: true,
-        requestContext: ctx.requestContext,
       })
-
-      if (source == null) {
-        throw ERR_NOT_FOUND({
-          message: 'source document not found',
-          details: { sourceDocumentId: params.sourceDocumentId, collectionPath },
-        }).log(ctx.logger)
-      }
-
+      const previousVersionId = source.document_version_id as string
+      const hooks = await resolveHooks(definition)
       const sourceRecord = source as Record<string, any>
       const sourceFields: Record<string, any> = sourceRecord.fields ?? {}
 
@@ -225,41 +220,54 @@ export async function duplicateDocument(
       // Embed walker (no-op for multi-locale richtext leaves — see
       // restoreDocumentVersion for the same caveat).
       await applyRichTextEmbed(ctx, clonedFields)
-      try {
-        result = await persistInitialDocumentVersion(ctx, {
-          action: 'create',
-          documentData: clonedFields,
-          path: finalPath,
-          status: defaultStatus,
+      const committed = await commitGuardedDocumentMutation(
+        ctx,
+        {
+          documentId: params.sourceDocumentId,
+          expectedRevision: params.expectedRevision,
+          previousVersionId,
           locale: 'all',
-          orderKey,
-        }).catch((err: unknown) =>
-          rethrowPathConflict(db, err, finalPath, defaultLocale, 'duplicate')
-        )
-      } catch (err: unknown) {
-        if (!isPathConflictError(err)) {
-          throw err
+        },
+        async () => {
+          try {
+            result = await persistInitialDocumentVersion(ctx, {
+              action: 'create',
+              documentData: clonedFields,
+              path: finalPath,
+              status: defaultStatus,
+              locale: 'all',
+              orderKey,
+            }).catch((err: unknown) =>
+              rethrowPathConflict(db, err, finalPath, defaultLocale, 'duplicate')
+            )
+          } catch (err: unknown) {
+            if (!isPathConflictError(err)) {
+              throw err
+            }
+            // Single retry with a short UUID suffix. crypto.randomUUID() is
+            // 36 chars; take the first 4 hex digits for a compact disambiguator.
+            const shortDisambiguator = crypto.randomUUID().slice(0, 4)
+            finalPath = `${candidatePath}-${shortDisambiguator}`
+            pathRetried = true
+            ctx.logger?.info(
+              { candidatePath, retryPath: finalPath, sourceDocumentId: params.sourceDocumentId },
+              'duplicateDocument: candidate path collided, retrying with short-UUID suffix'
+            )
+            result = await persistInitialDocumentVersion(ctx, {
+              action: 'create',
+              documentData: clonedFields,
+              path: finalPath,
+              status: defaultStatus,
+              locale: 'all',
+              orderKey,
+            }).catch((retryErr: unknown) =>
+              rethrowPathConflict(db, retryErr, finalPath, defaultLocale, 'duplicate')
+            )
+          }
+          return { value: result, changed: false }
         }
-        // Single retry with a short UUID suffix. crypto.randomUUID() is
-        // 36 chars; take the first 4 hex digits for a compact disambiguator.
-        const shortDisambiguator = crypto.randomUUID().slice(0, 4)
-        finalPath = `${candidatePath}-${shortDisambiguator}`
-        pathRetried = true
-        ctx.logger?.info(
-          { candidatePath, retryPath: finalPath, sourceDocumentId: params.sourceDocumentId },
-          'duplicateDocument: candidate path collided, retrying with short-UUID suffix'
-        )
-        result = await persistInitialDocumentVersion(ctx, {
-          action: 'create',
-          documentData: clonedFields,
-          path: finalPath,
-          status: defaultStatus,
-          locale: 'all',
-          orderKey,
-        }).catch((retryErr: unknown) =>
-          rethrowPathConflict(db, retryErr, finalPath, defaultLocale, 'duplicate')
-        )
-      }
+      )
+      result = committed.value
 
       const newDocumentId = extractDocumentId(result.document)
       const newDocumentVersionId = extractVersionId(result.document)
@@ -271,6 +279,7 @@ export async function duplicateDocument(
           phase: 'afterCreate',
           documentId: newDocumentId,
           documentVersionId: newDocumentVersionId,
+          revision: 1,
         },
         () =>
           invokeHook(hooks?.afterCreate, {
@@ -289,6 +298,8 @@ export async function duplicateDocument(
         sourceDocumentId: params.sourceDocumentId,
         newPath: finalPath,
         pathRetried,
+        revision: 1,
+        sourceRevision: committed.revision,
       }
     }
   )

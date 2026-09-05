@@ -247,6 +247,10 @@ const bylineClientKeys = completeKeys<BylineClient>()([
 ])
 
 const collectionHandleKeys = completeKeys<CollectionHandle>()([
+  'findByIdForEdit',
+  'findForEdit',
+  'getSubtreeForEdit',
+  'getTreeForEdit',
   'find',
   'findOne',
   'search',
@@ -278,6 +282,7 @@ const collectionHandleKeys = completeKeys<CollectionHandle>()([
 ])
 
 const singletonHandleKeys = completeKeys<SingletonHandle>()([
+  'getForEdit',
   'get',
   'update',
   'changeStatus',

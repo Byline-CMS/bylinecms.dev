@@ -33,7 +33,6 @@ import {
   hasDeleteSideEffectFailures,
   scheduleCollectionDocumentPublish,
   unpublishDocument,
-  updateCollectionDocumentSystemFields,
   updateCollectionDocumentWithPatches,
   updateDocumentStatus,
 } from '../../server-fns/collections/index.js'
@@ -132,7 +131,12 @@ export const EditView = ({
   const handleStatusChange = async (status: string) => {
     try {
       await updateDocumentStatus({
-        data: { collection: path, id: String(initialData.id), status },
+        data: {
+          expectedRevision: initialData.revision,
+          collection: path,
+          id: String(initialData.id),
+          status,
+        },
       })
       const description = t('collections.edit.statusChangedDescription', { status })
       toastManager.add({
@@ -183,6 +187,7 @@ export const EditView = ({
     try {
       await scheduleCollectionDocumentPublish({
         data: {
+          expectedRevision: initialData.revision,
           collection: path,
           id: String(initialData.id),
           publishAt,
@@ -209,6 +214,7 @@ export const EditView = ({
     try {
       await confirmCollectionDocumentScheduledPublish({
         data: {
+          expectedRevision: initialData.revision,
           collection: path,
           id: String(initialData.id),
           expectedVersionId: String(initialData.versionId),
@@ -233,7 +239,11 @@ export const EditView = ({
   const handleCancelScheduledPublication = async () => {
     try {
       const result = await cancelCollectionDocumentScheduledPublish({
-        data: { collection: path, id: String(initialData.id) },
+        data: {
+          expectedRevision: initialData.revision,
+          collection: path,
+          id: String(initialData.id),
+        },
       })
       const cancelled = result.status === 'cancelled'
       toastManager.add({
@@ -275,7 +285,13 @@ export const EditView = ({
 
   const handleUnpublish = async () => {
     try {
-      await unpublishDocument({ data: { collection: path, id: String(initialData.id) } })
+      await unpublishDocument({
+        data: {
+          expectedRevision: initialData.revision,
+          collection: path,
+          id: String(initialData.id),
+        },
+      })
       const description = t('collections.edit.unpublishedDescription')
       toastManager.add({
         title: t('collections.edit.unpublishTitle', { label: singular }),
@@ -315,7 +331,11 @@ export const EditView = ({
   const handleDuplicate = async () => {
     try {
       const result = await duplicateCollectionDocument({
-        data: { collection: path, id: String(initialData.id) },
+        data: {
+          expectedRevision: initialData.revision,
+          collection: path,
+          id: String(initialData.id),
+        },
       })
       if (hasCommittedDocumentHookFailure(result)) {
         notifyCommittedHookFailure()
@@ -380,6 +400,7 @@ export const EditView = ({
     try {
       const result = await copyDocumentToLocale({
         data: {
+          expectedRevision: initialData.revision,
           collection: path,
           id: String(initialData.id),
           sourceLocale: locale ?? defaultContentLocale,
@@ -460,6 +481,7 @@ export const EditView = ({
     try {
       const result = await deleteDocumentLocale({
         data: {
+          expectedRevision: initialData.revision,
           collection: path,
           id: String(initialData.id),
           locale: targetLocale,
@@ -522,7 +544,11 @@ export const EditView = ({
   const handleDelete = async () => {
     try {
       const result = await deleteDocument({
-        data: { collection: path, id: String(initialData.id) },
+        data: {
+          expectedRevision: initialData.revision,
+          collection: path,
+          id: String(initialData.id),
+        },
       })
       const hasSideEffectFailures = hasDeleteSideEffectFailures(result)
       const description = hasSideEffectFailures
@@ -593,41 +619,22 @@ export const EditView = ({
     systemAvailableLocales?: string[]
   }) => {
     try {
-      let hookFailed = false
-      // Document-grain system fields write first via their own non-versioned
-      // path — so a path conflict surfaces before we mint a content version,
-      // and these immediate writes never reset workflow status. See
-      // docs/08-internationalization/index.md.
-      if (pathDirty || availableLocalesDirty) {
-        await updateCollectionDocumentSystemFields({
-          data: {
-            collection: path,
-            id: String(initialData.id),
-            locale,
-            ...(pathDirty ? { path: systemPath ?? null } : {}),
-            ...(availableLocalesDirty ? { availableLocales: systemAvailableLocales ?? [] } : {}),
-          },
-        })
-      }
-
-      // Content (field data / patches) follows the normal versioned path —
-      // mints a new draft version. Skipped entirely when only the system
-      // fields changed, so a path/advertising edit never creates an empty
-      // content version.
-      if (contentDirty) {
-        const result = await updateCollectionDocumentWithPatches({
-          data: {
-            collection: path,
-            id: String(initialData.id),
-            patches,
-            versionId: initialData.versionId as string | undefined,
-            locale,
-          },
-        })
-        hookFailed = hasCommittedDocumentHookFailure(result)
-      }
-
-      if (contentDirty && scheduledPublication?.state === 'armed') {
+      const result = await updateCollectionDocumentWithPatches({
+        data: {
+          collection: path,
+          id: String(initialData.id),
+          expectedRevision: initialData.revision,
+          patches: contentDirty ? patches : [],
+          locale,
+          ...(pathDirty ? { path: systemPath ?? null } : {}),
+          ...(availableLocalesDirty ? { availableLocales: systemAvailableLocales ?? [] } : {}),
+        },
+      })
+      const hookFailed = hasCommittedDocumentHookFailure(result)
+      if (
+        (contentDirty || pathDirty || availableLocalesDirty) &&
+        scheduledPublication?.state === 'armed'
+      ) {
         notifyScheduleSuspended()
       }
 

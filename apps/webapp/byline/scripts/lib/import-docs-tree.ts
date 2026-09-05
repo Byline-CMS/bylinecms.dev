@@ -3,6 +3,7 @@ import { basename, dirname, join } from 'node:path'
 export interface ImportedTreeDocument {
   filePath: string
   documentId?: string
+  revision?: number
   path: string
 }
 
@@ -14,7 +15,11 @@ export interface ImportSourceDocument {
 export interface ImportTreeHandle {
   placeTreeNode(
     documentId: string,
-    options: { parentDocumentId: string | null; beforeDocumentId: string | null }
+    options: {
+      expectedRevision: number
+      parentDocumentId: string | null
+      beforeDocumentId: string | null
+    }
   ): Promise<unknown>
 }
 
@@ -103,7 +108,12 @@ export async function placeTreeFromDirectories(
     const groupKey = parentDocumentId ?? ROOT_GROUP
     const beforeDocumentId = lastSiblingByGroup.get(groupKey) ?? null
     try {
-      await handle.placeTreeNode(result.documentId, { parentDocumentId, beforeDocumentId })
+      if (result.revision == null) throw new Error('Imported document has no observed revision')
+      await handle.placeTreeNode(result.documentId, {
+        expectedRevision: result.revision,
+        parentDocumentId,
+        beforeDocumentId,
+      })
       lastSiblingByGroup.set(groupKey, result.documentId)
       if (parentDocumentId != null) {
         placed += 1

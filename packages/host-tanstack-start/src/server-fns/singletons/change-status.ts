@@ -13,7 +13,11 @@ import { getAdminBylineClient } from '@byline/client/server'
 import { serialise } from '../serialise.js'
 
 export const changeSingletonStatus = createServerFn({ method: 'POST' })
-  .validator((input: { singleton: string; status: string }) => input)
+  .validator((input: { expectedRevision: number; singleton: string; status: string }) => input)
   .handler(async ({ data }) =>
-    serialise(await getAdminBylineClient().singleton(data.singleton).changeStatus(data.status))
+    serialise(
+      await getAdminBylineClient()
+        .singleton(data.singleton)
+        .changeStatus(data.status, { expectedRevision: data.expectedRevision })
+    )
   )

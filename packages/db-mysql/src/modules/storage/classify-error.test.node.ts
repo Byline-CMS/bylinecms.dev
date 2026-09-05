@@ -114,3 +114,12 @@ runClassifyErrorContract([
     unrelatedError: { code: 'ER_DATA_TOO_LONG', errno: 1406, sqlState: '22001' },
   },
 ])
+
+describe('lock conflict classification', () => {
+  it.each([1213, 1205])('classifies driver lock failure %s through a cause', (value) => {
+    expect(classifyError({ cause: { errno: value } })).toEqual({ code: 'DB_LOCK_CONFLICT' })
+  })
+  it('does not classify connection loss as safe contention', () => {
+    expect(classifyError({ code: 'ECONNRESET', errno: 2013 })).toEqual({ code: 'DB_UNKNOWN' })
+  })
+})

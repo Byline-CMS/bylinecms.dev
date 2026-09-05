@@ -11,11 +11,24 @@ import { createSuperAdminContext } from '@byline/auth'
 import { AUDIT_ACTIONS, requireAuditCapability } from '../services/document-lifecycle/audit.js'
 import { publishScheduleAuditValue } from '../services/document-lifecycle/publish-schedule-consistency.js'
 import { publishClaimedScheduledDocument } from '../services/document-lifecycle/scheduled-publish.js'
+import { documentRevisionFromDatabase } from '../storage/document-revision.js'
 import { SCHEDULED_PUBLICATION_LEASE_MS } from './scheduled-publication-constants.js'
 import type { ClaimedDocumentPublishSchedule, CollectionDefinition } from '../@types/index.js'
 import type { BylineCore } from '../core.js'
 import type { BylineLogger } from '../lib/logger.js'
 import type { DocumentLifecycleContext } from '../services/document-lifecycle/context.js'
+
+/** The sweep depends only on this server-side operational surface. */
+type ScheduledPublicationCore = Pick<
+  BylineCore,
+  'db' | 'collections' | 'collectionRecords' | 'storage' | 'logger'
+> & {
+  config: {
+    slugifier?: BylineCore['config']['slugifier']
+    i18n: { content: { defaultLocale: string } }
+    scheduledPublication?: { enabled?: boolean }
+  }
+}
 
 const DEFAULT_BATCH_SIZE = 25
 const DEFAULT_BUDGET_MS = 45_000
@@ -49,7 +62,7 @@ function errorMessage(error: unknown): string {
 }
 
 function resolveCollection(
-  core: BylineCore,
+  core: ScheduledPublicationCore,
   collectionId: string
 ): {
   definition: CollectionDefinition
@@ -63,7 +76,7 @@ function resolveCollection(
 }
 
 function buildSystemContext(
-  core: BylineCore,
+  core: ScheduledPublicationCore,
   claim: ClaimedDocumentPublishSchedule,
   logger: BylineLogger
 ): DocumentLifecycleContext | null {
@@ -84,13 +97,39 @@ function buildSystemContext(
 }
 
 async function finalizeClaim(params: {
-  core: BylineCore
+  core: ScheduledPublicationCore
   claim: ClaimedDocumentPublishSchedule
   outcome: 'suspend' | 'discard'
   reason: string
 }): Promise<boolean> {
   const audit = requireAuditCapability(params.core.db)
   return audit.withTransaction(async () => {
+    const db = params.core.db
+    const definition = resolveCollection(params.core, params.claim.collectionId)?.definition
+    await db.commands.collections.lockCollectionRegistration(
+      params.claim.collectionId,
+      definition?.tree || definition?.singleton ? 'exclusive' : 'shared'
+    )
+    const observed = await db.withReadSnapshot(async (queries) => ({
+      current: await queries.documents.getCurrentVersionMetadata({
+        collection_id: params.claim.collectionId,
+        document_id: params.claim.documentId,
+      }),
+      revision: await queries.documents.getDocumentRevision({
+        collection_id: params.claim.collectionId,
+        document_id: params.claim.documentId,
+      }),
+    }))
+    const [document] =
+      observed.current === null
+        ? []
+        : await db.revisions.lock([
+            {
+              documentId: params.claim.documentId,
+              collectionId: params.claim.collectionId,
+              expectedRevision: documentRevisionFromDatabase(observed.revision),
+            },
+          ])
     const locked = await params.core.db.commands.documents.publishSchedules.lockClaim({
       documentId: params.claim.documentId,
       executionToken: params.claim.executionToken,
@@ -102,6 +141,8 @@ async function finalizeClaim(params: {
         ? await params.core.db.commands.documents.publishSchedules.suspendClaimForContentEdit({
             documentId: params.claim.documentId,
             executionToken: params.claim.executionToken,
+            reason:
+              params.reason === 'content_edited' ? 'content_edited' : 'document_metadata_changed',
           })
         : await params.core.db.commands.documents.publishSchedules.deleteClaim({
             documentId: params.claim.documentId,
@@ -124,12 +165,13 @@ async function finalizeClaim(params: {
           ? { state: 'needs_reconfirm', reason: params.reason }
           : { reason: params.reason },
     })
+    if (document) await db.revisions.advance(document)
     return true
   })
 }
 
 async function processClaim(params: {
-  core: BylineCore
+  core: ScheduledPublicationCore
   claim: ClaimedDocumentPublishSchedule
   logger: BylineLogger
 }): Promise<'published' | 'failed' | 'handled'> {
@@ -160,7 +202,7 @@ async function processClaim(params: {
         core: params.core,
         claim: params.claim,
         outcome: 'suspend',
-        reason: 'content_edited',
+        reason: result.reason,
       })
       return 'handled'
     }
@@ -199,7 +241,7 @@ async function processClaim(params: {
  * orchestrators may invoke this operation concurrently.
  */
 export async function runScheduledPublicationSweep(
-  core: BylineCore,
+  core: ScheduledPublicationCore,
   options: ScheduledPublicationSweepOptions = {}
 ): Promise<ScheduledPublicationSweepResult> {
   const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE

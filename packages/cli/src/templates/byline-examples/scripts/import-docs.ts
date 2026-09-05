@@ -204,6 +204,7 @@ interface ProcessResult {
   filePath: string
   action: 'created' | 'updated' | 'skipped'
   documentId?: string
+  revision?: number
   path: string
 }
 
@@ -321,7 +322,7 @@ async function processFile(
       availableLocales: [...new Set([...(existing.availableLocales ?? []), locale])],
     })
     await walkToStatus(handle, result.documentId, workflowStatuses, defaultStatus, desiredStatus)
-    return { filePath, action: 'updated', documentId: result.documentId, path: docPath }
+    return { filePath, action: 'updated', documentId: result.documentId, revision: result.revision, path: docPath }
   }
 
   const result = await handle.create(payload, {
@@ -332,7 +333,7 @@ async function processFile(
     // intersection of this editorial set with the completeness ledger.
     availableLocales: [locale],
   })
-  return { filePath, action: 'created', documentId: result.documentId, path: docPath }
+  return { filePath, action: 'created', documentId: result.documentId, revision: result.revision, path: docPath }
 }
 
 /**
@@ -386,7 +387,8 @@ async function placeTreeFromDirectories(
     const groupKey = parentDocumentId ?? ROOT_GROUP
     const beforeDocumentId = lastSiblingByGroup.get(groupKey) ?? null
     try {
-      await handle.placeTreeNode(r.documentId, { parentDocumentId, beforeDocumentId })
+      if (r.revision == null) throw new Error('Imported document has no observed revision')
+      await handle.placeTreeNode(r.documentId, { expectedRevision: r.revision, parentDocumentId, beforeDocumentId })
       lastSiblingByGroup.set(groupKey, r.documentId)
       if (parentDocumentId != null) {
         placed += 1

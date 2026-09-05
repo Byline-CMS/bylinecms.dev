@@ -8,238 +8,198 @@
 
 import { resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
-import { ERR_INVALID_TRANSITION, ERR_NOT_FOUND } from '../../lib/errors.js'
+import { ERR_INVALID_TRANSITION } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { getWorkflow, validateStatusTransition } from '../../workflow/workflow.js'
 import { AUDIT_ACTIONS, auditActor, requireAuditCapability } from './audit.js'
+import { runCommittedDocumentHook } from './committed-hook.js'
 import { invokeHook } from './internals.js'
 import {
   appendPublishScheduleCancellationAudit,
   cancelPublishScheduleInTransaction,
 } from './publish-schedule-consistency.js'
+import { commitGuardedDocumentMutation, readDocumentForMutation } from './revision-guard.js'
 import { commitDocumentStatusTransition } from './status-transition.js'
-import type { DocumentPublishSchedule } from '../../@types/index.js'
+import type { DocumentRevisionReceipt } from '../../@types/index.js'
 import type { DocumentLifecycleContext } from './context.js'
 
-export interface ChangeStatusResult {
+export interface ChangeStatusResult extends DocumentRevisionReceipt {
   previousStatus: string
   newStatus: string
 }
-
-export interface UnpublishResult {
+export interface UnpublishResult extends DocumentRevisionReceipt {
   archivedCount: number
 }
 
-/**
- * Change a document's workflow status.
- *
- * Flow:
- *   1. Fetch current document metadata
- *   2. Validate transition via `validateStatusTransition()`
- *   3. `hooks.beforeStatusChange({ documentId, documentVersionId, collectionPath, previousStatus, nextStatus })`
- *   4. `db.commands.documents.setDocumentStatus(...)` — in-place mutation
- *   5. Auto-archive: if transitioning to `'published'`, archive other published versions
- *   6. `hooks.afterStatusChange({ documentId, documentVersionId, collectionPath, previousStatus, nextStatus })`
- */
+function validateWorkflow(ctx: DocumentLifecycleContext): void {
+  if (getWorkflow(ctx.definition).statuses.length <= 1)
+    throw ERR_INVALID_TRANSITION({
+      message: `collection '${ctx.collectionPath}' has a single-status workflow; status transitions are not supported`,
+      details: { collectionPath: ctx.collectionPath },
+    })
+}
+function validateTransition(
+  ctx: DocumentLifecycleContext,
+  previousStatus: string,
+  nextStatus: string
+): void {
+  validateWorkflow(ctx)
+  const result = validateStatusTransition(getWorkflow(ctx.definition), previousStatus, nextStatus)
+  if (!result.valid)
+    throw ERR_INVALID_TRANSITION({
+      message: result.reason ?? 'Invalid status transition',
+      details: { currentStatus: previousStatus, nextStatus },
+    })
+}
+
 export async function changeDocumentStatus(
   ctx: DocumentLifecycleContext,
   params: {
     documentId: string
+    expectedRevision: number
     nextStatus: string
   }
 ): Promise<ChangeStatusResult> {
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'changeDocumentStatus' },
     async () => {
+      params = { ...params }
       const { db, definition, collectionId, collectionPath } = ctx
-      // Every transition requires the general changeStatus ability.
-      // Transitions that target the `published` status additionally
-      // require the narrower `publish` ability — so installations can
-      // grant "move things through the workflow" without also granting
-      // "flip the final publish switch".
       assertActorCanPerform(ctx.requestContext, definition, 'changeStatus')
-      if (params.nextStatus === 'published') {
+      if (params.nextStatus === 'published')
         assertActorCanPerform(ctx.requestContext, definition, 'publish')
-      }
-      // Single-status workflows (e.g. SINGLE_STATUS_WORKFLOW for lookups)
-      // have no transitions to perform. Reject early with a clear message
-      // rather than relying on the generic ±1-step validator.
-      const workflow = getWorkflow(definition)
-      if (workflow.statuses.length <= 1) {
-        throw ERR_INVALID_TRANSITION({
-          message: `collection '${collectionPath}' has a single-status workflow; status transitions are not supported`,
-          details: { collectionPath, nextStatus: params.nextStatus },
-        }).log(ctx.logger)
-      }
-      const hooks = await resolveHooks(definition)
-
-      // 1. Fetch current version metadata. No field reconstruction needed —
-      //    status transitions only touch the document_versions.status column.
-      const latest = await db.queries.documents.getCurrentVersionMetadata({
-        collection_id: collectionId,
-        document_id: params.documentId,
-      })
-
-      if (latest == null) {
-        throw ERR_NOT_FOUND({
-          message: 'document not found',
-          details: { documentId: params.documentId },
-        }).log(ctx.logger)
-      }
-
-      const currentStatus = latest.status ?? 'draft'
-      const documentVersionId = latest.document_version_id
-
-      // 2. Validate transition.
-      const result = validateStatusTransition(workflow, currentStatus, params.nextStatus)
-
-      if (!result.valid) {
-        throw ERR_INVALID_TRANSITION({
-          message:
-            result.reason ??
-            `invalid status transition from '${currentStatus}' to '${params.nextStatus}'`,
-          details: { currentStatus, nextStatus: params.nextStatus },
-        }).log(ctx.logger)
-      }
-
-      // Resolve the document's canonical path so the hooks can act on the
-      // specific document/URL (CDN purge, cache-key drop). Narrow lookup —
-      // getCurrentVersionMetadata deliberately omits the path subquery.
-      const path =
-        (await ctx.db.queries.documents.getCurrentPath({
-          collection_id: collectionId,
-          document_id: params.documentId,
-        })) ?? ''
-
+      const latest = await readDocumentForMutation(ctx, { ...params, lenient: true })
+      const previousStatus = latest.status ?? 'draft'
+      const documentVersionId = latest.document_version_id as string
+      validateTransition(ctx, previousStatus, params.nextStatus)
       const hookCtx = {
         documentId: params.documentId,
         documentVersionId,
         collectionPath,
-        path,
-        previousStatus: currentStatus,
+        path: latest.path ?? '',
+        previousStatus,
         nextStatus: params.nextStatus,
       }
-
-      // 3. beforeStatusChange hook.
+      const hooks = await resolveHooks(definition)
       await invokeHook(hooks?.beforeStatusChange, hookCtx)
-
-      // 4–5. Mutate status in-place + auto-archive, atomically with the audit
-      //      record. Status mutates the version row rather than minting a new
-      //      version, so the version stream never captures *who* changed it —
-      //      the audit log is its only accountability home (docs/07-auth-and-security/02-auditability.md).
-      const transitionAudit = requireAuditCapability(db)
-      let cancelledSchedule: DocumentPublishSchedule | null = null
-      await commitDocumentStatusTransition({
-        db,
-        documentId: params.documentId,
-        documentVersionId,
-        collectionId,
-        previousStatus: currentStatus,
-        nextStatus: params.nextStatus,
-        actor: auditActor(ctx),
-        contributions: {
-          beforeStatusWrite: async () => {
-            cancelledSchedule = await cancelPublishScheduleInTransaction(ctx, params.documentId)
-          },
-          afterAuditAppend: () =>
-            appendPublishScheduleCancellationAudit({
+      const audit = requireAuditCapability(db)
+      const committed = await commitGuardedDocumentMutation(
+        ctx,
+        { ...params, previousVersionId: documentVersionId },
+        async (locked) => {
+          const status = locked.status ?? 'draft'
+          validateTransition(ctx, status, params.nextStatus)
+          const schedule = await cancelPublishScheduleInTransaction(ctx, params.documentId)
+          if (status !== params.nextStatus)
+            await commitDocumentStatusTransition({
+              db,
+              documentId: params.documentId,
+              documentVersionId: locked.currentVersionId!,
+              collectionId,
+              previousStatus: status,
+              nextStatus: params.nextStatus,
+              actor: auditActor(ctx),
+              contributions: {
+                afterAuditAppend: () =>
+                  appendPublishScheduleCancellationAudit({
+                    ctx,
+                    audit,
+                    schedule,
+                    reason: 'status_changed',
+                  }),
+              },
+            })
+          else
+            await appendPublishScheduleCancellationAudit({
               ctx,
-              audit: transitionAudit,
-              schedule: cancelledSchedule,
+              audit,
+              schedule,
               reason: 'status_changed',
-            }),
+            })
+          return {
+            value: { previousStatus: status, newStatus: params.nextStatus },
+            changed: status !== params.nextStatus || schedule !== null,
+          }
+        }
+      )
+      await runCommittedDocumentHook(
+        ctx,
+        {
+          phase: 'afterStatusChange',
+          documentId: params.documentId,
+          documentVersionId,
+          revision: committed.revision,
         },
-      })
-
-      // 6. afterStatusChange hook.
-      await invokeHook(hooks?.afterStatusChange, hookCtx)
-
-      return { previousStatus: currentStatus, newStatus: params.nextStatus }
+        () => invokeHook(hooks?.afterStatusChange, hookCtx)
+      )
+      return { ...committed.value, documentId: params.documentId, revision: committed.revision }
     }
   )
 }
 
-/**
- * Unpublish a document by archiving its published version(s).
- *
- * Flow:
- *   1. `hooks.beforeUnpublish({ documentId, collectionPath })`
- *   2. Archive published versions and append the status audit atomically
- *   3. `hooks.afterUnpublish({ documentId, collectionPath, archivedCount })`
- */
 export async function unpublishDocument(
   ctx: DocumentLifecycleContext,
   params: {
     documentId: string
+    expectedRevision: number
   }
 ): Promise<UnpublishResult> {
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'unpublishDocument' },
     async () => {
-      const { db, collectionId, collectionPath, definition } = ctx
-      // Unpublish is a workflow transition out of `published` — reuse the
-      // changeStatus gate rather than a separate ability.
+      params = { ...params }
+      const { db, definition, collectionId, collectionPath } = ctx
       assertActorCanPerform(ctx.requestContext, definition, 'changeStatus')
-      // Single-status workflows have nothing to unpublish to.
-      const workflow = getWorkflow(definition)
-      if (workflow.statuses.length <= 1) {
-        throw ERR_INVALID_TRANSITION({
-          message: `collection '${collectionPath}' has a single-status workflow; unpublish is not supported`,
-          details: { collectionPath },
-        }).log(ctx.logger)
-      }
+      const latest = await readDocumentForMutation(ctx, { ...params, lenient: true })
+      validateWorkflow(ctx)
+      const documentVersionId = latest.document_version_id as string
+      const hookCtx = { documentId: params.documentId, collectionPath, path: latest.path ?? '' }
       const hooks = await resolveHooks(definition)
-
-      // Resolve the document's canonical path so the hooks can target the
-      // specific document/URL (CDN purge, cache-key drop).
-      const path =
-        (await db.queries.documents.getCurrentPath({
-          collection_id: collectionId,
-          document_id: params.documentId,
-        })) ?? ''
-
-      await invokeHook(hooks?.beforeUnpublish, {
-        documentId: params.documentId,
-        collectionPath,
-        path,
-      })
-
+      await invokeHook(hooks?.beforeUnpublish, hookCtx)
       const audit = requireAuditCapability(db)
       const actor = auditActor(ctx)
-      const archivedCount = await audit.withTransaction(async () => {
-        const cancelledSchedule = await cancelPublishScheduleInTransaction(ctx, params.documentId)
-        const count = await db.commands.documents.archivePublishedVersions({
-          document_id: params.documentId,
-        })
-        if (count > 0) {
-          await audit.append({
-            documentId: params.documentId,
-            collectionId,
-            actorId: actor.actorId,
-            actorRealm: actor.actorRealm,
-            action: AUDIT_ACTIONS.statusChanged,
-            field: 'status',
-            before: 'published',
-            after: 'archived',
+      const committed = await commitGuardedDocumentMutation(
+        ctx,
+        { ...params, previousVersionId: documentVersionId },
+        async () => {
+          const schedule = await cancelPublishScheduleInTransaction(ctx, params.documentId)
+          const archivedCount = await db.commands.documents.archivePublishedVersions({
+            document_id: params.documentId,
           })
+          if (archivedCount > 0)
+            await audit.append({
+              documentId: params.documentId,
+              collectionId,
+              ...actor,
+              action: AUDIT_ACTIONS.statusChanged,
+              field: 'status',
+              before: 'published',
+              after: 'archived',
+            })
+          await appendPublishScheduleCancellationAudit({
+            ctx,
+            audit,
+            schedule,
+            reason: 'unpublished',
+          })
+          return { value: archivedCount, changed: archivedCount > 0 || schedule !== null }
         }
-        await appendPublishScheduleCancellationAudit({
-          ctx,
-          audit,
-          schedule: cancelledSchedule,
-          reason: 'unpublished',
-        })
-        return count
-      })
-
-      await invokeHook(hooks?.afterUnpublish, {
+      )
+      await runCommittedDocumentHook(
+        ctx,
+        {
+          phase: 'afterUnpublish',
+          documentId: params.documentId,
+          documentVersionId,
+          revision: committed.revision,
+        },
+        () => invokeHook(hooks?.afterUnpublish, { ...hookCtx, archivedCount: committed.value })
+      )
+      return {
+        archivedCount: committed.value,
         documentId: params.documentId,
-        collectionPath,
-        path,
-        archivedCount,
-      })
-
-      return { archivedCount }
+        revision: committed.revision,
+      }
     }
   )
 }

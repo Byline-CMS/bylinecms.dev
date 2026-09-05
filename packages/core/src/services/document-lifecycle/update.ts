@@ -8,11 +8,11 @@
 
 import { resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
-import { ERR_CONFLICT, ERR_NOT_FOUND, ERR_PATCH_FAILED } from '../../lib/errors.js'
+import { ERR_PATCH_FAILED, ERR_VALIDATION } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { applyPatches } from '../../patches/index.js'
 import { normaliseDateFields } from '../../utils/normalise-dates.js'
-import { getDefaultStatus } from '../../workflow/workflow.js'
+import { getDefaultStatus, getWorkflowStatuses } from '../../workflow/workflow.js'
 import { assignCounterValues } from '../assign-counter-values.js'
 import { normalizeNumericFields } from '../normalize-numeric-fields.js'
 import { runCommittedDocumentHook } from './committed-hook.js'
@@ -25,6 +25,12 @@ import {
   rethrowPathConflict,
 } from './internals.js'
 import { persistExistingDocumentVersion } from './persistence.js'
+import { commitGuardedDocumentMutation, readDocumentForMutation } from './revision-guard.js'
+import {
+  finishSystemFieldMutation,
+  updateDocumentSystemFields,
+  writeSystemFieldsInTransaction,
+} from './system-fields.js'
 import { selfHealTreePlacement } from './tree.js'
 import type { DocumentPatch } from '../../patches/index.js'
 import type { DocumentLifecycleContext } from './context.js'
@@ -32,11 +38,13 @@ import type { DocumentLifecycleContext } from './context.js'
 export interface UpdateDocumentResult {
   documentId: string
   documentVersionId: string
+  revision: number
 }
 
 export interface UpdateDocumentWithPatchesResult {
   documentId: string
   documentVersionId: string
+  revision: number
 }
 
 /**
@@ -52,44 +60,75 @@ export interface UpdateDocumentWithPatchesResult {
  *   4. `db.commands.documents.createDocumentVersion(...)` (action = 'update')
  *   5. `hooks.afterUpdate({ data, originalData, collectionPath, documentId, documentVersionId })`
  */
-export async function updateDocument(
+type UpdateDocumentParams = {
+  documentId: string
+  expectedRevision: number
+  data: Record<string, any>
+  locale?: string
+  /**
+   * Explicit path override. When omitted, the previous version's path
+   * carries forward unchanged (sticky). The lifecycle never re-derives
+   * `path` from the source field on update — that is an explicit user
+   * action driven by the admin path widget.
+   */
+  path?: string
+  /**
+   * The editorial advertised-locale set. `undefined` leaves the existing
+   * set untouched (sticky — document-grain, like `path`); an explicit array
+   * (empty included) replaces it wholesale. Driven by the admin
+   * available-locales sidebar widget. See docs/08-internationalization/index.md.
+   */
+  availableLocales?: string[]
+}
+
+export function updateDocument(
   ctx: DocumentLifecycleContext,
-  params: {
-    documentId: string
-    data: Record<string, any>
-    locale?: string
-    /**
-     * Explicit path override. When omitted, the previous version's path
-     * carries forward unchanged (sticky). The lifecycle never re-derives
-     * `path` from the source field on update — that is an explicit user
-     * action driven by the admin path widget.
-     */
-    path?: string
-    /**
-     * The editorial advertised-locale set. `undefined` leaves the existing
-     * set untouched (sticky — document-grain, like `path`); an explicit array
-     * (empty included) replaces it wholesale. Driven by the admin
-     * available-locales sidebar widget. See docs/08-internationalization/index.md.
-     */
-    availableLocales?: string[]
-  }
+  params: UpdateDocumentParams
 ): Promise<UpdateDocumentResult> {
+  return replaceFields(ctx, params, 'editorial')
+}
+
+/** Maintenance-only replacement; status is derived from the guarded observation. */
+export async function replaceDocumentFieldsPreservingStatus(
+  ctx: DocumentLifecycleContext,
+  params: Pick<UpdateDocumentParams, 'documentId' | 'data' | 'expectedRevision'>
+): Promise<UpdateDocumentResult> {
+  assertActorCanPerform(ctx.requestContext, ctx.definition, 'update')
+  ctx.requestContext?.actor?.assertAbility('system.documentMaintenance')
+  return replaceFields(ctx, { ...params, locale: 'all' }, 'preserve')
+}
+
+function preservedStatus(ctx: DocumentLifecycleContext, status: string | null): string {
+  if (status === null || !getWorkflowStatuses(ctx.definition).some((item) => item.name === status))
+    throw ERR_VALIDATION({
+      message: 'The observed status is no longer declared by this collection',
+      details: { status },
+    })
+  if (status === 'published') assertActorCanPerform(ctx.requestContext, ctx.definition, 'publish')
+  return status
+}
+
+async function replaceFields(
+  ctx: DocumentLifecycleContext,
+  params: UpdateDocumentParams,
+  policy: 'editorial' | 'preserve'
+): Promise<UpdateDocumentResult> {
+  params = { ...params, availableLocales: params.availableLocales?.slice() }
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'updateDocument' },
     async () => {
-      const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
+      const { db, definition, collectionPath, defaultLocale } = ctx
       assertActorCanPerform(ctx.requestContext, definition, 'update')
-      const hooks = await resolveHooks(definition)
       const data = params.data
 
       // Fetch the real original so hooks get accurate originalData (fixes the
       // PUT handler bug where originalData === data).
-      const latest = await db.queries.documents.getDocumentById({
-        collection_id: collectionId,
-        document_id: params.documentId,
-        locale: params.locale ?? defaultLocale,
-        reconstruct: true,
-      })
+      const latest = await readDocumentForMutation(ctx, params)
+      if (policy === 'preserve') preservedStatus(ctx, latest.status)
+      const hooks = await resolveHooks(definition)
+      const previousVersionId = latest.document_version_id as string
+      const observedPath = latest.path as string | undefined
+      const observedSourceLocale = (latest.source_locale as string | undefined) ?? defaultLocale
 
       const originalData: Record<string, any> = (latest as Record<string, any>) ?? {}
 
@@ -120,10 +159,10 @@ export async function updateDocument(
       // The document's own content-locale anchor governs which save writes the
       // path row — not the mutable global default. Falls back to the global
       // default for rows predating source_locale (not yet backfilled).
-      const sourceLocale = (originalData.source_locale as string | undefined) ?? defaultLocale
+      const sourceLocale = observedSourceLocale
       const pathForCommand = resolvePathForUpdate({
         explicitPath,
-        currentPath: originalData.path as string | undefined,
+        currentPath: observedPath,
         requestLocale,
         sourceLocale,
         documentId: params.documentId,
@@ -132,29 +171,48 @@ export async function updateDocument(
 
       await applyRichTextEmbed(ctx, data)
 
-      const result = await persistExistingDocumentVersion(ctx, {
-        documentId: params.documentId,
-        action: 'update',
-        documentData: data,
-        path: pathForCommand,
-        availableLocales: params.availableLocales,
-        status: defaultStatus,
-        locale: requestLocale,
-        previousVersionId: originalData.document_version_id as string | undefined,
-      }).catch((err: unknown) =>
+      const committed = await commitGuardedDocumentMutation(
+        ctx,
+        {
+          documentId: params.documentId,
+          expectedRevision: params.expectedRevision,
+          previousVersionId,
+          locale: requestLocale,
+        },
+        async (locked) => {
+          const systemFields = await writeSystemFieldsInTransaction(ctx, params, locked)
+          const result = await persistExistingDocumentVersion(ctx, {
+            documentId: params.documentId,
+            action: 'update',
+            documentData: data,
+            path: pathForCommand,
+            status: policy === 'preserve' ? preservedStatus(ctx, locked.status) : defaultStatus,
+            locale: requestLocale,
+            previousVersionId,
+          })
+          if (policy === 'preserve' && locked.status === 'published') {
+            await db.commands.documents.archivePublishedVersions({
+              document_id: params.documentId,
+              excludeVersionId: extractVersionId(result.document),
+            })
+          }
+          await selfHealTreePlacement(ctx, params.documentId)
+          return { value: { result, systemFields }, changed: true }
+        },
+        policy === 'preserve' ? { collectionLock: 'exclusive' } : {}
+      ).catch((err: unknown) =>
         rethrowPathConflict(db, err, pathForCommand ?? '', sourceLocale, 'update')
       )
+      const { result, systemFields } = committed.value
+      const revision = committed.revision
 
       const documentId = extractDocumentId(result.document) || params.documentId
       const documentVersionId = extractVersionId(result.document)
 
-      // Self-heal: re-root a genuinely-unplaced doc in a tree collection so any
-      // save re-trees a stray (system step, best-effort, no-op when placed).
-      await selfHealTreePlacement(ctx, documentId)
-
+      await finishSystemFieldMutation(ctx, params, { ...systemFields, documentVersionId }, revision)
       await runCommittedDocumentHook(
         ctx,
-        { phase: 'afterUpdate', documentId, documentVersionId },
+        { phase: 'afterUpdate', documentId, documentVersionId, revision },
         () =>
           invokeHook(hooks?.afterUpdate, {
             data,
@@ -166,7 +224,7 @@ export async function updateDocument(
           })
       )
 
-      return { documentId, documentVersionId }
+      return { documentId, documentVersionId, revision }
     }
   )
 }
@@ -176,23 +234,22 @@ export async function updateDocument(
  *
  * Flow:
  *   1. Fetch current document via `getDocumentById({ reconstruct: true })`
- *   2. Optimistic concurrency check on `documentVersionId`
+ *   2. Validate the observed document revision before preparation
  *   3. `applyPatches(definition, originalData, patches)` → `nextData`
  *   4. Normalize date and numeric fields
  *   5. `hooks.beforeUpdate({ data: nextData, originalData, collectionPath })`, then normalize numerics again
  *   6. `db.commands.documents.createDocumentVersion(...)` (action = 'update')
  *   7. `hooks.afterUpdate({ data: nextData, originalData, collectionPath, documentId, documentVersionId })`
  *
- * @throws {BylineError} ERR_CONFLICT if the supplied `documentVersionId` does not match the current version.
+ * @throws {BylineError} ERR_DOCUMENT_STALE if the observed revision is stale.
  * @throws {BylineError} ERR_PATCH_FAILED if `applyPatches` fails.
  */
 export async function updateDocumentWithPatches(
   ctx: DocumentLifecycleContext,
   params: {
     documentId: string
+    expectedRevision: number
     patches: DocumentPatch[]
-    /** Client-supplied version ID for optimistic concurrency. */
-    documentVersionId?: string
     locale?: string
     /**
      * Explicit path override (typically supplied alongside patches when
@@ -209,43 +266,21 @@ export async function updateDocumentWithPatches(
     availableLocales?: string[]
   }
 ): Promise<UpdateDocumentWithPatchesResult> {
+  params = { ...params, availableLocales: params.availableLocales?.slice() }
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'updateDocumentWithPatches' },
     async () => {
-      const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
+      const { db, definition, collectionPath, defaultLocale } = ctx
       assertActorCanPerform(ctx.requestContext, definition, 'update')
-      const hooks = await resolveHooks(definition)
 
       // 1. Fetch current document.
-      const latest = await db.queries.documents.getDocumentById({
-        collection_id: collectionId,
-        document_id: params.documentId,
-        locale: params.locale ?? defaultLocale,
-        reconstruct: true,
-      })
+      const latest = await readDocumentForMutation(ctx, params)
+      const hooks = await resolveHooks(definition)
+      const previousVersionId = latest.document_version_id as string
+      const observedPath = latest.path as string | undefined
+      const observedSourceLocale = (latest.source_locale as string | undefined) ?? defaultLocale
 
-      if (latest == null) {
-        throw ERR_NOT_FOUND({
-          message: 'document not found',
-          details: { documentId: params.documentId },
-        }).log(ctx.logger)
-      }
-
-      const originalData = latest as Record<string, any>
-
-      // 2. Optimistic concurrency check.
-      if (
-        params.documentVersionId &&
-        params.documentVersionId !== originalData.document_version_id
-      ) {
-        throw ERR_CONFLICT({
-          message: 'document has been modified since you loaded it',
-          details: {
-            currentVersionId: originalData.document_version_id,
-            yourVersionId: params.documentVersionId,
-          },
-        }).log(ctx.logger)
-      }
+      const originalData = latest
 
       // 3. Apply patches (patches operate on flat field data, not the full envelope).
       const { doc: patchedDocument, errors } = applyPatches(
@@ -291,10 +326,10 @@ export async function updateDocumentWithPatches(
       // The document's own content-locale anchor governs which save writes the
       // path row — not the mutable global default. Falls back to the global
       // default for rows predating source_locale (not yet backfilled).
-      const sourceLocale = (originalData.source_locale as string | undefined) ?? defaultLocale
+      const sourceLocale = observedSourceLocale
       const pathForCommand = resolvePathForUpdate({
         explicitPath,
-        currentPath: originalData.path as string | undefined,
+        currentPath: observedPath,
         requestLocale,
         sourceLocale,
         documentId: params.documentId,
@@ -303,30 +338,42 @@ export async function updateDocumentWithPatches(
 
       await applyRichTextEmbed(ctx, nextData)
 
-      const result = await persistExistingDocumentVersion(ctx, {
-        documentId: params.documentId,
-        action: 'update',
-        documentData: nextData,
-        path: pathForCommand,
-        availableLocales: params.availableLocales,
-        status: defaultStatus,
-        locale: requestLocale,
-        previousVersionId: originalData.document_version_id as string | undefined,
-      }).catch((err: unknown) =>
+      const committed = await commitGuardedDocumentMutation(
+        ctx,
+        {
+          documentId: params.documentId,
+          expectedRevision: params.expectedRevision,
+          previousVersionId,
+          locale: requestLocale,
+        },
+        async (locked) => {
+          const systemFields = await writeSystemFieldsInTransaction(ctx, params, locked)
+          const result = await persistExistingDocumentVersion(ctx, {
+            documentId: params.documentId,
+            action: 'update',
+            documentData: nextData,
+            path: pathForCommand,
+            status: defaultStatus,
+            locale: requestLocale,
+            previousVersionId,
+          })
+          await selfHealTreePlacement(ctx, params.documentId)
+          return { value: { result, systemFields }, changed: true }
+        }
+      ).catch((err: unknown) =>
         rethrowPathConflict(db, err, pathForCommand ?? '', sourceLocale, 'update')
       )
+      const { result, systemFields } = committed.value
+      const revision = committed.revision
 
       const documentId = extractDocumentId(result.document) || params.documentId
       const documentVersionId = extractVersionId(result.document)
 
-      // Self-heal: re-root a genuinely-unplaced doc in a tree collection so any
-      // save re-trees a stray (system step, best-effort, no-op when placed).
-      await selfHealTreePlacement(ctx, documentId)
-
       // 7. afterUpdate hook.
+      await finishSystemFieldMutation(ctx, params, { ...systemFields, documentVersionId }, revision)
       await runCommittedDocumentHook(
         ctx,
-        { phase: 'afterUpdate', documentId, documentVersionId },
+        { phase: 'afterUpdate', documentId, documentVersionId, revision },
         () =>
           invokeHook(hooks?.afterUpdate, {
             data: nextData,
@@ -338,7 +385,16 @@ export async function updateDocumentWithPatches(
           })
       )
 
-      return { documentId, documentVersionId }
+      return { documentId, documentVersionId, revision }
     }
   )
+}
+
+/** Combined patch/content and optional metadata save, with one guarded commit. */
+export async function saveDocument(
+  ctx: DocumentLifecycleContext,
+  params: Parameters<typeof updateDocumentWithPatches>[1]
+) {
+  if (params.patches.length === 0) return updateDocumentSystemFields(ctx, params)
+  return updateDocumentWithPatches(ctx, params)
 }

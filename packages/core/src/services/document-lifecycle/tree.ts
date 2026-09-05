@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { commitGuardedDocumentMutation, readDocumentForMutation } from './revision-guard.js'
 /** Atomic, audited lifecycle orchestration for document-tree mutations. */
 
 import { resolveHooks } from '../../@types/index.js'
@@ -21,6 +22,7 @@ import {
 import { invokeHook } from './internals.js'
 import type {
   CollectionDefinition,
+  StructuralMutationReceipt,
   TreeChangeContext,
   TreeDeleteMutationResult,
   TreeMutationResult,
@@ -29,6 +31,7 @@ import type {
 import type { DocumentLifecycleContext } from './context.js'
 
 interface PlaceParams {
+  expectedRevision: number
   documentId: string
   parentDocumentId: string | null
   beforeDocumentId?: string | null
@@ -93,7 +96,7 @@ async function fireTreeChange(
 
 /** Preserve rejection semantics while exposing that tree data already committed. */
 async function runCommittedTreeHook(
-  event: { change: TreeChangeContext['change']; documentId: string },
+  event: { change: TreeChangeContext['change']; documentId: string } & StructuralMutationReceipt,
   callback: () => Promise<void>
 ): Promise<void> {
   try {
@@ -103,7 +106,7 @@ async function runCommittedTreeHook(
     throw ERR_TREE_HOOK_COMMITTED({
       message: `${TREE_HOOK_COMMITTED_MARKER} tree mutation committed but afterTreeChange failed: ${message}`,
       cause,
-      details: event,
+      details: { ...event },
     })
   }
 }
@@ -118,7 +121,7 @@ function placementAction(before: TreePlacementState, parentDocumentId: string | 
 async function appendPlacementAudit(
   ctx: DocumentLifecycleContext,
   capability: TreeAuditCapability,
-  params: PlaceParams,
+  params: Omit<PlaceParams, 'expectedRevision'>,
   mutation: TreeMutationResult
 ): Promise<void> {
   const actor = auditActor(ctx)
@@ -138,45 +141,52 @@ async function appendPlacementAudit(
   })
 }
 
-/** Locked storage inspection/mutation and audit append in one transaction. */
+/** Locked storage inspection/mutation, derived revisions and audit in one transaction. */
 async function auditedPlace(
   ctx: DocumentLifecycleContext,
   params: PlaceParams
-): Promise<TreeMutationResult> {
+): Promise<{ mutation: TreeMutationResult; receipt: StructuralMutationReceipt }> {
   const capability = requireTreeAuditCapability(ctx.db)
-  let mutation: TreeMutationResult | undefined
-  await capability.withTransaction(async () => {
-    mutation = await capability.place({
-      collectionId: ctx.collectionId,
+  const committed = await commitGuardedDocumentMutation(
+    ctx,
+    params,
+    async () => {
+      const mutation = await capability.place({ collectionId: ctx.collectionId, ...params })
+      if (mutation.changed) await appendPlacementAudit(ctx, capability, params, mutation)
+      return { value: mutation, changed: mutation.changed }
+    },
+    { collectionLock: 'exclusive' }
+  )
+  return {
+    mutation: committed.value,
+    receipt: {
       documentId: params.documentId,
-      parentDocumentId: params.parentDocumentId,
-      beforeDocumentId: params.beforeDocumentId ?? null,
-      afterDocumentId: params.afterDocumentId ?? null,
-      ifUnplaced: params.ifUnplaced,
-    })
-    if (mutation.changed) await appendPlacementAudit(ctx, capability, params, mutation)
-  })
-  return mutation as TreeMutationResult
+      revision: committed.revision,
+      affectedDocuments: committed.affectedDocuments,
+      scheduledPublicationsNeedReconfirmation: committed.scheduledPublicationsNeedReconfirmation,
+    },
+  }
 }
 
 /** Place, re-parent, or reorder a node; explicit no-op retries may reconcile hooks. */
 export async function placeTreeNode(
   ctx: DocumentLifecycleContext,
   params: PlaceParams
-): Promise<{ orderKey: string }> {
+): Promise<{ orderKey: string } & StructuralMutationReceipt> {
   return withLogContext(
     { domain: 'services', module: 'tree', function: 'placeTreeNode' },
     async () => {
       assertActorCanPerform(ctx.requestContext, ctx.definition, 'update')
       const hooks = await resolveHooks(ctx.definition)
       const wantsEvent = hooks?.afterTreeChange != null
-      const mutation = await auditedPlace(ctx, params)
+      await readDocumentForMutation(ctx, params)
+      const { mutation, receipt } = await auditedPlace(ctx, params)
       const orderKey = mutation.after.orderKey
       if (orderKey == null) throw new Error('placed tree mutation did not return an order key')
       if (!mutation.changed) {
         if (wantsEvent && params.reconcile === true) {
           await runCommittedTreeHook(
-            { change: 'place', documentId: params.documentId },
+            { ...receipt, change: 'place', documentId: params.documentId },
             async () => {
               await fireTreeChange(ctx, ctx.definition, {
                 change: 'place',
@@ -186,94 +196,115 @@ export async function placeTreeNode(
             }
           )
         }
-        return { orderKey }
+        return { orderKey, ...receipt }
       }
 
       if (wantsEvent) {
-        await runCommittedTreeHook({ change: 'place', documentId: params.documentId }, async () => {
-          const [subtree, newSiblings] = await Promise.all([
-            subtreeIds(ctx, params.documentId),
-            childIds(ctx, params.parentDocumentId),
-          ])
-          await fireTreeChange(ctx, ctx.definition, {
-            change: 'place',
-            documentId: params.documentId,
-            affectedDocumentIds: [
-              ...subtree,
-              ...(mutation.before.parentDocumentId ? [mutation.before.parentDocumentId] : []),
-              ...(params.parentDocumentId ? [params.parentDocumentId] : []),
-              ...mutation.beforeSiblingDocumentIds,
-              ...newSiblings,
-            ],
-          })
-        })
+        await runCommittedTreeHook(
+          { ...receipt, change: 'place', documentId: params.documentId },
+          async () => {
+            const [subtree, newSiblings] = await Promise.all([
+              subtreeIds(ctx, params.documentId),
+              childIds(ctx, params.parentDocumentId),
+            ])
+            await fireTreeChange(ctx, ctx.definition, {
+              change: 'place',
+              documentId: params.documentId,
+              affectedDocumentIds: [
+                ...subtree,
+                ...(mutation.before.parentDocumentId ? [mutation.before.parentDocumentId] : []),
+                ...(params.parentDocumentId ? [params.parentDocumentId] : []),
+                ...mutation.beforeSiblingDocumentIds,
+                ...newSiblings,
+              ],
+            })
+          }
+        )
       }
-      return { orderKey }
+      return { orderKey, ...receipt }
     }
   )
 }
 
-/** Best-effort create/self-heal primitive that never moves an already-placed node. */
+/** Internal placement, only inside the initiating create/save transaction. */
 export async function appendTreeRoot(
   ctx: DocumentLifecycleContext,
   documentId: string
 ): Promise<void> {
-  await auditedPlace(ctx, { documentId, parentDocumentId: null, ifUnplaced: true })
+  if (!ctx.db.revisions.isInTransaction())
+    throw new Error('Automatic tree placement requires the initiating transaction')
+  const capability = requireTreeAuditCapability(ctx.db)
+  const mutation = await capability.place({
+    collectionId: ctx.collectionId,
+    documentId,
+    parentDocumentId: null,
+    ifUnplaced: true,
+  })
+  if (mutation.changed)
+    await appendPlacementAudit(ctx, capability, { documentId, parentDocumentId: null }, mutation)
 }
 
-/** Best-effort post-version repair; locked `ifUnplaced` closes the check/write race. */
+/** Placement failure aborts the initiating save, including its version and audit. */
 export async function selfHealTreePlacement(
   ctx: DocumentLifecycleContext,
   documentId: string
 ): Promise<void> {
-  if (ctx.definition.tree !== true) return
-  try {
-    await appendTreeRoot(ctx, documentId)
-  } catch (err: unknown) {
-    ctx.logger.error({ err, documentId }, 'failed to self-heal tree placement on update')
-  }
+  if (ctx.definition.tree === true) await appendTreeRoot(ctx, documentId)
 }
 
 /** Remove a node to the unplaced state; an already-unplaced node is a true no-op. */
 export async function removeFromTree(
   ctx: DocumentLifecycleContext,
-  params: { documentId: string; reconcile?: boolean }
-): Promise<void> {
+  params: { documentId: string; expectedRevision: number; reconcile?: boolean }
+): Promise<StructuralMutationReceipt> {
   return withLogContext(
     { domain: 'services', module: 'tree', function: 'removeFromTree' },
     async () => {
       assertActorCanPerform(ctx.requestContext, ctx.definition, 'update')
+      await readDocumentForMutation(ctx, params)
       const hooks = await resolveHooks(ctx.definition)
       const wantsEvent = hooks?.afterTreeChange != null
       const capability = requireTreeAuditCapability(ctx.db)
       const actor = auditActor(ctx)
       let mutation: TreeMutationResult | undefined
 
-      await capability.withTransaction(async () => {
-        mutation = await capability.remove({
-          collectionId: ctx.collectionId,
-          documentId: params.documentId,
-          includeSubtree: wantsEvent,
-        })
-        if (!mutation.changed) return
-        await capability.append({
-          documentId: params.documentId,
-          collectionId: ctx.collectionId,
-          actorId: actor.actorId,
-          actorRealm: actor.actorRealm,
-          action: AUDIT_ACTIONS.treeRemoved,
-          field: 'tree',
-          before: { ...mutation.before, mode: 'remove' },
-          after: { ...mutation.after, mode: 'remove' },
-        })
-      })
+      const committed = await commitGuardedDocumentMutation(
+        ctx,
+        params,
+        async () => {
+          mutation = await capability.remove({
+            collectionId: ctx.collectionId,
+            documentId: params.documentId,
+            includeSubtree: wantsEvent,
+          })
+          if (!mutation.changed) return { value: mutation, changed: false }
+          await capability.append({
+            documentId: params.documentId,
+            collectionId: ctx.collectionId,
+            actorId: actor.actorId,
+            actorRealm: actor.actorRealm,
+            action: AUDIT_ACTIONS.treeRemoved,
+            field: 'tree',
+            before: { ...mutation.before, mode: 'remove' },
+            after: { ...mutation.after, mode: 'remove' },
+          })
+          return { value: mutation, changed: true }
+        },
+        { collectionLock: 'exclusive' }
+      )
+      const receipt = {
+        documentId: params.documentId,
+        revision: committed.revision,
+        affectedDocuments: committed.affectedDocuments,
+        scheduledPublicationsNeedReconfirmation: committed.scheduledPublicationsNeedReconfirmation,
+      }
 
-      if (!mutation || !wantsEvent) return
+      if (!mutation || !wantsEvent) return receipt
       const committedMutation = mutation
       if (!committedMutation.changed) {
         if (params.reconcile === true) {
           await runCommittedTreeHook(
-            { change: 'remove', documentId: params.documentId },
+            { ...receipt, change: 'remove', documentId: params.documentId },
             async () => {
               await fireTreeChange(ctx, ctx.definition, {
                 change: 'remove',
@@ -286,21 +317,25 @@ export async function removeFromTree(
             }
           )
         }
-        return
+        return receipt
       }
-      await runCommittedTreeHook({ change: 'remove', documentId: params.documentId }, async () => {
-        await fireTreeChange(ctx, ctx.definition, {
-          change: 'remove',
-          documentId: params.documentId,
-          affectedDocumentIds: [
-            ...committedMutation.beforeSubtreeDocumentIds,
-            ...(committedMutation.before.parentDocumentId
-              ? [committedMutation.before.parentDocumentId]
-              : []),
-            ...committedMutation.beforeSiblingDocumentIds,
-          ],
-        })
-      })
+      await runCommittedTreeHook(
+        { ...receipt, change: 'remove', documentId: params.documentId },
+        async () => {
+          await fireTreeChange(ctx, ctx.definition, {
+            change: 'remove',
+            documentId: params.documentId,
+            affectedDocumentIds: [
+              ...committedMutation.beforeSubtreeDocumentIds,
+              ...(committedMutation.before.parentDocumentId
+                ? [committedMutation.before.parentDocumentId]
+                : []),
+              ...committedMutation.beforeSiblingDocumentIds,
+            ],
+          })
+        }
+      )
+      return receipt
     }
   )
 }
@@ -384,17 +419,34 @@ export async function firePromoteTreeChange(
 /** Standalone audited reconciliation used by internal tooling and tests. */
 export async function promoteChildrenAndRemove(
   ctx: DocumentLifecycleContext,
-  params: { documentId: string }
-): Promise<void> {
+  params: { documentId: string; expectedRevision: number }
+): Promise<StructuralMutationReceipt> {
   return withLogContext(
     { domain: 'services', module: 'tree', function: 'promoteChildrenAndRemove' },
     async () => {
+      assertActorCanPerform(ctx.requestContext, ctx.definition, 'update')
+      await readDocumentForMutation(ctx, params)
       const capability = requireTreeAuditCapability(ctx.db)
       let result: TreeDeleteMutationResult | undefined
-      await capability.withTransaction(async () => {
-        result = await reconcileTreeOnDeleteInTransaction(ctx, params.documentId, capability)
-      })
-      await firePromoteTreeChange(ctx, params.documentId, result as TreeDeleteMutationResult)
+      const committed = await commitGuardedDocumentMutation(
+        ctx,
+        params,
+        async () => {
+          result = await reconcileTreeOnDeleteInTransaction(ctx, params.documentId, capability)
+          return { value: result, changed: result.removed.changed || result.promoted.length > 0 }
+        },
+        { collectionLock: 'exclusive' }
+      )
+      const receipt = {
+        documentId: params.documentId,
+        revision: committed.revision,
+        affectedDocuments: committed.affectedDocuments,
+        scheduledPublicationsNeedReconfirmation: committed.scheduledPublicationsNeedReconfirmation,
+      }
+      await runCommittedTreeHook({ ...receipt, change: 'promote-on-delete' }, () =>
+        firePromoteTreeChange(ctx, params.documentId, committed.value)
+      )
+      return receipt
     }
   )
 }

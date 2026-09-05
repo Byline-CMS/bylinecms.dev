@@ -32,10 +32,10 @@ function createTreeHandle() {
 }
 
 const documents: ImportedTreeDocument[] = [
-  { filePath: '/docs/index.md', documentId: 'root', path: '/root' },
-  { filePath: '/docs/guide/index.md', documentId: 'guide', path: '/guide' },
-  { filePath: '/docs/guide/02-second.md', documentId: 'second', path: '/second' },
-  { filePath: '/docs/guide/01-first.md', documentId: 'first', path: '/first' },
+  { filePath: '/docs/index.md', documentId: 'root', revision: 1, path: '/root' },
+  { filePath: '/docs/guide/index.md', documentId: 'guide', revision: 1, path: '/guide' },
+  { filePath: '/docs/guide/02-second.md', documentId: 'second', revision: 1, path: '/second' },
+  { filePath: '/docs/guide/01-first.md', documentId: 'first', revision: 1, path: '/first' },
 ]
 
 const quietLogger = { log: vi.fn(), error: vi.fn() }
@@ -97,9 +97,9 @@ describe('import docs tree placement', () => {
   it('reparents a document when its source file moves folders', async () => {
     const { handle, groups, parents } = createTreeHandle()
     const initial = [
-      { filePath: '/docs/a/index.md', documentId: 'a', path: '/a' },
-      { filePath: '/docs/b/index.md', documentId: 'b', path: '/b' },
-      { filePath: '/docs/a/child.md', documentId: 'child', path: '/child' },
+      { filePath: '/docs/a/index.md', documentId: 'a', revision: 1, path: '/a' },
+      { filePath: '/docs/b/index.md', documentId: 'b', revision: 1, path: '/b' },
+      { filePath: '/docs/a/child.md', documentId: 'child', revision: 1, path: '/child' },
     ]
 
     await placeTreeFromDirectories(handle, initial, quietLogger)
@@ -119,17 +119,19 @@ describe('import docs tree placement', () => {
   it('places the new IDs returned when deleted paths are re-imported', async () => {
     const { handle, placeTreeNode } = createTreeHandle()
     const reimported: ImportedTreeDocument[] = [
-      { filePath: '/docs/index.md', documentId: 'new-root', path: '/root' },
-      { filePath: '/docs/guide.md', documentId: 'new-guide', path: '/guide' },
+      { filePath: '/docs/index.md', documentId: 'new-root', revision: 1, path: '/root' },
+      { filePath: '/docs/guide.md', documentId: 'new-guide', revision: 1, path: '/guide' },
     ]
 
     await placeTreeFromDirectories(handle, reimported, quietLogger)
 
     expect(placeTreeNode).toHaveBeenCalledWith('new-root', {
+      expectedRevision: 1,
       parentDocumentId: null,
       beforeDocumentId: null,
     })
     expect(placeTreeNode).toHaveBeenCalledWith('new-guide', {
+      expectedRevision: 1,
       parentDocumentId: 'new-root',
       beforeDocumentId: null,
     })
@@ -141,9 +143,9 @@ describe('import docs tree placement', () => {
   it('resolves index.markdown parents at every level', async () => {
     const { handle, groups } = createTreeHandle()
     const longExtensionDocuments: ImportedTreeDocument[] = [
-      { filePath: '/docs/index.markdown', documentId: 'root', path: '/root' },
-      { filePath: '/docs/guide/index.markdown', documentId: 'guide', path: '/guide' },
-      { filePath: '/docs/guide/child.md', documentId: 'child', path: '/child' },
+      { filePath: '/docs/index.markdown', documentId: 'root', revision: 1, path: '/root' },
+      { filePath: '/docs/guide/index.markdown', documentId: 'guide', revision: 1, path: '/guide' },
+      { filePath: '/docs/guide/child.md', documentId: 'child', revision: 1, path: '/child' },
     ]
 
     await placeTreeFromDirectories(handle, longExtensionDocuments, quietLogger)

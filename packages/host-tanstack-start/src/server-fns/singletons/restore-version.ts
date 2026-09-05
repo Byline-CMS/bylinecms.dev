@@ -14,11 +14,13 @@ import { toCommittedDocumentHookFailureResponse } from '../collections/save-outc
 import { serialise } from '../serialise.js'
 
 export const restoreSingletonVersion = createServerFn({ method: 'POST' })
-  .validator((input: { singleton: string; versionId: string }) => input)
+  .validator((input: { expectedRevision: number; singleton: string; versionId: string }) => input)
   .handler(async ({ data }) => {
     try {
       return serialise(
-        await getAdminBylineClient().singleton(data.singleton).restoreVersion(data.versionId)
+        await getAdminBylineClient()
+          .singleton(data.singleton)
+          .restoreVersion(data.versionId, { expectedRevision: data.expectedRevision })
       )
     } catch (error) {
       const committedFailure = toCommittedDocumentHookFailureResponse(error)

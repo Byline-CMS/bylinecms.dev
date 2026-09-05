@@ -74,6 +74,8 @@ export {
   ERR_CONFLICT,
   ERR_DATABASE,
   ERR_DOCUMENT_HOOK_COMMITTED,
+  ERR_DOCUMENT_STALE,
+  ERR_LOCK_CONFLICT,
   ERR_NOT_FOUND,
   ERR_READ_BUDGET_EXCEEDED,
   ERR_READ_RECURSION,
@@ -83,6 +85,7 @@ export {
   ERR_VALIDATION,
   ErrorCodes,
   type ErrorReport,
+  getLockConflictDetails,
   TREE_HOOK_COMMITTED_MARKER,
   TREE_PLACEMENT_STALE_MARKER,
 } from './lib/errors.js'
@@ -111,7 +114,13 @@ export {
 } from './scheduler/define-recurring-task.js'
 export { getCollectionSchemasForPath } from './schemas/zod/cache.js'
 export * from './services/index.js'
+export {
+  documentRevisionFromDatabase,
+  isDocumentRevision,
+  parseDocumentRevision,
+} from './storage/document-revision.js'
 export * from './storage/index.js'
+export { runReadSnapshot } from './storage/read-snapshot.js'
 export { normalizeRootRelativeRedirect } from './utils/root-relative-redirect.js'
 export {
   formatTextValue,

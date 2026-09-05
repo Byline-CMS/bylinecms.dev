@@ -153,7 +153,7 @@ Both use a per-client cache. Lifecycle writes use the version to stamp `collecti
 | Method | Returns | Before first save |
 |---|---|---|
 | `get(options?)` | `Promise<SingletonDocument<TFields> \| null>` | `null` |
-| `update(data, options?)` | `Promise<SingletonSaveResult>` | Creates the backing document, first version, and slot mapping |
+| `update(data, options)` | `Promise<UpdateSingletonResult>` | Creates the backing document, first version, and slot mapping |
 | `changeStatus(nextStatus)` | `Promise<ChangeStatusResult>` | `ERR_NOT_FOUND` |
 | `unpublish()` | `Promise<UnpublishResult>` | `ERR_NOT_FOUND` |
 | `schedulePublish(options)` | `Promise<DocumentPublishScheduleInfo>` | `ERR_NOT_FOUND` |
@@ -181,32 +181,32 @@ const settings = await client.singleton('site-settings').get({
 })
 ```
 
-### `update(data, options?)`
+### `update(data, options)`
 
 ```ts
-interface UpdateSingletonOptions {
-  locale?: string
-  expectedVersionId?: string
-}
+type UpdateSingletonOptions = (
+  | { expectedState: 'empty'; expectedRevision?: never }
+  | { expectedRevision: number; expectedState?: never }
+) & { locale?: string }
 
 handle.update(
   data: TFields,
-  options?: UpdateSingletonOptions
-): Promise<SingletonSaveResult>
+  options: UpdateSingletonOptions
+): Promise<UpdateSingletonResult>
 ```
 
-`locale` defaults to the client content locale. The first save must use that default locale. The result is `{ documentId, documentVersionId }`.
-
-When `expectedVersionId` is present and differs from the current mapped version, the method throws `ERR_CONFLICT` with the expected and current version ids. Omit it for the first save; pass the `versionId` read by an interactive editor for subsequent saves.
+`locale` defaults to the client content locale. The first save must use that default locale and explicitly expect an empty slot. The result is `{ documentId, documentVersionId, revision }`, with revision 1 for creation. Subsequent saves require the revision from `getForEdit()`. Missing or malformed expectations raise `ERR_VALIDATION`; stale revisions or a competing first save raise `ERR_DOCUMENT_STALE`. Reload the singleton before attempting another save.
 
 ```ts
 const handle = client.singleton('site-settings')
-const current = await handle.get({ status: 'any' })
-if (current == null) throw new Error('Site settings have not been saved')
-await handle.update({ ...current.fields, siteName: 'Example site' }, {
-  expectedVersionId: current.versionId,
+const observed = await handle.getForEdit()
+if (observed?.state !== 'document') throw new Error('Site settings are unavailable or empty')
+await handle.update({ ...observed.document.fields, siteName: 'Example site' }, {
+  expectedRevision: observed.document.revision,
 })
 ```
+
+Save preparation hooks run before the final transaction. The service rechecks the revision under lock before writing, and never retries hooks automatically. After-save hooks run after commit; `ERR_DOCUMENT_HOOK_COMMITTED` includes the committed revision when one fails. Public lifecycle services reject externally owned transactions.
 
 ### Workflow methods
 
@@ -303,7 +303,7 @@ await client.singleton('site-settings').copyToLocale({
 | `findByPath(path, options?)` | `Promise<ClientDocument<F> \| null>` | Current document by locale-resolved path. |
 | `search(options)` | `Promise<ClientSearchResults>` | Ranked search scoped to this collection. |
 | `create(data, options?)` | `Promise<CreateDocumentResult>` | Creates a logical document and first immutable version. |
-| `update(id, data, options?)` | `Promise<UpdateDocumentResult>` | Full-document replacement that creates a new immutable version. |
+| `update(id, data, options)` | `Promise<UpdateDocumentResult>` | Full-document replacement that creates a new immutable version. |
 | `changeStatus(id, nextStatus)` | `Promise<ChangeStatusResult>` | Applies one valid workflow transition. |
 | `schedulePublish(id, options)` | `Promise<DocumentPublishScheduleInfo>` | Arms or reschedules publication of one reviewed current version. |
 | `confirmScheduledPublish(id, options)` | `Promise<DocumentPublishScheduleInfo>` | Re-authorizes a suspended schedule against the reviewed current version. |
@@ -500,6 +500,26 @@ const article = await client.collection('articles').findById<PopulatedArticle>(i
 })
 ```
 
+## Editable observations
+
+Dedicated editable reads select current content and return its observed logical-document `revision`. They require `readMode: 'any'` authority, apply `beforeRead` row scoping, and assemble source content, system metadata, and authorized schedule controls in one read-only repeatable-read transaction. Ordinary `find`, `findById`, `get`, published reads, and history responses retain their existing defaults and do not expose an edit revision.
+
+| Method | Options | Result |
+| --- | --- | --- |
+| `collection.findByIdForEdit(id, options?)` | `FindByIdForEditOptions<F>`: existing ID-read options without `status` | `EditableDocument<F> \| null` |
+| `collection.findForEdit(options?)` | `FindForEditOptions<F>`: existing find options without `status`; `where.status` can filter current rows | `EditableFindResult<F>` with `docs` and the ordinary pagination `meta` |
+| `singleton.getForEdit(options?)` | `FindByIdForEditOptions<F>` | `EditableSingleton<F> \| null` |
+| `collection.getSubtreeForEdit(options?)` | `GetSubtreeForEditOptions<F>`: existing subtree options without `status` | `EditableTreeNode<F>[]` |
+| `collection.getTreeForEdit(options?)` | Editable subtree options without `rootDocumentId` or `depth` | `{ forest: EditableTreeNode<F>[], unplaced: EditableDocument<F>[] }` from one snapshot |
+
+`EditableDocument<F>` extends `ClientDocument<F>` with `revision: number` and `scheduledPublication: DocumentPublishScheduleInfo | null`. Schedule details are returned only when the actor holds both `changeStatus` and `publish` abilities; execution claims are omitted. An editable tree node has an editable `document`, `depth`, and recursive `children`.
+
+`EditableSingleton<F>` is either `{ state: 'empty' }` or `{ state: 'document', document }`, with the document's path omitted. Only a genuinely unmapped slot produces `empty`. A hidden, deleted, or inconsistent mapped document returns `null`; a published-only `get() === null` does not establish emptiness.
+
+Population and `afterRead` hooks run after the source snapshot closes. Field and optional metadata redaction retain their normal behavior. Source identity, current version identity, workflow status, and revision are reserved observations and cannot be substituted by a hook. Related targets retain ordinary population semantics; they are not part of a cross-document snapshot. Failed snapshots return no editable payload and do not replay hooks. JavaScript callers supplying status or version selectors to editable reads receive a validation error.
+
+A revision may become stale immediately after the read. These APIs provide the read foundation for document-wide optimistic concurrency; conversion of all mutation entry points to required revision guards is a separate implementation stage. This read capability alone does not establish universal stale-write protection.
+
 ## Writes
 
 ### `create(data, options?)`
@@ -520,17 +540,18 @@ handle.create(data: Record<string, any>, options?: {
 | `path` | Derived from `useAsPath`, then UUID | Explicit initial document path. |
 | `availableLocales` | Empty set | Initial editor-advertised content locales. |
 
-### `update(id, data, options?)`
+### `update(id, data, options)`
 
 ```ts
-handle.update(documentId: string, data: Record<string, any>, options?: {
+handle.update(documentId: string, data: Record<string, any>, options: {
+  expectedRevision: number
   locale?: string
   path?: string
   availableLocales?: string[]
 }): Promise<UpdateDocumentResult>
 ```
 
-Updates use whole-document replacement semantics and mint a new immutable version. Omitting `path` or `availableLocales` preserves the existing document-grain value; an explicit empty locale array clears the advertised set.
+Updates use whole-document replacement semantics and mint a new immutable version. Pass the revision from `findByIdForEdit()` in `expectedRevision`. A stale observation raises `ERR_DOCUMENT_STALE` before any document change; omitted or malformed revisions raise `ERR_VALIDATION`. Successful saves return `{ documentId, documentVersionId, revision }`. Omitting `path` or `availableLocales` preserves the existing document-grain value; an explicit empty locale array clears the advertised set.
 
 ### Workflow and restoration
 

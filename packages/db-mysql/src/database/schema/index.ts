@@ -97,6 +97,8 @@ export const documents = mysqlTable(
     // `backfillSourceLocales()` (boot-auto via initBylineCore).
     //
     source_locale: varchar('source_locale', { length: 10 }).notNull(),
+    // Editorial concurrency counter; content versions remain independently immutable.
+    revision: bigint('revision', { mode: 'number' }).notNull(),
     ...timestamps,
   },
   (table) => [
@@ -105,6 +107,7 @@ export const documents = mysqlTable(
       columns: [table.collection_id],
       foreignColumns: [collections.id],
     }).onDelete('cascade'),
+    check('check_documents_revision', sql`${table.revision} BETWEEN 1 AND 9007199254740991`),
     index('idx_documents_collection').on(table.collection_id),
     index('idx_documents_collection_order').on(table.collection_id, table.order_key),
     unique('uq_documents_collection_id_id').on(table.collection_id, table.id),
@@ -193,6 +196,7 @@ export const documentPublishSchedules = mysqlTable(
     document_id: uuidChar('document_id').primaryKey(),
     collection_id: uuidChar('collection_id').notNull(),
     target_version_id: uuidChar('target_version_id').notNull(),
+    authorized_revision: bigint('authorized_revision', { mode: 'number' }),
     publish_at: datetime('publish_at', { fsp: 6 }).notNull(),
     state: varchar('state', { length: 32 }).notNull().default('armed'),
     suspended_at: datetime('suspended_at', { fsp: 6 }),
@@ -214,6 +218,10 @@ export const documentPublishSchedules = mysqlTable(
     last_error: text('last_error'),
   },
   (table) => [
+    check(
+      'check_publish_schedules_authorized_revision',
+      sql`${table.authorized_revision} IS NULL OR ${table.authorized_revision} BETWEEN 1 AND 9007199254740991`
+    ),
     foreignKey({
       name: 'fk_publish_schedules_document',
       columns: [table.document_id],
@@ -232,7 +240,7 @@ export const documentPublishSchedules = mysqlTable(
     check('check_publish_schedules_state', sql`${table.state} IN ('armed', 'needs_reconfirm')`),
     check(
       'check_publish_schedules_suspended_reason',
-      sql`${table.suspended_reason} IS NULL OR ${table.suspended_reason} = 'content_edited'`
+      sql`${table.suspended_reason} IS NULL OR ${table.suspended_reason} IN ('content_edited', 'document_metadata_changed', 'upgrade_invalidated')`
     ),
     // MySQL has no partial indexes, so state is the leading discriminator.
     index('idx_document_publish_schedules_due').on(

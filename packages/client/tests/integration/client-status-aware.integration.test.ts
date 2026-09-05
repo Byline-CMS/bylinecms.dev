@@ -65,7 +65,7 @@ async function seedDraftOverPublished(params: {
     { path: params.path }
   )
 
-  await handle.changeStatus(created.documentId, 'published')
+  await handle.changeStatus(created.documentId, 'published', { expectedRevision: 1 })
   const publishedVersionId = (
     await ctx.db.queries.documents.getCurrentVersionMetadata({
       collection_id: ctx.collectionId,
@@ -84,7 +84,7 @@ async function seedDraftOverPublished(params: {
       path: params.path,
       summary: params.draftSummary,
     },
-    { path: params.path }
+    { expectedRevision: 2, path: params.path }
   )
 
   return {
@@ -222,7 +222,7 @@ describe('find with draft-over-published versions', () => {
     expect(anyDoc?.fields.summary).toBe('Draft body')
 
     // Clean up so it doesn't pollute other tests' totals.
-    await handle.delete(draftOnly.documentId)
+    await handle.delete(draftOnly.documentId, { expectedRevision: 1 })
   })
 })
 

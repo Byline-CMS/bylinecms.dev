@@ -6,17 +6,28 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { CollectionDefinition, IDbAdapter } from '@byline/core'
+import {
+  type CollectionDefinition,
+  type DocumentRevisionReceipt,
+  ERR_NOT_FOUND,
+  ERR_VALIDATION,
+  type IDbAdapter,
+  parseDocumentRevision,
+} from '@byline/core'
+import { and, desc, eq } from 'drizzle-orm'
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
 
 import * as schema from './database/schema/index.js'
+import { documentVersions } from './database/schema/index.js'
 import { DBManagerImpl, TXManagerImpl } from './lib/db-manager.js'
 import { createAuditCommands } from './modules/audit/audit-commands.js'
 import { createAuditQueries } from './modules/audit/audit-queries.js'
 import { createCounterCommands } from './modules/counters/counters-commands.js'
 import { createSchedulerStore } from './modules/scheduler/scheduler-store.js'
 import { classifyError } from './modules/storage/classify-error.js'
+import { DocumentRevisions } from './modules/storage/document-revisions.js'
+import { createReadSnapshot } from './modules/storage/read-snapshot.js'
 import { SingletonCommands, SingletonQueries } from './modules/storage/singletons.js'
 import {
   createCommandBuilders,
@@ -73,9 +84,10 @@ export interface PgAdapter extends IDbAdapter {
    */
   reAnchorDocument(params: {
     documentId: string
+    expectedRevision: number
     targetLocale: string
     dryRun?: boolean
-  }): Promise<ReAnchorResult>
+  }): Promise<ReAnchorResult & DocumentRevisionReceipt>
   /**
    * Bulk re-anchor every fully-translated document (optionally within one
    * collection) onto `targetLocale`, skipping and reporting the rest. Each
@@ -83,10 +95,13 @@ export interface PgAdapter extends IDbAdapter {
    * "switched the default content locale, move everything that's ready" command.
    */
   reAnchorDocuments(params: {
+    targets: readonly { documentId: string; expectedRevision: number }[]
     targetLocale: string
     collectionId?: string
     dryRun?: boolean
-  }): Promise<ReAnchorReport>
+  }): Promise<
+    Omit<ReAnchorReport, 'results'> & { results: (ReAnchorResult & DocumentRevisionReceipt)[] }
+  >
 }
 
 export const pgAdapter = ({
@@ -156,6 +171,121 @@ export const pgAdapter = ({
   const auditCommands = createAuditCommands(dbManager)
   const auditQueries = createAuditQueries(db)
 
+  const revisions = new DocumentRevisions(dbManager)
+  const reAnchorDocument: PgAdapter['reAnchorDocument'] = async (input) => {
+    if (revisions.isInTransaction())
+      throw ERR_VALIDATION({
+        message: 'Maintenance operations own their transaction',
+        details: { reason: 'external_lifecycle_transaction' },
+      })
+    const params = { ...input, expectedRevision: parseDocumentRevision(input.expectedRevision) }
+    return txManager.withTransaction(async () => {
+      const [current] = await dbManager
+        .get()
+        .select({ collectionId: documentVersions.collection_id })
+        .from(documentVersions)
+        .where(
+          and(
+            eq(documentVersions.document_id, params.documentId),
+            eq(documentVersions.is_deleted, false)
+          )
+        )
+        .orderBy(desc(documentVersions.id))
+        .limit(1)
+      if (!current) throw ERR_NOT_FOUND({ message: 'Re-anchor target is unavailable' })
+      await commandBuilders.collections.lockCollectionRegistration(
+        current.collectionId,
+        'exclusive'
+      )
+      const [locked] = await revisions.lock([
+        {
+          documentId: params.documentId,
+          expectedRevision: params.expectedRevision,
+          collectionId: current.collectionId,
+        },
+      ])
+      if (!locked) throw new Error('Missing locked maintenance target')
+      const result = await commandBuilders.documents.reAnchorDocument(params)
+      if (!result.newVersionId) return { ...result, revision: locked.revision }
+      if (locked.status === 'published')
+        await commandBuilders.documents.archivePublishedVersions({
+          document_id: params.documentId,
+          excludeVersionId: result.newVersionId,
+        })
+      await auditCommands.append({
+        documentId: params.documentId,
+        collectionId: current.collectionId,
+        actorId: null,
+        actorRealm: 'system',
+        action: 'document.source_locale.changed',
+        field: 'source_locale',
+        before: locked.sourceLocale,
+        after: params.targetLocale,
+      })
+      const suspension = await commandBuilders.documents.publishSchedules.suspendForContentEdit({
+        documentId: params.documentId,
+        collectionId: current.collectionId,
+        reason: 'document_metadata_changed',
+      })
+      if (suspension.status === 'suspended')
+        await auditCommands.append({
+          documentId: params.documentId,
+          collectionId: current.collectionId,
+          actorId: null,
+          actorRealm: 'system',
+          action: 'document.publish_schedule.suspended',
+          field: 'scheduled_publish',
+          before: { state: 'armed' },
+          after: { state: 'needs_reconfirm', reason: 'document_metadata_changed' },
+        })
+      return { ...result, revision: (await revisions.advance(locked)).revision }
+    })
+  }
+  const reAnchorDocuments: PgAdapter['reAnchorDocuments'] = async (input) => {
+    if (revisions.isInTransaction())
+      throw ERR_VALIDATION({
+        message: 'Maintenance operations own their transaction',
+        details: { reason: 'external_lifecycle_transaction' },
+      })
+    if (!Array.isArray(input.targets))
+      throw ERR_VALIDATION({ message: 'Explicit observed targets are required' })
+    const targets = input.targets.map((target) => ({
+      documentId: target.documentId,
+      expectedRevision: parseDocumentRevision(target.expectedRevision),
+    }))
+    const report: Awaited<ReturnType<PgAdapter['reAnchorDocuments']>> = {
+      targetLocale: input.targetLocale,
+      dryRun: input.dryRun ?? false,
+      total: targets.length,
+      reanchored: 0,
+      alreadyAnchored: 0,
+      skippedIncomplete: 0,
+      notFound: 0,
+      results: [],
+    }
+    for (const target of targets) {
+      if (input.collectionId) {
+        const scoped = await queryBuilders.documents.getDocumentRevision({
+          collection_id: input.collectionId,
+          document_id: target.documentId,
+        })
+        if (scoped == null)
+          throw ERR_NOT_FOUND({ message: 'Re-anchor target is outside the selected collection' })
+      }
+      const result = await reAnchorDocument({
+        ...target,
+        targetLocale: input.targetLocale,
+        dryRun: input.dryRun,
+      })
+      report.results.push(result)
+      if (result.status === 'reanchored') report.reanchored++
+      else if (result.status === 'already-anchored') report.alreadyAnchored++
+      else if (result.status === 'skipped-incomplete') report.skippedIncomplete++
+      else report.notFound++
+    }
+    return report
+  }
+
   return {
     commands: {
       ...commandBuilders,
@@ -169,12 +299,14 @@ export const pgAdapter = ({
       singletons: singletonQueries,
     },
     withTransaction: (fn) => txManager.withTransaction(fn),
+    withReadSnapshot: createReadSnapshot(db, collections, defaultContentLocale),
+    revisions,
     drizzle: db,
     pool,
     backfillVersionLocales: () => commandBuilders.documents.backfillVersionLocales(),
     backfillSourceLocales: () => commandBuilders.documents.backfillSourceLocales(),
-    reAnchorDocument: (params) => commandBuilders.documents.reAnchorDocument(params),
-    reAnchorDocuments: (params) => commandBuilders.documents.reAnchorDocuments(params),
+    reAnchorDocument,
+    reAnchorDocuments,
     classifyError,
     scheduler: schedulerStore,
   }

@@ -35,6 +35,7 @@ import {
 export const copyDocumentToLocale = createServerFn({ method: 'POST' })
   .validator(
     (input: {
+      expectedRevision: number
       collection: string
       id: string
       sourceLocale: string
@@ -72,6 +73,7 @@ export const copyDocumentToLocale = createServerFn({ method: 'POST' })
       try {
         return await copyToLocale(ctx, {
           documentId: id,
+          expectedRevision: input.expectedRevision,
           sourceLocale,
           targetLocale,
           overwrite,

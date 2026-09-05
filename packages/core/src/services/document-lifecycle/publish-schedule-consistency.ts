@@ -25,6 +25,7 @@ export function publishScheduleAuditValue(
     state: schedule.state,
     publishAt: schedule.publishAt.toISOString(),
     targetVersionId: schedule.targetVersionId,
+    authorizedRevision: schedule.authorizedRevision,
     lastAuthorizedBy: schedule.lastAuthorizedBy,
   }
 }
@@ -76,33 +77,40 @@ export async function commitContentVersionWithScheduleSuspension<T>(params: {
   write: () => Promise<T>
 }): Promise<T> {
   const audit = requireAuditCapability(params.ctx.db)
-  const actor = auditActor(params.ctx)
   return audit.withTransaction(async () => {
     const result = await params.write()
-    const suspension =
-      await params.ctx.db.commands.documents.publishSchedules.suspendForContentEdit({
-        documentId: params.documentId,
-        collectionId: params.ctx.collectionId,
-      })
-    if (suspension.status === 'suspended') {
-      await audit.append({
-        documentId: params.documentId,
-        collectionId: params.ctx.collectionId,
-        actorId: actor.actorId,
-        actorRealm: actor.actorRealm,
-        action: AUDIT_ACTIONS.publishScheduleSuspended,
-        field: 'scheduled_publish',
-        before: {
-          state: 'armed',
-          targetVersionId: suspension.schedule.targetVersionId,
-          publishAt: suspension.schedule.publishAt.toISOString(),
-        },
-        after: {
-          state: 'needs_reconfirm',
-          reason: 'content_edited',
-        },
-      })
-    }
+    await suspendPublishScheduleForEdit(params.ctx, audit, params.documentId, 'content_edited')
     return result
   })
+}
+
+/** Called after the primary writes, under their document lock and transaction. */
+export async function suspendPublishScheduleForEdit(
+  ctx: DocumentLifecycleContext,
+  audit: AuditCapability,
+  documentId: string,
+  reason: 'content_edited' | 'document_metadata_changed'
+): Promise<boolean> {
+  const actor = auditActor(ctx)
+  const suspension = await ctx.db.commands.documents.publishSchedules.suspendForContentEdit({
+    documentId,
+    collectionId: ctx.collectionId,
+    reason,
+  })
+  if (suspension.status !== 'suspended') return false
+  await audit.append({
+    documentId,
+    collectionId: ctx.collectionId,
+    actorId: actor.actorId,
+    actorRealm: actor.actorRealm,
+    action: AUDIT_ACTIONS.publishScheduleSuspended,
+    field: 'scheduled_publish',
+    before: {
+      state: 'armed',
+      targetVersionId: suspension.schedule.targetVersionId,
+      publishAt: suspension.schedule.publishAt.toISOString(),
+    },
+    after: { state: 'needs_reconfirm', reason },
+  })
+  return true
 }

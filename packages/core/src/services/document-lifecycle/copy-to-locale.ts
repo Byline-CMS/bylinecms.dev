@@ -8,16 +8,19 @@
 
 import { resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
-import { ERR_NOT_FOUND, ERR_VALIDATION } from '../../lib/errors.js'
+import { ERR_VALIDATION } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
 import { runCommittedDocumentHook } from './committed-hook.js'
 import { applyRichTextEmbed, extractVersionId, invokeHook } from './internals.js'
 import { mergeLocaleData } from './merge-locale-data.js'
 import { persistExistingDocumentVersion } from './persistence.js'
+import { commitGuardedDocumentMutation, readDocumentForMutation } from './revision-guard.js'
+import { sameDocumentData } from './same-document-data.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface CopyToLocaleResult {
+  revision: number
   documentId: string
   documentVersionId: string
   /** Source locale read for the copy. */
@@ -70,11 +73,13 @@ export async function copyToLocale(
   ctx: DocumentLifecycleContext,
   params: {
     documentId: string
+    expectedRevision: number
     sourceLocale: string
     targetLocale: string
     overwrite: boolean
   }
 ): Promise<CopyToLocaleResult> {
+  params = { ...params }
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'copyToLocale' },
     async () => {
@@ -93,52 +98,22 @@ export async function copyToLocale(
       }
 
       // 1. Source read.
-      const source = await db.queries.documents.getDocumentById({
-        collection_id: collectionId,
-        document_id: params.documentId,
+      const source = await readDocumentForMutation(ctx, {
+        ...params,
         locale: params.sourceLocale,
-        reconstruct: true,
         lenient: true,
-        requestContext: ctx.requestContext,
       })
-
-      if (source == null) {
-        throw ERR_NOT_FOUND({
-          message: 'document not found in source locale',
-          details: {
-            documentId: params.documentId,
-            sourceLocale: params.sourceLocale,
-            collectionPath,
-          },
-        }).log(ctx.logger)
-      }
-
-      // 2. Target read — needed for both originalData (hooks) and to
-      //    preserve non-localized values + structural shape.
-      const target = await db.queries.documents.getDocumentById({
-        collection_id: collectionId,
-        document_id: params.documentId,
+      const target = await readDocumentForMutation(ctx, {
+        ...params,
         locale: params.targetLocale,
-        reconstruct: true,
         lenient: true,
-        requestContext: ctx.requestContext,
       })
-
-      if (target == null) {
-        throw ERR_NOT_FOUND({
-          message: 'document not found in target locale',
-          details: {
-            documentId: params.documentId,
-            targetLocale: params.targetLocale,
-            collectionPath,
-          },
-        }).log(ctx.logger)
-      }
-
+      const previousVersionId = target.document_version_id as string
       const sourceRecord = source as Record<string, any>
       const targetRecord = target as Record<string, any>
       const sourceFields: Record<string, any> = sourceRecord.fields ?? {}
       const targetFields: Record<string, any> = targetRecord.fields ?? {}
+      const baseline = structuredClone(targetFields)
 
       // 3. Merge.
       const merged = mergeLocaleData(
@@ -167,25 +142,36 @@ export async function copyToLocale(
       //    storage primitive's cross-locale carry-forward fires for every
       //    *other* locale (not source, not target — those rows are
       //    rewritten by this call).
-      const previousVersionId =
-        (targetRecord.document_version_id as string | undefined) ?? undefined
 
       await applyRichTextEmbed(ctx, merged.data)
 
-      const writeResult = await persistExistingDocumentVersion(ctx, {
-        documentId: params.documentId,
-        action: 'copy_to_locale',
-        documentData: merged.data,
-        status: getDefaultStatus(definition),
-        locale: params.targetLocale,
-        previousVersionId,
-      })
-
-      const documentVersionId = extractVersionId(writeResult.document)
+      const committed = await commitGuardedDocumentMutation(
+        ctx,
+        { ...params, previousVersionId, locale: params.targetLocale },
+        async () => {
+          if (
+            (targetRecord._availableVersionLocales?.includes(params.targetLocale) ||
+              targetRecord._localeAgnostic === true) &&
+            sameDocumentData(merged.data, baseline)
+          )
+            return { value: previousVersionId, changed: false }
+          const writeResult = await persistExistingDocumentVersion(ctx, {
+            documentId: params.documentId,
+            action: 'copy_to_locale',
+            documentData: merged.data,
+            status: getDefaultStatus(definition),
+            locale: params.targetLocale,
+            previousVersionId,
+          })
+          return { value: extractVersionId(writeResult.document), changed: true }
+        }
+      )
+      const documentVersionId = committed.value
+      const revision = committed.revision
 
       await runCommittedDocumentHook(
         ctx,
-        { phase: 'afterUpdate', documentId: params.documentId, documentVersionId },
+        { phase: 'afterUpdate', documentId: params.documentId, documentVersionId, revision },
         () =>
           invokeHook(hooks?.afterUpdate, {
             data: merged.data,
@@ -206,6 +192,7 @@ export async function copyToLocale(
         sourceLocale: params.sourceLocale,
         targetLocale: params.targetLocale,
         fieldsUpdated: merged.fieldsUpdated,
+        revision,
       }
     }
   )

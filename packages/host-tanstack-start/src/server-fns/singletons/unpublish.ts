@@ -13,7 +13,11 @@ import { getAdminBylineClient } from '@byline/client/server'
 import { serialise } from '../serialise.js'
 
 export const unpublishSingleton = createServerFn({ method: 'POST' })
-  .validator((input: { singleton: string }) => input)
+  .validator((input: { expectedRevision: number; singleton: string }) => input)
   .handler(async ({ data }) =>
-    serialise(await getAdminBylineClient().singleton(data.singleton).unpublish())
+    serialise(
+      await getAdminBylineClient()
+        .singleton(data.singleton)
+        .unpublish({ expectedRevision: data.expectedRevision })
+    )
   )

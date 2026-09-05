@@ -23,9 +23,9 @@ export interface GetSingletonInput {
  * - this shared host layer owns lenient reads, raw missing-locale values,
  *   relation-summary population, transport serialization, and preservation of
  *   restore warnings and locale metadata;
- * - the route loader composes published-version metadata plus scheduled-
- *   publication enablement, capability, and schedule aliases because those
- *   require host-only database and actor context beyond the singleton handle.
+ * - the route loader composes the informational published-version badge, feature
+ *   enablement, capability, and schedule aliases. Schedule state itself comes
+ *   from the same editable snapshot as the source document.
  */
 export const getSingleton = createServerFn({ method: 'GET' })
   .validator((input: GetSingletonInput) => input)

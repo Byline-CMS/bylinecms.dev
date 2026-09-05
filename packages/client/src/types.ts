@@ -26,6 +26,7 @@ import type {
   SearchMatching,
   SearchProvider,
   ServerConfig,
+  SingletonSavePrecondition,
   SlugifierFn,
   SortSpec,
 } from '@byline/core'
@@ -495,6 +496,8 @@ export interface CreateOptions {
 }
 
 export interface UpdateOptions {
+  /** Revision from the editable document observed before preparing this update. */
+  expectedRevision: number
   /** Locale for field value resolution. Defaults to the client's `defaultLocale`. */
   locale?: string
   /**
@@ -512,15 +515,14 @@ export interface UpdateOptions {
 }
 
 /** Write controls for `SingletonHandle.update()`. */
-export interface UpdateSingletonOptions {
-  /** Locale for field value resolution. Defaults to the client's `defaultLocale`. */
+export type UpdateSingletonOptions = SingletonSavePrecondition & {
+  /** Locale for field value resolution. Defaults to the client's defaultLocale. */
   locale?: string
-  /** Reject the save when this is not the slot's current version id. */
-  expectedVersionId?: string
 }
 
 /** Optimistic, absolute-time input for `CollectionHandle.schedulePublish()`. */
 export interface SchedulePublishOptions {
+  expectedRevision: number
   /** ISO instant carrying an explicit UTC offset or `Z`. */
   publishAt: string
   /** The current version the editor reviewed and intends to publish. */
@@ -529,6 +531,7 @@ export interface SchedulePublishOptions {
 
 /** Reviewed current version used to re-arm a suspended publication. */
 export interface ConfirmScheduledPublishOptions {
+  expectedRevision: number
   expectedVersionId: string
 }
 
@@ -558,6 +561,7 @@ export type DocumentPublishScheduleInfo = Omit<
  * may be null/omitted (append as last child, or prepend before a given sibling).
  */
 export interface PlaceTreeNodeOptions {
+  expectedRevision: number
   /** The new parent; `null` makes the node a root. */
   parentDocumentId: string | null
   /** Left neighbour — the node lands immediately after it. */
@@ -570,6 +574,7 @@ export interface PlaceTreeNodeOptions {
 
 /** Options for an idempotent tree removal or post-commit hook retry. */
 export interface RemoveFromTreeOptions {
+  expectedRevision: number
   /** Re-run `afterTreeChange` when the document is already unplaced. */
   reconcile?: boolean
 }
@@ -848,3 +853,24 @@ export type WithPopulated<F, K extends keyof F, Target> = {
 export type WithPopulatedMany<F, K extends keyof F, Target> = {
   [P in keyof F]: P extends K ? Array<PopulatedRelation<Target>> : F[P]
 }
+
+/** Only explicit current editable reads carry mutation observations. */
+export interface EditableDocument<F = Record<string, any>> extends ClientDocument<F> {
+  revision: number
+  scheduledPublication: DocumentPublishScheduleInfo | null
+}
+export type EditableSingleton<F = Record<string, any>> =
+  | { state: 'empty' }
+  | { state: 'document'; document: Omit<EditableDocument<F>, 'path'> }
+export interface EditableFindResult<F = Record<string, any>> {
+  docs: EditableDocument<F>[]
+  meta: FindResult<F>['meta']
+}
+export interface EditableTreeNode<F = Record<string, any>> {
+  document: EditableDocument<F>
+  depth: number
+  children: EditableTreeNode<F>[]
+}
+export type FindByIdForEditOptions<F = Record<string, any>> = Omit<FindByIdOptions<F>, 'status'>
+export type FindForEditOptions<F = Record<string, any>> = Omit<FindOptions<F>, 'status'>
+export type GetSubtreeForEditOptions<F = Record<string, any>> = Omit<GetSubtreeOptions<F>, 'status'>

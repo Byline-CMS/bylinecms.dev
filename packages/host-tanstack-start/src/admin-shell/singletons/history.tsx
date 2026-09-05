@@ -15,6 +15,7 @@ import type {
   SingletonPreviewDocument,
   WorkflowStatus,
 } from '@byline/core'
+import { parseDocumentRevision } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Button, Container, Section, Table } from '@byline/ui/react'
 import cx from 'clsx'
@@ -167,7 +168,13 @@ export function SingletonHistoryView({
             }}
             onPageSizeChange={handlePageSizeChange}
             restoreVersion={(versionId) =>
-              restoreSingletonVersion({ data: { singleton, versionId } })
+              restoreSingletonVersion({
+                data: {
+                  expectedRevision: parseDocumentRevision(currentDocument?.revision),
+                  singleton,
+                  versionId,
+                },
+              })
             }
             onRestoreComplete={async () => {
               await router.invalidate()

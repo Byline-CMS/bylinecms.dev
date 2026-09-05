@@ -1,3 +1,4 @@
+import type { StructuralMutationReceipt } from '@byline/core'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -72,6 +73,7 @@ export interface TreeAncestor {
 }
 
 export interface PlaceTreeNodeInput {
+  expectedRevision: number
   collection: string
   documentId: string
   /** The new parent; `null` makes the document a root node. */
@@ -82,10 +84,16 @@ export interface PlaceTreeNodeInput {
 }
 
 /** Place / move a document within its collection's tree. */
-export type PlaceTreeNodeFn = (input: PlaceTreeNodeInput) => Promise<{ orderKey: string }>
+export type PlaceTreeNodeFn = (
+  input: PlaceTreeNodeInput
+) => Promise<{ orderKey: string } & StructuralMutationReceipt>
 
 /** Remove a document from the tree (back to the unplaced state). */
-export type RemoveFromTreeFn = (input: { collection: string; documentId: string }) => Promise<void>
+export type RemoveFromTreeFn = (input: {
+  collection: string
+  documentId: string
+  expectedRevision: number
+}) => Promise<StructuralMutationReceipt>
 
 /** Resolve a document's ancestor chain, root-first, hydrated with titles. */
 export type GetTreeAncestorsFn = (input: {

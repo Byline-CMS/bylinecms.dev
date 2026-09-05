@@ -10,6 +10,7 @@ import type { Logger as PinoLogger } from 'pino'
 import { describe, expect, it } from 'vitest'
 
 import { initBylineCore } from '../core.js'
+import { unusedRevisionStore } from '../storage/revision-store.test-helper.js'
 import { defineRecurringTask } from './define-recurring-task.js'
 import type { IDbAdapter, ServerConfig } from '../@types/index.js'
 import type { ISchedulerStore } from './types.js'
@@ -41,20 +42,31 @@ const task = defineRecurringTask({
 
 describe('initBylineCore scheduler wiring', () => {
   it('rejects recurring tasks registered against an adapter without the scheduler capability', async () => {
-    const config = serverConfig({} as IDbAdapter)
+    const config = serverConfig({} as unknown as IDbAdapter)
     config.recurringTasks = [task]
 
     await expect(initBylineCore(config, {} as PinoLogger)).rejects.toThrow(/analytics\.rollup/)
   })
 
   it('gates scheduled publication on the scheduler capability and contributes its built-in task', async () => {
-    const unsupported = serverConfig({} as IDbAdapter)
+    const unsupported = serverConfig({} as unknown as IDbAdapter)
     unsupported.scheduledPublication = { enabled: true }
     await expect(initBylineCore(unsupported, {} as PinoLogger)).rejects.toThrow(
       /documents\.publish-scheduled/
     )
 
-    const capable = serverConfig({ scheduler: {} as ISchedulerStore } as IDbAdapter)
+    const capable = serverConfig({
+      scheduler: {} as ISchedulerStore,
+      withTransaction: async (fn: () => Promise<unknown>) => fn(),
+      withReadSnapshot: async () => {
+        throw new Error('Unexpected editable read')
+      },
+      commands: {
+        collections: { lockCollectionRegistration: async () => {} },
+        documents: { publishSchedules: { lockDocuments: async () => {} } },
+      },
+      revisions: { ...unusedRevisionStore, assertCompatibleSchema: async () => {} },
+    } as unknown as IDbAdapter)
     capable.scheduledPublication = { enabled: true }
     capable.recurringTasks = [task]
     const core = await initBylineCore(capable, {} as PinoLogger)
@@ -70,7 +82,18 @@ describe('initBylineCore scheduler wiring', () => {
   })
 
   it('populates core.recurringTasks with the registered set when the adapter is capable', async () => {
-    const db = { scheduler: {} as ISchedulerStore } as IDbAdapter
+    const db = {
+      scheduler: {} as ISchedulerStore,
+      withTransaction: async (fn: () => Promise<unknown>) => fn(),
+      withReadSnapshot: async () => {
+        throw new Error('Unexpected editable read')
+      },
+      commands: {
+        collections: { lockCollectionRegistration: async () => {} },
+        documents: { publishSchedules: { lockDocuments: async () => {} } },
+      },
+      revisions: { ...unusedRevisionStore, assertCompatibleSchema: async () => {} },
+    } as unknown as IDbAdapter
     const config = serverConfig(db)
     config.recurringTasks = [task]
 
@@ -82,7 +105,18 @@ describe('initBylineCore scheduler wiring', () => {
   })
 
   it('freezes the validated snapshot so post-init mutation of the caller input cannot alter it', async () => {
-    const db = { scheduler: {} as ISchedulerStore } as IDbAdapter
+    const db = {
+      scheduler: {} as ISchedulerStore,
+      withTransaction: async (fn: () => Promise<unknown>) => fn(),
+      withReadSnapshot: async () => {
+        throw new Error('Unexpected editable read')
+      },
+      commands: {
+        collections: { lockCollectionRegistration: async () => {} },
+        documents: { publishSchedules: { lockDocuments: async () => {} } },
+      },
+      revisions: { ...unusedRevisionStore, assertCompatibleSchema: async () => {} },
+    } as unknown as IDbAdapter
     const localTask = defineRecurringTask({
       name: 'analytics.local',
       intervalMs: 3_600_000,

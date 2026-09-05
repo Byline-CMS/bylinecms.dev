@@ -115,8 +115,12 @@ beforeAll(async () => {
   const createdAuthor = await authors.create({ name: 'Ada Lovelace', bio: 'Published bio.' })
   authorId = createdAuthor.documentId
 
-  await authors.changeStatus(authorId, 'published')
-  await authors.update(authorId, { name: 'Ada Lovelace', bio: 'In-progress draft bio.' })
+  await authors.changeStatus(authorId, 'published', { expectedRevision: 1 })
+  await authors.update(
+    authorId,
+    { name: 'Ada Lovelace', bio: 'In-progress draft bio.' },
+    { expectedRevision: 2 }
+  )
 
   // A single post pointing at the author — we read it with populate and
   // assert the populated `author.bio` reflects the requested readMode.
@@ -131,7 +135,7 @@ beforeAll(async () => {
   postId = createdPost.documentId
 
   // Publish the post itself so it's visible in the default-mode list.
-  await posts.changeStatus(postId, 'published')
+  await posts.changeStatus(postId, 'published', { expectedRevision: 1 })
 }, 30_000)
 
 afterAll(async () => {

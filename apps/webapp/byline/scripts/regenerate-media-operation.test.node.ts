@@ -1,23 +1,13 @@
-import type { CollectionDefinition, IDbAdapter, StoredFileValue } from '@byline/core'
-import { describe, expect, it, vi } from 'vitest'
+import { ERR_DOCUMENT_HOOK_COMMITTED, type StoredFileValue } from '@byline/core'
+import { replaceDocumentFieldsPreservingStatus } from '@byline/core/services'
+import { describe, expect, it } from 'vitest'
 
 import {
   assertCompleteVariantSet,
+  mediaFailureOutcome,
   replaceMediaVersionPreservingStatus,
   storedFilePaths,
 } from './regenerate-media-operation.js'
-
-const definition = {
-  path: 'media',
-  workflow: {
-    statuses: [
-      { name: 'draft', label: 'Draft', verb: 'Save as Draft' },
-      { name: 'published', label: 'Published', verb: 'Publish' },
-      { name: 'archived', label: 'Archived', verb: 'Archive' },
-    ],
-  },
-  fields: [],
-} as unknown as CollectionDefinition
 
 function storedFile(variantNames: string[]): StoredFileValue {
   return {
@@ -37,50 +27,6 @@ function storedFile(variantNames: string[]): StoredFileValue {
       format: 'avif',
     })),
   }
-}
-
-function operation(targetStatus: string) {
-  const events: string[] = []
-  const update = vi.fn(async () => {
-    events.push('update')
-    return { documentId: 'doc-1', documentVersionId: 'version-new' }
-  })
-  const setDocumentStatus = vi.fn(async () => {
-    events.push(`status:${targetStatus}`)
-  })
-  const archivePublishedVersions = vi.fn(async () => {
-    events.push('archive-previous-published')
-    return 1
-  })
-  const append = vi.fn(async () => {
-    events.push('audit')
-    return { id: 'audit-1' }
-  })
-  const db = {
-    commands: {
-      documents: { setDocumentStatus, archivePublishedVersions },
-      audit: { append },
-    },
-    withTransaction: async <T>(run: () => Promise<T>) => {
-      events.push('transaction:start')
-      const result = await run()
-      events.push('transaction:commit')
-      return result
-    },
-  } as unknown as IDbAdapter
-
-  const run = () =>
-    replaceMediaVersionPreservingStatus({
-      db,
-      definition,
-      collectionId: 'collection-1',
-      handle: { update },
-      documentId: 'doc-1',
-      fields: { title: 'Image' },
-      targetStatus,
-    })
-
-  return { append, archivePublishedVersions, events, run, setDocumentStatus, update }
 }
 
 describe('regenerate-media operation', () => {
@@ -117,48 +63,38 @@ describe('regenerate-media operation', () => {
     ])
   })
 
-  it('keeps a draft replacement at draft without a metadata mutation', async () => {
-    const state = operation('draft')
-    await state.run()
-    expect(state.events).toEqual(['transaction:start', 'update', 'transaction:commit'])
-    expect(state.setDocumentStatus).not.toHaveBeenCalled()
-    expect(state.archivePublishedVersions).not.toHaveBeenCalled()
-    expect(state.append).not.toHaveBeenCalled()
+  // The four former pending behaviors execute against both real adapters in
+  // db-conformance/src/suites/guarded-saves.ts, Task 6 / T5-1. This alias check
+  // ensures those tests exercise the script entry point without an adapter double.
+  it('uses the guarded entry point covered by the real-adapter maintenance suite', () => {
+    expect(replaceMediaVersionPreservingStatus).toBe(replaceDocumentFieldsPreservingStatus)
   })
-
-  it('restores archived directly without passing through published', async () => {
-    const state = operation('archived')
-    await state.run()
-    expect(state.events).toEqual([
-      'transaction:start',
-      'update',
-      'status:archived',
-      'audit',
-      'transaction:commit',
-    ])
-    expect(state.archivePublishedVersions).not.toHaveBeenCalled()
-  })
-
-  it('publishes and archives the previous published version in the same transaction', async () => {
-    const state = operation('published')
-    await state.run()
-    expect(state.events).toEqual([
-      'transaction:start',
-      'update',
-      'status:published',
-      'archive-previous-published',
-      'audit',
-      'transaction:commit',
-    ])
-    expect(state.archivePublishedVersions).toHaveBeenCalledWith({
-      document_id: 'doc-1',
-      excludeVersionId: 'version-new',
+  it('retains prepared files when a replacement committed before its after-hook failed', () => {
+    const error = ERR_DOCUMENT_HOOK_COMMITTED({
+      message: 'afterUpdate failed',
+      details: {
+        phase: 'afterUpdate',
+        documentId: 'doc-1',
+        documentVersionId: 'version-2',
+        revision: 2,
+        sideEffectCode: 'ERR_UNHANDLED',
+      },
     })
+    expect(
+      mediaFailureOutcome(
+        error,
+        new Set(['new-image.avif', 'original.jpg']),
+        new Set(['original.jpg'])
+      )
+    ).toEqual({ committed: true, revision: 2, cleanupPaths: new Set() })
   })
-
-  it('rejects a stale captured status before opening a transaction', async () => {
-    const state = operation('removed-status')
-    await expect(state.run()).rejects.toThrow(/is not declared/)
-    expect(state.events).toEqual([])
+  it('discards only fresh paths when the document write was rejected', () => {
+    expect(
+      mediaFailureOutcome(
+        new Error('stale write'),
+        new Set(['new-image.avif', 'original.jpg']),
+        new Set(['original.jpg'])
+      )
+    ).toEqual({ committed: false, cleanupPaths: new Set(['new-image.avif']) })
   })
 })

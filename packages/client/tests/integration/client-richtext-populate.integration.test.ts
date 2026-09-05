@@ -244,7 +244,7 @@ beforeAll(async () => {
   const articles = ctx.client.collection(articlesDefinition.path)
   const createdArticle = await articles.create({ title: 'Original Title' })
   articleId = createdArticle.documentId
-  await articles.changeStatus(articleId, 'published')
+  await articles.changeStatus(articleId, 'published', { expectedRevision: 1 })
 
   // A page whose `content` block carries two internal-link envelopes to the
   // article — both seeded with the article's title at link-pick time.
@@ -261,7 +261,7 @@ beforeAll(async () => {
     ],
   })
   pageId = createdPage.documentId
-  await pages.changeStatus(pageId, 'published')
+  await pages.changeStatus(pageId, 'published', { expectedRevision: 1 })
 }, 30_000)
 
 afterAll(async () => {
@@ -284,8 +284,8 @@ describe('richtext relation envelopes refresh per populateRelationsOnRead', () =
     // Update + re-publish the target so the published view changes — the
     // populate adapter reads `readMode: 'published'`.
     const articles = ctx.client.collection(articlesDefinition.path)
-    await articles.update(articleId, { title: 'Updated Title' })
-    await articles.changeStatus(articleId, 'published')
+    await articles.update(articleId, { title: 'Updated Title' }, { expectedRevision: 2 })
+    await articles.changeStatus(articleId, 'published', { expectedRevision: 3 })
 
     const pages = ctx.client.collection(pagesDefinition.path)
     const doc = await pages.findById<PageFields>(pageId)

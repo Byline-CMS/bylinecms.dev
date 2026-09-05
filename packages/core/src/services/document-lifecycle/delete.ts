@@ -8,7 +8,7 @@
 
 import { resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
-import { ERR_NOT_FOUND, ErrorCodes } from '../../lib/errors.js'
+import { ErrorCodes } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import {
   AUDIT_ACTIONS,
@@ -21,8 +21,9 @@ import {
   appendPublishScheduleCancellationAudit,
   cancelPublishScheduleInTransaction,
 } from './publish-schedule-consistency.js'
+import { commitGuardedDocumentMutation, readDocumentForMutation } from './revision-guard.js'
 import { firePromoteTreeChange, reconcileTreeOnDeleteInTransaction } from './tree.js'
-import type { TreeDeleteMutationResult } from '../../@types/index.js'
+import type { StructuralMutationReceipt, TreeDeleteMutationResult } from '../../@types/index.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export type DeleteDocumentOutcome = 'committed' | 'committed-with-side-effect-failures'
@@ -36,13 +37,18 @@ export interface DeleteDocumentSideEffectFailure {
   code: DeleteDocumentSideEffectCode
 }
 
-export interface DeleteDocumentCommittedResult {
+export interface DeleteDocumentCommittedResult extends StructuralMutationReceipt {
+  documentId: string
+  revision: number
   deletedVersionCount: number
   outcome: 'committed'
   sideEffectFailures: []
 }
 
-export interface DeleteDocumentCommittedWithSideEffectFailuresResult {
+export interface DeleteDocumentCommittedWithSideEffectFailuresResult
+  extends StructuralMutationReceipt {
+  documentId: string
+  revision: number
   deletedVersionCount: number
   outcome: 'committed-with-side-effect-failures'
   sideEffectFailures: [DeleteDocumentSideEffectFailure, ...DeleteDocumentSideEffectFailure[]]
@@ -93,31 +99,22 @@ export async function deleteDocument(
   ctx: DocumentLifecycleContext,
   params: {
     documentId: string
+    expectedRevision: number
   }
 ): Promise<DeleteDocumentResult> {
+  params = { ...params }
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'deleteDocument' },
     async () => {
       const { db, collectionPath, definition, logger } = ctx
       assertActorCanPerform(ctx.requestContext, definition, 'delete')
+      const latest = await readDocumentForMutation(ctx, { ...params, lenient: true })
+      const previousVersionId = latest.document_version_id as string
       const hooks = await resolveHooks(definition)
 
       // 1. Verify the document exists. Soft delete retains field rows and
       //    uploaded objects, so only the envelope and original path projection
       //    are needed for hooks.
-      const latest = await db.queries.documents.getDocumentById({
-        collection_id: ctx.collectionId,
-        document_id: params.documentId,
-        reconstruct: false,
-      })
-
-      if (latest == null) {
-        throw ERR_NOT_FOUND({
-          message: 'document not found',
-          details: { documentId: params.documentId },
-        }).log(ctx.logger)
-      }
-
       const hookCtx = {
         documentId: params.documentId,
         collectionPath,
@@ -142,28 +139,37 @@ export async function deleteDocument(
       const actor = auditActor(ctx)
       let deletedVersionCount = 0
       let treeResult: TreeDeleteMutationResult | undefined
-      await audit.withTransaction(async () => {
-        const cancelledSchedule = await cancelPublishScheduleInTransaction(ctx, params.documentId)
-        deletedVersionCount = await db.commands.documents.softDeleteDocument({
-          document_id: params.documentId,
-        })
-        await audit.append({
-          documentId: params.documentId,
-          collectionId: ctx.collectionId,
-          actorId: actor.actorId,
-          actorRealm: actor.actorRealm,
-          action: AUDIT_ACTIONS.deleted,
-        })
-        if (treeAudit != null) {
-          treeResult = await reconcileTreeOnDeleteInTransaction(ctx, params.documentId, treeAudit)
-        }
-        await appendPublishScheduleCancellationAudit({
-          ctx,
-          audit,
-          schedule: cancelledSchedule,
-          reason: 'soft_deleted',
-        })
-      })
+      const committed = await commitGuardedDocumentMutation(
+        ctx,
+        { ...params, previousVersionId },
+        async () => {
+          const cancelledSchedule = await cancelPublishScheduleInTransaction(ctx, params.documentId)
+          deletedVersionCount = await db.commands.documents.softDeleteDocument({
+            document_id: params.documentId,
+          })
+          await audit.append({
+            documentId: params.documentId,
+            collectionId: ctx.collectionId,
+            actorId: actor.actorId,
+            actorRealm: actor.actorRealm,
+            action: AUDIT_ACTIONS.deleted,
+          })
+          if (treeAudit != null) {
+            treeResult = await reconcileTreeOnDeleteInTransaction(ctx, params.documentId, treeAudit)
+          }
+          await appendPublishScheduleCancellationAudit({
+            ctx,
+            audit,
+            schedule: cancelledSchedule,
+            reason: 'soft_deleted',
+          })
+          return {
+            value: undefined,
+            changed: deletedVersionCount > 0 || cancelledSchedule !== null,
+          }
+        },
+        { collectionLock: 'exclusive' }
+      )
 
       // Everything below is post-commit. Each operation and the logger get an
       // independent attempt; none can turn the committed delete into a rejection.
@@ -216,12 +222,25 @@ export async function deleteDocument(
         }
         return {
           deletedVersionCount,
+          documentId: params.documentId,
+          revision: committed.revision,
+          affectedDocuments: committed.affectedDocuments,
+          scheduledPublicationsNeedReconfirmation:
+            committed.scheduledPublicationsNeedReconfirmation,
           outcome: 'committed-with-side-effect-failures',
           sideEffectFailures: [firstFailure, ...remainingFailures],
         }
       }
 
-      return { deletedVersionCount, outcome: 'committed', sideEffectFailures: [] }
+      return {
+        deletedVersionCount,
+        documentId: params.documentId,
+        revision: committed.revision,
+        affectedDocuments: committed.affectedDocuments,
+        scheduledPublicationsNeedReconfirmation: committed.scheduledPublicationsNeedReconfirmation,
+        outcome: 'committed',
+        sideEffectFailures: [],
+      }
     }
   )
 }

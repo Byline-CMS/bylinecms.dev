@@ -23,7 +23,9 @@ import { ensureCollection } from '../../integrations/api-utils.js'
 // ---------------------------------------------------------------------------
 
 export const updateDocumentStatus = createServerFn({ method: 'POST' })
-  .validator((input: { collection: string; id: string; status: string }) => input)
+  .validator(
+    (input: { expectedRevision: number; collection: string; id: string; status: string }) => input
+  )
   .handler(async ({ data: input }) => {
     const { collection: path, id, status: nextStatus } = input
     const logger = getLogger()
@@ -50,10 +52,13 @@ export const updateDocumentStatus = createServerFn({ method: 'POST' })
 
     const result = await changeDocumentStatus(ctx, {
       documentId: id,
+      expectedRevision: input.expectedRevision,
       nextStatus,
     })
     return {
       status: 'ok' as const,
+      documentId: result.documentId,
+      revision: result.revision,
       previousStatus: result.previousStatus,
       newStatus: result.newStatus,
     }
@@ -64,7 +69,7 @@ export const updateDocumentStatus = createServerFn({ method: 'POST' })
 // ---------------------------------------------------------------------------
 
 export const unpublishDocument = createServerFn({ method: 'POST' })
-  .validator((input: { collection: string; id: string }) => input)
+  .validator((input: { expectedRevision: number; collection: string; id: string }) => input)
   .handler(async ({ data: input }) => {
     const { collection: path, id } = input
     const logger = getLogger()
@@ -89,14 +94,22 @@ export const unpublishDocument = createServerFn({ method: 'POST' })
       requestContext: await getAdminRequestContext(),
     }
 
-    const result = await unpublishDocumentService(ctx, { documentId: id })
+    const result = await unpublishDocumentService(ctx, {
+      documentId: id,
+      expectedRevision: input.expectedRevision,
+    })
 
     if (result.archivedCount === 0) {
       throw ERR_NOT_FOUND({
         message: 'No published version found for this document',
-        details: { documentId: id, collectionPath: path },
+        details: { documentId: id, expectedRevision: input.expectedRevision, collectionPath: path },
       }).log(logger)
     }
 
-    return { status: 'ok' as const, archivedCount: result.archivedCount }
+    return {
+      status: 'ok' as const,
+      documentId: result.documentId,
+      revision: result.revision,
+      archivedCount: result.archivedCount,
+    }
   })

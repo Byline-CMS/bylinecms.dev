@@ -1,3 +1,4 @@
+import { parseDocumentRevision } from '@byline/core'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -179,6 +180,11 @@ export function createCollectionListRoute(path: string) {
               }) => {
                 await placeTreeNode({
                   data: {
+                    expectedRevision: parseDocumentRevision(
+                      (data as { rows: CollectionTreeRow[] }).rows.find(
+                        (row) => row.id === documentId
+                      )?.revision
+                    ),
                     collection,
                     documentId,
                     parentDocumentId,
@@ -201,6 +207,11 @@ export function createCollectionListRoute(path: string) {
               onReorder={async ({ documentId, beforeDocumentId, afterDocumentId }) => {
                 await reorderCollectionDocument({
                   data: {
+                    expectedRevision: parseDocumentRevision(
+                      data.docs.find(
+                        (row: { id: string; revision?: number }) => row.id === documentId
+                      )?.revision
+                    ),
                     collection,
                     documentId,
                     beforeDocumentId,

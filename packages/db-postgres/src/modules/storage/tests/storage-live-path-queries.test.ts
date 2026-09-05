@@ -164,7 +164,10 @@ describe('live-path query resolution (PostgreSQL)', () => {
     await testDb.commandBuilders.documents.softDeleteDocument({ document_id: documentId })
 
     await expect(
-      testDb.commandBuilders.documents.restoreSoftDeletedDocument({ document_id: documentId })
+      testDb.commandBuilders.documents.restoreSoftDeletedDocument({
+        expectedRevision: 1,
+        document_id: documentId,
+      })
     ).resolves.toBe(2)
 
     const restoredPaths = await testDb.db
@@ -210,7 +213,10 @@ describe('live-path query resolution (PostgreSQL)', () => {
       .where(eq(documentPaths.document_id, documentId))
 
     await expect(
-      testDb.commandBuilders.documents.restoreSoftDeletedDocument({ document_id: documentId })
+      testDb.commandBuilders.documents.restoreSoftDeletedDocument({
+        expectedRevision: 2,
+        document_id: documentId,
+      })
     ).resolves.toBe(0)
 
     const legacyPaths = await testDb.db
@@ -229,6 +235,7 @@ describe('live-path query resolution (PostgreSQL)', () => {
     const documentId = crypto.randomUUID()
     const path = `versionless-${timestamp}`
     await testDb.db.insert(documents).values({
+      revision: 1,
       id: documentId,
       collection_id: collectionId,
       source_locale: 'en',

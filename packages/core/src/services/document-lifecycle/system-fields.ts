@@ -8,14 +8,17 @@
 
 import { resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
-import { ERR_AUDIT_UNSUPPORTED, ERR_NOT_FOUND } from '../../lib/errors.js'
-import { withLogContext } from '../../lib/logger.js'
 import { AUDIT_ACTIONS, auditActor, requireAuditCapability, sameLocaleSet } from './audit.js'
+import { runCommittedDocumentHook } from './committed-hook.js'
 import { invokeHook, resolvePathForUpdate, rethrowPathConflict } from './internals.js'
+import { suspendPublishScheduleForEdit } from './publish-schedule-consistency.js'
+import { commitGuardedDocumentMutation } from './revision-guard.js'
+import type { LockedDocumentRevision } from '../../@types/index.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface UpdateDocumentSystemFieldsResult {
   documentId: string
+  revision: number
   /** The path actually written, or `undefined` when no path write occurred. */
   path?: string
   /** Whether either system field actually changed. */
@@ -69,6 +72,7 @@ export async function updateDocumentSystemFields(
   ctx: DocumentLifecycleContext,
   params: {
     documentId: string
+    expectedRevision: number
     locale?: string
     /**
      * Explicit path override from the path widget. `null` / empty / omitted
@@ -87,126 +91,135 @@ export async function updateDocumentSystemFields(
     reconcile?: boolean
   }
 ): Promise<UpdateDocumentSystemFieldsResult> {
-  return withLogContext(
-    { domain: 'services', module: 'lifecycle', function: 'updateDocumentSystemFields' },
-    async () => {
-      const { db, definition, collectionId, collectionPath, defaultLocale } = ctx
-      assertActorCanPerform(ctx.requestContext, definition, 'update')
+  params = { ...params, availableLocales: params.availableLocales?.slice() }
+  assertActorCanPerform(ctx.requestContext, ctx.definition, 'update')
+  const committed = await commitGuardedDocumentMutation(ctx, params, async (locked) => {
+    const value = await writeSystemFieldsInTransaction(ctx, params, locked)
+    const changed = value.pathChanged || value.availableLocalesChanged
+    if (changed)
+      await suspendPublishScheduleForEdit(
+        ctx,
+        requireAuditCapability(ctx.db),
+        params.documentId,
+        'document_metadata_changed'
+      )
+    return { value: { ...value, documentVersionId: locked.currentVersionId ?? '' }, changed }
+  })
+  return finishSystemFieldMutation(ctx, params, committed.value, committed.revision)
+}
 
-      const requestLocale = params.locale ?? defaultLocale
-      const explicitPath =
-        typeof params.path === 'string' && params.path.length > 0 ? params.path : null
-      const requested = {
-        path: explicitPath !== null,
-        availableLocales: params.availableLocales !== undefined,
-      }
-      const requestedLocales =
-        params.availableLocales === undefined ? undefined : [...new Set(params.availableLocales)]
-      const audit = requireAuditCapability(db)
-      const getDocumentSystemFieldsForUpdate = db.queries.documents.getDocumentSystemFieldsForUpdate
-      if (typeof getDocumentSystemFieldsForUpdate !== 'function') {
-        throw ERR_AUDIT_UNSUPPORTED({
-          message: 'audited system-field writes require a transaction-scoped lock/read capability',
-        })
-      }
-      const lockSystemFields = getDocumentSystemFieldsForUpdate.bind(db.queries.documents)
-      const actor = auditActor(ctx)
+export type SystemFieldMutationParams = Parameters<typeof updateDocumentSystemFields>[1]
 
-      // The logical document row is the mutex for both document-grain fields.
-      // Reading after that lock prevents concurrent writers from auditing a
-      // stale before value or omitting an intermediate old path from the event.
-      const outcome = await audit.withTransaction(async () => {
-        const snapshot = await lockSystemFields({
-          collection_id: collectionId,
-          document_id: params.documentId,
-        })
-        if (snapshot == null) {
-          throw ERR_NOT_FOUND({
-            message: 'document not found',
-            details: { documentId: params.documentId },
-          }).log(ctx.logger)
-        }
-
-        const sourceLocale = snapshot.source_locale ?? defaultLocale
-        const currentPath = snapshot.path ?? undefined
-        const currentLocales = snapshot.availableLocales
-        const nextLocales = requestedLocales ?? currentLocales
-        const pathForCommand = resolvePathForUpdate({
-          explicitPath,
-          currentPath,
-          requestLocale,
-          sourceLocale,
-          documentId: params.documentId,
-          logger: ctx.logger,
-        })
-        const pathChanged = pathForCommand !== undefined && pathForCommand !== currentPath
-        const availableLocalesChanged =
-          requestedLocales !== undefined && !sameLocaleSet(currentLocales, nextLocales)
-
-        if (pathChanged) {
-          await db.commands.documents
-            .updateDocumentPath({
-              documentId: params.documentId,
-              collectionId,
-              locale: sourceLocale,
-              path: pathForCommand,
-            })
-            .catch((err: unknown) =>
-              rethrowPathConflict(db, err, pathForCommand, sourceLocale, 'update')
-            )
-          await audit.append({
-            documentId: params.documentId,
-            collectionId,
-            actorId: actor.actorId,
-            actorRealm: actor.actorRealm,
-            action: AUDIT_ACTIONS.pathChanged,
-            field: 'path',
-            before: currentPath ?? null,
-            after: pathForCommand,
-          })
-        }
-
-        if (availableLocalesChanged) {
-          await db.commands.documents.setDocumentAvailableLocales({
-            documentId: params.documentId,
-            collectionId,
-            availableLocales: nextLocales,
-          })
-          await audit.append({
-            documentId: params.documentId,
-            collectionId,
-            actorId: actor.actorId,
-            actorRealm: actor.actorRealm,
-            action: AUDIT_ACTIONS.localesChanged,
-            field: 'availableLocales',
-            before: currentLocales,
-            after: nextLocales,
-          })
-        }
-
-        return {
-          pathForCommand,
-          pathChanged,
-          availableLocalesChanged,
-          previousPath: currentPath,
-          currentPath: pathChanged ? pathForCommand : currentPath,
-          previousAvailableLocales: [...currentLocales],
-          currentAvailableLocales: [...nextLocales],
-        }
+/** Internal storage phase; caller owns the document guard and revision advancement. */
+export async function writeSystemFieldsInTransaction(
+  ctx: DocumentLifecycleContext,
+  params: SystemFieldMutationParams,
+  locked: LockedDocumentRevision
+) {
+  const { db, collectionId, defaultLocale } = ctx
+  const audit = requireAuditCapability(db)
+  const actor = auditActor(ctx)
+  const requestLocale = params.locale ?? defaultLocale
+  const explicitPath =
+    typeof params.path === 'string' && params.path.length > 0 ? params.path : null
+  const requested = {
+    path: explicitPath !== null,
+    availableLocales: params.availableLocales !== undefined,
+  }
+  const requestedLocales =
+    params.availableLocales === undefined ? undefined : [...new Set(params.availableLocales)]
+  const sourceLocale = locked.sourceLocale
+  const currentPath = locked.path ?? undefined
+  const currentLocales = [...locked.availableLocales]
+  const nextLocales = requestedLocales ?? currentLocales
+  const pathForCommand = resolvePathForUpdate({
+    explicitPath,
+    currentPath,
+    requestLocale,
+    sourceLocale,
+    documentId: params.documentId,
+    logger: ctx.logger,
+  })
+  const pathChanged = pathForCommand !== undefined && pathForCommand !== currentPath
+  const availableLocalesChanged =
+    requestedLocales !== undefined && !sameLocaleSet(currentLocales, nextLocales)
+  if (pathChanged) {
+    await db.commands.documents
+      .updateDocumentPath({
+        documentId: params.documentId,
+        collectionId,
+        locale: sourceLocale,
+        path: pathForCommand,
       })
+      .catch((error: unknown) =>
+        rethrowPathConflict(db, error, pathForCommand, sourceLocale, 'update')
+      )
+    await audit.append({
+      documentId: params.documentId,
+      collectionId,
+      actorId: actor.actorId,
+      actorRealm: actor.actorRealm,
+      action: AUDIT_ACTIONS.pathChanged,
+      field: 'path',
+      before: currentPath ?? null,
+      after: pathForCommand,
+    })
+  }
+  if (availableLocalesChanged) {
+    await db.commands.documents.setDocumentAvailableLocales({
+      documentId: params.documentId,
+      collectionId,
+      availableLocales: nextLocales,
+    })
+    await audit.append({
+      documentId: params.documentId,
+      collectionId,
+      actorId: actor.actorId,
+      actorRealm: actor.actorRealm,
+      action: AUDIT_ACTIONS.localesChanged,
+      field: 'availableLocales',
+      before: currentLocales,
+      after: nextLocales,
+    })
+  }
+  return {
+    requested,
+    pathForCommand,
+    pathChanged,
+    availableLocalesChanged,
+    previousPath: currentPath,
+    currentPath: pathChanged ? pathForCommand : currentPath,
+    previousAvailableLocales: currentLocales,
+    currentAvailableLocales: nextLocales,
+  }
+}
 
-      const changed = outcome.pathChanged || outcome.availableLocalesChanged
-      const reconciliation = !changed && params.reconcile === true
-      if (changed || reconciliation) {
-        const hooks = await resolveHooks(definition)
+export async function finishSystemFieldMutation(
+  ctx: DocumentLifecycleContext,
+  params: SystemFieldMutationParams,
+  outcome: Awaited<ReturnType<typeof writeSystemFieldsInTransaction>> & {
+    documentVersionId: string
+  },
+  revision: number
+): Promise<UpdateDocumentSystemFieldsResult> {
+  const changed = outcome.pathChanged || outcome.availableLocalesChanged
+  const reconciliation = !changed && params.reconcile === true
+  if (changed || reconciliation) {
+    await runCommittedDocumentHook(
+      ctx,
+      {
+        phase: 'afterSystemFieldsChange',
+        documentId: params.documentId,
+        documentVersionId: outcome.documentVersionId,
+        revision,
+      },
+      async () => {
+        const hooks = await resolveHooks(ctx.definition)
         await invokeHook(hooks?.afterSystemFieldsChange, {
           documentId: params.documentId,
-          collectionPath,
-          requested,
-          changed: {
-            path: outcome.pathChanged,
-            availableLocales: outcome.availableLocalesChanged,
-          },
+          collectionPath: ctx.collectionPath,
+          requested: outcome.requested,
+          changed: { path: outcome.pathChanged, availableLocales: outcome.availableLocalesChanged },
           reconciliation,
           previousPath: outcome.previousPath,
           currentPath: outcome.currentPath,
@@ -214,16 +227,16 @@ export async function updateDocumentSystemFields(
           currentAvailableLocales: outcome.currentAvailableLocales,
         })
       }
-
-      return {
-        documentId: params.documentId,
-        path: outcome.pathChanged ? outcome.pathForCommand : undefined,
-        changed,
-        reconciliation,
-        pathChanged: outcome.pathChanged,
-        availableLocalesChanged: outcome.availableLocalesChanged,
-        availableLocalesWritten: outcome.availableLocalesChanged,
-      }
-    }
-  )
+    )
+  }
+  return {
+    documentId: params.documentId,
+    revision,
+    path: outcome.pathChanged ? outcome.pathForCommand : undefined,
+    changed,
+    reconciliation,
+    pathChanged: outcome.pathChanged,
+    availableLocalesChanged: outcome.availableLocalesChanged,
+    availableLocalesWritten: outcome.availableLocalesChanged,
+  }
 }

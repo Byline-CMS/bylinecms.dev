@@ -20,6 +20,7 @@
  *   }).log(logger)
  */
 
+import type { DocumentStaleDetails } from '../@types/document-revision.js'
 import type { BylineLogger, LogLevel, LogLevelWithSilent } from './logger.js'
 
 // ---------------------------------------------------------------------------
@@ -159,12 +160,14 @@ export const ErrorCodes = {
   INVALID_TRANSITION: 'ERR_INVALID_TRANSITION',
   PATCH_FAILED: 'ERR_PATCH_FAILED',
   DATABASE: 'ERR_DATABASE',
+  LOCK_CONFLICT: 'ERR_LOCK_CONFLICT',
   STORAGE: 'ERR_STORAGE',
   READ_BUDGET_EXCEEDED: 'ERR_READ_BUDGET_EXCEEDED',
   READ_RECURSION: 'ERR_READ_RECURSION',
   PATH_CONFLICT: 'ERR_PATH_CONFLICT',
   AUDIT_UNSUPPORTED: 'ERR_AUDIT_UNSUPPORTED',
   DOCUMENT_HOOK_COMMITTED: 'ERR_DOCUMENT_HOOK_COMMITTED',
+  DOCUMENT_STALE: 'ERR_DOCUMENT_STALE',
   TREE_HOOK_COMMITTED: 'ERR_TREE_HOOK_COMMITTED',
 } as const
 
@@ -184,10 +187,46 @@ export const DOCUMENT_HOOK_COMMITTED_MARKER = '[ERR_DOCUMENT_HOOK_COMMITTED]'
 export const ERR_UNHANDLED = createErrorType(ErrorCodes.UNHANDLED)
 export const ERR_NOT_FOUND = createErrorType(ErrorCodes.NOT_FOUND, 'warn')
 export const ERR_CONFLICT = createErrorType(ErrorCodes.CONFLICT, 'warn')
+/** Editorial stale state has its own code; other conflicts must not trigger reload. */
+export const ERR_DOCUMENT_STALE = (
+  options: Omit<BylineErrorOptions, 'details'> & { details: DocumentStaleDetails }
+): BylineError => new BylineError(ErrorCodes.DOCUMENT_STALE, { logLevel: 'warn', ...options })
 export const ERR_VALIDATION = createErrorType(ErrorCodes.VALIDATION, 'warn')
 export const ERR_INVALID_TRANSITION = createErrorType(ErrorCodes.INVALID_TRANSITION, 'warn')
 export const ERR_PATCH_FAILED = createErrorType(ErrorCodes.PATCH_FAILED)
 export const ERR_DATABASE = createErrorType(ErrorCodes.DATABASE)
+/** Only emitted after the owned transaction has confirmed complete rollback. */
+const LOCK_CONFLICT_MARKER = '[ERR_LOCK_CONFLICT:ROLLED_BACK]'
+export const ERR_LOCK_CONFLICT = (options: BylineErrorOptions): BylineError =>
+  new BylineError(ErrorCodes.LOCK_CONFLICT, {
+    ...options,
+    logLevel: 'warn',
+    message: `${LOCK_CONFLICT_MARKER} This change could not be saved because another operation was using the document. Reload before trying again.`,
+    details: { reason: 'lock_conflict', rolledBack: true, retryable: true },
+  })
+
+/** Safe, small contract for live errors, reports, and message-only Error transports. */
+export function getLockConflictDetails(error: unknown): {
+  reason: 'lock_conflict'
+  rolledBack: true
+  retryable: true
+} | null {
+  try {
+    if (typeof error !== 'object' || error === null) return null
+    const details = Reflect.get(error, 'details')
+    const typed =
+      Reflect.get(error, 'code') === ErrorCodes.LOCK_CONFLICT &&
+      details?.reason === 'lock_conflict' &&
+      details?.rolledBack === true &&
+      details?.retryable === true
+    const message = Reflect.get(error, 'message')
+    if (!typed && !(typeof message === 'string' && message.startsWith(LOCK_CONFLICT_MARKER)))
+      return null
+    return { reason: 'lock_conflict', rolledBack: true, retryable: true }
+  } catch {
+    return null
+  }
+}
 export const ERR_STORAGE = createErrorType(ErrorCodes.STORAGE)
 export const ERR_READ_BUDGET_EXCEEDED = createErrorType(ErrorCodes.READ_BUDGET_EXCEEDED)
 export const ERR_READ_RECURSION = createErrorType(ErrorCodes.READ_RECURSION)
@@ -244,6 +283,7 @@ export const ERR_TREE_HOOK_COMMITTED = createErrorType(ErrorCodes.TREE_HOOK_COMM
 export const DbErrorCodes = {
   UNIQUE_VIOLATION: 'DB_UNIQUE_VIOLATION',
   FOREIGN_KEY_VIOLATION: 'DB_FOREIGN_KEY_VIOLATION',
+  LOCK_CONFLICT: 'DB_LOCK_CONFLICT',
   UNKNOWN: 'DB_UNKNOWN',
 } as const
 

@@ -66,6 +66,7 @@ export type SerializedDocumentPublishSchedule = Omit<
 }
 
 export interface ScheduledPublicationListItem extends SerializedDocumentPublishSchedule {
+  revision: number
   collectionPath: string
   collectionLabel: string
   documentPath: string | null
@@ -145,8 +146,13 @@ export const getScheduledPublicationRuntime = createServerFn({ method: 'GET' }).
 
 export const scheduleCollectionDocumentPublish = createServerFn({ method: 'POST' })
   .validator(
-    (input: { collection: string; id: string; publishAt: string; expectedVersionId: string }) =>
-      input
+    (input: {
+      expectedRevision: number
+      collection: string
+      id: string
+      publishAt: string
+      expectedVersionId: string
+    }) => input
   )
   .handler(async ({ data }) => {
     assertFeatureEnabled()
@@ -154,31 +160,46 @@ export const scheduleCollectionDocumentPublish = createServerFn({ method: 'POST'
       .collection(data.collection)
       .schedulePublish(data.id, {
         publishAt: data.publishAt,
+        expectedRevision: data.expectedRevision,
         expectedVersionId: data.expectedVersionId,
       })
-    return serializeSchedule(schedule)
+    return { ...serializeSchedule(schedule), revision: schedule.revision }
   })
 
 export const confirmCollectionDocumentScheduledPublish = createServerFn({ method: 'POST' })
-  .validator((input: { collection: string; id: string; expectedVersionId: string }) => input)
+  .validator(
+    (input: {
+      expectedRevision: number
+      collection: string
+      id: string
+      expectedVersionId: string
+    }) => input
+  )
   .handler(async ({ data }) => {
     assertFeatureEnabled()
     const schedule = await getAdminBylineClient()
       .collection(data.collection)
-      .confirmScheduledPublish(data.id, { expectedVersionId: data.expectedVersionId })
-    return serializeSchedule(schedule)
+      .confirmScheduledPublish(data.id, {
+        expectedRevision: data.expectedRevision,
+        expectedVersionId: data.expectedVersionId,
+      })
+    return { ...serializeSchedule(schedule), revision: schedule.revision }
   })
 
 export const cancelCollectionDocumentScheduledPublish = createServerFn({ method: 'POST' })
-  .validator((input: { collection: string; id: string }) => input)
+  .validator((input: { expectedRevision: number; collection: string; id: string }) => input)
   .handler(async ({ data }) => {
     assertFeatureEnabled()
     const schedule = await getAdminBylineClient()
       .collection(data.collection)
-      .cancelScheduledPublish(data.id)
-    return schedule == null
-      ? { status: 'not_found' as const }
-      : { status: 'cancelled' as const, schedule: serializeSchedule(schedule) }
+      .cancelScheduledPublish(data.id, { expectedRevision: data.expectedRevision })
+    return schedule.schedule == null
+      ? { status: 'not_found' as const, revision: schedule.revision }
+      : {
+          status: 'cancelled' as const,
+          schedule: serializeSchedule(schedule.schedule),
+          revision: schedule.revision,
+        }
   })
 
 export const listScheduledPublications = createServerFn({ method: 'GET' })
@@ -241,10 +262,6 @@ export const listScheduledPublications = createServerFn({ method: 'GET' })
     const schedules = await Promise.all(
       result.schedules.map(async (schedule): Promise<ScheduledPublicationListItem> => {
         const definition = collections.get(schedule.collectionId)
-        const documentPath = await core.db.queries.documents.getCurrentPath({
-          collection_id: schedule.collectionId,
-          document_id: schedule.documentId,
-        })
         return {
           ...serializeSchedule(schedule),
           collectionPath: definition?.path ?? schedule.collectionId,
@@ -254,7 +271,8 @@ export const listScheduledPublications = createServerFn({ method: 'GET' })
               : isSingleton(definition)
                 ? definition.label
                 : definition.labels.plural,
-          documentPath,
+          documentPath: schedule.documentPath,
+          revision: schedule.revision,
           lastAuthorizedByName:
             schedule.lastAuthorizedBy == null
               ? null

@@ -135,7 +135,7 @@ export function singletonMappingSuite(hooks: ConformanceHooks): void {
       await expect(adapter.commands.singletons.lockSlot(collectionIds.empty)).rejects.toMatchObject(
         {
           code: 'ERR_DATABASE',
-          message: 'singleton slot locks require an active transaction',
+          message: 'collection registration locks require an active transaction',
           details: { collectionId: collectionIds.empty },
         }
       )

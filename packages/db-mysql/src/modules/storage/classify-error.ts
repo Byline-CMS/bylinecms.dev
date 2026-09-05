@@ -54,6 +54,9 @@ export function classifyError(err: unknown): DbErrorClassification {
         typeof e.message === 'string' ? e.message.match(/CONSTRAINT [`']([^`']+)[`']/) : null
       return { code: DbErrorCodes.FOREIGN_KEY_VIOLATION, constraint: match?.[1] }
     }
+    if (e.errno === 1213 || e.errno === 1205) {
+      return { code: DbErrorCodes.LOCK_CONFLICT }
+    }
     e = e.cause as MySqlLikeError | undefined
   }
   return { code: DbErrorCodes.UNKNOWN }

@@ -3,6 +3,7 @@ import type { CollectionDefinition } from '@byline/core'
 
 import type { DbErrorClassification } from '../lib/errors.js'
 import type { ISchedulerStore } from '../scheduler/types.js'
+import type { DocumentRevisionStore } from './document-revision.js'
 
 /**
  * Read mode for document queries.
@@ -227,7 +228,19 @@ export interface FieldSort {
   direction: 'asc' | 'desc'
 }
 
+/** Query-only executor facade, valid only during its snapshot callback. */
+export interface ReadSnapshotQueries {
+  collections: ICollectionQueries
+  documents: Omit<IDocumentQueries, 'getDocumentSystemFieldsForUpdate'>
+  audit: IAuditQueries
+  singletons: ISingletonQueries
+}
+
 export interface IDbAdapter {
+  /** Dedicated read-only repeatable-read transaction; never joins ambient writes. */
+  withReadSnapshot<T>(fn: (queries: ReadSnapshotQueries) => Promise<T>): Promise<T>
+  /** Required revision schema and transaction-scoped guard capability. */
+  revisions: DocumentRevisionStore
   commands: {
     collections: ICollectionCommands
     documents: IDocumentCommands
@@ -472,6 +485,11 @@ export interface ICounterCommands {
 }
 
 export interface ICollectionCommands {
+  /** Acquire before document locks, inside an owned transaction. Shared locks
+   * admit independent writers; exclusive locks coordinate deletion/maintenance.
+   * Select the mode before locking documents; never upgrade a shared lock.
+   */
+  lockCollectionRegistration(collectionId: string, mode: 'shared' | 'exclusive'): Promise<void>
   /**
    * Insert a new collection row. `opts.version` and `opts.schemaHash` are
    * used by the startup bootstrap to anchor initial values; omitted by
@@ -581,7 +599,10 @@ export interface TreeDeleteMutationResult {
 export type DocumentPublishScheduleState = 'armed' | 'needs_reconfirm'
 
 /** Why an armed schedule stopped being executable. */
-type DocumentPublishScheduleSuspendedReason = 'content_edited'
+type DocumentPublishScheduleSuspendedReason =
+  | 'content_edited'
+  | 'document_metadata_changed'
+  | 'upgrade_invalidated'
 
 /**
  * Adapter-neutral representation of `byline_document_publish_schedules`.
@@ -591,6 +612,8 @@ type DocumentPublishScheduleSuspendedReason = 'content_edited'
  * know whether the backing engine uses `timestamptz` or `datetime(6)`.
  */
 export interface DocumentPublishSchedule {
+  /** Revision authorized by the last arm/reconfirm; null for legacy suspended rows. */
+  authorizedRevision: number | null
   documentId: string
   collectionId: string
   targetVersionId: string
@@ -663,6 +686,8 @@ export interface DocumentPublishSchedulePage {
  * operations: core owns abilities, workflow validation, hooks, and audit.
  */
 export interface IDocumentPublishScheduleCommands {
+  /** Lock existing schedules in stable identity order after every affected document lock. */
+  lockDocuments(documentIds: readonly string[]): Promise<void>
   /**
    * Create or reschedule one document's intent.
    *
@@ -685,6 +710,7 @@ export interface IDocumentPublishScheduleCommands {
     documentId: string
     collectionId: string
     expectedVersionId: string
+    authorizedRevision: number
     publishAt: Date
     actorId: string | null
   }): Promise<ScheduleDocumentPublishResult>
@@ -700,6 +726,7 @@ export interface IDocumentPublishScheduleCommands {
     documentId: string
     collectionId: string
     expectedVersionId: string
+    authorizedRevision: number
     actorId: string | null
   }): Promise<ConfirmDocumentPublishScheduleResult>
 
@@ -723,6 +750,7 @@ export interface IDocumentPublishScheduleCommands {
   suspendForContentEdit(params: {
     documentId: string
     collectionId: string
+    reason?: 'content_edited' | 'document_metadata_changed'
   }): Promise<SuspendDocumentPublishScheduleResult>
 
   /**
@@ -763,6 +791,7 @@ export interface IDocumentPublishScheduleCommands {
    * stale token without mutating the newer claimant's row.
    */
   suspendClaimForContentEdit(params: {
+    reason?: 'content_edited' | 'document_metadata_changed'
     documentId: string
     executionToken: string
   }): Promise<boolean>
@@ -932,7 +961,10 @@ export interface IDocumentCommands {
    *
    * Returns the number of version rows restored.
    */
-  restoreSoftDeletedDocument(params: { document_id: string }): Promise<number>
+  restoreSoftDeletedDocument(params: {
+    document_id: string
+    expectedRevision: number
+  }): Promise<number>
 
   /**
    * Remove one content locale's data from a document by writing a new
@@ -1031,6 +1063,11 @@ export interface ICollectionQueries {
 }
 
 export interface IDocumentQueries {
+  /** Internal observation; expose only alongside source data from the same snapshot. */
+  getDocumentRevision(params: {
+    collection_id: string
+    document_id: string
+  }): Promise<number | null>
   /** Scheduled-publication reads; callers resolve collection abilities above storage. */
   publishSchedules: IDocumentPublishScheduleQueries
 

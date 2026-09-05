@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { observedRevision } from '../fixtures/observed-revision.js'
 /**
  * Exercises the document-tree invalidation contract: the `afterTreeChange`
  * collection hook fires once per structural write with the affected set, and a
@@ -68,7 +69,7 @@ async function makeDoc(title: string): Promise<string> {
   const handle = tree()
   const slug = `${title.toLowerCase()}-${suffix}-${seq++}`
   const created = await handle.create({ title }, { path: slug })
-  await handle.changeStatus(created.documentId, 'published')
+  await handle.changeStatus(created.documentId, 'published', { expectedRevision: 1 })
   return created.documentId
 }
 
@@ -78,13 +79,25 @@ describe('document-tree invalidation contract', () => {
     const a = await makeDoc('EA')
     const b = await makeDoc('EB')
     const c = await makeDoc('EC')
-    await handle.placeTreeNode(a, { parentDocumentId: null })
-    await handle.placeTreeNode(b, { parentDocumentId: a })
-    await handle.placeTreeNode(c, { parentDocumentId: null })
+    await handle.placeTreeNode(a, {
+      expectedRevision: await observedRevision(handle, a),
+      parentDocumentId: null,
+    })
+    await handle.placeTreeNode(b, {
+      expectedRevision: await observedRevision(handle, b),
+      parentDocumentId: a,
+    })
+    await handle.placeTreeNode(c, {
+      expectedRevision: await observedRevision(handle, c),
+      parentDocumentId: null,
+    })
 
     captured.length = 0
     // Re-parent B from A to C.
-    await handle.placeTreeNode(b, { parentDocumentId: c })
+    await handle.placeTreeNode(b, {
+      expectedRevision: await observedRevision(handle, b),
+      parentDocumentId: c,
+    })
 
     expect(captured).toHaveLength(1)
     const evt = captured[0]!
@@ -101,14 +114,29 @@ describe('document-tree invalidation contract', () => {
     const mid = await makeDoc('FM')
     const leaf = await makeDoc('FL')
     const dest = await makeDoc('FD')
-    await handle.placeTreeNode(root, { parentDocumentId: null })
-    await handle.placeTreeNode(mid, { parentDocumentId: root })
-    await handle.placeTreeNode(leaf, { parentDocumentId: mid })
-    await handle.placeTreeNode(dest, { parentDocumentId: null })
+    await handle.placeTreeNode(root, {
+      expectedRevision: await observedRevision(handle, root),
+      parentDocumentId: null,
+    })
+    await handle.placeTreeNode(mid, {
+      expectedRevision: await observedRevision(handle, mid),
+      parentDocumentId: root,
+    })
+    await handle.placeTreeNode(leaf, {
+      expectedRevision: await observedRevision(handle, leaf),
+      parentDocumentId: mid,
+    })
+    await handle.placeTreeNode(dest, {
+      expectedRevision: await observedRevision(handle, dest),
+      parentDocumentId: null,
+    })
 
     captured.length = 0
     // Move `mid` (and its child `leaf`) under `dest`.
-    await handle.placeTreeNode(mid, { parentDocumentId: dest })
+    await handle.placeTreeNode(mid, {
+      expectedRevision: await observedRevision(handle, mid),
+      parentDocumentId: dest,
+    })
 
     const affected = new Set(captured[0]?.affectedDocumentIds)
     expect(affected).toContain(mid)
@@ -121,11 +149,17 @@ describe('document-tree invalidation contract', () => {
     const handle = tree()
     const root = await makeDoc('GR')
     const kid = await makeDoc('GK')
-    await handle.placeTreeNode(root, { parentDocumentId: null })
-    await handle.placeTreeNode(kid, { parentDocumentId: root })
+    await handle.placeTreeNode(root, {
+      expectedRevision: await observedRevision(handle, root),
+      parentDocumentId: null,
+    })
+    await handle.placeTreeNode(kid, {
+      expectedRevision: await observedRevision(handle, kid),
+      parentDocumentId: root,
+    })
 
     captured.length = 0
-    await handle.removeFromTree(kid)
+    await handle.removeFromTree(kid, { expectedRevision: await observedRevision(handle, kid) })
 
     expect(captured).toHaveLength(1)
     expect(captured[0]?.change).toBe('remove')
@@ -138,15 +172,24 @@ describe('document-tree invalidation contract', () => {
     const parent = await makeDoc('HP')
     const c1 = await makeDoc('HC1')
     const c2 = await makeDoc('HC2')
-    await handle.placeTreeNode(parent, { parentDocumentId: null })
-    await handle.placeTreeNode(c1, { parentDocumentId: parent })
-    await handle.placeTreeNode(c2, { parentDocumentId: parent })
+    await handle.placeTreeNode(parent, {
+      expectedRevision: await observedRevision(handle, parent),
+      parentDocumentId: null,
+    })
+    await handle.placeTreeNode(c1, {
+      expectedRevision: await observedRevision(handle, c1),
+      parentDocumentId: parent,
+    })
+    await handle.placeTreeNode(c2, {
+      expectedRevision: await observedRevision(handle, c2),
+      parentDocumentId: parent,
+    })
 
     // Before delete, the children's breadcrumb is [parent].
     expect((await handle.getAncestors(c1)).map((d) => d.id)).toEqual([parent])
 
     captured.length = 0
-    await handle.delete(parent)
+    await handle.delete(parent, { expectedRevision: await observedRevision(handle, parent) })
 
     // Children promoted to root — no ancestors now.
     expect(await handle.getAncestors(c1)).toEqual([])

@@ -19,13 +19,13 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 
+import { DbErrorCodes, ERR_LOCK_CONFLICT } from '@byline/core'
 import type { MySql2Database } from 'drizzle-orm/mysql2'
 
+import { classifyError } from '../modules/storage/classify-error.js'
 import type * as schema from '../database/schema/index.js'
 
 export type DBExecutor = MySql2Database<typeof schema>
-
-const transactionALS = new AsyncLocalStorage<DBExecutor>()
 
 export interface DBManager {
   /**
@@ -35,9 +35,15 @@ export interface DBManager {
   get(): DBExecutor
   /** Whether the current async context owns an ambient transaction. */
   isInTransaction(): boolean
+  getTransactionScope(): object | undefined
+  getTransactionToken(): object | undefined
+  isTransactionTokenActive(token: object): boolean
+  runInTransaction<T>(executor: DBExecutor, fn: () => Promise<T>): Promise<T>
 }
 
 export class DBManagerImpl implements DBManager {
+  private readonly transactionALS = new AsyncLocalStorage<{ executor: DBExecutor; scope: object }>()
+  private readonly activeTransactions = new WeakSet<object>()
   private readonly dbPool: DBExecutor
 
   constructor(deps: { dbPool: DBExecutor }) {
@@ -45,11 +51,36 @@ export class DBManagerImpl implements DBManager {
   }
 
   get(): DBExecutor {
-    return transactionALS.getStore() ?? this.dbPool
+    return this.transactionALS.getStore()?.executor ?? this.dbPool
   }
 
   isInTransaction(): boolean {
-    return transactionALS.getStore() != null
+    return this.getTransactionToken() != null
+  }
+
+  getTransactionScope(): object | undefined {
+    return this.getTransactionToken() != null ? this.transactionALS.getStore()?.scope : undefined
+  }
+
+  getTransactionToken(): object | undefined {
+    const frame = this.transactionALS.getStore()
+    return frame != null && this.activeTransactions.has(frame) ? frame : undefined
+  }
+
+  isTransactionTokenActive(token: object): boolean {
+    return this.activeTransactions.has(token)
+  }
+
+  async runInTransaction<T>(executor: DBExecutor, fn: () => Promise<T>): Promise<T> {
+    // Share lock ordering with savepoints. Observations issued inside a savepoint
+    // expire when it ends: rollback can release the row locks it acquired.
+    const frame = { executor, scope: this.getTransactionScope() ?? {} }
+    this.activeTransactions.add(frame)
+    try {
+      return await this.transactionALS.run(frame, fn)
+    } finally {
+      this.activeTransactions.delete(frame)
+    }
   }
 }
 
@@ -73,21 +104,54 @@ export class TXManagerImpl implements TXManager {
     this.db = deps.db
   }
 
-  withTransaction<T>(fn: () => Promise<T>): Promise<T> {
-    return this.db.get().transaction(
-      (tx) =>
-        // `tx` is Drizzle's MySqlTransaction; it carries the full
-        // query-builder surface every command uses. The cast bridges the
-        // structural gap to MySql2Database the same way the pg adapter
-        // bridges to NodePgDatabase. See docs/03-architecture/03-transactions.md.
-        transactionALS.run(tx as unknown as DBExecutor, fn),
-      {
-        // Spec decision: pin the isolation level to match the pg adapter's
-        // assumptions (Postgres's default is READ COMMITTED; MySQL/InnoDB
-        // defaults to REPEATABLE READ). Canonical adapters must behave
-        // identically for the shared db-conformance suite.
-        isolationLevel: 'read committed',
+  async withTransaction<T>(fn: () => Promise<T>): Promise<T> {
+    const ownsTransaction = !this.db.isInTransaction()
+    let callbackError: unknown
+    let callbackFailed = false
+    const guarded = async () => {
+      try {
+        return await fn()
+      } catch (error) {
+        callbackFailed = true
+        callbackError = error
+        throw error
       }
-    )
+    }
+    try {
+      return await this.db.get().transaction(
+        (tx) =>
+          // `tx` is Drizzle's MySqlTransaction; it carries the full
+          // query-builder surface every command uses. The cast bridges the
+          // structural gap to MySql2Database the same way the pg adapter
+          // bridges to NodePgDatabase. See docs/03-architecture/03-transactions.md.
+          this.db.runInTransaction(tx as unknown as DBExecutor, guarded),
+        {
+          // Spec decision: pin the isolation level to match the pg adapter's
+          // assumptions (Postgres's default is READ COMMITTED; MySQL/InnoDB
+          // defaults to REPEATABLE READ). Canonical adapters must behave
+          // identically for the shared db-conformance suite.
+          isolationLevel: 'read committed',
+        }
+      )
+    } catch (error) {
+      // Drizzle rethrows the callback error only after ROLLBACK succeeds. A
+      // rollback failure replaces it; a COMMIT failure has no callback error.
+      // Never infer safe retry from either of those uncertain outcomes, nor
+      // from a savepoint rollback inside an externally owned transaction.
+      if (
+        ownsTransaction &&
+        callbackFailed &&
+        error === callbackError &&
+        classifyError(error).code === DbErrorCodes.LOCK_CONFLICT
+      ) {
+        throw ERR_LOCK_CONFLICT({
+          message:
+            'This change could not be saved because another operation was using the document. Reload before trying again.',
+          cause: error,
+          details: { reason: 'lock_conflict', rolledBack: true, retryable: true },
+        })
+      }
+      throw error
+    }
   }
 }

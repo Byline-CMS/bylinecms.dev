@@ -61,17 +61,14 @@ import path from 'node:path'
 
 import { createSuperAdminContext } from '@byline/auth'
 import { createBylineClient } from '@byline/client'
-import {
-  type FieldUploadContext,
-  getCollectionDefinition,
-  getServerConfig,
-} from '@byline/core'
+import { type FieldUploadContext, getCollectionDefinition, getServerConfig } from '@byline/core'
 import { extractImageMeta, generateImageVariants, isBypassMimeType } from '@byline/core/image'
 import { uploadField as coreUploadField } from '@byline/core/services'
-
 import type { MediaFields } from '@byline/generated-types'
+
 import {
   assertCompleteVariantSet,
+  mediaFailureOutcome,
   replaceMediaVersionPreservingStatus,
   storedFilePaths,
 } from './regenerate-media-operation.js'
@@ -120,14 +117,15 @@ async function run(): Promise<void> {
     id: string
     path: string
     status: string
+    revision: number
     fields: MediaFields
   }[] = []
   const pageSize = 100
   for (let page = 1; ; page++) {
-    const result = await handle.find({
+    const result = await handle.findForEdit({
+      locale: 'all',
       page,
       pageSize,
-      status: 'any',
       _bypassBeforeRead: true,
     })
     for (const d of result.docs) {
@@ -135,6 +133,7 @@ async function run(): Promise<void> {
         id: d.id,
         path: d.path,
         status: d.status,
+        revision: d.revision,
         fields: d.fields,
       })
     }
@@ -228,15 +227,10 @@ async function run(): Promise<void> {
       }
 
       const nextFields = { ...doc.fields, [FIELD_NAME]: uploadResult.storedFile }
-      await replaceMediaVersionPreservingStatus({
-        db: config.db,
-        definition,
-        collectionId,
-        handle,
-        documentId: doc.id,
-        fields: nextFields,
-        targetStatus: doc.status,
-      })
+      await replaceMediaVersionPreservingStatus(
+        { ...baseUploadCtx, requestContext },
+        { documentId: doc.id, data: nextFields, expectedRevision: doc.revision }
+      )
 
       const variantSummary =
         uploadResult.storedFile.variants?.map((v) => `${v.name}:${v.format ?? '?'}`).join(', ') ??
@@ -246,11 +240,11 @@ async function run(): Promise<void> {
       )
       processed += 1
     } catch (err) {
-      // The document transaction did not commit. Remove every fresh path we
-      // know about, but never delete a path that belonged to the old value — a
-      // deterministic beforeStore hook may already have overwritten it.
-      const rollbackPaths = new Set([...freshPaths].filter((storagePath) => !oldPaths.has(storagePath)))
-      const cleanupErrors = await deletePathsBestEffort(storage, rollbackPaths)
+      // A post-commit hook failure must retain the files referenced by the saved version.
+      // Rejected writes discard only fresh paths, preserving any reused original path.
+      const outcome = mediaFailureOutcome(err, freshPaths, oldPaths)
+      if (outcome.committed) processed += 1
+      const cleanupErrors = await deletePathsBestEffort(storage, outcome.cleanupPaths)
       const failure = asDocumentError(doc.id, doc.path, err)
       failures.push(
         cleanupErrors.length === 0
@@ -260,7 +254,10 @@ async function run(): Promise<void> {
               `regenerate-media: operation and rollback cleanup failed for '${doc.path}'`
             )
       )
-      console.error(`  ! fail ${doc.id} (${doc.path}):`, err)
+      console.error(
+        `  ! ${outcome.committed ? `saved revision ${outcome.revision}; hook failed` : 'fail'} ${doc.id} (${doc.path}):`,
+        err
+      )
     }
   }
 

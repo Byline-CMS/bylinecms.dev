@@ -17,6 +17,7 @@ import type { DocumentLifecycleContext } from '../document-lifecycle/context.js'
 import type { SingletonSaveResult } from './internals.js'
 
 export interface CopySingletonToLocaleParams {
+  expectedRevision: number
   sourceLocale: string
   targetLocale: string
   overwrite: boolean
@@ -27,6 +28,7 @@ export async function copySingletonToLocale(
   ctx: DocumentLifecycleContext,
   params: CopySingletonToLocaleParams
 ): Promise<SingletonSaveResult> {
+  params = { ...params }
   return withLogContext(
     { domain: 'services', module: 'singleton-lifecycle', function: 'copySingletonToLocale' },
     async () => {
@@ -40,7 +42,13 @@ export async function copySingletonToLocale(
       return commitSingletonSave({
         ctx,
         definition,
-        operation: { type: 'copyToLocale', ...params },
+        expectedRevision: params.expectedRevision,
+        operation: {
+          type: 'copyToLocale',
+          sourceLocale: params.sourceLocale,
+          targetLocale: params.targetLocale,
+          overwrite: params.overwrite,
+        },
         prepare: async (slot) => {
           if (slot.documentId == null || slot.currentVersion == null) {
             throw ERR_NOT_FOUND({
@@ -109,8 +117,8 @@ export async function copySingletonToLocale(
             data: merged.data,
             originalData,
             locale: params.targetLocale,
+            prepareWrite: () => applyRichTextEmbed(ctx, merged.data),
             write: async () => {
-              await applyRichTextEmbed(ctx, merged.data)
               return persistExistingDocumentVersion(ctx, {
                 documentId: slot.documentId as string,
                 action: 'copy_to_locale',

@@ -34,7 +34,9 @@ import {
  * transport layer.
  */
 export const deleteDocumentLocale = createServerFn({ method: 'POST' })
-  .validator((input: { collection: string; id: string; locale: string }) => input)
+  .validator(
+    (input: { expectedRevision: number; collection: string; id: string; locale: string }) => input
+  )
   .handler(
     async ({
       data: input,
@@ -63,7 +65,11 @@ export const deleteDocumentLocale = createServerFn({ method: 'POST' })
       }
 
       try {
-        return await deleteLocale(ctx, { documentId: id, locale })
+        return await deleteLocale(ctx, {
+          documentId: id,
+          expectedRevision: input.expectedRevision,
+          locale,
+        })
       } catch (error) {
         const committedFailure = toCommittedDocumentHookFailureResponse(error)
         if (committedFailure != null) return committedFailure

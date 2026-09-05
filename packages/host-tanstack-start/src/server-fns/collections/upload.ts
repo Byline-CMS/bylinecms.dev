@@ -25,6 +25,7 @@ export interface UploadFieldResult {
   /** Present when the upload endpoint created a document (createDocument=true, the default). */
   documentId?: string
   documentVersionId?: string
+  revision?: number
   storedFile: StoredFileValue
 }
 

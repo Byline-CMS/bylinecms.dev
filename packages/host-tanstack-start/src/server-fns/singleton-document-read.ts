@@ -7,7 +7,7 @@
  */
 
 import { getAdminBylineClient } from '@byline/client/server'
-import { getCollectionDefinition } from '@byline/core'
+import { ERR_NOT_FOUND, getCollectionDefinition } from '@byline/core'
 
 import { resolveAdminDocumentRead } from './admin-document-presentation.js'
 import { serialise } from './serialise.js'
@@ -27,6 +27,10 @@ export interface SingletonDocumentReadInput {
  */
 export async function readSingletonDocument(data: SingletonDocumentReadInput) {
   const handle = getAdminBylineClient().singleton(data.singleton)
-  const { options } = resolveAdminDocumentRead(getCollectionDefinition(data.singleton), data)
-  return serialise(await handle.get(options))
+  const {
+    options: { status: _status, ...options },
+  } = resolveAdminDocumentRead(getCollectionDefinition(data.singleton), data)
+  const snapshot = await handle.getForEdit(options)
+  if (snapshot == null) throw ERR_NOT_FOUND({ message: 'Singleton document is unavailable' })
+  return snapshot.state === 'empty' ? null : serialise(snapshot.document)
 }

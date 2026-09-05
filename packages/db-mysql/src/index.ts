@@ -19,6 +19,8 @@ import { createAuditQueries } from './modules/audit/audit-queries.js'
 import { createCounterCommands } from './modules/counters/counters-commands.js'
 import { createSchedulerStore } from './modules/scheduler/scheduler-store.js'
 import { classifyError } from './modules/storage/classify-error.js'
+import { DocumentRevisions } from './modules/storage/document-revisions.js'
+import { createReadSnapshot } from './modules/storage/read-snapshot.js'
 import { SingletonCommands, SingletonQueries } from './modules/storage/singletons.js'
 import { createCommandBuilders } from './modules/storage/storage-commands.js'
 import { createQueryBuilders } from './modules/storage/storage-queries.js'
@@ -236,6 +238,8 @@ export const mysqlAdapter = ({
       singletons: singletonQueries,
     },
     withTransaction: (fn) => txManager.withTransaction(fn),
+    withReadSnapshot: createReadSnapshot(db, collections, defaultContentLocale),
+    revisions: new DocumentRevisions(dbManager),
     scheduler: schedulerStore,
     classifyError,
     drizzle: db,

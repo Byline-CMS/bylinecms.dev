@@ -21,7 +21,7 @@ import { toDeleteDocumentResponse } from './delete-outcome.js'
 // ---------------------------------------------------------------------------
 
 export const deleteDocument = createServerFn({ method: 'POST' })
-  .validator((input: { collection: string; id: string }) => input)
+  .validator((input: { expectedRevision: number; collection: string; id: string }) => input)
   .handler(async ({ data: input }) => {
     const { collection: path, id } = input
     const logger = getLogger()
@@ -58,6 +58,9 @@ export const deleteDocument = createServerFn({ method: 'POST' })
       requestContext: await getAdminRequestContext(),
     }
 
-    const result = await deleteDocumentService(ctx, { documentId: id })
+    const result = await deleteDocumentService(ctx, {
+      documentId: id,
+      expectedRevision: input.expectedRevision,
+    })
     return toDeleteDocumentResponse(result)
   })

@@ -19,6 +19,7 @@ import type {
   ScheduleDocumentPublishResult,
   SuspendDocumentPublishScheduleResult,
 } from '@byline/core'
+import { documentRevisionFromDatabase, parseDocumentRevision } from '@byline/core'
 import { sql } from 'drizzle-orm'
 import type { MySql2Database } from 'drizzle-orm/mysql2'
 
@@ -31,13 +32,14 @@ type DatabaseConnection = MySql2Database<typeof schema>
 const LAST_ERROR_MAX_LENGTH = 2_048
 
 type ScheduleRow = {
+  authorized_revision: number | string | null
   document_id: string
   collection_id: string
   target_version_id: string
   publish_at: string | Date
   state: DocumentPublishScheduleState
   suspended_at: string | Date | null
-  suspended_reason: 'content_edited' | null
+  suspended_reason: 'content_edited' | 'document_metadata_changed' | 'upgrade_invalidated' | null
   scheduled_by: string | null
   last_authorized_by: string | null
   last_authorized_at: string | Date
@@ -64,6 +66,10 @@ function requiredDate(value: string | Date, column: string): Date {
 
 function toSchedule(row: ScheduleRow): DocumentPublishSchedule {
   return {
+    authorizedRevision:
+      row.authorized_revision == null
+        ? null
+        : documentRevisionFromDatabase(row.authorized_revision),
     documentId: row.document_id,
     collectionId: row.collection_id,
     targetVersionId: row.target_version_id,
@@ -106,6 +112,16 @@ export class DocumentPublishScheduleCommands implements IDocumentPublishSchedule
 
   private get db(): DatabaseConnection {
     return this.dbManager.get()
+  }
+
+  async lockDocuments(documentIds: readonly string[]): Promise<void> {
+    if (!this.dbManager.isInTransaction())
+      throw new Error('Schedule locks require an active transaction')
+    for (const documentId of [...new Set(documentIds)].sort()) {
+      await this.db.execute(
+        sql`SELECT document_id FROM byline_document_publish_schedules WHERE document_id = ${documentId} FOR UPDATE`
+      )
+    }
   }
 
   private async lockCurrentVersion(params: {
@@ -157,9 +173,11 @@ export class DocumentPublishScheduleCommands implements IDocumentPublishSchedule
     documentId: string
     collectionId: string
     expectedVersionId: string
+    authorizedRevision: number
     publishAt: Date
     actorId: string | null
   }): Promise<ScheduleDocumentPublishResult> {
+    params = { ...params, authorizedRevision: parseDocumentRevision(params.authorizedRevision) }
     const currentVersionId = await this.lockCurrentVersion(params)
     if (currentVersionId === null) return { status: 'document_not_found' }
     if (currentVersionId !== params.expectedVersionId) return { status: 'version_mismatch' }
@@ -178,7 +196,7 @@ export class DocumentPublishScheduleCommands implements IDocumentPublishSchedule
     if (previous === null) {
       await this.db.execute(sql`
         INSERT INTO byline_document_publish_schedules (
-          document_id, collection_id, target_version_id, publish_at,
+          document_id, collection_id, target_version_id, authorized_revision, publish_at,
           state, suspended_at, suspended_reason,
           scheduled_by, last_authorized_by, last_authorized_at,
           execution_token, execution_expires_at, last_attempt_at,
@@ -187,6 +205,7 @@ export class DocumentPublishScheduleCommands implements IDocumentPublishSchedule
           ${params.documentId},
           ${params.collectionId},
           ${params.expectedVersionId},
+          ${params.authorizedRevision},
           ${params.publishAt},
           'armed', NULL, NULL,
           ${params.actorId}, ${params.actorId}, CURRENT_TIMESTAMP(6),
@@ -198,6 +217,7 @@ export class DocumentPublishScheduleCommands implements IDocumentPublishSchedule
       await this.db.execute(sql`
         UPDATE byline_document_publish_schedules SET
           target_version_id = ${params.expectedVersionId},
+          authorized_revision = ${params.authorizedRevision},
           publish_at = ${params.publishAt},
           state = 'armed',
           suspended_at = NULL,
@@ -222,8 +242,10 @@ export class DocumentPublishScheduleCommands implements IDocumentPublishSchedule
     documentId: string
     collectionId: string
     expectedVersionId: string
+    authorizedRevision: number
     actorId: string | null
   }): Promise<ConfirmDocumentPublishScheduleResult> {
+    params = { ...params, authorizedRevision: parseDocumentRevision(params.authorizedRevision) }
     const currentVersionId = await this.lockCurrentVersion(params)
     if (currentVersionId === null || currentVersionId !== params.expectedVersionId) {
       return { status: 'version_mismatch' }
@@ -238,6 +260,7 @@ export class DocumentPublishScheduleCommands implements IDocumentPublishSchedule
     await this.db.execute(sql`
       UPDATE byline_document_publish_schedules SET
         target_version_id = ${params.expectedVersionId},
+          authorized_revision = ${params.authorizedRevision},
         state = 'armed',
         suspended_at = NULL,
         suspended_reason = NULL,
@@ -276,6 +299,7 @@ export class DocumentPublishScheduleCommands implements IDocumentPublishSchedule
   async suspendForContentEdit(params: {
     documentId: string
     collectionId: string
+    reason?: 'content_edited' | 'document_metadata_changed'
   }): Promise<SuspendDocumentPublishScheduleResult> {
     const locked = await this.lockSchedule(params.documentId)
     if (locked === null || locked.collectionId !== params.collectionId) {
@@ -287,7 +311,7 @@ export class DocumentPublishScheduleCommands implements IDocumentPublishSchedule
       UPDATE byline_document_publish_schedules SET
         state = 'needs_reconfirm',
         suspended_at = CURRENT_TIMESTAMP(6),
-        suspended_reason = 'content_edited',
+        suspended_reason = ${params.reason ?? 'content_edited'},
         execution_token = NULL,
         execution_expires_at = NULL,
         updated_at = CURRENT_TIMESTAMP(6)
@@ -380,6 +404,8 @@ export class DocumentPublishScheduleCommands implements IDocumentPublishSchedule
       FROM byline_document_publish_schedules
       WHERE document_id = ${params.documentId}
         AND execution_token = ${params.executionToken}
+        AND state = 'armed'
+        AND execution_expires_at > CURRENT_TIMESTAMP(6)
       FOR UPDATE
     `)
     const row = firstRow<ScheduleRow>(result)
@@ -391,11 +417,13 @@ export class DocumentPublishScheduleCommands implements IDocumentPublishSchedule
       DELETE FROM byline_document_publish_schedules
       WHERE document_id = ${params.documentId}
         AND execution_token = ${params.executionToken}
+        AND state = 'armed' AND execution_expires_at > CURRENT_TIMESTAMP(6)
     `)
     return affectedRowCount(result) === 1
   }
 
   async suspendClaimForContentEdit(params: {
+    reason?: 'content_edited' | 'document_metadata_changed'
     documentId: string
     executionToken: string
   }): Promise<boolean> {
@@ -403,7 +431,7 @@ export class DocumentPublishScheduleCommands implements IDocumentPublishSchedule
       UPDATE byline_document_publish_schedules SET
         state = 'needs_reconfirm',
         suspended_at = CURRENT_TIMESTAMP(6),
-        suspended_reason = 'content_edited',
+        suspended_reason = ${params.reason ?? 'content_edited'},
         execution_token = NULL,
         execution_expires_at = NULL,
         last_attempt_at = NULL,
@@ -413,6 +441,7 @@ export class DocumentPublishScheduleCommands implements IDocumentPublishSchedule
         updated_at = CURRENT_TIMESTAMP(6)
       WHERE document_id = ${params.documentId}
         AND execution_token = ${params.executionToken}
+        AND state = 'armed' AND execution_expires_at > CURRENT_TIMESTAMP(6)
     `)
     return affectedRowCount(result) === 1
   }

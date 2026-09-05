@@ -13,7 +13,13 @@ import {
 } from '../../lib/errors.js'
 import type { DocumentLifecycleContext } from './context.js'
 
-export type DocumentHookCommittedPhase = 'afterCreate' | 'afterUpdate' | 'afterSave'
+export type DocumentHookCommittedPhase =
+  | 'afterCreate'
+  | 'afterUpdate'
+  | 'afterSave'
+  | 'afterSystemFieldsChange'
+  | 'afterStatusChange'
+  | 'afterUnpublish'
 
 export type DocumentHookSideEffectCode = typeof ErrorCodes.STORAGE | typeof ErrorCodes.UNHANDLED
 
@@ -21,6 +27,7 @@ export interface DocumentHookCommittedDetails {
   phase: DocumentHookCommittedPhase
   documentId: string
   documentVersionId: string
+  revision: number
   sideEffectCode: DocumentHookSideEffectCode
 }
 
@@ -61,8 +68,28 @@ export function getDocumentHookCommittedDetails(
   const documentVersionId = readStringProperty(details, 'documentVersionId')
   const failureCode = readStringProperty(details, 'sideEffectCode')
 
-  if (phase !== 'afterCreate' && phase !== 'afterUpdate' && phase !== 'afterSave') return null
-  if (!documentId || !documentVersionId) return null
+  if (
+    phase !== 'afterCreate' &&
+    phase !== 'afterUpdate' &&
+    phase !== 'afterSave' &&
+    phase !== 'afterSystemFieldsChange' &&
+    phase !== 'afterStatusChange' &&
+    phase !== 'afterUnpublish'
+  )
+    return null
+  if (
+    !documentId ||
+    (phase !== 'afterSystemFieldsChange' && !documentVersionId) ||
+    documentVersionId === undefined
+  )
+    return null
+  let revision: unknown
+  try {
+    revision = Reflect.get(details, 'revision')
+  } catch {
+    return null
+  }
+  if (typeof revision !== 'number' || !Number.isSafeInteger(revision) || revision < 1) return null
   if (failureCode !== ErrorCodes.STORAGE && failureCode !== ErrorCodes.UNHANDLED) return null
 
   return {
@@ -70,6 +97,7 @@ export function getDocumentHookCommittedDetails(
     documentId,
     documentVersionId,
     sideEffectCode: failureCode,
+    revision,
   }
 }
 

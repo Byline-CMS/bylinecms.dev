@@ -16,6 +16,7 @@
  * listed — that list is the outstanding-translation backlog. Re-run as
  * translation progresses; it is idempotent (each doc is its own transaction).
  *
+ * From the application directory containing byline/:
  *   pnpm tsx byline/scripts/re-anchor.ts --to fr
  *   pnpm tsx byline/scripts/re-anchor.ts --to fr --collection pages
  *   pnpm tsx byline/scripts/re-anchor.ts --to fr --dry-run
@@ -28,7 +29,7 @@ import '../server.config.js'
 
 import { parseArgs } from 'node:util'
 
-import { getBylineCore, getServerConfig } from '@byline/core'
+import { documentRevisionFromDatabase, getBylineCore, getServerConfig } from '@byline/core'
 import type { PgAdapter } from '@byline/db-postgres'
 
 const USAGE =
@@ -74,7 +75,19 @@ async function run() {
     `${dryRun ? '[dry-run] ' : ''}re-anchoring ${scope} → content source locale '${targetLocale}'…`
   )
 
-  const report = await db.reAnchorDocuments({ targetLocale, collectionId, dryRun })
+  // Capture each precondition before starting the batch; never refresh and retry a stale target.
+  const observed = await db.pool.query<{ document_id: string; revision: string }>(
+    `SELECT DISTINCT d.id AS document_id, d.revision
+     FROM byline_documents d JOIN byline_document_versions v ON v.document_id = d.id
+     WHERE v.is_deleted = false AND ($1::uuid IS NULL OR v.collection_id = $1::uuid)
+     ORDER BY d.id`,
+    [collectionId ?? null]
+  )
+  const targets = observed.rows.map((row) => ({
+    documentId: row.document_id,
+    expectedRevision: documentRevisionFromDatabase(row.revision),
+  }))
+  const report = await db.reAnchorDocuments({ targets, targetLocale, collectionId, dryRun })
 
   console.log(
     `${dryRun ? '[dry-run] would re-anchor' : '✓ re-anchored'} ${report.reanchored}/${report.total} document(s) → '${targetLocale}'`

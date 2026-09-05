@@ -546,6 +546,7 @@ describe('schema pins — scheduled publication', () => {
 
   it('pins the bounded state and suspension-reason constraints', () => {
     expect(cfg.checks.map((constraint) => constraint.name).sort()).toEqual([
+      'check_publish_schedules_authorized_revision',
       'check_publish_schedules_state',
       'check_publish_schedules_suspended_reason',
     ])
@@ -597,5 +598,22 @@ describe('schema pins — singleton documents', () => {
     ])
     expect(reference?.foreignColumns.map((column) => column.name)).toEqual(['collection_id', 'id'])
     expect(ownershipForeignKey?.onDelete).toBe('cascade')
+  })
+})
+
+describe('schema pins — document revisions', () => {
+  it('requires an explicit safe-range revision on every new document', () => {
+    expect(coreSchema.documents.revision.getSQLType()).toBe('bigint')
+    expect(coreSchema.documents.revision.notNull).toBe(true)
+    expect(coreSchema.documents.revision.hasDefault).toBe(false)
+    expect(
+      getTableConfig(coreSchema.documents).checks.map((constraint) => constraint.name)
+    ).toContain('check_documents_revision')
+  })
+
+  it('allows legacy schedules to have no prior document authorization', () => {
+    expect(coreSchema.documentPublishSchedules.authorized_revision.getSQLType()).toBe('bigint')
+    expect(coreSchema.documentPublishSchedules.authorized_revision.notNull).toBe(false)
+    expect(coreSchema.documentPublishSchedules.authorized_revision.hasDefault).toBe(false)
   })
 })

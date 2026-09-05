@@ -31,6 +31,7 @@ import type { DocumentLifecycleContext } from './context.js'
 /** Namespaced audit actions for document-grain changes. */
 export const AUDIT_ACTIONS = {
   pathChanged: 'document.path.changed',
+  orderChanged: 'document.order.changed',
   localesChanged: 'document.locales.changed',
   statusChanged: 'document.status.changed',
   publishScheduled: 'document.publish.scheduled',

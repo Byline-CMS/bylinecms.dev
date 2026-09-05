@@ -13,15 +13,22 @@ import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { documentAbilityKey } from '../../auth/register-collection-abilities.js'
 import {
   ERR_CONFLICT,
+  ERR_DOCUMENT_STALE,
   ERR_INVALID_TRANSITION,
   ERR_NOT_FOUND,
   ERR_VALIDATION,
 } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
+import { documentRevisionFromDatabase } from '../../storage/document-revision.js'
 import { getWorkflow, validateStatusTransition } from '../../workflow/workflow.js'
 import { AUDIT_ACTIONS, auditActor, requireAuditCapability } from './audit.js'
 import { actorId, invokeHook } from './internals.js'
 import { publishScheduleAuditValue } from './publish-schedule-consistency.js'
+import {
+  assertLifecycleTransactionOwnership,
+  commitGuardedDocumentMutation,
+  readDocumentForMutation,
+} from './revision-guard.js'
 import { commitDocumentStatusTransition } from './status-transition.js'
 import type {
   DocumentPublishSchedule,
@@ -34,7 +41,7 @@ import type { DocumentLifecycleContext } from './context.js'
 export type ClaimedScheduledPublicationResult =
   | { status: 'published' }
   | { status: 'claim_lost' }
-  | { status: 'target_changed' }
+  | { status: 'target_changed'; reason: 'content_edited' | 'document_metadata_changed' }
   | {
       status: 'terminal'
       reason: 'document_not_found' | 'already_published' | 'invalid_transition'
@@ -56,24 +63,28 @@ function assertScheduleAbilities(ctx: DocumentLifecycleContext): void {
 async function assertCurrentVersionCanPublish(
   ctx: DocumentLifecycleContext,
   documentId: string,
-  expectedVersionId: string
+  expectedVersionId: string,
+  lockedCurrent?: { document_version_id: string | null; status: string | null }
 ): Promise<void> {
-  const current = await ctx.db.queries.documents.getCurrentVersionMetadata({
-    collection_id: ctx.collectionId,
-    document_id: documentId,
-  })
-  if (current === null) {
+  const current =
+    lockedCurrent ??
+    (await ctx.db.queries.documents.getCurrentVersionMetadata({
+      collection_id: ctx.collectionId,
+      document_id: documentId,
+    }))
+  if (current === null || current.status === null || current.document_version_id === null) {
     throw ERR_NOT_FOUND({
       message: 'document not found',
       details: { documentId },
     }).log(ctx.logger)
   }
   if (current.document_version_id !== expectedVersionId) {
-    throw ERR_CONFLICT({
+    throw ERR_DOCUMENT_STALE({
       message: 'the document changed before its publication schedule could be saved',
       details: {
         documentId,
-        expectedVersionId,
+        reason: 'version_parent_mismatch',
+        previousVersionId: expectedVersionId,
         currentVersionId: current.document_version_id,
       },
     }).log(ctx.logger)
@@ -137,22 +148,33 @@ function throwScheduleStorageOutcome(
 
 export async function scheduleDocumentPublish(
   ctx: DocumentLifecycleContext,
-  params: { documentId: string; publishAt: string; expectedVersionId: string }
-): Promise<DocumentPublishSchedule> {
+  params: {
+    documentId: string
+    publishAt: string
+    expectedVersionId: string
+    expectedRevision: number
+  }
+): Promise<DocumentPublishSchedule & { revision: number }> {
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'scheduleDocumentPublish' },
     async () => {
       assertScheduleAbilities(ctx)
+      await readDocumentForMutation(ctx, params)
       await assertCurrentVersionCanPublish(ctx, params.documentId, params.expectedVersionId)
       const publishAt = parsePublishAt(params.publishAt)
       const audit = requireAuditCapability(ctx.db)
       const actor = auditActor(ctx)
 
-      return audit.withTransaction(async () => {
+      const committed = await commitGuardedDocumentMutation(ctx, params, async (locked) => {
+        await assertCurrentVersionCanPublish(ctx, params.documentId, params.expectedVersionId, {
+          document_version_id: locked.currentVersionId,
+          status: locked.status,
+        })
         const result = await ctx.db.commands.documents.publishSchedules.schedule({
           documentId: params.documentId,
           collectionId: ctx.collectionId,
           expectedVersionId: params.expectedVersionId,
+          authorizedRevision: locked.revision + 1,
           publishAt,
           actorId: actorId(ctx) ?? null,
         })
@@ -172,29 +194,36 @@ export async function scheduleDocumentPublish(
           before: result.previous === null ? null : publishScheduleAuditValue(result.previous),
           after: publishScheduleAuditValue(result.schedule),
         })
-        return result.schedule
+        return { value: result.schedule, changed: true }
       })
+      return { ...committed.value, revision: committed.revision }
     }
   )
 }
 
 export async function confirmDocumentScheduledPublish(
   ctx: DocumentLifecycleContext,
-  params: { documentId: string; expectedVersionId: string }
-): Promise<DocumentPublishSchedule> {
+  params: { documentId: string; expectedVersionId: string; expectedRevision: number }
+): Promise<DocumentPublishSchedule & { revision: number }> {
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'confirmDocumentScheduledPublish' },
     async () => {
       assertScheduleAbilities(ctx)
+      await readDocumentForMutation(ctx, params)
       await assertCurrentVersionCanPublish(ctx, params.documentId, params.expectedVersionId)
       const audit = requireAuditCapability(ctx.db)
       const actor = auditActor(ctx)
 
-      return audit.withTransaction(async () => {
+      const committed = await commitGuardedDocumentMutation(ctx, params, async (locked) => {
+        await assertCurrentVersionCanPublish(ctx, params.documentId, params.expectedVersionId, {
+          document_version_id: locked.currentVersionId,
+          status: locked.status,
+        })
         const result = await ctx.db.commands.documents.publishSchedules.confirm({
           documentId: params.documentId,
           collectionId: ctx.collectionId,
           expectedVersionId: params.expectedVersionId,
+          authorizedRevision: locked.revision + 1,
           actorId: actorId(ctx) ?? null,
         })
         if (result.status !== 'confirmed') {
@@ -225,23 +254,25 @@ export async function confirmDocumentScheduledPublish(
           },
           after: publishScheduleAuditValue(result.schedule),
         })
-        return result.schedule
+        return { value: result.schedule, changed: true }
       })
+      return { ...committed.value, revision: committed.revision }
     }
   )
 }
 
 export async function cancelDocumentScheduledPublish(
   ctx: DocumentLifecycleContext,
-  params: { documentId: string }
-): Promise<DocumentPublishSchedule | null> {
+  params: { documentId: string; expectedRevision: number }
+): Promise<{ schedule: DocumentPublishSchedule | null; revision: number }> {
   return withLogContext(
     { domain: 'services', module: 'lifecycle', function: 'cancelDocumentScheduledPublish' },
     async () => {
       assertScheduleAbilities(ctx)
+      await readDocumentForMutation(ctx, params)
       const audit = requireAuditCapability(ctx.db)
       const actor = auditActor(ctx)
-      return audit.withTransaction(async () => {
+      const committed = await commitGuardedDocumentMutation(ctx, params, async (locked) => {
         const schedule = await ctx.db.commands.documents.publishSchedules.cancel({
           documentId: params.documentId,
           collectionId: ctx.collectionId,
@@ -258,8 +289,9 @@ export async function cancelDocumentScheduledPublish(
             after: { reason: 'explicit' },
           })
         }
-        return schedule
+        return { value: schedule, changed: schedule !== null }
       })
+      return { schedule: committed.value, revision: committed.revision }
     }
   )
 }
@@ -284,7 +316,11 @@ export async function listDocumentPublishSchedules(
     page: number
     pageSize: number
   }
-): Promise<DocumentPublishSchedulePage> {
+): Promise<
+  Omit<DocumentPublishSchedulePage, 'schedules'> & {
+    schedules: (DocumentPublishSchedule & { revision: number; documentPath: string | null })[]
+  }
+> {
   const actor = requestContext?.actor
   if (actor == null) {
     throw ERR_UNAUTHENTICATED({
@@ -308,12 +344,27 @@ export async function listDocumentPublishSchedules(
     }
   }
 
-  return core.db.queries.documents.publishSchedules.list({
-    collectionIds,
-    states: params.states,
-    lastAuthorizedBy: params.lastAuthorizedBy,
-    page: params.page,
-    pageSize: params.pageSize,
+  return core.db.withReadSnapshot(async (queries) => {
+    const page = await queries.documents.publishSchedules.list({
+      collectionIds,
+      states: params.states,
+      lastAuthorizedBy: params.lastAuthorizedBy,
+      page: params.page,
+      pageSize: params.pageSize,
+    })
+    const schedules = []
+    for (const schedule of page.schedules) {
+      const scope = { collection_id: schedule.collectionId, document_id: schedule.documentId }
+      const revision = documentRevisionFromDatabase(
+        await queries.documents.getDocumentRevision(scope)
+      )
+      schedules.push({
+        ...schedule,
+        revision,
+        documentPath: await queries.documents.getCurrentPath(scope),
+      })
+    }
+    return { ...page, schedules }
   })
 }
 
@@ -326,23 +377,33 @@ export async function publishClaimedScheduledDocument(
   ctx: DocumentLifecycleContext,
   params: { documentId: string; executionToken: string }
 ): Promise<ClaimedScheduledPublicationResult> {
+  assertLifecycleTransactionOwnership(ctx)
   const workflow = getWorkflow(ctx.definition)
-  const initial = await ctx.db.queries.documents.getCurrentVersionMetadata({
-    collection_id: ctx.collectionId,
-    document_id: params.documentId,
-  })
-  if (initial === null) {
-    return { status: 'terminal', reason: 'document_not_found' }
-  }
-  const schedule = await ctx.db.queries.documents.publishSchedules.get({
-    documentId: params.documentId,
-    collectionId: ctx.collectionId,
-  })
-  if (schedule === null || schedule.executionToken !== params.executionToken) {
+  const { initial, schedule, revision } = await ctx.db.withReadSnapshot(async (queries) => ({
+    initial: await queries.documents.getCurrentVersionMetadata({
+      collection_id: ctx.collectionId,
+      document_id: params.documentId,
+    }),
+    schedule: await queries.documents.publishSchedules.get({
+      documentId: params.documentId,
+      collectionId: ctx.collectionId,
+    }),
+    revision: await queries.documents.getDocumentRevision({
+      collection_id: ctx.collectionId,
+      document_id: params.documentId,
+    }),
+  }))
+  if (initial === null) return { status: 'terminal', reason: 'document_not_found' }
+  if (
+    schedule === null ||
+    schedule.state !== 'armed' ||
+    schedule.executionToken !== params.executionToken
+  )
     return { status: 'claim_lost' }
-  }
+  if (schedule.authorizedRevision === null || revision !== schedule.authorizedRevision)
+    return { status: 'target_changed', reason: 'document_metadata_changed' }
   if (initial.document_version_id !== schedule.targetVersionId) {
-    return { status: 'target_changed' }
+    return { status: 'target_changed', reason: 'content_edited' }
   }
   if (initial.status === 'published') {
     return { status: 'terminal', reason: 'already_published' }
@@ -370,63 +431,92 @@ export async function publishClaimedScheduledDocument(
   await invokeHook(hooks?.beforeStatusChange, hookCtx)
 
   try {
-    await commitDocumentStatusTransition({
-      db: ctx.db,
-      documentId: params.documentId,
-      documentVersionId: initial.document_version_id,
-      collectionId: ctx.collectionId,
-      previousStatus: initial.status,
-      nextStatus: 'published',
-      actor: auditActor(ctx),
-      contributions: {
-        beforeStatusWrite: async () => {
-          const locked = await ctx.db.commands.documents.publishSchedules.lockClaim({
-            documentId: params.documentId,
-            executionToken: params.executionToken,
-          })
-          if (locked === null) {
-            throw new ClaimedPublicationOutcome({ status: 'claim_lost' })
-          }
-          const current = await ctx.db.queries.documents.getCurrentVersionMetadata({
-            collection_id: ctx.collectionId,
-            document_id: params.documentId,
-          })
-          if (current === null) {
-            throw new ClaimedPublicationOutcome({
-              status: 'terminal',
-              reason: 'document_not_found',
-            })
-          }
-          if (
-            current.document_version_id !== locked.targetVersionId ||
-            current.document_version_id !== initial.document_version_id
-          ) {
-            throw new ClaimedPublicationOutcome({ status: 'target_changed' })
-          }
-          if (current.status === 'published') {
-            throw new ClaimedPublicationOutcome({
-              status: 'terminal',
-              reason: 'already_published',
-            })
-          }
-          if (!validateStatusTransition(workflow, current.status, 'published').valid) {
-            throw new ClaimedPublicationOutcome({
-              status: 'terminal',
-              reason: 'invalid_transition',
-            })
-          }
-        },
-        afterAuditAppend: async () => {
-          const deleted = await ctx.db.commands.documents.publishSchedules.deleteClaim({
-            documentId: params.documentId,
-            executionToken: params.executionToken,
-          })
-          if (!deleted) throw new ClaimedPublicationOutcome({ status: 'claim_lost' })
-        },
-      },
-    })
+    await commitGuardedDocumentMutation(
+      ctx,
+      { documentId: params.documentId, expectedRevision: schedule.authorizedRevision },
+      async (document) => {
+        await commitDocumentStatusTransition({
+          db: ctx.db,
+          documentId: params.documentId,
+          documentVersionId: initial.document_version_id,
+          collectionId: ctx.collectionId,
+          previousStatus: initial.status,
+          nextStatus: 'published',
+          actor: auditActor(ctx),
+          contributions: {
+            beforeStatusWrite: async () => {
+              const locked = await ctx.db.commands.documents.publishSchedules.lockClaim({
+                documentId: params.documentId,
+                executionToken: params.executionToken,
+              })
+              if (locked === null) {
+                throw new ClaimedPublicationOutcome({ status: 'claim_lost' })
+              }
+              const current =
+                document.currentVersionId === null
+                  ? null
+                  : { document_version_id: document.currentVersionId, status: document.status }
+              if (locked.authorizedRevision !== document.revision || locked.state !== 'armed')
+                throw new ClaimedPublicationOutcome({
+                  status: 'target_changed',
+                  reason: 'document_metadata_changed',
+                })
+              if (current === null) {
+                throw new ClaimedPublicationOutcome({
+                  status: 'terminal',
+                  reason: 'document_not_found',
+                })
+              }
+              if (
+                current.document_version_id !== locked.targetVersionId ||
+                current.document_version_id !== initial.document_version_id
+              ) {
+                throw new ClaimedPublicationOutcome({
+                  status: 'target_changed',
+                  reason: 'document_metadata_changed',
+                })
+              }
+              if (current.status === 'published') {
+                throw new ClaimedPublicationOutcome({
+                  status: 'terminal',
+                  reason: 'already_published',
+                })
+              }
+              if (!validateStatusTransition(workflow, current.status ?? '', 'published').valid) {
+                throw new ClaimedPublicationOutcome({
+                  status: 'terminal',
+                  reason: 'invalid_transition',
+                })
+              }
+            },
+            afterAuditAppend: async () => {
+              const deleted = await ctx.db.commands.documents.publishSchedules.deleteClaim({
+                documentId: params.documentId,
+                executionToken: params.executionToken,
+              })
+              if (!deleted) throw new ClaimedPublicationOutcome({ status: 'claim_lost' })
+            },
+          },
+        })
+        return { value: undefined, changed: true }
+      }
+    )
   } catch (error: unknown) {
     if (error instanceof ClaimedPublicationOutcome) return error.result
+    if (
+      error != null &&
+      typeof error === 'object' &&
+      'code' in error &&
+      error.code === 'ERR_NOT_FOUND'
+    )
+      return { status: 'terminal', reason: 'document_not_found' }
+    if (
+      error != null &&
+      typeof error === 'object' &&
+      'code' in error &&
+      error.code === 'ERR_DOCUMENT_STALE'
+    )
+      return { status: 'target_changed', reason: 'document_metadata_changed' }
     throw error
   }
 

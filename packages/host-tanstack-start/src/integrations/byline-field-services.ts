@@ -44,12 +44,11 @@ const uploadField: UploadFieldFn = (collection, formData, createDocument) =>
   serverUploadField(collection, formData, createDocument)
 
 const placeTreeNode: PlaceTreeNodeFn = async (input) => {
-  const { orderKey } = await serverPlaceTreeNode({ data: input })
-  return { orderKey }
+  return serverPlaceTreeNode({ data: input })
 }
 
 const removeFromTree: RemoveFromTreeFn = async (input) => {
-  await serverRemoveFromTree({ data: input })
+  return serverRemoveFromTree({ data: input })
 }
 
 const getTreeAncestors: GetTreeAncestorsFn = (input) =>

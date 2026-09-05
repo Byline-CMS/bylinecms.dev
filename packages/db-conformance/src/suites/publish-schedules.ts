@@ -166,6 +166,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
   }): Promise<ScheduleDocumentPublishResult> {
     return adapter.withTransaction(() =>
       adapter.commands.documents.publishSchedules.schedule({
+        authorizedRevision: 1,
         documentId: params.document.documentId,
         collectionId: params.document.collection.id,
         expectedVersionId: params.expectedVersionId ?? params.document.versionId,
@@ -369,6 +370,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
       await expect(
         adapter.withTransaction(() =>
           adapter.commands.documents.publishSchedules.confirm({
+            authorizedRevision: 1,
             documentId: original.documentId,
             collectionId: primary.id,
             expectedVersionId: original.versionId,
@@ -380,6 +382,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
       await sleep(300)
       const confirmed = await adapter.withTransaction(() =>
         adapter.commands.documents.publishSchedules.confirm({
+          authorizedRevision: 1,
           documentId: current.documentId,
           collectionId: primary.id,
           expectedVersionId: current.versionId,
@@ -399,6 +402,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
       await expect(
         adapter.withTransaction(() =>
           adapter.commands.documents.publishSchedules.confirm({
+            authorizedRevision: 1,
             documentId: current.documentId,
             collectionId: primary.id,
             expectedVersionId: current.versionId,
@@ -643,15 +647,14 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
       expect(afterExpiredReschedule.schedule.executionToken).toBeNull()
       expect(afterExpiredReschedule.schedule.attemptCount).toBe(0)
 
-      // Expiry makes the row reclaimable but does not invalidate the token by
-      // itself. Before another claimant replaces it, the guard still accepts.
+      // Expiry invalidates publication authority even before a replacement claim.
       const lateGuard = await adapter.withTransaction(() =>
         adapter.commands.documents.publishSchedules.lockClaim({
           documentId: document.documentId,
           executionToken: first.executionToken,
         })
       )
-      expect(lateGuard?.executionToken).toBe(first.executionToken)
+      expect(lateGuard).toBeNull()
 
       const [recovered] = await adapter.commands.documents.publishSchedules.claimDue({
         batchSize: 1,
@@ -861,6 +864,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
       await expect(
         adapter.withTransaction(async () => {
           const result = await adapter.commands.documents.publishSchedules.schedule({
+            authorizedRevision: 1,
             documentId: rolledBackCreate.documentId,
             collectionId: primary.id,
             expectedVersionId: rolledBackCreate.versionId,
@@ -963,7 +967,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
       await expect(get(document)).resolves.toBeNull()
     })
 
-    it('10. lifecycle invalidations commit and roll back atomically with their schedule effect', async () => {
+    it('10. lifecycle invalidations reject outer transactions and commit their schedule effect', async () => {
       const boom = new Error('forced outer lifecycle rollback')
 
       const statusDocument = await createDocument(primary)
@@ -977,6 +981,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
       await expect(
         adapter.withTransaction(async () => {
           await changeDocumentStatus(lifecycleContext(primary), {
+            expectedRevision: 1,
             documentId: statusDocument.documentId,
             nextStatus: 'published',
           })
@@ -988,7 +993,10 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
           ).resolves.toBeNull()
           throw boom
         })
-      ).rejects.toThrow(boom.message)
+      ).rejects.toMatchObject({
+        code: 'ERR_VALIDATION',
+        details: { reason: 'external_lifecycle_transaction' },
+      })
       expect((await get(statusDocument))?.state).toBe('armed')
       expect(
         (
@@ -999,6 +1007,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
         )?.status
       ).toBe('draft')
       await changeDocumentStatus(lifecycleContext(primary), {
+        expectedRevision: 1,
         documentId: statusDocument.documentId,
         nextStatus: 'published',
       })
@@ -1015,6 +1024,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
       await expect(
         adapter.withTransaction(async () => {
           await unpublishDocument(lifecycleContext(primary), {
+            expectedRevision: 1,
             documentId: unpublishDocumentFixture.documentId,
           })
           await expect(
@@ -1025,9 +1035,13 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
           ).resolves.toBeNull()
           throw boom
         })
-      ).rejects.toThrow(boom.message)
+      ).rejects.toMatchObject({
+        code: 'ERR_VALIDATION',
+        details: { reason: 'external_lifecycle_transaction' },
+      })
       expect((await get(unpublishDocumentFixture))?.state).toBe('armed')
       await unpublishDocument(lifecycleContext(primary), {
+        expectedRevision: 1,
         documentId: unpublishDocumentFixture.documentId,
       })
       await expect(get(unpublishDocumentFixture)).resolves.toBeNull()
@@ -1043,6 +1057,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
       await expect(
         adapter.withTransaction(async () => {
           await deleteDocument(lifecycleContext(primary), {
+            expectedRevision: 1,
             documentId: deletedDocument.documentId,
           })
           await expect(
@@ -1053,7 +1068,10 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
           ).resolves.toBeNull()
           throw boom
         })
-      ).rejects.toThrow(boom.message)
+      ).rejects.toMatchObject({
+        code: 'ERR_VALIDATION',
+        details: { reason: 'external_lifecycle_transaction' },
+      })
       expect((await get(deletedDocument))?.state).toBe('armed')
       expect(
         await adapter.queries.documents.getCurrentVersionMetadata({
@@ -1061,7 +1079,10 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
           document_id: deletedDocument.documentId,
         })
       ).not.toBeNull()
-      await deleteDocument(lifecycleContext(primary), { documentId: deletedDocument.documentId })
+      await deleteDocument(lifecycleContext(primary), {
+        expectedRevision: 1,
+        documentId: deletedDocument.documentId,
+      })
       await expect(get(deletedDocument)).resolves.toBeNull()
 
       const editedDocument = await createDocument(primary)
@@ -1073,20 +1094,17 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
         })
       )
       await expect(
-        adapter.withTransaction(async () => {
-          await updateDocument(lifecycleContext(primary), {
+        adapter.withTransaction(() =>
+          updateDocument(lifecycleContext(primary), {
             documentId: editedDocument.documentId,
-            data: { title: 'rolled back edit' },
+            expectedRevision: 1,
+            data: { title: 'rejected ambient edit' },
           })
-          await expect(
-            adapter.commands.documents.publishSchedules.suspendForContentEdit({
-              documentId: editedDocument.documentId,
-              collectionId: primary.id,
-            })
-          ).resolves.toEqual({ status: 'already_suspended' })
-          throw boom
-        })
-      ).rejects.toThrow(boom.message)
+        )
+      ).rejects.toMatchObject({
+        code: 'ERR_VALIDATION',
+        details: { reason: 'external_lifecycle_transaction' },
+      })
       expect((await get(editedDocument))?.state).toBe('armed')
       expect(
         (
@@ -1098,6 +1116,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
       ).toBe(editedDocument.versionId)
       await updateDocument(lifecycleContext(primary), {
         documentId: editedDocument.documentId,
+        expectedRevision: 1,
         data: { title: 'committed edit' },
       })
       expect((await get(editedDocument))?.state).toBe('needs_reconfirm')
@@ -1115,6 +1134,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
       await expect(
         adapter.withTransaction(async () => {
           await deleteLocale(lifecycleContext(localeCollection), {
+            expectedRevision: 1,
             documentId: localeDocument.documentId,
             locale: 'fr',
           })
@@ -1126,7 +1146,10 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
           ).resolves.toEqual({ status: 'already_suspended' })
           throw boom
         })
-      ).rejects.toThrow(boom.message)
+      ).rejects.toMatchObject({
+        code: 'ERR_VALIDATION',
+        details: { reason: 'external_lifecycle_transaction' },
+      })
       expect((await get(localeDocument))?.state).toBe('armed')
       expect(
         (
@@ -1137,6 +1160,7 @@ export function publishSchedulesSuite(hooks: ConformanceHooks): void {
         )?.document_version_id
       ).toBe(localeDocument.versionId)
       await deleteLocale(lifecycleContext(localeCollection), {
+        expectedRevision: 1,
         documentId: localeDocument.documentId,
         locale: 'fr',
       })
