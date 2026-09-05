@@ -15,7 +15,7 @@ Companions:
 
 Date: 2026-09-05
 
-Status: implementation started with user authorization on 2026-09-05. R0 and R1 passed. Tasks 2–4 are implemented and reviewed; R2 passed. Tasks 5–6 are implemented and verified; R3a requested the narrower collection-lock policy, which the user approved and the reviewer has accepted. R3a passed independent review on 2026-09-05; R3a-4(a) is closed. Task 7 passed independent R3b review on 2026-09-05, including ten full-suite repetitions per provider (20/20 clean). R2-2 is closed by the Task 5 follow-up. R1-1 is closed by R3b; R2-1 is addressed by Task 8, including the supplemental test-tree diagnostics; independent R4 confirmation remains pending. T5-1 is closed by the R3a reviewer. This document does not authorize release/deployment.
+Status: implementation started with user authorization on 2026-09-05. R0 through R4 passed independent review. Tasks 2–9 are implemented and reviewed; Tasks 10–11 are implemented and awaiting R5 review. R1-1, R2-1, R2-2, T5-1 and R3a-4 are closed. The development Drizzle migration chains were squashed and their local development ledgers were manually reconciled on 2026-09-06. Fresh empty-database tests, rather than that bookkeeping, prove the squashed baselines. This document does not authorize release/deployment.
 
 Plan review revision: split single-document and scheduler/structural review gates, define a bounded editable-read fallback, require resumable MySQL upgrade stages, and reserve the coverage ledger below. These changes do not mark any implementation task complete.
 
@@ -297,22 +297,22 @@ Task 9 is implemented; see [Task 9 evidence](./2026-09-05-stale-document-write-p
 
 ## Task 10 — Write migration guidance and release artifacts
 
-- [ ] Update developer references for revisions, SDK mutation signatures, current-edit reads, warnings, schedules, and the accepted translation-workflow cost. Keep the approved spec as design history; document shipped behavior only when implementation is complete.
-- [ ] Write separate PostgreSQL and MySQL cutover runbooks: pause all writers/workers, fence old credentials and terminate sessions, retain operator access/ownership, apply native upgrades/backfill, upgrade all integrations, verify access denial, then reopen writes. Explain why password rotation or `NOT NULL` alone is insufficient.
-- [ ] Name copied re-anchor scripts, `regenerate-media.ts` and `regenerate-media-operation.ts`, and other generated app code explicitly. Provide before/after upgrade examples and a manual inventory checklist; package installation does not rewrite downstream source.
-- [ ] Add R01 source-equivalence coverage for the CLI/webapp `regenerate-media-operation.ts` helpers; normalize their current import ordering, then prefer exact equality. Document/test explicit app-specific differences in executable callers rather than silently assuming template sync.
-- [ ] Document schedule reconfirmation after upgrade, old-browser rejection, fail-closed startup, and unsupported rolling mixed writers/rollback to old writers after writes resume.
-- [ ] After migration review, squash the development Drizzle migrations into one fresh baseline per provider; reconcile the explicitly identified development databases' Drizzle migration tables to that exact baseline without changing content. Use the single baseline for the CLI migration templates, and rerun baseline/template/artifact tests. Preserve the separate released numbered SQL upgrade history. Record the dev database identities and before/after bookkeeping; never rewrite downstream migration tables.
-- [ ] Prepare changesets/release notes for the coordinated breaking surface and provider/CLI migrations according to current release tooling. Preserve released native SQL history and verify packaged baseline artifacts.
+- [x] Update developer references for revisions, SDK mutation signatures, current-edit reads, warnings, schedules, and the accepted translation-workflow cost. Keep the approved spec as design history; document shipped behavior only when implementation is complete.
+- [x] Write separate PostgreSQL and MySQL cutover runbooks: pause all writers/workers, fence old credentials and terminate sessions, retain operator access/ownership, apply native upgrades/backfill, upgrade all integrations, verify access denial, then reopen writes. Explain why password rotation or `NOT NULL` alone is insufficient.
+- [x] Name copied re-anchor scripts, `regenerate-media.ts` and `regenerate-media-operation.ts`, and other generated app code explicitly. Provide before/after upgrade examples and a manual inventory checklist; package installation does not rewrite downstream source.
+- [x] Add R01 source-equivalence coverage for the CLI/webapp `regenerate-media-operation.ts` helpers; normalize their current import ordering, then prefer exact equality. Document/test explicit app-specific differences in executable callers rather than silently assuming template sync.
+- [x] Document schedule reconfirmation after upgrade, old-browser rejection, fail-closed startup, and unsupported rolling mixed writers/rollback to old writers after writes resume.
+- [x] After migration review, squash the development Drizzle migrations into one fresh baseline per provider; reconcile the explicitly identified development databases' Drizzle migration tables to that exact baseline without changing content. Use the single baseline for the CLI migration templates, and rerun baseline/template/artifact tests. Preserve the separate released numbered SQL upgrade history. Record the dev database identities and before/after bookkeeping; never rewrite downstream migration tables.
+- [x] Prepare changesets/release notes for the coordinated breaking surface and provider/CLI migrations according to current release tooling. Preserve released native SQL history and verify packaged baseline artifacts.
 
 **Evidence:** automated migration/startup/template/artifact checks plus a separately labeled operator checklist. CI cannot certify credentials were revoked in a downstream installation; do not mark those deployment steps executed as part of repository tests.
 
 ## Task 11 — Close coverage and run final regression
 
-- [ ] Map all 20 spec acceptance criteria to concrete test names or, for operator actions, explicit runbook checks. Resolve every blank coverage-ledger row. Inspect direct commands with `rg` again after integration to catch newly introduced paths.
-- [ ] Run final gates below, preserve results, and investigate every new failure. Do not mark unrun integration/E2E checks as passed.
-- [ ] Inspect the final diff for accidental formatting, generated output changes, public API omissions, and stale examples. Root lint modifies files; review its changes.
-- [ ] Recheck the review record: R0, R1, R2, R3a, R3b, and R4 passed, findings resolved, no unresolved approved-spec deviations. Prepare R5 with commit/diff references and concise residual limitations.
+- [x] Map all 20 spec acceptance criteria to concrete test names or, for operator actions, explicit runbook checks. Resolve every blank coverage-ledger row. Inspect direct commands with `rg` again after integration to catch newly introduced paths.
+- [x] Run final gates below, preserve results, and investigate every new failure. Do not mark unrun integration/E2E checks as passed.
+- [x] Inspect the final diff for accidental formatting, generated output changes, public API omissions, and stale examples. Root lint modifies files; review its changes.
+- [x] Recheck the review record: R0, R1, R2, R3a, R3b, and R4 passed, findings resolved, no unresolved approved-spec deviations. Prepare R5 with commit/diff references and concise residual limitations.
 
 **R5 — Reviewer checks:** Review the complete acceptance matrix, both dialects' regression results, template/package evidence, final API diff, and runbooks. Confirm no partial rollout is represented as safe and no test bypass fills missing revisions. Record release-readiness separately from authorization to merge, publish, or execute a production cutover.
 
@@ -369,12 +369,11 @@ pnpm --filter @byline/cli check:artifact
 pnpm test
 pnpm test:integration
 pnpm build
-pnpm --filter @byline/webapp test:e2e
 ```
 
 Also run current CI's non-UTC adapter/analytics integration gate if any shared temporal/schema behavior changed. Run `pnpm check:native-sql-history --base <previous-release-ref>` with a verified previous release ref recorded in the evidence; do not invent a ref or edit released scripts to make this pass. Follow the existing Drizzle generation workflow and inspect warnings/exit codes rather than hand-editing snapshots.
 
-Playwright needs migrated/seeded `byline_dev`, configured admin credentials, and Chromium; tests mutate data serially. Use independent contexts for the same-document scenario. This is an implementation verification environment, not permission to exercise production data.
+The retained Playwright files are legacy coverage and are no longer a project release gate. Task 9 used the in-app browser with two independent tabs, and R4 independently reviewed that behavior.
 
 For documentation-only work, `pnpm docs:check` and whitespace/link checks suffice. If the tsx CLI hits the known sandbox IPC restriction, the equivalent checker invocation from `apps/webapp` is `node --import tsx byline/scripts/check-docs.ts '../../docs/**/*.md'`; record that substitution. The checker covers `docs/`, so separately validate this plan/spec's title, whitespace, and relative links.
 
@@ -535,7 +534,7 @@ R3a-4(b) is assigned to **Task 7/R3b for typed provider classification, transact
 
 Verification for R3a-4(a): ten consecutive focused runs per provider passed (114 selected tests per run; 195 filtered out). Subsequent full integrations passed without skips: PostgreSQL 357 / 8 files and MySQL 378 / 11 files. Conformance typecheck, scoped Biome, documentation and link checks passed. See [Task 6 evidence](./2026-09-05-stale-document-write-protection-task6.md#r3a-4-follow-up--deterministic-storage-contention) for commands, log paths and check scope.
 
-**Repeat-run policy:** at each remaining checkpoint, run the affected concurrency suites ten consecutive times per provider, with explicit barriers and separate physical connections where contention matters. Preserve every run's result and fail the checkpoint evidence on any failure or timeout; investigate and restart the ten-run series after a correction. Record the exact selection and filtered-out test counts separately from full-suite regression results. Repetition supplements deterministic coordination; it does not prove absence of races. Task 11 includes this policy for final regression.
+**Repeat-run evidence:** R3a, R3b and R4 used repeated concurrency runs with explicit barriers and separate physical connections where contention matters. R4 contains ten full-suite and ten focused passes per provider, and the reviewing agent separately repeated the series. Because Tasks 10–11 did not change the guarded concurrency implementation, the user accepted ten additional PostgreSQL focused passes and three additional MySQL focused passes for R5 instead of another complete ten-run MySQL series. Any failure or timeout would still invalidate the checkpoint evidence. Repetition supplements deterministic coordination; it does not prove absence of races.
 
 ### R3a — single-document enforcement: passed, 2026-09-05
 
@@ -599,6 +598,30 @@ The supplemental diagnostics remain **not passing evidence**. R4 must verify act
 
 **Verdict: pass.** Task 7 is complete and reviewed. The user requested committing and pushing this reviewed checkpoint before Tasks 8–9, without DCO sign-off, attribution trailers or a PR. R4 and R5 remain unchecked; this checkpoint does not claim release readiness.
 
+### R4 — end-to-end behavior: passed, 2026-09-06
+
+The reviewing agent independently verified Tasks 8–9 against the [Task 8 evidence](./2026-09-05-stale-document-write-protection-task8.md) and [Task 9 evidence](./2026-09-05-stale-document-write-protection-task9.md). The review reported **pass with no blocking findings**.
+
+| Reviewer criterion | Outcome |
+| --- | --- |
+| Two independent editor snapshots | Pass. The reviewer reproduced the conflict in two tabs on the same document under one signed-in account. One tab's successful title save remained authoritative after the other tab's stale Save was rejected. |
+| Persistent warning and retained work | Pass. The stale tab showed the required inline `role="alert"` warning and explicit reload/discard action. Its unsaved title remained in the field. |
+| Mutation blocking | Pass. Save, Publish and the publish dropdown had no effect after the stale result; no toast or dialog substituted for the persistent warning. A fresh read confirmed Draft status and the winning title. |
+| Actual serialized stale result | Pass. Eleven cases use the installed TanStack Start HTTP handler and Seroval implementation rather than directly invoking an error formatter. |
+| SDK omission contract | Pass. The SDK's standard typecheck includes its separate test program and passes. R2-1's 103 diagnostics were repaired rather than suppressed. |
+| Structural suspension notice | Pass through component and provider coverage, accurately disclosed as not separately browser-verified. |
+| First-party consumers and copied templates | Pass. Template checking covers all four provider/flavour combinations. |
+
+**R2-1 — closed.** `packages/client` typechecks its source and test programs. The reviewer accepted the one remaining `as unknown as` in the counter integration test as an intentional runtime-negative value whose static type is `never`, rather than an adapter-contract escape.
+
+**T9-1 — accepted.** Browser testing found that metadata-only Save with an explicit locale incorrectly triggered the version-parent requirement. The reviewer verified that the correction narrows the guard target to document identity and expected revision while retaining locale for the metadata write. Revision comparison remains mandatory under the lock. Both-provider conformance coverage now exercises metadata-only saves with explicit locales and subsequent stale rejection.
+
+**Reviewer UI follow-up.** The concurrency alert now uses the form renderer's CSS-module spacing while retaining its global integration class. The spacing adjustment applies only when an alert is present. The reviewer verified it in the live stale state and reran admin tests, typechecking and Biome successfully.
+
+**Independent verification:** PostgreSQL 380, MySQL 401, SDK integration 169, admin 34 jsdom plus 189 node, host 54 jsdom plus 210 node, root typecheck 44 tasks, clean Knip and a 1,210-entry export baseline. The reviewer ran ten full integration-suite repetitions per provider: 20/20 passed with no failures.
+
+**Verdict: pass.** Tasks 8–9 and R4 are complete. No blocking finding carries into R5. Tasks 10–11 own documentation, cutover runbooks, CLI migration baseline work and final release verification. R4 does not authorize release.
+
 ## Progress
 
 - [x] R0: design readiness — Task 1 complete and reviewed; passed 2026-09-05 (see Review records).
@@ -606,9 +629,9 @@ The supplemental diagnostics remain **not passing evidence**. R4 must verify act
 - [x] R2: read integrity — Task 4 complete and reviewed; passed 2026-09-05 with open non-blocking R2-1 and R2-2 (see Review records).
 - [x] R3a: single-document enforcement — Tasks 5–6 complete and reviewed; passed 2026-09-05 (see Review records).
 - [x] R3b: scheduler and structural enforcement — Task 7 complete and reviewed; passed 2026-09-05 (see Review records).
-- [ ] R4: end-to-end behavior — Tasks 8–9 complete and reviewed.
-- [ ] R5: release readiness — Tasks 10–11 complete and reviewed.
+- [x] R4: end-to-end behavior — Tasks 8–9 complete and reviewed; passed 2026-09-06 (see Review records).
+- [ ] R5: release readiness — Tasks 10–11 complete and awaiting review.
 
-R0, R1, and R2 passed; R0-1 was approved by the user on 2026-09-05. Tasks 2–4 are implemented and reviewed. Tasks 5–6 are implemented and verified; R3a requested the narrower collection-lock policy, which the user approved and the reviewer has accepted. R3a passed independent review on 2026-09-05; R3a-4(a) is closed. Task 7 passed independent R3b review on 2026-09-05, including ten full-suite repetitions per provider (20/20 clean). R2-2 is closed by the Task 5 follow-up. R1-1 is closed by R3b; R2-1 is addressed by Task 8, including the supplemental test-tree diagnostics; independent R4 confirmation remains pending. T5-1 is closed by the R3a reviewer. Incremental migrations have run against local test and development databases, with the original development ledger entries preserved; no squash or CLI baseline replacement has occurred. No checkpoint after R3b has been marked passed. R0-2 remains resolved in the read-only facade contract, and R0-3 remains assigned to Task 10/R01.
+R0 through R4 passed independent review. Tasks 2–9 are implemented and reviewed; Tasks 10–11 are implemented and awaiting R5. R1-1, R2-1, R2-2, T5-1 and R3a-4 are closed. The development Drizzle chains were squashed, CLI baselines synchronized, and local development ledgers manually reconciled on 2026-09-06. Fresh PostgreSQL and MySQL `_test` initialization plus CLI empty-database installation prove the baselines independently of that bookkeeping. The released native SQL streams remain separate, and 13 scripts released by `v4.19.0` passed the history check. R0-2 remains resolved in the read-only facade contract, and R0-3 is closed by R01 exact-copy coverage.
 
-Task 8 implementation follow-up: SDK/host contracts and transport are complete, including the adapter-double audit and copied-script compilation. R2-1 awaits independent R4 confirmation. Task 9 is implemented and browser-verified; Tasks 8–9 are ready for independent R4 review. No R4 pass or release is claimed. Pause for the requested switch to Sol before review follow-ups and Tasks 10–11.
+Task 8's SDK/host contracts and transport, including the adapter-double audit and copied-script compilation, passed R4. Task 9's admin recovery behavior passed independent browser review. Task 10's runbooks, baselines, copied-source checks and changeset, and Task 11's acceptance matrix and final regression are ready for R5 review. No release is claimed.
