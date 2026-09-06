@@ -4,14 +4,17 @@ A developer-friendly, open-source headless CMS — built with versioning,
 editorial workflow, and content translation as first-class concerns rather
 than features bolted on later.
 
-> Status: Byline is currently at a stable v4.x release. The major-version
-> bumps have been driven by lockstep versioning across the publishable
-> `@byline/*` packages rather than breaking redesigns — the architecture is
-> settled and there are unlikely to be any major architectural changes, though
-> there is still work to do.
-> If you're interested in Byline, v4 is a solid base for evaluation and
-> for building on. Upgrading from 3.21? See the
-> [migration guide](docs/01-getting-started/04-upgrading-to-v4.md).
+> Status: Byline is currently at a stable v5.x release. Earlier major-version
+> bumps were driven by lockstep versioning across the publishable
+> `@byline/*` packages rather than breaking redesigns; v5 is the first that
+> carries a genuine breaking change — document-wide optimistic concurrency,
+> which requires a database migration and application code changes. The
+> architecture is settled and there are unlikely to be any major architectural
+> changes, though there is still work to do.
+> If you're interested in Byline, v5 is a solid base for evaluation and
+> for building on. Upgrading from 4.19? See the
+> [v5 migration guide](docs/01-getting-started/06-upgrading-to-v5.md). Coming
+> from 3.21? Start with the [v4 guide](docs/01-getting-started/04-upgrading-to-v4.md).
 
 <img width="914" height="685" alt="byline-admin" src="https://github.com/user-attachments/assets/1d4a6a02-b847-4e66-b8c9-9fb8964a2287" />
 
@@ -59,6 +62,12 @@ overview; the table of contents below links straight to every topic reference.
 - **[Upgrading to v4.12](docs/01-getting-started/05-upgrading-to-v4-12.md)** —
   the 4.11 → 4.12 application migration, including renamed configuration and
   locale properties, host-owned site URLs, and removed compatibility APIs.
+- **[Upgrading to v5](docs/01-getting-started/06-upgrading-to-v5.md)** — the
+  4.19 → 5.x application migration: required document revisions on every
+  existing-document mutation, editable reads, copied maintenance scripts, and
+  the supported rollout and rollback boundary. Provider cutover runbooks:
+  **[PostgreSQL](docs/01-getting-started/07-postgresql-v5-cutover.md)** and
+  **[MySQL](docs/01-getting-started/08-mysql-v5-cutover.md)**.
 
 ### 2. [Why Byline](docs/02-why-byline/index.md)
 
@@ -410,7 +419,7 @@ We’re not certain yet, and likely not at this early stage. Our priority is to 
 
 <details>
 <summary>6. What's here now?</summary>
-The storage, versioning, workflow, auth, client SDK, and admin UI are all in place. We're shipping under the 4.x line: APIs are stable and the core architecture is settled, with several capabilities (collection-versioning history, `hasMany` relations, a stable public HTTP API, list-view materialisation under load) deferred to fill in across the 4.x line.
+The storage, versioning, workflow, auth, client SDK, and admin UI are all in place. We're shipping under the 5.x line: APIs are stable and the core architecture is settled, with several capabilities (collection-versioning history, `hasMany` relations, a stable public HTTP API, list-view materialisation under load) deferred to fill in across the 5.x line.
 </details>
 
 <details>
