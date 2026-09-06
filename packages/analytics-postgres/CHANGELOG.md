@@ -1,5 +1,11 @@
 # @byline/analytics-postgres
 
+## 5.0.0
+
+### Patch Changes
+
+- @byline/analytics@5.0.0
+
 ## 4.19.0
 
 ### Patch Changes

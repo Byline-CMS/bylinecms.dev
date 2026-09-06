@@ -1,5 +1,14 @@
 # @infonomic/ai
 
+## 5.0.0
+
+### Patch Changes
+
+- Updated dependencies [f8ece18]
+  - @byline/core@5.0.0
+  - @byline/richtext-lexical@5.0.0
+  - @byline/ui@5.0.0
+
 ## 4.19.0
 
 ### Patch Changes

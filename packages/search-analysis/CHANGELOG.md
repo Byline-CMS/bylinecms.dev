@@ -1,5 +1,12 @@
 # @byline/search-analysis
 
+## 5.0.0
+
+### Patch Changes
+
+- Updated dependencies [f8ece18]
+  - @byline/core@5.0.0
+
 ## 4.19.0
 
 ### Patch Changes
