@@ -6,21 +6,9 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-/**
- * TanStack Start instance configuration.
- *
- * Auto-discovered by the Start Vite plugin at `src/start.ts`. The only
- * role right now is to register serialization adapters so typed errors
- * (`AdminUsersError`, `AuthError`) survive the server-fn boundary with
- * their `code` intact — see `@byline/host-tanstack-start/integrations/start-errors` for the full
- * rationale.
- *
- * Add further `serializationAdapters`, request/function middleware, or
- * `serverFns.fetch` overrides here as the app grows.
- */
-
 import { createCsrfMiddleware, createStart } from '@tanstack/react-start'
 
+import { passwordSignInMiddleware } from '@byline/host-tanstack-start/integrations/sign-in-middleware'
 import { bylineCodedErrorAdapter } from '@byline/host-tanstack-start/integrations/start-errors'
 
 const csrfMiddleware = createCsrfMiddleware({
@@ -29,5 +17,5 @@ const csrfMiddleware = createCsrfMiddleware({
 
 export const startInstance = createStart(() => ({
   serializationAdapters: [bylineCodedErrorAdapter],
-  requestMiddleware: [csrfMiddleware],
+  requestMiddleware: [csrfMiddleware, passwordSignInMiddleware],
 }))

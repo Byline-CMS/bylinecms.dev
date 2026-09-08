@@ -22,6 +22,27 @@ const task = defineRecurringTask({
 const store = {} as ISchedulerStore
 
 describe('validateSchedulerConfig', () => {
+  it('accepts matching cleanup registration and permits self-expiring custom limiters', () => {
+    const passwordSignIn = {
+      resolveClientIp: () => '192.0.2.1',
+      limiter: {
+        requiredCleanupTask: task.name,
+        acquire: async () => () => {},
+        consume: async () => ({ allowed: true, retryAfterSeconds: 0 }),
+      },
+    }
+    expect(() =>
+      validateSchedulerConfig({ passwordSignIn, tasks: [task], adapter: { scheduler: store } })
+    ).not.toThrow()
+    const { requiredCleanupTask: _, ...ttlLimiter } = passwordSignIn.limiter
+    expect(() =>
+      validateSchedulerConfig({
+        passwordSignIn: { ...passwordSignIn, limiter: ttlLimiter },
+        adapter: {},
+      })
+    ).not.toThrow()
+  })
+
   it('passes when tasks are registered against a scheduler-capable adapter', () => {
     expect(() =>
       validateSchedulerConfig({ tasks: [task], adapter: { scheduler: store } })

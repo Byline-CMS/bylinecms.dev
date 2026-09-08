@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 
 import {
   type ArrayLiteralExpression,
@@ -16,12 +16,14 @@ import type { SubEdit, SubEditResult } from './shared.js'
 const REL = 'src/start.ts'
 const ADAPTER_NAME = 'bylineCodedErrorAdapter'
 const ADAPTER_MODULE = '@byline/host-tanstack-start/integrations/start-errors'
-const SNIPPET = `import { createStart } from '@tanstack/react-start'
+const SNIPPET = `import { createCsrfMiddleware, createStart } from '@tanstack/react-start'
 
 import { ${ADAPTER_NAME} } from '${ADAPTER_MODULE}'
+import { passwordSignInMiddleware } from '@byline/host-tanstack-start/integrations/sign-in-middleware'
 
 export const startInstance = createStart(() => ({
   serializationAdapters: [${ADAPTER_NAME}],
+  requestMiddleware: [createCsrfMiddleware({ filter: (ctx) => ctx.handlerType === 'serverFn' }), passwordSignInMiddleware],
 }))
 `
 
@@ -40,14 +42,6 @@ async function run(ctx: Context, dryRun: boolean): Promise<SubEditResult> {
   const path = ctx.resolve(REL)
   if (!existsSync(path)) {
     return { status: 'blocked', message: `${REL} not found — host phase should have caught this` }
-  }
-
-  const text = readFileSync(path, 'utf8')
-  // Cheap pre-check: if the adapter identifier is already referenced anywhere,
-  // assume the wiring is in place. Avoids a full AST round-trip on the common
-  // case where wire has already been run.
-  if (text.includes(ADAPTER_NAME)) {
-    return { status: 'skipped', message: `${REL}: ${ADAPTER_NAME} already registered` }
   }
 
   const project = new Project({ useInMemoryFileSystem: false, skipAddingFilesFromTsConfig: true })
@@ -70,14 +64,75 @@ async function run(ctx: Context, dryRun: boolean): Promise<SubEditResult> {
     )
   }
 
+  const middlewareProp = optionsLiteral.getProperty('requestMiddleware')
+  if (
+    middlewareProp &&
+    (!Node.isPropertyAssignment(middlewareProp) ||
+      !Node.isArrayLiteralExpression(middlewareProp.getInitializer()))
+  ) {
+    return manualBail(`${REL}: requestMiddleware must be an inline array for safe editing`)
+  }
+  const arr =
+    middlewareProp && Node.isPropertyAssignment(middlewareProp)
+      ? middlewareProp.getInitializerIfKindOrThrow(SyntaxKind.ArrayLiteralExpression)
+      : undefined
+  const hasCsrf =
+    arr?.getElements().some((el) => {
+      const expression = Node.isIdentifier(el)
+        ? source.getVariableDeclaration(el.getText())?.getInitializer()
+        : el
+      return (
+        expression &&
+        Node.isCallExpression(expression) &&
+        expression.getExpression().getText() === 'createCsrfMiddleware'
+      )
+    }) ?? false
+  const hasBodyGuard =
+    arr?.getElements().some((el) => el.getText() === 'passwordSignInMiddleware') ?? false
+  const adapterProp = optionsLiteral.getProperty('serializationAdapters')
+  const hasAdapter =
+    adapterProp &&
+    Node.isPropertyAssignment(adapterProp) &&
+    adapterProp
+      .getInitializerIfKind(SyntaxKind.ArrayLiteralExpression)
+      ?.getElements()
+      .some((el) => el.getText() === ADAPTER_NAME)
+  if (hasCsrf && hasBodyGuard && hasAdapter) {
+    return {
+      status: 'skipped',
+      message: `${REL}: sign-in protection and error serialization already registered`,
+    }
+  }
   if (dryRun) {
     return {
       status: 'done',
-      message: `${REL}: will add ${ADAPTER_NAME} to serializationAdapters`,
+      message: `${REL}: will register sign-in protection and error serialization`,
     }
   }
 
   ensureImport(source)
+  for (const [moduleSpecifier, name] of [
+    ['@byline/host-tanstack-start/integrations/sign-in-middleware', 'passwordSignInMiddleware'],
+    ['@tanstack/react-start', 'createCsrfMiddleware'],
+  ]) {
+    const declaration = source
+      .getImportDeclarations()
+      .find((d) => d.getModuleSpecifierValue() === moduleSpecifier)
+    if (!declaration)
+      source.addImportDeclaration({ moduleSpecifier: moduleSpecifier!, namedImports: [name!] })
+    else if (!declaration.getNamedImports().some((n) => n.getText() === name))
+      declaration.addNamedImport(name!)
+  }
+  const csrf = "createCsrfMiddleware({ filter: (ctx) => ctx.handlerType === 'serverFn' })"
+  if (!arr) {
+    optionsLiteral.addPropertyAssignment({
+      name: 'requestMiddleware',
+      initializer: `[${csrf}, passwordSignInMiddleware]`,
+    })
+  } else {
+    if (!hasCsrf) arr.insertElement(0, csrf)
+    if (!hasBodyGuard) arr.addElement('passwordSignInMiddleware')
+  }
   ensureAdapterInOptions(optionsLiteral)
   source.saveSync()
 

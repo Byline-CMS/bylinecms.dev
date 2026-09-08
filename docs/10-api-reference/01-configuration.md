@@ -190,6 +190,7 @@ interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
   slugifier?: SlugifierFn
   uploads?: { filenameSlugifier?: FilenameSlugifierFn }
   sessionProvider?: SessionProvider
+  passwordSignIn?: PasswordSignInProtection
   adminStore?: TAdminStore
   fields?: {
     richText?: {
@@ -213,6 +214,7 @@ interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
 | `slugifier` | `slugify` | Authoritative document-path slugifier. Must be pure, synchronous, and identical to the client copy when customized. |
 | `uploads.filenameSlugifier` | `slugifyFilename` | Server-only transformation for the human-readable base name of every uploaded file before hooks and provider key composition. |
 | `sessionProvider` | Optional in the type | Authentication session implementation. Admin sign-in, refresh, verification, and revocation require one. |
+| `passwordSignIn` | Required for host password sign-in | Shared admission limiter and trusted client-IP resolver. See [Password sign-in protection](../07-auth-and-security/01-authn-authz.md#password-sign-in-protection) for configuration and middleware requirements. |
 | `adminStore` | Optional | Adapter-built admin repositories surfaced on `BylineCore.adminStore`. Required by the built-in admin user, role, permission, and JWT session facilities. |
 | `fields.richText.embed` | Conditional | Write-time rich-text relation embedder. Required when a rich-text field effectively enables `embedRelationsOnSave`. |
 | `fields.richText.populate` | Conditional | Read-time rich-text relation refresher. Required when a rich-text field effectively enables `populateRelationsOnRead`. |

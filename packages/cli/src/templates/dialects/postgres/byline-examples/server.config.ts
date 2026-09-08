@@ -15,7 +15,9 @@
  */
 
 import { type AdminStore, registerAdminAbilities } from '@byline/admin'
-import { JwtSessionProvider } from '@byline/admin/auth'
+import { createPasswordSignInLimiter, JwtSessionProvider } from '@byline/admin/auth'
+import { getRequestIP } from '@tanstack/react-start/server'
+import { createClientIpResolver } from '@byline/host-tanstack-start/integrations/client-ip'
 import { type BylineCore, initBylineCore } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
 import { createAdminStore } from '@byline/db-postgres/admin'
@@ -130,6 +132,8 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     )
   }
 
+  const signInLimiter = createPasswordSignInLimiter(adminStore.signInRateLimits, signingSecret)
+
   const sessionProvider = new JwtSessionProvider({
     store: adminStore,
     signingSecret,
@@ -190,6 +194,16 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     //   cacheControl: 'public, max-age=31536000, immutable',
     // }),
     sessionProvider,
+    recurringTasks: [signInLimiter.cleanupTask],
+    passwordSignIn: {
+      limiter: signInLimiter,
+      resolveClientIp: createClientIpResolver({
+        // Opt in only when the proxy overwrites this header and direct access is blocked.
+        trustedProxyHeader: process.env.BYLINE_TRUSTED_CLIENT_IP_HEADER || undefined,
+        resolvePeerIp: () => getRequestIP() ??
+          (process.env.NODE_ENV === 'development' ? '127.0.0.1' : null),
+      }),
+    },
     fields: {
       // Server-side richtext adapter — refreshes embedded relation
       // envelopes (link `{ title, path }`, inline-image `{ title, altText,

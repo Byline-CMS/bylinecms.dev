@@ -575,6 +575,82 @@ The capability flags are how the admin UI decides which affordances to render: a
 
 `resolveActor(adminUserId)` joins `admin_role_admin_user` → `admin_permissions` → flat ability strings to build the runtime `AdminAuth`.
 
+### Password sign-in protection
+
+The TanStack host requires `ServerConfig.passwordSignIn` and `passwordSignInMiddleware` for its password sign-in endpoint. The protection runs before the configured provider verifies a password. Direct calls to a provider outside the host endpoint must arrange their own admission limits.
+
+In `src/start.ts`, register the request middleware after CSRF protection. It bounds the serialized sign-in body to 16 KiB before TanStack deserializes it, checks actual streamed bytes even when `Content-Length` is absent or incorrect, and gives body reading five seconds to complete. Only JSON POST requests are accepted for sign-in; other server functions, including uploads, retain their own transport policies.
+
+```ts
+import { createCsrfMiddleware, createStart } from '@tanstack/react-start'
+import { passwordSignInMiddleware } from '@byline/host-tanstack-start/integrations/sign-in-middleware'
+import { bylineCodedErrorAdapter } from '@byline/host-tanstack-start/integrations/start-errors'
+
+export const startInstance = createStart(() => ({
+  serializationAdapters: [bylineCodedErrorAdapter],
+  requestMiddleware: [
+    createCsrfMiddleware({ filter: (ctx) => ctx.handlerType === 'serverFn' }),
+    passwordSignInMiddleware,
+  ],
+}))
+```
+
+The shared `passwordSignInSchema` from `@byline/core/validation` accepts nonempty passwords up to `MAX_PASSWORD_LENGTH` (128 JavaScript string code units), without imposing current password-creation complexity rules on existing credentials. It bounds email input to 254 code units before trimming and lowercasing it. Passwords are never trimmed. The built-in provider also applies this schema to direct calls.
+
+Configure admission and client-IP resolution in your server configuration:
+
+```ts
+import type { AdminStore } from '@byline/admin'
+import { createPasswordSignInLimiter } from '@byline/admin/auth'
+import { getRequestIP } from '@tanstack/react-start/server'
+import { createClientIpResolver } from '@byline/host-tanstack-start/integrations/client-ip'
+
+export function passwordSignInProtection(store: AdminStore, signingSecret: string) {
+  return {
+    limiter: createPasswordSignInLimiter(store.signInRateLimits, signingSecret),
+    resolveClientIp: createClientIpResolver({
+      trustedProxyHeader: process.env.BYLINE_TRUSTED_CLIENT_IP_HEADER || undefined,
+      resolvePeerIp: () => getRequestIP() ?? null,
+    }),
+  }
+}
+```
+
+Assign the helper's result to `passwordSignIn` alongside `sessionProvider` when calling `initBylineCore()`, and include `protection.limiter.cleanupTask` in `recurringTasks`. For example, first create `const protection = passwordSignInProtection(adminStore, signingSecret)`, then configure `passwordSignIn: protection` and `recurringTasks: [protection.limiter.cleanupTask]`, preserving other registered tasks. Start `startBylineScheduler(core)` in the host server entry, or arrange external `runDueTasks(core)` invocations for hosts that suspend or scale to zero. Configuration imports never start timers or database cleanup. Core boot rejects missing registration of the built-in limiter's required cleanup task and adapters without scheduler support. Registration alone does not prove that a runner has started; check the scheduler's task health after deployment. Custom limiters with native TTL expiry may omit `requiredCleanupTask`. Apply the new Drizzle migration in development, or `packages/db-postgres/sql/0011_add-sign-in-rate-limits.sql` / `packages/db-mysql/sql/0006_add-sign-in-rate-limits.sql` for an existing production installation, before enabling this configuration. Both adapters add `byline_admin_sign_in_rate_limits` and expose `adminStore.signInRateLimits`.
+
+The default limiter uses two shared, fixed-window budgets:
+
+| Scope | Budget |
+|---|---|
+| Normalized email plus client network, including unknown accounts | 10 attempts per 15 minutes |
+| Client network (IPv4 address or IPv6 /64) | 60 attempts per minute |
+
+Network admission precedes account-plus-network admission. Exhausting one network does not lock that account out on other networks. The full normalized address remains available for session metadata. Successful sign-ins consume budgets; they do not clear counters. Fixed windows permit up to twice a budget across a boundary. Supply a complete `SignInRateLimitPolicy` as the factory's third argument to tune these limits. Application instances sharing a database must use the same policy and synchronized clocks.
+
+This deliberately trades account-wide resistance to distributed guessing for availability: 1,000 independent networks can receive 10,000 attempts against one account per 15-minute window. Password hashing cost, process capacity, deployment-level traffic controls, and monitoring must address that residual risk. There is no installation-wide fixed-window counter.
+
+Instantiate the limiter once per process. The host calls `acquire()` before accessing counters and releases the slot in `finally` after verification. Defaults allow one active operation and four queued requests, with a 250 ms queue timeout. A slot remains occupied for at least 100 ms, even after a fast denial. This minimum duration bounds counter creation as well as outstanding password work; it is not a worker pool and does not move Argon2 off the main thread. Full queues and timed-out waiters return 429 with `Retry-After: 1`. The default capacity ceiling is approximately 600 operations per minute per process, or 2,400 across four processes, rather than the earlier shared 120/minute proposal. Multiple processes have independent CPU capacity, so N processes have N times the slots. Actual password-verification throughput can be lower because hashing and database work occupy the slot. Slow or hung providers retain their slots; sustained attackers can still occupy available capacity.
+
+Each slot can create at most two counter rows. At the defaults, one process therefore creates at most approximately 1,200 rows per minute (plus the initial slot burst). The adapters increment counters atomically and cap saturated counts. Every admitted request also purges up to 100 expired rows before checking counters. This load-proportional cleanup is retained: its deletion allowance scales with traffic across processes, with up to 50 deleted rows per newly created row. That is capacity to remove eligible rows, not a guarantee that rows are old enough or that database work completes promptly.
+
+The limiter exposes `cleanupTask`, a recurring task named `auth.sign-in-counters.cleanup`. Its interval and lease are 60 seconds. A scheduler run purges at most 32 batches of 100 rows, renews its lease between batches, checks for cancellation, and reports `workRemaining` if it reaches the batch limit. Failures propagate into scheduler health and retry backoff. The scheduler coordinates execution across instances, so this 3,200-row allowance is installation-wide per run; it is an idle-backlog drain, not the component that tracks ongoing creation. It does not run immediately at configuration evaluation. A large idle backlog can take multiple scheduler runs to clear.
+
+Rows become eligible five minutes after their window expires. Cleanup latency affects retained storage only: window-scoped keys determine admission without depending on deletion of old rows. These are creation-rate and cleanup-work bounds, not an absolute row cap or exact residency estimate. Outages, suspended runners, instance churn, and custom policy settings can increase retained rows. Monitor task health and database size, and increase the idle drain allowance if measured backlog warrants it. Call the limiter's `dispose()` when replacing it or shutting down its host to reject outstanding queue waiters; scheduler lifetime remains separately owned by the host.
+
+The factory's fifth argument accepts `SignInLimiterOptions`, including `onEvent`, `slots`, `maxQueue`, `queueTimeoutMs`, and `minimumSlotMs`. `onEvent` receives admitted/denied attempts, capacity shedding, counter/cleanup errors, and verification success/failure. Stable HMAC-SHA-256 account digests correlate attempts across networks; network digests correlate spraying. The required second factory argument is a shared installation secret of at least 32 bytes. The reference configurations reuse the JWT secret through a domain-separated HMAC derivation; a dedicated installation secret is also supported. All instances must use the same secret. Rotating it resets counter identities and breaks historical event correlation, so coordinate rotation across instances. Existing rows still expire normally; no schema change is required. Neither events nor counter keys include passwords, raw emails, or raw IPs. These digests are pseudonymous rather than anonymous, but log or database access alone does not enable offline dictionary recovery without the installation secret. Wire this synchronous, nonblocking hook to your existing metrics or buffered logger and alert on failures across many networks for one account. Hook errors cannot change authentication outcomes. Without a hook, diagnostic warnings are sampled by event type; they are a fallback, not a distributed detection service.
+
+Denied admission returns HTTP 429 with `Retry-After`. Missing protection, unavailable client identity, or counter failures return HTTP 503. MySQL retries a transaction at most twice after an explicit InnoDB deadlock-victim error (1213); it does not retry ambiguous connection/commit failures. The sign-in form retains its generic failure message.
+
+### Client-IP trust and deployment
+
+`createClientIpResolver` either reads a direct peer address through the supplied resolver or reads one explicitly configured proxy header. It validates addresses, canonicalizes IPv6 spellings and IPv4-mapped IPv6, and rejects address lists. It does not implicitly trust `X-Forwarded-For`, `X-Real-IP`, or any other forwarding header.
+
+Setting `BYLINE_TRUSTED_CLIENT_IP_HEADER` is an operator assertion: the reverse proxy must overwrite that header, and clients must not be able to bypass the proxy. Validation proves only that a value is an IP address. It cannot prove the address belongs to the caller. Leaving the header unset uses the direct peer, which may be a proxy shared by many users. Inspect the actual deployment before choosing the mode. A host with another trusted platform identity source can supply its own `ClientIpResolver`.
+
+The reference configuration groups requests without peer metadata under `127.0.0.1` only when `NODE_ENV` is `development`, to support Vite. Production has no such fallback. Account-plus-network limits depend on correct client-IP resolution; they do not make a misconfigured proxy trustworthy. Edge request limits remain appropriate to protect the application and database from traffic that exceeds what application admission can handle.
+
+The tests cover credential bounds, body streaming, forwarding-header spoofing, normalized identities, fail-closed admission, bounded queues, idle cleanup, and concurrent database consumers in the shared adapter conformance suite. `pnpm --filter @byline/webapp test:sign-in-transport` runs a real Start HTTP server with substituted application services; CI runs it to check Request identity, body enforcement, and CSRF ordering. This protection does not change password-reset session revocation or concurrent refresh-token rotation; those remain separate session-lifecycle work.
+
 ### Read-side scoping — the `beforeRead` hook
 
 `CollectionHooks.beforeRead` is the query-level access-control surface.

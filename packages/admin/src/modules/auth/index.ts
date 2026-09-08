@@ -24,6 +24,13 @@
 export { JwtSessionProvider, type JwtSessionProviderConfig } from './jwt-session-provider.js'
 export { hashPassword, verifyPassword } from './password.js'
 export { resolveActor } from './resolve-actor.js'
+export {
+  createPasswordSignInLimiter,
+  type SignInLimiterOptions,
+  type SignInRateLimitPolicy,
+  type SignInRateLimitStore,
+  type SignInSecurityEvent,
+} from './sign-in-rate-limiter.js'
 export type {
   IssueRefreshTokenInput,
   RefreshTokenRow,

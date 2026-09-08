@@ -18,6 +18,7 @@
  * Pure Zod — no runtime side effects, client-safe.
  */
 
+import { MAX_PASSWORD_LENGTH, MAX_SIGN_IN_EMAIL_LENGTH } from '@byline/auth'
 import { z } from 'zod'
 
 /**
@@ -53,7 +54,7 @@ export const PASSWORD_ERROR_CODES = {
 export const passwordSchema = z
   .string()
   .min(8, PASSWORD_ERROR_CODES.TOO_SHORT)
-  .max(128, PASSWORD_ERROR_CODES.TOO_LONG)
+  .max(MAX_PASSWORD_LENGTH, PASSWORD_ERROR_CODES.TOO_LONG)
   .regex(
     /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{8,}$/,
     PASSWORD_ERROR_CODES.COMPLEXITY
@@ -67,4 +68,10 @@ export const passwordSchema = z
 export const uuidSchema = z.uuid({
   message:
     'Invalid UUID format. Must be a 36-character hex string with hyphens (e.g., 123e4567-e89b-12d3-a456-426614174000)',
+})
+
+/** Login accepts existing passwords regardless of current enrollment complexity policy. */
+export const passwordSignInSchema = z.object({
+  email: z.string().max(MAX_SIGN_IN_EMAIL_LENGTH).trim().min(1).toLowerCase(),
+  password: z.string().min(1).max(MAX_PASSWORD_LENGTH),
 })

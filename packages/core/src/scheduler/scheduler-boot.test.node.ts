@@ -42,6 +42,23 @@ const task = defineRecurringTask({
 })
 
 describe('initBylineCore scheduler wiring', () => {
+  it('rejects missing password-sign-in cleanup registration before database initialization', async () => {
+    const config = serverConfig(testAdapter({}))
+    config.passwordSignIn = {
+      resolveClientIp: () => '192.0.2.1',
+      limiter: {
+        requiredCleanupTask: 'auth.sign-in-counters.cleanup',
+        acquire: async () => () => {},
+        consume: async () => ({ allowed: true, retryAfterSeconds: 0 }),
+      },
+    }
+    await expect(initBylineCore(config, {} as PinoLogger)).rejects.toThrow(
+      /Register the limiter's cleanupTask/
+    )
+    config.recurringTasks = [{ ...task, name: 'auth.sign-in-counters.cleanup' }]
+    await expect(initBylineCore(config, {} as PinoLogger)).rejects.toThrow(/scheduler capability/)
+  })
+
   it('rejects recurring tasks registered against an adapter without the scheduler capability', async () => {
     const config = serverConfig(testAdapter({}))
     config.recurringTasks = [task]

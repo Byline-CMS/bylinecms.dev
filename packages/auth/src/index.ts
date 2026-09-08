@@ -34,6 +34,13 @@ export {
   ERR_REVOKED_TOKEN,
   ERR_UNAUTHENTICATED,
 } from './errors.js'
+export { MAX_PASSWORD_LENGTH, MAX_SIGN_IN_EMAIL_LENGTH } from './password-sign-in.js'
+export type {
+  ClientIpResolver,
+  PasswordSignInLimiter,
+  PasswordSignInProtection,
+  SignInAdmission,
+} from './password-sign-in.js'
 export type {
   AccessTokenPayload,
   RefreshSessionArgs,

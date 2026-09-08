@@ -14,6 +14,7 @@ import { createAdminPreferencesRepository } from './admin-preferences-repository
 import { createAdminRolesRepository } from './admin-roles-repository.js'
 import { createAdminUsersRepository } from './admin-users-repository.js'
 import { createRefreshTokensRepository } from './refresh-tokens-repository.js'
+import { createSignInRateLimitStore } from './sign-in-rate-limit-store.js'
 import type * as schema from '../../database/schema/index.js'
 
 /**
@@ -26,6 +27,7 @@ import type * as schema from '../../database/schema/index.js'
  */
 export function createAdminStore(db: NodePgDatabase<typeof schema>): AdminStore {
   return {
+    signInRateLimits: createSignInRateLimitStore(db),
     adminUsers: createAdminUsersRepository(db),
     adminRoles: createAdminRolesRepository(db),
     adminPermissions: createAdminPermissionsRepository(db),

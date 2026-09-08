@@ -6,6 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { PasswordSignInProtection } from '@byline/auth'
+
 import { validateRecurringTasks } from './validate-tasks.js'
 import type { ISchedulerStore, RecurringTaskDefinition } from './types.js'
 
@@ -15,10 +17,18 @@ import type { ISchedulerStore, RecurringTaskDefinition } from './types.js'
  * fails loudly at `initBylineCore()` instead.
  */
 export function validateSchedulerConfig(params: {
+  passwordSignIn?: PasswordSignInProtection
   tasks?: readonly RecurringTaskDefinition[]
   adapter: { scheduler?: ISchedulerStore }
 }): void {
   const tasks = params.tasks ?? []
+  const cleanup = params.passwordSignIn?.limiter.requiredCleanupTask
+  if (cleanup && !tasks.some((task) => task.name === cleanup)) {
+    throw new Error(
+      `Password sign-in requires recurring task "${cleanup}". Register the limiter's cleanupTask ` +
+        'in recurringTasks and start the host scheduler (or invoke runDueTasks externally).'
+    )
+  }
   if (tasks.length === 0) return
 
   validateRecurringTasks(tasks)

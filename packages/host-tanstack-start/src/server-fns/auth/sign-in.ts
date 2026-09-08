@@ -18,13 +18,17 @@
  */
 
 import { createServerFn } from '@tanstack/react-start'
-import { getRequestHeader } from '@tanstack/react-start/server'
+import { getRequest, getRequestHeader } from '@tanstack/react-start/server'
 
+import type { SignInAdmission } from '@byline/auth'
 import { setSessionCookies } from '@byline/client/server'
 import { getServerConfig } from '@byline/core'
+import { passwordSignInSchema } from '@byline/core/validation'
 
 import { readAdminLocaleCookie } from '../../i18n/locale-cookie.js'
 import { bylineCore } from '../../integrations/byline-core.js'
+import { normalizeClientIp } from '../../integrations/client-ip.js'
+import { wasSignInBodyChecked } from '../../integrations/sign-in-body.js'
 
 export interface SignInInput {
   email: string
@@ -36,14 +40,10 @@ export interface SignInResult {
 }
 
 export const adminSignIn = createServerFn({ method: 'POST' })
-  .validator((input: SignInInput) => {
-    if (typeof input?.email !== 'string' || input.email.length === 0) {
-      throw new Error('email is required')
-    }
-    if (typeof input?.password !== 'string' || input.password.length === 0) {
-      throw new Error('password is required')
-    }
-    return { email: input.email, password: input.password }
+  .validator((input: unknown) => {
+    const parsed = passwordSignInSchema.safeParse(input)
+    if (!parsed.success) throw new Response('Invalid sign-in input', { status: 400 })
+    return parsed.data
   })
   .handler(async ({ data }): Promise<SignInResult> => {
     const provider = getServerConfig().sessionProvider
@@ -51,21 +51,67 @@ export const adminSignIn = createServerFn({ method: 'POST' })
       throw new Error('no sessionProvider configured')
     }
 
-    // TanStack Start doesn't currently expose the raw request IP in a
-    // cross-runtime way; pass what we can observe and leave the ip field
-    // unset. Operators who need accurate client IPs for refresh-token
-    // provenance will typically run behind a reverse proxy that stamps
-    // `x-forwarded-for` — revisit when Phase 5 sees real deployments.
-    const userAgent = getRequestHeader('user-agent') ?? undefined
-    const forwardedFor = getRequestHeader('x-forwarded-for') ?? undefined
-    const ip = forwardedFor?.split(',')[0]?.trim() || undefined
-
-    const result = await provider.signInWithPassword({
-      email: data.email,
-      password: data.password,
-      userAgent,
-      ip,
-    })
+    const request = getRequest()
+    const protection = getServerConfig().passwordSignIn
+    if (!wasSignInBodyChecked(request)) {
+      throw new Response('Password sign-in request middleware is not configured', { status: 503 })
+    }
+    if (!protection) {
+      throw new Response('Password sign-in protection is not configured', { status: 503 })
+    }
+    const userAgent = getRequestHeader('user-agent')?.slice(0, 512)
+    let ip: string | null
+    try {
+      ip = normalizeClientIp(await protection.resolveClientIp(request))
+    } catch {
+      throw new Response('Client address unavailable', { status: 503 })
+    }
+    if (!ip) throw new Response('Client address unavailable', { status: 503 })
+    const tooMany = (seconds: number) =>
+      new Response('Too many sign-in attempts', {
+        status: 429,
+        headers: { 'Retry-After': String(seconds), 'Cache-Control': 'no-store' },
+      })
+    let release: (() => void) | null
+    try {
+      release = await protection.limiter.acquire()
+    } catch {
+      throw new Response('Sign-in temporarily unavailable', { status: 503 })
+    }
+    if (!release) throw tooMany(1)
+    const recordResult = (outcome: 'success' | 'failure') => {
+      try {
+        protection.limiter.recordResult?.({ email: data.email, ip }, outcome)
+      } catch {
+        /* Telemetry cannot change authentication outcomes. */
+      }
+    }
+    const result = await (async () => {
+      try {
+        let admission: SignInAdmission
+        try {
+          admission = await protection.limiter.consume({ email: data.email, ip })
+        } catch {
+          throw new Response('Sign-in temporarily unavailable', { status: 503 })
+        }
+        if (!admission.allowed) throw tooMany(admission.retryAfterSeconds)
+        try {
+          const result = await provider.signInWithPassword({
+            email: data.email,
+            password: data.password,
+            userAgent,
+            ip,
+          })
+          recordResult('success')
+          return result
+        } catch (error) {
+          recordResult('failure')
+          throw error
+        }
+      } finally {
+        release()
+      }
+    })()
 
     setSessionCookies(result)
 

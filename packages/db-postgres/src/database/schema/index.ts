@@ -978,6 +978,7 @@ export {
   adminRoleAdminUserRelations,
   adminRoles,
   adminRolesRelations,
+  adminSignInRateLimits,
   adminUserPreferences,
   adminUsers,
   adminUsersRelations,

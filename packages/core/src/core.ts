@@ -180,7 +180,11 @@ export const initBylineCore = async <TAdminStore = unknown>(
       },
     })
   }
-  validateSchedulerConfig({ tasks: configuredTasks, adapter: composed.db })
+  validateSchedulerConfig({
+    tasks: configuredTasks,
+    adapter: composed.db,
+    passwordSignIn: resolvedConfig.passwordSignIn,
+  })
 
   // Freeze a snapshot of the validated task set: a new array of new, frozen
   // objects, then freeze the array itself. Without this, `core.recurringTasks`

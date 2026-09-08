@@ -24,8 +24,10 @@
  * scheduler startup for the long-running application process.
  */
 
+import { getRequestIP } from '@tanstack/react-start/server'
+
 import { type AdminStore, registerAdminAbilities } from '@byline/admin'
-import { JwtSessionProvider } from '@byline/admin/auth'
+import { createPasswordSignInLimiter, JwtSessionProvider } from '@byline/admin/auth'
 import { createAnalytics, defineAnalyticsRollupTask, registerAnalytics } from '@byline/analytics'
 // import { migrate as migrateAnalytics, mysqlAnalyticsStore } from '@byline/analytics-mysql'
 import { migrate as migrateAnalytics, postgresAnalyticsStore } from '@byline/analytics-postgres'
@@ -33,6 +35,7 @@ import { getAdminBylineClient } from '@byline/client/server'
 import { type BylineCore, initBylineCore } from '@byline/core'
 import { pgAdapter } from '@byline/db-postgres'
 import { createAdminStore } from '@byline/db-postgres/admin'
+import { createClientIpResolver } from '@byline/host-tanstack-start/integrations/client-ip'
 // ── MySQL adapter (end-to-end testing) ────────────────────────────────────────
 // Comment out the two `@byline/db-postgres` imports above and uncomment these
 // two, then follow the matching block in `buildBylineCore()` below.
@@ -213,6 +216,8 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     )
   }
 
+  const signInLimiter = createPasswordSignInLimiter(adminStore.signInRateLimits, signingSecret)
+
   const sessionProvider = new JwtSessionProvider({
     // Users, roles, permissions, and refresh tokens use the shared admin
     // repository bundle created above.
@@ -289,6 +294,15 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     // }),
     // Authentication seam consumed by the TanStack admin transport.
     sessionProvider,
+    passwordSignIn: {
+      limiter: signInLimiter,
+      resolveClientIp: createClientIpResolver({
+        // Opt in only when the proxy overwrites this header and direct access is blocked.
+        trustedProxyHeader: process.env.BYLINE_TRUSTED_CLIENT_IP_HEADER || undefined,
+        resolvePeerIp: () =>
+          getRequestIP() ?? (process.env.NODE_ENV === 'development' ? '127.0.0.1' : null),
+      }),
+    },
     fields: {
       // Server-side richtext adapter — refreshes embedded relation
       // envelopes (link `{ title, path }`, inline-image `{ title, altText,
@@ -357,7 +371,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     // Application-defined recurring tasks sit beside built-in tasks. The
     // analytics definition performs catch-up rollups and retention maintenance;
     // `src/server.ts` runs the combined validated registry.
-    recurringTasks: [defineAnalyticsRollupTask({ analytics })],
+    recurringTasks: [signInLimiter.cleanupTask, defineAnalyticsRollupTask({ analytics })],
   })
 
   // Analytics is created before core so its task can be registered above.

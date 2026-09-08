@@ -253,3 +253,14 @@ export const adminRefreshTokensRelations = relations(adminRefreshTokens, ({ one 
     references: [adminUsers.id],
   }),
 }))
+
+/** Shared, expiring fixed-window counters for password sign-in admission. */
+export const adminSignInRateLimits = pgTable(
+  'byline_admin_sign_in_rate_limits',
+  {
+    key: varchar('key', { length: 64 }).primaryKey(),
+    attempts: integer('attempts').notNull(),
+    expires_at: timestamp('expires_at', { withTimezone: true, precision: 3 }).notNull(),
+  },
+  (table) => [index('idx_admin_sign_in_rate_limits_expiry').on(table.expires_at)]
+)

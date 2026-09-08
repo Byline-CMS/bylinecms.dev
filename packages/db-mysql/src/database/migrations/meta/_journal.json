@@ -8,6 +8,13 @@
       "when": 1788642356080,
       "tag": "0000_pale_bastion",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1788851939614,
+      "tag": "0001_silky_revanche",
+      "breakpoints": true
     }
   ]
 }

@@ -22,6 +22,7 @@ import {
   type SignInResult,
   type SignInWithPasswordArgs,
 } from '@byline/auth'
+import { passwordSignInSchema } from '@byline/core/validation'
 import { jwtVerify, SignJWT } from 'jose'
 import { v7 as uuidv7 } from 'uuid'
 
@@ -97,18 +98,19 @@ export class JwtSessionProvider implements SessionProvider {
   // -----------------------------------------------------------------------
 
   async signInWithPassword(args: SignInWithPasswordArgs): Promise<SignInResult> {
+    const credentials = passwordSignInSchema.parse(args)
     const users = this.#store.adminUsers
-    const row = await users.getByEmailForSignIn(args.email)
+    const row = await users.getByEmailForSignIn(credentials.email)
 
     // Uniform error response for unknown email vs. wrong password — don't
     // leak which one. Still do a real verify against a dummy hash so the
     // timing is comparable; the argon2 cost dominates regardless.
     if (!row) {
-      await verifyPassword(args.password, DUMMY_HASH_FOR_TIMING)
+      await verifyPassword(credentials.password, DUMMY_HASH_FOR_TIMING)
       throw ERR_INVALID_CREDENTIALS({ message: 'invalid credentials' })
     }
 
-    const ok = await verifyPassword(args.password, row.password_hash)
+    const ok = await verifyPassword(credentials.password, row.password_hash)
     if (!ok) {
       await users.recordLoginFailure(row.id)
       throw ERR_INVALID_CREDENTIALS({ message: 'invalid credentials' })

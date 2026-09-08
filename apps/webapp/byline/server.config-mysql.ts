@@ -6,6 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { getRequestIP } from '@tanstack/react-start/server'
+
 /**
  * Inactive MySQL provider comparison kept for maintainers who test both
  * built-in SQL adapters. No application entry point imports this file;
@@ -19,12 +21,13 @@
  * easy to compare with `server.config-pg.ts`.
  */
 import { type AdminStore, registerAdminAbilities } from '@byline/admin'
-import { JwtSessionProvider } from '@byline/admin/auth'
+import { createPasswordSignInLimiter, JwtSessionProvider } from '@byline/admin/auth'
 import { getAdminBylineClient } from '@byline/client/server'
 import { type BylineCore, initBylineCore } from '@byline/core'
 // ── MySQL adapter (end-to-end testing) ────────────────────────────────────────
 import { mysqlAdapter } from '@byline/db-mysql'
 import { createAdminStore } from '@byline/db-mysql/admin'
+import { createClientIpResolver } from '@byline/host-tanstack-start/integrations/client-ip'
 import { registerTanstackStartHostBridge } from '@byline/host-tanstack-start/integrations/host-bridge'
 import {
   lexicalEditorEmbedServer,
@@ -140,6 +143,8 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     )
   }
 
+  const signInLimiter = createPasswordSignInLimiter(adminStore.signInRateLimits, signingSecret)
+
   const sessionProvider = new JwtSessionProvider({
     // Share the adapter-built repositories with authentication.
     store: adminStore,
@@ -213,6 +218,16 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     // }),
     // Built-in JWT authentication over the shared admin store.
     sessionProvider,
+    recurringTasks: [signInLimiter.cleanupTask],
+    passwordSignIn: {
+      limiter: signInLimiter,
+      resolveClientIp: createClientIpResolver({
+        // Opt in only when the proxy overwrites this header and direct access is blocked.
+        trustedProxyHeader: process.env.BYLINE_TRUSTED_CLIENT_IP_HEADER || undefined,
+        resolvePeerIp: () =>
+          getRequestIP() ?? (process.env.NODE_ENV === 'development' ? '127.0.0.1' : null),
+      }),
+    },
     fields: {
       // Server-side richtext adapter — refreshes embedded relation
       // envelopes (link `{ title, path }`, inline-image `{ title, altText,

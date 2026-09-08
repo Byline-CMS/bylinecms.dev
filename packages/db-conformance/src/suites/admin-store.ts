@@ -989,10 +989,43 @@ function authIntegrationSuite(hooks: ConformanceHooks, createAdminStore: CreateA
  * absent from the run rather than appearing as skipped. When the hook is
  * present, every test below runs — zero skips.
  */
+function signInRateLimitSuite(hooks: ConformanceHooks, createAdminStore: CreateAdminStore): void {
+  describe('shared sign-in rate limits (integration)', () => {
+    let store: AdminStore
+    beforeAll(async () => {
+      await hooks.truncate()
+      store = await createAdminStore()
+    })
+    it('admits exactly the budget across concurrent consumers and independent stores', async () => {
+      const other = await createAdminStore()
+      const key = `concurrent-${Date.now()}`
+      const expiry = new Date(Date.now() + 60_000)
+      const results = await Promise.all(
+        Array.from({ length: 20 }, (_, index) =>
+          (index % 2 ? store : other).signInRateLimits.consume(key, 5, expiry)
+        )
+      )
+      expect(results.filter(Boolean)).toHaveLength(5)
+      expect(await store.signInRateLimits.consume(key, 5, expiry)).toBe(false)
+    })
+    it('purges expired counters without resetting active budgets', async () => {
+      const expired = `expired-${Date.now()}`
+      const active = `active-${Date.now()}`
+      const now = new Date()
+      await store.signInRateLimits.consume(expired, 1, new Date(now.getTime() - 1000))
+      await store.signInRateLimits.consume(active, 1, new Date(now.getTime() + 60_000))
+      await store.signInRateLimits.purgeExpired(now)
+      expect(await store.signInRateLimits.consume(expired, 1, now)).toBe(true)
+      expect(await store.signInRateLimits.consume(active, 1, now)).toBe(false)
+    })
+  })
+}
+
 export function adminStoreSuite(hooks: ConformanceHooks): void {
   const { createAdminStore } = hooks
   if (!createAdminStore) return
 
+  signInRateLimitSuite(hooks, createAdminStore)
   adminPreferencesSuite(hooks, createAdminStore)
   sessionProviderSuite(hooks, createAdminStore)
   authIntegrationSuite(hooks, createAdminStore)

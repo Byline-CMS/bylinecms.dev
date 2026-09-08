@@ -14,7 +14,9 @@
  */
 
 import { type AdminStore, registerAdminAbilities } from '@byline/admin'
-import { JwtSessionProvider } from '@byline/admin/auth'
+import { createPasswordSignInLimiter, JwtSessionProvider } from '@byline/admin/auth'
+import { getRequestIP } from '@tanstack/react-start/server'
+import { createClientIpResolver } from '@byline/host-tanstack-start/integrations/client-ip'
 import { getAdminBylineClient } from '@byline/client/server'
 import { type BylineCore, initBylineCore } from '@byline/core'
 import { mysqlAdapter } from '@byline/db-mysql'
@@ -67,6 +69,8 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     )
   }
 
+  const signInLimiter = createPasswordSignInLimiter(adminStore.signInRateLimits, signingSecret)
+
   const sessionProvider = new JwtSessionProvider({
     store: adminStore,
     signingSecret,
@@ -86,6 +90,16 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       baseUrl: '/uploads',
     }),
     sessionProvider,
+    recurringTasks: [signInLimiter.cleanupTask],
+    passwordSignIn: {
+      limiter: signInLimiter,
+      resolveClientIp: createClientIpResolver({
+        // Opt in only when the proxy overwrites this header and direct access is blocked.
+        trustedProxyHeader: process.env.BYLINE_TRUSTED_CLIENT_IP_HEADER || undefined,
+        resolvePeerIp: () => getRequestIP() ??
+          (process.env.NODE_ENV === 'development' ? '127.0.0.1' : null),
+      }),
+    },
     fields: {
       richText: {
         embed: lexicalEditorEmbedServer({ getClient: getAdminBylineClient }),

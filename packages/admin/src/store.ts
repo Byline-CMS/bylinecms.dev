@@ -11,6 +11,7 @@ import type { AdminPreferencesRepository } from './modules/admin-preferences/rep
 import type { AdminRolesRepository } from './modules/admin-roles/repository.js'
 import type { AdminUsersRepository } from './modules/admin-users/repository.js'
 import type { RefreshTokensRepository } from './modules/auth/refresh-tokens-repository.js'
+import type { SignInRateLimitStore } from './modules/auth/sign-in-rate-limiter.js'
 
 /**
  * The bundle of repositories that `@byline/admin` needs from the DB
@@ -21,11 +22,13 @@ import type { RefreshTokensRepository } from './modules/auth/refresh-tokens-repo
  * `JwtSessionProvider`, to `seedSuperAdmin`, and (later) to admin-user
  * and admin-role commands.
  *
- * Keeping the five repositories together as a single argument avoids
+ * Keeping the repositories together as a single argument avoids
  * exploding constructor signatures and makes "needs admin DB access" a
  * single, recognisable type.
  */
+
 export interface AdminStore {
+  signInRateLimits: SignInRateLimitStore
   adminUsers: AdminUsersRepository
   adminRoles: AdminRolesRepository
   adminPermissions: AdminPermissionsRepository

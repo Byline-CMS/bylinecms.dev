@@ -71,6 +71,7 @@ const serverConfigKeys = completeKeys<ServerConfig>()([
   'slugifier',
   'uploads',
   'sessionProvider',
+  'passwordSignIn',
   'adminStore',
   'fields',
   'search',

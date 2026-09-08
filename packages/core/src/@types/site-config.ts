@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { SessionProvider } from '@byline/auth'
+import type { PasswordSignInProtection, SessionProvider } from '@byline/auth'
 
 import type { RecurringTaskDefinition } from '../scheduler/types.js'
 import type { SlugifierFn } from '../utils/slugify.js'
@@ -372,6 +372,8 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    * ```
    */
   sessionProvider?: SessionProvider
+  /** Required by the host password sign-in endpoint; shared limiter and trusted IP resolver. */
+  passwordSignIn?: PasswordSignInProtection
   /**
    * Adapter-built bundle of admin repositories (users / roles /
    * permissions / refresh tokens). Typically constructed via the

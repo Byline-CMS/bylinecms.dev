@@ -158,6 +158,7 @@ jobs:
       # Unit suites across every package (core/auth/admin/ai/host/client/...).
       # Pure CPU, no DB
       - run: pnpm test
+      - run: pnpm --filter @byline/webapp test:sign-in-transport
       # Integration tests now - require byline_test DB
       - run: pnpm test:integration
 

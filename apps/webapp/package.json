@@ -34,7 +34,8 @@
     "test:node": "vitest run --mode=node",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:sign-in-transport": "node tests/sign-in-start/run.mjs"
   },
   "dependencies": {
     "@byline/admin": "workspace:*",
