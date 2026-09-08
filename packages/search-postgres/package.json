@@ -58,18 +58,18 @@
     "pg": "^8.21.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.10",
+    "@biomejs/biome": "2.5.12",
     "@byline/search-conformance": "workspace:*",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.5.0",
     "@types/pg": "^8.23.1",
     "chokidar": "^5.0.0",
     "chokidar-cli": "^3.0.0",
     "dotenv": "^17.4.2",
     "npm-run-all": "^4.1.5",
     "pg": "^8.23.0",
-    "tsc-alias": "^1.9.2",
+    "tsc-alias": "^1.9.4",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "publishConfig": {
     "access": "public",
