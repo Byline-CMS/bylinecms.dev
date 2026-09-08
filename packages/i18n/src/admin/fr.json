@@ -649,5 +649,13 @@
   "documentConcurrency.schedulesTitle": "Publications programmées à vérifier",
   "documentConcurrency.schedules": "La structure a été enregistrée. Les publications programmées concernées ont été suspendues et doivent être vérifiées avant leur exécution.",
   "documentConcurrency.reviewSchedules": "Vérifier les publications programmées",
-  "documentConcurrency.failed": "L’opération n’a pas pu être effectuée. Vos modifications non enregistrées sont toujours disponibles."
+  "documentConcurrency.failed": "L’opération n’a pas pu être effectuée. Vos modifications non enregistrées sont toujours disponibles.",
+  "sessionChange.title": "Votre session a changé",
+  "sessionChange.body": "Votre travail précédent n'a pas été réessayé. Vérifiez le compte actif avant de continuer.",
+  "sessionChange.activeAccount": "Compte actif : {email}",
+  "sessionChange.continue": "Continuer avec ce compte",
+  "sessionChange.signInAgain": "Se reconnecter",
+  "sessionChange.errors.unavailable": "La session n'est plus disponible. Veuillez vous reconnecter.",
+  "sessionChange.errors.changedAgain": "La session active a de nouveau changé. Vérifiez le compte avant de continuer.",
+  "sessionChange.errors.unverifiable": "Impossible de vérifier la session active. Veuillez vous reconnecter."
 }

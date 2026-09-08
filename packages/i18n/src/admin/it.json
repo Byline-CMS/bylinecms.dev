@@ -649,5 +649,13 @@
   "documentConcurrency.schedulesTitle": "Pubblicazioni programmate da verificare",
   "documentConcurrency.schedules": "La struttura è stata salvata. Le pubblicazioni programmate interessate sono state sospese e devono essere verificate prima dell’esecuzione.",
   "documentConcurrency.reviewSchedules": "Verifica le pubblicazioni programmate",
-  "documentConcurrency.failed": "Impossibile completare l’operazione. Le modifiche non salvate sono ancora disponibili."
+  "documentConcurrency.failed": "Impossibile completare l’operazione. Le modifiche non salvate sono ancora disponibili.",
+  "sessionChange.title": "La tua sessione è cambiata",
+  "sessionChange.body": "Il lavoro precedente non è stato ritentato. Controlla l’account attivo prima di continuare.",
+  "sessionChange.activeAccount": "Account attivo: {email}",
+  "sessionChange.continue": "Continua con questo account",
+  "sessionChange.signInAgain": "Accedi di nuovo",
+  "sessionChange.errors.unavailable": "La sessione non è più disponibile. Accedi di nuovo.",
+  "sessionChange.errors.changedAgain": "La sessione attiva è cambiata di nuovo. Controlla l’account prima di continuare.",
+  "sessionChange.errors.unverifiable": "Impossibile verificare la sessione attiva. Accedi di nuovo."
 }

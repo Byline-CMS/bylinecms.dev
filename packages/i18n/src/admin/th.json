@@ -649,5 +649,13 @@
   "documentConcurrency.schedulesTitle": "ต้องตรวจสอบการเผยแพร่ตามกำหนดเวลา",
   "documentConcurrency.schedules": "บันทึกโครงสร้างแล้ว การเผยแพร่ตามกำหนดเวลาที่ได้รับผลกระทบถูกระงับและต้องได้รับการตรวจสอบก่อนดำเนินการ",
   "documentConcurrency.reviewSchedules": "ตรวจสอบการเผยแพร่ตามกำหนดเวลา",
-  "documentConcurrency.failed": "ไม่สามารถดำเนินการให้เสร็จได้ การเปลี่ยนแปลงที่ยังไม่ได้บันทึกยังคงอยู่"
+  "documentConcurrency.failed": "ไม่สามารถดำเนินการให้เสร็จได้ การเปลี่ยนแปลงที่ยังไม่ได้บันทึกยังคงอยู่",
+  "sessionChange.title": "เซสชันของคุณเปลี่ยนแปลงแล้ว",
+  "sessionChange.body": "งานก่อนหน้านี้ของคุณไม่ได้ถูกดำเนินการซ้ำ กรุณาตรวจสอบบัญชีที่ใช้งานอยู่ก่อนดำเนินการต่อ",
+  "sessionChange.activeAccount": "บัญชีที่ใช้งานอยู่: {email}",
+  "sessionChange.continue": "ดำเนินการต่อด้วยบัญชีนี้",
+  "sessionChange.signInAgain": "เข้าสู่ระบบอีกครั้ง",
+  "sessionChange.errors.unavailable": "เซสชันนี้ไม่พร้อมใช้งานอีกต่อไป กรุณาเข้าสู่ระบบอีกครั้ง",
+  "sessionChange.errors.changedAgain": "เซสชันที่ใช้งานอยู่เปลี่ยนแปลงอีกครั้ง กรุณาตรวจสอบบัญชีก่อนดำเนินการต่อ",
+  "sessionChange.errors.unverifiable": "ไม่สามารถยืนยันเซสชันที่ใช้งานอยู่ได้ กรุณาเข้าสู่ระบบอีกครั้ง"
 }

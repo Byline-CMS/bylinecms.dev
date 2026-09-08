@@ -15,6 +15,9 @@ const mocks = vi.hoisted(() => ({ current: vi.fn() }))
 vi.mock('../../server-fns/auth/current-user.js', () => ({ getCurrentAdminUser: mocks.current }))
 vi.mock('../../routes/sign-in-path.js', () => ({ getSignInRoutePath: () => '/sign-in' }))
 
+import { adminTranslations } from '@byline/i18n/admin'
+import { I18nProvider } from '@byline/i18n/react'
+
 import { acceptSession, expectedSession } from '../../integrations/session-coordination.js'
 import { SessionChangeBoundary } from './session-change-boundary.js'
 
@@ -44,12 +47,22 @@ afterEach(() => {
   container.remove()
   vi.unstubAllGlobals()
 })
+// Mounted inside a real provider so the assertions below read the shipped
+// English strings, and so the boundary's `OptionalI18nProvider` exercises its
+// reuse path (an existing context is preserved rather than self-mounted).
 async function render() {
   await act(async () => {
     root.render(
-      <SessionChangeBoundary user={user('late-A', 'x@example.test')}>
-        <button type="button">Publish</button>
-      </SessionChangeBoundary>
+      <I18nProvider
+        bundle={adminTranslations({ locales: ['en'] })}
+        activeLocale="en"
+        defaultLocale="en"
+        localeDefinitions={[{ code: 'en', nativeName: 'English' }]}
+      >
+        <SessionChangeBoundary user={user('late-A', 'x@example.test')}>
+          <button type="button">Publish</button>
+        </SessionChangeBoundary>
+      </I18nProvider>
     )
   })
 }

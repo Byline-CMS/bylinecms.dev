@@ -649,5 +649,13 @@
   "documentConcurrency.schedulesTitle": "Geplante Veröffentlichungen prüfen",
   "documentConcurrency.schedules": "Die Struktur wurde gespeichert. Betroffene geplante Veröffentlichungen wurden ausgesetzt und müssen vor ihrer Ausführung geprüft werden.",
   "documentConcurrency.reviewSchedules": "Geplante Veröffentlichungen prüfen",
-  "documentConcurrency.failed": "Der Vorgang konnte nicht abgeschlossen werden. Ihre ungespeicherten Änderungen sind weiterhin verfügbar."
+  "documentConcurrency.failed": "Der Vorgang konnte nicht abgeschlossen werden. Ihre ungespeicherten Änderungen sind weiterhin verfügbar.",
+  "sessionChange.title": "Ihre Sitzung hat sich geändert",
+  "sessionChange.body": "Ihre vorherige Aktion wurde nicht wiederholt. Prüfen Sie das aktive Konto, bevor Sie fortfahren.",
+  "sessionChange.activeAccount": "Aktives Konto: {email}",
+  "sessionChange.continue": "Mit diesem Konto fortfahren",
+  "sessionChange.signInAgain": "Erneut anmelden",
+  "sessionChange.errors.unavailable": "Die Sitzung ist nicht mehr verfügbar. Bitte melden Sie sich erneut an.",
+  "sessionChange.errors.changedAgain": "Die aktive Sitzung hat sich erneut geändert. Prüfen Sie das Konto, bevor Sie fortfahren.",
+  "sessionChange.errors.unverifiable": "Die aktive Sitzung konnte nicht überprüft werden. Bitte melden Sie sich erneut an."
 }

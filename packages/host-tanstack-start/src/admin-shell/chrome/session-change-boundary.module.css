@@ -1,0 +1,112 @@
+/**
+ * SessionChangeBoundary — viewport-centred interstitial shown when the
+ * active login identity no longer matches the one this page was rendered
+ * for. Rare by design: it only appears on an account mismatch.
+ *
+ * Override handles:
+ *   .byline-session-change            — outer <main>, centres the card in the viewport
+ *   .byline-session-change-card       — the bordered card itself
+ *   .byline-session-change-title      — heading
+ *   .byline-session-change-body       — explanatory paragraph
+ *   .byline-session-change-account    — "Active account: …" line
+ *   .byline-session-change-error      — error paragraph (role="alert")
+ *   .byline-session-change-actions    — button row
+ */
+
+.main,
+:global(.byline-session-change) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 1.5rem;
+  /* Bias the card just above the geometric centre — a dialog sitting dead
+     centre optically reads as slightly low. The extra bottom padding lifts it
+     by half its own value, and being proportional it degrades gracefully on
+     short viewports instead of clipping the card off the top. */
+  padding-bottom: calc(1.5rem + 12vh);
+}
+
+.card,
+:global(.byline-session-change-card) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 30rem;
+  padding: 1.5rem;
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+  border-radius: var(--border-radius-md);
+  background-color: var(--canvas-25);
+}
+
+:is([data-theme="dark"], :global(.dark)) .card,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-session-change-card) {
+  border-color: var(--gray-700);
+  background-color: var(--canvas-800);
+}
+
+.title,
+:global(.byline-session-change-title) {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--letter-spacing-tight);
+  color: var(--gray-900);
+}
+
+:is([data-theme="dark"], :global(.dark)) .title,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-session-change-title) {
+  color: var(--gray-100);
+}
+
+.body,
+:global(.byline-session-change-body) {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  color: var(--gray-700);
+}
+
+:is([data-theme="dark"], :global(.dark)) .body,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-session-change-body) {
+  color: var(--gray-400);
+}
+
+.account,
+:global(.byline-session-change-account) {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  color: var(--gray-900);
+  overflow-wrap: anywhere;
+}
+
+:is([data-theme="dark"], :global(.dark)) .account,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-session-change-account) {
+  color: var(--gray-100);
+}
+
+.error,
+:global(.byline-session-change-error) {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  color: var(--red-600);
+}
+
+:is([data-theme="dark"], :global(.dark)) .error,
+:is([data-theme="dark"], :global(.dark)) :global(.byline-session-change-error) {
+  color: var(--red-400);
+}
+
+.actions,
+:global(.byline-session-change-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}

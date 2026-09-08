@@ -649,5 +649,13 @@
   "documentConcurrency.schedulesTitle": "Scheduled publications need review",
   "documentConcurrency.schedules": "The structure was saved. Scheduled publications affected by this change were suspended and need review before they can run.",
   "documentConcurrency.reviewSchedules": "Review scheduled publications",
-  "documentConcurrency.failed": "The operation could not be completed. Your unsaved changes are still available."
+  "documentConcurrency.failed": "The operation could not be completed. Your unsaved changes are still available.",
+  "sessionChange.title": "Your session has changed",
+  "sessionChange.body": "Your previous work has not been retried. Check the active account before continuing.",
+  "sessionChange.activeAccount": "Active account: {email}",
+  "sessionChange.continue": "Continue as this account",
+  "sessionChange.signInAgain": "Sign in again",
+  "sessionChange.errors.unavailable": "The session is no longer available. Please sign in again.",
+  "sessionChange.errors.changedAgain": "The active session changed again. Review the account before continuing.",
+  "sessionChange.errors.unverifiable": "Unable to verify the active session. Please sign in again."
 }

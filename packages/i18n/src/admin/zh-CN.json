@@ -649,5 +649,13 @@
   "documentConcurrency.schedulesTitle": "计划发布需要审核",
   "documentConcurrency.schedules": "结构已保存。受此更改影响的计划发布已暂停，需要审核后才能执行。",
   "documentConcurrency.reviewSchedules": "审核计划发布",
-  "documentConcurrency.failed": "操作未能完成。您未保存的更改仍然可用。"
+  "documentConcurrency.failed": "操作未能完成。您未保存的更改仍然可用。",
+  "sessionChange.title": "您的会话已更改",
+  "sessionChange.body": "您之前的操作未被重试。请在继续前确认当前账户。",
+  "sessionChange.activeAccount": "当前账户：{email}",
+  "sessionChange.continue": "以此账户继续",
+  "sessionChange.signInAgain": "重新登录",
+  "sessionChange.errors.unavailable": "该会话已不可用，请重新登录。",
+  "sessionChange.errors.changedAgain": "当前会话再次发生更改，请在继续前确认账户。",
+  "sessionChange.errors.unverifiable": "无法验证当前会话，请重新登录。"
 }

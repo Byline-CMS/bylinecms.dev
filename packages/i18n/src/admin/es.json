@@ -649,5 +649,13 @@
   "documentConcurrency.schedulesTitle": "Las publicaciones programadas requieren revisión",
   "documentConcurrency.schedules": "La estructura se guardó. Las publicaciones programadas afectadas se suspendieron y deben revisarse antes de ejecutarse.",
   "documentConcurrency.reviewSchedules": "Revisar publicaciones programadas",
-  "documentConcurrency.failed": "No se pudo completar la operación. Sus cambios sin guardar siguen disponibles."
+  "documentConcurrency.failed": "No se pudo completar la operación. Sus cambios sin guardar siguen disponibles.",
+  "sessionChange.title": "Tu sesión ha cambiado",
+  "sessionChange.body": "No se ha reintentado tu trabajo anterior. Comprueba la cuenta activa antes de continuar.",
+  "sessionChange.activeAccount": "Cuenta activa: {email}",
+  "sessionChange.continue": "Continuar con esta cuenta",
+  "sessionChange.signInAgain": "Iniciar sesión de nuevo",
+  "sessionChange.errors.unavailable": "La sesión ya no está disponible. Inicia sesión de nuevo.",
+  "sessionChange.errors.changedAgain": "La sesión activa ha cambiado de nuevo. Revisa la cuenta antes de continuar.",
+  "sessionChange.errors.unverifiable": "No se ha podido verificar la sesión activa. Inicia sesión de nuevo."
 }
