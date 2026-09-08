@@ -15,7 +15,7 @@ import type { SearchConformanceHooks } from '../index.js'
 export function fullTextMatchingSuite(hooks: SearchConformanceHooks): void {
   let provider: SearchProvider
 
-  describe.sequential('SearchProvider full-text matching', () => {
+  describe('SearchProvider full-text matching', () => {
     beforeEach(async () => {
       await hooks.reset()
       provider = await hooks.createProvider()

@@ -15,7 +15,7 @@ import type { SearchConformanceHooks } from '../index.js'
 export function lifecycleSuite(hooks: SearchConformanceHooks): void {
   let provider: SearchProvider
 
-  describe.sequential('SearchProvider document lifecycle and scope', () => {
+  describe('SearchProvider document lifecycle and scope', () => {
     beforeEach(async () => {
       await hooks.reset()
       provider = await hooks.createProvider()

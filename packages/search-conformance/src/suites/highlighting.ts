@@ -15,7 +15,7 @@ import type { SearchConformanceHooks } from '../index.js'
 export function highlightingSuite(hooks: SearchConformanceHooks): void {
   let provider: SearchProvider
 
-  describe.sequential('SearchProvider highlighting', () => {
+  describe('SearchProvider highlighting', () => {
     beforeEach(async () => {
       await hooks.reset()
       provider = await hooks.createProvider()

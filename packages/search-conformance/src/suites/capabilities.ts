@@ -15,7 +15,7 @@ import type { SearchConformanceHooks } from '../index.js'
 export function capabilitiesSuite(hooks: SearchConformanceHooks): void {
   let provider: SearchProvider
 
-  describe.sequential('SearchProvider capabilities', () => {
+  describe('SearchProvider capabilities', () => {
     beforeAll(async () => {
       provider = await hooks.createProvider()
     })

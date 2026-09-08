@@ -19,7 +19,7 @@ export function portableAnalysisSuite(hooks: SearchConformanceHooks): void {
   const createProvider = hooks.createPortableProvider
   let provider: SearchProvider
 
-  describe.sequential('portable SearchProvider analysis', () => {
+  describe('portable SearchProvider analysis', () => {
     beforeEach(async () => {
       await hooks.reset()
       provider = await createProvider(createPortableSearchAnalyzer())
