@@ -1,9 +1,82 @@
 {
-  "id": "884734c4-5ec7-4fb8-ad70-2dfea3f89ee6",
+  "id": "71a654ab-27dc-45d6-9f1a-15b061ff806c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.byline_admin_login_sessions": {
+      "name": "byline_admin_login_sessions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "admin_user_id": {
+          "name": "admin_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "session_version": {
+          "name": "session_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp (6) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp (6) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_admin_login_sessions_user": {
+          "name": "idx_admin_login_sessions_user",
+          "columns": [
+            {
+              "expression": "admin_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "byline_admin_login_sessions_admin_user_id_byline_admin_users_id_fk": {
+          "name": "byline_admin_login_sessions_admin_user_id_byline_admin_users_id_fk",
+          "tableFrom": "byline_admin_login_sessions",
+          "tableTo": "byline_admin_users",
+          "columnsFrom": [
+            "admin_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.byline_admin_permissions": {
       "name": "byline_admin_permissions",
       "schema": "",
@@ -111,11 +184,24 @@
           "primaryKey": false,
           "notNull": true
         },
+        "sid": {
+          "name": "sid",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "token_hash": {
           "name": "token_hash",
           "type": "varchar(64)",
           "primaryKey": false,
           "notNull": true
+        },
+        "session_version": {
+          "name": "session_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": -1
         },
         "issued_at": {
           "name": "issued_at",
@@ -176,6 +262,21 @@
         }
       },
       "indexes": {
+        "idx_admin_refresh_tokens_sid": {
+          "name": "idx_admin_refresh_tokens_sid",
+          "columns": [
+            {
+              "expression": "sid",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "idx_byline_admin_refresh_tokens_user": {
           "name": "idx_byline_admin_refresh_tokens_user",
           "columns": [
@@ -214,6 +315,19 @@
           "tableTo": "byline_admin_users",
           "columnsFrom": [
             "admin_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "byline_admin_refresh_tokens_sid_byline_admin_login_sessions_id_fk": {
+          "name": "byline_admin_refresh_tokens_sid_byline_admin_login_sessions_id_fk",
+          "tableFrom": "byline_admin_refresh_tokens",
+          "tableTo": "byline_admin_login_sessions",
+          "columnsFrom": [
+            "sid"
           ],
           "columnsTo": [
             "id"
@@ -408,6 +522,53 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.byline_admin_sign_in_rate_limits": {
+      "name": "byline_admin_sign_in_rate_limits",
+      "schema": "",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "varchar(64)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "idx_admin_sign_in_rate_limits_expiry": {
+          "name": "idx_admin_sign_in_rate_limits_expiry",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.byline_admin_user_preferences": {
       "name": "byline_admin_user_preferences",
       "schema": "",
@@ -484,6 +645,13 @@
           "type": "uuid",
           "primaryKey": true,
           "notNull": true
+        },
+        "session_version": {
+          "name": "session_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "vid": {
           "name": "vid",
