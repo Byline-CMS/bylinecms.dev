@@ -1,9 +1,83 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "0fe1209b-40b5-4b0a-85ea-008db66c52b6",
+  "id": "037e9f50-01e1-4acd-8c3e-7fff0ac552b0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "byline_admin_login_sessions": {
+      "name": "byline_admin_login_sessions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36) CHARACTER SET ascii COLLATE ascii_bin",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "admin_user_id": {
+          "name": "admin_user_id",
+          "type": "char(36) CHARACTER SET ascii COLLATE ascii_bin",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session_version": {
+          "name": "session_version",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_admin_login_sessions_user": {
+          "name": "idx_admin_login_sessions_user",
+          "columns": [
+            "admin_user_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "fk_admin_login_sessions_user": {
+          "name": "fk_admin_login_sessions_user",
+          "tableFrom": "byline_admin_login_sessions",
+          "tableTo": "byline_admin_users",
+          "columnsFrom": [
+            "admin_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "byline_admin_login_sessions_id": {
+          "name": "byline_admin_login_sessions_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
     "byline_admin_permissions": {
       "name": "byline_admin_permissions",
       "columns": {
@@ -113,12 +187,27 @@
           "notNull": true,
           "autoincrement": false
         },
+        "sid": {
+          "name": "sid",
+          "type": "char(36) CHARACTER SET ascii COLLATE ascii_bin",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "token_hash": {
           "name": "token_hash",
           "type": "varchar(64)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "session_version": {
+          "name": "session_version",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": -1
         },
         "issued_at": {
           "name": "issued_at",
@@ -188,6 +277,13 @@
         }
       },
       "indexes": {
+        "idx_admin_refresh_tokens_sid": {
+          "name": "idx_admin_refresh_tokens_sid",
+          "columns": [
+            "sid"
+          ],
+          "isUnique": false
+        },
         "idx_byline_admin_refresh_tokens_user": {
           "name": "idx_byline_admin_refresh_tokens_user",
           "columns": [
@@ -204,6 +300,19 @@
         }
       },
       "foreignKeys": {
+        "fk_admin_refresh_tokens_sid": {
+          "name": "fk_admin_refresh_tokens_sid",
+          "tableFrom": "byline_admin_refresh_tokens",
+          "tableTo": "byline_admin_login_sessions",
+          "columnsFrom": [
+            "sid"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
         "fk_admin_refresh_tokens_admin_user_id": {
           "name": "fk_admin_refresh_tokens_admin_user_id",
           "tableFrom": "byline_admin_refresh_tokens",
@@ -403,6 +512,52 @@
       },
       "checkConstraint": {}
     },
+    "byline_admin_sign_in_rate_limits": {
+      "name": "byline_admin_sign_in_rate_limits",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_admin_sign_in_rate_limits_expiry": {
+          "name": "idx_admin_sign_in_rate_limits_expiry",
+          "columns": [
+            "expires_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "byline_admin_sign_in_rate_limits_key": {
+          "name": "byline_admin_sign_in_rate_limits_key",
+          "columns": [
+            "key"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
     "byline_admin_user_preferences": {
       "name": "byline_admin_user_preferences",
       "columns": {
@@ -481,6 +636,14 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "session_version": {
+          "name": "session_version",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
         },
         "vid": {
           "name": "vid",

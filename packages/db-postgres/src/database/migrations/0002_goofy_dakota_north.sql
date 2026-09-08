@@ -1,2 +1,0 @@
-ALTER TABLE "byline_admin_refresh_tokens" ADD COLUMN "session_version" integer DEFAULT -1 NOT NULL;--> statement-breakpoint
-ALTER TABLE "byline_admin_users" ADD COLUMN "session_version" integer DEFAULT 0 NOT NULL;
