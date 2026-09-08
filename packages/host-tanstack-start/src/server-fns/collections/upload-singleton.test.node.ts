@@ -1,4 +1,3 @@
-import { testAdapter } from '../../../../core/src/storage/db-adapter.test-helper.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -21,6 +20,9 @@ vi.mock('@tanstack/react-start', () => ({
   createServerFn: () => {
     let validate = (input: unknown) => input
     const chain = {
+      middleware() {
+        return chain
+      },
       validator(validator: (input: unknown) => unknown) {
         validate = validator
         return chain
@@ -49,6 +51,11 @@ vi.mock('../../integrations/byline-core.js', () => ({
 
 import { ensureCollection, ensureDocumentResource } from '../../integrations/api-utils.js'
 import { uploadField } from './upload.js'
+
+// Handler-level tests isolate transport; session-middleware tests exercise the real pre-handler boundary.
+vi.mock('../../integrations/session-middleware.js', () => ({ adminSessionMiddleware: {} }))
+
+import { testAdapter } from '../../../../core/src/storage/db-adapter.test-helper.js'
 
 const SERVER_CONFIG = Symbol.for('__byline_server_config__')
 const BYLINE_LOGGER = Symbol.for('__byline_logger__')

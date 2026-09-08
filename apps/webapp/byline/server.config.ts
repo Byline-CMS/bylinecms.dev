@@ -33,6 +33,7 @@ import { createAnalytics, defineAnalyticsRollupTask, registerAnalytics } from '@
 import { migrate as migrateAnalytics, postgresAnalyticsStore } from '@byline/analytics-postgres'
 import { getAdminBylineClient } from '@byline/client/server'
 import { type BylineCore, initBylineCore } from '@byline/core'
+import { getLogger } from '@byline/core/logger'
 import { pgAdapter } from '@byline/db-postgres'
 import { createAdminStore } from '@byline/db-postgres/admin'
 import { createClientIpResolver } from '@byline/host-tanstack-start/integrations/client-ip'
@@ -219,10 +220,11 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   const signInLimiter = createPasswordSignInLimiter(adminStore.signInRateLimits, signingSecret)
 
   const sessionProvider = new JwtSessionProvider({
+    onEvent: (event) => getLogger().info({ event: event.type }, 'Native session renewal'),
     // Users, roles, permissions, and refresh tokens use the shared admin
     // repository bundle created above.
     store: adminStore,
-    // The provider signs access and refresh tokens; the secret never enters
+    // The provider signs access tokens and hashes opaque refresh tokens; the secret never enters
     // client configuration.
     signingSecret,
   })

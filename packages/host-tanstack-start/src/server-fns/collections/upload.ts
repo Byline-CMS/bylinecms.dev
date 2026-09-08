@@ -1,3 +1,11 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
 import { createServerFn } from '@tanstack/react-start'
 
 import { getAdminRequestContext } from '@byline/client/server'
@@ -14,6 +22,7 @@ import { getLogger, withLogContext } from '@byline/core/logger'
 import { uploadField as coreUploadField } from '@byline/core/services'
 
 import { ensureDocumentResource } from '../../integrations/api-utils.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 
 /**
@@ -150,6 +159,7 @@ function resolveUploadField(
  * without depending on TanStack Start server-function transport details.
  */
 export const uploadCollectionField = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator(parseUploadFormData)
   .handler(
     withDocumentMutationErrors(async ({ data }) => {

@@ -1,4 +1,3 @@
-import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -22,6 +21,8 @@ import {
 import { listDocumentPublishSchedules } from '@byline/core/services'
 
 import { bylineCore } from '../../integrations/byline-core.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 import { omitScheduleExecutionState } from './scheduled-publication-response.js'
 import { serialise } from './utils.js'
 
@@ -138,14 +139,17 @@ async function scheduledPublicationRuntime(): Promise<ScheduledPublicationRuntim
 }
 
 /** Authenticated feature discovery for the admin shell and health warning. */
-export const getScheduledPublicationRuntime = createServerFn({ method: 'GET' }).handler(
-  withDocumentMutationErrors(async () => {
-    await getAdminRequestContext()
-    return scheduledPublicationRuntime()
-  })
-)
+export const getScheduledPublicationRuntime = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
+  .handler(
+    withDocumentMutationErrors(async () => {
+      await getAdminRequestContext()
+      return scheduledPublicationRuntime()
+    })
+  )
 
 export const scheduleCollectionDocumentPublish = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator(
     (input: {
       expectedRevision: number
@@ -170,6 +174,7 @@ export const scheduleCollectionDocumentPublish = createServerFn({ method: 'POST'
   )
 
 export const confirmCollectionDocumentScheduledPublish = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator(
     (input: {
       expectedRevision: number
@@ -192,6 +197,7 @@ export const confirmCollectionDocumentScheduledPublish = createServerFn({ method
   )
 
 export const cancelCollectionDocumentScheduledPublish = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { expectedRevision: number; collection: string; id: string }) => input)
   .handler(
     withDocumentMutationErrors(async ({ data }) => {
@@ -210,6 +216,7 @@ export const cancelCollectionDocumentScheduledPublish = createServerFn({ method:
   )
 
 export const listScheduledPublications = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator(
     (input: {
       states?: readonly DocumentPublishScheduleState[]

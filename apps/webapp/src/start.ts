@@ -8,6 +8,7 @@
 
 import { createCsrfMiddleware, createStart } from '@tanstack/react-start'
 
+import { sessionRequestMiddleware } from '@byline/host-tanstack-start/integrations/session-request-middleware'
 import { passwordSignInMiddleware } from '@byline/host-tanstack-start/integrations/sign-in-middleware'
 import { bylineCodedErrorAdapter } from '@byline/host-tanstack-start/integrations/start-errors'
 
@@ -17,5 +18,5 @@ const csrfMiddleware = createCsrfMiddleware({
 
 export const startInstance = createStart(() => ({
   serializationAdapters: [bylineCodedErrorAdapter],
-  requestMiddleware: [csrfMiddleware, passwordSignInMiddleware],
+  requestMiddleware: [csrfMiddleware, sessionRequestMiddleware, passwordSignInMiddleware],
 }))

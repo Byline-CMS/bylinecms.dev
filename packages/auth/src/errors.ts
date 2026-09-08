@@ -26,6 +26,8 @@ export const AuthErrorCodes = {
   FORBIDDEN: 'ERR_FORBIDDEN',
   INVALID_CREDENTIALS: 'ERR_INVALID_CREDENTIALS',
   INVALID_TOKEN: 'ERR_INVALID_TOKEN',
+  ACCESS_EXPIRED: 'ERR_ACCESS_EXPIRED',
+  SESSION_CHANGED: 'ERR_SESSION_CHANGED',
   REVOKED_TOKEN: 'ERR_REVOKED_TOKEN',
   ACCOUNT_DISABLED: 'ERR_ACCOUNT_DISABLED',
 } as const
@@ -83,3 +85,6 @@ export const ERR_REVOKED_TOKEN = createAuthErrorType(AuthErrorCodes.REVOKED_TOKE
  * disabled (`is_enabled = false`).
  */
 export const ERR_ACCOUNT_DISABLED = createAuthErrorType(AuthErrorCodes.ACCOUNT_DISABLED)
+
+export const ERR_ACCESS_EXPIRED = createAuthErrorType(AuthErrorCodes.ACCESS_EXPIRED)
+export const ERR_SESSION_CHANGED = createAuthErrorType(AuthErrorCodes.SESSION_CHANGED)

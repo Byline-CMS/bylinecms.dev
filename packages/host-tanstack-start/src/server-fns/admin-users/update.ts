@@ -12,6 +12,7 @@ import { type AdminUserResponse, updateAdminUserCommand } from '@byline/admin/ad
 import { getAdminRequestContext } from '@byline/client/server'
 
 import { bylineCore } from '../../integrations/byline-core.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 
 export interface UpdateAdminUserInput {
   id: string
@@ -27,6 +28,7 @@ export interface UpdateAdminUserInput {
 }
 
 export const updateAdminUser = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator((input: UpdateAdminUserInput) => input)
   .handler(async ({ data }): Promise<AdminUserResponse> => {
     const context = await getAdminRequestContext()

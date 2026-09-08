@@ -21,6 +21,8 @@ export interface RefreshTokenRow {
   id: string
   admin_user_id: string
   token_hash: string
+  /** Null only for legacy rows, which cannot authorize native sessions. */
+  sid: string | null
   session_version: number
   issued_at: Date
   expires_at: Date
@@ -32,6 +34,8 @@ export interface RefreshTokenRow {
 }
 
 export interface IssueRefreshTokenInput {
+  /** Omitted only by legacy fixtures/imports; never accepted for native renewal. */
+  sid?: string | null
   id: string
   admin_user_id: string
   token_hash: string
@@ -58,12 +62,7 @@ export interface RefreshTokensRepository {
   markRotated(oldId: string, newId: string, at?: Date): Promise<void>
   /** Revoke a single token. Idempotent. */
   revoke(id: string, at?: Date): Promise<void>
-  /**
-   * Walk the rotation chain starting at `startId` and revoke every token
-   * in it. Called when a rotated token is replayed — indicates the chain
-   * has been compromised and every descendant is suspect. Returns the
-   * number of rows touched.
-   */
+  /** Revoke all refresh rows sharing the start member's sid, without traversal. */
   revokeChain(startId: string, at?: Date): Promise<number>
   /** Revoke every non-revoked token for a user. Used on password change / sign-out everywhere. */
   revokeAllForUser(adminUserId: string, at?: Date): Promise<number>

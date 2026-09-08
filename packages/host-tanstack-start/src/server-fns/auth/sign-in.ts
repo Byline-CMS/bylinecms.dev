@@ -21,7 +21,11 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest, getRequestHeader } from '@tanstack/react-start/server'
 
 import type { SignInAdmission } from '@byline/auth'
-import { setSessionCookies } from '@byline/client/server'
+import {
+  readAccessTokenCookie,
+  readRefreshTokenCookie,
+  setSessionCookies,
+} from '@byline/client/server'
 import { getServerConfig } from '@byline/core'
 import { passwordSignInSchema } from '@byline/core/validation'
 
@@ -37,6 +41,7 @@ export interface SignInInput {
 
 export interface SignInResult {
   userId: string
+  sessionId: string
 }
 
 export const adminSignIn = createServerFn({ method: 'POST' })
@@ -97,6 +102,8 @@ export const adminSignIn = createServerFn({ method: 'POST' })
         if (!admission.allowed) throw tooMany(admission.retryAfterSeconds)
         try {
           const result = await provider.signInWithPassword({
+            previousAccessToken: readAccessTokenCookie(),
+            previousRefreshToken: readRefreshTokenCookie(),
             email: data.email,
             password: data.password,
             userAgent,
@@ -128,7 +135,7 @@ export const adminSignIn = createServerFn({ method: 'POST' })
       // Swallow — locale sync is not load-bearing for the sign-in flow.
     }
 
-    return { userId: result.actor.id }
+    return { userId: result.actor.id, sessionId: result.sessionId }
   })
 
 /**

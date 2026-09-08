@@ -10,7 +10,7 @@
  * Admin profile lookup for the authenticated request.
  *
  * Thin wrapper that resolves the `AdminAuth` via `getAdminRequestContext()`
- * (which handles verify + lazy refresh + cookie rewrites), then fetches the
+ * (which verifies credentials without rotating or rewriting cookies), then fetches the
  * admin user's profile row so the UI can render "signed in as X" without
  * embedding identity metadata in the JWT itself.
  *
@@ -26,6 +26,7 @@ import { getAdminRequestContext } from '@byline/client/server'
 import { bylineCore } from '../../integrations/byline-core.js'
 
 export interface CurrentAdminUser {
+  sessionId: string
   id: string
   email: string
   given_name: string | null
@@ -48,7 +49,7 @@ export interface CurrentAdminUser {
 
 export const getCurrentAdminUser = createServerFn({ method: 'GET' }).handler(
   async (): Promise<CurrentAdminUser> => {
-    const { actor } = await getAdminRequestContext()
+    const { actor, sessionId } = await getAdminRequestContext()
     if (!actor) {
       // getAdminRequestContext always returns an AdminAuth on success; the
       // null branch is compile-time impossible here but satisfies the type.
@@ -63,6 +64,7 @@ export const getCurrentAdminUser = createServerFn({ method: 'GET' }).handler(
     }
 
     return {
+      sessionId: sessionId!,
       id: row.id,
       email: row.email,
       given_name: row.given_name,
@@ -85,8 +87,9 @@ export const getCurrentAdminUserSoft = createServerFn({ method: 'GET' }).handler
   async (): Promise<CurrentAdminUser | null> => {
     try {
       let actor: Actor
+      let sessionId: string | undefined
       try {
-        ;({ actor } = await getAdminRequestContext())
+        ;({ actor, sessionId } = await getAdminRequestContext())
       } catch (err) {
         if (err instanceof AuthError) return null
         throw err
@@ -97,6 +100,7 @@ export const getCurrentAdminUserSoft = createServerFn({ method: 'GET' }).handler
       if (!row) return null
 
       return {
+        sessionId: sessionId!,
         id: row.id,
         email: row.email,
         given_name: row.given_name,

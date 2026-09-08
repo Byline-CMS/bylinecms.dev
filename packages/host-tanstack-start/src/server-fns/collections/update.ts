@@ -1,4 +1,3 @@
-import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -16,6 +15,8 @@ import type { DocumentLifecycleContext } from '@byline/core/services'
 import { saveDocument, updateDocumentSystemFields } from '@byline/core/services'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 import { toCommittedDocumentHookFailureResponse } from './save-outcome.js'
 
 // ---------------------------------------------------------------------------
@@ -24,6 +25,7 @@ import { toCommittedDocumentHookFailureResponse } from './save-outcome.js'
 // ---------------------------------------------------------------------------
 
 export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator(
     (input: {
       collection: string
@@ -102,6 +104,7 @@ export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POS
 // ---------------------------------------------------------------------------
 
 export const updateCollectionDocumentSystemFields = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator(
     (input: {
       collection: string

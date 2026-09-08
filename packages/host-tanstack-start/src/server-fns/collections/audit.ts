@@ -12,6 +12,7 @@ import { getAdminBylineClient } from '@byline/client/server'
 import { ERR_NOT_FOUND, getLogger } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 import { type ActorLabelMap, resolveActorLabels } from './actors.js'
 
 // ---------------------------------------------------------------------------
@@ -49,6 +50,7 @@ export interface AuditLogEntryDto {
 // ---------------------------------------------------------------------------
 
 export const getCollectionDocumentAuditLog = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { collection: string; id: string; params?: AuditLogSearchParams }) => input)
   .handler(async ({ data }) => {
     const { collection: path, id, params } = data

@@ -1,4 +1,3 @@
-import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -15,6 +14,8 @@ import type { CopyToLocaleResult, DocumentLifecycleContext } from '@byline/core/
 import { copyToLocale } from '@byline/core/services'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 import {
   type CollectionDocumentCommittedHookFailureResponse,
   toCommittedDocumentHookFailureResponse,
@@ -34,6 +35,7 @@ import {
  * failures propagate to TanStack Start's transport layer.
  */
 export const copyDocumentToLocale = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator(
     (input: {
       expectedRevision: number

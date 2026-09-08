@@ -310,90 +310,11 @@ Use only from internal tooling. Never inside application code paths: the whole p
 
 Sessions are pluggable behind `SessionProvider`. The built-in `JwtSessionProvider` is fully featured (15-min access, 30-day refresh, rotation, replay detection, argon2id), but Lucia, better-auth, WorkOS, Clerk, or institutional SSO can drop in by implementing the interface.
 
-A provider implements five methods. The load-bearing one is **`resolveActor`**: it turns an admin-user id into the runtime `AdminAuth` (the actor id plus its flat ability set) that every access check reads. Credential verification and token storage are yours to wire to whatever identity service you use; this example delegates credentials to an external IdP and issues short-lived JWT access tokens:
+A provider implements the verification, sign-in, renewal, revocation and actor-resolution methods described in the [session contract](#sessions-sessionprovider-interface). The host consumes a stable `sessionId` returned by the provider; it does not parse native JWT claims or query the native login table. An IAM adapter can supply that identity and implement revocation using its own persistence or upstream service.
 
-```ts
-// byline-session-mycustom/src/provider.ts
-import { AdminAuth, type SessionProvider } from '@byline/auth'
-import type { AdminStore } from '@byline/admin'
-import { SignJWT, jwtVerify } from 'jose'
+Return the same `sessionId` through renewal and a new identity for each fresh login. Verify both the credential and its current authority before returning an actor. Report access expiry distinctly with `ERR_ACCESS_EXPIRED`; invalid signatures, revocation and service failures must not be reported as expiry. Honor `expectedSessionId` during renewal and logout so an operation cannot adopt a different login. Implement observed-credential replacement revocation atomically, or explicitly document an unsupported capability rather than silently ignoring those arguments.
 
-const ACCESS_TTL = '15m'
-const secret = new TextEncoder().encode(process.env.SESSION_SECRET!)
-
-export class MyCustomSessionProvider implements SessionProvider {
-  constructor(
-    private deps: {
-      store: AdminStore // resolves an admin user's roles → permissions → abilities
-      verifyCredentials: (email: string, password: string) => Promise<{ adminUserId: string } | null>
-      refreshTokens: RefreshTokenStore // your persistence: issue / rotate / revoke
-    },
-  ) {}
-
-  // Drives which affordances the admin UI renders (e.g. SSO hides the password form).
-  readonly capabilities = { passwordChange: false, magicLink: false, sso: true }
-
-  async signInWithPassword({ email, password }: { email: string; password: string; ip: string; userAgent: string }) {
-    const verified = await this.deps.verifyCredentials(email, password)
-    if (!verified) throw new Error('invalid credentials') // map to an AuthError in real code
-    const actor = await this.resolveActor(verified.adminUserId)
-    return {
-      actor,
-      accessToken: await this.mintAccess(actor.id),
-      refreshToken: await this.deps.refreshTokens.issue(actor.id),
-    }
-  }
-
-  async verifyAccessToken(token: string) {
-    const { payload } = await jwtVerify(token, secret)
-    return { actor: await this.resolveActor(payload.sub!) }
-  }
-
-  async refreshSession(refreshToken: string) {
-    // rotate() invalidates the old token and detects replay of a rotated one
-    const { adminUserId, nextToken } = await this.deps.refreshTokens.rotate(refreshToken)
-    return { accessToken: await this.mintAccess(adminUserId), refreshToken: nextToken }
-  }
-
-  async revokeSession(refreshToken: string) {
-    await this.deps.refreshTokens.revoke(refreshToken)
-  }
-
-  // The load-bearing method: build the actor + its abilities from the admin store.
-  async resolveActor(adminUserId: string): Promise<AdminAuth> {
-    const { id, isSuperAdmin, abilities } = await this.deps.store.resolveAdminAuth(adminUserId)
-    return new AdminAuth({ id, abilities: new Set(abilities), isSuperAdmin })
-  }
-
-  private mintAccess(sub: string) {
-    return new SignJWT({})
-      .setProtectedHeader({ alg: 'HS256' })
-      .setSubject(sub)
-      .setExpirationTime(ACCESS_TTL)
-      .sign(secret)
-  }
-}
-```
-
-Then wire it in `apps/webapp/byline/server.config.ts`:
-
-```ts
-import { initBylineCore } from '@byline/core'
-import { MyCustomSessionProvider } from '@my-org/byline-session-mycustom'
-
-const sessionProvider = new MyCustomSessionProvider({
-  store: adminStore,
-  verifyCredentials: myIdp.verify,
-  refreshTokens: myRefreshTokenStore,
-})
-
-const core = await initBylineCore<AdminStore>({
-  // …db, collections, storage, adminStore, …
-  sessionProvider,
-})
-```
-
-`getAdminRequestContext()` calls `verifyAccessToken` on every admin request, so the `AdminAuth` your `resolveActor` returns is exactly what `assertAbility` / `assertActorCanPerform` check downstream. The `capabilities` flags drive which affordances the admin UI renders: a provider without `passwordChange` hides the password-change form rather than failing the call.
+Register the adapter as `sessionProvider` in `initBylineCore`, alongside the application's admin store. External IAM integration does not require using Byline's native `byline_admin_login_sessions` table.
 
 → [Sessions — `SessionProvider`](#sessions-sessionprovider-interface)
 
@@ -544,33 +465,34 @@ These are deliberate, narrow exits. There is no ambient bypass and no environmen
 
 Sessions are pluggable behind `SessionProvider` (`packages/auth/src/session-provider.ts`). The interface accommodates Lucia, better-auth, WorkOS, Clerk, institutional SAML/OIDC, or anything else that fits the contract; teams can run Byline end-to-end without reaching for any third-party identity service, because the built-in `JwtSessionProvider` is a fully capable first option, not a stub.
 
-Minimum surface:
+The exported types define the full contract, including token expiry dates:
 
 ```ts
+import type {
+  AdminAuth, RefreshSessionArgs, SessionProviderCapabilities,
+  SessionTokens, SignInResult, SignInWithPasswordArgs,
+} from '@byline/auth'
+
 interface SessionProvider {
-  signInWithPassword(args: { email: string; password: string; ip: string; userAgent: string }):
-    Promise<{ accessToken: string; refreshToken: string; actor: AdminAuth }>
-  verifyAccessToken(token: string): Promise<{ actor: AdminAuth }>
-  refreshSession(refreshToken: string):
-    Promise<{ accessToken: string; refreshToken: string }>
-  revokeSession(refreshToken: string): Promise<void>
-  resolveActor(adminUserId: string): Promise<AdminAuth>
-  readonly capabilities: {
-    passwordChange: boolean
-    magicLink: boolean
-    sso: boolean
-  }
+  signInWithPassword(args: SignInWithPasswordArgs): Promise<SignInResult>
+  verifyAccessToken(token: string): Promise<{ actor: AdminAuth; sessionId: string }>
+  refreshSession(args: RefreshSessionArgs): Promise<SessionTokens>
+  revokeSession(args: { refreshToken?: string; accessToken?: string; expectedSessionId?: string }): Promise<void>
+  resolveActor(adminUserId: string): Promise<AdminAuth | null>
+  readonly capabilities: SessionProviderCapabilities
 }
 ```
+
+`SessionTokens` contains `sessionId`, both credentials, and their expiry dates. `SignInWithPasswordArgs` can carry the access and refresh credentials observed on the sign-in request for replacement revocation. These are credentials, not client-supplied login IDs. `RefreshSessionArgs` carries the refresh token and optional expected login identity.
 
 The capability flags are how the admin UI decides which affordances to render: a provider without `passwordChange` hides the password-change form rather than failing the call.
 
 **Built-in `JwtSessionProvider`** (`packages/admin/src/modules/auth/jwt-session-provider.ts` and friends):
 
-- **15-minute access tokens.** Verification checks the current account session generation on every request. Password changes/resets and disablement invalidate older generations immediately after commit.
+- **15-minute access tokens.** Verification checks the current account session generation (`sv`) and login validity (`sid`) on every request; neither overrides the other. Password changes/resets and disablement invalidate older generations immediately after commit.
 - **30-day refresh tokens** stored in `admin_refresh_tokens` for revocation. DB-backed rather than short-lived-only, because short-lived-only would have no way to force-sign-out a compromised account.
 - **Rotation on every refresh.** The old refresh token is invalidated when a new pair is issued.
-- **Replay detection.** Reusing a rotated refresh token revokes the entire session lineage, on the assumption that a rotation collision means the attacker now has a token the legitimate client also held.
+- **Replay detection.** Reusing a rotated refresh token revokes its login, immediately rejecting its access tokens and renewal. An uncoordinated legitimate collision receives the same fail-closed outcome and may require fresh sign-in. Login membership removes traversal limits from revocation.
 - **argon2id password hashing** (`packages/admin/src/modules/auth/password.ts`). The full PHC string is stored in `admin_users.password`.
 
 `resolveActor(adminUserId)` joins `admin_role_admin_user` → `admin_permissions` → flat ability strings to build the runtime `AdminAuth`.
@@ -585,7 +507,17 @@ After a successful self-service password change, the TanStack host clears sessio
 
 Upgrades require the session-generation SQL script for the chosen adapter. Stop old instances before applying it, then restart every instance with the new provider. Access JWTs without `sv` and legacy refresh rows with generation -1 are rejected, so existing users sign in again. Do not mix old and new provider instances during rollout.
 
-Rotation now shares the account transaction, but this introduces a known availability regression: two concurrent refreshes with the same cookie cause the loser to revoke the winner’s new refresh session. The host failure response can also clear session cookies. Step 2 is not independently releasable until the concurrent-refresh protocol resolves this regression. Benign concurrency, replay tolerance, logout lineage, and response-cookie ordering remain under review.
+### Explicit renewal and session changes
+
+`getAdminRequestContext()` only verifies credentials. Business requests and SSR never rotate tokens or write or clear session cookies. The TanStack host's pre-handler middleware compares the page's expected login identity with the verified session before invoking a protected business handler. Only expiry detected at that boundary allows one resend after explicit CSRF-protected renewal. Handler failures and uncertain network results never permit automatic replay.
+
+A module-level promise coalesces same-tab renewal. Authentication cookie writers share a queue, with Web Locks extending coordination across supporting tabs. Renewal with already-valid access is a no-op, avoiding a second rotation after a delayed expiry response. BroadcastChannel notifications carry no credentials. The existing sign-in route performs browser-side renewal after expired-access SSR navigation; persistent refresh credentials preserve sign-in across ordinary browser restarts.
+
+A changed login blocks the page behind an acknowledgement screen. The browser retains the login expected after successful sign-in across navigation. Acknowledgement checks the active account again and reloads the page, discarding queued work. A late response can still physically replace fixed-name credential cookies; overlapping sign-ins are an accepted detected residual, not a guarantee of cookie-write ordering. The server rejects operations bound to a different login even without cross-tab notifications.
+
+Logout revokes the login identified by verified access credentials or a known refresh member before returning success. When the presented credentials identify no login, logout succeeds idempotently and clears the browser credentials without asserting that a revocation write occurred. The UI reports an unconfirmed logout as a failure. Successful replacement sign-in atomically revokes observed old logins, including across accounts, while preserving unrelated device logins. Failed revocation rolls back replacement issuance. The native provider's token-free `onEvent` hook reports attempted, completed and contested refreshes; collect a denominator before assessing collision frequency.
+
+Apply the account-generation and login-state migrations together with a stopped-instance upgrade. Legacy credentials lacking `sv` or `sid` require one combined fresh sign-in. Sliding refresh expiry remains; there is no monthly absolute lifetime. The implementation still requires combined R2/R3 review before release.
 
 ### Password sign-in protection
 
@@ -596,12 +528,14 @@ In `src/start.ts`, register the request middleware after CSRF protection. It bou
 ```ts
 import { createCsrfMiddleware, createStart } from '@tanstack/react-start'
 import { passwordSignInMiddleware } from '@byline/host-tanstack-start/integrations/sign-in-middleware'
+import { sessionRequestMiddleware } from '@byline/host-tanstack-start/integrations/session-request-middleware'
 import { bylineCodedErrorAdapter } from '@byline/host-tanstack-start/integrations/start-errors'
 
 export const startInstance = createStart(() => ({
   serializationAdapters: [bylineCodedErrorAdapter],
   requestMiddleware: [
     createCsrfMiddleware({ filter: (ctx) => ctx.handlerType === 'serverFn' }),
+    sessionRequestMiddleware,
     passwordSignInMiddleware,
   ],
 }))

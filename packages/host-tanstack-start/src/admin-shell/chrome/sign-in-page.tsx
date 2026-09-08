@@ -6,6 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { useEffect, useState } from 'react'
+
 import { SignInForm } from '@byline/admin/auth/components/sign-in-form'
 import { BylineAdminServicesProvider } from '@byline/admin/services'
 import { getAdminConfig } from '@byline/core'
@@ -15,10 +17,20 @@ import cx from 'clsx'
 
 import { buildLocaleDefinitions } from '../../i18n/locale-definitions.js'
 import { bylineAdminServices } from '../../integrations/byline-admin-services.js'
+import {
+  coordinateAuthAction,
+  expectedSession,
+  flagSessionChanged,
+  observeSession,
+  renewSingleFlight,
+} from '../../integrations/session-coordination.js'
+import { renewAdminSession } from '../../server-fns/auth/renew.js'
 import { setAdminLocaleFn } from '../../server-fns/i18n/index.js'
+import { SessionChangeBoundary } from './session-change-boundary.js'
 import styles from './sign-in-page.module.css'
 
 interface SignInPageProps {
+  reauthenticate?: boolean
   redirectTo: string
   activeLocale: LocaleCode
   homeUrl?: string
@@ -44,14 +56,54 @@ interface SignInPageProps {
  * Threads an optional host-owned `homeUrl` into `SignInForm` so the form's
  * action row can render a plain "Home" link beside the submit button.
  */
-export function SignInPage({ redirectTo, activeLocale, homeUrl }: SignInPageProps) {
+export function SignInPage({
+  redirectTo,
+  activeLocale,
+  homeUrl,
+  reauthenticate = false,
+}: SignInPageProps) {
+  const [checking, setChecking] = useState(!reauthenticate)
+  const [bootstrapError, setBootstrapError] = useState(false)
+  useEffect(() => {
+    if (reauthenticate) return
+    let active = true
+    void renewSingleFlight(() =>
+      coordinateAuthAction(async () => {
+        const result = await renewAdminSession({
+          data: { expectedSessionId: expectedSession() ?? undefined },
+        })
+        observeSession(result.sessionId)
+      })
+    )
+      .then(() => {
+        if (active) window.location.replace(redirectTo)
+      })
+      .catch((error) => {
+        if (error?.code === 'ERR_SESSION_CHANGED') flagSessionChanged()
+        else if (
+          ![
+            'ERR_UNAUTHENTICATED',
+            'ERR_INVALID_TOKEN',
+            'ERR_REVOKED_TOKEN',
+            'ERR_ACCOUNT_DISABLED',
+          ].includes(error?.code)
+        )
+          setBootstrapError(true)
+      })
+      .finally(() => {
+        if (active) setChecking(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [redirectTo, reauthenticate])
   const { i18n } = getAdminConfig()
   const localeDefinitions = buildLocaleDefinitions(i18n.admin.locales, i18n.admin.localeDefinitions)
   const handleSetLocale = async (next: LocaleCode) => {
     await setAdminLocaleFn({ data: { locale: next } })
     window.location.reload()
   }
-  return (
+  const content = (
     <I18nProvider
       bundle={i18n.translations ?? {}}
       activeLocale={activeLocale}
@@ -61,14 +113,27 @@ export function SignInPage({ redirectTo, activeLocale, homeUrl }: SignInPageProp
     >
       <BylineAdminServicesProvider services={bylineAdminServices}>
         <main className={cx('byline-sign-in-page', styles.main)}>
+          <noscript>JavaScript is required to sign in or renew your admin session.</noscript>
           <div className={cx('byline-sign-in-page-bar', styles.bar)}>
             <LanguageMenu />
           </div>
           <div className={cx('byline-sign-in-page-inner', styles.inner)}>
-            <SignInForm redirectTo={redirectTo} homeUrl={homeUrl} />
+            {bootstrapError ? (
+              <div role="alert">
+                <p>Unable to check your session. Please try again.</p>
+                <button type="button" onClick={() => window.location.reload()}>
+                  Try again
+                </button>
+              </div>
+            ) : checking ? (
+              <p role="status">Checking your session…</p>
+            ) : (
+              <SignInForm redirectTo={redirectTo} homeUrl={homeUrl} />
+            )}
           </div>
         </main>
       </BylineAdminServicesProvider>
     </I18nProvider>
   )
+  return reauthenticate ? content : <SessionChangeBoundary>{content}</SessionChangeBoundary>
 }

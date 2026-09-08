@@ -15,14 +15,16 @@ import {
 import { getAdminRequestContext } from '@byline/client/server'
 
 import { bylineCore } from '../../integrations/byline-core.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 
 /**
  * List every registered ability — fed from `bylineCore().abilities`,
  * populated at init time by collection auto-registration plus
  * `registerAdminAbilities`. No DB read.
  */
-export const listRegisteredAbilities = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<ListRegisteredAbilitiesResponse> => {
+export const listRegisteredAbilities = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
+  .handler(async (): Promise<ListRegisteredAbilitiesResponse> => {
     const context = await getAdminRequestContext()
     return listRegisteredAbilitiesCommand(
       context,
@@ -32,5 +34,4 @@ export const listRegisteredAbilities = createServerFn({ method: 'GET' }).handler
         abilities: bylineCore().abilities,
       }
     )
-  }
-)
+  })

@@ -10,8 +10,8 @@
  * Admin shell layout — authenticated-only.
  *
  * `beforeLoad` resolves the current admin user (which internally verifies
- * the session cookies, refreshes transparently when needed, and throws
- * `ERR_UNAUTHENTICATED` when there is no session). On unauthenticated
+ * the access credential without rotating cookies). Expired access is
+ * renewed by the sign-in bootstrap. On unauthenticated
  * requests we redirect to `/sign-in` with a `callbackUrl` so the user
  * lands back on the page they originally requested.
  *
@@ -37,10 +37,12 @@ import { AdminMenuProvider } from '../admin-shell/chrome/admin-menu-provider.jsx
 import { Content } from '../admin-shell/chrome/content.js'
 import { RouteError, RouteNotFound } from '../admin-shell/chrome/route-error.js'
 import { RouteProgressBar } from '../admin-shell/chrome/route-progress-bar.js'
+import { SessionChangeBoundary } from '../admin-shell/chrome/session-change-boundary.js'
 import { buildLocaleDefinitions } from '../i18n/locale-definitions.js'
 import { bylineAdminServices } from '../integrations/byline-admin-services.js'
 import { BylineAiAdminProvider } from '../integrations/byline-ai.js'
 import { bylineFieldServices } from '../integrations/byline-field-services.js'
+import { observeSession, sessionIsChanged } from '../integrations/session-coordination.js'
 import { getAnalyticsRuntime } from '../server-fns/analytics/index.js'
 import { getCurrentAdminUser } from '../server-fns/auth/index.js'
 import { getScheduledPublicationRuntime } from '../server-fns/collections/index.js'
@@ -53,6 +55,7 @@ export function createAdminLayoutRoute(path: string) {
       const signInPath = getSignInRoutePath()
       try {
         const user = await getCurrentAdminUser()
+        if (typeof window !== 'undefined') observeSession(user.sessionId)
         // Resolve the active interface locale once on the server so SSR
         // and the hydrated client render the same translations and
         // there's no locale flicker. Going through the server fn (rather
@@ -65,7 +68,20 @@ export function createAdminLayoutRoute(path: string) {
           getAnalyticsRuntime(),
         ])
         return { user, activeLocale, scheduledPublicationRuntime, analyticsRuntime }
-      } catch {
+      } catch (error) {
+        const code = (error as { code?: string })?.code
+        if (
+          !(typeof window !== 'undefined' && sessionIsChanged()) &&
+          ![
+            'ERR_UNAUTHENTICATED',
+            'ERR_ACCESS_EXPIRED',
+            'ERR_INVALID_TOKEN',
+            'ERR_REVOKED_TOKEN',
+            'ERR_ACCOUNT_DISABLED',
+            'ERR_SESSION_CHANGED',
+          ].includes(code ?? '')
+        )
+          throw error
         // `getCurrentAdminUser` (via `getAdminRequestContext`) throws
         // `ERR_UNAUTHENTICATED` or a related auth error when no valid
         // session is present. Redirect to sign-in with the original path
@@ -104,33 +120,35 @@ export function createAdminLayoutRoute(path: string) {
         window.location.reload()
       }
       return (
-        <I18nProvider
-          bundle={i18n.translations ?? {}}
-          activeLocale={activeLocale}
-          defaultLocale={i18n.admin.defaultLocale}
-          localeDefinitions={localeDefinitions}
-          setLocale={handleSetLocale}
-        >
-          <BylineAdminServicesProvider services={bylineAdminServices}>
-            <BylineFieldServicesProvider services={bylineFieldServices}>
-              <BylineAiAdminProvider>
-                <AdminMenuProvider>
-                  <RouteProgressBar />
-                  <AdminAppBar user={user} />
-                  <main className={cx('byline-admin-layout-main', layoutStyles.main)}>
-                    <AdminMenuDrawer
-                      analyticsEnabled={analyticsRuntime.enabled}
-                      scheduledPublicationEnabled={scheduledPublicationRuntime.enabled}
-                    />
-                    <Content>
-                      <Outlet />
-                    </Content>
-                  </main>
-                </AdminMenuProvider>
-              </BylineAiAdminProvider>
-            </BylineFieldServicesProvider>
-          </BylineAdminServicesProvider>
-        </I18nProvider>
+        <SessionChangeBoundary user={user}>
+          <I18nProvider
+            bundle={i18n.translations ?? {}}
+            activeLocale={activeLocale}
+            defaultLocale={i18n.admin.defaultLocale}
+            localeDefinitions={localeDefinitions}
+            setLocale={handleSetLocale}
+          >
+            <BylineAdminServicesProvider services={bylineAdminServices}>
+              <BylineFieldServicesProvider services={bylineFieldServices}>
+                <BylineAiAdminProvider>
+                  <AdminMenuProvider>
+                    <RouteProgressBar />
+                    <AdminAppBar user={user} />
+                    <main className={cx('byline-admin-layout-main', layoutStyles.main)}>
+                      <AdminMenuDrawer
+                        analyticsEnabled={analyticsRuntime.enabled}
+                        scheduledPublicationEnabled={scheduledPublicationRuntime.enabled}
+                      />
+                      <Content>
+                        <Outlet />
+                      </Content>
+                    </main>
+                  </AdminMenuProvider>
+                </BylineAiAdminProvider>
+              </BylineFieldServicesProvider>
+            </BylineAdminServicesProvider>
+          </I18nProvider>
+        </SessionChangeBoundary>
       )
     },
     errorComponent: RouteError,

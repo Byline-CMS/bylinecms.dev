@@ -26,10 +26,12 @@ import { getAdminBylineClient } from '@byline/client/server'
 import { ERR_NOT_FOUND, getLogger } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 
 export type { ReindexResult }
 
 export const reindexCollection = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { collection: string }) => input)
   .handler(async ({ data }): Promise<ReindexResult> => {
     const { collection } = data

@@ -32,6 +32,7 @@ export function createRefreshTokensRepository(
           admin_user_id: input.admin_user_id,
           token_hash: input.token_hash,
           session_version: input.session_version,
+          sid: input.sid ?? null,
           expires_at: input.expires_at,
           user_agent: input.user_agent ?? null,
           ip: input.ip ?? null,
@@ -76,31 +77,17 @@ export function createRefreshTokensRepository(
     },
 
     async revokeChain(startId, at = new Date()) {
-      let cursor: string | null = startId
-      let touched = 0
-      // Bounded walk — chains in practice are short; 1000 is a safety ceiling.
-      for (let step = 0; cursor != null && step < 1000; step++) {
-        const [row] = await db
-          .select({
-            id: adminRefreshTokens.id,
-            rotated_to_id: adminRefreshTokens.rotated_to_id,
-            revoked_at: adminRefreshTokens.revoked_at,
-          })
-          .from(adminRefreshTokens)
-          .where(eq(adminRefreshTokens.id, cursor))
-        if (!row) break
-
-        if (row.revoked_at == null) {
-          await db
-            .update(adminRefreshTokens)
-            .set({ revoked_at: at, updated_at: new Date() })
-            .where(eq(adminRefreshTokens.id, row.id))
-          touched++
-        }
-
-        cursor = row.rotated_to_id
-      }
-      return touched
+      const [member] = await db
+        .select()
+        .from(adminRefreshTokens)
+        .where(eq(adminRefreshTokens.id, startId))
+      if (!member?.sid) return 0 // Legacy credentials fail closed in the provider.
+      const result = await db
+        .update(adminRefreshTokens)
+        .set({ revoked_at: at, updated_at: at })
+        .where(and(eq(adminRefreshTokens.sid, member.sid), isNull(adminRefreshTokens.revoked_at)))
+        .returning({ id: adminRefreshTokens.id })
+      return result.length
     },
 
     async revokeAllForUser(adminUserId, at = new Date()) {

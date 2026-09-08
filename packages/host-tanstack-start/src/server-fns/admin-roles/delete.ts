@@ -12,12 +12,14 @@ import { deleteAdminRoleCommand } from '@byline/admin/admin-roles'
 import { getAdminRequestContext } from '@byline/client/server'
 
 import { bylineCore } from '../../integrations/byline-core.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 
 // Return shape mirrors `OkResponse` from `@byline/admin/admin-users`.
 // Lifting the type to a shared spot is a small follow-up — the two
 // modules each declare their own identical `OkResponse` today, and the
 // root `@byline/admin` barrel can only re-export one of them.
 export const deleteAdminRole = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { id: string; vid: number }) => input)
   .handler(async ({ data }): Promise<{ ok: true }> => {
     const context = await getAdminRequestContext()

@@ -46,10 +46,14 @@ export interface AccessTokenPayload {
   typ: 'access'
   /** Native account session generation. Missing legacy claims are rejected. */
   sv: number
+  /** Unpredictable native login identity; stable through refresh. */
+  sid: string
 }
 
 /** Returned by `signInWithPassword` and `refreshSession`. */
 export interface SessionTokens {
+  /** Stable login identity, not a bearer credential. Hosts use it to prevent cross-login work. */
+  sessionId: string
   /** Short-lived (typically 15 min). Sent on every authenticated request. */
   accessToken: string
   /**
@@ -58,9 +62,9 @@ export interface SessionTokens {
    * stores this in an http-only cookie or secure storage.
    */
   refreshToken: string
-  /** Seconds-from-now at which `accessToken` expires. */
+  /** Instant at which `accessToken` expires. */
   accessTokenExpiresAt: Date
-  /** Seconds-from-now at which `refreshToken` expires. */
+  /** Instant at which `refreshToken` expires. */
   refreshTokenExpiresAt: Date
 }
 
@@ -69,6 +73,9 @@ export interface SignInResult extends SessionTokens {
 }
 
 export interface SignInWithPasswordArgs {
+  /** Credential copies observed on this request, for atomic replacement revocation. */
+  previousAccessToken?: string
+  previousRefreshToken?: string
   email: string
   password: string
   /** Client IP — recorded on the refresh-token row for observability. */
@@ -78,9 +85,18 @@ export interface SignInWithPasswordArgs {
 }
 
 export interface RefreshSessionArgs {
+  /** If supplied, renewal must not adopt a different login. */
+  expectedSessionId?: string
   refreshToken: string
   ip?: string
   userAgent?: string
+}
+
+/** Credentials observed on logout; either credential can identify the login. */
+export interface RevokeSessionArgs {
+  refreshToken?: string
+  accessToken?: string
+  expectedSessionId?: string
 }
 
 /**
@@ -104,22 +120,22 @@ export interface SessionProvider {
 
   /**
    * Verify an access token. Returns the actor resolved from the token's
-   * subject. Throws `ERR_INVALID_TOKEN` on bad signature, expiry, or
-   * tampering; throws `ERR_ACCOUNT_DISABLED` if the subject has been
+   * subject. Throws `ERR_ACCESS_EXPIRED` on expiry and `ERR_INVALID_TOKEN`
+   * on bad signature or tampering; throws `ERR_ACCOUNT_DISABLED` if the subject has been
    * disabled since the token was issued.
    */
-  verifyAccessToken(token: string): Promise<{ actor: AdminAuth }>
+  verifyAccessToken(token: string): Promise<{ actor: AdminAuth; sessionId: string }>
 
   /**
    * Rotate the refresh token. Returns fresh tokens; the presented token
    * is revoked. Presenting an already-rotated token triggers
-   * `ERR_REVOKED_TOKEN` and revokes the entire chain descended from the
+   * `ERR_REVOKED_TOKEN` and revokes the login identified by the
    * replayed token (theft recovery).
    */
   refreshSession(args: RefreshSessionArgs): Promise<SessionTokens>
 
-  /** Revoke a refresh token. Idempotent on an already-revoked token. */
-  revokeSession(refreshToken: string): Promise<void>
+  /** Revoke the observed login. Unknown or already-revoked credentials are idempotent. */
+  revokeSession(args: RevokeSessionArgs): Promise<void>
 
   /**
    * Resolve an actor from an admin user id without any token. Used by

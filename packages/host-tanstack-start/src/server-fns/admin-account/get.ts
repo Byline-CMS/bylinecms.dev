@@ -12,6 +12,7 @@ import { type AccountResponse, getAccountCommand } from '@byline/admin/admin-acc
 import { getAdminRequestContext } from '@byline/client/server'
 
 import { bylineCore } from '../../integrations/byline-core.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 
 /**
  * Read the currently signed-in admin's full account row. Used by the
@@ -20,6 +21,7 @@ import { bylineCore } from '../../integrations/byline-core.js'
  * doesn't carry.
  */
 export const getAccount = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input?: Record<string, never>) => input ?? {})
   .handler(async ({ data }): Promise<AccountResponse> => {
     const context = await getAdminRequestContext()

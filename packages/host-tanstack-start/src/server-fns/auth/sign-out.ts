@@ -9,9 +9,9 @@
 /**
  * Admin sign-out server function.
  *
- * Revokes the current refresh token (so a stolen copy cannot be reused),
+ * Revokes the login identified by either credential (so a stolen copy cannot be reused),
  * clears both session cookies, and clears the preview-mode cookie.
- * Idempotent — if the caller already lacks a refresh cookie, we still
+ * Idempotent — if the caller already lacks both credential cookies, we still
  * clear whatever's there and return successfully.
  *
  * Note: clearing `byline_preview` here is hygiene, not a security
@@ -21,32 +21,57 @@
  * Clearing it simply means the next sign-in starts in non-preview mode.
  */
 
-import { createServerFn } from '@tanstack/react-start'
+import { createMiddleware, createServerFn } from '@tanstack/react-start'
 
+import { ERR_SESSION_CHANGED } from '@byline/auth'
 import {
   clearPreviewCookie,
   clearSessionCookies,
+  readAccessTokenCookie,
   readRefreshTokenCookie,
 } from '@byline/client/server'
 import { getServerConfig } from '@byline/core'
 
-export const adminSignOut = createServerFn({ method: 'POST' }).handler(async () => {
-  const provider = getServerConfig().sessionProvider
-  const refreshToken = readRefreshTokenCookie()
+import {
+  coordinateAuthAction,
+  flagSessionChanged,
+  notifySessionAction,
+  sessionSnapshot,
+} from '../../integrations/session-coordination.js'
 
-  if (provider && refreshToken) {
-    // Best-effort revoke — `revokeSession` itself is idempotent for
-    // unknown/already-revoked tokens, so failures here would almost
-    // certainly be transport-level. Swallow and continue: the cookies
-    // get cleared regardless, so the caller's session ends.
+const signOutBoundary = createMiddleware({ type: 'function' }).client(async ({ next }) => {
+  const snapshot = sessionSnapshot()
+  return coordinateAuthAction(async () => {
     try {
-      await provider.revokeSession(refreshToken)
-    } catch {
-      // no-op
+      const result = await next({ sendContext: { expectedSessionId: snapshot.sessionId } })
+      notifySessionAction()
+      return result
+    } catch (error) {
+      if ((error as { code?: string })?.code === 'ERR_SESSION_CHANGED') flagSessionChanged()
+      throw error
     }
-  }
-
-  clearSessionCookies()
-  clearPreviewCookie()
-  return { status: 'ok' as const }
+  })
 })
+
+export const adminSignOut = createServerFn({ method: 'POST' })
+  .middleware([signOutBoundary])
+  .handler(async ({ context }) => {
+    const provider = getServerConfig().sessionProvider
+    const refreshToken = readRefreshTokenCookie()
+    const accessToken = readAccessTokenCookie()
+
+    if (refreshToken || accessToken) {
+      if (!provider) throw new Error('no sessionProvider configured')
+      if (!context.expectedSessionId)
+        throw ERR_SESSION_CHANGED({ message: 'logout requires the page login identity' })
+      await provider.revokeSession({
+        refreshToken,
+        accessToken,
+        expectedSessionId: context.expectedSessionId,
+      })
+    }
+
+    clearSessionCookies()
+    clearPreviewCookie()
+    return { status: 'ok' as const }
+  })

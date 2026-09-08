@@ -36,6 +36,7 @@ import {
 import { adminSignIn } from '../server-fns/auth/index.js'
 import { getCollectionDocumentVersion as serverGetCollectionDocumentVersion } from '../server-fns/collections/get.js'
 import { setAdminLocaleFn } from '../server-fns/i18n/index.js'
+import { acceptSession, coordinateAuthAction, notifySessionAction } from './session-coordination.js'
 
 /**
  * Diff helper adapter — the contract uses positional args; the underlying
@@ -62,7 +63,12 @@ const getCollectionDocumentVersion: BylineAdminServices['getCollectionDocumentVe
 
 export const bylineAdminServices: BylineAdminServices = {
   // Auth
-  adminSignIn,
+  adminSignIn: async (args) => {
+    const result = await coordinateAuthAction(() => adminSignIn(args))
+    acceptSession(result.sessionId)
+    notifySessionAction()
+    return result
+  },
 
   // Account self-service
   updateAccount,

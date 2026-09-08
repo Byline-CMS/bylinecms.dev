@@ -86,6 +86,7 @@ describe('request factory ↔ client authority contract', () => {
       name === 'byline_access_token' ? 'valid-access' : undefined
     )
     mocks.verifyAccessToken.mockResolvedValue({
+      sessionId: 'test-login',
       actor: new AdminAuth({ id: 'admin-1', abilities: ['collections.posts.read'] }),
     })
   })

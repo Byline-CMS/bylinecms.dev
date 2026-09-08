@@ -16,6 +16,7 @@ import {
 import { getAdminRequestContext } from '@byline/client/server'
 
 import { bylineCore } from '../../integrations/byline-core.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 
 export interface ListAdminUsersInput {
   page?: number
@@ -33,6 +34,7 @@ export interface ListAdminUsersInput {
  * TanStack Start transport layer for the client to branch on.
  */
 export const listAdminUsers = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: ListAdminUsersInput) => input ?? {})
   .handler(async ({ data }): Promise<AdminUserListResponse> => {
     const context = await getAdminRequestContext()

@@ -25,7 +25,7 @@
  * switcher works on the sign-in surface — the DB write simply skips.
  */
 
-import { createServerFn } from '@tanstack/react-start'
+import { createMiddleware, createServerFn } from '@tanstack/react-start'
 
 import type { AccountResponse } from '@byline/admin/admin-account'
 import { setPreferredLocaleCommand } from '@byline/admin/admin-account'
@@ -34,6 +34,7 @@ import { getAdminRequestContext } from '@byline/client/server'
 
 import { clearAdminLocaleCookie, setAdminLocaleCookie } from '../../i18n/locale-cookie.js'
 import { bylineCore } from '../../integrations/byline-core.js'
+import { expectedSession } from '../../integrations/session-coordination.js'
 
 export interface SetAdminLocaleInput {
   /** BCP 47 tag, or `null` to clear the preference. */
@@ -53,9 +54,18 @@ export interface SetAdminLocaleResult {
   account: AccountResponse | null
 }
 
+const localeSession = createMiddleware({ type: 'function' }).client(({ next }) =>
+  next({
+    sendContext: {
+      expectedSessionId: expectedSession(),
+    },
+  })
+)
+
 export const setAdminLocaleFn = createServerFn({ method: 'POST' })
+  .middleware([localeSession])
   .validator((input: SetAdminLocaleInput) => input)
-  .handler(async ({ data }): Promise<SetAdminLocaleResult> => {
+  .handler(async ({ data, context: caller }): Promise<SetAdminLocaleResult> => {
     const core = bylineCore()
     const locales = core.config.i18n.admin.locales
 
@@ -87,6 +97,9 @@ export const setAdminLocaleFn = createServerFn({ method: 'POST' })
 
     try {
       const context = await getAdminRequestContext()
+      if (!caller.expectedSessionId || caller.expectedSessionId !== context.sessionId) {
+        return { ok: true as const, locale: data.locale, account: null }
+      }
       const account = await setPreferredLocaleCommand(
         context,
         { locale: data.locale },
@@ -94,7 +107,10 @@ export const setAdminLocaleFn = createServerFn({ method: 'POST' })
       )
       return { ok: true as const, locale: data.locale, account }
     } catch (err) {
-      if (err instanceof AuthError && err.code === AuthErrorCodes.UNAUTHENTICATED) {
+      if (
+        err instanceof AuthError &&
+        (err.code === AuthErrorCodes.UNAUTHENTICATED || err.code === AuthErrorCodes.ACCESS_EXPIRED)
+      ) {
         // Expected on the pre-auth path. Cookie already written.
         return { ok: true as const, locale: data.locale, account: null }
       }

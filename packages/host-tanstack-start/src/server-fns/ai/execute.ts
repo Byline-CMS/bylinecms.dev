@@ -26,6 +26,8 @@ import type { ExecuteInstructionOptions, ExecuteInstructionParams } from '@bylin
 import { executeInstruction, executeInstructionStreaming } from '@byline/ai/server'
 import { getAdminRequestContext } from '@byline/client/server'
 
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
+
 /**
  * Wire shape — the same as `ExecuteInstruction` minus the in-process-only
  * `signal` (an AbortSignal can't be serialized across the RPC boundary;
@@ -37,6 +39,7 @@ type ExecuteAiInstructionInput = {
 }
 
 export const executeAiInstruction = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator((input: ExecuteAiInstructionInput) => input)
   .handler(async ({ data }): Promise<Response> => {
     // Throws ERR_UNAUTHENTICATED if there is no admin session.

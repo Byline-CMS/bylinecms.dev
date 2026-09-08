@@ -17,6 +17,7 @@ import { v7 as uuidv7 } from 'uuid'
 
 import { adminUsers } from '../../database/schema/auth.js'
 import { affectedRowCount } from '../storage/storage-utils.js'
+import { createLoginSessionsRepository } from './login-sessions-repository.js'
 import { createRefreshTokensRepository } from './refresh-tokens-repository.js'
 import type * as schema from '../../database/schema/index.js'
 
@@ -274,7 +275,10 @@ export function createAdminUsersRepository(
           .from(adminUsers)
           .where(eq(adminUsers.id, id))
         if (!fresh) throw ERR_ADMIN_USER_VERSION_CONFLICT()
-        if (patch.is_enabled === false) await createRefreshTokensRepository(tx).revokeAllForUser(id)
+        if (patch.is_enabled === false) {
+          await createRefreshTokensRepository(tx).revokeAllForUser(id)
+          await createLoginSessionsRepository(tx).revokeAllForUser(id)
+        }
         return fresh
       })
     },
@@ -301,6 +305,7 @@ export function createAdminUsersRepository(
           .where(eq(adminUsers.id, id))
         if (!fresh) throw ERR_ADMIN_USER_VERSION_CONFLICT()
         await createRefreshTokensRepository(tx).revokeAllForUser(id)
+        await createLoginSessionsRepository(tx).revokeAllForUser(id)
         return fresh
       })
     },
@@ -316,7 +321,10 @@ export function createAdminUsersRepository(
             ...(!enabled ? { session_version: sql`${adminUsers.session_version} + 1` } : {}),
           })
           .where(eq(adminUsers.id, id))
-        if (!enabled) await createRefreshTokensRepository(tx).revokeAllForUser(id)
+        if (!enabled) {
+          await createRefreshTokensRepository(tx).revokeAllForUser(id)
+          await createLoginSessionsRepository(tx).revokeAllForUser(id)
+        }
       })
     },
 

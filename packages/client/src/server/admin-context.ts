@@ -7,136 +7,33 @@
  */
 
 /**
- * Request-scoped auth context for admin server functions.
+ * Verification-only request context. Renewal belongs to the explicit host endpoint.
  *
- * Reads the session cookies, verifies the access token, transparently
- * refreshes when needed, and returns a `RequestContext` carrying the
- * authenticated `AdminAuth`. Every admin server fn calls this as its
- * first step — it is the single point where the admin transport boundary
- * meets the actor/ability machinery.
- *
- * Flow, in order:
- *
- *   1. Read the access cookie.
- *   2. If present, try `sessionProvider.verifyAccessToken`. On success,
- *      return the context — no DB write, no cookie churn.
- *   3. On verify failure (or missing access cookie), read the refresh
- *      cookie. If present, call `sessionProvider.refreshSession` — this
- *      rotates the refresh token atomically and issues a new access
- *      token. Write both fresh cookies to the response.
- *   4. Verify the new access token (populate the actor) and return the
- *      context.
- *   5. Any failure along the way clears both cookies so the browser
- *      stops sending a session the server has already rejected, and
- *      throws `ERR_UNAUTHENTICATED`.
- *
- * Burns a refresh-token rotation only when the access token actually
- * fails verification — not on every request. The "one session" UX is
- * the consequence of this helper working invisibly behind each call.
- *
- * Resolution is memoized per request (`oncePerRequest`): every call within
- * one logical request returns the same `RequestContext` instance — same
- * actor snapshot, same `requestId`. Two invariants depend on this:
- *
- *   - The read-authorization layer binds each `ReadContext` to one
- *     immutable authority token that includes `requestId`; a fresh id per
- *     call makes any two reads sharing a `ReadContext` (the admin tree
- *     view, hook-threaded nested reads) throw
- *     'ReadContext cannot be reused across request authorities'.
- *   - The refresh path rotates the refresh token; a second unmemoized call
- *     in the same request would re-run the dance against the
- *     already-rotated cookie and sign the admin out.
+ * oncePerRequest preserves the same context, actor snapshot, and requestId for
+ * every call in one logical request. The read-authorization layer binds each
+ * ReadContext to one authority token including requestId. Generating a new id
+ * per call would make nested reads sharing a ReadContext throw:
+ * "ReadContext cannot be reused across request authorities".
  */
-
-import { ERR_UNAUTHENTICATED, type RequestContext } from '@byline/auth'
+import { ERR_ACCESS_EXPIRED, ERR_UNAUTHENTICATED, type RequestContext } from '@byline/auth'
 import { getServerConfig } from '@byline/core'
 import { v7 as uuidv7 } from 'uuid'
 
 import { oncePerRequest } from './request-scope.js'
-import {
-  clearSessionCookies,
-  readAccessTokenCookie,
-  readRefreshTokenCookie,
-  setSessionCookies,
-} from './session-cookies.js'
+import { readAccessTokenCookie, readRefreshTokenCookie } from './session-cookies.js'
 
-function requireSessionProvider() {
-  const provider = getServerConfig().sessionProvider
-  if (!provider) {
-    throw new Error(
-      'No sessionProvider configured on ServerConfig. ' +
-        'Construct a JwtSessionProvider in your server config and pass it to initBylineCore().'
-    )
-  }
-  return provider
-}
-
-export async function getAdminRequestContext(): Promise<RequestContext> {
-  return oncePerRequest('byline:admin-request-context', resolveAdminRequestContext)
-}
-
-async function resolveAdminRequestContext(): Promise<RequestContext> {
-  const provider = requireSessionProvider()
-
-  const accessToken = readAccessTokenCookie()
-
-  // Happy path: valid access token.
-  if (accessToken) {
-    try {
-      const { actor } = await provider.verifyAccessToken(accessToken)
-      return {
-        actor,
-        requestId: uuidv7(),
-        readMode: 'any',
-      }
-    } catch {
-      // Fall through to refresh — we'll burn a rotation only when the
-      // access token genuinely can't verify.
+export function getAdminRequestContext(): Promise<RequestContext> {
+  return oncePerRequest('byline:admin-request-context', async () => {
+    const provider = getServerConfig().sessionProvider
+    if (!provider) throw new Error('no sessionProvider configured')
+    const access = readAccessTokenCookie()
+    if (!access) {
+      if (readRefreshTokenCookie())
+        throw ERR_ACCESS_EXPIRED({ message: 'access credential absent; explicit renewal required' })
+      throw ERR_UNAUTHENTICATED({ message: 'no admin session' })
     }
-  }
-
-  // Refresh path: swap the refresh cookie for a fresh token pair.
-  const refreshToken = readRefreshTokenCookie()
-  if (!refreshToken) {
-    // Only emit cookie clears when the browser actually sent a stale access
-    // cookie — otherwise the response carries no Set-Cookie at all, which
-    // lets shared caches (Cloudflare) cache public pages for anonymous
-    // visitors. Set-Cookie on the response is a hard bypass signal for CDNs.
-    if (accessToken) {
-      clearSessionCookies()
-    }
-    throw ERR_UNAUTHENTICATED({ message: 'no admin session' })
-  }
-
-  let refreshed: Awaited<ReturnType<typeof provider.refreshSession>>
-  try {
-    refreshed = await provider.refreshSession({ refreshToken })
-  } catch (err) {
-    clearSessionCookies()
-    throw ERR_UNAUTHENTICATED({
-      message: 'admin session could not be refreshed',
-      cause: err,
-    })
-  }
-
-  // Write the new cookies so subsequent requests skip the refresh path.
-  setSessionCookies(refreshed)
-
-  // Verify the freshly-minted access token to extract the actor.
-  let verified: Awaited<ReturnType<typeof provider.verifyAccessToken>>
-  try {
-    verified = await provider.verifyAccessToken(refreshed.accessToken)
-  } catch (err) {
-    clearSessionCookies()
-    throw ERR_UNAUTHENTICATED({
-      message: 'refreshed access token did not verify',
-      cause: err,
-    })
-  }
-
-  return {
-    actor: verified.actor,
-    requestId: uuidv7(),
-    readMode: 'any',
-  }
+    const { actor, sessionId } = await provider.verifyAccessToken(access)
+    if (!sessionId) throw new Error('session provider omitted login identity')
+    return { actor, sessionId, requestId: uuidv7(), readMode: 'any' }
+  })
 }

@@ -12,6 +12,7 @@ import { setRolesForUserCommand, type UserRolesResponse } from '@byline/admin/ad
 import { getAdminRequestContext } from '@byline/client/server'
 
 import { bylineCore } from '../../integrations/byline-core.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 
 export interface SetUserRolesInput {
   userId: string
@@ -19,6 +20,7 @@ export interface SetUserRolesInput {
 }
 
 export const setUserRoles = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator((input: SetUserRolesInput) => input)
   .handler(async ({ data }): Promise<UserRolesResponse> => {
     const context = await getAdminRequestContext()

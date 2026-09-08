@@ -15,6 +15,7 @@ import {
 import { getAdminRequestContext } from '@byline/client/server'
 
 import { bylineCore } from '../../integrations/byline-core.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 
 export interface SetRoleAbilitiesInput {
   id: string
@@ -22,6 +23,7 @@ export interface SetRoleAbilitiesInput {
 }
 
 export const setRoleAbilities = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator((input: SetRoleAbilitiesInput) => input)
   .handler(async ({ data }): Promise<SetRoleAbilitiesResponse> => {
     const context = await getAdminRequestContext()

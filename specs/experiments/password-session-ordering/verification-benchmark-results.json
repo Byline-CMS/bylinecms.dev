@@ -1,0 +1,126 @@
+[
+  {
+    "dialect": "postgres",
+    "login_rows": 1000,
+    "samples": 200,
+    "baseline": {
+      "p50_ms": 0.8133749999999509,
+      "p95_ms": 1.013541000000032,
+      "p99_ms": 1.2073340000000599,
+      "serial_ops_per_second": 1223.3117866127345
+    },
+    "with_login": {
+      "p50_ms": 1.1483749999999873,
+      "p95_ms": 1.4402089999999816,
+      "p99_ms": 2.1343340000000808,
+      "serial_ops_per_second": 843.4637120740135
+    },
+    "plan": [
+      {
+        "QUERY PLAN": [
+          {
+            "Plan": {
+              "Node Type": "Index Scan",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Scan Direction": "Forward",
+              "Index Name": "byline_admin_login_sessions_pkey",
+              "Relation Name": "byline_admin_login_sessions",
+              "Alias": "byline_admin_login_sessions",
+              "Startup Cost": 0.27,
+              "Total Cost": 8.29,
+              "Plan Rows": 1,
+              "Plan Width": 52,
+              "Disabled": false,
+              "Index Cond": "(id = 'dfdc12d5-4ca4-4fce-afa0-0bffdb449145'::uuid)"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "dialect": "postgres",
+    "login_rows": 10000,
+    "samples": 200,
+    "baseline": {
+      "p50_ms": 0.6139169999999012,
+      "p95_ms": 0.7354170000000977,
+      "p99_ms": 0.8282500000000255,
+      "serial_ops_per_second": 1595.4338682689922
+    },
+    "with_login": {
+      "p50_ms": 0.8768339999999171,
+      "p95_ms": 1.038332999999966,
+      "p99_ms": 1.0676669999998012,
+      "serial_ops_per_second": 1119.5904788816538
+    },
+    "plan": [
+      {
+        "QUERY PLAN": [
+          {
+            "Plan": {
+              "Node Type": "Index Scan",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Scan Direction": "Forward",
+              "Index Name": "byline_admin_login_sessions_pkey",
+              "Relation Name": "byline_admin_login_sessions",
+              "Alias": "byline_admin_login_sessions",
+              "Startup Cost": 0.28,
+              "Total Cost": 8.3,
+              "Plan Rows": 1,
+              "Plan Width": 52,
+              "Disabled": false,
+              "Index Cond": "(id = 'dfdc12d5-4ca4-4fce-afa0-0bffdb449145'::uuid)"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "dialect": "mysql",
+    "login_rows": 1000,
+    "samples": 200,
+    "baseline": {
+      "p50_ms": 0.7342080000000806,
+      "p95_ms": 1.0941670000001977,
+      "p99_ms": 1.2373329999998077,
+      "serial_ops_per_second": 1251.0663542261984
+    },
+    "with_login": {
+      "p50_ms": 1.051209000000199,
+      "p95_ms": 1.418416999999863,
+      "p99_ms": 1.7387089999999716,
+      "serial_ops_per_second": 917.9055898486257
+    },
+    "plan": [
+      {
+        "EXPLAIN": "-> Rows fetched before execution  (cost=0..0 rows=1)\n"
+      }
+    ]
+  },
+  {
+    "dialect": "mysql",
+    "login_rows": 10000,
+    "samples": 200,
+    "baseline": {
+      "p50_ms": 0.6490829999997914,
+      "p95_ms": 0.7918329999997695,
+      "p99_ms": 0.9741249999997308,
+      "serial_ops_per_second": 1490.9262452353883
+    },
+    "with_login": {
+      "p50_ms": 0.9169999999999163,
+      "p95_ms": 1.1368330000000242,
+      "p99_ms": 1.5002089999998134,
+      "serial_ops_per_second": 1038.9441459990853
+    },
+    "plan": [
+      {
+        "EXPLAIN": "-> Rows fetched before execution  (cost=0..0 rows=1)\n"
+      }
+    ]
+  }
+]

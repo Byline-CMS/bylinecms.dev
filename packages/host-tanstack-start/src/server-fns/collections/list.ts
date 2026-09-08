@@ -1,4 +1,3 @@
-import { withEditableRevision } from '../editable-revision.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -25,6 +24,8 @@ import {
 
 import { ensureCollection } from '../../integrations/api-utils.js'
 import { bylineCore } from '../../integrations/byline-core.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
+import { withEditableRevision } from '../editable-revision.js'
 import { resolveListViewState, sortableFieldNames } from './list-view-state.js'
 import { serialise } from './utils'
 import type { ListViewPreferenceValue } from './list-view-state.js'
@@ -49,6 +50,7 @@ export interface CollectionSearchParams {
 // ---------------------------------------------------------------------------
 
 export const getCollectionDocuments = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { collection: string; params: CollectionSearchParams }) => input)
   .handler(async ({ data }) => {
     const { collection: path, params } = data

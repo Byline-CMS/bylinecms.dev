@@ -1,5 +1,3 @@
-'use client'
-
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -22,6 +20,8 @@ import { Branding } from './branding.js'
 import { Breadcrumbs } from './breadcrumbs/breadcrumbs.js'
 import { useBreadcrumbs } from './breadcrumbs/breadcrumbs-provider.js'
 
+;('use client')
+
 interface AdminAppBarProps {
   user: CurrentAdminUser
 }
@@ -37,16 +37,18 @@ export function AdminAppBar({ user }: AdminAppBarProps) {
   const { breadCrumbSettings } = useBreadcrumbs()
   const { t } = useTranslation('byline-admin')
   const [signingOut, setSigningOut] = useState(false)
+  const [signOutError, setSignOutError] = useState(false)
 
   async function handleSignOut() {
     if (signingOut) return
     setSigningOut(true)
+    setSignOutError(false)
     try {
       await adminSignOut()
-    } catch (err) {
-      // Even on transport failure, the server-side handler clears the
-      // cookies best-effort. Navigate to sign-in regardless.
-      console.warn('sign-out request failed', err)
+    } catch {
+      setSignOutError(true)
+      setSigningOut(false)
+      return
     }
     // Full-page navigation so the admin guard re-runs with cleared cookies.
     window.location.assign(getSignInRoutePath())
@@ -71,6 +73,9 @@ export function AdminAppBar({ user }: AdminAppBarProps) {
             {displayNameFor(user)}
           </span>
         </span>
+        {signOutError && (
+          <span role="alert">Sign-out could not be confirmed. Please try again.</span>
+        )}
         <Button size="xs" intent="secondary" onClick={handleSignOut} disabled={signingOut}>
           {signingOut ? t('common.actions.signingOut') : t('common.actions.signOut')}
         </Button>

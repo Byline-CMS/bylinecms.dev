@@ -188,6 +188,20 @@ export const adminPermissions = pgTable(
  * at the replacement row; presenting a rotated token is treated as replay
  * and revokes the whole chain.
  */
+export const adminLoginSessions = pgTable(
+  'byline_admin_login_sessions',
+  {
+    id: uuid('id').primaryKey(),
+    admin_user_id: uuid('admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'cascade' }),
+    session_version: integer('session_version').notNull(),
+    expires_at: timestamp('expires_at', { precision: 6, withTimezone: true }).notNull(),
+    revoked_at: timestamp('revoked_at', { precision: 6, withTimezone: true }),
+  },
+  (table) => [index('idx_admin_login_sessions_user').on(table.admin_user_id)]
+)
+
 export const adminRefreshTokens = pgTable(
   'byline_admin_refresh_tokens',
   {
@@ -196,6 +210,7 @@ export const adminRefreshTokens = pgTable(
       .notNull()
       .references(() => adminUsers.id, { onDelete: 'cascade' }),
     /** SHA-256 hex digest of the raw refresh-token string. 64 chars. */
+    sid: uuid('sid').references(() => adminLoginSessions.id, { onDelete: 'cascade' }),
     token_hash: varchar('token_hash', { length: 64 }).notNull().unique(),
     session_version: integer('session_version').notNull().default(-1),
     issued_at: timestamp('issued_at', { precision: 6, withTimezone: true }).notNull().defaultNow(),
@@ -212,6 +227,7 @@ export const adminRefreshTokens = pgTable(
     ...timestamps,
   },
   (table) => [
+    index('idx_admin_refresh_tokens_sid').on(table.sid),
     index('idx_byline_admin_refresh_tokens_user').on(table.admin_user_id),
     index('idx_byline_admin_refresh_tokens_token_hash').on(table.token_hash),
   ]

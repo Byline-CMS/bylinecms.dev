@@ -19,8 +19,12 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { getAdminRequestContext, setPreviewCookie } from '@byline/client/server'
 
-export const enablePreviewModeFn = createServerFn({ method: 'POST' }).handler(async () => {
-  await getAdminRequestContext()
-  setPreviewCookie()
-  return { status: 'ok' as const, preview: true as const }
-})
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
+
+export const enablePreviewModeFn = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
+  .handler(async () => {
+    await getAdminRequestContext()
+    setPreviewCookie()
+    return { status: 'ok' as const, preview: true as const }
+  })

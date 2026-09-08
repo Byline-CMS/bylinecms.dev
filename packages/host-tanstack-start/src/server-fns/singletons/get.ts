@@ -8,6 +8,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 import { readSingletonDocument } from '../singleton-document-read.js'
 
 export interface GetSingletonInput {
@@ -28,5 +29,6 @@ export interface GetSingletonInput {
  *   from the same editable snapshot as the source document.
  */
 export const getSingleton = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: GetSingletonInput) => input)
   .handler(async ({ data }) => readSingletonDocument(data))

@@ -102,7 +102,7 @@ describe('request-context factories', () => {
       bridge.getRequest.mockReturnValue({ id: 'request-a' })
       cookiesReturn({ byline_preview: '1', byline_access_token: 'valid-access' })
       const actor = new AdminAuth({ id: 'admin-1', abilities: [] })
-      mocks.verifyAccessToken.mockResolvedValue({ actor })
+      mocks.verifyAccessToken.mockResolvedValue({ actor, sessionId: 'test-login' })
 
       const first = await resolveViewerRequestContext()
       const second = await resolveViewerRequestContext()

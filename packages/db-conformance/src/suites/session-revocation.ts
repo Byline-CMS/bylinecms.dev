@@ -1,3 +1,11 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
 import { createHash, createHmac } from 'node:crypto'
 
 import type { AdminStore } from '@byline/admin'
@@ -46,9 +54,9 @@ export function sessionRevocationSuite(hooks: ConformanceHooks): void {
       await expect(provider.refreshSession({ refreshToken: tokens.refreshToken })).rejects.toThrow()
     }
 
-    it('KNOWN REGRESSION R2/D3: concurrent refresh revokes the winning successor', async () => {
-      // Characterization, not an approved contract. Keep R2 blocked until D3
-      // replaces this with a benign-loser and cookie-continuity acceptance test.
+    it('uncoordinated refresh contest revokes the affected login, including the winning access JWT', async () => {
+      // Approved residual: coordination handles ordinary overlap; an escaped contest
+      // fails closed for this login. Host tests separately require single-flight renewal.
       const { user, login } = await fixture()
       const tokens = await login()
       const bothObserved = signal()
@@ -71,9 +79,121 @@ export function sessionRevocationSuite(hooks: ConformanceHooks): void {
       expect(await store.refreshTokens.listActiveForUser(user.id)).toHaveLength(0)
       const winner = successes[0]
       if (winner?.status !== 'fulfilled') throw new Error('Expected one winning refresh')
+      await expect(providerFor().verifyAccessToken(winner.value.accessToken)).rejects.toThrow()
       await expect(
         providerFor().refreshSession({ refreshToken: winner.value.refreshToken })
       ).rejects.toThrow()
+    })
+
+    it('logout from a rotated predecessor immediately rejects access and renewal for that login only', async () => {
+      const { login, provider } = await fixture()
+      const original = await login()
+      const independent = await login()
+      const rotated = await provider.refreshSession({ refreshToken: original.refreshToken })
+      expect(rotated.sessionId).toBe(original.sessionId)
+      expect(independent.sessionId).not.toBe(original.sessionId)
+      await provider.revokeSession({ refreshToken: original.refreshToken })
+      await rejects(provider, rotated)
+      await provider.revokeSession({ refreshToken: original.refreshToken })
+      expect((await provider.verifyAccessToken(independent.accessToken)).sessionId).toBe(
+        independent.sessionId
+      )
+    })
+
+    it('logout with only an access credential immediately revokes the login', async () => {
+      const { login, provider } = await fixture()
+      const current = await login()
+      const independent = await login()
+      await provider.revokeSession({
+        accessToken: current.accessToken,
+        expectedSessionId: current.sessionId,
+      })
+      await rejects(provider, current)
+      await provider.verifyAccessToken(independent.accessToken)
+    })
+
+    it('logout cannot revoke a different observed login than the page expected', async () => {
+      const { login, provider } = await fixture()
+      const original = await login()
+      const replacement = await login()
+      await expect(
+        provider.revokeSession({
+          accessToken: replacement.accessToken,
+          refreshToken: replacement.refreshToken,
+          expectedSessionId: original.sessionId,
+        })
+      ).rejects.toMatchObject({ code: 'ERR_SESSION_CHANGED' })
+      await provider.verifyAccessToken(original.accessToken)
+      await provider.verifyAccessToken(replacement.accessToken)
+    })
+
+    it('replacement sign-in revokes observed cross-account credentials and preserves another device', async () => {
+      const old = await fixture()
+      const next = await fixture()
+      const observed = await old.login()
+      const otherDevice = await old.login()
+      const replacement = await next.provider.signInWithPassword({
+        email: next.user.email,
+        password,
+        previousAccessToken: observed.accessToken,
+        previousRefreshToken: observed.refreshToken,
+      })
+      await rejects(old.provider, observed)
+      await old.provider.verifyAccessToken(otherDevice.accessToken)
+      expect((await next.provider.verifyAccessToken(replacement.accessToken)).actor.id).toBe(
+        next.user.id
+      )
+    })
+
+    it('failed replacement revocation rolls back and never returns new credentials', async () => {
+      const old = await fixture()
+      const next = await fixture()
+      const observed = await old.login()
+      const failing: AdminStore = {
+        ...store,
+        withSessionLocks: (ids, work) =>
+          store.withSessionLocks(ids, (scoped) =>
+            work({
+              ...scoped,
+              loginSessions: {
+                ...scoped.loginSessions,
+                async revoke(id, at) {
+                  await scoped.loginSessions.revoke(id, at)
+                  throw new Error('injected replacement revocation failure')
+                },
+              },
+            })
+          ),
+      }
+      await expect(
+        providerFor(failing).signInWithPassword({
+          email: next.user.email,
+          password,
+          previousRefreshToken: observed.refreshToken,
+        })
+      ).rejects.toThrow('injected')
+      await old.provider.verifyAccessToken(observed.accessToken)
+      expect(await store.refreshTokens.listActiveForUser(next.user.id)).toHaveLength(0)
+    })
+
+    it('revocation covers login membership beyond the former 1000-row traversal ceiling', async () => {
+      const { user, login, provider } = await fixture()
+      const original = await login()
+      // Disconnected members prove authorization relies on membership, not rotated_to_id traversal.
+      await store.withSessionLock(user.id, async (scoped) => {
+        for (let n = 0; n < 1005; n++)
+          await scoped.refreshTokens.issue({
+            id: uuidv7(),
+            admin_user_id: user.id,
+            sid: original.sessionId,
+            session_version: 0,
+            token_hash: createHash('sha256').update(`${original.sessionId}-${n}`).digest('hex'),
+            expires_at: new Date(Date.now() + 60000),
+          })
+      })
+      await provider.revokeSession({ refreshToken: original.refreshToken })
+      await expect(provider.verifyAccessToken(original.accessToken)).rejects.toThrow()
+      expect(await store.refreshTokens.listActiveForUser(user.id)).toHaveLength(0)
     })
 
     it('access verification reads the user once and reuses that snapshot for actor resolution', async () => {

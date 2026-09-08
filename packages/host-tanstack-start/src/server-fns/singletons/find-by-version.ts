@@ -10,9 +10,11 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { getAdminBylineClient } from '@byline/client/server'
 
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 import { serialise } from '../serialise.js'
 
 export const findSingletonByVersion = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { singleton: string; versionId: string; locale?: string }) => input)
   .handler(async ({ data }) =>
     serialise(

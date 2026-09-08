@@ -22,6 +22,8 @@ import type {
 } from '@byline/analytics'
 import { getAdminRequestContext } from '@byline/client/server'
 
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
+
 export interface AnalyticsTopInput extends AnalyticsDateRange {
   kind: AnalyticsEventKind
   limit?: number
@@ -31,16 +33,17 @@ export interface AnalyticsRuntimeState {
   enabled: boolean
 }
 
-export const getAnalyticsRuntime = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<AnalyticsRuntimeState> => {
+export const getAnalyticsRuntime = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
+  .handler(async (): Promise<AnalyticsRuntimeState> => {
     const context = await getAdminRequestContext()
     requireAdminActor(context, 'reading analytics runtime state')
     const { isAnalyticsRegistered } = await import('@byline/analytics')
     return { enabled: isAnalyticsRegistered() }
-  }
-)
+  })
 
 export const getAnalyticsSummary = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: AnalyticsDateRange) => input)
   .handler(async ({ data }): Promise<AnalyticsSummary> => {
     await assertAnalyticsRead()
@@ -48,15 +51,16 @@ export const getAnalyticsSummary = createServerFn({ method: 'GET' })
     return getAnalytics().getSummary(data)
   })
 
-export const getAnalyticsReportCoverage = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<AnalyticsReportCoverage> => {
+export const getAnalyticsReportCoverage = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
+  .handler(async (): Promise<AnalyticsReportCoverage> => {
     await assertAnalyticsRead()
     const { getAnalytics } = await import('@byline/analytics')
     return getAnalytics().getReportCoverage()
-  }
-)
+  })
 
 export const getAnalyticsTop = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: AnalyticsTopInput) => input)
   .handler(async ({ data }): Promise<AnalyticsRankedTotals<AnalyticsPathTotal>> => {
     await assertAnalyticsRead()
@@ -65,6 +69,7 @@ export const getAnalyticsTop = createServerFn({ method: 'GET' })
   })
 
 export const getAnalyticsReferrers = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: AnalyticsDateRange & { limit?: number }) => input)
   .handler(async ({ data }): Promise<AnalyticsRankedTotals<AnalyticsReferrerTotal>> => {
     await assertAnalyticsRead()
@@ -73,6 +78,7 @@ export const getAnalyticsReferrers = createServerFn({ method: 'GET' })
   })
 
 export const getAnalyticsCountries = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: AnalyticsDateRange) => input)
   .handler(async ({ data }): Promise<AnalyticsCountryTotal[]> => {
     await assertAnalyticsRead()

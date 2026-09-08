@@ -12,7 +12,13 @@
  * branches can be exercised without a live Postgres or JWT machinery.
  */
 
-import { AdminAuth, AuthError, AuthErrorCodes } from '@byline/auth'
+import {
+  AdminAuth,
+  AuthError,
+  AuthErrorCodes,
+  ERR_ACCESS_EXPIRED,
+  ERR_REVOKED_TOKEN,
+} from '@byline/auth'
 import { registerHostRequestBridge } from '@byline/core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -80,7 +86,7 @@ describe('getAdminRequestContext', () => {
       byline_refresh_token: 'some-refresh',
     })
     const actor = stubActor()
-    verifyAccessToken.mockResolvedValueOnce({ actor })
+    verifyAccessToken.mockResolvedValueOnce({ actor, sessionId: 'test-login' })
 
     const ctx = await getAdminRequestContext()
 
@@ -90,49 +96,24 @@ describe('getAdminRequestContext', () => {
     expect(setCookie).not.toHaveBeenCalled()
   })
 
-  it('refreshes when the access token fails verification', async () => {
-    cookiesReturn({
-      byline_access_token: 'stale-access',
-      byline_refresh_token: 'valid-refresh',
-    })
-    const actor = stubActor()
-    verifyAccessToken.mockRejectedValueOnce(new Error('expired')).mockResolvedValueOnce({ actor })
-    refreshSession.mockResolvedValueOnce({
-      accessToken: 'fresh-access',
-      refreshToken: 'fresh-refresh',
-      accessTokenExpiresAt: new Date(Date.now() + 15 * 60_000),
-      refreshTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60_000),
-    })
-
-    const ctx = await getAdminRequestContext()
-
-    expect(ctx.actor).toBe(actor)
-    expect(refreshSession).toHaveBeenCalledWith({ refreshToken: 'valid-refresh' })
-    // Both access + refresh cookies should have been written with maxAge > 0.
-    expect(setCookie).toHaveBeenCalledTimes(2)
-    const accessCall = setCookie.mock.calls.find((c) => c[0] === 'byline_access_token')
-    expect(accessCall?.[1]).toBe('fresh-access')
-    expect(accessCall?.[2]?.maxAge).toBeGreaterThan(0)
+  it.each([
+    ERR_ACCESS_EXPIRED({ message: 'expired' }),
+    ERR_REVOKED_TOKEN({ message: 'revoked' }),
+    new Error('database unavailable'),
+  ])('never renews or writes cookies after verification failure: %s', async (error) => {
+    cookiesReturn({ byline_access_token: 'old', byline_refresh_token: 'retained' })
+    verifyAccessToken.mockRejectedValueOnce(error)
+    await expect(getAdminRequestContext()).rejects.toBe(error)
+    expect(refreshSession).not.toHaveBeenCalled()
+    expect(setCookie).not.toHaveBeenCalled()
   })
 
-  it('refreshes when the access cookie is missing but a refresh cookie exists', async () => {
-    cookiesReturn({ byline_refresh_token: 'only-refresh' })
-    const actor = stubActor()
-    refreshSession.mockResolvedValueOnce({
-      accessToken: 'fresh-access',
-      refreshToken: 'fresh-refresh',
-      accessTokenExpiresAt: new Date(Date.now() + 15 * 60_000),
-      refreshTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60_000),
-    })
-    verifyAccessToken.mockResolvedValueOnce({ actor })
-
-    const ctx = await getAdminRequestContext()
-
-    expect(ctx.actor).toBe(actor)
-    // The access-token path was skipped (no cookie) so verifyAccessToken ran
-    // only for the freshly-issued token.
-    expect(verifyAccessToken).toHaveBeenCalledTimes(1)
-    expect(verifyAccessToken).toHaveBeenCalledWith('fresh-access')
+  it('reports explicit renewal required when only the persistent refresh cookie survives', async () => {
+    cookiesReturn({ byline_refresh_token: 'retained' })
+    await expect(getAdminRequestContext()).rejects.toMatchObject({ code: 'ERR_ACCESS_EXPIRED' })
+    expect(verifyAccessToken).not.toHaveBeenCalled()
+    expect(refreshSession).not.toHaveBeenCalled()
+    expect(setCookie).not.toHaveBeenCalled()
   })
 
   it('throws ERR_UNAUTHENTICATED without emitting Set-Cookie when no cookies are sent', async () => {
@@ -151,66 +132,6 @@ describe('getAdminRequestContext', () => {
     expect(setCookie).not.toHaveBeenCalled()
   })
 
-  it('clears the stale access cookie when only an access token was sent', async () => {
-    cookiesReturn({ byline_access_token: 'stale' })
-    verifyAccessToken.mockRejectedValueOnce(new Error('expired'))
-
-    try {
-      await getAdminRequestContext()
-      expect.fail('expected ERR_UNAUTHENTICATED')
-    } catch (err) {
-      expect((err as AuthError).code).toBe(AuthErrorCodes.UNAUTHENTICATED)
-    }
-    const clears = setCookie.mock.calls.filter((c) => c[2]?.maxAge === 0)
-    const clearedNames = new Set(clears.map((c) => c[0]))
-    expect(clearedNames.has('byline_access_token')).toBe(true)
-    expect(clearedNames.has('byline_refresh_token')).toBe(true)
-  })
-
-  it('clears cookies and throws when refresh itself fails', async () => {
-    cookiesReturn({
-      byline_access_token: 'stale',
-      byline_refresh_token: 'bad-refresh',
-    })
-    verifyAccessToken.mockRejectedValueOnce(new Error('expired'))
-    refreshSession.mockRejectedValueOnce(new Error('revoked'))
-
-    try {
-      await getAdminRequestContext()
-      expect.fail('expected ERR_UNAUTHENTICATED')
-    } catch (err) {
-      expect(err).toBeInstanceOf(AuthError)
-      expect((err as AuthError).code).toBe(AuthErrorCodes.UNAUTHENTICATED)
-    }
-    const clears = setCookie.mock.calls.filter((c) => c[2]?.maxAge === 0)
-    expect(clears.length).toBe(2)
-  })
-
-  it('clears cookies and throws when the refreshed access token fails to verify', async () => {
-    cookiesReturn({
-      byline_access_token: 'stale',
-      byline_refresh_token: 'valid',
-    })
-    verifyAccessToken
-      .mockRejectedValueOnce(new Error('expired'))
-      .mockRejectedValueOnce(new Error('still bad'))
-    refreshSession.mockResolvedValueOnce({
-      accessToken: 'fresh-but-somehow-bad',
-      refreshToken: 'fresh-refresh',
-      accessTokenExpiresAt: new Date(Date.now() + 15 * 60_000),
-      refreshTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60_000),
-    })
-
-    try {
-      await getAdminRequestContext()
-      expect.fail('expected ERR_UNAUTHENTICATED')
-    } catch (err) {
-      expect((err as AuthError).code).toBe(AuthErrorCodes.UNAUTHENTICATED)
-    }
-    const clears = setCookie.mock.calls.filter((c) => c[2]?.maxAge === 0)
-    expect(clears.length).toBe(2)
-  })
-
   describe('per-request memoization', () => {
     it('returns the same context instance — and requestId — for every call in one request', async () => {
       bridge.getRequest.mockReturnValue({ id: 'request-a' })
@@ -218,7 +139,7 @@ describe('getAdminRequestContext', () => {
         byline_access_token: 'valid-access',
         byline_refresh_token: 'some-refresh',
       })
-      verifyAccessToken.mockResolvedValue({ actor: stubActor() })
+      verifyAccessToken.mockResolvedValue({ actor: stubActor(), sessionId: 'test-login' })
 
       const first = await getAdminRequestContext()
       const second = await getAdminRequestContext()
@@ -235,7 +156,7 @@ describe('getAdminRequestContext', () => {
         byline_access_token: 'valid-access',
         byline_refresh_token: 'some-refresh',
       })
-      verifyAccessToken.mockResolvedValue({ actor: stubActor() })
+      verifyAccessToken.mockResolvedValue({ actor: stubActor(), sessionId: 'test-login' })
 
       bridge.getRequest.mockReturnValue({ id: 'request-a' })
       const first = await getAdminRequestContext()
@@ -247,46 +168,15 @@ describe('getAdminRequestContext', () => {
       expect(verifyAccessToken).toHaveBeenCalledTimes(2)
     })
 
-    it('burns at most one refresh rotation per request', async () => {
-      bridge.getRequest.mockReturnValue({ id: 'request-a' })
-      cookiesReturn({
-        byline_access_token: 'stale-access',
-        byline_refresh_token: 'valid-refresh',
-      })
-      const actor = stubActor()
-      verifyAccessToken.mockRejectedValueOnce(new Error('expired')).mockResolvedValueOnce({ actor })
-      refreshSession.mockResolvedValueOnce({
-        accessToken: 'fresh-access',
-        refreshToken: 'fresh-refresh',
-        accessTokenExpiresAt: new Date(Date.now() + 15 * 60_000),
-        refreshTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60_000),
-      })
-
-      const first = await getAdminRequestContext()
-      // A second unmemoized call would re-run the refresh dance against the
-      // request's stale cookie — now already rotated — and sign the admin out.
-      const second = await getAdminRequestContext()
-
-      expect(second).toBe(first)
-      expect(refreshSession).toHaveBeenCalledTimes(1)
-    })
-
-    it('memoizes the unauthenticated rejection within one request', async () => {
-      bridge.getRequest.mockReturnValue({ id: 'request-a' })
-      cookiesReturn({
-        byline_access_token: 'stale',
-        byline_refresh_token: 'bad-refresh',
-      })
-      verifyAccessToken.mockRejectedValue(new Error('expired'))
-      refreshSession.mockRejectedValue(new Error('revoked'))
-
-      await expect(getAdminRequestContext()).rejects.toMatchObject({
-        code: AuthErrorCodes.UNAUTHENTICATED,
-      })
-      await expect(getAdminRequestContext()).rejects.toMatchObject({
-        code: AuthErrorCodes.UNAUTHENTICATED,
-      })
-      expect(refreshSession).toHaveBeenCalledTimes(1)
+    it('memoizes expiry without any rotation or cookie write', async () => {
+      bridge.getRequest.mockReturnValue({})
+      cookiesReturn({ byline_access_token: 'expired', byline_refresh_token: 'retained' })
+      verifyAccessToken.mockRejectedValue(ERR_ACCESS_EXPIRED({ message: 'expired' }))
+      await expect(getAdminRequestContext()).rejects.toMatchObject({ code: 'ERR_ACCESS_EXPIRED' })
+      await expect(getAdminRequestContext()).rejects.toMatchObject({ code: 'ERR_ACCESS_EXPIRED' })
+      expect(verifyAccessToken).toHaveBeenCalledOnce()
+      expect(refreshSession).not.toHaveBeenCalled()
+      expect(setCookie).not.toHaveBeenCalled()
     })
   })
 })

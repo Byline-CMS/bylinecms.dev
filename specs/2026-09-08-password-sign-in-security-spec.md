@@ -14,7 +14,61 @@ Companions:
 
 Date: 2026-09-08.
 
-Status: step 1 is implemented and independently approved. Step 2 is not approved or independently releasable: independent review approved revocation semantics but found the concurrent-refresh regression described below. Step 3.1 is active with a consolidated D3 draft below; step 3.2 implementation awaits protocol review and selection. This document preserves the complete workstream context for a new session on another machine; it records the selected access-token policy but does not authorize a production release.
+Status: steps 1, 2, and 3 are approved. Independent combined R2/R3 review accepted the revocation semantics, login membership, coordination protocol, and pre-handler retry boundary. Release preparation remains outstanding; review approval is not production-release authorization.
+
+## Combined R2/R3 approval (2026-09-08)
+
+Independent combined review approved R2 and R3 after reproducing 358/358 unfiltered conformance tests on each adapter, host/admin/app suites, typechecking, documentation checks, and an anonymous HTTP 200. Earlier pending design and review language below is historical and is superseded by this approval. The [plan's approval ledger](./2026-09-08-password-sign-in-security-plan.md) separates release prerequisites from two non-blocking follow-ups: batched login-row cleanup and a clarification of idempotent logout.
+
+The [implementation evidence](./2026-09-08-password-sign-in-security-plan.md#implementation-evidence-2026-09-08) records completed code, tests, query measurements, and the remaining browser acceptance limits.
+
+## Approved cookie residual and implementation authorization
+
+Tony approved detection of the overlapping cross-account sign-in residual and authorized task 3 implementation. The cookie design gate is closed on this basis; do not start another comparison round or introduce browser binding state.
+
+- Successful sign-in atomically revokes native logins identified by verified credentials observed on that request, including account switches. Revocation failure fails sign-in closed; unrelated device logins survive.
+- Every authenticated business operation carries the page's expected login identity, not merely retries. The server compares it to verified current login identity before starting the handler. Mismatch rejects without side effects or automatic replay.
+- The browser retains the login expected from successful sign-in and the page's current login identity. A mismatch with server-reported identity blocks further work behind an explicit session-changed interstitial requiring acknowledgement. Initial post-sign-in navigation is covered; merely displaying the current account name is insufficient.
+- Acknowledgement discards queued old-login work and adopts freshly verified identity. It does not replay rejected edits. Same-account new logins also change sid and require this treatment.
+- Stage B sends token-free cross-tab notifications and may serialize sign-in with Web Locks. Notifications and cooperative locks are aids, not the server enforcement boundary.
+- The residual is a credential overwrite that is detected before further work, not a guarantee of physical cookie ordering. Password and CSRF requirements constrain the known scenario; no universal claim that it is attacker-unreachable is made.
+- Reopen review if intentional concurrent multi-account admin sessions become supported or an attacker-driven path is found. A prevention mechanism requiring browser-scoped state would need separate explicit approval.
+
+JWT credentials, persistent sign-in, D2 and per-login revocation remain selected. No Playwright. Both-adapter tests and local query-cost measurements are recorded in the implementation plan. Combined R2/R3 acceptance is now recorded above; release preparation remains separate.
+
+## Native expiry classification
+
+Access JWT expiry reports `ERR_ACCESS_EXPIRED` for the pre-handler renewal boundary. An otherwise valid native login whose refresh credential or login expiry has elapsed reports `ERR_INVALID_TOKEN` with `refresh token expired`. Explicit revocation and replay are checked first and continue to report `ERR_REVOKED_TOKEN`, including when the credential has also aged out. Missing login state and account generation mismatches remain revocation failures; expiry does not restore authority.
+
+## Public reads and retry body handling
+
+The preview-state cookie query is public and does not require an admin session. Anonymous public layouts must return successfully without credentials; cookie state alone never grants draft access. Business admin operations retain the pre-handler authentication and expected-sid boundary.
+
+Automatic resend re-serializes reusable BodyInit values, including FormData/Blob, without cloning or teeing a Request body. Caller-supplied Request objects and one-shot streams require an explicit retry after renewal. This avoids retaining an unread branch of an upload solely for a possible retry.
+
+## Current architectural boundary
+
+Tony selected retaining JWT access tokens and refresh tokens, with persistent sign-in and a session-provider boundary suitable for future IAM integration. An opaque database-session replacement is not selected. Native JWT verification may consult revocation state: approved immediate account and login invalidation require checking both `sv` and login validity. Keep those native checks and persistence details behind the provider contract; do not require a future external IAM provider to share the native login table. Review existing provider contracts before adding capabilities, and document any compatibility change explicitly.
+
+The selected D3 direction is explicit, coordinated renewal. A normal browser restart must preserve sign-in when retained refresh credentials are valid. Strict refresh replay handling remains selected, with fresh sign-in accepted for contests escaping coordination. Immediate revocation, cookie deletion, and browser response ordering are separate guarantees: cookie deletion stops the browser sending its current copy; revocation rejects other copies after commit; neither orders later cookie writes.
+
+**Counterexample addressed by the approved detection residual:** overlapping cross-account sign-ins can create two live logins, and a late response can replace the newer credentials with the older live account's credentials. Observed-login revocation alone only partially addresses it. The approved expected-sid boundary and acknowledgement interstitial handle the remaining case; no new browser-state prevention protocol is selected.
+
+### Reference approaches and their limits
+
+- [Auth.js refresh-token rotation guidance](https://authjs.dev/guides/refresh-token-rotation) explicitly identifies concurrent single-use refresh races and discusses locking or background renewal. This supports making renewal explicit and coordinated; its OAuth examples are not a complete native-password or account-switch protocol.
+- [Auth0 rotation configuration](https://auth0.com/docs/secure/tokens/refresh-tokens/configure-refresh-token-rotation) offers an overlap period to accommodate concurrent exchanges. That is a different replay tradeoff, not an approved setting for Byline. Do not introduce grace merely to copy the reference.
+- [RFC 6265, section 4.1](https://www.rfc-editor.org/rfc/rfc6265.html#section-4.1) identifies races between concurrent Set-Cookie responses. Server transaction order does not by itself order browser cookie replacement.
+
+Use these references to compare concrete JWT-compatible protocols against the response-order cases below. None establishes that the proposed cookie gate is already solved. Maintaining a provider abstraction also does not, on its own, resolve browser transport races.
+
+### Alternatives and experiments are not requirements
+
+The session-only binding draft is withdrawn because it reduces restart persistence. Opaque database sessions were considered and declined. The isolated browser-marker/IndexedDB models under `specs/experiments/password-session-ordering/` are unapproved experiments: they rely on abstract serialization and do not establish browser transaction, crash, eviction, or storage-failure behavior. Do not promote the marker into this protocol without a concrete scope proposal and review.
+
+The receipt candidate remains historical technical material for possible reconsideration after measured coordination residuals. Its storage, versioned cookie names, signed selector, recovery document/CSP, receipt retry loop, and absolute lifetime are not part of the selected scope. A single pre-handler-safe business resend remains part of the coordination proposal.
+
+No Playwright testing is permitted for this work. Browser validation remains required for eventual implementation, using an agreed alternative harness; isolated Node models are not browser acceptance evidence.
 
 ## Scope and sequence
 
@@ -24,7 +78,7 @@ The agreed order is:
 
 1. Bound unauthenticated work: credential/body validation, trusted client-IP resolution, shared throttling, process capacity, observability, and counter cleanup. **Complete and approved.**
 2. Revoke sessions when passwords change or users are disabled. **Revocation semantics approved; R2 blocked by concurrent-refresh regression.**
-3. Make refresh rotation and revocation safe under ordinary concurrent browser requests and across application instances. **Design draft prepared; protocol selection and implementation remain pending.**
+3. Make refresh rotation and revocation safe under ordinary concurrent browser requests and across application instances. **Implemented; combined R2/R3 review remains pending.**
 
 Passkeys were discussed theoretically only. No passkey work belongs in these stages. Two downstream production applications are to be reviewed after this work; their identities, configurations, and deployment trust boundaries have not yet been inspected. Do not assume the reference application's proxy configuration proves either downstream deployment safe.
 
@@ -158,6 +212,26 @@ Before implementation, record the selected protocol, lock order, rollback/retry 
 
 **Tony explicitly accepted on 2026-09-08 that refresh collisions which escape coordination may require fresh sign-in.** Coordination-first is the preferred scope to develop. This selects the availability tradeoff, not implementation or release approval. Strict server replay detection remains; no grace, receipts, cookie namespace change, or absolute lifetime change is selected. Preserve sliding refresh expiry and approved D2 account-wide invalidation.
 
+### Persistent sign-in requirement
+
+Tony explicitly prefers the existing persistent sign-in experience. With retained, valid refresh credentials, a normal browser restart must not itself require entering credentials again. Preserve the sliding refresh lifetime. No new browser-session-only prerequisite, monthly absolute expiry, or other shorter binding lifetime may silently defeat valid refresh credentials.
+
+This requirement does not prevent explicit logout, detected replay, password change/reset, disablement, refresh expiry, or the accepted collision fallback from requiring sign-in. Clearing or losing credentials still prevents recovery. Cookie ordering must be resolved within these requirements; the browser-session binding draft below is withdrawn, and no replacement cookie protocol has been selected. Persistent browser identification, if proposed later, needs its own complete renewal and late-response analysis rather than merely changing Max-Age in the withdrawn design.
+
+### Scope after the immediate per-login decision
+
+Coordination-first now includes three pieces previously costed under the receipt candidate: **a persistent login record with an unpredictable sid, a sid claim on access tokens, and a login-state check on every access verification**. Refresh rows also carry sid membership so any predecessor identifies the login. These are proposed implementation mechanisms for the approved immediate-invalidation policy, not existing runtime behavior.
+
+Still excluded: receipts and their table, versioned credential cookie names, the signed selector, the special SSR receipt-recovery document and its CSP integration, the multi-attempt receipt acknowledgement loop, and a 30-day absolute lifetime. Sliding refresh expiry survives. The existing-route browser bootstrap and a single resend after a pre-handler refresh-required outcome remain in the coordination proposal; calling the receipt retry loop excluded must not accidentally remove that necessary renewal/resend flow.
+
+**Neither account nor login validity overrides the other.** A failure of either rejects. `sv` checks the account-wide generation; `sid` checks this login's ownership, generation, validity, and revocation. Password change/reset/disable remain account-wide; logout and replay are login-scoped.
+
+Login membership removes the traversal ceiling from authorization: revoking the login denies all its access tokens and refresh descendants without walking `rotated_to_id`. This designs out required property #8's 1,000-row cutoff; it is not yet an implemented or tested fix. Physical token cleanup can be batched without delaying denial. Logout with a rotated predecessor resolves its sid and reports success only after confirmed revocation; a database failure must not be swallowed as `{ status: 'ok' }`.
+
+The benchmark obligation follows this state into coordination-first. Before approving the implementation design, compare the existing account-plus-permissions path with the proposed account-plus-login-plus-permissions path on both adapters. Use an isolated query prototype with representative active/revoked login counts and concurrent renewal/revocation, report query plans and p50/p95/p99 latency/throughput, and agree on the acceptable cost from evidence. There is no receipt-table check in this benchmark. No such benchmark has run yet.
+
+For a single combined release, the new `sv` and `sid` requirements produce **one coordinated fresh-sign-in cutover**, not two user-facing upgrades. Stop old instances, apply all selected migrations, and start the complete new provider. Legacy credentials missing either claim fail closed. The sid migration is not implemented yet; do not imply the current session-generation SQL scripts create login state.
+
 ### Proposed request protocol
 
 Move refresh out of business requests. `getAdminRequestContext()` becomes verification-only: it reads the access credential, checks the provider, and returns the memoized request context or an authentication outcome. It never rotates, writes, or clears session cookies. Distinguish expired/missing access eligible for a refresh attempt from disabled accounts, revoked generations, malformed credentials, and unavailable dependencies. A database error is a service error, not an invitation to rotate.
@@ -172,7 +246,7 @@ This makes retry safety structural for handlers using the boundary: the retryabl
 
 Use one module-level in-flight renewal promise in the browser transport shared by all admin consumers in a page. Concurrent callers await it; clear it in `finally` only if it is still the current promise. Do not put this promise in server module state. Establish one browser module instance through the public transport facade rather than creating a coordinator per hook/component. No Web Locks support is required for this stage.
 
-Each operation captures the page's session-change epoch and actor identity. Sign-in, logout, and password-change UI invalidate that epoch, cancel queued work, and prevent an old operation from automatically resuming in the new session. After successful renewal, resume only callers still in the same epoch. The host design must also identify same-session retries across tabs; account identity alone is insufficient because two sign-ins can belong to the same account. The exact server session identity is coupled to the open per-login state decision below and must be settled before automatic cross-tab mutation retry is enabled.
+Each operation captures the page's session-change epoch and actor identity. Sign-in, logout, and password-change UI invalidate that epoch, cancel queued work, and prevent an old operation from automatically resuming in the new session. After successful renewal, resume only callers still in the same epoch. The host design must also identify same-session retries across tabs; account identity alone is insufficient because two sign-ins can belong to the same account. Use the proposed native login identity `sid` described below to bind retries to the original login; reject a different sid before the handler runs, even when the account is unchanged.
 
 Serialize the page's explicit cookie-writing authentication actions with renewal. A new sign-in or logout waits for an in-flight renewal response before dispatch; queued business operations do not resume across that action. Do not abort renewal, release the queue, and assume its server response cannot arrive later. On uncertain network completion, show a recoverable session error rather than automatically dispatching another cookie-writing action as though ordering were established.
 
@@ -192,13 +266,102 @@ This uses the ordinary application bootstrap, not a new HTML document carrying r
 
 ### Server revocation and cookies still required
 
-Keep account-first transactional issuance/rotation. Under that lock, a reused rotated predecessor revokes the affected refresh lineage before reporting the error. Logout must revoke from any known member, including a rotated predecessor, cover all related live descendants/siblings supported by legacy data, and commit before reporting success. Remove the 1,000-row silent cutoff. A bounded iterative traversal with a visited set and indexed parent/child lookups is one schema-preserving candidate; it must traverse the whole connected lineage, avoid cycles, and fail/roll back rather than report partial success. Benchmark long lineages and inspect query plans before choosing that implementation. A family identifier remains an alternative, not an approved incidental schema change.
+Keep account-first transactional issuance/rotation. Under that lock, a reused rotated predecessor revokes the affected refresh lineage before reporting the error. Logout must revoke from any known member, including a rotated predecessor, cover all related live descendants/siblings supported by legacy data, and commit before reporting success. Remove the 1,000-row silent cutoff. With the selected immediate per-login policy, prefer the sid-backed login record described below so revocation has constant traversal depth. The earlier schema-preserving traversal option is superseded for this design. Physical cleanup may be batched, but authorization must not depend on completing it.
 
 Do not clear shared fixed-name cookies on authentication or renewal failure. Do not swallow logout database errors. Confirmed explicit logout/password-change cookie handling must still be designed together with successful renewal/sign-in responses. Same-tab serialization covers participating writers; Web Locks extends that coverage. Neither prevents arbitrary late responses from a context that lost its lock.
 
 **Open cookie gate:** fixed names cannot conditionally ignore an old Set-Cookie success at the browser. Tony's acceptance of fresh sign-in after a refresh collision does not authorize revival of revoked sessions, silent replacement of a newer independent login, or accepting every cookie race. Before implementation, decide whether remaining late-write interleavings are contained by server per-login state plus a reviewed reauthentication fallback, or require an additional transport change. Demonstrate refresh-vs-logout and refresh-vs-new-sign-in in both response orders. Removing failure clears alone is insufficient. Do not adopt the receipt candidate's cookie scheme by implication.
 
-**Open access policy:** immediate access invalidation on logout/replay is not selected. With only current account generation checks, lineage revocation stops refresh renewal but an issued access token remains valid for its remaining lifetime, normally up to 15 minutes. If immediate per-login invalidation is selected, add an explicit login identity/state check or equivalent design. This choice also supplies a reliable identity for same-login retries and stronger late-response containment. D2 password/reset/disable invalidation remains immediate regardless of this choice. Neither staged coordination nor telemetry may conceal this distinction.
+Proposed cookie decision for review: keep fixed names, remove automatic failure clears, and permit a late write to require fresh sign-in **when the credentials it installs name a revoked login**. This is an availability fallback, not physical cookie-order protection. The review recommends applying the accepted collision tradeoff here, but its authority premise must first be established.
+
+An older independent login A remains valid until explicitly revoked or expired; issuance of B alone does not invalidate A. Therefore A's late response overwriting B could restore A's still-valid authority rather than merely require sign-in. The replacement-sign-in design must specify revocation of the browser's previous login and its transaction ordering, including account switches, while preserving unrelated devices. It must also handle an older sign-in response not represented in the new request's cookies. Do not infer a global ordering from sid randomness, account identity, or token timestamps. Revoking all account logins on every sign-in is not authorized.
+
+Before selecting this fallback, enumerate both orders for renewal/logout, renewal/replacement-sign-in, and overlapping sign-ins; show which login is revoked and when. Where the old login cannot be identified and fenced with the proposed state, document the unresolved case instead of claiming that a physical overwrite necessarily ends in fresh sign-in. Additional browser-instance state or cookie changes would be a separate scope proposal. This gate remains open; the approved immediate-invalidation policy by itself does not settle it.
+
+### Proposed replacement-sign-in transaction
+
+On explicit successful sign-in, revoke every distinct native login authenticated by the credential cookies **observed on that request**, including when the destination account differs. Resolve access cookies through signature-verified claims and refresh cookies through their stored hashes; never revoke from an unsigned sid, arbitrary client-supplied account ID, or an unverified cookie-name suffix. Invalid credentials confer no revocation authority. An expired access cookie may identify a login only under a separately defined signature/issuer/type validation path; ordinary access authorization must still reject expiry.
+
+Verify the destination password before revocation. Then lock all involved account rows in a deterministic order, including the destination account and accounts owning the observed logins. Reread the observed login memberships and revalidate destination credentials/generation under those locks. Atomically revoke those logins and create the new destination login/token state. Wrong passwords, disabled destinations, stale credentials, or revocation/issuance failure must leave the old logins unchanged through rollback. Do not call a nested independently committing sign-in operation and then attempt cleanup afterward.
+
+**If required revocation cannot commit, sign-in fails closed.** No success or new cookies are returned. An ambiguous commit is a service error without automatic sign-in retry, not presumed rollback. This is the same confirmed-commit discipline as logout. It needs a reviewed multi-account transaction primitive; the current single-account issuance callback alone does not establish atomic account-switch replacement.
+
+This revokes the login represented by the sign-in request, including a successor that committed just before its revocation lock, while preserving unrelated logins on other devices. It does not revoke every login for either account. An earlier response carrying credentials for one of these revoked sids may physically overwrite cookies, but those values no longer authenticate; fresh sign-in is then the proposed availability fallback. The guarantee is membership-based: do not assume every earlier in-flight response necessarily belongs to a login observed by the sign-in request.
+
+### Historical overlapping-sign-in counterexample
+
+Consider two concurrent sign-ins starting with the same old cookies. The first creates login A for account X; the second creates B for account Y. Each revokes only the old login it observed, so neither transaction necessarily revokes A or B. If B's response arrives first and A's arrives last, fixed cookie names select live A. Deterministic database lock order does not change the request snapshots or order browser responses.
+
+For the same account, this switches login identity and may invalidate queued operation assumptions even without changing account identity. For different accounts, it restores X after the user believes they selected Y; this matters especially when switching away from a privileged account. Neither outcome should be mislabeled as rejected stale credentials. Sliding refresh can keep the unobserved login alive through continued renewal; no absolute orphan-lifetime bound is claimed.
+
+Same-tab authentication-action serialization prevents this interleaving among cooperating callers; Stage B extends coordination to cooperating tabs with Web Locks. Nonparticipating callers, unsupported cross-tab coordination, and a lock owner disappearing with a request in flight remain relevant. Account-wide revocation on sign-in is excluded because it breaks independent-device sessions and does not supply a general cross-account browser identity boundary.
+
+**Historical review position, superseded by the approved detection residual above.** Tony accepted fresh sign-in after collisions, not restoration of a different live account. The next design step is to compare established JWT-compatible approaches against this case and identify the smallest necessary change without affecting other devices. No particular browser-specific mechanism is selected. Any additional browser identity/state or cookie transport required for that mechanism must be proposed explicitly; do not smuggle in the receipt selector or assert that client cooperation is a complete guarantee. Until this is resolved, observed-login revocation is a useful partial rule, not closure of the cookie gate.
+
+**Selected access policy:** on resumption Tony approved immediate per-login access invalidation on logout and replay. Once the revocation transaction commits, subsequent access verification and refresh reject that login. Other independent logins remain valid. Password changes/resets and disablement continue to invalidate every login through the approved D2 generation policy. An operation already authorized before revocation is not retroactively cancelled. This policy approval does not authorize implementation of the still-unreviewed cookie protocol.
+
+Proposed state contract for that policy:
+
+- Add an explicit native login record identified by an unpredictable `sid`, with account ownership, issued account generation, revocation state, and expiry consistent with sliding refresh expiry. Each fresh sign-in creates a new sid; every refresh descendant retains it. No receipt state or absolute monthly expiry is introduced.
+- Put `sid` in access JWTs and refresh rows. Keep `sv` as the independent account-wide generation and `jti` as an individual access-token issuance ID. Missing or malformed sid fails closed at the coordinated rollout, requiring fresh sign-in for legacy credentials.
+- Verify signature/claim shape, enabled account, matching account generation, login ownership/generation, live login state, and expiry before resolving the actor. Prefer one coherent account/login lookup and reuse that account snapshot for permission resolution. No stale positive session cache may bypass committed revocation.
+- Under account-first locking, sign-in creates the login, refresh checks and rotates within it, and logout/replay atomically marks it revoked. Account-wide password/disable writes advance generation and revoke login state in the same transaction. Re-enable never unrevokes it.
+- Revoke by sid rather than recursive traversal. A revoked login denies all descendants even if physical refresh-row cleanup is deferred. Any known predecessor identifies the same sid for logout. Reject legacy rows without trustworthy membership rather than guessing how an old branched chain should be grouped.
+- Bind automatic operation retries to the original sid at the pre-handler boundary. A newer login, including a new sign-in for the same account, cannot inherit pending edits from an old login.
+
+This state closes the authorization side of a late-response race: credentials returned after their login was revoked cannot authenticate again. It does **not** control the browser's cookie jar. An old response can still replace fixed-name cookies for a newer login and cause loss of continuity. The cookie gate above remains open; immediate revocation must not be presented as proof that cookie ordering is solved.
+
+
+### Withdrawn cookie proposal: browser-session binding
+
+**Withdrawn after Tony rejected the browser-restart UX regression. Do not implement this proposal.** The following preserves the reasoning for reference only. Its session-cookie lifetime conflicts with the now-explicit requirement to preserve automatic sign-in across normal browser restarts while retained refresh credentials remain valid.
+
+The withdrawn proposal would keep the existing access/refresh cookie names. Add one HTTP-only browser-binding cookie and a small server-side browser record that identifies its current login and authentication revision. The cookie is an unpredictable random value, stored only as a hash on the server. It is not sufficient to authenticate. Access/refresh credentials must belong to the current login of the presented browser binding.
+
+This is additional scope beyond the selected login record: one browser record, one stable cookie, and a browser/current-login check joined into verification. It is not the receipt candidate's signed selector: sign-in, refresh, logout, and password change never change this cookie's value or write it at all. The authoritative current-login selection changes in the database. Receipts, versioned credential names, and monthly reauthentication remain excluded.
+
+The reason for this addition is concrete. A login record alone can reject revoked A, but cannot discover an unobserved A created by overlapping sign-ins. The browser record gives those sign-ins a common server-side point of coordination even when neither request has received the other's new credential cookies. A new login supersedes the browser record's previous login; unrelated browser records/devices remain unaffected.
+
+#### Initialization and persistence boundary
+
+Before accepting browser sign-in, require a browser binding established by a dedicated, same-origin, CSRF-protected bootstrap POST. If a valid binding is already present, return its non-secret authentication revision and write no cookie. If absent or invalid, generate a fresh anonymous browser record and set its binding cookie once. Do not create a login or return credentials in that response. The browser must receive this cookie before a later request can authenticate within that record. Never return the raw binding value in a body, URL, or browser message.
+
+Propose a **browser-session cookie**, without Max-Age/Expires, HTTP-only, SameSite=Lax, path=/, and Secure in production. Never renew or copy its value into a later response. This avoids late renewal of an old binding replacing a new binding. Closing a browser may discard it and require sign-in again; browser session restoration may retain it, so closing the browser is not a guaranteed server logout. This persistence change requires Tony's explicit approval. The server's refresh expiry remains sliding at 30 days; there is no new monthly absolute session limit. If persistent sign-in across browser restarts is required, revise this initialization/lifetime design before implementation rather than quietly adding a rolling binding-cookie write.
+
+Without a binding, credential cookies alone cannot authorize or renew. An older credential response cannot recreate the binding. Two bootstrap responses can establish different anonymous bindings; a late bootstrap may disrupt continuity, but cannot restore an older authenticated browser binding: a freshly generated binding cannot have been used by the browser to sign in before its only Set-Cookie response was received. Never reuse or reissue bootstrap binding values. Test this initialization ordering rather than assuming only one bootstrap can be in flight.
+
+Bound anonymous bootstrap creation and expire unused browser records with bounded cleanup. Reuse an existing valid binding on repeated bootstrap calls. Select the admission/retention limits during technical review; do not weaken or consume the password-sign-in budgets for unauthenticated record creation without an explicit design. Initialization must remain side-effect-free with respect to existing account sessions.
+
+#### Sign-in ordering and transactions
+
+The sign-in form captures the browser authentication revision from bootstrap/session status and submits it with credentials. Verify the password first. Read the browser's current-login ownership, then lock the involved account rows in deterministic order, followed by the browser record and affected login/token rows. Reread the browser revision and ownership under lock. If either changed, fail with session-changed and no cookies; do not acquire an additional account lock after the browser lock or silently retry the sign-in against the new state.
+
+On a matching revision, atomically revoke the browser's previous login, create the destination login, advance the browser revision, and set its current-login pointer. Independently verified observed credential logins may also be revoked as described in the replacement rule, but browser state supplies the missing unobserved predecessor. A failed revocation or issuance rolls back all state; an uncertain commit yields a service error and no automatic credential resubmission. This preserves account-first fencing used by D2; account mutations need not write browser records because generation/login invalidation is sufficient.
+
+Two sign-ins submitted against the same revision cannot both succeed: one commits, the other reports session-changed without setting credentials. A later deliberate sign-in obtains the new revision and revokes the previous current login, even if that login's credential response has not yet arrived. The sign-in UI must reconcile the resulting server session before showing authenticated content and discard success responses from an obsolete local authentication action. It must never automatically resubmit stored passwords after a revision conflict.
+
+#### Verification, renewal, logout, and operation binding
+
+Native browser authorization requires all of: valid access signature/claims, enabled/matching account generation, live login owned by that account, and matching browser binding whose current login is that sid. **Neither account nor login validity overrides the other.** Browser binding supplies an additional required condition, not a replacement for either check. Include browser state in the scaled verification benchmark and specify the provider/host boundary; direct non-browser consumers must not silently bypass the claimed browser guarantee.
+
+Renewal checks current browser/login state under the same account-first lock order and can issue only for that login. A late renewal for a superseded login may overwrite credential cookie values but cannot pass verification. Logout is bound to the request's login: it revokes that sid and clears the browser's current pointer only if it still points to that sid, advancing the revision when it changes the pointer. An old logout request cannot revoke the browser's newer login. Confirm commit before reporting success. No authentication action clears or rewrites the binding cookie.
+
+Every protected browser operation carries its expected sid, obtained from the authenticated bootstrap/context, and the mandatory pre-handler boundary compares it to the verified current sid. This extends the single-retry guard to old open tabs: a page built under account X cannot silently submit an operation under account Y merely because cookies changed. A mismatch returns session-changed before the handler, requiring context reload/user action rather than an automatic mutation retry.
+
+#### Response-order outcomes
+
+| Interleaving | Required result |
+| --- | --- |
+| Renewal A commits, replacement sign-in B commits, then A's response arrives | B's transaction revoked A and selected B in browser state. Late A cookies fail verification. Show fresh sign-in/session-changed; never fall back to A. |
+| Replacement B commits before renewal A acquires its locks | Renewal rejects A and emits no credential cookies. |
+| Two sign-ins use one browser revision | Exactly one succeeds. The loser emits no cookies and cannot overwrite the winner. |
+| A's sign-in response is delayed; deliberate B sign-in uses the next revision | B revokes A despite not observing A's new cookies. A's late credentials are rejected. |
+| Logout A completes after B is selected | Revoke A only; preserve B's server selection. Any late fixed-cookie deletion may require sign-in but cannot restore A. |
+| Late anonymous bootstrap replaces the binding | Credentials from another binding cannot authenticate. Require bootstrap/sign-in again; no fallback to a different binding found in token claims. |
+| Another tab still displays X after a switch to Y | Expected-sid check rejects its business request before the handler. No automatic cross-account replay. |
+| Binding is lost on browser close/eviction | Existing credential cookies confer no authority without it; require fresh sign-in. |
+
+The fallback does not promise physical cookie continuity: a late response can still cost a sign-in. It establishes the security premise that a browser cannot regain an earlier account through those writes. This recommendation needs independent review, explicit approval of browser-restart persistence behavior, measured verification cost, and bootstrap resource limits before implementation. No runtime work is authorized by this draft.
 
 ### Telemetry and decision criteria
 
@@ -210,7 +373,7 @@ Measure the reference app and each downstream site separately: contests per rene
 
 Keep the receipt candidate below. Reconsider it only after representative coordination telemetry and controlled browser tests show an unacceptable residual. Agree on the observation period and acceptable rate with Tony from actual deployment traffic; do not invent a universal threshold or call the residual rare before measurement. Stage A can be reviewed as an incremental change, but independent release still requires the common logout/revocation/cookie gates and R2/R3 acceptance.
 
-## D3 alternative: bounded recovery with independent receipts
+## Inactive D3 alternative: bounded recovery with independent receipts
 
 **Draft for review, not an approved protocol or implementation instruction.** The user authorized preparing this consolidated proposal on 2026-09-08. Step 3.1 is active; step 3.2 has not started. R2 remains open. This section supersedes the earlier informal metadata-gated grace direction, not the approved D2 policy.
 
@@ -228,7 +391,7 @@ The follow-up reviewer endorsed the receipt security argument, but **did not app
 | Refresh storage and lifetime | Coordination itself needs no new tables and can preserve the current sliding refresh lifetime. | Login and receipt state, plus the proposed cookie design's separately approved absolute lifetime. |
 | Cookies | Removing blanket failure clears fixes one race. Fixed names still require an explicit policy for late successful writes and logout/sign-in overlap. | Login/rotation names and selector isolate those responses, at the documented complexity and cookie-budget cost. |
 | Logout and deep-lineage revocation | Still fix predecessor logout, the 1,000-row ceiling, and swallowed DB failures. These are not solved by the lock. | Included through explicit login state and scoped revocation. |
-| Immediate access invalidation on logout/replay | Separate policy decision: requires per-login state/verification or an equivalent design. With only current account-generation checks, access may remain usable for its remaining 15-minute TTL. | Included in the proposed login/receipt verification query. |
+| Immediate access invalidation on logout/replay | Now selected by Tony. Coordination-first therefore also needs per-login state and access verification; the no-new-state comparison no longer describes the complete selected scope. | Included in the proposed login/receipt verification query. |
 | Host and browser surface | A coordinated refresh boundary, no-cookie failure outcomes, and coverage of every participating caller. SSR overlap still needs an explicit fallback policy. | Receipt endpoints, batching, retries, SSR recovery/CSP, cookie enumeration, cache integration, and sweep task. |
 | Evidence before release | Real browser concurrency, navigation-vs-fetch, missing-lock, tab-close, late-response, and both-database revocation tests. | All of those, plus receipt security/liveness tests, CSP integration, and a verification-path benchmark. |
 
@@ -241,7 +404,7 @@ With fixed cookie names, removing failure clears does not stop a late successful
 The scope choice and two product policies are separate:
 
 - **Scope:** coordination-first selected for design; receipts retained as an alternative. Implementation is not yet approved.
-- **Per-login access invalidation:** immediate logout/replay invalidation or explicit remaining access-token lifetime. D2's account-wide immediate invalidation is already approved and does not change.
+- **Per-login access invalidation:** immediate logout/replay invalidation selected by Tony on resumption. D2's approved account-wide immediate invalidation does not change.
 - **Lifetime:** retain sliding refresh expiry or approve a 30-day absolute login lifetime. Do not infer monthly reauthentication approval from choosing receipts. If sliding lifetime is retained with receipts, the selector/lifetime design below must be revised before implementation.
 
 ### Receipt candidate and cost

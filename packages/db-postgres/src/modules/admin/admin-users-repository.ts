@@ -16,6 +16,7 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
 
 import { adminUsers } from '../../database/schema/auth.js'
+import { createLoginSessionsRepository } from './login-sessions-repository.js'
 import { createRefreshTokensRepository } from './refresh-tokens-repository.js'
 import type * as schema from '../../database/schema/index.js'
 
@@ -203,7 +204,10 @@ export function createAdminUsersRepository(
           .where(and(eq(adminUsers.id, id), eq(adminUsers.vid, expectedVid)))
           .returning(PUBLIC_COLUMNS)
         if (!row) throw ERR_ADMIN_USER_VERSION_CONFLICT()
-        if (patch.is_enabled === false) await createRefreshTokensRepository(tx).revokeAllForUser(id)
+        if (patch.is_enabled === false) {
+          await createRefreshTokensRepository(tx).revokeAllForUser(id)
+          await createLoginSessionsRepository(tx).revokeAllForUser(id)
+        }
         return row
       })
     },
@@ -222,6 +226,7 @@ export function createAdminUsersRepository(
           .returning(PUBLIC_COLUMNS)
         if (!row) throw ERR_ADMIN_USER_VERSION_CONFLICT()
         await createRefreshTokensRepository(tx).revokeAllForUser(id)
+        await createLoginSessionsRepository(tx).revokeAllForUser(id)
         return row
       })
     },
@@ -237,7 +242,10 @@ export function createAdminUsersRepository(
             ...(!enabled ? { session_version: sql`${adminUsers.session_version} + 1` } : {}),
           })
           .where(eq(adminUsers.id, id))
-        if (!enabled) await createRefreshTokensRepository(tx).revokeAllForUser(id)
+        if (!enabled) {
+          await createRefreshTokensRepository(tx).revokeAllForUser(id)
+          await createLoginSessionsRepository(tx).revokeAllForUser(id)
+        }
       })
     },
 

@@ -27,6 +27,7 @@ import { ERR_NOT_FOUND, getLogger } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
 import { bylineCore } from '../../integrations/byline-core.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 
 export interface SetListViewPreferenceInput {
   collection: string
@@ -38,6 +39,7 @@ export interface SetListViewPreferenceInput {
 }
 
 export const setListViewPreference = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator((input: SetListViewPreferenceInput) => input)
   .handler(async ({ data }) => {
     // Scopes are keyed by collection path — refuse to mint rows for

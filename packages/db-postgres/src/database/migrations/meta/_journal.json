@@ -22,6 +22,13 @@
       "when": 1788857651476,
       "tag": "0002_goofy_dakota_north",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788872045910,
+      "tag": "0003_opposite_ezekiel",
+      "breakpoints": true
     }
   ]
 }

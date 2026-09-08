@@ -211,12 +211,32 @@ export const adminPermissions = mysqlTable(
  * at the replacement row; presenting a rotated token is treated as replay
  * and revokes the whole chain.
  */
+export const adminLoginSessions = mysqlTable(
+  'byline_admin_login_sessions',
+  {
+    id: uuidChar('id').primaryKey(),
+    admin_user_id: uuidChar('admin_user_id').notNull(),
+    session_version: int('session_version').notNull(),
+    expires_at: datetime('expires_at', { fsp: 6 }).notNull(),
+    revoked_at: datetime('revoked_at', { fsp: 6 }),
+  },
+  (table) => [
+    foreignKey({
+      name: 'fk_admin_login_sessions_user',
+      columns: [table.admin_user_id],
+      foreignColumns: [adminUsers.id],
+    }).onDelete('cascade'),
+    index('idx_admin_login_sessions_user').on(table.admin_user_id),
+  ]
+)
+
 export const adminRefreshTokens = mysqlTable(
   'byline_admin_refresh_tokens',
   {
     id: uuidChar('id').primaryKey(),
     admin_user_id: uuidChar('admin_user_id').notNull(),
     /** SHA-256 hex digest of the raw refresh-token string. 64 chars. */
+    sid: uuidChar('sid'),
     token_hash: varchar('token_hash', { length: 64 }).notNull().unique(),
     session_version: int('session_version').notNull().default(-1),
     // fsp 6 throughout this table, matching pg — see `common.ts`'s
@@ -237,10 +257,16 @@ export const adminRefreshTokens = mysqlTable(
   },
   (table) => [
     foreignKey({
+      name: 'fk_admin_refresh_tokens_sid',
+      columns: [table.sid],
+      foreignColumns: [adminLoginSessions.id],
+    }).onDelete('cascade'),
+    foreignKey({
       name: 'fk_admin_refresh_tokens_admin_user_id',
       columns: [table.admin_user_id],
       foreignColumns: [adminUsers.id],
     }).onDelete('cascade'),
+    index('idx_admin_refresh_tokens_sid').on(table.sid),
     index('idx_byline_admin_refresh_tokens_user').on(table.admin_user_id),
     index('idx_byline_admin_refresh_tokens_token_hash').on(table.token_hash),
   ]

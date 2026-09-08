@@ -12,6 +12,7 @@ import { type AdminRoleResponse, updateAdminRoleCommand } from '@byline/admin/ad
 import { getAdminRequestContext } from '@byline/client/server'
 
 import { bylineCore } from '../../integrations/byline-core.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 
 export interface UpdateAdminRoleInput {
   id: string
@@ -24,6 +25,7 @@ export interface UpdateAdminRoleInput {
 }
 
 export const updateAdminRole = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator((input: UpdateAdminRoleInput) => input)
   .handler(async ({ data }): Promise<AdminRoleResponse> => {
     const context = await getAdminRequestContext()

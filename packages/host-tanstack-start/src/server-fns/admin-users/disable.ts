@@ -12,11 +12,13 @@ import { disableAdminUserCommand, type OkResponse } from '@byline/admin/admin-us
 import { getAdminRequestContext } from '@byline/client/server'
 
 import { bylineCore } from '../../integrations/byline-core.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 
 // No UI affordance yet — paired with `enable.ts`, both ship ahead of the
 // detail-view enable/disable control they will be wired into. Keep until
 // that control lands; not dead code.
 export const disableAdminUser = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { id: string }) => input)
   .handler(async ({ data }): Promise<OkResponse> => {
     const context = await getAdminRequestContext()

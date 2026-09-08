@@ -18,7 +18,11 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { clearPreviewCookie } from '@byline/client/server'
 
-export const disablePreviewModeFn = createServerFn({ method: 'POST' }).handler(async () => {
-  clearPreviewCookie()
-  return { status: 'ok' as const, preview: false as const }
-})
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
+
+export const disablePreviewModeFn = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
+  .handler(async () => {
+    clearPreviewCookie()
+    return { status: 'ok' as const, preview: false as const }
+  })

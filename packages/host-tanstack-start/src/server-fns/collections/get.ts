@@ -1,4 +1,3 @@
-import { withEditableRevision } from '../editable-revision.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -21,7 +20,9 @@ import {
 } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 import { resolveAdminDocumentRead } from '../admin-document-presentation.js'
+import { withEditableRevision } from '../editable-revision.js'
 import { serialise } from './utils'
 
 // ---------------------------------------------------------------------------
@@ -29,6 +30,7 @@ import { serialise } from './utils'
 // ---------------------------------------------------------------------------
 
 const getDocumentFn = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator(
     (input: {
       collection: string
@@ -177,6 +179,7 @@ const getDocumentFn = createServerFn({ method: 'GET' })
 // ---------------------------------------------------------------------------
 
 const getDocumentByVersionFn = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { collection: string; versionId: string; locale?: string }) => input)
   .handler(async ({ data }) => {
     const { collection: path, versionId, locale } = data

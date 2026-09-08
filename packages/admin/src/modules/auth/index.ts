@@ -21,7 +21,11 @@
  * against `@byline/auth` rather than added here.
  */
 
-export { JwtSessionProvider, type JwtSessionProviderConfig } from './jwt-session-provider.js'
+export {
+  JwtSessionProvider,
+  type JwtSessionProviderConfig,
+  type NativeSessionEvent,
+} from './jwt-session-provider.js'
 export { hashPassword, verifyPassword } from './password.js'
 export { resolveActor } from './resolve-actor.js'
 export {
@@ -31,6 +35,7 @@ export {
   type SignInRateLimitStore,
   type SignInSecurityEvent,
 } from './sign-in-rate-limiter.js'
+export type { LoginSessionRow, LoginSessionsRepository } from './login-sessions-repository.js'
 export type {
   IssueRefreshTokenInput,
   RefreshTokenRow,

@@ -1,4 +1,3 @@
-import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -11,9 +10,12 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { getAdminBylineClient } from '@byline/client/server'
 
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 import { serialise } from '../serialise.js'
 
 export const unpublishSingleton = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { expectedRevision: number; singleton: string }) => input)
   .handler(
     withDocumentMutationErrors(async ({ data }) =>

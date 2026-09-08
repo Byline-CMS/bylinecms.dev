@@ -1,3 +1,11 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
 import { existsSync } from 'node:fs'
 
 import {
@@ -20,10 +28,11 @@ const SNIPPET = `import { createCsrfMiddleware, createStart } from '@tanstack/re
 
 import { ${ADAPTER_NAME} } from '${ADAPTER_MODULE}'
 import { passwordSignInMiddleware } from '@byline/host-tanstack-start/integrations/sign-in-middleware'
+import { sessionRequestMiddleware } from '@byline/host-tanstack-start/integrations/session-request-middleware'
 
 export const startInstance = createStart(() => ({
   serializationAdapters: [${ADAPTER_NAME}],
-  requestMiddleware: [createCsrfMiddleware({ filter: (ctx) => ctx.handlerType === 'serverFn' }), passwordSignInMiddleware],
+  requestMiddleware: [createCsrfMiddleware({ filter: (ctx) => ctx.handlerType === 'serverFn' }), sessionRequestMiddleware, passwordSignInMiddleware],
 }))
 `
 
@@ -87,6 +96,8 @@ async function run(ctx: Context, dryRun: boolean): Promise<SubEditResult> {
         expression.getExpression().getText() === 'createCsrfMiddleware'
       )
     }) ?? false
+  const hasSessionGuard =
+    arr?.getElements().some((el) => el.getText() === 'sessionRequestMiddleware') ?? false
   const hasBodyGuard =
     arr?.getElements().some((el) => el.getText() === 'passwordSignInMiddleware') ?? false
   const adapterProp = optionsLiteral.getProperty('serializationAdapters')
@@ -97,7 +108,7 @@ async function run(ctx: Context, dryRun: boolean): Promise<SubEditResult> {
       .getInitializerIfKind(SyntaxKind.ArrayLiteralExpression)
       ?.getElements()
       .some((el) => el.getText() === ADAPTER_NAME)
-  if (hasCsrf && hasBodyGuard && hasAdapter) {
+  if (hasCsrf && hasBodyGuard && hasSessionGuard && hasAdapter) {
     return {
       status: 'skipped',
       message: `${REL}: sign-in protection and error serialization already registered`,
@@ -114,6 +125,10 @@ async function run(ctx: Context, dryRun: boolean): Promise<SubEditResult> {
   for (const [moduleSpecifier, name] of [
     ['@byline/host-tanstack-start/integrations/sign-in-middleware', 'passwordSignInMiddleware'],
     ['@tanstack/react-start', 'createCsrfMiddleware'],
+    [
+      '@byline/host-tanstack-start/integrations/session-request-middleware',
+      'sessionRequestMiddleware',
+    ],
   ]) {
     const declaration = source
       .getImportDeclarations()
@@ -127,10 +142,11 @@ async function run(ctx: Context, dryRun: boolean): Promise<SubEditResult> {
   if (!arr) {
     optionsLiteral.addPropertyAssignment({
       name: 'requestMiddleware',
-      initializer: `[${csrf}, passwordSignInMiddleware]`,
+      initializer: `[${csrf}, sessionRequestMiddleware, passwordSignInMiddleware]`,
     })
   } else {
     if (!hasCsrf) arr.insertElement(0, csrf)
+    if (!hasSessionGuard) arr.addElement('sessionRequestMiddleware')
     if (!hasBodyGuard) arr.addElement('passwordSignInMiddleware')
   }
   ensureAdapterInOptions(optionsLiteral)

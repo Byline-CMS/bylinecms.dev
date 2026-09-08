@@ -313,7 +313,7 @@ function sessionProviderSuite(hooks: ConformanceHooks, createAdminStore: CreateA
         }
       })
 
-      it('throws ERR_INVALID_TOKEN for an expired token', async () => {
+      it('throws ERR_ACCESS_EXPIRED for an expired token', async () => {
         await createEnabledUser('e@example.com', 'pw')
         // Mint with a long-past `now`, making the token already expired.
         const pastClock = () => new Date(Date.now() - 60 * 60 * 1000)
@@ -325,9 +325,9 @@ function sessionProviderSuite(hooks: ConformanceHooks, createAdminStore: CreateA
         const freshProvider = makeProvider()
         try {
           await freshProvider.verifyAccessToken(accessToken)
-          throw new Error('expected ERR_INVALID_TOKEN')
+          throw new Error('expected ERR_ACCESS_EXPIRED')
         } catch (err) {
-          expect((err as AuthError).code).toBe(AuthErrorCodes.INVALID_TOKEN)
+          expect((err as AuthError).code).toBe(AuthErrorCodes.ACCESS_EXPIRED)
         }
       })
 
@@ -426,8 +426,27 @@ function sessionProviderSuite(hooks: ConformanceHooks, createAdminStore: CreateA
           await freshProvider.refreshSession({ refreshToken })
           throw new Error('expected ERR_INVALID_TOKEN')
         } catch (err) {
-          expect((err as AuthError).code).toBe(AuthErrorCodes.INVALID_TOKEN)
+          expect(err).toMatchObject({
+            code: AuthErrorCodes.INVALID_TOKEN,
+            message: 'refresh token expired',
+          })
         }
+      })
+
+      it('preserves explicit revocation when a login has also expired', async () => {
+        await createEnabledUser('revoked-expired@example.com', 'pw')
+        const provider = makeProvider({
+          now: () => new Date(Date.now() - 86400000),
+          refreshTokenTtlSeconds: 60,
+        })
+        const tokens = await provider.signInWithPassword({
+          email: 'revoked-expired@example.com',
+          password: 'pw',
+        })
+        await provider.revokeSession({ refreshToken: tokens.refreshToken })
+        await expect(
+          makeProvider().refreshSession({ refreshToken: tokens.refreshToken })
+        ).rejects.toMatchObject({ code: AuthErrorCodes.REVOKED_TOKEN })
       })
 
       it('throws ERR_REVOKED_TOKEN when replaying a rotated token — and revokes the chain', async () => {
@@ -464,7 +483,7 @@ function sessionProviderSuite(hooks: ConformanceHooks, createAdminStore: CreateA
           email: 'k@example.com',
           password: 'pw',
         })
-        await provider.revokeSession(signIn.refreshToken)
+        await provider.revokeSession({ refreshToken: signIn.refreshToken })
         try {
           await provider.refreshSession({ refreshToken: signIn.refreshToken })
           throw new Error('expected ERR_REVOKED_TOKEN')
@@ -482,8 +501,8 @@ function sessionProviderSuite(hooks: ConformanceHooks, createAdminStore: CreateA
           email: 'l@example.com',
           password: 'pw',
         })
-        await provider.revokeSession(signIn.refreshToken)
-        await provider.revokeSession(signIn.refreshToken) // idempotent
+        await provider.revokeSession({ refreshToken: signIn.refreshToken })
+        await provider.revokeSession({ refreshToken: signIn.refreshToken }) // idempotent
 
         const rows = await store.refreshTokens.listAllForUser(user.id)
         expect(rows.length).toBe(1)
@@ -492,7 +511,7 @@ function sessionProviderSuite(hooks: ConformanceHooks, createAdminStore: CreateA
 
       it('is a no-op for unknown tokens', async () => {
         const provider = makeProvider()
-        await provider.revokeSession('no-such-token') // does not throw
+        await provider.revokeSession({ refreshToken: 'no-such-token' }) // does not throw
       })
     })
 

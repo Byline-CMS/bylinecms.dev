@@ -12,6 +12,7 @@ import { type AdminRoleListResponse, listAdminRolesCommand } from '@byline/admin
 import { getAdminRequestContext } from '@byline/client/server'
 
 import { bylineCore } from '../../integrations/byline-core.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 
 /**
  * List admin roles. Thin server-fn wrapper over `listAdminRolesCommand`
@@ -19,9 +20,9 @@ import { bylineCore } from '../../integrations/byline-core.js'
  * No paging or sorting at this layer; the role set is small by design
  * and ordered by the `order` column.
  */
-export const listAdminRoles = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<AdminRoleListResponse> => {
+export const listAdminRoles = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
+  .handler(async (): Promise<AdminRoleListResponse> => {
     const context = await getAdminRequestContext()
     return listAdminRolesCommand(context, {}, { store: bylineCore().adminStore! })
-  }
-)
+  })

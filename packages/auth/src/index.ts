@@ -27,11 +27,13 @@ export {
   type AuthErrorCode,
   AuthErrorCodes,
   type AuthErrorOptions,
+  ERR_ACCESS_EXPIRED,
   ERR_ACCOUNT_DISABLED,
   ERR_FORBIDDEN,
   ERR_INVALID_CREDENTIALS,
   ERR_INVALID_TOKEN,
   ERR_REVOKED_TOKEN,
+  ERR_SESSION_CHANGED,
   ERR_UNAUTHENTICATED,
 } from './errors.js'
 export { MAX_PASSWORD_LENGTH, MAX_SIGN_IN_EMAIL_LENGTH } from './password-sign-in.js'
@@ -44,6 +46,7 @@ export type {
 export type {
   AccessTokenPayload,
   RefreshSessionArgs,
+  RevokeSessionArgs,
   SessionProvider,
   SessionProviderCapabilities,
   SessionTokens,

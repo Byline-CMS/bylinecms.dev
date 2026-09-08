@@ -1,4 +1,3 @@
-import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -15,6 +14,8 @@ import type { DeleteLocaleResult, DocumentLifecycleContext } from '@byline/core/
 import { deleteLocale } from '@byline/core/services'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 import {
   type CollectionDocumentCommittedHookFailureResponse,
   toCommittedDocumentHookFailureResponse,
@@ -35,6 +36,7 @@ import {
  * transport layer.
  */
 export const deleteDocumentLocale = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator(
     (input: { expectedRevision: number; collection: string; id: string; locale: string }) => input
   )

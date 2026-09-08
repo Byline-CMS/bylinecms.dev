@@ -10,6 +10,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { getAdminBylineClient } from '@byline/client/server'
 
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 import { type ActorLabelMap, resolveActorLabels } from '../actors.js'
 import { serialise } from '../serialise.js'
 
@@ -22,6 +23,7 @@ export interface SingletonHistorySearchParams {
 }
 
 export const getSingletonHistory = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { singleton: string; params?: SingletonHistorySearchParams }) => input)
   .handler(async ({ data }) => {
     const params = data.params ?? {}

@@ -12,6 +12,7 @@ import { getAdminBylineClient } from '@byline/client/server'
 import { ERR_NOT_FOUND, getCollectionSchemasForPath, getLogger } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 import { type ActorLabelMap, resolveActorLabels } from './actors.js'
 import { serialise } from './utils'
 
@@ -32,6 +33,7 @@ export interface HistorySearchParams {
 // ---------------------------------------------------------------------------
 
 export const getCollectionDocumentHistory = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { collection: string; id: string; params: HistorySearchParams }) => input)
   .handler(async ({ data }) => {
     const { collection: path, id, params } = data

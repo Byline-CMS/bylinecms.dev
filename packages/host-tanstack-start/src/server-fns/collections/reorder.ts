@@ -1,4 +1,3 @@
-import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,6 +12,8 @@ import { getAdminRequestContext } from '@byline/client/server'
 import { ERR_NOT_FOUND, getLogger, getServerConfig, reorderDocument } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 
 // ---------------------------------------------------------------------------
 // Reorder a single document within an `orderable: true` collection.
@@ -30,6 +31,7 @@ import { ensureCollection } from '../../integrations/api-utils.js'
 // ---------------------------------------------------------------------------
 
 export const reorderCollectionDocument = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator(
     (input: {
       expectedRevision: number

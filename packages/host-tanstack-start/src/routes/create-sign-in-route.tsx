@@ -25,6 +25,7 @@ import { resolveAdminCallbackPath, resolveAdminSignInRedirect } from './admin-pa
 import { resolveSignInHomeUrl } from './sign-in-home-url.js'
 
 interface SignInSearch {
+  reauthenticate?: boolean
   callbackUrl?: string
 }
 
@@ -42,7 +43,13 @@ export function createSignInRoute(path: string, { homeUrl }: CreateSignInRouteOp
   const Route: any = createFileRoute(path as never)({
     validateSearch: (search: Record<string, unknown>): SignInSearch => {
       const callbackUrl = resolveAdminCallbackPath(search.callbackUrl)
-      return { callbackUrl }
+      return {
+        callbackUrl,
+        reauthenticate:
+          search.reauthenticate === '1' ||
+          search.reauthenticate === 1 ||
+          search.reauthenticate === true,
+      }
     },
     beforeLoad: async () => {
       // Resolve the active locale on the server before render so the
@@ -54,11 +61,12 @@ export function createSignInRoute(path: string, { homeUrl }: CreateSignInRouteOp
       return { activeLocale }
     },
     component: function SignInRouteComponent() {
-      const { callbackUrl } = Route.useSearch() as SignInSearch
+      const { callbackUrl, reauthenticate } = Route.useSearch() as SignInSearch
       const { activeLocale } = Route.useRouteContext() as { activeLocale: LocaleCode }
       return (
         <SignInPage
           redirectTo={resolveAdminSignInRedirect(callbackUrl)}
+          reauthenticate={reauthenticate}
           activeLocale={activeLocale}
           homeUrl={resolvedHomeUrl}
         />

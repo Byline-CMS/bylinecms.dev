@@ -11,6 +11,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getAdminBylineClient } from '@byline/client/server'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 
 // ---------------------------------------------------------------------------
 // Shared types
@@ -26,6 +27,7 @@ export interface CollectionStatusCount {
 // ---------------------------------------------------------------------------
 
 const getCollectionStatsFn = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { collection: string }) => input)
   .handler(async ({ data }) => {
     const config = await ensureCollection(data.collection)

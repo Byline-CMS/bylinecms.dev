@@ -43,6 +43,8 @@ import { type Actor, AdminAuth } from './actor.js'
  *                      case uniformly.
  */
 export interface RequestContext {
+  /** Verified login identity for host session-change enforcement. Absent in explicit tooling contexts. */
+  sessionId?: string
   actor: Actor
   requestId: string
   locale?: string
@@ -52,6 +54,7 @@ export interface RequestContext {
 /** Build a fresh `RequestContext`. All fields optional for ergonomic test/script construction. */
 export function createRequestContext(overrides?: Partial<RequestContext>): RequestContext {
   return {
+    sessionId: overrides?.sessionId,
     actor: overrides?.actor ?? null,
     requestId: overrides?.requestId ?? uuidv7(),
     locale: overrides?.locale,

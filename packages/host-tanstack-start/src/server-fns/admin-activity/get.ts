@@ -13,6 +13,7 @@ import { ADMIN_ACTIVITY_ABILITIES } from '@byline/admin/admin-activity'
 import { getAdminRequestContext } from '@byline/client/server'
 import { ERR_AUDIT_UNSUPPORTED, getLogger, getServerConfig } from '@byline/core'
 
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 import { type ActorLabelMap, resolveActorLabels } from '../collections/actors.js'
 import type { AuditLogEntryDto } from '../collections/audit.js'
 
@@ -59,6 +60,7 @@ export interface SystemActivityResponse {
  * than by any document's own read gate.
  */
 export const getSystemActivityLog = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: SystemActivitySearchParams) => input ?? {})
   .handler(async ({ data }): Promise<SystemActivityResponse> => {
     const context = await getAdminRequestContext()

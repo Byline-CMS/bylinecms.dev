@@ -1,4 +1,3 @@
-import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -21,6 +20,8 @@ import { getAdminBylineClient } from '@byline/client/server'
 import { createReadContext, ERR_NOT_FOUND, getLogger } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 import { placeAdminTreeNode, removeAdminTreeNode } from './tree-mutation.js'
 import { getAdminTreeParent } from './tree-read.js'
 
@@ -29,6 +30,7 @@ import { getAdminTreeParent } from './tree-read.js'
 // ---------------------------------------------------------------------------
 
 export const placeTreeNode = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator(
     (input: {
       expectedRevision: number
@@ -67,6 +69,7 @@ export const placeTreeNode = createServerFn({ method: 'POST' })
 // ---------------------------------------------------------------------------
 
 export const removeFromTree = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator(
     (input: {
       expectedRevision: number
@@ -102,6 +105,7 @@ export const removeFromTree = createServerFn({ method: 'POST' })
 // ---------------------------------------------------------------------------
 
 export const getTreeAncestors = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { collection: string; documentId: string }) => input)
   .handler(
     withDocumentMutationErrors(async ({ data }) => {
@@ -135,6 +139,7 @@ export const getTreeAncestors = createServerFn({ method: 'GET' })
 // ---------------------------------------------------------------------------
 
 export const getTreeParent = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { collection: string; documentId: string }) => input)
   .handler(
     withDocumentMutationErrors(async ({ data }) => {
@@ -173,6 +178,7 @@ export interface CollectionTreeRow {
 }
 
 export const getCollectionTree = createServerFn({ method: 'GET' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { collection: string; locale?: string }) => input)
   .handler(
     withDocumentMutationErrors(async ({ data }) => {

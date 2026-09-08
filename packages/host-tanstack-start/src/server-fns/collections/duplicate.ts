@@ -1,4 +1,3 @@
-import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -15,6 +14,8 @@ import type { DocumentLifecycleContext, DuplicateDocumentResult } from '@byline/
 import { duplicateDocument } from '@byline/core/services'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 import {
   type CollectionDocumentCommittedHookFailureResponse,
   toCommittedDocumentHookFailureResponse,
@@ -36,6 +37,7 @@ import {
  * TanStack Start's transport layer for the client to branch on.
  */
 export const duplicateCollectionDocument = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { expectedRevision: number; collection: string; id: string }) => input)
   .handler(
     withDocumentMutationErrors(

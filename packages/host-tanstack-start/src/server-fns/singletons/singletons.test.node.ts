@@ -23,6 +23,9 @@ vi.mock('@tanstack/react-start', () => ({
   createServerFn: () => {
     let validate = (input: unknown) => input
     const chain = {
+      middleware() {
+        return chain
+      },
       validator(validator: (input: unknown) => unknown) {
         validate = validator
         return chain
@@ -55,6 +58,9 @@ import { restoreSingletonVersion } from './restore-version.js'
 import { scheduleSingletonPublish } from './schedule-publish.js'
 import { unpublishSingleton } from './unpublish.js'
 import { updateSingleton } from './update.js'
+
+// Handler-level tests isolate transport; session-middleware tests exercise the real pre-handler boundary.
+vi.mock('../../integrations/session-middleware.js', () => ({ adminSessionMiddleware: {} }))
 
 type ServerFunction = (options: { data: any }) => Promise<any>
 

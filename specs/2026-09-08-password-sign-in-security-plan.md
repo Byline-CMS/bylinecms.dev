@@ -14,17 +14,152 @@ Companions:
 
 Date: 2026-09-08.
 
-Status: step 1 is independently approved. Step 2 remains blocked after independent review: revocation semantics are approved, but ordinary concurrent refresh now revokes the winning successor. It is not independently releasable. Step 3.1 has a consolidated D3 draft; step 3.2 implementation awaits review and selection. The user requested this committed handoff before moving to another machine. This plan is the portable source of workstream state; do not depend on the previous session's memory, temporary scripts, or local databases.
+Status: steps 1, 2, and 3 are approved. Independent combined R2/R3 review accepted the revocation semantics, login membership, coordination protocol, and pre-handler retry boundary. Release preparation remains outstanding; review approval is not production-release authorization.
 
-## Pause and resume checkpoint (2026-09-08)
+## Combined R2/R3 approval and remaining work (2026-09-08)
+
+The user supplied the independent review titled “Combined R2/R3 review — approved.” R2 and R3 are closed. This approval supersedes earlier pending/rejected review statements and design gates retained below as historical context. It does not claim additional browser fault-injection coverage beyond the recorded evidence.
+
+The reviewer independently verified:
+
+| Check | Result |
+| --- | --- |
+| PostgreSQL unfiltered adapter conformance | 358 / 358 |
+| MySQL unfiltered adapter conformance | 358 / 358 |
+| Host tests | 56 jsdom + 264 node |
+| Admin tests | 35 jsdom + 203 node |
+| Reference app tests | 36 jsdom + 145 node |
+| Workspace typecheck | 44 / 44 tasks |
+| Documentation | 72 documents / 710 links |
+| Biome on 120 changed files | Only pre-existing noNonNullAssertion information |
+| Anonymous public GET `/` | HTTP 200 |
+
+Tony will handle release preparation. Downstream application migration will continue in a separate session tomorrow. This session ends at the approved implementation checkpoint; do not begin either workstream here.
+
+Release prerequisites remain open and are not R2/R3 gates:
+
+- [ ] Squash development migrations and synchronize CLI baselines; close the two deferred baseline tests.
+- [ ] Rerun the production build and final release gates after release preparation.
+- [ ] Review both downstream production applications and their deployment configurations.
+- [ ] Perform one coordinated stopped-instance `sv`/`sid` cutover, applying migrations before restarting all instances and requiring fresh sign-in once.
+
+Non-blocking follow-ups:
+
+- [ ] Add physical cleanup for expired/revoked `byline_admin_login_sessions` rows. Use the existing scheduler pattern: a `RecurringTaskDefinition`, lease, bounded batches, and `workRemaining`. Rows currently accumulate; authorization already rejects revoked/expired state, so cleanup is not required for immediate invalidation. Account for cascading refresh-row deletion and retained audit/replay needs when defining eligibility. Editorial-scale growth does not block this release.
+- [x] Clarify idempotent logout in the authentication document: credentials identifying no login can return success without a revocation write; successful logout still clears the browser credentials.
+
+No cleanup implementation, commit, push, or release is authorized merely by recording this review.
+
+## Expiry classification and conformance re-review (2026-09-08)
+
+The next review found two failures in the previously omitted `JwtSessionProvider` conformance group. The earlier 47-test selection was insufficient evidence for combined acceptance. Access expiry deliberately reports `ERR_ACCESS_EXPIRED`, and its stale expectation is corrected. Ordinary refresh/login expiry now reports `ERR_INVALID_TOKEN` with `refresh token expired`; it is no longer intercepted by the login-revocation branch. Explicit revocation, replay, account disablement, and generation changes retain their existing precedence. A new adapter test verifies that a login which is both revoked and expired still reports revocation.
+
+The anonymous-layout regression now belongs to the reference app beside its loader. It still imports the real host preview-state implementation. Its transport stub targets the host's installed TanStack dependency so a distinct app peer-dependency resolution cannot bypass the mock. Published host tests no longer import the consuming app's source.
+
+`framework-fetch-shape.test.node.ts` exercises the installed TanStack serializer with GET, JSON POST, and FormData inputs. It asserts that the fetch URL is a string and the body is undefined, string, or FormData. The test deliberately resolves the installed serializer entry point, making changes to that upgrade-sensitive contract visible.
+
+Re-review validation: the complete adapter conformance file passed **358/358 tests on PostgreSQL** (103.51 seconds) and **358/358 on MySQL** (105.51 seconds), with no name filter or skipped cases. This supersedes the earlier partial authentication selection for this review. The host suite passed 264 node and 56 jsdom tests; the app suite passed 145 node tests. The provider build, workspace typecheck (44 tasks), lint (26 tasks), documentation checks (75 documents and 727 links including specs), and `git diff --check` passed. No migration, production release, commit, or dev-server restart was performed in this pass.
+
+For review, run the complete conformance file without a name filter from each adapter package:
+
+```sh
+# PostgreSQL on this machine, using the isolated test database
+node --env-file=.env.test.local node_modules/vitest/vitest.mjs run --mode=integration tests/conformance.integration.test.ts --reporter=dot
+# MySQL from its package directory
+node node_modules/vitest/vitest.mjs run --mode=integration tests/conformance.integration.test.ts --reporter=dot
+```
+
+## Combined review corrections (2026-09-08)
+
+Combined R2/R3 review rejected the first implementation handoff because `getPreviewStateFn` had accidentally received the admin-session middleware. The public layout calls that function for anonymous visitors, so missing credentials caused an HTTP 500. The gate is removed from this cookie-state read. Draft access remains enforced on the content read path; returning a preview preference is not an authorization grant.
+
+The regression test is `apps/webapp/src/ui/layouts/frontend-layout-loader.test.node.ts`. It calls the reference application's public layout loader with the real preview-state function and anonymous cookie state. The host transport is adapted for the unit test; an additional real request with no cookie header verifies the running homepage returns HTTP 200. This is distinct from the earlier authenticated admin smoke checks.
+
+MPL notices are restored at the beginning of all changed/new TypeScript source files, with imports grouped below them. `admin-context.ts` again explains why memoization preserves requestId and prevents a ReadContext from crossing request authorities.
+
+The retry transport no longer constructs and clones Request bodies. Reusable BodyInit values, including FormData and Blob uploads, are serialized anew for the single safe retry without a tee retaining an unread upload branch. One-shot ReadableStream bodies and caller-supplied Request objects are sent once; after confirmed renewal, expiry returns an explicit “Please retry the operation” error instead of silently replaying them. Tests cover multipart content preservation without Request.clone and the one-shot stream fallback. This change removes the duplicate buffering mechanism; it is not a measured upload-size ceiling.
+
+Correction-pass validation: the cookie-free `curl http://localhost:5173/` request returned HTTP 200 before and after the final build, with no serialized admin-session error. The host suite passed 262 node tests and 56 jsdom tests; the client suite passed 144 tests. Workspace build (22 tasks), typecheck (44 tasks), and lint (26 tasks) passed. Documentation validation passed 75 documents and 727 links; `git diff --check` passed. The MPL placement audit checked 119 changed/new TypeScript files with zero failures. These results do not include a new database conformance run because this pass does not change database behavior.
+
+At this correction checkpoint, combined R2/R3 acceptance remained with the reviewer; it is now approved as recorded above. The previous database evidence is unchanged by these host and documentation fixes; no new database mutation or migration was introduced in this correction pass.
+
+## Implementation evidence (2026-09-08)
+
+The working tree implements sid-backed native login revocation on both adapters, verification-only request contexts, explicit renewal, a pre-handler expected-login boundary, one safe resend, same-tab coordination, optional Web Locks, token-free cross-tab notification, and the acknowledgement interstitial. Replacement sign-in revokes verified observed logins atomically. Logout identifies the login from either observed access or refresh credentials, including a rotated predecessor; failures do not clear cookies or report success. Account generation and login validity remain independent requirements.
+
+Both local development databases have the additive login migrations applied: PostgreSQL native `0013_add-login-sessions.sql` and MySQL native `0008_add-login-sessions.sql`. The generated Drizzle `0003` migrations are also present for development migration history. Production rollout and the user-deferred CLI migration baseline synchronization remain outstanding.
+
+Validation recorded for this implementation:
+
+- `pnpm build`: 22 tasks passed.
+- `pnpm typecheck`: 44 tasks passed.
+- `pnpm lint`: 26 tasks passed; Biome formatted the touched source and tests.
+- `pnpm knip`: passed. The public-export baseline records the intentional login repository and telemetry types.
+- Documentation validation: 75 documents and 727 links passed, including both specs and the benchmark evidence. Generated collection types are current; `git diff --check` passed.
+- `pnpm --filter @byline/host-tanstack-start test`: 260 node tests and 56 jsdom component tests passed. The added client transport tests cover six simultaneous expiry responses sharing one renewal, multipart body preservation, one-resend maximum, no retry after handler/network errors, and cancellation after session change.
+- PostgreSQL and MySQL auth integration plus native session conformance: 47 tests passed on each adapter. Coverage includes strict contests, predecessor logout, access-only logout, mismatched logout, independent-device preservation, cross-account replacement, rollback, and more than 1,000 refresh members.
+- SQL-injected revocation rollback: four tests passed on each adapter.
+- The broad workspace unit run passed runtime package suites; two CLI migration-baseline drift assertions remain red because baseline synchronization is explicitly deferred to the release squash. Do not describe the entire workspace unit gate as green.
+
+Reproduce database checks from each adapter package with `node node_modules/vitest/vitest.mjs run --mode=integration tests/conformance.integration.test.ts -t 'auth integration|native session revocation' --reporter=dot`, then run `tests/session-revocation-rollback.integration.test.ts` without the name filter. On this machine PostgreSQL additionally requires `--env-file=.env.test.local` before the Vitest script to select the isolated test database; the older canonical test database has unrelated migration-ledger drift.
+
+The real local browser check used accessibility automation, never Playwright. Sign-in and protected News navigation worked. Reopening the admin with expired access restored sign-in through the explicit bootstrap without a password prompt. A replacement sign-in in a second tab made the first tab display the session-change interstitial with the active email; acknowledgement returned it to the admin. Confirmed logout returned to the sign-in form after restarting the dev server to load the updated provider contract, and sign-in was restored after testing. This was a same-account/new-sid browser check. Cross-account revocation is covered by adapter tests, not a claimed two-account browser race test.
+
+[Local benchmark evidence](./experiments/password-session-ordering/README.md) records approximately 0.3–0.4 ms additional p95 verification latency. Tony asked to retain the measurements for a future user domain and not delay the editorial implementation with further optimization.
+
+Review must distinguish these passing checks from exhaustive response-order validation. Real tab termination, deliberately reordered overlapping cross-account sign-in responses, and downstream deployment measurements have not been exercised. These smoke checks alone did not close CF-05/CF-08 or combined acceptance; the subsequent independent approval is recorded above without claiming those additional experiments occurred. No production release, commit, push, or replacement dev server was performed in this implementation phase.
+
+The design handoff file is `packages/host-tanstack-start/src/admin-shell/chrome/session-change-boundary.tsx`. It is a component around the admin/sign-in views, not a standalone route. Preserve its fresh identity verification, explicit acknowledgement, disabled pending button, and discarded old-page work while improving its layout.
+
+## Approved cookie residual and implementation authorization
+
+Tony approved detection of the overlapping cross-account sign-in residual and authorized task 3 implementation. The cookie design gate is closed on this basis; do not start another comparison round or introduce browser binding state.
+
+- Successful sign-in atomically revokes native logins identified by verified credentials observed on that request, including account switches. Revocation failure fails sign-in closed; unrelated device logins survive.
+- Every authenticated business operation carries the page's expected login identity, not merely retries. The server compares it to verified current login identity before starting the handler. Mismatch rejects without side effects or automatic replay.
+- The browser retains the login expected from successful sign-in and the page's current login identity. A mismatch with server-reported identity blocks further work behind an explicit session-changed interstitial requiring acknowledgement. Initial post-sign-in navigation is covered; merely displaying the current account name is insufficient.
+- Acknowledgement discards queued old-login work and adopts freshly verified identity. It does not replay rejected edits. Same-account new logins also change sid and require this treatment.
+- Stage B sends token-free cross-tab notifications and may serialize sign-in with Web Locks. Notifications and cooperative locks are aids, not the server enforcement boundary.
+- The residual is a credential overwrite that is detected before further work, not a guarantee of physical cookie ordering. Password and CSRF requirements constrain the known scenario; no universal claim that it is attacker-unreachable is made.
+- Reopen review if intentional concurrent multi-account admin sessions become supported or an attacker-driven path is found. A prevention mechanism requiring browser-scoped state would need separate explicit approval.
+
+JWT credentials, persistent sign-in, D2 and per-login revocation remain selected. No Playwright. Both-adapter tests and local query-cost measurements are recorded in the implementation plan. Combined R2/R3 acceptance is now recorded above; release preparation remains separate.
+
+## Implementation sequence and architectural constraints
+
+This section is the current resume point and supersedes historical recommendations below. Tony explicitly selected retaining JWT access tokens and refresh tokens, including the session-provider boundary for possible future IAM integration. Do not replace native authentication with opaque database sessions.
+
+| Settled requirement | Implementation consequence |
+| --- | --- |
+| Persistent sign-in across normal browser restarts | Retain persistent credentials and sliding refresh expiry; no browser-close sign-out or monthly absolute lifetime. |
+| Immediate account invalidation after password change/reset/disable | Preserve D2 and its account generation (`sv`); re-enable never revives sessions. |
+| Immediate per-login invalidation after logout/replay | Add native login state and `sid`, checked alongside `sv` behind the provider interface. JWT verification in the native provider is consequently not entirely stateless. |
+| Coordination-first renewal | Separate renewal from business requests; same-tab single-flight first, cross-tab coordination second. |
+| Fresh sign-in after refresh collisions escaping coordination | Retain strict replay handling; no grace window or successor-token cache is approved. |
+| Preserve independent-device logins and account identity | An old response must not silently restore another live account; accepted reauthentication does not authorize this outcome. |
+
+**Historical cookie counterexample, now covered by the approved detection residual:** Two overlapping sign-ins may each create a live login without observing the other. A delayed response can then overwrite the newer login's fixed-name cookies. Per-login revocation rejects revoked credentials but does not reject an older login that is still live. Refresh coordination and deleting cookies alone do not settle this case.
+
+Task 3 implementation is now authorized. Follow this sequence under the approved detection residual:
+
+1. Add native login membership, `sid` verification, and atomic login revocation on both adapters. Keep account-generation composition and provider encapsulation. Implement predecessor logout with confirmed failure reporting; membership removes the traversal ceiling from authorization. Benchmark the added lookup before accepting the design.
+2. Add explicit CSRF-protected renewal and verification-only business/SSR contexts. Only a pre-handler expiry outcome permits one resend, bound to the original login. Preserve SSR and preview authentication through the reviewed bootstrap flow.
+3. Add same-tab coordination and the reviewed cookie/sign-in ordering behavior. Emit contested-refresh events. Add cross-tab coordination as the next stage with a documented fallback; do not require Web Locks for the first stage.
+4. Validate both adapters, real host boundaries, and browser response ordering using an agreed non-Playwright harness. Replace the known-regression characterization with acceptance tests, run the relevant gates and build, and seek combined R2/R3 acceptance. Ship `sv` and `sid` together as one forced-sign-in cutover.
+
+**Inactive work:** opaque database-session replacement, session-only browser binding, and the experimental IndexedDB/browser marker are not selected. Receipts, versioned credential cookies, the signed selector, receipt recovery UI/CSP, its retry loop, and absolute monthly expiry remain an inactive alternative, not task 3 requirements. The isolated models are exploratory evidence, not browser validation or a reviewed implementation.
+
+**Verification constraint:** Tony has discontinued Playwright. Do not run or add Playwright tests. Do not disturb the user’s normal dev server. Record migration and test evidence separately from implementation authorization.
+
+## Historical pause and resume checkpoint (2026-09-08)
 
 **Ready to pause after documentation validation.** Tony is taking this same machine home. No step-3 runtime implementation, new migration, or database change was made during this design phase. Tony subsequently requested commits for the checkpoint. Step-2 implementation, tests, migrations, and current-behavior documentation are committed as `74d28e13` (`fix: added account session revocation checkpoint`). The accompanying specs commit records this handoff and the D3 design. Both use DCO sign-off only. No push, server, or background job was requested or started for this handoff.
 
 Selected: coordination-first, explicit renewal outside business requests, staged same-tab then cross-tab coordination as the proposed architecture, and Tony's explicit acceptance that collisions escaping coordination may require fresh sign-in. Preserve sliding refresh expiry and approved D2 immediate account-wide invalidation. Receipts remain a documented alternative, not active work.
 
-On resumption, read **Selected D3 scope: coordination-first** in the specification and the CF acceptance table below. Finish these two gates before implementation:
+On resumption, read **Selected D3 scope: coordination-first** in the specification and the CF acceptance table below. Resumed decision state before implementation:
 
-1. Select access-token behavior after logout/replay: immediate per-login invalidation or the explicit remaining access TTL. Tony has not selected this policy. Its session identity also affects same-login retry protection.
+1. **Selected on resumption:** Tony approved immediate per-login access invalidation after logout/replay. The specification proposes sid-backed login state, account-generation composition, and same-login retry protection. No receipt state or monthly lifetime is selected.
 2. Complete late successful refresh/logout/sign-in response handling with fixed cookies. The accepted collision tradeoff does not permit revoked-session revival or silent replacement of a newer login. Review the exact fallback and both response orders.
 
 Then obtain protocol review and implementation authorization, and follow the coordination-first sequence. Do not execute the retained receipt sequence. R2 remains open; passing the existing known-regression test still demonstrates the unfixed behavior. Do not call the plan fully settled or the implementation releasable merely because it is portable.
@@ -49,11 +184,12 @@ No live passwords, JWT secrets, cookies, or database credentials are included in
 - [x] Portable specification and plan prepared under `specs/`.
 - [x] D2-A: immediate access-JWT invalidation selected by the user in the resumed session.
 - [x] D2-B: fresh sign-in after self-service password change; re-enable never revives old sessions.
-- [ ] Step 2: implement, test, and review password/disable revocation and necessary issuance fencing.
+- [x] Step 2: implement, test, and review password/disable revocation and necessary issuance fencing.
 - [x] Step 3.1: prepare a consolidated D3 proposal with explicit policies and review gates.
 - [x] D3 scope: Tony selected coordination-first and explicitly accepted fresh sign-in after collisions that escape coordination.
-- [ ] D3 protocol: settle per-login access invalidation and late-write cookie handling; review the full design before implementation.
-- [ ] Step 3: implement, test, and review atomic refresh and lineage revocation.
+- [x] D3 access policy: Tony approved immediate per-login access invalidation after logout/replay.
+- [x] D3 cookie gate: Tony accepted the detected account-switch residual with pre-handler sid enforcement and acknowledgement before further work.
+- [x] Step 3: implement, test, and review atomic refresh and lineage revocation.
 - [ ] Review the two downstream production applications with the user.
 - [ ] Complete release squash, CLI baseline synchronization, full gates, and rollout verification.
 
@@ -110,25 +246,19 @@ Do not declare step 2 complete if its required race ordering still relies on the
 
 Read the current provider, both refresh repositories, `packages/client/src/server/admin-context.ts`, request memoization, and cookie transport as one protocol. Inventory the existing comments that incorrectly describe atomic rotation, including the MySQL schema's rotated-to comment and the SDK context description.
 
-Write a decision table for first refresh, benign concurrent loser, replay inside/outside any tolerance window, logout, password change, disable, expiry, failed transaction, and late response arrival. Specify shared-instance behavior and whether any browser coordination or retry response is required. Coordination-first and residual reauthentication are selected; the complete protocol still has access-policy and cookie gates.
+Write a decision table for first refresh, benign concurrent loser, replay inside/outside any tolerance window, logout, password change, disable, expiry, failed transaction, and late response arrival. Specify shared-instance behavior and whether any browser coordination or retry response is required. Coordination-first and residual reauthentication are selected; the access policy is settled and the detected account-switch residual is now approved.
 
 Preserve hash-only refresh-token storage unless the user explicitly approves a different tradeoff. A loser cannot retrieve already-issued plaintext from its hash. A process-local promise map is insufficient across instances. A linear compare-and-swap chain does not by itself order rotation against revocation. A family identifier may help some designs but is not mandated. Any deterministic successor derivation or cache scheme needs its own security analysis and review; do not introduce one as an incidental fix.
 
 ### 3.1 review draft and implementation sequence (2026-09-08)
 
-The user authorized proceeding with the design proposal, not implementing an unreviewed grace period. The specification's **D3 proposal: bounded recovery with independent receipts** is the current consolidated draft. The latest independent review endorsed the direction but did not approve grace. It identified missing refresh metadata, abandoned recovery, and per-login invalidation as unresolved. The draft addresses them with a new receipt protocol and withdraws metadata as a security gate. These recommendations are not selected policy yet.
+Coordination-first with JWT credentials is the selected direction. Immediate per-login invalidation and residual refresh-collision reauthentication are approved; the detected account-switch residual is approved. The current decision section above is authoritative.
 
-The new proposal requires review of the entire package: independent receipt per loser, acknowledgement requiring both receipt and live successor, server-enforced expiry, immediate login revocation, versioned credential cookies with a sign-in-only selector, and a proposed 30-day absolute login lifetime. A scheduler alone does not establish safe recovery: possession of the successor must never clear another request's receipt. IP and UA become advisory; approved sign-in IP admission remains unchanged.
-
-The subsequent consolidated-draft review endorsed the security argument but withheld package approval. The specification now compares coordination-first strict replay with receipts and recommends developing the smaller option first if Tony accepts residual reauthentication. Scope, per-login access invalidation, and absolute lifetime are separate unselected decisions. The browser lock does not itself solve SSR overlap, successful-cookie response races, deep-lineage revocation, or immediate access invalidation.
-
-Receipt draft corrections adopted for review: batch up to 32 supplied secrets, allow the current live descendant beyond the direct successor, retry through the available five-second budget, integrate SSR CSP nonces, and record sign-in-storm effects. Batching does not eliminate lost-receipt or correlated-failure risk. A comparative verification-path benchmark is required before approving the receipt package; no benchmark has been run.
-
-Tony has now explicitly accepted fresh sign-in after refresh collisions that escape coordination. The specification's **Selected D3 scope: coordination-first** is the active design. Preserve sliding refresh expiry; monthly reauthentication is not selected. Per-login access invalidation and residual late-cookie-write handling remain open, and no implementation is authorized yet.
+The retained receipt sequence and tests below record an earlier, unapproved alternative. They are not the active draft and must not be executed. The companion specification retains their technical rationale for possible evidence-driven reconsideration.
 
 Active development sequence after protocol review:
 
-1. Settle per-login access policy, same-login retry identity, and the late-response cookie gate. Define exactly which R3 availability outcomes use the accepted fresh-sign-in fallback; never weaken revocation correctness.
+1. Incorporate the selected immediate per-login policy using the proposed sid identity, then settle the late-response cookie gate. Define exactly which R3 availability outcomes use the accepted fresh-sign-in fallback; never weaken revocation correctness.
 2. Introduce the verification-only context and mandatory pre-handler authentication boundary, plus explicit CSRF-protected renewal with an access-valid no-op. Check boundary coverage and forbid retry markers from handler errors.
 3. Stage A: one same-tab renewal promise, one retry of a handler-not-started operation, authentication-action serialization, and the existing-route SSR bootstrap. Web Locks is not a prerequisite.
 4. In parallel with the stage's functional work, complete the common server fixes: logout from predecessors, all-lineage revocation beyond 1,000 rows, transaction/rollback behavior, and honest logout failure reporting. These remain mandatory for release.
@@ -339,3 +469,37 @@ Current development additions are PostgreSQL `src/database/migrations/0001_gray_
 ## Downstream review after steps 2–3
 
 Obtain the two application locations and inspect their actual server configs, scheduler startup/health, proxy overwrite and bypass controls, single-value client-IP resolution, worker counts, HMAC secret consistency, telemetry/alerts, migration ordering/ownership, and cookie HTTPS behavior. Derive capacity and cleanup expectations from each deployment. Treat this as a separate deployment verification task; no production mutations have been authorized by this handoff.
+
+## Resumed access-policy decision
+
+Tony approved immediate per-login access invalidation after logout/replay. The coordination-first specification now proposes explicit login state and sid membership for JWTs/refresh rows, avoiding reliance on a 1,000-row traversal for revocation. This supersedes the earlier schema-preserving traversal candidate for the preferred design, subject to technical review. Access checks after commit must reject revoked sid state while independent logins remain valid; already-authorized operations retain the documented boundary.
+
+The remaining design gate is cookie ordering: server revocation prevents old credentials from regaining authority but cannot stop a late Set-Cookie from replacing newer browser credentials. Finish and review that transport rule before implementation. This decision did not authorize runtime changes, a commit, or a release.
+
+## Coordination scope and remaining cookie review
+
+The approved immediate per-login policy expands coordination-first to a login record, an unpredictable sid carried by access JWTs and refresh rows, and a login-state check alongside account/permission verification. Neither account nor login validity overrides the other. Revocation by login membership removes chain traversal from the authorization decision; predecessor logout must confirm the revocation commit rather than swallow errors.
+
+Receipts/table, versioned credential names, selector cookie, special SSR receipt document/CSP, receipt retry loop, and absolute monthly lifetime remain out. The ordinary bootstrap plus single pre-handler operation resend remains in. A scaled-down account/login/permissions benchmark on both adapters is now a pre-implementation design gate; the receipt-specific benchmark below stays inactive. If sv and sid ship together, plan one coordinated forced-sign-in cutover.
+
+The reviewer recommends accepting late fixed-cookie overwrites as reauthentication. Keep this as a candidate until replacement-login revocation is defined: an old but still-live A is not rejected merely because B exists. Cover previous-login identification, account-switch lock ordering, independent devices, and an older in-flight sign-in absent from B's request. Do not claim that sid state alone orders browser writes or automatically invalidates older independent logins. Runtime implementation and release remain unapproved.
+
+## Replacement sign-in proposal and residual
+
+The specification now proposes atomically revoking each authenticated login observed in sign-in request cookies while issuing the destination login. Verify destination credentials first, acquire involved account locks in deterministic order, revalidate, and commit revocation plus issuance together. Revocation failure fails sign-in closed without cookies; failed sign-in must not partially revoke the previous login. Unrelated device logins survive. This proposal requires technical review and is not implemented.
+
+Add acceptance cases for same-account replacement, cross-account replacement, access/refresh cookies naming distinct observed logins, forged identifiers, wrong password, revocation-write failure, uncertain commit, and both refresh/replacement commit orders. Add the explicit counterexample of two concurrent sign-ins that cannot observe each other's newly created sid. Test same-tab serialization, Web Locks, unsupported coordination, and tab termination without assuming any client lock cancels server work.
+
+The counterexample leaves a live unobserved login whose late cookies can restore a different account. It is outside Tony's approved reauthentication tradeoff. Do not close CF-08 or R3 cookie acceptance until a reviewed browser-specific ordering/fencing rule handles it, or Tony explicitly selects a precisely described different policy. Account-wide sign-in revocation remains excluded. No implementation is authorized by this review exchange.
+
+## Withdrawn browser-session binding recommendation
+
+**Withdrawn:** Tony rejected the reduction in sign-in persistence after normal browser restarts. Do not execute this proposal. The historical draft proposed a stable browser-binding cookie and a server browser record containing current sid and authentication revision. Sign-in/refresh/logout never write that cookie; sign-in atomically supersedes the browser's current login, including a login whose response was not observed. Concurrent sign-ins against one revision cannot both succeed. Expected-sid checks on every business request prevent an old account's tab from silently operating under a newly selected account.
+
+This is explicitly additional scope, not previously approved state. The proposed binding is a browser-session cookie to avoid reissuing an old binding from a late response. Closing/restarting the browser may therefore require fresh sign-in; Tony rejected that persistence consequence. Sliding refresh expiry stays; no monthly absolute lifetime is proposed. If cross-restart persistence is required, revise the binding lifetime protocol before implementation.
+
+Review the spec's response-order table, account-first/multi-account transaction order, initial competing bootstrap responses, no-binding rejection, revision conflicts, and obsolete logout. Add these cases to CF-08; benchmark account + login + browser + permissions on both adapters and define bounded anonymous bootstrap admission/cleanup. These are design/validation prerequisites, not completed tests. Receipts, versioned credential names, and signed selector remain inactive alternatives. No runtime code or migration was changed.
+
+## Persistent-sign-in clarification
+
+Tony requires automatic sign-in across normal browser restarts while retained refresh credentials remain valid. The session-only binding recommendation above is withdrawn. The current decision and next work section at the beginning of this plan incorporates this requirement and the subsequent explicit decision to retain JWT authentication.

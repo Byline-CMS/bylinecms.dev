@@ -30,7 +30,11 @@ vi.mock('@tanstack/react-start/server', () => ({
   getRequestHeader: () => undefined,
 }))
 vi.mock('@byline/core', () => ({ getServerConfig: () => mocks.config }))
-vi.mock('@byline/client/server', () => ({ setSessionCookies: mocks.setCookies }))
+vi.mock('@byline/client/server', () => ({
+  setSessionCookies: mocks.setCookies,
+  readAccessTokenCookie: () => undefined,
+  readRefreshTokenCookie: () => undefined,
+}))
 vi.mock('../../i18n/locale-cookie.js', () => ({ readAdminLocaleCookie: () => null }))
 vi.mock('../../integrations/byline-core.js', () => ({
   bylineCore: () => {

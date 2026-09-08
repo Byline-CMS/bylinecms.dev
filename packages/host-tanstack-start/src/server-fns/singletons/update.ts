@@ -1,4 +1,3 @@
-import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -12,7 +11,9 @@ import { createServerFn } from '@tanstack/react-start'
 import { getAdminBylineClient } from '@byline/client/server'
 import type { SingletonSavePrecondition } from '@byline/core'
 
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 import { toCommittedDocumentHookFailureResponse } from '../collections/save-outcome.js'
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 import { serialise } from '../serialise.js'
 
 export type UpdateSingletonInput = SingletonSavePrecondition & {
@@ -22,6 +23,7 @@ export type UpdateSingletonInput = SingletonSavePrecondition & {
 }
 
 export const updateSingleton = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator((input: UpdateSingletonInput) => input)
   .handler(
     withDocumentMutationErrors(async ({ data }) => {

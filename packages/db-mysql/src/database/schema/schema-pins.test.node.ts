@@ -417,9 +417,11 @@ describe('schema pins — timestamp precision (spec §F.3)', () => {
   })
 
   it.each(instantColumns.map((c) => [`${c.tableName}.${c.column.name}`, c.column] as const))(
-    '%s is datetime(6) — microsecond precision (pg parity)',
-    (_label, column) => {
-      expect(column.getSQLType()).toBe('datetime(6)')
+    '%s uses the PostgreSQL companion precision',
+    (label, column) => {
+      // Admission windows intentionally share JavaScript millisecond precision on both adapters.
+      const precision = label === 'byline_admin_sign_in_rate_limits.expires_at' ? 3 : 6
+      expect(column.getSQLType()).toBe(`datetime(${precision})`)
     }
   )
 

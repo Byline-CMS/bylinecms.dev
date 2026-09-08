@@ -1,4 +1,3 @@
-import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -18,12 +17,15 @@ import {
 } from '@byline/core/services'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
+import { withDocumentMutationErrors } from '../document-mutation-errors.js'
 
 // ---------------------------------------------------------------------------
 // Change document workflow status
 // ---------------------------------------------------------------------------
 
 export const updateDocumentStatus = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator(
     (input: { expectedRevision: number; collection: string; id: string; status: string }) => input
   )
@@ -72,6 +74,7 @@ export const updateDocumentStatus = createServerFn({ method: 'POST' })
 // ---------------------------------------------------------------------------
 
 export const unpublishDocument = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { expectedRevision: number; collection: string; id: string }) => input)
   .handler(
     withDocumentMutationErrors(async ({ data: input }) => {

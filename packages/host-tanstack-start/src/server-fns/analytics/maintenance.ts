@@ -12,6 +12,8 @@ import { assertAdminActor } from '@byline/admin'
 import { ANALYTICS_ABILITIES } from '@byline/admin/analytics'
 import { getAdminRequestContext } from '@byline/client/server'
 
+import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
+
 export interface DeleteAnalyticsEventsInput {
   from: string
   to: string
@@ -19,6 +21,7 @@ export interface DeleteAnalyticsEventsInput {
 }
 
 export const deleteAnalyticsEvents = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator((input: DeleteAnalyticsEventsInput) => input)
   .handler(async ({ data }): Promise<{ deleted: number }> => {
     await assertAnalyticsMaintenance()
@@ -34,6 +37,7 @@ export const deleteAnalyticsEvents = createServerFn({ method: 'POST' })
   })
 
 export const rebuildAnalyticsDay = createServerFn({ method: 'POST' })
+  .middleware([adminSessionMiddleware])
   .validator((input: { day: string }) => input)
   .handler(async ({ data }): Promise<{ rebuilt: string }> => {
     await assertAnalyticsMaintenance()

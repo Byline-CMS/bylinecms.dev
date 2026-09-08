@@ -1,3 +1,14 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ */
+
+// Handler-level tests isolate transport; session-middleware tests exercise the real pre-handler boundary.
+vi.mock('../../integrations/session-middleware.js', () => ({ adminSessionMiddleware: {} }))
+
 import { createSuperAdminContext } from '@byline/auth'
 import {
   defineCollection,
@@ -16,6 +27,9 @@ vi.mock('@tanstack/react-start', () => ({
   createServerFn: () => {
     let validate = (value: unknown) => value
     const chain = {
+      middleware() {
+        return chain
+      },
       validator(fn: (value: unknown) => unknown) {
         validate = fn
         return chain

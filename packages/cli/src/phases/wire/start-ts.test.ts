@@ -47,7 +47,7 @@ describe('Start sign-in middleware wiring', () => {
     )
     expect((await wireStartTs.apply(ctx)).status).toBe('done')
     expect(readFileSync(ctx.resolve('src/start.ts'), 'utf8')).toContain(
-      '[csrf, custom, passwordSignInMiddleware]'
+      '[csrf, custom, sessionRequestMiddleware, passwordSignInMiddleware]'
     )
   })
   it('leaves computed middleware configuration for manual wiring', async () => {
