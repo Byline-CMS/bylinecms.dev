@@ -9,7 +9,11 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { type AccountResponse, changeAccountPasswordCommand } from '@byline/admin/admin-account'
-import { getAdminRequestContext } from '@byline/client/server'
+import {
+  clearPreviewCookie,
+  clearSessionCookies,
+  getAdminRequestContext,
+} from '@byline/client/server'
 
 import { bylineCore } from '../../integrations/byline-core.js'
 
@@ -23,5 +27,10 @@ export const changeAccountPassword = createServerFn({ method: 'POST' })
   .validator((input: ChangeAccountPasswordInput) => input)
   .handler(async ({ data }): Promise<AccountResponse> => {
     const context = await getAdminRequestContext()
-    return changeAccountPasswordCommand(context, data, { store: bylineCore().adminStore! })
+    const account = await changeAccountPasswordCommand(context, data, {
+      store: bylineCore().adminStore!,
+    })
+    clearSessionCookies()
+    clearPreviewCookie()
+    return account
   })

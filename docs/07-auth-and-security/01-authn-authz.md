@@ -567,13 +567,25 @@ The capability flags are how the admin UI decides which affordances to render: a
 
 **Built-in `JwtSessionProvider`** (`packages/admin/src/modules/auth/jwt-session-provider.ts` and friends):
 
-- **15-minute access tokens.** Short enough that revocation propagates without a heavy real-time check on every request.
+- **15-minute access tokens.** Verification checks the current account session generation on every request. Password changes/resets and disablement invalidate older generations immediately after commit.
 - **30-day refresh tokens** stored in `admin_refresh_tokens` for revocation. DB-backed rather than short-lived-only, because short-lived-only would have no way to force-sign-out a compromised account.
 - **Rotation on every refresh.** The old refresh token is invalidated when a new pair is issued.
 - **Replay detection.** Reusing a rotated refresh token revokes the entire session lineage, on the assumption that a rotation collision means the attacker now has a token the legitimate client also held.
 - **argon2id password hashing** (`packages/admin/src/modules/auth/password.ts`). The full PHC string is stored in `admin_users.password`.
 
 `resolveActor(adminUserId)` joins `admin_role_admin_user` → `admin_permissions` → flat ability strings to build the runtime `AdminAuth`.
+
+### Password changes and account disablement
+
+Native password changes and administrator resets atomically advance `admin_users.session_version` and revoke all refresh sessions. Disablement does the same, including through a general user update. Re-enabling the account does not restore old access or refresh sessions. Edit revisions (`vid`) remain separate from authentication generations.
+
+The built-in provider checks the JWT `sv` claim against the current account generation. Refresh also checks account enablement and the generation stored on its row. Sign-in and refresh acquire an account row lock before issuance; password verification runs outside that lock and sign-in revalidates the observed credentials and generation inside it. Account mutation and refresh writes commit or roll back together. An operation already authorized with a request-scoped actor is not retroactively cancelled.
+
+After a successful self-service password change, the TanStack host clears session and preview cookies and the form shows confirmation and a Sign in button that reloads the protected page to request a fresh sign-in. External identity-provider sessions are outside native repository revocation; custom providers must implement their own session policy.
+
+Upgrades require the session-generation SQL script for the chosen adapter. Stop old instances before applying it, then restart every instance with the new provider. Access JWTs without `sv` and legacy refresh rows with generation -1 are rejected, so existing users sign in again. Do not mix old and new provider instances during rollout.
+
+Rotation now shares the account transaction, but this introduces a known availability regression: two concurrent refreshes with the same cookie cause the loser to revoke the winner’s new refresh session. The host failure response can also clear session cookies. Step 2 is not independently releasable until the concurrent-refresh protocol resolves this regression. Benign concurrency, replay tolerance, logout lineage, and response-cookie ordering remain under review.
 
 ### Password sign-in protection
 

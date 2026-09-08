@@ -10,7 +10,7 @@
  * Session provider — the transport-agnostic contract for authenticating
  * admin users and managing session tokens.
  *
- * The built-in `JwtSessionProvider` (in `@byline/db-postgres/admin`) mints
+ * The built-in `JwtSessionProvider` (in `@byline/admin/auth`) mints
  * short-lived JWT access tokens and long-lived opaque refresh tokens,
  * storing refresh-token hashes in `byline_admin_refresh_tokens` for
  * revocation and replay detection.
@@ -44,6 +44,8 @@ export interface AccessTokenPayload {
   jti: string
   /** Token type discriminator — `'access'` for access tokens. */
   typ: 'access'
+  /** Native account session generation. Missing legacy claims are rejected. */
+  sv: number
 }
 
 /** Returned by `signInWithPassword` and `refreshSession`. */

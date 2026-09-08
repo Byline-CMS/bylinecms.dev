@@ -15,6 +15,13 @@
       "when": 1788851938902,
       "tag": "0001_gray_titania",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788857651476,
+      "tag": "0002_goofy_dakota_north",
+      "breakpoints": true
     }
   ]
 }

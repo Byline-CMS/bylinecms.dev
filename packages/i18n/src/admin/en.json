@@ -144,7 +144,7 @@
   "account.update.errors.invalidEmail": "Enter a valid email address",
   "account.update.errors.emailTooLong": "Email must not exceed {max, number} characters",
   "account.update.errors.emailInUse": "This email is already in use.",
-  "account.changePassword.intro": "Other active sessions will continue to work until their tokens expire. Sign out elsewhere if you suspect another device has been compromised.",
+  "account.changePassword.intro": "Changing your password signs you out on every device. Sign in again with your new password.",
   "account.changePassword.fields.current": "Current password",
   "account.changePassword.fields.new": "New password",
   "account.changePassword.fields.confirm": "Confirm new password",

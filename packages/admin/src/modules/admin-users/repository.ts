@@ -68,6 +68,8 @@ export interface AdminUserRow {
  */
 export interface AdminUserWithPasswordRow extends AdminUserRow {
   password_hash: string
+  /** Native session generation, independent of edit revisions. */
+  session_version: number
 }
 
 export interface CreateAdminUserInput {
@@ -158,16 +160,23 @@ export interface AdminUsersRepository {
    * Content update with optimistic concurrency. Throws
    * `AdminUsersError(VERSION_CONFLICT)` if the stored `vid` differs from
    * `expectedVid`. Bumps `vid` on success and returns the fresh row.
+   * A false `is_enabled` patch must atomically advance the native session
+   * generation and revoke refresh sessions, under the account row lock.
    */
   update(id: string, expectedVid: number, patch: UpdateAdminUserInput): Promise<AdminUserRow>
   /**
    * Replace the stored password hash with optimistic concurrency.
    * Version-gated on `expectedVid`. Caller supplies a pre-hashed PHC string.
+   * Atomically advance the native session generation and revoke every refresh
+   * session in the same transaction. Lock the account before refresh rows.
    * Returns the updated row so callers holding the edit form can refresh
    * their cached `vid` without a second round-trip.
    */
   setPasswordHash(id: string, expectedVid: number, passwordHash: string): Promise<AdminUserRow>
-  /** Toggle enabled state. Vid-less — admin intent is independent of other edits. */
+  /**
+   * Toggle enabled state. Disable must atomically advance the native session
+   * generation and revoke refresh sessions. Enable never resets the generation.
+   */
   setEnabled(id: string, enabled: boolean): Promise<void>
   /**
    * Set the admin interface locale preference. Vid-less — user preference

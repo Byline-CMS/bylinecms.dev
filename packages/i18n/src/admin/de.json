@@ -144,7 +144,7 @@
   "account.update.errors.invalidEmail": "Geben Sie eine gültige E-Mail-Adresse ein",
   "account.update.errors.emailTooLong": "Die E-Mail darf {max, number} Zeichen nicht überschreiten",
   "account.update.errors.emailInUse": "Diese E-Mail wird bereits verwendet.",
-  "account.changePassword.intro": "Andere aktive Sitzungen funktionieren weiter, bis ihre Tokens ablaufen. Melden Sie sich anderswo ab, wenn Sie vermuten, dass ein anderes Gerät kompromittiert wurde.",
+  "account.changePassword.intro": "Wenn Sie Ihr Passwort ändern, werden Sie auf allen Geräten abgemeldet. Melden Sie sich mit Ihrem neuen Passwort erneut an.",
   "account.changePassword.fields.current": "Aktuelles Passwort",
   "account.changePassword.fields.new": "Neues Passwort",
   "account.changePassword.fields.confirm": "Neues Passwort bestätigen",

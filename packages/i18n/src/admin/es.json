@@ -144,7 +144,7 @@
   "account.update.errors.invalidEmail": "Introduce una dirección de correo electrónico válida",
   "account.update.errors.emailTooLong": "El correo electrónico no debe superar los {max, number} caracteres",
   "account.update.errors.emailInUse": "Este correo electrónico ya está en uso.",
-  "account.changePassword.intro": "Las demás sesiones activas seguirán funcionando hasta que sus tokens caduquen. Cierra sesión en otros dispositivos si sospechas que alguno se ha visto comprometido.",
+  "account.changePassword.intro": "Al cambiar tu contraseña, se cerrará tu sesión en todos los dispositivos. Vuelve a iniciar sesión con tu nueva contraseña.",
   "account.changePassword.fields.current": "Contraseña actual",
   "account.changePassword.fields.new": "Nueva contraseña",
   "account.changePassword.fields.confirm": "Confirmar nueva contraseña",

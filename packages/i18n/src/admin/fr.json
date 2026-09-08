@@ -144,7 +144,7 @@
   "account.update.errors.invalidEmail": "Saisissez une adresse e-mail valide",
   "account.update.errors.emailTooLong": "L'adresse e-mail ne doit pas dépasser {max, number} caractères",
   "account.update.errors.emailInUse": "Cette adresse e-mail est déjà utilisée.",
-  "account.changePassword.intro": "Les autres sessions actives resteront valides jusqu'à l'expiration de leurs jetons. Déconnectez-vous ailleurs si vous pensez qu'un autre appareil a été compromis.",
+  "account.changePassword.intro": "La modification de votre mot de passe vous déconnecte de tous vos appareils. Reconnectez-vous avec votre nouveau mot de passe.",
   "account.changePassword.fields.current": "Mot de passe actuel",
   "account.changePassword.fields.new": "Nouveau mot de passe",
   "account.changePassword.fields.confirm": "Confirmez le nouveau mot de passe",

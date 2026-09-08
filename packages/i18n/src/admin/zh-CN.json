@@ -144,7 +144,7 @@
   "account.update.errors.invalidEmail": "请输入有效的电子邮箱地址",
   "account.update.errors.emailTooLong": "电子邮箱不得超过 {max, number} 个字符",
   "account.update.errors.emailInUse": "此电子邮箱已被使用。",
-  "account.changePassword.intro": "其他活动会话将在其令牌过期前继续有效。如果您怀疑其他设备已被入侵，请在该设备上退出登录。",
+  "account.changePassword.intro": "更改密码后，所有设备都将退出登录。请使用新密码重新登录。",
   "account.changePassword.fields.current": "当前密码",
   "account.changePassword.fields.new": "新密码",
   "account.changePassword.fields.confirm": "确认新密码",

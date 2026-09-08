@@ -144,7 +144,7 @@
   "account.update.errors.invalidEmail": "유효한 이메일 주소를 입력하세요",
   "account.update.errors.emailTooLong": "이메일은 {max, number}자를 초과할 수 없습니다",
   "account.update.errors.emailInUse": "이미 사용 중인 이메일입니다.",
-  "account.changePassword.intro": "다른 활성 세션은 토큰이 만료될 때까지 계속 작동합니다. 다른 기기가 침해되었다고 의심되면 해당 기기에서 로그아웃하세요.",
+  "account.changePassword.intro": "비밀번호를 변경하면 모든 기기에서 로그아웃됩니다. 새 비밀번호로 다시 로그인하세요.",
   "account.changePassword.fields.current": "현재 비밀번호",
   "account.changePassword.fields.new": "새 비밀번호",
   "account.changePassword.fields.confirm": "새 비밀번호 확인",

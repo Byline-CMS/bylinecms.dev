@@ -7,8 +7,10 @@
  */
 
 import type { AdminStore } from '@byline/admin'
+import { eq } from 'drizzle-orm'
 import type { MySql2Database } from 'drizzle-orm/mysql2'
 
+import { adminUsers } from '../../database/schema/auth.js'
 import { createAdminPermissionsRepository } from './admin-permissions-repository.js'
 import { createAdminPreferencesRepository } from './admin-preferences-repository.js'
 import { createAdminRolesRepository } from './admin-roles-repository.js'
@@ -28,6 +30,18 @@ import type * as schema from '../../database/schema/index.js'
  */
 export function createAdminStore(db: MySql2Database<typeof schema>): AdminStore {
   return {
+    async withSessionLock(adminUserId, work) {
+      return db.transaction(async (tx) => {
+        await tx
+          .select({ id: adminUsers.id })
+          .from(adminUsers)
+          .where(eq(adminUsers.id, adminUserId))
+          .for('update')
+        const scoped = createAdminStore(tx)
+        const user = await scoped.adminUsers.getByIdForSignIn(adminUserId)
+        return work(scoped, user)
+      })
+    },
     signInRateLimits: createSignInRateLimitStore(db),
     adminUsers: createAdminUsersRepository(db),
     adminRoles: createAdminRolesRepository(db),

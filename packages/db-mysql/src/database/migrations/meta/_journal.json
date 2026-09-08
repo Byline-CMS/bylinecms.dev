@@ -15,6 +15,13 @@
       "when": 1788851939614,
       "tag": "0001_silky_revanche",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1788857653218,
+      "tag": "0002_common_jimmy_woo",
+      "breakpoints": true
     }
   ]
 }

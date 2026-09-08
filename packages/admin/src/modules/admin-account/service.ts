@@ -7,7 +7,10 @@
  */
 
 import { toAdminUser } from '../admin-users/dto.js'
-import { ERR_ADMIN_USER_EMAIL_IN_USE } from '../admin-users/errors.js'
+import {
+  ERR_ADMIN_USER_EMAIL_IN_USE,
+  ERR_ADMIN_USER_VERSION_CONFLICT,
+} from '../admin-users/errors.js'
 import { hashPassword, verifyPassword } from '../auth/password.js'
 import {
   ERR_ADMIN_ACCOUNT_INVALID_CURRENT_PASSWORD,
@@ -38,12 +41,8 @@ import type {
  *     in the new hash. A hijacked session cannot use this flow to lock
  *     out the legitimate owner.
  *
- * Note on session revocation: changing a password here does **not**
- * currently revoke other refresh tokens — existing access tokens stay
- * valid until their 15-minute expiry, and other refresh tokens remain
- * useable. A "sign out everywhere on password change" follow-up should
- * call `RefreshTokensRepository.revokeAllExcept(adminUserId, currentJti)`
- * once that lands.
+ * Native adapter password writes atomically advance the session generation and
+ * revoke every refresh session. External providers own their own revocation.
  */
 export class AdminAccountService {
   readonly #repo: AdminUsersRepository
@@ -96,6 +95,8 @@ export class AdminAccountService {
 
     const ok = await verifyPassword(request.currentPassword, withHash.password_hash)
     if (!ok) throw ERR_ADMIN_ACCOUNT_INVALID_CURRENT_PASSWORD()
+
+    if (withHash.vid !== request.vid) throw ERR_ADMIN_USER_VERSION_CONFLICT()
 
     const newHash = await hashPassword(request.newPassword)
     const row = await this.#repo.setPasswordHash(actorId, request.vid, newHash)

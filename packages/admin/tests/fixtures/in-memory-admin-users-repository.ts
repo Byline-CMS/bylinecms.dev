@@ -20,6 +20,8 @@ import type {
 /**
  * In-memory `AdminUsersRepository` for unit tests.
  *
+ * Models account revisions, generations, and a synchronous session registry.
+ * Full provider/transaction races are tested against real adapters.
  * Preserves the observable contract of the Postgres implementation,
  * including `vid`-based optimistic concurrency on content writes.
  * `setEnabled` is vid-less (last-writer-wins for admin toggles) and
@@ -28,6 +30,7 @@ import type {
 
 interface StoredRow extends AdminUserRow {
   password_hash: string
+  session_version: number
 }
 
 function matchesQuery(row: StoredRow, needle: string): boolean {
@@ -51,14 +54,24 @@ function compareOrder(a: StoredRow, b: StoredRow, field: ListAdminUsersOptions['
 
 export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
   /** Escape-hatch for tests that want to seed rows directly. */
-  __seed(row: StoredRow): void
+  __seed(row: Omit<StoredRow, 'session_version'> & { session_version?: number }): void
+  /** Session identities for service tests; this is not a native token provider. */
+  __issueSession(adminUserId: string): string
+  __activeSessions(adminUserId: string): string[]
   /** Escape-hatch to count rows for assertions. */
   __size(): number
 } {
   const rows = new Map<string, StoredRow>()
+  const sessions = new Map<string, { userId: string; revoked: boolean }>()
+
+  function revokeSessions(userId: string): void {
+    for (const session of sessions.values()) {
+      if (session.userId === userId) session.revoked = true
+    }
+  }
 
   function strip(row: StoredRow): AdminUserRow {
-    const { password_hash: _omit, ...rest } = row
+    const { password_hash: _omit, session_version: _version, ...rest } = row
     return rest
   }
 
@@ -68,7 +81,19 @@ export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
 
   return {
     __seed(row) {
-      rows.set(row.id, row)
+      rows.set(row.id, { session_version: 0, ...row })
+    },
+    __issueSession(userId) {
+      if (!rows.get(userId)?.is_enabled)
+        throw new Error('Cannot issue a session for a missing or disabled user')
+      const id = uuidv7()
+      sessions.set(id, { userId, revoked: false })
+      return id
+    },
+    __activeSessions(userId) {
+      return [...sessions]
+        .filter(([, session]) => session.userId === userId && !session.revoked)
+        .map(([id]) => id)
     },
     __size() {
       return rows.size
@@ -80,6 +105,7 @@ export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
       const row: StoredRow = {
         id,
         vid: 1,
+        session_version: 0,
         email: input.email.toLowerCase(),
         password_hash: input.password_hash,
         given_name: input.given_name ?? null,
@@ -105,6 +131,16 @@ export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
       return row ? strip(row) : null
     },
 
+    async getByIds(ids) {
+      return ids.flatMap((id) => {
+        const row = rows.get(id)
+        return row ? [strip(row)] : []
+      })
+    },
+    async getByIdForSignIn(id) {
+      const row = rows.get(id)
+      return row ? { ...row } : null
+    },
     async getByEmail(email) {
       const needle = email.toLowerCase()
       for (const row of rows.values()) {
@@ -160,6 +196,7 @@ export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
         ...(patch.username !== undefined ? { username: patch.username } : null),
         ...(patch.is_super_admin !== undefined ? { is_super_admin: patch.is_super_admin } : null),
         ...(patch.is_enabled !== undefined ? { is_enabled: patch.is_enabled } : null),
+        session_version: existing.session_version + (patch.is_enabled === false ? 1 : 0),
         ...(patch.is_email_verified !== undefined
           ? { is_email_verified: patch.is_email_verified }
           : null),
@@ -170,6 +207,7 @@ export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
         vid: existing.vid + 1,
         updated_at: now(),
       }
+      if (patch.is_enabled === false) revokeSessions(id)
       rows.set(id, updated)
       return strip(updated)
     },
@@ -180,9 +218,11 @@ export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
       const updated: StoredRow = {
         ...existing,
         password_hash: passwordHash,
+        session_version: existing.session_version + 1,
         vid: existing.vid + 1,
         updated_at: now(),
       }
+      revokeSessions(id)
       rows.set(id, updated)
       return strip(updated)
     },
@@ -190,9 +230,11 @@ export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
     async setEnabled(id, enabled) {
       const existing = rows.get(id)
       if (!existing) return
+      if (!enabled) revokeSessions(id)
       rows.set(id, {
         ...existing,
         is_enabled: enabled,
+        session_version: existing.session_version + (enabled ? 0 : 1),
         vid: existing.vid + 1,
         updated_at: now(),
       })
@@ -235,6 +277,9 @@ export function createInMemoryAdminUsersRepository(): AdminUsersRepository & {
       const existing = rows.get(id)
       if (!existing || existing.vid !== expectedVid) throw ERR_ADMIN_USER_VERSION_CONFLICT()
       rows.delete(id)
+      for (const [tokenId, session] of sessions) {
+        if (session.userId === id) sessions.delete(tokenId)
+      }
     },
   }
 }

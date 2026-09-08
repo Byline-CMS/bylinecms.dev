@@ -56,6 +56,7 @@ export const adminUsers = mysqlTable(
   'byline_admin_users',
   {
     id: uuidChar('id').primaryKey(),
+    session_version: int('session_version').notNull().default(0),
     vid: int('vid').notNull().default(1),
     given_name: varchar('given_name', { length: 100 }),
     family_name: varchar('family_name', { length: 100 }),
@@ -217,6 +218,7 @@ export const adminRefreshTokens = mysqlTable(
     admin_user_id: uuidChar('admin_user_id').notNull(),
     /** SHA-256 hex digest of the raw refresh-token string. 64 chars. */
     token_hash: varchar('token_hash', { length: 64 }).notNull().unique(),
+    session_version: int('session_version').notNull().default(-1),
     // fsp 6 throughout this table, matching pg — see `common.ts`'s
     // `auditTimestamp` docblock for why every temporal column in this
     // schema moved from fsp 3 to fsp 6.

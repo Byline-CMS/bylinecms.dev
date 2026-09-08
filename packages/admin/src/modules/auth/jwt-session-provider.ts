@@ -27,7 +27,7 @@ import { jwtVerify, SignJWT } from 'jose'
 import { v7 as uuidv7 } from 'uuid'
 
 import { verifyPassword } from './password.js'
-import { resolveActor } from './resolve-actor.js'
+import { resolveActor, resolveActorFromUser } from './resolve-actor.js'
 import type { AdminStore } from '../../store.js'
 
 const DEFAULT_ISSUER = 'byline'
@@ -120,23 +120,27 @@ export class JwtSessionProvider implements SessionProvider {
       throw ERR_ACCOUNT_DISABLED({ message: 'account disabled' })
     }
 
-    await users.recordLoginSuccess(row.id, args.ip ?? null)
-
-    const actor = await resolveActor(this.#store, row.id)
-    // resolveActor also checks is_enabled, but we just recorded success
-    // above, so null here would indicate a race (the account was disabled
-    // between the check and the resolve). Treat as disabled.
-    if (!actor) {
-      throw ERR_ACCOUNT_DISABLED({ message: 'account disabled' })
-    }
-
-    const tokens = await this.#issueTokens({
-      adminUserId: row.id,
-      ip: args.ip ?? null,
-      userAgent: args.userAgent ?? null,
+    return this.#store.withSessionLock(row.id, async (store, current) => {
+      if (!current?.is_enabled) throw ERR_ACCOUNT_DISABLED({ message: 'account disabled' })
+      // Password verification is deliberately outside the lock. Revalidate
+      // both the credential and generation before issuing under that lock.
+      if (
+        current.password_hash !== row.password_hash ||
+        current.session_version !== row.session_version
+      ) {
+        throw ERR_INVALID_CREDENTIALS({ message: 'credentials changed during sign-in' })
+      }
+      await store.adminUsers.recordLoginSuccess(row.id, args.ip ?? null)
+      const actor = await resolveActorFromUser(store, current)
+      if (!actor) throw ERR_ACCOUNT_DISABLED({ message: 'account disabled' })
+      const tokens = await this.#issueTokens(store, {
+        adminUserId: row.id,
+        sessionVersion: current.session_version,
+        ip: args.ip ?? null,
+        userAgent: args.userAgent ?? null,
+      })
+      return { ...tokens, actor }
     })
-
-    return { ...tokens, actor }
   }
 
   async verifyAccessToken(token: string): Promise<{ actor: AdminAuth }> {
@@ -150,80 +154,94 @@ export class JwtSessionProvider implements SessionProvider {
       throw ERR_INVALID_TOKEN({ message: 'access token verification failed', cause: err })
     }
 
-    if (payload.typ !== 'access') {
+    if (
+      payload.typ !== 'access' ||
+      typeof payload.sub !== 'string' ||
+      !Number.isSafeInteger(payload.sv) ||
+      payload.sv < 0
+    ) {
       throw ERR_INVALID_TOKEN({ message: 'unexpected token type' })
     }
 
-    const actor = await resolveActor(this.#store, payload.sub)
-    if (!actor) {
-      // The token was valid but the user is now disabled or deleted.
+    const current = await this.#store.adminUsers.getByIdForSignIn(payload.sub)
+    if (!current?.is_enabled) {
       throw ERR_ACCOUNT_DISABLED({ message: 'account disabled or deleted' })
     }
-
+    if (current.session_version !== payload.sv) {
+      throw ERR_REVOKED_TOKEN({ message: 'account session generation changed' })
+    }
+    const actor = await resolveActorFromUser(this.#store, current)
+    if (!actor) throw ERR_ACCOUNT_DISABLED({ message: 'account disabled or deleted' })
     return { actor }
   }
 
   async refreshSession(args: RefreshSessionArgs): Promise<SessionTokens> {
-    const refreshTokens = this.#store.refreshTokens
     const hash = hashToken(args.refreshToken)
-    const row = await refreshTokens.findByHash(hash)
+    const observed = await this.#store.refreshTokens.findByHash(hash)
+    if (!observed) throw ERR_INVALID_TOKEN({ message: 'refresh token not recognised' })
 
-    if (!row) {
-      throw ERR_INVALID_TOKEN({ message: 'refresh token not recognised' })
-    }
-
-    const now = this.#now()
-
-    // Already revoked?
-    if (row.revoked_at != null) {
-      if (row.rotated_to_id != null) {
-        // Rotated token replayed — the chain is compromised. Revoke every
-        // descendant so the attacker and the legitimate holder are both
-        // signed out.
-        await refreshTokens.revokeChain(row.id, now)
-        throw ERR_REVOKED_TOKEN({
-          message: 'refresh token was already rotated — chain revoked',
+    const outcome = await this.#store.withSessionLock(
+      observed.admin_user_id,
+      async (store, user) => {
+        if (!user?.is_enabled)
+          throw ERR_ACCOUNT_DISABLED({ message: 'account disabled or deleted' })
+        const refreshTokens = store.refreshTokens
+        const row = await refreshTokens.findByHash(hash)
+        if (!row) throw ERR_INVALID_TOKEN({ message: 'refresh token not recognised' })
+        const now = this.#now()
+        if (row.revoked_at != null) {
+          if (row.rotated_to_id != null) {
+            await refreshTokens.revokeChain(row.id, now)
+          }
+          // Return the error so replay revocation commits before it is thrown.
+          // Existing strict replay behavior remains pending the step-3 protocol.
+          return { error: ERR_REVOKED_TOKEN({ message: 'refresh token has been revoked' }) }
+        }
+        if (row.session_version !== user.session_version) {
+          throw ERR_REVOKED_TOKEN({ message: 'account session generation changed' })
+        }
+        if (row.expires_at.getTime() <= now.getTime()) {
+          throw ERR_INVALID_TOKEN({ message: 'refresh token expired' })
+        }
+        const newId = uuidv7()
+        const newRefreshPlain = generateOpaqueToken()
+        const refreshExpiresAt = new Date(now.getTime() + this.#refreshTtl * 1000)
+        await refreshTokens.issue({
+          id: newId,
+          admin_user_id: row.admin_user_id,
+          token_hash: hashToken(newRefreshPlain),
+          session_version: user.session_version,
+          expires_at: refreshExpiresAt,
+          user_agent: args.userAgent ?? null,
+          ip: args.ip ?? null,
         })
+        await refreshTokens.markRotated(row.id, newId, now)
+        const accessToken = await this.#signAccessToken(
+          row.admin_user_id,
+          user.session_version,
+          now
+        )
+        return {
+          tokens: {
+            accessToken,
+            refreshToken: newRefreshPlain,
+            accessTokenExpiresAt: new Date(now.getTime() + this.#accessTtl * 1000),
+            refreshTokenExpiresAt: refreshExpiresAt,
+          },
+        }
       }
-      throw ERR_REVOKED_TOKEN({ message: 'refresh token has been revoked' })
-    }
-
-    if (row.expires_at.getTime() <= now.getTime()) {
-      throw ERR_INVALID_TOKEN({ message: 'refresh token expired' })
-    }
-
-    // Rotate: mint a new token, mark the old one rotated_to the new id.
-    const newId = uuidv7()
-    const newRefreshPlain = generateOpaqueToken()
-    const newRefreshHash = hashToken(newRefreshPlain)
-    const refreshExpiresAt = new Date(now.getTime() + this.#refreshTtl * 1000)
-
-    await refreshTokens.issue({
-      id: newId,
-      admin_user_id: row.admin_user_id,
-      token_hash: newRefreshHash,
-      expires_at: refreshExpiresAt,
-      user_agent: args.userAgent ?? null,
-      ip: args.ip ?? null,
-    })
-    await refreshTokens.markRotated(row.id, newId, now)
-
-    const accessToken = await this.#signAccessToken(row.admin_user_id, now)
-    const accessExpiresAt = new Date(now.getTime() + this.#accessTtl * 1000)
-
-    return {
-      accessToken,
-      refreshToken: newRefreshPlain,
-      accessTokenExpiresAt: accessExpiresAt,
-      refreshTokenExpiresAt: refreshExpiresAt,
-    }
+    )
+    if ('error' in outcome) throw outcome.error
+    return outcome.tokens
   }
 
   async revokeSession(refreshToken: string): Promise<void> {
     const refreshTokens = this.#store.refreshTokens
     const row = await refreshTokens.findByHash(hashToken(refreshToken))
     if (!row) return // Idempotent — unknown tokens are a no-op.
-    await refreshTokens.revoke(row.id, this.#now())
+    await this.#store.withSessionLock(row.admin_user_id, async (store) => {
+      await store.refreshTokens.revoke(row.id, this.#now())
+    })
   }
 
   async resolveActor(adminUserId: string): Promise<AdminAuth | null> {
@@ -234,15 +252,19 @@ export class JwtSessionProvider implements SessionProvider {
   // Internals
   // -----------------------------------------------------------------------
 
-  async #issueTokens(input: {
-    adminUserId: string
-    ip: string | null
-    userAgent: string | null
-  }): Promise<SessionTokens> {
+  async #issueTokens(
+    store: AdminStore,
+    input: {
+      sessionVersion: number
+      adminUserId: string
+      ip: string | null
+      userAgent: string | null
+    }
+  ): Promise<SessionTokens> {
     const now = this.#now()
-    const refreshTokens = this.#store.refreshTokens
+    const refreshTokens = store.refreshTokens
 
-    const accessToken = await this.#signAccessToken(input.adminUserId, now)
+    const accessToken = await this.#signAccessToken(input.adminUserId, input.sessionVersion, now)
     const accessExpiresAt = new Date(now.getTime() + this.#accessTtl * 1000)
 
     const refreshPlain = generateOpaqueToken()
@@ -252,6 +274,7 @@ export class JwtSessionProvider implements SessionProvider {
       id: uuidv7(),
       admin_user_id: input.adminUserId,
       token_hash: refreshHash,
+      session_version: input.sessionVersion,
       expires_at: refreshExpiresAt,
       user_agent: input.userAgent,
       ip: input.ip,
@@ -265,10 +288,10 @@ export class JwtSessionProvider implements SessionProvider {
     }
   }
 
-  async #signAccessToken(adminUserId: string, now: Date): Promise<string> {
+  async #signAccessToken(adminUserId: string, sessionVersion: number, now: Date): Promise<string> {
     const iat = Math.floor(now.getTime() / 1000)
     const exp = iat + this.#accessTtl
-    return new SignJWT({ typ: 'access' })
+    return new SignJWT({ typ: 'access', sv: sessionVersion })
       .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
       .setSubject(adminUserId)
       .setIssuer(this.#issuer)

@@ -16,6 +16,7 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { v7 as uuidv7 } from 'uuid'
 
 import { adminUsers } from '../../database/schema/auth.js'
+import { createRefreshTokensRepository } from './refresh-tokens-repository.js'
 import type * as schema from '../../database/schema/index.js'
 
 /**
@@ -116,7 +117,11 @@ export function createAdminUsersRepository(
 
     async getByEmailForSignIn(email) {
       const [row] = await db
-        .select({ ...PUBLIC_COLUMNS, password_hash: adminUsers.password })
+        .select({
+          ...PUBLIC_COLUMNS,
+          password_hash: adminUsers.password,
+          session_version: adminUsers.session_version,
+        })
         .from(adminUsers)
         .where(eq(adminUsers.email, email.toLowerCase()))
       return row ?? null
@@ -124,7 +129,11 @@ export function createAdminUsersRepository(
 
     async getByIdForSignIn(id) {
       const [row] = await db
-        .select({ ...PUBLIC_COLUMNS, password_hash: adminUsers.password })
+        .select({
+          ...PUBLIC_COLUMNS,
+          password_hash: adminUsers.password,
+          session_version: adminUsers.session_version,
+        })
         .from(adminUsers)
         .where(eq(adminUsers.id, id))
       return row ?? null
@@ -179,39 +188,57 @@ export function createAdminUsersRepository(
       if (patch.email !== undefined) updateSet.email = patch.email.toLowerCase()
       if (patch.is_super_admin !== undefined) updateSet.is_super_admin = patch.is_super_admin
       if (patch.is_enabled !== undefined) updateSet.is_enabled = patch.is_enabled
+      if (patch.is_enabled === false) {
+        updateSet.session_version = sql`${adminUsers.session_version} + 1`
+      }
       if (patch.is_email_verified !== undefined)
         updateSet.is_email_verified = patch.is_email_verified
       if (patch.remember_me !== undefined) updateSet.remember_me = patch.remember_me
       if (patch.preferred_locale !== undefined) updateSet.preferred_locale = patch.preferred_locale
 
-      const [row] = await db
-        .update(adminUsers)
-        .set(updateSet)
-        .where(and(eq(adminUsers.id, id), eq(adminUsers.vid, expectedVid)))
-        .returning(PUBLIC_COLUMNS)
-      if (!row) throw ERR_ADMIN_USER_VERSION_CONFLICT()
-      return row
+      return db.transaction(async (tx) => {
+        const [row] = await tx
+          .update(adminUsers)
+          .set(updateSet)
+          .where(and(eq(adminUsers.id, id), eq(adminUsers.vid, expectedVid)))
+          .returning(PUBLIC_COLUMNS)
+        if (!row) throw ERR_ADMIN_USER_VERSION_CONFLICT()
+        if (patch.is_enabled === false) await createRefreshTokensRepository(tx).revokeAllForUser(id)
+        return row
+      })
     },
 
     async setPasswordHash(id, expectedVid, passwordHash): Promise<AdminUserRow> {
-      const [row] = await db
-        .update(adminUsers)
-        .set({
-          password: passwordHash,
-          updated_at: new Date(),
-          vid: sql`${adminUsers.vid} + 1`,
-        })
-        .where(and(eq(adminUsers.id, id), eq(adminUsers.vid, expectedVid)))
-        .returning(PUBLIC_COLUMNS)
-      if (!row) throw ERR_ADMIN_USER_VERSION_CONFLICT()
-      return row
+      return db.transaction(async (tx) => {
+        const [row] = await tx
+          .update(adminUsers)
+          .set({
+            password: passwordHash,
+            session_version: sql`${adminUsers.session_version} + 1`,
+            updated_at: new Date(),
+            vid: sql`${adminUsers.vid} + 1`,
+          })
+          .where(and(eq(adminUsers.id, id), eq(adminUsers.vid, expectedVid)))
+          .returning(PUBLIC_COLUMNS)
+        if (!row) throw ERR_ADMIN_USER_VERSION_CONFLICT()
+        await createRefreshTokensRepository(tx).revokeAllForUser(id)
+        return row
+      })
     },
 
     async setEnabled(id, enabled) {
-      await db
-        .update(adminUsers)
-        .set({ is_enabled: enabled, updated_at: new Date(), vid: sql`${adminUsers.vid} + 1` })
-        .where(eq(adminUsers.id, id))
+      await db.transaction(async (tx) => {
+        await tx
+          .update(adminUsers)
+          .set({
+            is_enabled: enabled,
+            updated_at: new Date(),
+            vid: sql`${adminUsers.vid} + 1`,
+            ...(!enabled ? { session_version: sql`${adminUsers.session_version} + 1` } : {}),
+          })
+          .where(eq(adminUsers.id, id))
+        if (!enabled) await createRefreshTokensRepository(tx).revokeAllForUser(id)
+      })
     },
 
     async setPreferredLocale(id, locale) {

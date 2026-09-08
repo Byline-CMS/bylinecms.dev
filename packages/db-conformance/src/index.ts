@@ -27,6 +27,7 @@ import { publishSchedulesSuite } from './suites/publish-schedules.js'
 import { restoreSuite } from './suites/restore.js'
 import { scheduledStructuralRevisionsSuite } from './suites/scheduled-structural-revisions.js'
 import { schedulerSuite } from './suites/scheduler.js'
+import { sessionRevocationSuite } from './suites/session-revocation.js'
 import { singletonLifecycleSuite } from './suites/singleton-lifecycle.js'
 import { singletonMappingSuite } from './suites/singleton-mapping.js'
 import { systemFieldsDirectWriteSuite } from './suites/system-fields-direct-write.js'
@@ -211,6 +212,7 @@ export function runAdapterConformanceSuite(hooks: ConformanceHooks): void {
   singletonMappingSuite(hooks)
   singletonLifecycleSuite(hooks)
   adminStoreSuite(hooks)
+  sessionRevocationSuite(hooks)
   if (hooks.createSchedulerStore) {
     schedulerSuite(hooks)
   }

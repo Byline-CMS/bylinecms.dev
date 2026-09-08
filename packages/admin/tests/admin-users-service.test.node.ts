@@ -256,7 +256,9 @@ describe('AdminUsersService', () => {
       const created = await service.createUser({
         email: 'alice@example.com',
         password: 'old-password-12',
+        is_enabled: true,
       })
+      repo.__issueSession(created.id)
       const response = await service.setPassword({
         id: created.id,
         vid: created.vid,
@@ -268,6 +270,8 @@ describe('AdminUsersService', () => {
       const row = await repo.getByEmailForSignIn('alice@example.com')
       expect(await verifyPassword('new-password-12', row?.password_hash)).toBe(true)
       expect(await verifyPassword('old-password-12', row?.password_hash)).toBe(false)
+      expect(row?.session_version).toBe(1)
+      expect(repo.__activeSessions(created.id)).toEqual([])
     })
 
     it('throws VERSION_CONFLICT on a stale vid', async () => {
@@ -305,16 +309,19 @@ describe('AdminUsersService', () => {
     })
 
     it('disables another user', async () => {
-      const { service } = makeService()
+      const { repo, service } = makeService()
       const target = await service.createUser({
         email: 'target@example.com',
         password: 'correct-horse-battery-staple',
         is_enabled: true,
       })
+      repo.__issueSession(target.id)
       const actor = makeActor('00000000-0000-7000-8000-000000000001')
       await service.disableUser(actor, { id: target.id })
       const fetched = await service.getUser({ id: target.id })
       expect(fetched.is_enabled).toBe(false)
+      expect((await repo.getByIdForSignIn(target.id))?.session_version).toBe(1)
+      expect(repo.__activeSessions(target.id)).toEqual([])
     })
 
     it('refuses self-disable', async () => {

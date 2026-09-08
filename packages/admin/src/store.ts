@@ -9,7 +9,10 @@
 import type { AdminPermissionsRepository } from './modules/admin-permissions/repository.js'
 import type { AdminPreferencesRepository } from './modules/admin-preferences/repository.js'
 import type { AdminRolesRepository } from './modules/admin-roles/repository.js'
-import type { AdminUsersRepository } from './modules/admin-users/repository.js'
+import type {
+  AdminUsersRepository,
+  AdminUserWithPasswordRow,
+} from './modules/admin-users/repository.js'
 import type { RefreshTokensRepository } from './modules/auth/refresh-tokens-repository.js'
 import type { SignInRateLimitStore } from './modules/auth/sign-in-rate-limiter.js'
 
@@ -28,6 +31,16 @@ import type { SignInRateLimitStore } from './modules/auth/sign-in-rate-limiter.j
  */
 
 export interface AdminStore {
+  /**
+   * Serialize native issuance/revocation against account mutations. Lock the
+   * account row first, then operate on refresh rows through the scoped store.
+   * The callback and all its writes commit together or roll back together.
+   * Never retain the scoped repositories beyond the callback. No automatic retries.
+   */
+  withSessionLock<T>(
+    adminUserId: string,
+    work: (store: AdminStore, user: AdminUserWithPasswordRow | null) => Promise<T>
+  ): Promise<T>
   signInRateLimits: SignInRateLimitStore
   adminUsers: AdminUsersRepository
   adminRoles: AdminRolesRepository

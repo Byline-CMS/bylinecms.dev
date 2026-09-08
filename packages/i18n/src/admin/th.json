@@ -144,7 +144,7 @@
   "account.update.errors.invalidEmail": "กรุณากรอกที่อยู่อีเมลที่ถูกต้อง",
   "account.update.errors.emailTooLong": "อีเมลต้องมีไม่เกิน {max, number} ตัวอักษร",
   "account.update.errors.emailInUse": "อีเมลนี้ถูกใช้งานแล้ว",
-  "account.changePassword.intro": "เซสชันอื่นที่ยังใช้งานอยู่จะทำงานต่อไปจนกว่าโทเค็นจะหมดอายุ หากคุณสงสัยว่าอุปกรณ์อื่นถูกบุกรุก ให้ออกจากระบบในอุปกรณ์เหล่านั้น",
+  "account.changePassword.intro": "การเปลี่ยนรหัสผ่านจะออกจากระบบในทุกอุปกรณ์ กรุณาเข้าสู่ระบบอีกครั้งด้วยรหัสผ่านใหม่",
   "account.changePassword.fields.current": "รหัสผ่านปัจจุบัน",
   "account.changePassword.fields.new": "รหัสผ่านใหม่",
   "account.changePassword.fields.confirm": "ยืนยันรหัสผ่านใหม่",

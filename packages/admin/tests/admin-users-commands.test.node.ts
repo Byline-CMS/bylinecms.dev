@@ -37,6 +37,11 @@ function makeDeps(): { store: AdminStore } {
   // `AdminStore` without wiring fakes we do not exercise here.
   const store: AdminStore = {
     adminUsers: createInMemoryAdminUsersRepository(),
+    withSessionLock: () => {
+      throw new Error('Use adapter conformance for session transactions')
+    },
+    signInRateLimits: undefined as never,
+    adminPreferences: undefined as never,
     adminRoles: undefined as never,
     adminPermissions: undefined as never,
     refreshTokens: undefined as never,

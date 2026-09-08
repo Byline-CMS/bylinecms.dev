@@ -21,6 +21,7 @@ export interface RefreshTokenRow {
   id: string
   admin_user_id: string
   token_hash: string
+  session_version: number
   issued_at: Date
   expires_at: Date
   revoked_at: Date | null
@@ -34,6 +35,8 @@ export interface IssueRefreshTokenInput {
   id: string
   admin_user_id: string
   token_hash: string
+  /** Account generation observed under the native issuance lock. */
+  session_version: number
   expires_at: Date
   user_agent?: string | null
   ip?: string | null
@@ -47,9 +50,10 @@ export interface RefreshTokensRepository {
   /** Stamp `last_used_at` for observability. */
   touch(id: string, at?: Date): Promise<void>
   /**
-   * Atomically revoke `oldId` and set its `rotated_to_id` to `newId`.
-   * Caller is responsible for inserting the new row (via `issue`) before
-   * calling this — ordering is a contract.
+   * Revoke `oldId` and set its `rotated_to_id` to `newId`. This is not
+   * independently a compare-and-swap. Native callers must hold the account
+   * lock, reread the predecessor, and insert the successor before this write,
+   * all through the same `withSessionLock` transaction.
    */
   markRotated(oldId: string, newId: string, at?: Date): Promise<void>
   /** Revoke a single token. Idempotent. */

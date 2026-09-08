@@ -50,6 +50,7 @@ export const adminUsers = pgTable(
   'byline_admin_users',
   {
     id: uuid('id').primaryKey(),
+    session_version: integer('session_version').notNull().default(0),
     vid: integer('vid').notNull().default(1),
     given_name: varchar('given_name', { length: 100 }),
     family_name: varchar('family_name', { length: 100 }),
@@ -196,6 +197,7 @@ export const adminRefreshTokens = pgTable(
       .references(() => adminUsers.id, { onDelete: 'cascade' }),
     /** SHA-256 hex digest of the raw refresh-token string. 64 chars. */
     token_hash: varchar('token_hash', { length: 64 }).notNull().unique(),
+    session_version: integer('session_version').notNull().default(-1),
     issued_at: timestamp('issued_at', { precision: 6, withTimezone: true }).notNull().defaultNow(),
     expires_at: timestamp('expires_at', { precision: 6, withTimezone: true }).notNull(),
     revoked_at: timestamp('revoked_at', { precision: 6, withTimezone: true }),

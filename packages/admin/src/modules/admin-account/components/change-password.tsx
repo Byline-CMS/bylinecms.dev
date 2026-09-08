@@ -19,10 +19,8 @@
  *     password surfaces as `admin.account.invalidCurrentPassword`.
  *   - Confirmation field catches typos before round-trip.
  *
- * Caveat: changing the password here does not revoke other active
- * sessions today. Existing access tokens stay valid until expiry
- * (~15 min); a "sign out everywhere on password change" follow-up
- * will close that gap.
+ * Successful password changes end native sessions. Confirmation remains visible
+ * until the user reloads the protected account page to reach sign-in.
  */
 
 import { useMemo, useState } from 'react'
@@ -126,6 +124,19 @@ export function ChangeAccountPassword({ account, onClose, onSuccess }: ChangePas
       }
     },
   })
+
+  if (successMessage) {
+    return (
+      <div className={cx('byline-account-change-password-wrap', styles.wrap)}>
+        <div role="status">
+          <Alert intent="success">{successMessage}</Alert>
+        </div>
+        <Button type="button" intent="primary" onClick={() => window.location.reload()}>
+          {t('auth.signIn.title')}
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className={cx('byline-account-change-password-wrap', styles.wrap)}>

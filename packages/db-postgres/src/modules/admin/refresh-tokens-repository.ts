@@ -22,12 +22,16 @@ export function createRefreshTokensRepository(
 ): RefreshTokensRepository {
   return {
     async issue(input): Promise<RefreshTokenRow> {
+      if (!Number.isSafeInteger(input.session_version) || input.session_version < -1) {
+        throw new Error('issueRefreshToken: session_version must be an integer >= -1')
+      }
       const [row] = await db
         .insert(adminRefreshTokens)
         .values({
           id: input.id,
           admin_user_id: input.admin_user_id,
           token_hash: input.token_hash,
+          session_version: input.session_version,
           expires_at: input.expires_at,
           user_agent: input.user_agent ?? null,
           ip: input.ip ?? null,

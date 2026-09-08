@@ -9,6 +9,7 @@
 import { AdminAuth } from '@byline/auth'
 
 import type { AdminStore } from '../../store.js'
+import type { AdminUserRow } from '../admin-users/repository.js'
 
 /**
  * Build an `AdminAuth` from a user id by reading the admin-users row and
@@ -29,10 +30,18 @@ export async function resolveActor(
   adminUserId: string
 ): Promise<AdminAuth | null> {
   const user = await store.adminUsers.getById(adminUserId)
+  return resolveActorFromUser(store, user)
+}
+
+/** Internal helper: reuse the account snapshot already checked by native authentication. */
+export async function resolveActorFromUser(
+  store: AdminStore,
+  user: AdminUserRow | null
+): Promise<AdminAuth | null> {
   if (!user) return null
   if (!user.is_enabled) return null
 
-  const abilities = await store.adminPermissions.listAbilitiesForUser(adminUserId)
+  const abilities = await store.adminPermissions.listAbilitiesForUser(user.id)
 
   return new AdminAuth({
     id: user.id,

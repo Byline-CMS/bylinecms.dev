@@ -42,11 +42,15 @@ export function createRefreshTokensRepository(
 ): RefreshTokensRepository {
   return {
     async issue(input): Promise<RefreshTokenRow> {
+      if (!Number.isSafeInteger(input.session_version) || input.session_version < -1) {
+        throw new Error('issueRefreshToken: session_version must be an integer >= -1')
+      }
       const now = new Date()
       const row: RefreshTokenRow = {
         id: input.id,
         admin_user_id: input.admin_user_id,
         token_hash: input.token_hash,
+        session_version: input.session_version,
         issued_at: now,
         expires_at: input.expires_at,
         revoked_at: null,
@@ -59,6 +63,7 @@ export function createRefreshTokensRepository(
         id: row.id,
         admin_user_id: row.admin_user_id,
         token_hash: row.token_hash,
+        session_version: row.session_version,
         issued_at: now,
         expires_at: row.expires_at,
         user_agent: row.user_agent,
