@@ -873,6 +873,7 @@
     "packages/host-tanstack-start/src/integrations/analytics-events.ts|type|AnalyticsRequestContext",
     "packages/host-tanstack-start/src/integrations/byline-ai.tsx|export|aiFetchAdapter",
     "packages/host-tanstack-start/src/integrations/serve-uploads.ts|export|createUploadsHandler",
+    "packages/host-tanstack-start/src/integrations/serve-uploads.ts|type|UploadsHandlerOptions",
     "packages/host-tanstack-start/src/integrations/start-errors.ts|export|BylineCodedError",
     "packages/host-tanstack-start/src/routes/index.ts|export|getAdminRouteId",
     "packages/host-tanstack-start/src/routes/index.ts|export|getAdminRoutePath",
