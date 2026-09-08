@@ -1,12 +1,12 @@
 ---
-"@byline/admin": major
-"@byline/auth": major
-"@byline/core": major
-"@byline/client": major
-"@byline/host-tanstack-start": major
-"@byline/db-postgres": major
-"@byline/db-mysql": major
-"@byline/cli": major
+"@byline/admin": minor
+"@byline/auth": minor
+"@byline/core": minor
+"@byline/client": minor
+"@byline/host-tanstack-start": minor
+"@byline/db-postgres": minor
+"@byline/db-mysql": minor
+"@byline/cli": minor
 ---
 
 Require pre-verification protection for TanStack password sign-in. Existing installations must configure it before deploying this release; missing protection fails closed with HTTP 503. Custom admin stores must implement `signInRateLimits` and custom limiters must implement capacity acquisition as well as counter admission.
