@@ -16,6 +16,102 @@ Date: 2026-09-08.
 
 Status: steps 1, 2, and 3 are approved. Independent combined R2/R3 review accepted the revocation semantics, login membership, coordination protocol, and pre-handler retry boundary. Release preparation remains outstanding; review approval is not production-release authorization.
 
+## Release preparation handoff (2026-09-08)
+
+Prepared on the secondary machine. The release itself runs on Tony's main machine, which holds the
+environment files this one lacks. Everything below is committed; the database repairs are local
+state and do **not** travel with Git.
+
+### Migrations squashed
+
+Commits `ca61c0e1` and `7fe9ae57`. Each adapter now ships one baseline, one journal entry, and one
+snapshot:
+
+| Adapter | Baseline | Journal `when` | `sha256` of the file |
+| --- | --- | --- | --- |
+| PostgreSQL | `0000_lively_talisman.sql` | 1788880329240 | `2490ac092c5bc7ca96982bfbe61ea823ef9d1835d07efe33ec3b695b4512e704` |
+| MySQL | `0000_kind_exodus.sql` | 1788879988783 | `2baa9a5cf7c1e5105bf830c95e2412e79282ccc81f2e98c4749b989f909d3411` |
+
+`ca61c0e1` deleted the four PostgreSQL migration files without writing a replacement while leaving
+four journal entries, which broke every PostgreSQL migrate path; `7fe9ae57` corrected it. Verify
+both directories contain a matching `.sql` for every journal tag before trusting a green run:
+`readMigrationFiles` throws `No file <tag>.sql found` when one is missing.
+
+### CLI baselines synchronized
+
+Commit `5e29ec00`. The template bundles carry the two baselines above byte-for-byte with their
+journals and no snapshots, which is what `baseline-drift.test.ts` requires.
+
+| Gate | Result |
+| --- | --- |
+| `src/lib/baseline-drift.test.ts` | 3 / 3 — the two long-deferred failures are closed |
+| `pnpm --filter @byline/cli test` | 362 / 362 across 31 files |
+| `pnpm --filter @byline/cli check:templates` | four dialect/config template typechecks passed |
+| `pnpm --filter @byline/cli check:artifact` | passed — 4 baseline files, no snapshots |
+| `node scripts/check-native-sql-history.mjs --base 7cc6cd14` | passed — 15 released scripts unchanged |
+
+`check:artifact` inspects `dist/`, so run `pnpm --filter @byline/cli build` after changing
+`src/templates`; otherwise it fails against stale copies of the previous baselines.
+
+### Local database ledgers repaired on this machine only
+
+Every dev and test database predated the squash. Repair is a ledger rewrite, not a schema change:
+drizzle applies a migration only when `lastDbMigration.created_at < folderMillis`, so one row
+carrying the baseline's `sha256` and its journal `when` makes the migrator a no-op. Drizzle does not
+verify the hash at migrate time; record the true one regardless.
+
+| Database | Action | Verification |
+| --- | --- | --- |
+| PostgreSQL `byline_dev` | ledger replaced with the single baseline row | `drizzle-kit migrate` ran clean and left the row untouched |
+| MySQL `byline_dev` | ledger replaced with the single baseline row | skip condition confirmed against the journal `when` |
+| PostgreSQL `byline_test` | rebuilt from empty | 358 / 358 conformance through the documented command, no `.env.test.local` override |
+| PostgreSQL `byline_session_security_test` | ledger replaced | global-setup migrate plus integration tests passed |
+| MySQL `byline_test` | ledger replaced | global-setup migrate plus integration tests passed |
+
+`byline_test` on PostgreSQL needed a rebuild rather than a repair: its schema predated the v5 squash
+entirely — 24 tables, no `byline_admin_login_sessions`, no `sid`. `db_init.sh` prompts for the
+`postgres` superuser password and the `byline` role lacks `CREATEDB`, so the equivalent ran inside
+the role's own authority as `DROP SCHEMA drizzle CASCADE; DROP SCHEMA public CASCADE; CREATE SCHEMA
+public;`. That is exact here because the database carries no extension beyond `plpgsql` and no
+schema besides `public` and `drizzle`. Confirm both before reusing the shortcut elsewhere.
+
+Before comparing table counts, note that `byline_dev` legitimately holds ten tables the baseline
+does not create — the eight `byline_analytics_*` and two `byline_search_*` tables, each owned by an
+independent migration stream with its own ledger.
+
+The main machine's own databases need the same treatment before `pnpm drizzle:migrate` or
+`pnpm test:integration` will run there.
+
+### Gates that could not run on this machine
+
+All five are missing local configuration, not defects. Each fails at environment resolution before
+touching a database.
+
+| Package | Missing |
+| --- | --- |
+| `@byline/cli` | `BYLINE_CLI_POSTGRES_ADMIN_URL` — a superuser URL for its fresh-install tests |
+| `@byline/search-postgres`, `@byline/search-mysql` | `packages/search-*/.env.test` |
+| `@byline/analytics-postgres`, `@byline/analytics-mysql` | `packages/analytics-*/.env.test` |
+| root `drizzle:migrate` (MySQL half) | `packages/db-mysql/.env` |
+
+The rest of the integration gate passed here: 21 of 26 turbo tasks, with `db-postgres` 10 files,
+`db-mysql` 13 files, and `client` 19 files all green.
+
+The CLI integration tests are the only ones that exercise a fresh install against a real database
+from the new baselines. Run them on the release machine before publishing; nothing here proves that
+path end to end.
+
+### Remaining release work
+
+- [ ] Run the four missing-environment suites above, then the full `pnpm test:integration`.
+- [ ] Rerun the production build; the last recorded one predates the review corrections.
+- [ ] Run the release sequence. Publishing has previously dead-ended on passkey 2FA under
+      `pnpm publish`; `pnpm pack` plus `npm publish` with manual tags is the known-good path.
+- [ ] Review both downstream production applications and their deployment configuration.
+- [ ] Perform one coordinated stopped-instance `sv`/`sid` cutover: stop every instance, apply the
+      native SQL, restart together. Legacy credentials missing either claim fail closed, so every
+      administrator signs in once.
+
 ## Combined R2/R3 approval and remaining work (2026-09-08)
 
 The user supplied the independent review titled “Combined R2/R3 review — approved.” R2 and R3 are closed. This approval supersedes earlier pending/rejected review statements and design gates retained below as historical context. It does not claim additional browser fault-injection coverage beyond the recorded evidence.
@@ -38,7 +134,7 @@ Tony will handle release preparation. Downstream application migration will cont
 
 Release prerequisites remain open and are not R2/R3 gates:
 
-- [ ] Squash development migrations and synchronize CLI baselines; close the two deferred baseline tests.
+- [x] Squash development migrations and synchronize CLI baselines; close the two deferred baseline tests. Done in `ca61c0e1`, `7fe9ae57`, and `5e29ec00`; see the release-preparation handoff above.
 - [ ] Rerun the production build and final release gates after release preparation.
 - [ ] Review both downstream production applications and their deployment configurations.
 - [ ] Perform one coordinated stopped-instance `sv`/`sid` cutover, applying migrations before restarting all instances and requiring fresh sign-in once.
@@ -191,7 +287,8 @@ No live passwords, JWT secrets, cookies, or database credentials are included in
 - [x] D3 cookie gate: Tony accepted the detected account-switch residual with pre-handler sid enforcement and acknowledgement before further work.
 - [x] Step 3: implement, test, and review atomic refresh and lineage revocation.
 - [ ] Review the two downstream production applications with the user.
-- [ ] Complete release squash, CLI baseline synchronization, full gates, and rollout verification.
+- [x] Release squash and CLI baseline synchronization (`ca61c0e1`, `7fe9ae57`, `5e29ec00`).
+- [ ] Full release gates, production build, publish, and rollout verification. Runs on Tony's main machine, which holds the environment files listed in the release-preparation handoff.
 
 Implementation commit: `4d02070359e3e81fbf855ccc2cc5e92939d92efd` — `fix: hardened password sign-in admission`. The following `specs:` commit contains this handoff. Both commits use the required DCO sign-off; no co-author or AI-attribution trailers are present.
 
