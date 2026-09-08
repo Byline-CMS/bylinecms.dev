@@ -1,5 +1,11 @@
 # @byline/i18n
 
+## 5.1.0
+
+### Patch Changes
+
+- @byline/ui@5.1.0
+
 ## 5.0.0
 
 ### Major Changes

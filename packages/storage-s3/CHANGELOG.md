@@ -1,5 +1,12 @@
 # @byline/storage-s3
 
+## 5.1.0
+
+### Patch Changes
+
+- Updated dependencies [4d02070]
+  - @byline/core@5.1.0
+
 ## 5.0.0
 
 ### Patch Changes

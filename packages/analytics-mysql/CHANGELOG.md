@@ -1,5 +1,11 @@
 # @byline/analytics-mysql
 
+## 5.1.0
+
+### Patch Changes
+
+- @byline/analytics@5.1.0
+
 ## 5.0.0
 
 ### Patch Changes
