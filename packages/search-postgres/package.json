@@ -52,7 +52,8 @@
   ],
   "dependencies": {
     "@byline/core": "workspace:*",
-    "@byline/search-analysis": "workspace:*"
+    "@byline/search-analysis": "workspace:*",
+    "@types/pg": "^8.23.1"
   },
   "peerDependencies": {
     "pg": "^8.21.0"
@@ -61,7 +62,6 @@
     "@biomejs/biome": "2.5.12",
     "@byline/search-conformance": "workspace:*",
     "@types/node": "^26.5.0",
-    "@types/pg": "^8.23.1",
     "chokidar": "^5.0.0",
     "chokidar-cli": "^3.0.0",
     "dotenv": "^17.4.2",
