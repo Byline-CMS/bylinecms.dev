@@ -1,5 +1,13 @@
 # @byline/analytics
 
+## 5.1.2
+
+### Patch Changes
+
+- Fixed **`@byline/db-postgres`**, **`@byline/analytics-postgres`** and **`@byline/search-postgres`** publishing `pg` types in their public declarations while `@types/pg` was only a devDependency, which left consumers with an untyped `pool` and implicit-any errors in their own code.
+- Updated dependencies
+  - @byline/core@5.1.2
+
 ## 5.1.1
 
 ### Patch Changes
