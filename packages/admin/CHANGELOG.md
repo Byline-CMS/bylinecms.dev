@@ -1,5 +1,18 @@
 # @byline/admin
 
+## 5.1.1
+
+### Patch Changes
+
+- Styled and translated the account-mismatch session interstitial in **`@byline/host-tanstack-start`** — it now renders a centred card using the admin's own typography and colour tokens, with UI Kit buttons, across all eight admin locales.
+- Updated dependencies
+  - @byline/analytics@5.1.1
+  - @byline/analytics-agent@5.1.1
+  - @byline/auth@5.1.1
+  - @byline/core@5.1.1
+  - @byline/i18n@5.1.1
+  - @byline/ui@5.1.1
+
 ## 5.1.0
 
 ### Minor Changes
