@@ -14,7 +14,7 @@ Companions:
 
 Date: 2026-09-08.
 
-Status: steps 1, 2, and 3 are approved. Independent combined R2/R3 review accepted the revocation semantics, login membership, coordination protocol, and pre-handler retry boundary. Release preparation remains outstanding; review approval is not production-release authorization.
+Status: steps 1, 2, and 3 are approved. Independent combined R2/R3 review accepted the revocation semantics, login membership, coordination protocol, and pre-handler retry boundary. The work shipped in the 5.1.0 release; the downstream production application reviews and the coordinated stopped-instance `sv`/`sid` cutover were completed on 2026-09-10.
 
 ## Combined R2/R3 approval (2026-09-08)
 

@@ -14,7 +14,7 @@ Companions:
 
 Date: 2026-09-08.
 
-Status: steps 1, 2, and 3 are approved. Independent combined R2/R3 review accepted the revocation semantics, login membership, coordination protocol, and pre-handler retry boundary. Release preparation remains outstanding; review approval is not production-release authorization.
+Status: steps 1, 2, and 3 are approved. Independent combined R2/R3 review accepted the revocation semantics, login membership, coordination protocol, and pre-handler retry boundary. The work shipped in the 5.1.0 release; the downstream production application reviews and the coordinated stopped-instance `sv`/`sid` cutover were completed on 2026-09-10.
 
 ## Release preparation handoff (2026-09-08)
 
@@ -103,12 +103,12 @@ path end to end.
 
 ### Remaining release work
 
-- [ ] Run the four missing-environment suites above, then the full `pnpm test:integration`.
-- [ ] Rerun the production build; the last recorded one predates the review corrections.
-- [ ] Run the release sequence. Publishing has previously dead-ended on passkey 2FA under
+- [x] Run the four missing-environment suites above, then the full `pnpm test:integration`. Completed before the 5.1.0 release.
+- [x] Rerun the production build; the last recorded one predates the review corrections. Completed before the 5.1.0 release.
+- [x] Run the release sequence. Released as 5.1.0. Publishing has previously dead-ended on passkey 2FA under
       `pnpm publish`; `pnpm pack` plus `npm publish` with manual tags is the known-good path.
-- [ ] Review both downstream production applications and their deployment configuration.
-- [ ] Perform one coordinated stopped-instance `sv`/`sid` cutover: stop every instance, apply the
+- [x] Review both downstream production applications and their deployment configuration. Completed 2026-09-10.
+- [x] Perform one coordinated stopped-instance `sv`/`sid` cutover: stop every instance, apply the
       native SQL, restart together. Legacy credentials missing either claim fail closed, so every
       administrator signs in once.
 
@@ -135,9 +135,9 @@ Tony will handle release preparation. Downstream application migration will cont
 Release prerequisites remain open and are not R2/R3 gates:
 
 - [x] Squash development migrations and synchronize CLI baselines; close the two deferred baseline tests. Done in `ca61c0e1`, `7fe9ae57`, and `5e29ec00`; see the release-preparation handoff above.
-- [ ] Rerun the production build and final release gates after release preparation.
-- [ ] Review both downstream production applications and their deployment configurations.
-- [ ] Perform one coordinated stopped-instance `sv`/`sid` cutover, applying migrations before restarting all instances and requiring fresh sign-in once.
+- [x] Rerun the production build and final release gates after release preparation. Completed before the 5.1.0 release.
+- [x] Review both downstream production applications and their deployment configurations. Completed 2026-09-10.
+- [x] Perform one coordinated stopped-instance `sv`/`sid` cutover, applying migrations before restarting all instances and requiring fresh sign-in once. Completed 2026-09-10.
 
 Non-blocking follow-ups:
 
@@ -286,9 +286,9 @@ No live passwords, JWT secrets, cookies, or database credentials are included in
 - [x] D3 access policy: Tony approved immediate per-login access invalidation after logout/replay.
 - [x] D3 cookie gate: Tony accepted the detected account-switch residual with pre-handler sid enforcement and acknowledgement before further work.
 - [x] Step 3: implement, test, and review atomic refresh and lineage revocation.
-- [ ] Review the two downstream production applications with the user.
+- [x] Review the two downstream production applications with the user. Completed 2026-09-10.
 - [x] Release squash and CLI baseline synchronization (`ca61c0e1`, `7fe9ae57`, `5e29ec00`).
-- [ ] Full release gates, production build, publish, and rollout verification. Runs on Tony's main machine, which holds the environment files listed in the release-preparation handoff.
+- [x] Full release gates, production build, publish, and rollout verification. Released as 5.1.0; the coordinated `sv`/`sid` cutover completed 2026-09-10.
 
 Implementation commit: `4d02070359e3e81fbf855ccc2cc5e92939d92efd` — `fix: hardened password sign-in admission`. The following `specs:` commit contains this handoff. Both commits use the required DCO sign-off; no co-author or AI-attribution trailers are present.
 
