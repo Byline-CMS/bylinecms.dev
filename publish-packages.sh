@@ -194,7 +194,10 @@ for line in "${TO_PUBLISH[@]}"; do
     if [ "$DRY_RUN" -eq 1 ]; then
       echo "  ${DIM}dry-run: packed $(basename "$tgz"), verified clean (not publishing)${RESET}"
     else
-      npm publish "$tgz" --access public
+      # `set -e` is suppressed inside a command list tested by `||` (this
+      # subshell is), so a failed publish would otherwise fall through to the
+      # trailing `rm` and the subshell would exit 0. Propagate npm's status.
+      npm publish "$tgz" --access public || exit 1
     fi
     rm -f ./*.tgz
   ) || die "failed on ${name} — fix and re-run (already-published packages will be skipped)"
