@@ -160,6 +160,7 @@
     "packages/admin/src/modules/admin-users/repository.ts|type|ListAdminUsersOptions",
     "packages/admin/src/modules/admin-users/repository.ts|type|UpdateAdminUserInput",
     "packages/admin/src/modules/analytics/abilities.ts|type|AnalyticsAbilityKey",
+    "packages/admin/src/modules/analytics/components/dashboard.tsx|type|AnalyticsFullListKind",
     "packages/admin/src/modules/analytics/index.ts|export|registerAnalyticsAbilities",
     "packages/admin/src/modules/analytics/index.ts|type|AnalyticsAbilityKey",
     "packages/admin/src/modules/auth/index.ts|type|IssueRefreshTokenInput",

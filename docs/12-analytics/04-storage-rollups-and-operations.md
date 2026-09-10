@@ -197,16 +197,22 @@ days. Its overall figures sum the daily rows. Every visitor result—site, path,
 referrer, or country—is therefore a sum of daily unique counts rather than a
 distinct person count across the complete period.
 
-The current dashboard requests 20 pages, 20 downloads, and 20 referrers. The
-portable API defaults to 20 and accepts limits from 1 through 100; it does not
-offer pagination. Country queries have no top-N limit and return the complete
-stored country set sorted by views.
+The dashboard requests 10 pages, 10 downloads, and 10 referrers for its cards,
+so the lists band stays the same height at any traffic level. Each card whose
+set is larger offers a "View all" action; the resulting dialog requests the
+portable API's maximum of 100 rows for that list and pages them in the
+browser. The portable API defaults to 20 and accepts limits from 1 through
+100; it does not offer pagination. Country queries have no top-N limit and
+return the complete stored country set sorted by views, so the countries card
+shows its first 10 rows and its dialog shows the whole set without a further
+query. The dashboard renders each country code as the region name for the
+active interface locale and keeps the code as the row's hover title.
 
 Ranked path and referrer queries return `{ rows, total }`. `rows` is ordered by
 period views descending and then key ascending. `total` is the number of
 distinct queryable keys after grouping the period but before applying the
-requested limit. The dashboard displays “Top 20 of 143” only when
-`total > rows.length`.
+requested limit. The dashboard displays “Top 10 of 143” on a card, and
+“Top 100 of 143” in its dialog, only when `total` exceeds the rows shown.
 
 For unrolled days, every raw key can contribute to `total`. For completed days,
 keys past that day's cardinality cap no longer exist individually and the

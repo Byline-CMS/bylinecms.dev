@@ -328,3 +328,72 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Preview cap and full-list modal ───────────────────────────────── */
+
+/* The header carries the "View all" action beside the title so the card's
+   body stays a plain ranking. */
+.listHeader,
+:global(.byline-analytics-list-header) {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.listHeading {
+  min-width: 0;
+}
+
+.viewAll,
+:global(.byline-analytics-view-all) {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.modal,
+:global(.byline-analytics-modal) {
+  width: min(40rem, calc(100vw - 2rem));
+}
+
+.modalCaption,
+:global(.byline-analytics-modal-caption) {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Twenty-five rows exceed a short viewport; the content scrolls inside the
+   dialog so the pager and close action stay reachable. */
+.modalContent,
+:global(.byline-analytics-modal-content) {
+  max-height: min(60vh, 48rem);
+  overflow-y: auto;
+}
+
+.modalStatus {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 0;
+}
+
+.modalActions,
+:global(.byline-analytics-modal-actions) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

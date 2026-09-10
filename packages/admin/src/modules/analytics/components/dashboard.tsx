@@ -11,6 +11,11 @@
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 
+import type {
+  AnalyticsPathTotal,
+  AnalyticsRankedTotals,
+  AnalyticsReferrerTotal,
+} from '@byline/analytics'
 import {
   ANALYTICS_DASHBOARD_PERIODS,
   ANALYTICS_OVERFLOW_KEY,
@@ -18,23 +23,42 @@ import {
 } from '@byline/analytics/config'
 import { ANALYTICS_IGNORE_STORAGE_KEY } from '@byline/analytics-agent'
 import { useTranslation } from '@byline/i18n/react'
-import { Button, Card, Container, Section, Select } from '@byline/ui/react'
+import { Button, Card, Container, Section, Select, useModal } from '@byline/ui/react'
 import cx from 'clsx'
 
 import styles from './dashboard.module.css'
+import { RankedListModal, type RankedListSourceInput } from './ranked-list-modal.js'
+import { type AnalyticsTone, type RankedRow, RankingRows, regionName } from './ranking.js'
 import { AnalyticsTimeseries, resolveAnalyticsChartGranularity } from './timeseries.js'
 import type { AnalyticsDashboardData, AnalyticsDashboardPeriod } from '../types.js'
+
+export { shareWidth } from './ranking.js'
+
+/** Rows each ranked card shows before offering the full list. */
+export const ANALYTICS_PREVIEW_ROWS = 10
+
+/** The truncated lists a host can fetch in full on demand. */
+export type AnalyticsFullListKind = 'pages' | 'downloads' | 'referrers'
 
 export interface AnalyticsDashboardProps {
   data: AnalyticsDashboardData
   period: AnalyticsDashboardPeriod
   onPeriodChange(period: AnalyticsDashboardPeriod): void
+  /**
+   * Fetch a larger top-N for one of the truncated lists when its "View all"
+   * modal opens. Countries are always complete and never use this. Omit it
+   * and those cards still show their preview, without the action.
+   */
+  loadFullList?(
+    kind: AnalyticsFullListKind
+  ): Promise<AnalyticsRankedTotals<AnalyticsPathTotal | AnalyticsReferrerTotal>>
 }
 
 export function AnalyticsDashboard({
   data,
   period,
   onPeriodChange,
+  loadFullList,
 }: AnalyticsDashboardProps): React.JSX.Element {
   const { locale, t } = useTranslation('byline-admin')
   const [excluded, setExcluded] = useState(false)
@@ -69,6 +93,30 @@ export function AnalyticsDashboard({
   const { views, visitors, downloads } = data.summary
   const days = data.summary.timeseries.length
   const chartGranularity = resolveAnalyticsChartGranularity(period, days)
+
+  // Each full-list loader is a stable closure per range so the modal's
+  // effect does not refetch on every dashboard render.
+  const fullLists = useMemo(() => {
+    if (!loadFullList) return {}
+    const load = (kind: AnalyticsFullListKind) => () =>
+      loadFullList(kind).then((result) => ({
+        rows: result.rows.map(toRankedRow),
+        total: result.total,
+      }))
+    return { pages: load('pages'), downloads: load('downloads'), referrers: load('referrers') }
+  }, [loadFullList])
+
+  const countryRows = useMemo(
+    () =>
+      data.countries.map((row) => ({
+        key: row.country,
+        label: regionName(row.country, locale),
+        value: row.views,
+        visitors: row.visitors,
+        overflow: false,
+      })),
+    [data.countries, locale]
+  )
 
   return (
     <Section>
@@ -156,15 +204,17 @@ export function AnalyticsDashboard({
         </Card>
 
         {/* Top pages is the list people actually read, so it gets the wide
-            column; referrers and countries stack beside it. */}
+            column; referrers and countries stack beside it. Every card shows
+            the same preview depth so the band stays even at any traffic. */}
         <div className={cx('byline-analytics-lists', styles.lists)}>
           <RankedList
             title={t('analytics.sections.pages')}
             caption={t('analytics.columns.viewsAndUniques')}
             tone="views"
             locale={locale}
-            rows={data.pages.rows.map(toPathRow)}
+            rows={data.pages.rows.map(toRankedRow)}
             total={data.pages.total}
+            fullList={fullLists.pages}
             coverageFrom={partialCoverageFrom(data.range.from, data.coverage.pathsFrom)}
           />
           <div className={styles.stack}>
@@ -172,27 +222,19 @@ export function AnalyticsDashboard({
               title={t('analytics.sections.referrers')}
               tone="visitors"
               locale={locale}
+              rows={data.referrers.rows.map(toRankedRow)}
               total={data.referrers.total}
+              fullList={fullLists.referrers}
               coverageFrom={partialCoverageFrom(data.range.from, data.coverage.referrersFrom)}
-              rows={data.referrers.rows.map((row) => ({
-                key: row.referrerHost,
-                label: row.referrerHost,
-                value: row.views,
-                visitors: row.visitors,
-                overflow: row.referrerHost === ANALYTICS_OVERFLOW_KEY,
-              }))}
             />
             <RankedList
               title={t('analytics.sections.countries')}
               tone="visitors"
               locale={locale}
-              rows={data.countries.map((row) => ({
-                key: row.country,
-                label: row.country,
-                value: row.views,
-                visitors: row.visitors,
-                overflow: false,
-              }))}
+              rows={countryRows}
+              total={countryRows.length}
+              // Countries arrive complete, so the full list needs no fetch.
+              fullList={{ rows: countryRows, total: countryRows.length }}
             />
           </div>
         </div>
@@ -202,8 +244,9 @@ export function AnalyticsDashboard({
           caption={t('analytics.columns.clicksAndUniques')}
           tone="downloads"
           locale={locale}
-          rows={data.downloads.rows.map(toPathRow)}
+          rows={data.downloads.rows.map(toRankedRow)}
           total={data.downloads.total}
+          fullList={fullLists.downloads}
           coverageFrom={partialCoverageFrom(data.range.from, data.coverage.pathsFrom)}
         />
       </Container>
@@ -211,18 +254,10 @@ export function AnalyticsDashboard({
   )
 }
 
-type AnalyticsTone = 'views' | 'visitors' | 'downloads'
-
 const TONE_TILE: Record<AnalyticsTone, string | undefined> = {
   views: styles.toneViews,
   visitors: styles.toneVisitors,
   downloads: styles.toneDownloads,
-}
-
-const TONE_BAR: Record<AnalyticsTone, string | undefined> = {
-  views: styles.barViews,
-  visitors: styles.barVisitors,
-  downloads: styles.barDownloads,
 }
 
 function StatTile({
@@ -245,21 +280,15 @@ function StatTile({
   )
 }
 
-interface RankedRow {
-  key: string
-  label: string
-  value: number
-  visitors: number
-  overflow: boolean
-}
-
-function toPathRow(row: { path: string; views: number; visitors: number }): RankedRow {
+/** Map a path or referrer total onto the shared row shape. */
+function toRankedRow(row: AnalyticsPathTotal | AnalyticsReferrerTotal): RankedRow {
+  const key = 'path' in row ? row.path : row.referrerHost
   return {
-    key: row.path,
-    label: row.path,
+    key,
+    label: key,
     value: row.views,
     visitors: row.visitors,
-    overflow: row.path === ANALYTICS_OVERFLOW_KEY,
+    overflow: key === ANALYTICS_OVERFLOW_KEY,
   }
 }
 
@@ -270,6 +299,7 @@ function RankedList({
   tone,
   locale,
   total,
+  fullList,
   coverageFrom,
 }: {
   title: string
@@ -277,17 +307,19 @@ function RankedList({
   rows: RankedRow[]
   tone: AnalyticsTone
   locale: string
-  /** Distinct keys in the period; omit for lists that are never truncated. */
-  total?: number
+  /** Distinct keys in the period, before any top-N slice. */
+  total: number
+  /** The complete ranking, ready or fetched on demand; omit to offer no "View all". */
+  fullList?: RankedListSourceInput
   /** First complete day when the selected report begins before retained rows. */
   coverageFrom?: string
 }): React.JSX.Element {
   const { t } = useTranslation('byline-admin')
-  const numbers = useMemo(() => new Intl.NumberFormat(locale), [locale])
-  const ceiling = Math.max(1, ...rows.map((row) => row.value))
-  // Say so when the list is a top-N slice. Without this the card presents a
+  const modal = useModal()
+  const preview = rows.slice(0, ANALYTICS_PREVIEW_ROWS)
+  // Say so when the card is a top-N slice. Without this the card presents a
   // truncated ranking as though it were the whole set.
-  const truncated = total != null && total > rows.length
+  const truncated = total > preview.length
   const coverageDate = useMemo(
     () =>
       new Intl.DateTimeFormat(locale, {
@@ -297,7 +329,7 @@ function RankedList({
     [locale]
   )
   const description = [
-    truncated ? t('analytics.topOf', { shown: rows.length, total }) : caption,
+    truncated ? t('analytics.topOf', { shown: preview.length, total }) : caption,
     coverageFrom == null
       ? undefined
       : t('analytics.coverage.since', {
@@ -309,52 +341,42 @@ function RankedList({
 
   return (
     <Card className={cx('byline-analytics-list', styles.list)}>
-      <Card.Header>
-        <Card.Title>{title}</Card.Title>
-        {description.length > 0 && <Card.Description>{description}</Card.Description>}
+      <Card.Header className={cx('byline-analytics-list-header', styles.listHeader)}>
+        <div className={styles.listHeading}>
+          <Card.Title>{title}</Card.Title>
+          {description.length > 0 && <Card.Description>{description}</Card.Description>}
+        </div>
+        {fullList != null && truncated && (
+          <Button
+            type="button"
+            size="xs"
+            variant="outlined"
+            className={cx('byline-analytics-view-all', styles.viewAll)}
+            onClick={modal.onOpen}
+          >
+            {t('analytics.viewAll', { count: total })}
+          </Button>
+        )}
       </Card.Header>
       <Card.Content>
-        {rows.length === 0 ? (
+        {preview.length === 0 ? (
           <p className="muted">{t('analytics.empty')}</p>
         ) : (
-          <ol className={cx('byline-analytics-ranking', styles.ranking)}>
-            {rows.map((row) => (
-              <li
-                key={row.key}
-                className={cx(
-                  'byline-analytics-ranking-row',
-                  styles.rankingRow,
-                  TONE_BAR[tone],
-                  row.overflow && styles.rankingOverflow
-                )}
-                // The share bar sits behind the row so the label and its
-                // magnitude occupy one line and are read together.
-                style={
-                  {
-                    '--byline-analytics-share': `${shareWidth(row.value, ceiling)}%`,
-                  } as React.CSSProperties
-                }
-              >
-                <span className={styles.rankingLabel} title={row.key}>
-                  {/* `__other__` is a reserved aggregate, not a page anyone
-                      visited — never render it as though it were a real path. */}
-                  {row.overflow ? t('analytics.overflow') : row.label}
-                </span>
-                <span className={styles.rankingValue}>{numbers.format(row.value)}</span>
-                <span className={styles.rankingVisitors}>{numbers.format(row.visitors)}</span>
-              </li>
-            ))}
-          </ol>
+          <RankingRows rows={preview} tone={tone} locale={locale} />
         )}
       </Card.Content>
+      {fullList != null && (
+        <RankedListModal
+          isOpen={modal.isOpen}
+          onDismiss={modal.onDismiss}
+          title={title}
+          tone={tone}
+          locale={locale}
+          source={fullList}
+        />
+      )}
     </Card>
   )
-}
-
-/** Never collapse the bar entirely: a visible sliver still encodes "smallest". */
-export function shareWidth(value: number, ceiling: number): number {
-  if (!Number.isFinite(value) || value <= 0 || ceiling <= 0) return 0
-  return Math.max(3, Math.min(100, (value / ceiling) * 100))
 }
 
 export function formatShare(part: number, whole: number, locale: string): string {

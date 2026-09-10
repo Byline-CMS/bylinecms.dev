@@ -9,8 +9,11 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import type { AnalyticsDashboardData, AnalyticsDashboardPeriod } from '@byline/admin/analytics'
-import { AnalyticsDashboard } from '@byline/admin/analytics/components/dashboard'
-import { isAnalyticsDashboardPeriod } from '@byline/analytics/config'
+import {
+  ANALYTICS_PREVIEW_ROWS,
+  AnalyticsDashboard,
+} from '@byline/admin/analytics/components/dashboard'
+import { ANALYTICS_MAX_TOP_LIMIT, isAnalyticsDashboardPeriod } from '@byline/analytics/config'
 import { useTranslation } from '@byline/i18n/react'
 import { z } from 'zod'
 
@@ -55,9 +58,11 @@ export function createAdminAnalyticsRoute(path: string) {
       const range = buildAnalyticsDashboardRange(deps.period, new Date(), coverage.summaryFrom)
       const [summary, pages, downloads, referrers, countries] = await Promise.all([
         getAnalyticsSummary({ data: range }),
-        getAnalyticsTop({ data: { ...range, kind: 'page', limit: 20 } }),
-        getAnalyticsTop({ data: { ...range, kind: 'download', limit: 20 } }),
-        getAnalyticsReferrers({ data: { ...range, limit: 20 } }),
+        // Fetch exactly the preview depth each card shows; the full list is
+        // fetched on demand through `loadFullList` below.
+        getAnalyticsTop({ data: { ...range, kind: 'page', limit: ANALYTICS_PREVIEW_ROWS } }),
+        getAnalyticsTop({ data: { ...range, kind: 'download', limit: ANALYTICS_PREVIEW_ROWS } }),
+        getAnalyticsReferrers({ data: { ...range, limit: ANALYTICS_PREVIEW_ROWS } }),
         getAnalyticsCountries({ data: range }),
       ])
 
@@ -93,6 +98,19 @@ export function createAdminAnalyticsRoute(path: string) {
           <AnalyticsDashboard
             data={data}
             period={period}
+            loadFullList={(kind) =>
+              kind === 'referrers'
+                ? getAnalyticsReferrers({
+                    data: { ...data.range, limit: ANALYTICS_MAX_TOP_LIMIT },
+                  })
+                : getAnalyticsTop({
+                    data: {
+                      ...data.range,
+                      kind: kind === 'pages' ? 'page' : 'download',
+                      limit: ANALYTICS_MAX_TOP_LIMIT,
+                    },
+                  })
+            }
             onPeriodChange={(nextPeriod) => {
               navigate({
                 to: getAdminRoutePath('analytics'),
