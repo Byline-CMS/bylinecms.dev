@@ -18,14 +18,8 @@ import cx from 'clsx'
 
 import { buildLocaleDefinitions } from '../../i18n/locale-definitions.js'
 import { bylineAdminServices } from '../../integrations/byline-admin-services.js'
-import {
-  coordinateAuthAction,
-  expectedSession,
-  flagSessionChanged,
-  observeSession,
-  renewSingleFlight,
-} from '../../integrations/session-coordination.js'
-import { renewAdminSession } from '../../server-fns/auth/renew.js'
+import { flagSessionChanged } from '../../integrations/session-coordination.js'
+import { renewExpectedSession } from '../../integrations/session-renewal.js'
 import { setAdminLocaleFn } from '../../server-fns/i18n/index.js'
 import { SessionChangeBoundary } from './session-change-boundary.js'
 import styles from './sign-in-page.module.css'
@@ -68,14 +62,7 @@ export function SignInPage({
   useEffect(() => {
     if (reauthenticate) return
     let active = true
-    void renewSingleFlight(() =>
-      coordinateAuthAction(async () => {
-        const result = await renewAdminSession({
-          data: { expectedSessionId: expectedSession() ?? undefined },
-        })
-        observeSession(result.sessionId)
-      })
-    )
+    void renewExpectedSession()
       .then(() => {
         if (active) window.location.replace(redirectTo)
       })

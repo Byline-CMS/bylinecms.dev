@@ -10,17 +10,19 @@
  * Admin shell layout — authenticated-only.
  *
  * `beforeLoad` resolves the current admin user (which internally verifies
- * the access credential without rotating cookies). Expired access is
- * renewed by the sign-in bootstrap. On unauthenticated
- * requests we redirect to `/sign-in` with a `callbackUrl` so the user
- * lands back on the page they originally requested.
+ * the access credential without rotating cookies). Expired access on a
+ * browser-side navigation is renewed in place and the load retried, so the
+ * user stays on the requested URL; expired access on a server render, and
+ * every other unauthenticated outcome, redirects to `/sign-in` with a
+ * `callbackUrl` so the user lands back on the page they originally
+ * requested. See `admin-layout-guard.ts` for the decision table.
  *
  * The resolved user is returned as route context so every nested admin
  * route (and the `AdminAppBar`) can read it without an extra fetch.
  */
 
 import { useEffect } from 'react'
-import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
+import { createFileRoute, Outlet } from '@tanstack/react-router'
 
 import { applyStoredTheme } from '@byline/admin/admin-account/components/theme'
 import { BylineFieldServicesProvider } from '@byline/admin/react'
@@ -43,55 +45,40 @@ import { bylineAdminServices } from '../integrations/byline-admin-services.js'
 import { BylineAiAdminProvider } from '../integrations/byline-ai.js'
 import { bylineFieldServices } from '../integrations/byline-field-services.js'
 import { observeSession, sessionIsChanged } from '../integrations/session-coordination.js'
+import { renewExpectedSession } from '../integrations/session-renewal.js'
 import { getAnalyticsRuntime } from '../server-fns/analytics/index.js'
 import { getCurrentAdminUser } from '../server-fns/auth/index.js'
 import { getScheduledPublicationRuntime } from '../server-fns/collections/index.js'
 import { getActiveLocaleFn, setAdminLocaleFn } from '../server-fns/i18n/index.js'
+import { loadAdminLayoutContext } from './admin-layout-guard.js'
 import { getSignInRoutePath } from './sign-in-path.js'
 
 export function createAdminLayoutRoute(path: string) {
   const Route: any = createFileRoute(path as never)({
-    beforeLoad: async ({ location }: { location: { href: string } }) => {
-      const signInPath = getSignInRoutePath()
-      try {
-        const user = await getCurrentAdminUser()
-        if (typeof window !== 'undefined') observeSession(user.sessionId)
-        // Resolve the active interface locale once on the server so SSR
-        // and the hydrated client render the same translations and
-        // there's no locale flicker. Going through the server fn (rather
-        // than calling `resolveRequestLocale` directly) keeps
-        // `@tanstack/react-start/server` out of the client bundle — the
-        // same pattern `getCurrentAdminUser` uses for `getAdminRequestContext`.
-        const [activeLocale, scheduledPublicationRuntime, analyticsRuntime] = await Promise.all([
-          getActiveLocaleFn(),
-          getScheduledPublicationRuntime(),
-          getAnalyticsRuntime(),
-        ])
-        return { user, activeLocale, scheduledPublicationRuntime, analyticsRuntime }
-      } catch (error) {
-        const code = (error as { code?: string })?.code
-        if (
-          !(typeof window !== 'undefined' && sessionIsChanged()) &&
-          ![
-            'ERR_UNAUTHENTICATED',
-            'ERR_ACCESS_EXPIRED',
-            'ERR_INVALID_TOKEN',
-            'ERR_REVOKED_TOKEN',
-            'ERR_ACCOUNT_DISABLED',
-            'ERR_SESSION_CHANGED',
-          ].includes(code ?? '')
-        )
-          throw error
-        // `getCurrentAdminUser` (via `getAdminRequestContext`) throws
-        // `ERR_UNAUTHENTICATED` or a related auth error when no valid
-        // session is present. Redirect to sign-in with the original path
-        // so we can send the user back after they authenticate.
-        throw redirect({
-          to: signInPath as never,
-          search: { callbackUrl: location.href } as never,
-        })
-      }
-    },
+    beforeLoad: ({ location }: { location: { href: string } }) =>
+      loadAdminLayoutContext({
+        load: async () => {
+          const user = await getCurrentAdminUser()
+          if (typeof window !== 'undefined') observeSession(user.sessionId)
+          // Resolve the active interface locale once on the server so SSR
+          // and the hydrated client render the same translations and
+          // there's no locale flicker. Going through the server fn (rather
+          // than calling `resolveRequestLocale` directly) keeps
+          // `@tanstack/react-start/server` out of the client bundle — the
+          // same pattern `getCurrentAdminUser` uses for `getAdminRequestContext`.
+          const [activeLocale, scheduledPublicationRuntime, analyticsRuntime] = await Promise.all([
+            getActiveLocaleFn(),
+            getScheduledPublicationRuntime(),
+            getAnalyticsRuntime(),
+          ])
+          return { user, activeLocale, scheduledPublicationRuntime, analyticsRuntime }
+        },
+        renewSession: renewExpectedSession,
+        isBrowser: typeof window !== 'undefined',
+        sessionChanged: sessionIsChanged,
+        signInPath: getSignInRoutePath(),
+        href: location.href,
+      }),
     component: function AdminLayoutComponent() {
       const { user, activeLocale, scheduledPublicationRuntime, analyticsRuntime } =
         Route.useRouteContext() as {
