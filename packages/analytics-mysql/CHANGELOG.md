@@ -1,5 +1,13 @@
 # @byline/analytics-mysql
 
+## 5.1.4
+
+### Patch Changes
+
+- **`@byline/admin`** capped analytics dashboard cards at ten rows with a paged view-all dialog and localised country names
+- Updated dependencies
+  - @byline/analytics@5.1.4
+
 ## 5.1.3
 
 ### Patch Changes

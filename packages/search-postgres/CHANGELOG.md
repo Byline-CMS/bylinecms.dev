@@ -1,5 +1,14 @@
 # @byline/search-postgres
 
+## 5.1.4
+
+### Patch Changes
+
+- **`@byline/admin`** capped analytics dashboard cards at ten rows with a paged view-all dialog and localised country names
+- Updated dependencies
+  - @byline/core@5.1.4
+  - @byline/search-analysis@5.1.4
+
 ## 5.1.3
 
 ### Patch Changes
