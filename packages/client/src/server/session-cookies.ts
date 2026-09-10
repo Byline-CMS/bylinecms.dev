@@ -12,13 +12,15 @@
  * Two separate httpOnly cookies, one for each token half:
  *
  *   - `byline_access_token`  — short-lived JWT; sent on every request.
- *   - `byline_refresh_token` — long-lived opaque string; sent back only
- *                              when the access cookie is missing or
- *                              expired, to mint a new access token.
+ *   - `byline_refresh_token` — long-lived opaque string; consumed only by
+ *                              the explicit renewal endpoint to mint a
+ *                              replacement access token.
  *
- * Presenting "one session" to the user is a function of the middleware —
- * `getAdminRequestContext()` transparently refreshes the access cookie
- * using the refresh cookie, so the UI layer doesn't have to care.
+ * Renewal is explicit, not implicit. `getAdminRequestContext()` only
+ * verifies the access cookie and never writes or clears cookies; the
+ * browser transport calls the host's CSRF-protected renewal server fn
+ * after a pre-handler `ERR_ACCESS_EXPIRED` outcome, and that endpoint is
+ * the only place refresh rotation writes new cookies.
  *
  * All cookies set here use:
  *   - `httpOnly: true`   — inaccessible to JavaScript (XSS-hardened).
@@ -58,8 +60,8 @@ export interface SessionCookieTokens {
 }
 
 /**
- * Write both access and refresh cookies. Called after sign-in and after
- * every transparent refresh in `getAdminRequestContext()`.
+ * Write both access and refresh cookies. Called after a successful sign-in
+ * and after a confirmed rotation in the explicit renewal server fn.
  *
  * `maxAge` is derived from each token's own expiry claim so the browser
  * drops the cookies at the same moment the server would reject them —
@@ -95,9 +97,10 @@ export function setSessionCookies(tokens: SessionCookieTokens): void {
 }
 
 /**
- * Clear both session cookies. Called on sign-out and on any auth failure
- * during `getAdminRequestContext()` (ensures the browser does not keep
- * trying a token that the server has already rejected).
+ * Clear both session cookies. Called only after a confirmed sign-out or a
+ * successful self-service password change. Authentication and renewal
+ * failures deliberately do not clear cookies: a late failure response must
+ * not erase credentials that a concurrent renewal or sign-in just installed.
  */
 export function clearSessionCookies(): void {
   const bridge = getHostRequestBridge()
