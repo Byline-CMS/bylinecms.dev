@@ -11,6 +11,9 @@ export const getServerConfig = () => ({
   },
 })
 export const setSessionCookies = () => {}
+// The sign-in handler reads both credential cookies for replacement revocation.
+export const readAccessTokenCookie = () => undefined
+export const readRefreshTokenCookie = () => undefined
 export const readAdminLocaleCookie = () => null
 export const bylineCore = () => {
   throw new Error('Locale reconciliation should not run')
