@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { getAiServerConfig as getServerConfig } from '../../config/ai-config'
 import { patchDoc, patchDocStreaming } from './patch'
 
-const MODEL = 'gemini-2.5-flash'
+const MODEL = 'gemini-3.8-flash'
 
 describe('google patch', () => {
   beforeEach(async () => {})

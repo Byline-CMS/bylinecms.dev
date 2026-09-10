@@ -12,21 +12,28 @@ import type { Provider } from '../@types'
 
 /**
  * Curated model configuration per application version.
- * These are the models suited to text generation for our
- * text and lexical editors. Update this list when adding
- * or retiring models between releases. Use `pnpm list:models`
+ * These are the models suited to the text-handling work Byline's
+ * editors ask for — rephrasing, grammar and spelling, and translation —
+ * so the list deliberately omits reasoning-heavy "pro" tiers and
+ * coding/agentic-focused models. Each provider offers a flagship,
+ * a balanced default, and a low-cost option. Update this list when
+ * adding or retiring models between releases. Use `pnpm list:models`
  * to discover available models from each provider.
+ *
+ * Note: Claude Fable models are excluded on purpose — the Anthropic
+ * document-generation and patch paths force a tool call via
+ * `tool_choice: { type: 'tool' }`, which those models reject.
  */
 export const PROVIDER_MODELS: Record<Provider, string[]> = {
-  openai: ['gpt-5.4', 'gpt-5.4-pro', 'gpt-5.4-mini', 'gpt-5.4-nano'],
-  google: ['gemini-2.5-pro', 'gemini-2.5-flash'],
-  anthropic: ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
+  openai: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'],
+  google: ['gemini-3.8-flash', 'gemini-3.5-flash-lite'],
+  anthropic: ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5-20251001'],
 }
 
 export const DEFAULT_MODELS: Record<Provider, string> = {
-  openai: 'gpt-5.4',
-  google: 'gemini-2.5-flash',
-  anthropic: 'claude-haiku-4-5-20251001',
+  openai: 'gpt-5.6-terra',
+  google: 'gemini-3.8-flash',
+  anthropic: 'claude-sonnet-5',
 }
 
 export const PROVIDERS: Array<[Provider, string]> = [

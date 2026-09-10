@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { getAiServerConfig as getServerConfig } from '../../config/ai-config'
 import { generateDoc, generateDocStreaming } from './generate'
 
-const MODEL = 'gpt-5.2'
+const MODEL = 'gpt-5.6-terra'
 
 describe('openai generate', () => {
   beforeEach(async () => {})
