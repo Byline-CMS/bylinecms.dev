@@ -101,6 +101,8 @@
   "auth.signIn.description": "Connectez-vous à l'admin Byline.",
   "auth.signIn.errors.empty": "Saisissez votre adresse e-mail et votre mot de passe.",
   "auth.signIn.errors.invalidCredentials": "Identifiants invalides.",
+  "auth.signIn.errors.bootstrap": "Impossible de vérifier votre session. Veuillez réessayer.",
+  "auth.signIn.noscript": "JavaScript est requis pour vous connecter ou renouveler votre session d’administration.",
   "account.intro": "Gérez votre profil et votre mot de passe.",
   "account.sections.profile": "Profil",
   "account.sections.password": "Mot de passe",

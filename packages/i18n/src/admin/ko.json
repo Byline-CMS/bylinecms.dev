@@ -101,6 +101,8 @@
   "auth.signIn.description": "Byline 관리자에 로그인하세요.",
   "auth.signIn.errors.empty": "이메일과 비밀번호를 입력하세요.",
   "auth.signIn.errors.invalidCredentials": "잘못된 자격 증명입니다.",
+  "auth.signIn.errors.bootstrap": "세션을 확인할 수 없습니다. 다시 시도해 주세요.",
+  "auth.signIn.noscript": "로그인하거나 관리자 세션을 갱신하려면 JavaScript가 필요합니다.",
   "account.intro": "자신의 프로필과 비밀번호를 관리합니다.",
   "account.sections.profile": "프로필",
   "account.sections.password": "비밀번호",

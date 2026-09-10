@@ -5,6 +5,10 @@
  *   .byline-sign-in-page       — outer <main>
  *   .byline-sign-in-page-bar   — top bar carrying the LanguageMenu
  *   .byline-sign-in-page-inner — vertically-centred card container
+ *   .byline-sign-in-page-checking — activity indicator during session bootstrap
+ *   .byline-sign-in-page-card     — card frame for the bootstrap-error state (matches the form card)
+ *   .byline-sign-in-page-alert    — noscript / bootstrap-error alert spacing
+ *   .byline-sign-in-page-actions  — action row for the bootstrap-error state
  *
  * The Home link itself lives inside `SignInForm`'s action row — see
  * `@byline/ui` `sign-in-form.module.css` for `.byline-sign-in-home-link`.
@@ -41,4 +45,59 @@
   :global(.byline-sign-in-page-inner) {
     margin-top: 14vh;
   }
+}
+
+.checking,
+:global(.byline-sign-in-page-checking) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 0;
+  color: inherit;
+  opacity: 0.6;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.card,
+:global(.byline-sign-in-page-card) {
+  width: 100%;
+}
+
+@media (min-width: 40rem) {
+  .card,
+  :global(.byline-sign-in-page-card) {
+    max-width: 380px;
+  }
+}
+
+.alert,
+:global(.byline-sign-in-page-alert) {
+  width: 100%;
+  margin-top: var(--spacing-12);
+}
+
+@media (min-width: 40rem) {
+  :global(noscript) > .alert,
+  :global(noscript) > :global(.byline-sign-in-page-alert) {
+    max-width: 380px;
+  }
+}
+
+.actions,
+:global(.byline-sign-in-page-actions) {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--spacing-8);
+  margin-bottom: var(--spacing-8);
 }

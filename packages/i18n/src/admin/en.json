@@ -101,6 +101,8 @@
   "auth.signIn.description": "Sign in to the Byline admin.",
   "auth.signIn.errors.empty": "Enter your email and password.",
   "auth.signIn.errors.invalidCredentials": "Invalid credentials.",
+  "auth.signIn.errors.bootstrap": "Unable to check your session. Please try again.",
+  "auth.signIn.noscript": "JavaScript is required to sign in or renew your admin session.",
   "account.intro": "Manage your own profile and password.",
   "account.sections.profile": "Profile",
   "account.sections.password": "Password",

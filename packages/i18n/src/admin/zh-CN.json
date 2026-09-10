@@ -101,6 +101,8 @@
   "auth.signIn.description": "登录到 Byline 管理后台。",
   "auth.signIn.errors.empty": "请输入电子邮箱和密码。",
   "auth.signIn.errors.invalidCredentials": "凭据无效。",
+  "auth.signIn.errors.bootstrap": "无法检查您的会话。请重试。",
+  "auth.signIn.noscript": "登录或续期管理员会话需要启用 JavaScript。",
   "account.intro": "管理您自己的个人资料和密码。",
   "account.sections.profile": "个人资料",
   "account.sections.password": "密码",

@@ -12,7 +12,8 @@ import { SignInForm } from '@byline/admin/auth/components/sign-in-form'
 import { BylineAdminServicesProvider } from '@byline/admin/services'
 import { getAdminConfig } from '@byline/core'
 import type { LocaleCode } from '@byline/i18n'
-import { I18nProvider, LanguageMenu } from '@byline/i18n/react'
+import { I18nProvider, LanguageMenu, useTranslation } from '@byline/i18n/react'
+import { Alert, Button, Card, LoaderRing } from '@byline/ui/react'
 import cx from 'clsx'
 
 import { buildLocaleDefinitions } from '../../i18n/locale-definitions.js'
@@ -113,20 +114,15 @@ export function SignInPage({
     >
       <BylineAdminServicesProvider services={bylineAdminServices}>
         <main className={cx('byline-sign-in-page', styles.main)}>
-          <noscript>JavaScript is required to sign in or renew your admin session.</noscript>
           <div className={cx('byline-sign-in-page-bar', styles.bar)}>
             <LanguageMenu />
           </div>
           <div className={cx('byline-sign-in-page-inner', styles.inner)}>
+            <NoScriptNotice />
             {bootstrapError ? (
-              <div role="alert">
-                <p>Unable to check your session. Please try again.</p>
-                <button type="button" onClick={() => window.location.reload()}>
-                  Try again
-                </button>
-              </div>
+              <SessionCheckError />
             ) : checking ? (
-              <p role="status">Checking your session…</p>
+              <SessionCheckIndicator />
             ) : (
               <SignInForm redirectTo={redirectTo} homeUrl={homeUrl} />
             )}
@@ -136,4 +132,77 @@ export function SignInPage({
     </I18nProvider>
   )
   return reauthenticate ? content : <SessionChangeBoundary>{content}</SessionChangeBoundary>
+}
+
+/**
+ * Activity indicator shown while the bootstrap renewal runs. Deliberately
+ * wordless on screen; the visually hidden label keeps it announced for
+ * assistive technology. The ring inherits `currentColor`, so it follows
+ * the host theme in light and dark mode without a hard-coded colour.
+ */
+function SessionCheckIndicator() {
+  const { t } = useTranslation('byline-admin')
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={cx('byline-sign-in-page-checking', styles.checking)}
+    >
+      <LoaderRing size={32} aria-hidden="true" />
+      <span className={styles.srOnly}>{t('common.loading')}</span>
+    </div>
+  )
+}
+
+/**
+ * Shown only when JavaScript is unavailable. React renders `<noscript>`
+ * children as static markup on the server and skips them on the client,
+ * so the kit `Alert` here is SSR-only chrome that never hydrates.
+ */
+function NoScriptNotice() {
+  const { t } = useTranslation('byline-admin')
+  return (
+    <noscript>
+      <Alert
+        intent="warning"
+        close={false}
+        className={cx('byline-sign-in-page-alert', styles.alert)}
+      >
+        {t('auth.signIn.noscript')}
+      </Alert>
+    </noscript>
+  )
+}
+
+/**
+ * Bootstrap renewal hit a service or network error, not an auth outcome.
+ * Presented in the same card frame as the form so the three page states
+ * share one visual footprint. Retry is a full reload: it re-runs the
+ * bootstrap without resubmitting anything.
+ */
+function SessionCheckError() {
+  const { t } = useTranslation('byline-admin')
+  return (
+    <Card role="alert" className={cx('byline-sign-in-page-card', styles.card)}>
+      <Card.Header>
+        <Card.Title>
+          <h2>{t('auth.signIn.title')}</h2>
+        </Card.Title>
+        <Alert
+          intent="danger"
+          close={false}
+          className={cx('byline-sign-in-page-alert', styles.alert)}
+        >
+          {t('auth.signIn.errors.bootstrap')}
+        </Alert>
+      </Card.Header>
+      <Card.Content>
+        <div className={cx('byline-sign-in-page-actions', styles.actions)}>
+          <Button type="button" onClick={() => window.location.reload()}>
+            {t('common.actions.tryAgain')}
+          </Button>
+        </div>
+      </Card.Content>
+    </Card>
+  )
 }

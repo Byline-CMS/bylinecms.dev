@@ -101,6 +101,8 @@
   "auth.signIn.description": "Inicia sesión en el administrador de Byline.",
   "auth.signIn.errors.empty": "Introduce tu correo electrónico y contraseña.",
   "auth.signIn.errors.invalidCredentials": "Credenciales no válidas.",
+  "auth.signIn.errors.bootstrap": "No se pudo comprobar su sesión. Inténtelo de nuevo.",
+  "auth.signIn.noscript": "Se requiere JavaScript para iniciar sesión o renovar su sesión de administración.",
   "account.intro": "Gestiona tu propio perfil y contraseña.",
   "account.sections.profile": "Perfil",
   "account.sections.password": "Contraseña",

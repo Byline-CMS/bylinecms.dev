@@ -101,6 +101,8 @@
   "auth.signIn.description": "Melden Sie sich beim Byline-Admin an.",
   "auth.signIn.errors.empty": "Geben Sie Ihre E-Mail und Ihr Passwort ein.",
   "auth.signIn.errors.invalidCredentials": "Ungültige Anmeldedaten.",
+  "auth.signIn.errors.bootstrap": "Ihre Sitzung konnte nicht überprüft werden. Bitte versuchen Sie es erneut.",
+  "auth.signIn.noscript": "JavaScript ist erforderlich, um sich anzumelden oder Ihre Admin-Sitzung zu erneuern.",
   "account.intro": "Verwalten Sie Ihr eigenes Profil und Passwort.",
   "account.sections.profile": "Profil",
   "account.sections.password": "Passwort",
