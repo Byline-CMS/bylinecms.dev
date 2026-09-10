@@ -2,7 +2,7 @@
   "name": "@byline/search-analysis",
   "private": false,
   "license": "MPL-2.0",
-  "version": "5.1.2",
+  "version": "5.1.3",
   "engines": {
     "node": ">=20.9.0"
   },

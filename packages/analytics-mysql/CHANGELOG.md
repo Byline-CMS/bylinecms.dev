@@ -1,5 +1,14 @@
 # @byline/analytics-mysql
 
+## 5.1.3
+
+### Patch Changes
+
+- **`@byline/host-tanstack-start`** renewed expired admin sessions in place on admin navigation and recovered the public admin bar and preview mode after access expiry
+  replaced the sign-in session check text with a spinner and styled its error states
+- Updated dependencies
+  - @byline/analytics@5.1.3
+
 ## 5.1.2
 
 ### Patch Changes
