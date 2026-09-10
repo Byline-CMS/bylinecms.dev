@@ -7,7 +7,9 @@
  */
 
 export {
+  type CurrentAdminSession,
   type CurrentAdminUser,
+  getCurrentAdminSessionSoft,
   getCurrentAdminUser,
   getCurrentAdminUserSoft,
 } from './current-user.js'

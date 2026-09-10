@@ -12,6 +12,8 @@
 import type { ReactNode } from 'react'
 import { Outlet } from '@tanstack/react-router'
 
+import { AdminSessionRecovery } from '@byline/host-tanstack-start/integrations/admin-session-recovery'
+
 import { DocsProvider } from '@/modules/docs/components/docs-provider'
 import { GradientBackground } from '@/modules/home/gradient-background'
 import { AppBarFront } from '@/ui/components/app-bar-front'
@@ -35,6 +37,7 @@ export function FrontendLayout({
   adminUser,
   adminPath,
   preview,
+  sessionRenewable,
   locale,
   children,
 }: FrontendLayoutProps) {
@@ -42,6 +45,7 @@ export function FrontendLayout({
     <BreadcrumbsProvider>
       <DocsProvider>
         <GradientBackground />
+        <AdminSessionRecovery renewable={sessionRenewable} />
         <ContentAdminBar user={adminUser} admin={adminPath} preview={preview} />
         <AppBarFront lng={locale} />
         <main id="main-content" className="flex flex-1 flex-col">

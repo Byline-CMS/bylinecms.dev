@@ -21,7 +21,7 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { type Actor, AuthError } from '@byline/auth'
-import { getAdminRequestContext } from '@byline/client/server'
+import { getAdminRequestContext, readRefreshTokenCookie } from '@byline/client/server'
 
 import { bylineCore } from '../../integrations/byline-core.js'
 
@@ -76,30 +76,59 @@ export const getCurrentAdminUser = createServerFn({ method: 'GET' }).handler(
 )
 
 /**
- * Soft variant for public-page consumers (e.g. the content admin bar that
- * renders only when the visitor is signed in). Returns `null` instead of
+ * Soft variants for public-page consumers (e.g. the content admin bar that
+ * renders only when the visitor is signed in). Return `null` instead of
  * throwing when there is no session — anonymous visitors are the common
  * case here, so a thrown error would be wrong shape for a public route
  * loader. Other failure modes (DB unavailable, session points to a
  * deleted admin) are still coerced to `null` so the bar simply hides.
+ *
+ * `getCurrentAdminSessionSoft` additionally reports `renewable`: true when
+ * the access credential has expired but a refresh credential is present.
+ * Public reads never rotate credentials, so without this hint a signed-in
+ * editor's admin bar and preview mode silently vanish after the access
+ * lifetime. The host's `AdminSessionRecovery` component consumes it to run
+ * the coordinated browser renewal and re-run the page's loaders.
+ *
+ * `getCurrentAdminUserSoft` keeps the original `CurrentAdminUser | null`
+ * shape for existing integrations.
  */
+export interface CurrentAdminSession {
+  user: CurrentAdminUser | null
+  /** Access expired with a refresh credential present: the browser may renew and reload data. */
+  renewable: boolean
+}
+
+export const getCurrentAdminSessionSoft = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<CurrentAdminSession> => resolveSoftSession()
+)
+
 export const getCurrentAdminUserSoft = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<CurrentAdminUser | null> => {
+  async (): Promise<CurrentAdminUser | null> => (await resolveSoftSession()).user
+)
+
+const anonymous: CurrentAdminSession = { user: null, renewable: false }
+
+async function resolveSoftSession(): Promise<CurrentAdminSession> {
+  try {
+    let actor: Actor
+    let sessionId: string | undefined
     try {
-      let actor: Actor
-      let sessionId: string | undefined
-      try {
-        ;({ actor, sessionId } = await getAdminRequestContext())
-      } catch (err) {
-        if (err instanceof AuthError) return null
-        throw err
+      ;({ actor, sessionId } = await getAdminRequestContext())
+    } catch (err) {
+      if (err instanceof AuthError) {
+        const renewable = err.code === 'ERR_ACCESS_EXPIRED' && readRefreshTokenCookie() != null
+        return { user: null, renewable }
       }
-      if (!actor) return null
+      throw err
+    }
+    if (!actor) return anonymous
 
-      const row = await bylineCore().adminStore?.adminUsers.getById(actor.id)
-      if (!row) return null
+    const row = await bylineCore().adminStore?.adminUsers.getById(actor.id)
+    if (!row) return anonymous
 
-      return {
+    return {
+      user: {
         sessionId: sessionId!,
         id: row.id,
         email: row.email,
@@ -107,9 +136,10 @@ export const getCurrentAdminUserSoft = createServerFn({ method: 'GET' }).handler
         family_name: row.family_name,
         is_super_admin: row.is_super_admin,
         abilities: Array.from(actor.abilities),
-      }
-    } catch {
-      return null
+      },
+      renewable: false,
     }
+  } catch {
+    return anonymous
   }
-)
+}

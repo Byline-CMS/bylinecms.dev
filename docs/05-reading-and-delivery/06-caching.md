@@ -92,7 +92,7 @@ Note: do not include `byline_preview` in this rule. The preview cookie is not a 
 
 ### When to skip `publicCacheMiddleware`
 
-Do not apply `publicCacheMiddleware` to any server function whose result depends on the caller's identity, for example `getCurrentAdminUserSoft` or `getPreviewStateFn`. Those must always be fresh per-visitor and should set their own headers (typically `private, no-store`) directly.
+Do not apply `publicCacheMiddleware` to any server function whose result depends on the caller's identity, for example `getCurrentAdminSessionSoft`, `getCurrentAdminUserSoft` or `getPreviewStateFn`. Those must always be fresh per-visitor and should set their own headers (typically `private, no-store`) directly.
 
 ### Verifying it works
 

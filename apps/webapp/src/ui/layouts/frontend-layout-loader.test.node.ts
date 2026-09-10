@@ -9,8 +9,9 @@
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('~/public', () => ({ routes: { admin: '/admin' } }))
+const mocks = vi.hoisted(() => ({ session: { user: null as unknown, renewable: false } }))
 vi.mock('@byline/host-tanstack-start/server-fns/auth', () => ({
-  getCurrentAdminUserSoft: async () => null,
+  getCurrentAdminSessionSoft: async () => mocks.session,
 }))
 vi.mock('@byline/client/server', () => ({ readPreviewCookie: () => false }))
 vi.mock('../../../../../packages/host-tanstack-start/node_modules/@tanstack/react-start', () => ({
@@ -44,6 +45,15 @@ describe('anonymous public layout', () => {
       adminUser: null,
       adminPath: '/admin',
       preview: false,
+      sessionRenewable: false,
+    })
+  })
+
+  it('threads the renewable hint through so the layout can recover an expired session', async () => {
+    mocks.session = { user: null, renewable: true }
+    await expect(loadFrontendLayoutData()).resolves.toMatchObject({
+      adminUser: null,
+      sessionRenewable: true,
     })
   })
 })
