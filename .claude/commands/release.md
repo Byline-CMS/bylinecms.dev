@@ -5,7 +5,7 @@ allowed-tools: AskUserQuestion, Bash, Read, Write
 argument-hint: [optional bump level: patch|minor|major]
 ---
 
-Drive the full release loop for the `@byline/*` lockstep set, end to end. The publishable packages listed under `fixed` in `.changeset/config.json` (18 at the time of writing) always move together to the same version. Always read the current set from that file rather than trusting that number — the set has grown before, and this count has gone stale before.
+Drive the full release loop for the `@byline/*` lockstep set, end to end. The publishable packages listed under `fixed` in `.changeset/config.json` (22 at the time of writing) always move together to the same version. Always read the current set from that file rather than trusting that number — the set has grown before, and this count has gone stale before.
 
 ## What this command does
 
@@ -150,6 +150,25 @@ This replaces `changeset publish` / `pnpm release:npm`, which **cannot publish u
 It is **idempotent**: packages already live at `NEXT_VERSION` are skipped and existing tags are left alone, so re-running after a partial failure just finishes the set. Run `./publish-packages.sh --dry-run` first if you want to pack + verify without publishing.
 
 If publish fails partway, surface the script's output verbatim and stop. Re-running the script is the intended recovery path (it skips what's already done) — but only after the user diagnoses why it failed.
+
+### Registry propagation — wait before concluding anything failed
+
+**npm registry propagation can take up to 5 minutes.** If you sweep the registry
+right after publishing, some packages will legitimately still be missing.
+
+- A package missing from a post-publish sweep is **not** proof it failed to publish.
+- Neither `npm view` nor a direct `curl https://registry.npmjs.org/<pkg>` packument
+  fetch is authoritative during this window — **both are CDN-cached** and can report
+  a stale version list and a stale `dist-tags.latest` for minutes after a successful
+  publish. (This bit v5.2.0: `@byline/auth` looked conclusively unpublished in both,
+  and had in fact published fine.)
+- The **primary** success signal is the script's own exit status. Since `aa97b0b9` a
+  failed `npm publish` propagates out and aborts the run, so a clean exit means the
+  publishes were accepted.
+
+So: if a sweep comes back short, **wait and re-check** — do not re-run
+`./publish-packages.sh` on that evidence alone. Only re-run once the script itself has
+failed, or a package is still missing well past the propagation window.
 
 ## Step 9 — Push tags
 
