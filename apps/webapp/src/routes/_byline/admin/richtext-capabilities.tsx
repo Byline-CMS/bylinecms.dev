@@ -24,22 +24,15 @@
  * running, then save the file to `byline/generated/`.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
-import { FormProvider } from '@byline/admin/react'
 import { getAdminConfig } from '@byline/core'
-import {
-  buildManifest,
-  capabilitiesFromEditor,
-  type FieldCapabilities,
-} from '@byline/richtext-lexical'
+import { buildManifest, type FieldCapabilities } from '@byline/richtext-lexical'
 import { Button } from '@byline/ui/react'
 
-import {
-  collectRichTextTargets,
-  type RichTextTarget,
-} from '../../../lib/richtext-capability-targets'
+import { CapabilityProbe } from '../../../lib/richtext-capability-probe'
+import { collectRichTextTargets } from '../../../lib/richtext-capability-targets'
 
 export const Route = createFileRoute('/_byline/admin/richtext-capabilities')({
   beforeLoad: () => {
@@ -49,88 +42,6 @@ export const Route = createFileRoute('/_byline/admin/richtext-capabilities')({
   },
   component: RichTextCapabilitiesGenerator,
 })
-
-/** Mounts one field's editor off-screen and reports what it registered. */
-function Probe({
-  target,
-  onMeasured,
-}: {
-  target: RichTextTarget
-  onMeasured: (capabilities: FieldCapabilities) => void
-}): React.JSX.Element | null {
-  const hostRef = useRef<HTMLDivElement>(null)
-  const reported = useRef(false)
-
-  useEffect(() => {
-    if (target.Editor == null) {
-      if (!reported.current) {
-        reported.current = true
-        onMeasured({
-          collectionPath: target.collectionPath,
-          fieldPath: target.fieldPath,
-          supportedTypes: null,
-          unresolvedReason: target.unresolvedReason,
-        })
-      }
-      return
-    }
-
-    // The editor is lazy, so poll for the contenteditable Lexical
-    // attaches its instance to rather than guessing at a delay.
-    let cancelled = false
-    let attempts = 0
-    const tick = () => {
-      if (cancelled || reported.current) return
-      const editable = hostRef.current?.querySelector('[contenteditable="true"]')
-      // biome-ignore lint/suspicious/noExplicitAny: Lexical attaches its editor here
-      const editor = (editable as any)?.__lexicalEditor
-      if (editor != null) {
-        reported.current = true
-        onMeasured(capabilitiesFromEditor(target.collectionPath, target.fieldPath, editor))
-        return
-      }
-      if (attempts++ > 100) {
-        reported.current = true
-        onMeasured({
-          collectionPath: target.collectionPath,
-          fieldPath: target.fieldPath,
-          supportedTypes: null,
-          unresolvedReason: 'Editor did not mount within the measurement window.',
-        })
-        return
-      }
-      setTimeout(tick, 50)
-    }
-    tick()
-    return () => {
-      cancelled = true
-    }
-  }, [target, onMeasured])
-
-  if (target.Editor == null) return null
-  const { Editor } = target
-  // Only FormProvider is added here. Everything else an editor needs —
-  // field services, admin services, the AI config, i18n — is already
-  // above this route: the admin layout wraps its Outlet in them
-  // (`create-admin-layout-route.tsx`). Measuring inside that tree is the
-  // point, since it is the tree a real field renders in; supplying stubs
-  // instead would measure a different arrangement from the one that
-  // ships. FormProvider is the exception because it is per-document
-  // rather than per-shell, and nothing is submitted through it.
-  return (
-    <div ref={hostRef} aria-hidden="true" style={{ height: 0, overflow: 'hidden' }}>
-      <FormProvider collectionPath={target.collectionPath}>
-        <Editor
-          field={target.field}
-          defaultValue={undefined}
-          onChange={() => {}}
-          path={target.fieldPath}
-          instanceKey={`${target.collectionPath}:${target.fieldPath}`}
-        />
-      </FormProvider>
-    </div>
-  )
-}
 
 function RichTextCapabilitiesGenerator(): React.JSX.Element {
   const [targets] = useState(() => collectRichTextTargets(getAdminConfig()))
@@ -215,7 +126,7 @@ function RichTextCapabilitiesGenerator(): React.JSX.Element {
       )}
 
       {targets.map((target) => (
-        <Probe
+        <CapabilityProbe
           key={`${target.collectionPath}:${target.fieldPath}`}
           target={target}
           onMeasured={onMeasured}
