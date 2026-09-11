@@ -10,7 +10,7 @@ Companions:
 
 - [Richtext node ownership specification](./2026-09-11-richtext-node-ownership-spec.md) — the work during which this was found. It is unrelated to that work and predates it.
 
-Date: 2026-09-11. Status: recorded, not scheduled. Not a regression.
+Date: 2026-09-11. Status: fixed. Recorded here first, then resolved as a follow-up to the richtext node-ownership work. Not a regression.
 
 ## What happens
 
@@ -52,6 +52,10 @@ The line is present at `aa97b0b9`, the commit before the node-ownership work beg
 
 React states plainly that it "won't be patched up", so the affected attributes keep the server's values until something re-renders that button. A macOS user can therefore see `Ctrl+B` in a tooltip, and the `aria-label` announces the wrong shortcut, which makes this accessibility-adjacent rather than purely cosmetic. No data or editing behaviour is affected.
 
-## Suggested fix
+## The fix
 
-Resolve the platform after mount so the first client render matches the server, then swap in the platform label — a `useSyncExternalStore` with a constant server snapshot, or a mounted flag. Whichever is chosen, the label must be derived per render rather than from a module-scope constant.
+`useIsApplePlatform` (`packages/richtext-lexical/src/field/hooks/use-platform-modifier.ts`) wraps the constant in `useSyncExternalStore`. Its server snapshot is used for the hydrating client render as well as for SSR, so the first client render matches the server exactly, and the real platform is adopted immediately afterwards. The toolbar reads the hook instead of the constant.
+
+`IS_APPLE` itself is unchanged: it remains a module-scope constant, which is correct for anything that is not rendered. What changed is that rendered output no longer reads it directly.
+
+The test mocks the environment module to `IS_APPLE: true` and hydrates markup rendered without the platform, reproducing the server/client split in one process. It carries a control asserting that reading the constant during render still mismatches, so the reason the hook exists cannot quietly rot.

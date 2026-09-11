@@ -95,7 +95,7 @@ import {
   TOGGLE_LINK_COMMAND,
 } from '../../extensions/link'
 import { canUseMarkdownSourceMode, useMarkdownToggle } from '../../hooks/use-markdown-toggle'
-import { IS_APPLE } from '../../shared/environment'
+import { useIsApplePlatform } from '../../hooks/use-platform-modifier'
 import { DropDown, DropDownItem } from '../../ui/dropdown'
 import { getSelectedNode } from '../../utils/getSelectedNode'
 import { sanitizeUrl } from '../../utils/url'
@@ -434,6 +434,9 @@ export function ToolbarPlugin(): React.JSX.Element {
     },
   } = useEditorConfig()
   const { isMarkdown, toggleMarkdown } = useMarkdownToggle()
+  // Resolved after mount so the first client render matches the server;
+  // reading the platform during render mismatches on hydration.
+  const isApple = useIsApplePlatform()
   // Source mode needs a CodeNode to hold the Markdown text, so the
   // control follows that capability as well as the preference.
   const canToggleMarkdown = canUseMarkdownSourceMode(editor)
@@ -660,7 +663,7 @@ export function ToolbarPlugin(): React.JSX.Element {
             onClick={() => {
               activeEditor.dispatchCommand(UNDO_COMMAND, undefined)
             }}
-            title={IS_APPLE ? 'Undo (⌘Z)' : 'Undo (Ctrl+Z)'}
+            title={isApple ? 'Undo (⌘Z)' : 'Undo (Ctrl+Z)'}
             type="button"
             className="toolbar-item spaced"
             aria-label="Undo"
@@ -672,7 +675,7 @@ export function ToolbarPlugin(): React.JSX.Element {
             onClick={() => {
               activeEditor.dispatchCommand(REDO_COMMAND, undefined)
             }}
-            title={IS_APPLE ? 'Redo (⌘Y)' : 'Redo (Ctrl+Y)'}
+            title={isApple ? 'Redo (⌘Y)' : 'Redo (Ctrl+Y)'}
             type="button"
             className="toolbar-item"
             aria-label="Redo"
@@ -796,9 +799,9 @@ export function ToolbarPlugin(): React.JSX.Element {
               activeEditor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')
             }}
             className={`toolbar-item spaced ${isBold ? 'active' : ''}`}
-            title={IS_APPLE ? 'Bold (⌘B)' : 'Bold (Ctrl+B)'}
+            title={isApple ? 'Bold (⌘B)' : 'Bold (Ctrl+B)'}
             type="button"
-            aria-label={`Format text as bold. Shortcut: ${IS_APPLE ? '⌘B' : 'Ctrl+B'}`}
+            aria-label={`Format text as bold. Shortcut: ${isApple ? '⌘B' : 'Ctrl+B'}`}
           >
             <i className="format bold" />
           </button>
@@ -808,9 +811,9 @@ export function ToolbarPlugin(): React.JSX.Element {
               activeEditor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')
             }}
             className={`toolbar-item spaced ${isItalic ? 'active' : ''}`}
-            title={IS_APPLE ? 'Italic (⌘I)' : 'Italic (Ctrl+I)'}
+            title={isApple ? 'Italic (⌘I)' : 'Italic (Ctrl+I)'}
             type="button"
-            aria-label={`Format text as italics. Shortcut: ${IS_APPLE ? '⌘I' : 'Ctrl+I'}`}
+            aria-label={`Format text as italics. Shortcut: ${isApple ? '⌘I' : 'Ctrl+I'}`}
           >
             <i className="format italic" />
           </button>
@@ -820,9 +823,9 @@ export function ToolbarPlugin(): React.JSX.Element {
               activeEditor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline')
             }}
             className={`toolbar-item spaced ${isUnderline ? 'active' : ''}`}
-            title={IS_APPLE ? 'Underline (⌘U)' : 'Underline (Ctrl+U)'}
+            title={isApple ? 'Underline (⌘U)' : 'Underline (Ctrl+U)'}
             type="button"
-            aria-label={`Format text to underlined. Shortcut: ${IS_APPLE ? '⌘U' : 'Ctrl+U'}`}
+            aria-label={`Format text to underlined. Shortcut: ${isApple ? '⌘U' : 'Ctrl+U'}`}
           >
             <i className="format underline" />
           </button>
