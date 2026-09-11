@@ -17,7 +17,10 @@ export default defineConfig(({ mode }) => {
       tsconfigPaths: true,
     },
     test: {
-      setupFiles: './vitest.setup.node.ts',
+      setupFiles:
+        mode === 'node'
+          ? ['./vitest.setup.node.ts']
+          : ['./vitest.setup.node.ts', './vitest.setup.jsdom.ts'],
       environment: mode === 'node' ? 'node' : 'jsdom',
       include: testFiles,
       reporter: 'verbose',

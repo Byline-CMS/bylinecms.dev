@@ -193,6 +193,9 @@ importers:
       jsdom:
         specifier: ^30.0.1
         version: 30.0.1
+      lexical:
+        specifier: 0.50.0
+        version: 0.50.0(typescript@7.0.2)
       rollup-plugin-visualizer:
         specifier: ^7.1.1
         version: 7.1.1(rolldown@1.2.7)

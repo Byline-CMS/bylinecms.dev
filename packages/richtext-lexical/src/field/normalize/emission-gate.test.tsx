@@ -73,6 +73,15 @@ const text = (value: string) => ({
 const doc = (...children: unknown[]): any => ({
   root: { children, direction: null, format: '', indent: 0, type: 'root', version: 1 },
 })
+const headingNode = (value: string) => ({
+  children: [text(value)],
+  direction: null,
+  format: '',
+  indent: 0,
+  type: 'heading',
+  version: 1,
+  tag: 'h1',
+})
 const paragraph = (value: string) => ({
   children: [text(value)],
   direction: null,
@@ -125,6 +134,115 @@ afterEach(async () => {
     })
     container.remove()
   }
+})
+
+/**
+ * Let the normalization baseline settle.
+ *
+ * ApplyValuePlugin captures what Lexical actually settled on after a
+ * microtask and two animation frames, and `editor-component` suppresses
+ * emission until it has. A test that edits before then sees no emission
+ * for the right reason but the wrong one.
+ */
+async function settleBaseline(): Promise<void> {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 60))
+  })
+}
+
+/** Mount EditorComponent and report every value it emits. */
+async function mountField(
+  removals: string[],
+  value: SerializedEditorState,
+  onChange: (next: SerializedEditorState) => void
+): Promise<{ editor: () => LexicalEditor; container: HTMLDivElement }> {
+  const extensions = defaultClientEditorConfig.extensions?.clone()
+  for (const name of removals) extensions.remove(name)
+
+  let editor: LexicalEditor | undefined
+  function Capture(): null {
+    const [instance] = useLexicalComposerContext()
+    editor = instance
+    return null
+  }
+
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
+  mounted.push({ root, container })
+
+  await act(async () => {
+    root.render(
+      <EditorComponent
+        id="field"
+        name="field"
+        editorConfig={{ ...defaultClientEditorConfig, extensions }}
+        value={value}
+        onChange={onChange}
+        featureChildren={[<Capture key="capture" />]}
+      />
+    )
+  })
+  return {
+    container,
+    editor: () => {
+      if (editor == null) throw new Error('editor never captured')
+      return editor
+    },
+  }
+}
+
+/**
+ * These assert on what the editor EMITS, not on what a form ends up
+ * holding. From the form's side a suppressed emission and an emission
+ * that happens to equal the stored value are indistinguishable — both
+ * produce no patch — yet only one is the behaviour the spec asks for.
+ */
+describe('adapted content and the change gate', () => {
+  it('emits nothing when adapted content is merely loaded', async () => {
+    const onChange = vi.fn()
+    await mountField([builtInExtensions.Heading], doc(headingNode('Legacy title')), onChange)
+    await settleBaseline()
+    await act(async () => {
+      for (const cb of pending.splice(0)) cb()
+    })
+    // The adaptation is presentational. Emitting here would make every
+    // affected document dirty on open and persist the adapted form on the
+    // next unrelated save.
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('emits the adapted content, including the new text, once edited', async () => {
+    const onChange = vi.fn()
+    const harness = await mountField(
+      [builtInExtensions.Heading],
+      doc(headingNode('Legacy title')),
+      onChange
+    )
+    await settleBaseline()
+    expect(onChange).not.toHaveBeenCalled()
+
+    await act(async () => {
+      harness.editor().update(
+        () => {
+          $getRoot().selectEnd()
+          $getRoot().append($createParagraphNode().append($createTextNode('and more')))
+        },
+        { discrete: true }
+      )
+    })
+    await act(async () => {
+      for (const cb of pending.splice(0)) cb()
+    })
+
+    expect(onChange).toHaveBeenCalled()
+    const emitted = JSON.stringify(onChange.mock.calls.at(-1)?.[0])
+    // Expected loss: the adaptation persists once the reader edits. What
+    // must NOT happen is losing either the original text or the edit.
+    expect(emitted).not.toContain('"type":"heading"')
+    expect(emitted).toContain('Legacy title')
+    expect(emitted).toContain('and more')
+  })
 })
 
 describe('a refused field must not emit the previous document as its value', () => {
