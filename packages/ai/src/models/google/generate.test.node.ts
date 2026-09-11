@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { getAiServerConfig as getServerConfig } from '../../config/ai-config'
 import { generateDoc, generateDocStreaming } from './generate'
 
-const MODEL = 'gemini-2.5-flash'
+const MODEL = 'gemini-3.8-flash'
 
 describe('google generate', () => {
   beforeEach(async () => {})

@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { getAiServerConfig as getServerConfig } from '../../config/ai-config'
 import { patchDoc, patchDocStreaming } from './patch'
 
-const MODEL = 'claude-sonnet-4-5-20250929'
+const MODEL = 'claude-sonnet-5'
 
 describe('anthropic patch', () => {
   beforeEach(async () => {})

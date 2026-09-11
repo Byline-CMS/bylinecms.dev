@@ -226,6 +226,12 @@ if [ "$DRY_RUN" -eq 1 ]; then
 else
   ok "Done: ${#PKG_LINES[@]} packages live at ${VERSION}, per-package tags pushed."
   echo
+  warn "Registry propagation can take up to 5 minutes."
+  echo "  ${DIM}A package missing from a post-publish sweep is NOT proof it failed —${RESET}"
+  echo "  ${DIM}neither \`npm view\` nor a direct packument fetch is authoritative until${RESET}"
+  echo "  ${DIM}propagation settles (both are CDN-cached). Wait and re-check before${RESET}"
+  echo "  ${DIM}re-running this script. A real failure exits non-zero here instead.${RESET}"
+  echo
   info "Next — hand back to Claude for the umbrella release:"
   echo "  • create + push the umbrella tag  v${VERSION}"
   echo "  • fast-forward main to ${ANCHOR_SHORT} (if not already) and push"

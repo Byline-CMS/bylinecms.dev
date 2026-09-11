@@ -1,5 +1,13 @@
 # @byline/cli
 
+## 5.2.0
+
+### Minor Changes
+
+- refreshed **`@byline/ai`**'s curated provider model lists to the current text-handling generations — each provider now offers a flagship, balanced, and low-cost option, with new defaults
+  
+  fixed the release publish script so a failed `npm publish` propagates out instead of reporting success
+
 ## 5.1.4
 
 ### Patch Changes
