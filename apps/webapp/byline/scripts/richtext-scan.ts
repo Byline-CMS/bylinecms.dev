@@ -15,13 +15,18 @@
  * opens it, or may open read-only if it holds something with no safe
  * conversion. This reports both, before an upgrade rather than after.
  *
- * Two steps, because capabilities and content live in different places.
- * Measuring what a field accepts means building its editor, which needs
- * a DOM; scanning stored values needs a database. So:
+ * Two steps, because capabilities and content are established
+ * differently. Measuring what a field accepts means building its editor,
+ * which needs a DOM and a React-capable module graph; scanning stored
+ * values needs a database. So:
  *
- *   1. Visit `/admin/richtext-capabilities` in the development app and
- *      save the manifest to `byline/generated/richtext-capabilities.json`.
+ *   1. cd apps/webapp && pnpm byline:richtext-manifest
  *   2. cd apps/webapp && pnpm tsx byline/scripts/richtext-scan.ts
+ *
+ * Step 1 runs in jsdom and needs no browser and no running application,
+ * so it works against a production configuration. `/admin/richtext-capabilities`
+ * is an interactive equivalent for seeing why a field measured as it
+ * did, but it is development-only.
  *
  * Reads only. Exits non-zero when any value would make a field
  * read-only, or when any field's capabilities are unknown, so it can
@@ -152,7 +157,7 @@ async function run(): Promise<void> {
   } catch {
     console.error(
       `Could not read a capability manifest at ${MANIFEST_PATH}.\n` +
-        'Generate one by visiting /admin/richtext-capabilities in the development app.'
+        'Generate one with: pnpm byline:richtext-manifest'
     )
     process.exitCode = 1
     return

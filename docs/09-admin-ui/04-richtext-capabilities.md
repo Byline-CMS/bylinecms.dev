@@ -131,9 +131,21 @@ A node type Byline does not recognise takes the same path. That includes a node 
 
 ## Checking existing content
 
-Before narrowing a field on a live installation, check what the change will do to documents already written. The check runs in two steps, because capabilities and content live in different places: measuring what a field accepts means building its editor, which needs a browser, while scanning stored values needs a database. A manifest file travels between them.
+Before narrowing a field on a live installation, check what the change will do to documents already written. The check runs in two steps, because capabilities and content are established differently: measuring what a field accepts means building its editor, which needs a DOM and a React-capable module graph, while scanning stored values needs a database connection. A manifest file travels between them.
 
-**1. Generate the manifest.** With the development server running, visit `/admin/richtext-capabilities`. The page walks every collection, mounts each richtext field's editor off-screen, records the node types it registered, and offers the result as JSON. Save it to `apps/webapp/byline/generated/richtext-capabilities.json`. The page reads and writes no content, and is served only in development.
+**1. Generate the manifest.**
+
+```sh
+cd apps/webapp && pnpm byline:richtext-manifest
+```
+
+This mounts every richtext field's editor in jsdom, records the node types each one registered, and writes `byline/generated/richtext-capabilities.json`. It needs no browser and no running application, and it is what CI runs — so the same command works against a production configuration.
+
+The file is a per-installation artifact, specific to your field configuration and stale as soon as a field is reconfigured. It is not committed, and `byline/generated/` holds no example to compare against: generate one when you need it.
+
+There is also an interactive equivalent at `/admin/richtext-capabilities`, which shows each field, the editor it resolved to, and the resulting manifest to copy or download. It is useful for seeing *why* a field measured as it did. It is served only in development, so it is not the path to use when checking a production installation.
+
+Both read and write no content.
 
 **2. Scan stored values.**
 
@@ -215,8 +227,13 @@ Nothing on disk changes at upgrade time. A document written under a wider config
 
 So the risk is not data loss on upgrade. It is an editor meeting an adapted or read-only field without warning. Find those first:
 
-1. Generate the manifest at `/admin/richtext-capabilities` and save it to `apps/webapp/byline/generated/richtext-capabilities.json`.
-2. Run `cd apps/webapp && pnpm tsx byline/scripts/richtext-scan.ts`.
+```sh
+cd apps/webapp
+pnpm byline:richtext-manifest          # measures every field; no browser needed
+pnpm tsx byline/scripts/richtext-scan.ts
+```
+
+See [Checking existing content](#checking-existing-content) for what each step does and for the interactive alternative.
 
 The scan is read-only and exits non-zero if any value would open read-only, or if any field's capabilities could not be measured. A clean run means no editor will meet either surface.
 
