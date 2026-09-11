@@ -1,0 +1,48 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  utilities,
+  byline-utilities;
+
+/**
+ * Development-only capability manifest page.
+ *
+ * Colours come from the UI kit's semantic tokens rather than literals:
+ * this page renders inside the admin, which has a dark theme, and the
+ * hardcoded light values it started with made the serialized manifest
+ * dark-on-pale and hard to read.
+ */
+@layer byline-components {
+  .byline-capabilities {
+    margin: 0 auto;
+    max-width: 860px;
+    padding: 24px;
+  }
+
+  .byline-capabilities__note {
+    color: var(--text-subtle);
+    font-size: var(--font-size-sm, 0.8125rem);
+  }
+
+  .byline-capabilities__actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .byline-capabilities__json {
+    background-color: var(--surface-subtle);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm, 4px);
+    color: var(--text);
+    font-size: var(--font-size-xs, 0.75rem);
+    max-height: 420px;
+    overflow: auto;
+    padding: 12px;
+  }
+}

@@ -31,6 +31,8 @@ import { getAdminConfig } from '@byline/core'
 import { buildManifest, type FieldCapabilities } from '@byline/richtext-lexical'
 import { Button } from '@byline/ui/react'
 
+import './richtext-capabilities.css'
+
 import { CapabilityProbe } from '../../../lib/richtext-capability-probe'
 import { collectRichTextTargets } from '../../../lib/richtext-capability-targets'
 
@@ -64,9 +66,9 @@ function RichTextCapabilitiesGenerator(): React.JSX.Element {
   const json = manifest != null ? `${JSON.stringify(manifest, null, 2)}\n` : ''
 
   return (
-    <main style={{ margin: '0 auto', maxWidth: 860, padding: 24 }}>
+    <main className="byline-capabilities">
       <h1 style={{ fontSize: 20 }}>Richtext capability manifest</h1>
-      <p style={{ color: '#555', fontSize: 13 }}>
+      <p className="byline-capabilities__note">
         Development only. Measures what each richtext field accepts by building its editor, then
         hands the result to <code>byline/scripts/richtext-scan.ts</code>. Reads and writes no
         content.
@@ -78,7 +80,7 @@ function RichTextCapabilitiesGenerator(): React.JSX.Element {
 
       {done && (
         <>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <div className="byline-capabilities__actions">
             <Button
               type="button"
               variant="outlined"
@@ -110,18 +112,7 @@ function RichTextCapabilitiesGenerator(): React.JSX.Element {
             Save as <code>apps/webapp/byline/generated/richtext-capabilities.json</code>, then run{' '}
             <code>pnpm tsx byline/scripts/richtext-scan.ts</code>.
           </p>
-          <pre
-            style={{
-              background: '#f6f6f6',
-              borderRadius: 4,
-              fontSize: 12,
-              maxHeight: 420,
-              overflow: 'auto',
-              padding: 12,
-            }}
-          >
-            {json}
-          </pre>
+          <pre className="byline-capabilities__json">{json}</pre>
         </>
       )}
 

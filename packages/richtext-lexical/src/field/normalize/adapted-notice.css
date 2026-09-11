@@ -1,27 +1,52 @@
-.byline-richtext-notice {
-  border-radius: 4px;
-  font-size: 0.8125rem;
-  line-height: 1.4;
-  margin-bottom: 8px;
-  padding: 8px 10px;
-}
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  utilities,
+  byline-utilities;
 
-.byline-richtext-notice p {
-  margin: 0;
-}
+/**
+ * Content-adaptation notices.
+ *
+ * Colours come from the UI kit's semantic tokens rather than literals so
+ * both notices follow the admin's theme. Hardcoded light values render
+ * as dark text on a pale block against the dark theme, which is the
+ * state these notices are least able to afford: one of them is the only
+ * thing a reader sees when a field will not open.
+ *
+ * Declared in `byline-components` so the layer order the admin
+ * establishes governs them, rather than Tailwind's preflight.
+ */
+@layer byline-components {
+  .byline-richtext-notice {
+    border-radius: var(--border-radius-sm, 4px);
+    font-size: var(--font-size-sm, 0.8125rem);
+    line-height: 1.4;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+  }
 
-.byline-richtext-notice p + p {
-  margin-top: 4px;
-}
+  .byline-richtext-notice p {
+    margin: 0;
+  }
 
-.byline-richtext-notice--adapted {
-  background: #fff8e1;
-  border: 1px solid #ffe082;
-  color: #6d4c00;
-}
+  .byline-richtext-notice p + p {
+    margin-top: 4px;
+  }
 
-.byline-richtext-notice--refused {
-  background: #fdecea;
-  border: 1px solid #f5c2c0;
-  color: #7f231c;
+  .byline-richtext-notice--adapted {
+    background-color: var(--fill-warning-weak);
+    border: 1px solid var(--stroke-warning);
+    color: var(--text-on-warning-weak);
+  }
+
+  .byline-richtext-notice--refused {
+    background-color: var(--fill-danger-weak);
+    border: 1px solid var(--stroke-danger);
+    color: var(--text-on-danger-weak);
+  }
 }

@@ -10,12 +10,19 @@
  * Measuring one richtext field's capabilities by mounting its editor.
  *
  * Shared by the development route at `/admin/richtext-capabilities` and
- * the CI harness, so the two cannot measure differently. What they do
- * NOT share is the surrounding provider tree, and that difference is
- * deliberate: in the app the admin layout already supplies field
+ * the CI harness, so neither can drift in how it resolves a field or
+ * reads an editor.
+ *
+ * They do NOT share the surrounding provider tree, and that limits what
+ * the sharing guarantees. In the app the admin layout supplies field
  * services, admin services, the AI config and i18n, so the route
- * measures inside the real tree; the harness has no layout and supplies
- * them itself.
+ * measures inside the real tree; the harness has no layout and
+ * reconstructs an approximation of it. Identical measurement logic
+ * therefore does not prove identical results — an editor that depends on
+ * something the layout provides and the harness omits will measure
+ * differently, or fail in the harness alone. That is useful signal
+ * rather than a fault, but it is not parity, and the harness passing is
+ * not proof the route does.
  */
 
 import { useEffect, useRef } from 'react'

@@ -1,0 +1,40 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  utilities,
+  byline-utilities;
+
+/**
+ * Development-only preview of the content-adaptation surfaces.
+ *
+ * Tokens rather than literals, for the same reason as the notices
+ * themselves: this renders inside the admin, which has a dark theme.
+ */
+@layer byline-components {
+  .byline-notices-preview {
+    margin: 0 auto;
+    max-width: 760px;
+    padding: 24px;
+  }
+
+  .byline-notices-preview__section {
+    margin-bottom: 40px;
+  }
+
+  .byline-notices-preview__note {
+    color: var(--text-subtle);
+    font-size: var(--font-size-sm, 0.8125rem);
+    margin-top: 0;
+  }
+
+  .byline-notices-preview__field {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm, 4px);
+    padding: 12px;
+  }
+}

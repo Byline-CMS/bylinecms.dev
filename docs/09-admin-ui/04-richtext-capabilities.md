@@ -235,7 +235,7 @@ pnpm tsx byline/scripts/richtext-scan.ts
 
 See [Checking existing content](#checking-existing-content) for what each step does and for the interactive alternative.
 
-The scan is read-only and exits non-zero if any value would open read-only, or if any field's capabilities could not be measured. A clean run means no editor will meet either surface.
+The scan is read-only. It exits non-zero if any value would open read-only, or if any field's capabilities could not be measured — so a zero exit means nothing will be refused and nothing went unexamined. It does **not** mean nothing will change: adaptations are reported and still exit zero, because adapting is the designed outcome rather than a failure. Read the counts, not just the exit status. Zero findings altogether is what means no editor will meet either notice.
 
 If the scan reports content that will open read-only, restore the extension that owns it for that field, or migrate the content, before deploying.
 

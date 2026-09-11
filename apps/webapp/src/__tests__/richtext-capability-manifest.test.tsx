@@ -22,9 +22,12 @@
  *     src/__tests__/richtext-capability-manifest.test.tsx
  *
  * It shares `collectRichTextTargets` and `CapabilityProbe` with the
- * development route, so the two cannot measure differently. What it does
- * NOT share is the provider tree: in the app those come from the admin
- * layout, and here they are mounted explicitly.
+ * development route, so resolution and measurement cannot drift apart.
+ * It does NOT share the provider tree: in the app those come from the
+ * admin layout, and here they are reconstructed. So this covers the
+ * shared logic, not browser/provider parity — an editor depending on
+ * something the layout provides and this omits would measure
+ * differently, or fail here alone.
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs'

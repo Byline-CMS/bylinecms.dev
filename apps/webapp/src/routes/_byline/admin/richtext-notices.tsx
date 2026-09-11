@@ -32,6 +32,8 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 import { builtInExtensions, defaultClientEditorConfig, EditorField } from '@byline/richtext-lexical'
 import { Button } from '@byline/ui/react'
 
+import './richtext-notices.css'
+
 /**
  * Structural stand-in for Lexical's `EditorValue`. The webapp
  * deliberately does not depend on `lexical` — the editor package owns
@@ -182,10 +184,10 @@ function PreviewEditor({
   for (const name of removals) extensions?.remove(name)
 
   return (
-    <section style={{ marginBottom: 40 }}>
+    <section className="byline-notices-preview__section">
       <h2 style={{ fontSize: 16, marginBottom: 4 }}>{title}</h2>
-      <p style={{ color: '#555', fontSize: 13, marginTop: 0 }}>{description}</p>
-      <div style={{ border: '1px solid #ddd', borderRadius: 4, padding: 12 }}>
+      <p className="byline-notices-preview__note">{description}</p>
+      <div className="byline-notices-preview__field">
         <EditorField
           id={title}
           name={title}
@@ -212,9 +214,9 @@ function PreviewEditor({
 
 function RichTextNoticesPreview(): React.JSX.Element {
   return (
-    <main style={{ margin: '0 auto', maxWidth: 760, padding: 24 }}>
+    <main className="byline-notices-preview">
       <h1 style={{ fontSize: 20 }}>Richtext content-adaptation preview</h1>
-      <p style={{ color: '#555', fontSize: 13 }}>
+      <p className="byline-notices-preview__note">
         Development only. Both editors use fixed in-memory values — nothing is read from or written
         to the database.
       </p>
