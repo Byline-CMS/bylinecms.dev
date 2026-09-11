@@ -99,6 +99,26 @@
     "files": [
       "dist/",
       "src/"
-    ]
+    ],
+    "exports": {
+      "./react": {
+        "types": "./dist/react.d.ts",
+        "import": "./dist/react.js",
+        "main": "./dist/react.js",
+        "default": "./dist/react.js"
+      },
+      "./reset.css": {
+        "import": "./dist/styles/reset.css",
+        "default": "./dist/styles/reset.css"
+      },
+      "./styles.css": {
+        "import": "./dist/styles/styles.css",
+        "default": "./dist/styles/styles.css"
+      },
+      "./typography.css": {
+        "import": "./dist/styles/typography.css",
+        "default": "./dist/styles/typography.css"
+      }
+    }
   }
 }
