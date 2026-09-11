@@ -61,8 +61,8 @@ defineAdminConfig({
     richText: {
       editor: lexicalEditor((c) => {
         c.settings.placeholderText = 'Start writing…'
-        c.settings.options.markdownShortcutPlugin = true // inline `# `, `**bold**`, … shortcuts
-        c.settings.options.markdownToggle = true // document-level "view as markdown source" toolbar button
+        c.settings.markdownShortcuts = true // inline `# `, `**bold**`, … shortcuts
+        c.settings.controls.markdownToggle = true // document-level "view as markdown source" toolbar button
         return c
       }),
     },

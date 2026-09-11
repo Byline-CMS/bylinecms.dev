@@ -139,19 +139,31 @@ Before narrowing a field on a live installation, check what the change will do t
 cd apps/webapp && pnpm byline:richtext-manifest
 ```
 
-This mounts every richtext field's editor in jsdom, records the node types each one registered, and writes `byline/generated/richtext-capabilities.json`. It needs no browser and no running application, and it is what CI runs — so the same command works against a production configuration.
+This mounts every richtext field's editor in jsdom, records the node types each one registered, and writes `byline/generated/richtext-capabilities.json`. It needs no browser and no running application, and it is what CI runs against this repository's own configuration.
 
 The file is a per-installation artifact, specific to your field configuration and stale as soon as a field is reconfigured. It is not committed, and `byline/generated/` holds no example to compare against: generate one when you need it.
 
+:::warning[This command is monorepo-only for now]
+The harness resolves `@byline/*` through workspace links, which is why Vite processes the whole module graph including its CSS. An application installing `@byline/*` from npm cannot run it: Vitest externalises those packages, Node performs the import, and the run fails with `ERR_UNKNOWN_FILE_EXTENSION` on `@byline/ui`'s published CSS. Tracked in [issue #96](https://github.com/Byline-CMS/bylinecms.dev/issues/96).
+
+On a downstream installation, produce the manifest from the interactive page described below, then scan with [the published APIs](#using-the-apis-directly). Note that the page is reference-application source as well: copy `src/routes/_byline/admin/richtext-capabilities.{tsx,css}` and `src/lib/richtext-capability-{probe.tsx,targets.ts}` into your application first — every package they import is published, so they work once copied. `byline/scripts/richtext-scan.ts` is likewise reference-application source and is not installed by `byline init`.
+:::
+
 There is also an interactive equivalent at `/admin/richtext-capabilities`, which shows each field, the editor it resolved to, and the resulting manifest to copy or download. It is useful for seeing *why* a field measured as it did. It is served only in development, so it is not the path to use when checking a production installation.
 
-Both read and write no content.
+Neither path — the command or the interactive page — reads or writes any content.
 
 **2. Scan stored values.**
 
 ```sh
 cd apps/webapp && pnpm tsx byline/scripts/richtext-scan.ts
 ```
+
+:::warning[The scan reads content but is not free of side effects]
+The script imports `byline/server.config.ts` to resolve the collection registry and a database connection, and that module applies pending search and analytics migrations as a deliberate startup step. The scan reads every stored value and writes none, but running it applies any migration the configured providers have outstanding.
+
+This matters on a 6.0 upgrade in particular: `@byline/search-postgres` ships a repair migration that empties the search index on an affected installation, which then needs a rebuild before search returns results. Run the scan against a staging copy, or check first with the pre-flight query in [Upgrading from 5.2 to 6.x](../01-getting-started/09-upgrading-to-v6.md#check-before-you-upgrade).
+:::
 
 The script reads every value in `byline_store_json` — every document, every version including archived ones, every locale — matches each against the manifest, and reports per collection:
 
@@ -197,47 +209,7 @@ Capabilities are measured by building the editor rather than by inspecting the c
 
 ## Upgrading from 5.x
 
-Two separate things changed in 6.0, and they need different responses.
-
-### The configuration API changed
-
-`EditorSettings.options` is replaced, with no alias. Every registration must move:
-
-| 5.x | 6.0 |
-|---|---|
-| `options.richText` | `mode: 'richText' \| 'plainText'` |
-| `options.markdownShortcutPlugin` | `markdownShortcuts` |
-| `options.showTreeView` | `controls.treeView` |
-| `options.textStyle` | `controls.blockFormat` |
-| `options.inlineCode` | `controls.inlineCode` |
-| `options.undoRedo` | `controls.undoRedo` |
-| `options.textAlignment` | `controls.textAlignment` |
-| `options.markdownToggle` | `controls.markdownToggle` |
-| `options.debug` | `debug` |
-
-`Nodes` is renamed `READABLE_NODES` and is no longer a registration list.
-
-Where a registration used `textStyle: false` to mean "no headings", that intent now belongs in the extensions list — `c.extensions.remove(builtInExtensions.Heading)` — because the flag only ever hid the dropdown. Read each call site and decide which was meant: hiding the control, disabling the capability, or both. That decision is the substance of the upgrade, not the rename.
-
-### What a field accepts changed
-
-This is the part to check against real content. Removing an extension now removes its node registration, so a field narrowed in 5.x — where narrowing only hid controls — may hold content it no longer accepts.
-
-Nothing on disk changes at upgrade time. A document written under a wider configuration is adapted when an editor opens it, or the field opens read-only if it holds something with no safe conversion. **Stored values change only when that field is edited and saved.** Reads through `@byline/client`, Markdown export and every other consumer are unaffected either way.
-
-So the risk is not data loss on upgrade. It is an editor meeting an adapted or read-only field without warning. Find those first:
-
-```sh
-cd apps/webapp
-pnpm byline:richtext-manifest          # measures every field; no browser needed
-pnpm tsx byline/scripts/richtext-scan.ts
-```
-
-See [Checking existing content](#checking-existing-content) for what each step does and for the interactive alternative.
-
-The scan is read-only. It exits non-zero if any value would open read-only, or if any field's capabilities could not be measured — so a zero exit means nothing will be refused and nothing went unexamined. It does **not** mean nothing will change: adaptations are reported and still exit zero, because adapting is the designed outcome rather than a failure. Read the counts, not just the exit status. Zero findings altogether is what means no editor will meet either notice.
-
-If the scan reports content that will open read-only, restore the extension that owns it for that field, or migrate the content, before deploying.
+The 6.0 release replaced `EditorSettings.options` with no alias and made extension removal decide what a field accepts. [Upgrading from 5.2 to 6.x](../01-getting-started/09-upgrading-to-v6.md) carries the registration mapping table, the before-and-after preset, and the order to run the pre-flight scan in.
 
 ## Not yet shipped
 

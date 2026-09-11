@@ -4,17 +4,21 @@ A developer-friendly, open-source headless CMS — built with versioning,
 editorial workflow, and content translation as first-class concerns rather
 than features bolted on later.
 
-> Status: Byline is currently at a stable v5.x release. Earlier major-version
+> Status: Byline is currently at a stable v6.x release. Earlier major-version
 > bumps were driven by lockstep versioning across the publishable
-> `@byline/*` packages rather than breaking redesigns; v5 is the first that
-> carries a genuine breaking change — document-wide optimistic concurrency,
-> which requires a database migration and application code changes. The
+> `@byline/*` packages rather than breaking redesigns; v5 was the first to
+> carry a genuine breaking change — document-wide optimistic concurrency,
+> which requires a database migration and application code changes. v6 narrows
+> what a rich text field accepts to the structures its editor actually
+> registers, and repairs an incomplete PostgreSQL search schema. The
 > architecture is settled and there are unlikely to be any major architectural
 > changes, though there is still work to do.
-> If you're interested in Byline, v5 is a solid base for evaluation and
-> for building on. Upgrading from 4.19? See the
-> [v5 migration guide](docs/01-getting-started/06-upgrading-to-v5.md). Coming
-> from 3.21? Start with the [v4 guide](docs/01-getting-started/04-upgrading-to-v4.md).
+> If you're interested in Byline, v6 is a solid base for evaluation and
+> for building on. Upgrading from 5.2? See the
+> [v6 migration guide](docs/01-getting-started/09-upgrading-to-v6.md). Coming
+> from 4.19? Start with the
+> [v5 guide](docs/01-getting-started/06-upgrading-to-v5.md), or the
+> [v4 guide](docs/01-getting-started/04-upgrading-to-v4.md) from 3.21.
 
 <img width="914" height="685" alt="byline-admin" src="https://github.com/user-attachments/assets/1d4a6a02-b847-4e66-b8c9-9fb8964a2287" />
 
@@ -68,6 +72,11 @@ overview; the table of contents below links straight to every topic reference.
   the supported rollout and rollback boundary. Provider cutover runbooks:
   **[PostgreSQL](docs/01-getting-started/07-postgresql-v5-cutover.md)** and
   **[MySQL](docs/01-getting-started/08-mysql-v5-cutover.md)**.
+- **[Upgrading to v6](docs/01-getting-started/09-upgrading-to-v6.md)** — the
+  5.2 → 6.x application migration: the repair for an incomplete PostgreSQL
+  search schema and the rebuild it requires, and rich text fields whose
+  resolved editor decides which structures they accept, with the pre-flight
+  scan to run against stored content first.
 
 ### 2. [Why Byline](docs/02-why-byline/index.md)
 
@@ -109,7 +118,7 @@ schema versioning.
   storage, and inline uploads via `upload.location`.
 - **[Relationships](docs/04-collections/03-relationships.md)** — cross-collection
   relations, populate, the relation envelope, recursion safety via
-  `ReadContext`, and `hasMany` as a future phase.
+  `ReadContext`, and ordered `hasMany` relations with their query quantifiers.
 - **[Document Trees](docs/04-collections/04-document-trees.md)** — hierarchical
   documents, tree mode, and auto-placement.
 - **[Document Paths](docs/04-collections/05-document-paths.md)** — the `path`
@@ -419,7 +428,7 @@ We’re not certain yet, and likely not at this early stage. Our priority is to 
 
 <details>
 <summary>6. What's here now?</summary>
-The storage, versioning, workflow, auth, client SDK, and admin UI are all in place. We're shipping under the 5.x line: APIs are stable and the core architecture is settled, with several capabilities (collection-versioning history, `hasMany` relations, a stable public HTTP API, list-view materialisation under load) deferred to fill in across the 5.x line.
+The storage, versioning, workflow, auth, client SDK, and admin UI are all in place. We're shipping under the 6.x line: APIs are stable and the core architecture is settled, with several capabilities (collection-versioning history, a stable public HTTP API, list-view materialisation under load) deferred to fill in across the 6.x line.
 </details>
 
 <details>
