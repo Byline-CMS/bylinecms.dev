@@ -124,8 +124,19 @@ const fieldServices = {
 
 let container: HTMLDivElement
 let root: Root
+let frameCallbacks: FrameRequestCallback[] = []
+let originalRaf: typeof requestAnimationFrame
 
 beforeEach(() => {
+  // Drive frames explicitly rather than waiting for jsdom's timer-based
+  // ones, so the baseline settles when the test says so.
+  frameCallbacks = []
+  originalRaf = globalThis.requestAnimationFrame
+  globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+    frameCallbacks.push(callback)
+    return frameCallbacks.length
+  }) as typeof requestAnimationFrame
+
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
@@ -136,6 +147,7 @@ afterEach(async () => {
     root.unmount()
   })
   container.remove()
+  globalThis.requestAnimationFrame = originalRaf
 })
 
 /**
@@ -180,13 +192,17 @@ async function renderForm(
 }
 
 /**
- * Wait for the editor to actually mount and settle.
+ * Wait for the editor to mount, then settle its baseline.
  *
- * `EditorField` is lazy behind Suspense, so a fixed delay races the
- * dynamic import — on a cold module it resolves after the wait and the
- * test then asserts against a form with no editor in it. Poll for the
- * contenteditable instead, then allow the normalization baseline to
- * settle (a microtask and two animation frames after the value lands).
+ * Two different waits, deliberately. `EditorField` is lazy behind
+ * Suspense, so the mount genuinely depends on a dynamic import
+ * resolving — that one is polled, and fails loudly rather than
+ * continuing against a form with no editor in it.
+ *
+ * The baseline is not a wait at all. `ApplyValuePlugin` captures it
+ * after a microtask and two animation frames, so the frames are driven
+ * directly rather than slept through: a fixed delay would be guessing at
+ * a sequence the test can simply perform.
  */
 async function waitForEditor(): Promise<void> {
   for (let attempt = 0; attempt < 60; attempt++) {
@@ -198,8 +214,21 @@ async function waitForEditor(): Promise<void> {
   if (container.querySelector('[contenteditable="true"]') == null) {
     throw new Error(`editor never mounted; form rendered: ${container.textContent?.slice(0, 200)}`)
   }
+  await settleBaseline()
+}
+
+/**
+ * Run the microtask and two animation frames `ApplyValuePlugin` defers
+ * its baseline capture through. Mirrors the sequence in
+ * `apply-value-plugin.tsx`; if that changes, this is the other half.
+ */
+async function settleBaseline(): Promise<void> {
   await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 80))
+    for (let generation = 0; generation < 2; generation++) {
+      await Promise.resolve()
+      for (const callback of frameCallbacks.splice(0)) callback(performance.now())
+    }
+    await Promise.resolve()
   })
 }
 
@@ -291,9 +320,7 @@ describe('persistence of adapted richtext content', () => {
         { discrete: true }
       )
     })
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 80))
-    })
+    await settleBaseline()
 
     await submitForm()
 

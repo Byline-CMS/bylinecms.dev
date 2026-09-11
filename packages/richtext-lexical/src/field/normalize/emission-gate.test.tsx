@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { builtInExtensions } from '../config/built-in-extension-names'
 import { defaultClientEditorConfig } from '../config/default-extensions'
 import { EditorComponent } from '../editor-component'
+import { installFrameControl } from '../test-support/frame-control'
 
 // biome-ignore lint/suspicious/noExplicitAny: React act environment flag
 ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
@@ -34,30 +35,22 @@ defineAdminConfig({
 })
 
 /**
+ * Deterministic frames and idle callbacks.
+ *
  * jsdom implements no `requestIdleCallback`, so `editor-component` takes
- * its synchronous `else` branch and an emission scheduled before a value
- * swap can never land after it. That hides an entire class of ordering
- * bug from this suite. These tests install a deferring shim so the
- * window between scheduling and emitting is real.
+ * its synchronous branch and an emission scheduled before a value swap
+ * can never land after it — hiding an entire class of ordering bug. And
+ * the normalization baseline settles after a microtask and two frames,
+ * which a fixed delay can only guess at.
  */
-let pending: Array<() => void> = []
+let frames: ReturnType<typeof installFrameControl>
 
 beforeEach(() => {
-  pending = []
-  // biome-ignore lint/suspicious/noExplicitAny: shimming a missing jsdom API
-  ;(window as any).requestIdleCallback = (cb: () => void) => {
-    pending.push(cb)
-    return pending.length
-  }
-  // biome-ignore lint/suspicious/noExplicitAny: shimming a missing jsdom API
-  ;(window as any).cancelIdleCallback = () => {}
+  frames = installFrameControl()
 })
 
 afterEach(() => {
-  // biome-ignore lint/suspicious/noExplicitAny: shimming a missing jsdom API
-  ;(window as any).requestIdleCallback = undefined
-  // biome-ignore lint/suspicious/noExplicitAny: shimming a missing jsdom API
-  ;(window as any).cancelIdleCallback = undefined
+  frames.restore()
 })
 
 const text = (value: string) => ({
@@ -136,20 +129,6 @@ afterEach(async () => {
   }
 })
 
-/**
- * Let the normalization baseline settle.
- *
- * ApplyValuePlugin captures what Lexical actually settled on after a
- * microtask and two animation frames, and `editor-component` suppresses
- * emission until it has. A test that edits before then sees no emission
- * for the right reason but the wrong one.
- */
-async function settleBaseline(): Promise<void> {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 60))
-  })
-}
-
 /** Mount EditorComponent and report every value it emits. */
 async function mountField(
   removals: string[],
@@ -202,9 +181,11 @@ describe('adapted content and the change gate', () => {
   it('emits nothing when adapted content is merely loaded', async () => {
     const onChange = vi.fn()
     await mountField([builtInExtensions.Heading], doc(headingNode('Legacy title')), onChange)
-    await settleBaseline()
     await act(async () => {
-      for (const cb of pending.splice(0)) cb()
+      await frames.settleBaseline()
+    })
+    await act(async () => {
+      frames.flushIdle()
     })
     // The adaptation is presentational. Emitting here would make every
     // affected document dirty on open and persist the adapted form on the
@@ -219,7 +200,9 @@ describe('adapted content and the change gate', () => {
       doc(headingNode('Legacy title')),
       onChange
     )
-    await settleBaseline()
+    await act(async () => {
+      await frames.settleBaseline()
+    })
     expect(onChange).not.toHaveBeenCalled()
 
     await act(async () => {
@@ -232,7 +215,7 @@ describe('adapted content and the change gate', () => {
       )
     })
     await act(async () => {
-      for (const cb of pending.splice(0)) cb()
+      frames.flushIdle()
     })
 
     expect(onChange).toHaveBeenCalled()
@@ -293,7 +276,9 @@ describe('a refused field must not emit the previous document as its value', () 
         { discrete: true }
       )
     })
-    expect(pending.length).toBeGreaterThan(0)
+    // An emission is now scheduled but has not run — the window this
+    // test exists to exercise.
+    expect(frames.pendingIdle()).toBeGreaterThan(0)
 
     // Before it fires, the value swaps to a document this field cannot
     // accept — a locale switch or a version restore.
@@ -302,7 +287,7 @@ describe('a refused field must not emit the previous document as its value', () 
 
     // The deferred callback now fires.
     await act(async () => {
-      for (const cb of pending.splice(0)) cb()
+      frames.flushIdle()
     })
 
     // It must NOT emit: the editor does not hold the refused document, so
