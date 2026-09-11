@@ -1,5 +1,16 @@
 # @infonomic/ai
 
+## 6.0.1
+
+### Patch Changes
+
+- **`@byline/ui`** stopped publishing the `development` export condition, which pointed consumers at TypeScript source inside `node_modules`
+- Updated dependencies
+- Updated dependencies [75a5207]
+  - @byline/core@6.0.1
+  - @byline/richtext-lexical@6.0.1
+  - @byline/ui@6.0.1
+
 ## 6.0.0
 
 ### Major Changes

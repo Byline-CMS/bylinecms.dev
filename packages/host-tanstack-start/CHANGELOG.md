@@ -1,5 +1,22 @@
 # @byline/host-tanstack-start
 
+## 6.0.1
+
+### Patch Changes
+
+- **`@byline/ui`** stopped publishing the `development` export condition, which pointed consumers at TypeScript source inside `node_modules`
+- Updated dependencies
+- Updated dependencies [75a5207]
+  - @byline/admin@6.0.1
+  - @byline/ai@6.0.1
+  - @byline/analytics@6.0.1
+  - @byline/analytics-agent@6.0.1
+  - @byline/auth@6.0.1
+  - @byline/client@6.0.1
+  - @byline/core@6.0.1
+  - @byline/i18n@6.0.1
+  - @byline/ui@6.0.1
+
 ## 6.0.0
 
 ### Major Changes
