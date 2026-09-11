@@ -1,5 +1,20 @@
 # @infonomic/ai
 
+## 6.0.0
+
+### Major Changes
+
+- **`@byline/richtext-lexical`** made a field's resolved editor decide which structures it accepts, adapting stored content on load
+  **`@byline/search-postgres`** repaired installations left without the search index metadata table
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [41c1f11]
+  - @byline/core@6.0.0
+  - @byline/richtext-lexical@6.0.0
+  - @byline/ui@6.0.0
+
 ## 5.2.0
 
 ### Minor Changes

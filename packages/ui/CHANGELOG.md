@@ -1,5 +1,12 @@
 # @byline/ui
 
+## 6.0.0
+
+### Major Changes
+
+- **`@byline/richtext-lexical`** made a field's resolved editor decide which structures it accepts, adapting stored content on load
+  **`@byline/search-postgres`** repaired installations left without the search index metadata table
+
 ## 5.2.0
 
 ### Minor Changes
