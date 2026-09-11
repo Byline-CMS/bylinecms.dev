@@ -55,11 +55,11 @@ export const LexicalRichTextAi = lexicalEditor((c) => {
   // registration config so every richtext field keeps the AI assistant AND
   // the markdown toggle — a schema-side `editorConfig` would override this
   // baked config and strip the AI extension (it can't carry extensions).
-  c.settings.options.markdownToggle = true
+  c.settings.controls.markdownToggle = true
   // Inline as-you-type markdown shortcuts (`# ` → H1, `- ` → list, `**x**`
   // → bold, `| a | b |` → table, `:::note` → admonition, …). Uses the same
   // BYLINE_TRANSFORMERS set as the source toggle. Remove this line to disable.
-  c.settings.options.markdownShortcutPlugin = true
+  c.settings.markdownShortcuts = true
   return c
 }) satisfies (props: RichTextEditorProps) => React.JSX.Element
 
