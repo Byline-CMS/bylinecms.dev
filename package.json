@@ -29,6 +29,7 @@
     "typecheck": "turbo run typecheck --continue",
     "test": "turbo run test",
     "test:integration": "turbo run test:integration --concurrency=1",
+    "test:scripts": "node --test scripts/*.test.mjs",
     "version-packages": "changeset version",
     "release:tag": "turbo run build --filter=\"./packages/*\" && changeset tag",
     "release:npm": "turbo run build --filter=\"./packages/*\" && changeset publish",

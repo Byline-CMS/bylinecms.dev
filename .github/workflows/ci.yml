@@ -53,6 +53,17 @@ jobs:
       # not already record. See scripts/check-public-exports.mjs.
       - run: pnpm knip:exports
 
+      # Guards the released-SQL immutability check itself. Every numbered
+      # migration runner records applied *versions*, not their content, so
+      # amending a released file changes what a fresh database receives while
+      # leaving every existing one untouched — and both then report the same
+      # version. `check:native-sql-history` refuses that, but only for the
+      # directories its pattern names, and it runs at release time only.
+      # `search-postgres/migrations/0001_init.sql` was amended in 4.9.0 while
+      # unwatched, which is what these tests now pin. See
+      # scripts/check-native-sql-history.test.mjs.
+      - run: pnpm test:scripts
+
   test-suite:
     if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     runs-on: ubuntu-latest

@@ -2,7 +2,22 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { basename } from 'node:path'
 
-const SQL_HISTORY_PATTERN = /^packages\/db-[^/]+\/sql\/[^/]+\.sql$/
+// Every package that owns an independent numbered migration stream, not just
+// the database adapters. Each such runner records which *versions* it applied,
+// never their content, so amending a released file changes what a fresh
+// database gets while leaving every existing one untouched — two databases
+// then report the same version with different schemas. That is not theoretical:
+// `search-postgres/migrations/0001_init.sql` was amended in 4.9.0 to add the
+// `analyzer_fingerprint` column and the `byline_search_index_metadata` table,
+// and because this pattern watched only `packages/db-*/sql/`, nothing objected.
+// Installations first booted on 3.15.0–4.8.0 could never receive either, and
+// writing to the index failed until `0002_analyzer_fingerprint` repaired them.
+//
+// Deliberately excluded: `packages/db-*/src/database/migrations/` and
+// `packages/cli/src/templates/migrations/`. Those hold Drizzle's single
+// squashed baseline, which is *meant* to be rewritten; `sync:baselines` and
+// `baseline-drift.test.ts` are the gates that govern them.
+const SQL_HISTORY_PATTERN = /^packages\/[^/]+\/(?:sql|migrations)\/[^/]+\.sql$/
 const NUMBERED_SQL = /^\d{4}_.+\.sql$/
 
 const base = readOption('--base')
