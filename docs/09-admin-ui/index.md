@@ -28,6 +28,10 @@ create routes.
 - [Collection groups](./03-collection-groups.md) — arranging dashboard
   collections into labelled groups, and filtering cards to the collections an
   administrator is allowed to read.
+- [Richtext field capabilities](./04-richtext-capabilities.md) — how a Lexical
+  field decides which structures it accepts, how that differs from which
+  controls it shows, and what happens to stored content a field no longer
+  supports.
 
 ## Concurrent editing and recovery
 

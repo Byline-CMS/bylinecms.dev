@@ -38,8 +38,27 @@ import { builtInExtensions, lexicalEditor } from '@byline/richtext-lexical/confi
  *
  * `Toolbar` and `FloatingUI` (infrastructure) stay; everything they would
  * have rendered *for* the removed extensions vanishes with them.
+ *
+ * Removing an extension now decides what the field ACCEPTS as well as
+ * what it offers, because each extension owns its node classes. A
+ * structure listed below cannot arrive by paste, by Markdown, or from
+ * storage — content already holding one is adapted when the field opens
+ * it, and the reader is told.
+ *
+ * Bold, italic and inline code are the exception and cannot be
+ * constrained here: they are `TextNode` formats rather than node types,
+ * so they have no node to unregister and still arrive by paste.
  */
-export const LexicalRichTextMinimal = lexicalEditor((c) => {
+/**
+ * The extension narrowing, exported separately from the component.
+ *
+ * `lexicalEditor()` closes over its callback inside a lazy component, so
+ * the resolved list is not reachable from the outside. Naming the
+ * callback lets a test assert which extensions this preset removes —
+ * which is the whole of its contract now that removal decides what a
+ * field accepts.
+ */
+export function configureMinimalEditor<T extends { extensions?: any }>(c: T): T {
   c.extensions
     // Insert-menu contributors — with all of them gone the "Insert"
     // dropdown itself no longer renders.
@@ -58,11 +77,24 @@ export const LexicalRichTextMinimal = lexicalEditor((c) => {
     // presence, and AutoLink would otherwise linkify pasted URLs.
     .remove(builtInExtensions.Link)
     .remove(builtInExtensions.AutoLink)
+    // Block structures. These own their node classes, so removing them
+    // stops the field ACCEPTING a heading, quote or list — not merely
+    // offering one. Until node registration followed the extensions
+    // list, a "minimal" field still stored a heading pasted into it,
+    // which is how one reached an inline-only title downstream.
+    .remove(builtInExtensions.Heading)
+    .remove(builtInExtensions.Quote)
+    .remove(builtInExtensions.List)
+    .remove(builtInExtensions.CheckList)
     // Selection popover — inline-only fields don't need a second surface
     // for the same three buttons.
     .remove(builtInExtensions.FloatingTextFormat)
   return c
-}) satisfies (props: RichTextEditorProps) => React.JSX.Element
+}
+
+export const LexicalRichTextMinimal = lexicalEditor(configureMinimalEditor) satisfies (
+  props: RichTextEditorProps
+) => React.JSX.Element
 
 /**
  * Returns a `FieldAdminConfig` that opts a single richText field into the

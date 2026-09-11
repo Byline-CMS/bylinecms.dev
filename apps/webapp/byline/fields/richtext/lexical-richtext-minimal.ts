@@ -77,8 +77,18 @@ type MinimalRichTextField<Opts extends Options> = Omit<
  * Minimal preset — everything settings-controlled goes off, leaving only
  * the inline format buttons (bold / italic / underline). Suitable for
  * single-line rich titles and strap-lines where structural nodes make no
- * sense. Markdown shortcuts are disabled too, so `# `, `- `, `> ` etc.
- * cannot smuggle block nodes into the value as you type.
+ * sense.
+ *
+ * What this half can and cannot promise: settings baked into a schema
+ * hide CONTROLS. They do not decide what the field accepts, so on their
+ * own they leave `# `, a pasted heading, or a restored document free to
+ * put a block node in the value. Pair with `minimalRichTextAdmin()`,
+ * which removes the extensions that own those node classes — that is the
+ * half which makes the restriction real.
+ *
+ * Neither half can constrain bold, italic or inline code: they are
+ * `TextNode` formats rather than node types, so there is no node to
+ * unregister and they still arrive by paste.
  */
 function applyMinimalPreset(config: EditorConfig): EditorConfig {
   const c = config.settings.controls

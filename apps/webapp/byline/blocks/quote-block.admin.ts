@@ -9,6 +9,7 @@
 import { defineBlockAdmin } from '@byline/core'
 import { builtInExtensions, lexicalEditor } from '@byline/richtext-lexical/config'
 
+import { configureCompactEditor } from '../fields/richtext/lexical-richtext-compact-admin.js'
 import { QuoteBlock } from './quote-block.js'
 
 /**
@@ -25,30 +26,35 @@ import { QuoteBlock } from './quote-block.js'
  * replaces the site-wide AI-enabled registration for this field —
  * deliberately: a quotation is inline-formatting-only content.
  */
+/**
+ * The extension narrowing, exported separately from the component so a
+ * test can assert which extensions this editor removes. `lexicalEditor()`
+ * closes over its callback inside a lazy component, so the resolved list
+ * is not otherwise reachable.
+ */
+export function configureQuoteTextEditor<T extends { extensions?: any }>(c: T): T {
+  // The shared compact narrowing: no block structures — heading,
+  // quote, list, check list, table, layout, admonition, rule, code
+  // — while links survive, because pull-quote text carries credits.
+  //
+  // Composed rather than restated. This editor previously listed
+  // its own removals and so kept accepting headings and lists after
+  // the shared preset stopped: a caption that offered no block
+  // controls still stored a heading that arrived by paste.
+  configureCompactEditor(c)
+  c.extensions
+    // Beyond compact: no image inside pull-quote text...
+    .remove(builtInExtensions.InlineImage)
+    // ...and no selection popover for the same three buttons.
+    .remove(builtInExtensions.FloatingTextFormat)
+  // NOTE: Link + AutoLink are deliberately NOT removed.
+  return c
+}
+
 export const QuoteBlockAdmin = defineBlockAdmin(QuoteBlock, {
   fields: {
     quoteText: {
-      editor: lexicalEditor((c) => {
-        c.extensions
-          // Insert-menu contributors — with all of them gone the "Insert"
-          // dropdown itself no longer renders.
-          .remove(builtInExtensions.Admonition)
-          .remove(builtInExtensions.HorizontalRule)
-          .remove(builtInExtensions.InlineImage)
-          .remove(builtInExtensions.Layout)
-          .remove(builtInExtensions.Table)
-          .remove(builtInExtensions.AutoEmbed)
-          .remove(builtInExtensions.Vimeo)
-          .remove(builtInExtensions.YouTube)
-          // Code blocks (the block-format dropdown is already hidden by the
-          // schema-side settings; this drops the node + highlight runtime).
-          .remove(builtInExtensions.CodeHighlight)
-          // Selection popover — inline-only fields don't need a second
-          // surface for the same three buttons.
-          .remove(builtInExtensions.FloatingTextFormat)
-        // NOTE: Link + AutoLink are deliberately NOT removed.
-        return c
-      }),
+      editor: lexicalEditor(configureQuoteTextEditor),
     },
   },
 })

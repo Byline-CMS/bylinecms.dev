@@ -24,7 +24,8 @@ import { defineExtension, type LexicalEditor } from 'lexical'
 
 import { builtInExtensions } from '../config/built-in-extension-names'
 import { defaultExtensionsList } from '../config/default-extensions'
-import { CoreNodesExtension } from '../extensions/core-nodes/core-nodes-extension'
+import { rootDependencies } from '../config/root-dependencies'
+import type { ExtensionsList } from '../config/extensions-list'
 
 const NAMESPACE = 'LexicalRichText'
 
@@ -33,23 +34,22 @@ const NAMESPACE = 'LexicalRichText'
  * extensions host React decorators and `buildEditorFromExtensions`
  * throws "No ReactProviderExtension detected" without it.
  */
-function build(dependencies: unknown[]) {
+function build(extensions: ExtensionsList) {
   return buildEditorFromExtensions(
     defineExtension({
       name: '[test-root]',
       namespace: NAMESPACE,
-      // CoreNodesExtension is injected the way `EditorContext` injects
-      // it — outside the configurable list — so these builders mirror
-      // production rather than flattering it.
+      // Through the same seam the live editor uses, so these builders
+      // mirror production rather than flattering it.
       // biome-ignore lint/suspicious/noExplicitAny: extension arguments are heterogeneous by design
-      dependencies: [ReactPluginHostExtension, CoreNodesExtension, ...dependencies] as any,
+      dependencies: [ReactPluginHostExtension, ...rootDependencies(extensions)] as any,
     })
   )
 }
 
 /** Every default extension, as a production editor would have them. */
 export function buildFullEditor() {
-  return build(defaultExtensionsList().toArray())
+  return build(defaultExtensionsList())
 }
 
 /**
@@ -65,7 +65,7 @@ export function buildRestrictedEditor(removals?: string[]) {
   ]
   const list = defaultExtensionsList()
   for (const name of names) list.remove(name)
-  return build(list.toArray())
+  return build(list)
 }
 
 /**

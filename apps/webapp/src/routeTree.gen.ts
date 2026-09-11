@@ -22,6 +22,7 @@ import { Route as LngFrontendPathRouteImport } from './routes/$lng/_frontend/$pa
 import { Route as LngFrontendDocsRouteRouteImport } from './routes/$lng/_frontend/docs/route'
 import { Route as LngFrontendChar123pathChar125DotmdRouteImport } from './routes/$lng/_frontend/{$path}[.]md'
 import { Route as BylineAdminIndexRouteImport } from './routes/_byline/admin/index'
+import { Route as BylineAdminRichtextCapabilitiesRouteImport } from './routes/_byline/admin/richtext-capabilities'
 import { Route as BylineAdminRichtextNoticesRouteImport } from './routes/_byline/admin/richtext-notices'
 import { Route as LngFrontendAboutPathRouteImport } from './routes/$lng/_frontend/about/$path'
 import { Route as LngFrontendAboutChar123pathChar125DotmdRouteImport } from './routes/$lng/_frontend/about/{$path}[.]md'
@@ -114,6 +115,12 @@ const BylineAdminIndexRoute = BylineAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => BylineAdminRouteRoute,
 } as any)
+const BylineAdminRichtextCapabilitiesRoute =
+  BylineAdminRichtextCapabilitiesRouteImport.update({
+    id: '/richtext-capabilities',
+    path: '/richtext-capabilities',
+    getParentRoute: () => BylineAdminRouteRoute,
+  } as any)
 const BylineAdminRichtextNoticesRoute =
   BylineAdminRichtextNoticesRouteImport.update({
     id: '/richtext-notices',
@@ -277,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/$lng/docs': typeof LngFrontendDocsRouteRouteWithChildren
   '/$lng/$path': typeof LngFrontendPathRoute
   '/$lng/{$path}.md': typeof LngFrontendChar123pathChar125DotmdRoute
+  '/admin/richtext-capabilities': typeof BylineAdminRichtextCapabilitiesRoute
   '/admin/richtext-notices': typeof BylineAdminRichtextNoticesRoute
   '/$lng/': typeof LngFrontendIndexRoute
   '/admin/': typeof BylineAdminIndexRoute
@@ -316,6 +324,7 @@ export interface FileRoutesByTo {
   '/telemetry/events': typeof TelemetryEventsRoute
   '/$lng/$path': typeof LngFrontendPathRoute
   '/$lng/{$path}.md': typeof LngFrontendChar123pathChar125DotmdRoute
+  '/admin/richtext-capabilities': typeof BylineAdminRichtextCapabilitiesRoute
   '/admin/richtext-notices': typeof BylineAdminRichtextNoticesRoute
   '/admin': typeof BylineAdminIndexRoute
   '/$lng/about/$path': typeof LngFrontendAboutPathRoute
@@ -358,6 +367,7 @@ export interface FileRoutesById {
   '/$lng/_frontend/docs': typeof LngFrontendDocsRouteRouteWithChildren
   '/$lng/_frontend/$path': typeof LngFrontendPathRoute
   '/$lng/_frontend/{$path}.md': typeof LngFrontendChar123pathChar125DotmdRoute
+  '/_byline/admin/richtext-capabilities': typeof BylineAdminRichtextCapabilitiesRoute
   '/_byline/admin/richtext-notices': typeof BylineAdminRichtextNoticesRoute
   '/$lng/_frontend/': typeof LngFrontendIndexRoute
   '/_byline/admin/': typeof BylineAdminIndexRoute
@@ -401,6 +411,7 @@ export interface FileRouteTypes {
     | '/$lng/docs'
     | '/$lng/$path'
     | '/$lng/{$path}.md'
+    | '/admin/richtext-capabilities'
     | '/admin/richtext-notices'
     | '/$lng/'
     | '/admin/'
@@ -440,6 +451,7 @@ export interface FileRouteTypes {
     | '/telemetry/events'
     | '/$lng/$path'
     | '/$lng/{$path}.md'
+    | '/admin/richtext-capabilities'
     | '/admin/richtext-notices'
     | '/admin'
     | '/$lng/about/$path'
@@ -481,6 +493,7 @@ export interface FileRouteTypes {
     | '/$lng/_frontend/docs'
     | '/$lng/_frontend/$path'
     | '/$lng/_frontend/{$path}.md'
+    | '/_byline/admin/richtext-capabilities'
     | '/_byline/admin/richtext-notices'
     | '/$lng/_frontend/'
     | '/_byline/admin/'
@@ -611,6 +624,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof BylineAdminIndexRouteImport
+      parentRoute: typeof BylineAdminRouteRoute
+    }
+    '/_byline/admin/richtext-capabilities': {
+      id: '/_byline/admin/richtext-capabilities'
+      path: '/richtext-capabilities'
+      fullPath: '/admin/richtext-capabilities'
+      preLoaderRoute: typeof BylineAdminRichtextCapabilitiesRouteImport
       parentRoute: typeof BylineAdminRouteRoute
     }
     '/_byline/admin/richtext-notices': {
@@ -869,6 +889,7 @@ const LngRouteRouteWithChildren = LngRouteRoute._addFileChildren(
 )
 
 interface BylineAdminRouteRouteChildren {
+  BylineAdminRichtextCapabilitiesRoute: typeof BylineAdminRichtextCapabilitiesRoute
   BylineAdminRichtextNoticesRoute: typeof BylineAdminRichtextNoticesRoute
   BylineAdminIndexRoute: typeof BylineAdminIndexRoute
   BylineAdminAccountIndexRoute: typeof BylineAdminAccountIndexRoute
@@ -890,6 +911,7 @@ interface BylineAdminRouteRouteChildren {
 }
 
 const BylineAdminRouteRouteChildren: BylineAdminRouteRouteChildren = {
+  BylineAdminRichtextCapabilitiesRoute: BylineAdminRichtextCapabilitiesRoute,
   BylineAdminRichtextNoticesRoute: BylineAdminRichtextNoticesRoute,
   BylineAdminIndexRoute: BylineAdminIndexRoute,
   BylineAdminAccountIndexRoute: BylineAdminAccountIndexRoute,

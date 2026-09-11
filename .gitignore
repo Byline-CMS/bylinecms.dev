@@ -72,3 +72,9 @@ mysql/backups
 .claude/scheduled_tasks.lock
 
 .superpowers
+
+# Richtext capability manifests are operator artifacts: generated from a
+# running admin before an upgrade, specific to that installation's field
+# configuration, and stale the moment a field is reconfigured. Generate
+# one when you need it rather than reading a committed copy.
+apps/*/byline/generated/richtext-capabilities.json

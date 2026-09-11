@@ -52,12 +52,17 @@ type Options = Partial<Omit<RichTextField, 'type' | 'editorConfig'>> & {
  * captions, byline strap-lines, or compact form fields. Bold / italic /
  * link editing remain on.
  *
- * To narrow the *extension* set per-field — drop tables, lists, embeds,
- * the floating format toolbar, the table action menu — register a
- * `LexicalRichTextCompact` wrapper component via `FieldAdminConfig.editor`
- * (same pattern as `aiRichTextAdmin()`). Extension references aren't safe
- * to bake into schemas, and floating UIs are now extension-presence
- * controlled rather than settings-controlled.
+ * This half hides CONTROLS and nothing more. It does not decide what the
+ * field accepts: a heading can still arrive by paste, by Markdown, or
+ * from storage. Pair it with `compactRichTextAdmin()`
+ * (`./lexical-richtext-compact-admin.tsx`), which removes the extensions
+ * owning those node classes — extension references are not JSON-safe, so
+ * they cannot be baked into a schema and must travel through
+ * `FieldAdminConfig.editor`.
+ *
+ * Neither half can constrain bold, italic or inline code: they are
+ * `TextNode` formats rather than node types, so there is no node to
+ * unregister and they still arrive by paste.
  */
 function applyCompactPreset(config: EditorConfig): EditorConfig {
   const c = config.settings.controls

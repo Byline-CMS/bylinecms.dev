@@ -65,6 +65,12 @@
       "import": "./dist/server.js",
       "main": "./dist/server.js",
       "default": "./dist/server.js"
+    },
+    "./scan": {
+      "types": "./dist/scan.d.ts",
+      "import": "./dist/scan.js",
+      "main": "./dist/scan.js",
+      "default": "./dist/scan.js"
     }
   },
   "dependencies": {

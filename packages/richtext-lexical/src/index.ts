@@ -67,6 +67,11 @@ export {
 } from './field/plugins/toolbar-plugin/toolbar-active-editor'
 export { lexicalEditor } from './lexical-editor'
 export { RichTextField } from './richtext-field'
+// Pre-upgrade capability scan. `capabilitiesFor` / `capabilitiesFromEditor`
+// need a DOM and run in a browser or jsdom; `scanDocument` is pure and runs
+// anywhere, which is why the manifest travels between them as a file.
+export { buildManifest, capabilitiesFor, capabilitiesFromEditor } from './scan/capability-manifest'
+export { scanDocument, summarise } from './scan/scan-documents'
 export { createEmptyEditorState } from './validate/createEmptyEditorState'
 export { hasText } from './validate/hasText'
 export type { EditorConfig, EditorSettings, EditorSettingsOverride } from './field/config/types'
@@ -76,3 +81,4 @@ export type {
   SerializedInlineImageNode,
 } from './field/extensions/inline-image/node-types'
 export type { DocumentRelation } from './field/nodes/document-relation'
+export type { CapabilityManifest, FieldCapabilities, ScanFinding } from './scan/types'

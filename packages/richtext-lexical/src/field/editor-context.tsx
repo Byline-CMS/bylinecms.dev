@@ -22,11 +22,11 @@ import {
 
 import { defaultExtensionsList } from './config/default-extensions'
 import { EditorConfigContext } from './config/editor-config-context'
+import { rootDependencies } from './config/root-dependencies'
 import { MarkdownModeProvider } from './context/markdown-mode-context'
 import { SharedHistoryContext } from './context/shared-history-context'
 import { SharedOnChangeContext } from './context/shared-on-change-context'
 import { Editor } from './editor'
-import { CoreNodesExtension } from './extensions/core-nodes/core-nodes-extension'
 import { InlineImageExtension } from './extensions/inline-image/inline-image-extension'
 import { AdaptedNotice, UnsupportedContentNotice } from './normalize/adapted-notice'
 import {
@@ -97,13 +97,10 @@ export function EditorContext(props: {
         collection: editorConfig.settings.inlineImageUploadCollection,
       })
     }
-    // CoreNodesExtension is injected here rather than living in the
-    // configurable list. `ExtensionsList.remove()` matches by name and
-    // accepts the extension object or its name string, so an entry in
-    // the default list could be removed by site code — and `MarkNode` /
-    // `OverflowNode` belong to no feature a field can switch off.
-    // Injecting at the root is what actually makes it non-removable.
-    const dependencies = [CoreNodesExtension, ...configured.toArray()]
+    // Optional features plus mandatory infrastructure. See
+    // `rootDependencies` for why the core nodes are injected here rather
+    // than carried in the configurable list.
+    const dependencies = rootDependencies(configured)
 
     return defineExtension({
       name: '[root]',
