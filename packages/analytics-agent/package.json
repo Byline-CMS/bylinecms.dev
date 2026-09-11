@@ -55,8 +55,8 @@
     "dist"
   ],
   "devDependencies": {
-    "@biomejs/biome": "2.5.12",
-    "@types/node": "^26.5.0",
+    "@biomejs/biome": "2.5.13",
+    "@types/node": "^26.5.1",
     "chokidar": "^5.0.0",
     "chokidar-cli": "^3.0.0",
     "esbuild": "^0.28.2",
