@@ -183,6 +183,45 @@ const finding = scanDocument(storedValue, manifest.fields[0], {
 
 Capabilities are measured by building the editor rather than by inspecting the configuration list, so the report cannot disagree with the runtime it predicts.
 
+## Upgrading from 5.x
+
+Two separate things changed in 6.0, and they need different responses.
+
+### The configuration API changed
+
+`EditorSettings.options` is replaced, with no alias. Every registration must move:
+
+| 5.x | 6.0 |
+|---|---|
+| `options.richText` | `mode: 'richText' \| 'plainText'` |
+| `options.markdownShortcutPlugin` | `markdownShortcuts` |
+| `options.showTreeView` | `controls.treeView` |
+| `options.textStyle` | `controls.blockFormat` |
+| `options.inlineCode` | `controls.inlineCode` |
+| `options.undoRedo` | `controls.undoRedo` |
+| `options.textAlignment` | `controls.textAlignment` |
+| `options.markdownToggle` | `controls.markdownToggle` |
+| `options.debug` | `debug` |
+
+`Nodes` is renamed `READABLE_NODES` and is no longer a registration list.
+
+Where a registration used `textStyle: false` to mean "no headings", that intent now belongs in the extensions list — `c.extensions.remove(builtInExtensions.Heading)` — because the flag only ever hid the dropdown. Read each call site and decide which was meant: hiding the control, disabling the capability, or both. That decision is the substance of the upgrade, not the rename.
+
+### What a field accepts changed
+
+This is the part to check against real content. Removing an extension now removes its node registration, so a field narrowed in 5.x — where narrowing only hid controls — may hold content it no longer accepts.
+
+Nothing on disk changes at upgrade time. A document written under a wider configuration is adapted when an editor opens it, or the field opens read-only if it holds something with no safe conversion. **Stored values change only when that field is edited and saved.** Reads through `@byline/client`, Markdown export and every other consumer are unaffected either way.
+
+So the risk is not data loss on upgrade. It is an editor meeting an adapted or read-only field without warning. Find those first:
+
+1. Generate the manifest at `/admin/richtext-capabilities` and save it to `apps/webapp/byline/generated/richtext-capabilities.json`.
+2. Run `cd apps/webapp && pnpm tsx byline/scripts/richtext-scan.ts`.
+
+The scan is read-only and exits non-zero if any value would open read-only, or if any field's capabilities could not be measured. A clean run means no editor will meet either surface.
+
+If the scan reports content that will open read-only, restore the extension that owns it for that field, or migrate the content, before deploying.
+
 ## Not yet shipped
 
 - **Format-level restriction.** Bold, italic and inline code cannot be constrained, as described above. Doing so requires the `DOMImportExtension` rules pipeline, which Byline does not wire up.
