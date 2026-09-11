@@ -23,7 +23,17 @@ import { AutoLinkNode, LinkNode } from '../extensions/link'
 import { VimeoNode } from '../extensions/vimeo/vimeo-node'
 import { YouTubeNode } from '../extensions/youtube/youtube-node'
 
-export const Nodes: Array<Klass<LexicalNode>> = [
+/**
+ * Every node class Byline knows how to READ.
+ *
+ * This is not a registration list — registration belongs to the
+ * extension that owns each node, so that removing an extension removes
+ * what the field accepts as well as what it offers. This array is the
+ * vocabulary the normalizer and the capability manifest work from, so a
+ * stored document can still be inspected by a field that supports far
+ * less than the document contains.
+ */
+export const READABLE_NODES: Array<Klass<LexicalNode>> = [
   HeadingNode,
   ListNode,
   ListItemNode,

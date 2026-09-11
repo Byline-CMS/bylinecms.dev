@@ -42,7 +42,9 @@ export {
   selectToolbarItems,
 } from './field/extensions/byline-toolbar'
 export { CodeHighlightExtension } from './field/extensions/code-highlight/code-highlight-extension'
+export { CoreNodesExtension } from './field/extensions/core-nodes/core-nodes-extension'
 export { FloatingTextFormatExtension } from './field/extensions/floating-text-format/floating-text-format-extension'
+export { HeadingExtension } from './field/extensions/heading/heading-extension'
 export { HorizontalRuleExtension } from './field/extensions/horizontal-rule/horizontal-rule-extension'
 export {
   type InlineImageConfig,
@@ -50,10 +52,13 @@ export {
 } from './field/extensions/inline-image/inline-image-extension'
 export { LayoutExtension } from './field/extensions/layout/layout-extension'
 export { AutoLinkExtension, LinkExtension } from './field/extensions/link'
+export { QuoteExtension } from './field/extensions/quote/quote-extension'
 export { TableExtension } from './field/extensions/table/table-extension'
 export { VimeoExtension } from './field/extensions/vimeo/vimeo-extension'
 export { YouTubeExtension } from './field/extensions/youtube/youtube-extension'
-export { Nodes } from './field/nodes'
+// Not a registration list: the vocabulary of node classes Byline can
+// read, used by normalization and the capability manifest.
+export { READABLE_NODES } from './field/nodes'
 // Hook for extensions that contribute toolbar items via
 // BylineToolbarExtension and need the active editor for command dispatch.
 export {

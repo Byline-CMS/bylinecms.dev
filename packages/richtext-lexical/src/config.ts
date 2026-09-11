@@ -13,7 +13,7 @@
  * registration factory (which dynamic-imports the editor runtime on first
  * mount), the config types, the built-in extension **names**, and the
  * light toolbar-authoring primitives — but NOT `RichTextField` /
- * `EditorField` / `Nodes` or the heavy *content* extension classes
+ * `EditorField` / `READABLE_NODES` or the heavy *content* extension classes
  * (Table, InlineImage, Admonition, …), all of which statically pull React
  * plugins, nodes, and the Lexical core. Import from here at registration
  * sites (e.g. an admin/admin config that you want to evaluate eagerly)

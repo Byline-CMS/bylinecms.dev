@@ -1197,6 +1197,12 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.12
         version: 2.5.12
+      '@lexical/clipboard':
+        specifier: 0.50.0
+        version: 0.50.0(typescript@7.0.2)
+      '@lexical/html':
+        specifier: 0.50.0
+        version: 0.50.0(typescript@7.0.2)
       '@rsbuild/plugin-react':
         specifier: ^2.1.0
         version: 2.1.0(@rsbuild/core@2.2.4)(@rspack/core@2.2.3(@swc/helpers@0.5.23))

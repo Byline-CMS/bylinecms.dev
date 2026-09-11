@@ -22,10 +22,12 @@ import { BylineFloatingUIExtension } from '../extensions/byline-floating-ui/byli
 import { BylineToolbarExtension } from '../extensions/byline-toolbar/byline-toolbar-extension'
 import { CodeHighlightExtension } from '../extensions/code-highlight/code-highlight-extension'
 import { FloatingTextFormatExtension } from '../extensions/floating-text-format/floating-text-format-extension'
+import { HeadingExtension } from '../extensions/heading/heading-extension'
 import { HorizontalRuleExtension } from '../extensions/horizontal-rule/horizontal-rule-extension'
 import { InlineImageExtension } from '../extensions/inline-image/inline-image-extension'
 import { LayoutExtension } from '../extensions/layout/layout-extension'
 import { LinkExtension } from '../extensions/link/link-extension'
+import { QuoteExtension } from '../extensions/quote/quote-extension'
 import { TableExtension } from '../extensions/table/table-extension'
 import { VimeoExtension } from '../extensions/vimeo/vimeo-extension'
 import { YouTubeExtension } from '../extensions/youtube/youtube-extension'
@@ -60,6 +62,10 @@ export function defaultExtensionsArray(): AnyLexicalExtensionArgument[] {
     // extension that contributes items to them via `peerDependencies`.
     BylineToolbarExtension,
     BylineFloatingUIExtension,
+
+    // Block-level text structures.
+    HeadingExtension,
+    QuoteExtension,
 
     // Block- / list-level features.
     ListExtension,

@@ -26,8 +26,8 @@ import { MarkdownModeProvider } from './context/markdown-mode-context'
 import { SharedHistoryContext } from './context/shared-history-context'
 import { SharedOnChangeContext } from './context/shared-on-change-context'
 import { Editor } from './editor'
+import { CoreNodesExtension } from './extensions/core-nodes/core-nodes-extension'
 import { InlineImageExtension } from './extensions/inline-image/inline-image-extension'
-import { Nodes } from './nodes'
 import type { EditorConfig } from './config/types'
 
 // Catch any errors that occur during Lexical updates and log them
@@ -92,12 +92,23 @@ export function EditorContext(props: {
         collection: editorConfig.settings.inlineImageUploadCollection,
       })
     }
-    const dependencies = configured.toArray()
+    // CoreNodesExtension is injected here rather than living in the
+    // configurable list. `ExtensionsList.remove()` matches by name and
+    // accepts the extension object or its name string, so an entry in
+    // the default list could be removed by site code — and `MarkNode` /
+    // `OverflowNode` belong to no feature a field can switch off.
+    // Injecting at the root is what actually makes it non-removable.
+    const dependencies = [CoreNodesExtension, ...configured.toArray()]
 
     return defineExtension({
       name: '[root]',
       namespace: editorConfig.lexical.namespace,
-      nodes: [...Nodes],
+      // No `nodes` here on purpose. Every node class is owned by the
+      // extension that provides its feature, so removing an extension
+      // removes its controls, its behaviour AND its node registration.
+      // A blanket list here would let a field accept structures it does
+      // not offer — a field configured without headings would still
+      // store a heading pasted into it.
       theme: editorConfig.lexical.theme,
       editable,
       $initialEditorState: value != null ? JSON.stringify(value) : undefined,
