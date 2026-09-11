@@ -663,5 +663,11 @@
   "sessionChange.signInAgain": "다시 로그인",
   "sessionChange.errors.unavailable": "세션을 더 이상 사용할 수 없습니다. 다시 로그인해 주세요.",
   "sessionChange.errors.changedAgain": "활성 세션이 다시 변경되었습니다. 계속하기 전에 계정을 확인하세요.",
-  "sessionChange.errors.unverifiable": "활성 세션을 확인할 수 없습니다. 다시 로그인해 주세요."
+  "sessionChange.errors.unverifiable": "활성 세션을 확인할 수 없습니다. 다시 로그인해 주세요.",
+  "richtext.adapted.notice": "이 콘텐츠에는 이 편집기에서 더 이상 지원하지 않는 서식이 포함되어 있습니다. 변경 사항을 저장하면 지원되는 서식이 사용됩니다.",
+  "richtext.unsupported.notice": "이 콘텐츠에는 이 필드에서 더 이상 지원하지 않는 {items}이(가) 포함되어 있습니다. 콘텐츠가 손실되지 않도록 이 필드는 읽기 전용입니다.",
+  "richtext.unsupported.action": "관리자에게 지원을 복원하거나 콘텐츠를 이전해 달라고 요청하세요.",
+  "richtext.content.image": "이미지",
+  "richtext.content.youtube": "삽입된 YouTube 동영상",
+  "richtext.content.vimeo": "삽입된 Vimeo 동영상"
 }

@@ -663,5 +663,11 @@
   "sessionChange.signInAgain": "Se reconnecter",
   "sessionChange.errors.unavailable": "La session n'est plus disponible. Veuillez vous reconnecter.",
   "sessionChange.errors.changedAgain": "La session active a de nouveau changé. Vérifiez le compte avant de continuer.",
-  "sessionChange.errors.unverifiable": "Impossible de vérifier la session active. Veuillez vous reconnecter."
+  "sessionChange.errors.unverifiable": "Impossible de vérifier la session active. Veuillez vous reconnecter.",
+  "richtext.adapted.notice": "Ce contenu comporte une mise en forme que cet éditeur ne prend plus en charge. L'enregistrement de vos modifications utilisera la mise en forme prise en charge.",
+  "richtext.unsupported.notice": "Ce contenu comporte {items}, que ce champ ne prend plus en charge. Le champ est en lecture seule afin que le contenu ne soit pas perdu.",
+  "richtext.unsupported.action": "Demandez à un administrateur de rétablir la prise en charge ou de migrer le contenu.",
+  "richtext.content.image": "une image",
+  "richtext.content.youtube": "une vidéo YouTube intégrée",
+  "richtext.content.vimeo": "une vidéo Vimeo intégrée"
 }

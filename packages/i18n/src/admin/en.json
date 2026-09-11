@@ -663,5 +663,11 @@
   "sessionChange.signInAgain": "Sign in again",
   "sessionChange.errors.unavailable": "The session is no longer available. Please sign in again.",
   "sessionChange.errors.changedAgain": "The active session changed again. Review the account before continuing.",
-  "sessionChange.errors.unverifiable": "Unable to verify the active session. Please sign in again."
+  "sessionChange.errors.unverifiable": "Unable to verify the active session. Please sign in again.",
+  "richtext.adapted.notice": "This content contains formatting this editor no longer supports. Saving edits will use the supported formatting.",
+  "richtext.unsupported.notice": "This content contains {items}, which this field no longer supports. The field is read-only so the content is not lost.",
+  "richtext.unsupported.action": "Ask an administrator to restore support for it, or to migrate the content.",
+  "richtext.content.image": "an image",
+  "richtext.content.youtube": "a YouTube embed",
+  "richtext.content.vimeo": "a Vimeo embed"
 }

@@ -663,5 +663,11 @@
   "sessionChange.signInAgain": "Iniciar sesión de nuevo",
   "sessionChange.errors.unavailable": "La sesión ya no está disponible. Inicia sesión de nuevo.",
   "sessionChange.errors.changedAgain": "La sesión activa ha cambiado de nuevo. Revisa la cuenta antes de continuar.",
-  "sessionChange.errors.unverifiable": "No se ha podido verificar la sesión activa. Inicia sesión de nuevo."
+  "sessionChange.errors.unverifiable": "No se ha podido verificar la sesión activa. Inicia sesión de nuevo.",
+  "richtext.adapted.notice": "Este contenido incluye formato que este editor ya no admite. Al guardar los cambios se usará el formato admitido.",
+  "richtext.unsupported.notice": "Este contenido incluye {items}, que este campo ya no admite. El campo es de solo lectura para que el contenido no se pierda.",
+  "richtext.unsupported.action": "Pida a un administrador que restablezca la compatibilidad o que migre el contenido.",
+  "richtext.content.image": "una imagen",
+  "richtext.content.youtube": "un vídeo de YouTube incrustado",
+  "richtext.content.vimeo": "un vídeo de Vimeo incrustado"
 }

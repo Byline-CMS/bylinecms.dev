@@ -663,5 +663,11 @@
   "sessionChange.signInAgain": "Accedi di nuovo",
   "sessionChange.errors.unavailable": "La sessione non è più disponibile. Accedi di nuovo.",
   "sessionChange.errors.changedAgain": "La sessione attiva è cambiata di nuovo. Controlla l’account prima di continuare.",
-  "sessionChange.errors.unverifiable": "Impossibile verificare la sessione attiva. Accedi di nuovo."
+  "sessionChange.errors.unverifiable": "Impossibile verificare la sessione attiva. Accedi di nuovo.",
+  "richtext.adapted.notice": "Questo contenuto include una formattazione che questo editor non supporta più. Salvando le modifiche verrà usata la formattazione supportata.",
+  "richtext.unsupported.notice": "Questo contenuto include {items}, che questo campo non supporta più. Il campo è di sola lettura per non perdere il contenuto.",
+  "richtext.unsupported.action": "Chiedi a un amministratore di ripristinare il supporto o di migrare il contenuto.",
+  "richtext.content.image": "un'immagine",
+  "richtext.content.youtube": "un video YouTube incorporato",
+  "richtext.content.vimeo": "un video Vimeo incorporato"
 }

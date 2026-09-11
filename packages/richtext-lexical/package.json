@@ -71,6 +71,7 @@
     "@byline/admin": "workspace:*",
     "@byline/client": "workspace:*",
     "@byline/core": "workspace:*",
+    "@byline/i18n": "workspace:*",
     "@byline/ui": "workspace:*",
     "@lexical/code": "0.50.0",
     "@lexical/extension": "0.50.0",

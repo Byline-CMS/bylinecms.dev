@@ -1,0 +1,27 @@
+.byline-richtext-notice {
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+}
+
+.byline-richtext-notice p {
+  margin: 0;
+}
+
+.byline-richtext-notice p + p {
+  margin-top: 4px;
+}
+
+.byline-richtext-notice--adapted {
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  color: #6d4c00;
+}
+
+.byline-richtext-notice--refused {
+  background: #fdecea;
+  border: 1px solid #f5c2c0;
+  color: #7f231c;
+}

@@ -663,5 +663,11 @@
   "sessionChange.signInAgain": "Erneut anmelden",
   "sessionChange.errors.unavailable": "Die Sitzung ist nicht mehr verfügbar. Bitte melden Sie sich erneut an.",
   "sessionChange.errors.changedAgain": "Die aktive Sitzung hat sich erneut geändert. Prüfen Sie das Konto, bevor Sie fortfahren.",
-  "sessionChange.errors.unverifiable": "Die aktive Sitzung konnte nicht überprüft werden. Bitte melden Sie sich erneut an."
+  "sessionChange.errors.unverifiable": "Die aktive Sitzung konnte nicht überprüft werden. Bitte melden Sie sich erneut an.",
+  "richtext.adapted.notice": "Dieser Inhalt enthält Formatierungen, die dieser Editor nicht mehr unterstützt. Beim Speichern wird die unterstützte Formatierung verwendet.",
+  "richtext.unsupported.notice": "Dieser Inhalt enthält {items}, was dieses Feld nicht mehr unterstützt. Das Feld ist schreibgeschützt, damit der Inhalt nicht verloren geht.",
+  "richtext.unsupported.action": "Bitten Sie eine Administratorin oder einen Administrator, die Unterstützung wiederherzustellen oder den Inhalt zu migrieren.",
+  "richtext.content.image": "ein Bild",
+  "richtext.content.youtube": "ein eingebettetes YouTube-Video",
+  "richtext.content.vimeo": "ein eingebettetes Vimeo-Video"
 }

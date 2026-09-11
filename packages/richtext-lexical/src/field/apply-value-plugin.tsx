@@ -1,12 +1,15 @@
 'use client'
 
 import type * as React from 'react'
-import { useEffect, useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import type { SerializedEditorState } from 'lexical'
 
+import { registeredNodeTypes } from './capabilities/registered-node-types'
 import { APPLY_VALUE_TAG } from './constants'
+import { useNormalizationStatus } from './normalize/normalization-status'
+import { normalizeValue } from './normalize/normalize-value'
 import { hashSerializedState } from './utils/hashSerializedState'
 
 export function ApplyValuePlugin({
@@ -23,11 +26,16 @@ export function ApplyValuePlugin({
   hasNormalizedBaselineRef: React.RefObject<boolean>
 }): React.JSX.Element | null {
   const [editor] = useLexicalComposerContext()
+  const { setStatus } = useNormalizationStatus()
   const lastAppliedHashRef = useRef<string | undefined>(undefined)
 
   const cancelWaiterRef = useRef<() => void>(undefined)
 
-  useEffect(() => {
+  // A layout effect, not a passive one: this is the ONLY path by which a
+  // stored value reaches the editor — the root extension deliberately
+  // carries no `$initialEditorState` — so applying before paint avoids
+  // showing an empty field first.
+  useLayoutEffect(() => {
     if (value == null) return
 
     const nextRawHash = incomingHash
@@ -59,7 +67,41 @@ export function ApplyValuePlugin({
 
     hasNormalizedBaselineRef.current = false
 
-    const nextState = editor.parseEditorState(value)
+    // Adapt the stored value to what this editor actually accepts.
+    // Lexical throws on an unregistered type and loses the text, so a
+    // field whose configuration narrowed since the document was written
+    // would otherwise open blank and erroring.
+    const normalized = normalizeValue(value, registeredNodeTypes(editor))
+
+    if (normalized.status === 'refused') {
+      // No safe conversion exists — an image's media relation and its
+      // nested-editor caption survive no structural rewrite. Leave the
+      // editor as it stands and let the surface render read-only rather
+      // than silently discarding what the document holds.
+      setStatus({ kind: 'refused', unsupportedTypes: normalized.unsupportedTypes })
+
+      // Forget the last applied value. A refusal applies nothing, so the
+      // memo below ("this hash is already applied, skip") would otherwise
+      // swallow a return to that same value — the notice would stay up
+      // and the editor would never be restored. Toggling between a
+      // refused value and a valid one is the first thing a reader does.
+      lastAppliedHashRef.current = undefined
+
+      // Nothing further will arrive to establish a baseline, and the
+      // parent suppresses change events until one exists.
+      hasNormalizedBaselineRef.current = true
+      return
+    }
+
+    setStatus(
+      normalized.status === 'adapted'
+        ? { kind: 'adapted', convertedTypes: normalized.convertedTypes }
+        : { kind: 'ok' }
+    )
+
+    const nextState = editor.parseEditorState(
+      normalized.status === 'adapted' ? JSON.stringify(normalized.value) : value
+    )
 
     // Must NOT be wrapped in editor.update — setEditorState defers its commit
     // when called inside an active update, leaving selection/node references
@@ -67,6 +109,8 @@ export function ApplyValuePlugin({
     // errors ("Expected node with key N to exist") on the very next selection
     // change. setEditorState applies the tag itself.
     editor.setEditorState(nextState, { tag: APPLY_VALUE_TAG })
+    // Keyed to the ORIGINAL value's hash, never the adapted one, so an
+    // adapted document does not read as a change on every mount.
     lastAppliedHashRef.current = nextRawHash
 
     let cancelled = false
@@ -98,6 +142,7 @@ export function ApplyValuePlugin({
     lastEmittedHashRef,
     normalizedIncomingHashRef,
     hasNormalizedBaselineRef,
+    setStatus,
   ])
 
   return null

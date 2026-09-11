@@ -663,5 +663,11 @@
   "sessionChange.signInAgain": "重新登录",
   "sessionChange.errors.unavailable": "该会话已不可用，请重新登录。",
   "sessionChange.errors.changedAgain": "当前会话再次发生更改，请在继续前确认账户。",
-  "sessionChange.errors.unverifiable": "无法验证当前会话，请重新登录。"
+  "sessionChange.errors.unverifiable": "无法验证当前会话，请重新登录。",
+  "richtext.adapted.notice": "此内容包含该编辑器不再支持的格式。保存修改时将使用受支持的格式。",
+  "richtext.unsupported.notice": "此内容包含{items}，此字段不再支持。该字段为只读，以免内容丢失。",
+  "richtext.unsupported.action": "请让管理员恢复支持或迁移该内容。",
+  "richtext.content.image": "一张图片",
+  "richtext.content.youtube": "一个嵌入的 YouTube 视频",
+  "richtext.content.vimeo": "一个嵌入的 Vimeo 视频"
 }

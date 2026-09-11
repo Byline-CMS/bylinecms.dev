@@ -663,5 +663,11 @@
   "sessionChange.signInAgain": "เข้าสู่ระบบอีกครั้ง",
   "sessionChange.errors.unavailable": "เซสชันนี้ไม่พร้อมใช้งานอีกต่อไป กรุณาเข้าสู่ระบบอีกครั้ง",
   "sessionChange.errors.changedAgain": "เซสชันที่ใช้งานอยู่เปลี่ยนแปลงอีกครั้ง กรุณาตรวจสอบบัญชีก่อนดำเนินการต่อ",
-  "sessionChange.errors.unverifiable": "ไม่สามารถยืนยันเซสชันที่ใช้งานอยู่ได้ กรุณาเข้าสู่ระบบอีกครั้ง"
+  "sessionChange.errors.unverifiable": "ไม่สามารถยืนยันเซสชันที่ใช้งานอยู่ได้ กรุณาเข้าสู่ระบบอีกครั้ง",
+  "richtext.adapted.notice": "เนื้อหานี้มีการจัดรูปแบบที่ตัวแก้ไขนี้ไม่รองรับอีกต่อไป การบันทึกการแก้ไขจะใช้การจัดรูปแบบที่รองรับ",
+  "richtext.unsupported.notice": "เนื้อหานี้มี{items} ซึ่งฟิลด์นี้ไม่รองรับอีกต่อไป ฟิลด์นี้เป็นแบบอ่านอย่างเดียวเพื่อไม่ให้เนื้อหาสูญหาย",
+  "richtext.unsupported.action": "โปรดขอให้ผู้ดูแลระบบคืนการรองรับหรือย้ายเนื้อหา",
+  "richtext.content.image": "รูปภาพ",
+  "richtext.content.youtube": "วิดีโอ YouTube ที่ฝังไว้",
+  "richtext.content.vimeo": "วิดีโอ Vimeo ที่ฝังไว้"
 }

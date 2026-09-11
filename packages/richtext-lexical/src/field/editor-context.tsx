@@ -28,6 +28,11 @@ import { SharedOnChangeContext } from './context/shared-on-change-context'
 import { Editor } from './editor'
 import { CoreNodesExtension } from './extensions/core-nodes/core-nodes-extension'
 import { InlineImageExtension } from './extensions/inline-image/inline-image-extension'
+import { AdaptedNotice, UnsupportedContentNotice } from './normalize/adapted-notice'
+import {
+  NormalizationStatusProvider,
+  useNormalizationStatus,
+} from './normalize/normalization-status'
 import type { EditorConfig } from './config/types'
 
 // Catch any errors that occur during Lexical updates and log them
@@ -111,7 +116,14 @@ export function EditorContext(props: {
       // store a heading pasted into it.
       theme: editorConfig.lexical.theme,
       editable,
-      $initialEditorState: value != null ? JSON.stringify(value) : undefined,
+      // No `$initialEditorState`. It is evaluated while the editor is
+      // being built, before the registered node types exist, so an
+      // unnormalized value would throw inside the builder with no chance
+      // to adapt it — and its function form runs inside an update, where
+      // `setEditorState` is unsafe (see apply-value-plugin.tsx). The
+      // value arrives through ApplyValuePlugin instead, which normalizes
+      // against the built editor's real capabilities and applies in a
+      // layout effect so nothing paints empty first.
       onError: (error: Error) => {
         throw error
       },
@@ -134,24 +146,72 @@ export function EditorContext(props: {
   // back inside their React tree.
   return (
     <EditorConfigContext config={editorConfig.settings}>
-      <SharedOnChangeContext onChange={onChange}>
-        <SharedHistoryContext>
-          <MarkdownModeProvider>
-            <LexicalExtensionComposer
-              extension={rootExtension}
-              contentEditable={null}
-              key={composerKey + editable}
-            >
-              <div className="editor-shell">
-                {beforeEditor}
-                <Editor minHeight={props.minHeight} maxHeight={props.maxHeight} />
-                {afterEditor}
-                {children}
-              </div>
-            </LexicalExtensionComposer>
-          </MarkdownModeProvider>
-        </SharedHistoryContext>
-      </SharedOnChangeContext>
+      <NormalizationStatusProvider>
+        <SharedOnChangeContext onChange={onChange}>
+          <SharedHistoryContext>
+            <MarkdownModeProvider>
+              <LexicalExtensionComposer
+                extension={rootExtension}
+                contentEditable={null}
+                key={composerKey + editable}
+              >
+                <EditorShell
+                  beforeEditor={beforeEditor}
+                  afterEditor={afterEditor}
+                  minHeight={props.minHeight}
+                  maxHeight={props.maxHeight}
+                >
+                  {children}
+                </EditorShell>
+              </LexicalExtensionComposer>
+            </MarkdownModeProvider>
+          </SharedHistoryContext>
+        </SharedOnChangeContext>
+      </NormalizationStatusProvider>
     </EditorConfigContext>
+  )
+}
+
+/**
+ * The editor surface, or the read-only notice in its place.
+ *
+ * Content with no safe conversion is not adapted and not discarded: the
+ * field declines to edit it and says why. Sits inside the composer so it
+ * can read the status the apply plugin publishes.
+ */
+function EditorShell({
+  beforeEditor,
+  afterEditor,
+  minHeight,
+  maxHeight,
+  children,
+}: {
+  beforeEditor?: React.ReactNode[]
+  afterEditor?: React.ReactNode[]
+  minHeight?: number | string
+  maxHeight?: number | string
+  children?: React.ReactNode
+}): React.JSX.Element {
+  const { status } = useNormalizationStatus()
+
+  // `children` carries ApplyValuePlugin, so it stays mounted in BOTH
+  // branches. Unmounting it on refusal would strand the field: the plugin
+  // that applies values would be gone, so a later valid value could
+  // neither load nor clear the notice, and the only escape would be a
+  // full remount.
+  return (
+    <div className="editor-shell">
+      {status.kind === 'refused' ? (
+        <UnsupportedContentNotice unsupportedTypes={status.unsupportedTypes} />
+      ) : (
+        <>
+          {status.kind === 'adapted' && <AdaptedNotice />}
+          {beforeEditor}
+          <Editor minHeight={minHeight} maxHeight={maxHeight} />
+          {afterEditor}
+        </>
+      )}
+      {children}
+    </div>
   )
 }
