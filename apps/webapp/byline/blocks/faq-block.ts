@@ -21,11 +21,11 @@ import { defaultEditorConfig, type EditorConfig } from '@byline/richtext-lexical
  */
 const answerEditorConfig: EditorConfig = (() => {
   const config = structuredClone(defaultEditorConfig)
-  const o = config.settings.options
-  o.textAlignment = false
-  o.textStyle = false
-  o.inlineCode = false
-  o.undoRedo = false
+  const c = config.settings.controls
+  c.textAlignment = false
+  c.blockFormat = false
+  c.inlineCode = false
+  c.undoRedo = false
   return config
 })()
 

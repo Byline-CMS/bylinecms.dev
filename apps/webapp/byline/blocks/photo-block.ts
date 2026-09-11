@@ -22,13 +22,13 @@ import { defaultEditorConfig, type EditorConfig } from '@byline/richtext-lexical
  */
 const captionEditorConfig: EditorConfig = (() => {
   const config = structuredClone(defaultEditorConfig)
-  const o = config.settings.options
-  o.textAlignment = false
-  o.textStyle = false // hides the block-format dropdown (headings / lists / quote)
-  o.inlineCode = false
-  o.undoRedo = false
-  o.markdownToggle = false
-  o.markdownShortcutPlugin = false
+  const c = config.settings.controls
+  c.textAlignment = false
+  c.blockFormat = false // hides the dropdown; does NOT disable headings
+  c.inlineCode = false
+  c.undoRedo = false
+  c.markdownToggle = false
+  config.settings.markdownShortcuts = false
   return config
 })()
 

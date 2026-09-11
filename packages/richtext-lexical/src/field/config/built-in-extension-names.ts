@@ -32,7 +32,7 @@
  * against the live extension `name`s is exercised by the editor's
  * jsdom/integration coverage.
  */
-export const builtInExtensions = {
+export const bylineExtensionNames = {
   Admonition: '@byline/richtext-lexical/Admonition',
   AutoEmbed: '@byline/richtext-lexical/AutoEmbed',
   AutoLink: '@byline/richtext-lexical/AutoLink',
@@ -49,6 +49,32 @@ export const builtInExtensions = {
   Toolbar: '@byline/richtext-lexical/Toolbar',
   Vimeo: '@byline/richtext-lexical/Vimeo',
   YouTube: '@byline/richtext-lexical/YouTube',
+} as const
+
+/**
+ * Names owned by upstream Lexical packages.
+ *
+ * These deliberately break the `@byline/richtext-lexical/<Key>`
+ * convention because Byline does not own the names — the extensions ship
+ * from `@lexical/list`. They are carried here so a site can remove lists
+ * without importing `@lexical/list` directly and taking a
+ * version-pinned dependency on `lexical` of its own.
+ */
+export const upstreamExtensionNames = {
+  List: '@lexical/list/List',
+  CheckList: '@lexical/list/CheckList',
+} as const
+
+/**
+ * Every extension a site may remove, replace or reorder.
+ *
+ * Note what is absent: `CoreNodesExtension` is injected by the editor
+ * root rather than configured here, because `MarkNode` and
+ * `OverflowNode` belong to no switchable feature.
+ */
+export const builtInExtensions = {
+  ...bylineExtensionNames,
+  ...upstreamExtensionNames,
 } as const
 
 /** Union of the built-in extension `name` strings. */

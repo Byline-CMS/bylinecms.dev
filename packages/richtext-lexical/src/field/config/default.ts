@@ -9,17 +9,17 @@ export const defaultEditorLexicalConfig: LexicalEditorConfig = {
 }
 
 export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
-  options: {
-    richText: true,
-    showTreeView: false,
-    textAlignment: true,
-    markdownShortcutPlugin: false,
-    markdownToggle: false,
-    undoRedo: true,
-    textStyle: true,
+  mode: 'richText',
+  markdownShortcuts: false,
+  controls: {
+    blockFormat: true,
     inlineCode: true,
-    debug: false,
+    undoRedo: true,
+    textAlignment: true,
+    markdownToggle: false,
+    treeView: false,
   },
+  debug: false,
   inlineImageUploadCollection: 'media',
   placeholderText: 'Enter some rich text...',
 }

@@ -42,8 +42,9 @@ import {
   TableNode,
   TableRowNode,
 } from '@lexical/table'
-import { $createParagraphNode, $isParagraphNode, $isTextNode } from 'lexical'
+import { $createParagraphNode, $getEditor, $isParagraphNode, $isTextNode } from 'lexical'
 
+import { transformersFor } from '../capabilities/filter-transformers'
 import {
   $createAdmonitionNode,
   $isAdmonitionNode,
@@ -82,6 +83,9 @@ export const TABLE: ElementTransformer = {
           // Cell content is itself markdown; escape literal newlines so the
           // row stays on one line.
           rowOutput.push(
+            // Unfiltered on purpose: export only ever meets nodes that
+            // are already in the tree, so an unregistered dependency
+            // simply never matches. Only the import direction can throw.
             $convertToMarkdownString(BYLINE_TRANSFORMERS, cell).replace(/\n/g, '\\n').trim()
           )
           if (cell.hasHeaderState(TableCellHeaderStates.ROW)) {
@@ -188,7 +192,10 @@ function getTableColumnsSize(table: TableNode): number {
 const $createTableCell = (textContent: string): TableCellNode => {
   const content = textContent.replace(/\\n/g, '\n')
   const cell = $createTableCellNode(TableCellHeaderStates.NO_STATUS)
-  $convertFromMarkdownString(content, BYLINE_TRANSFORMERS, cell)
+  // Filter to what this editor registered: a nested cell import creates
+  // nodes just as the top-level one does, so an unregistered dependency
+  // throws here too.
+  $convertFromMarkdownString(content, transformersFor($getEditor(), BYLINE_TRANSFORMERS), cell)
   return cell
 }
 
@@ -228,7 +235,7 @@ const ADMONITION_END_REG_EXP = /^:::\s*$/
 // paragraph bodies round-trip without any element transformer. Excluding the
 // block transformers here is what keeps headings / lists / tables / nested
 // admonitions out of an admonition body at parse time.
-const ADMONITION_BODY_TRANSFORMERS: Array<Transformer> = [...TEXT_FORMAT_TRANSFORMERS, LINK]
+export const ADMONITION_BODY_TRANSFORMERS: Array<Transformer> = [...TEXT_FORMAT_TRANSFORMERS, LINK]
 
 export const ADMONITION: MultilineElementTransformer = {
   dependencies: [AdmonitionNode],
@@ -241,6 +248,7 @@ export const ADMONITION: MultilineElementTransformer = {
 
     // The body is real children of `node` — export its subtree directly with
     // the same engine.
+    // Unfiltered on purpose — see the note on the table-cell export above.
     const body = $convertToMarkdownString(ADMONITION_BODY_TRANSFORMERS, node).trim()
 
     const heading = title ? `:::${type}[${title}]` : `:::${type}`
@@ -272,7 +280,13 @@ export const ADMONITION: MultilineElementTransformer = {
       // Import / toggle path: body arrives as raw text between the fences.
       const body = linesInBetween.join('\n').trim()
       if (body) {
-        $convertFromMarkdownString(body, ADMONITION_BODY_TRANSFORMERS, node)
+        // ADMONITION_BODY_TRANSFORMERS carries LINK, so this breaks when
+        // the link extension is removed unless it is filtered.
+        $convertFromMarkdownString(
+          body,
+          transformersFor($getEditor(), ADMONITION_BODY_TRANSFORMERS),
+          node
+        )
       }
     }
 

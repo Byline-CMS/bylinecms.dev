@@ -40,9 +40,9 @@ export function resolveEditorConfig(
     settings: {
       ...registeredConfig.settings,
       ...fieldConfig.settings,
-      options: {
-        ...registeredConfig.settings.options,
-        ...fieldConfig.settings?.options,
+      controls: {
+        ...registeredConfig.settings.controls,
+        ...fieldConfig.settings?.controls,
       },
     },
     lexical: fieldConfig.lexical ?? registeredConfig.lexical,

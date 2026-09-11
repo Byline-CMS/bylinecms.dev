@@ -11,18 +11,18 @@
 import type * as React from 'react'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
 import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin'
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
 import { PlainTextPlugin } from '@lexical/react/LexicalPlainTextPlugin'
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
-import {
-  useExtensionDependency,
-  useOptionalExtensionDependency,
-} from '@lexical/react/useExtensionComponent'
+import { useExtensionDependency } from '@lexical/react/useExtensionComponent'
 import type { EditorState, LexicalEditor } from 'lexical'
 
+import { transformersFor } from './capabilities/filter-transformers'
+import { supportsNodeType } from './capabilities/registered-node-types'
 import { useEditorConfig } from './config/editor-config-context'
 import { ContentEditable } from './content-editable'
 import { useMarkdownMode } from './context/markdown-mode-context'
@@ -33,7 +33,6 @@ import {
   BylineFloatingUIExtension,
   selectFloatingUIItems,
 } from './extensions/byline-floating-ui/byline-floating-ui-extension'
-import { TableExtension as BylineTableExtension } from './extensions/table/table-extension'
 import { BYLINE_TRANSFORMERS } from './markdown/transformers'
 // import { AiPlugin } from './plugins/ai-plugin'
 // import { DragDropPaste } from './plugins/drag-drop-paste-plugin'
@@ -67,11 +66,24 @@ export const Editor = memo(function Editor({
   const { markdownModeRef } = useMarkdownMode()
   const {
     config: {
-      options: { debug, richText, showTreeView, markdownShortcutPlugin },
+      mode,
+      markdownShortcuts,
+      controls: { treeView },
+      debug,
       placeholderText,
     },
   } = useEditorConfig()
-  const hasTableExtension = useOptionalExtensionDependency(BylineTableExtension) !== undefined
+  const richText = mode === 'richText'
+  const [editor] = useLexicalComposerContext()
+  // Table availability is structural, so it follows the registered node
+  // rather than extension-list membership: TableNode arrives through
+  // `@lexical/table` as a dependency of the Byline wrapper, and a
+  // membership test would miss any other route to the same node.
+  const hasTableNode = supportsNodeType(editor, 'table')
+  // Markdown shortcuts create nodes, so the transformer list must follow
+  // what this editor registered — an unregistered dependency throws for
+  // the whole pipeline, not just its own transformer.
+  const activeTransformers = useMemo(() => transformersFor(editor, BYLINE_TRANSFORMERS), [editor])
   // Merged floating-UI contributions from every extension in the graph.
   // Removing a contributing extension (e.g. `c.extensions.remove(LinkExtension)`)
   // automatically suppresses its floating UI — no separate boolean toggle.
@@ -132,10 +144,10 @@ export const Editor = memo(function Editor({
 
   const content = (
     <>
-      {hasTableExtension && <TablePlugin />}
+      {hasTableNode && <TablePlugin />}
       {richText && <ToolbarPlugin />}
       <div
-        className={`editor-container ${showTreeView ? 'tree-view' : ''} ${
+        className={`editor-container ${treeView ? 'tree-view' : ''} ${
           !richText ? 'plain-text' : ''
         }`}
       >
@@ -166,9 +178,7 @@ export const Editor = memo(function Editor({
               ErrorBoundary={LexicalErrorBoundary}
             />
             <HistoryPlugin externalHistoryState={historyState} />
-            {markdownShortcutPlugin && (
-              <MarkdownShortcutPlugin transformers={BYLINE_TRANSFORMERS} />
-            )}
+            {markdownShortcuts && <MarkdownShortcutPlugin transformers={activeTransformers} />}
             {floatingAnchorElem != null &&
               !isSmallWidthViewport &&
               floatingUIItems.map(({ id, Component }) => (

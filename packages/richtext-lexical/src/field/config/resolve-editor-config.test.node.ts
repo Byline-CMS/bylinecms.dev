@@ -32,21 +32,42 @@ describe('resolveEditorConfig', () => {
 
   it('field settings win per-key; unspecified registered settings survive', () => {
     const registered = clone(defaultEditorConfig)
-    registered.settings.options.markdownToggle = true
+    registered.settings.controls.markdownToggle = true
     registered.settings.placeholderText = 'registered placeholder'
 
     const fieldConfig = clone(defaultEditorConfig)
-    fieldConfig.settings.options.textStyle = false
-    fieldConfig.settings.options.undoRedo = false
+    fieldConfig.settings.controls.blockFormat = false
+    fieldConfig.settings.controls.undoRedo = false
 
     const resolved = resolveEditorConfig(fieldConfig, registered)
     // Field's flags applied…
-    expect(resolved.settings.options.textStyle).toBe(false)
-    expect(resolved.settings.options.undoRedo).toBe(false)
+    expect(resolved.settings.controls.blockFormat).toBe(false)
+    expect(resolved.settings.controls.undoRedo).toBe(false)
     // …and since schema-side configs are complete objects, its values win
     // for every key it carries (markdownToggle false from the default seed).
-    expect(resolved.settings.options.markdownToggle).toBe(false)
+    expect(resolved.settings.controls.markdownToggle).toBe(false)
     expect(resolved.settings.placeholderText).toBe(fieldConfig.settings.placeholderText)
+  })
+
+  it('merges controls per-key so a partial override keeps the rest', () => {
+    const registered = clone(defaultEditorConfig)
+    const fieldConfig = {
+      settings: { controls: { blockFormat: false } },
+    } as unknown as typeof registered
+
+    const resolved = resolveEditorConfig(fieldConfig, registered)
+    expect(resolved.settings.controls.blockFormat).toBe(false)
+    // Untouched controls keep the registered layer's values rather than
+    // being wiped by a partial object.
+    expect(resolved.settings.controls.undoRedo).toBe(true)
+    expect(resolved.settings.controls.inlineCode).toBe(true)
+    expect(resolved.settings.mode).toBe('richText')
+    expect(resolved.settings.markdownShortcuts).toBe(false)
+  })
+
+  it('no longer carries an options record', () => {
+    const registered = clone(defaultEditorConfig)
+    expect('options' in registered.settings).toBe(false)
   })
 
   it('REGRESSION: a schema-side settings-only config must not discard the registered extensions graph', () => {

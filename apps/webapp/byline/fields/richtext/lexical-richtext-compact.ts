@@ -60,11 +60,11 @@ type Options = Partial<Omit<RichTextField, 'type' | 'editorConfig'>> & {
  * controlled rather than settings-controlled.
  */
 function applyCompactPreset(config: EditorConfig): EditorConfig {
-  const o = config.settings.options
-  o.textAlignment = false
-  o.textStyle = false
-  o.inlineCode = false
-  o.undoRedo = false
+  const c = config.settings.controls
+  c.textAlignment = false
+  c.blockFormat = false
+  c.inlineCode = false
+  c.undoRedo = false
   return config
 }
 

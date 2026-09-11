@@ -10,11 +10,12 @@
 
 import { useCallback, useEffect, useRef } from 'react'
 
-import { $createCodeNode, $isCodeNode } from '@lexical/code'
+import { $createCodeNode, $isCodeNode, CodeNode } from '@lexical/code'
 import { $convertFromMarkdownString, $convertToMarkdownString } from '@lexical/markdown'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-import { $getRoot, type EditorState, RootNode } from 'lexical'
+import { $getRoot, type EditorState, type LexicalEditor, RootNode } from 'lexical'
 
+import { transformersFor } from '../capabilities/filter-transformers'
 import { APPLY_VALUE_TAG } from '../constants'
 import { useMarkdownMode } from '../context/markdown-mode-context'
 import { BYLINE_TRANSFORMERS } from '../markdown/transformers'
@@ -42,6 +43,23 @@ function normalize(markdown: string): string {
  *  - Edits made in markdown produce a single conversion back to rich
  *    nodes on exit, emitting one field value change → **one patch**.
  */
+/**
+ * Whether this editor can offer Markdown source mode.
+ *
+ * Source mode holds the Markdown text in a `CodeNode`, so it needs that
+ * class registered — `$createCodeNode()` throws
+ * "Attempted to create node CodeNode that was not configured to be used
+ * on the editor" otherwise. A field with the code-highlight extension
+ * removed therefore cannot offer the toggle.
+ *
+ * The fix is to withhold the control, NOT to register `CodeNode` for the
+ * toggle's benefit: registering it would let code blocks back in through
+ * paste and storage, which is the acceptance hole this work closed.
+ */
+export function canUseMarkdownSourceMode(editor: LexicalEditor): boolean {
+  return editor.hasNodes([CodeNode])
+}
+
 export function useMarkdownToggle(): {
   isMarkdown: boolean
   toggleMarkdown: () => void
@@ -58,6 +76,7 @@ export function useMarkdownToggle(): {
   const unregisterTransformRef = useRef<(() => void) | null>(null)
 
   const registerRootGuard = useCallback(() => {
+    if (!canUseMarkdownSourceMode(editor)) return
     unregisterTransformRef.current?.()
     // Safety net: keep the root as exactly one markdown CodeNode so the user
     // can't split it into sibling root nodes while editing source.
@@ -82,12 +101,23 @@ export function useMarkdownToggle(): {
   }, [])
 
   const enterMarkdown = useCallback(() => {
+    // Guard before touching any state. `markdownModeRef` suppresses
+    // persistence, so setting it first and then throwing inside the
+    // update would leave the editor silently unable to save.
+    if (!canUseMarkdownSourceMode(editor)) return
+
     originalEditorStateRef.current = editor.getEditorState()
     // Suppress persistence *before* mutating so the code-block snapshot is
     // never emitted to the form.
     markdownModeRef.current = true
     editor.update(() => {
-      const markdown = $convertToMarkdownString(BYLINE_TRANSFORMERS, undefined, true)
+      // Filtered in both directions so source mode never offers syntax
+      // this field cannot import back.
+      const markdown = $convertToMarkdownString(
+        transformersFor(editor, BYLINE_TRANSFORMERS),
+        undefined,
+        true
+      )
       originalMarkdownRef.current = markdown
       const codeNode = $createCodeNode(MARKDOWN_LANGUAGE)
       $getRoot().clear().append(codeNode)
@@ -118,7 +148,12 @@ export function useMarkdownToggle(): {
       // emitted to the form (one field change → one patch).
       markdownModeRef.current = false
       editor.update(() => {
-        $convertFromMarkdownString(currentMarkdown, BYLINE_TRANSFORMERS, undefined, true)
+        $convertFromMarkdownString(
+          currentMarkdown,
+          transformersFor(editor, BYLINE_TRANSFORMERS),
+          undefined,
+          true
+        )
       })
     }
 

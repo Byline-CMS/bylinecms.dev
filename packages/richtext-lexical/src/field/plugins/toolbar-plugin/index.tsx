@@ -32,7 +32,7 @@ import {
   INSERT_CHECK_LIST_COMMAND,
   INSERT_ORDERED_LIST_COMMAND,
   INSERT_UNORDERED_LIST_COMMAND,
-  ListExtension,
+  ListItemNode,
   ListNode,
   REMOVE_LIST_COMMAND,
 } from '@lexical/list'
@@ -47,7 +47,9 @@ import {
   $createQuoteNode,
   $isHeadingNode,
   $isQuoteNode,
+  HeadingNode,
   type HeadingTagType,
+  QuoteNode,
 } from '@lexical/rich-text'
 import { $setBlocksType } from '@lexical/selection'
 import { $isTableNode } from '@lexical/table'
@@ -92,7 +94,7 @@ import {
   OPEN_LINK_MODAL_COMMAND,
   TOGGLE_LINK_COMMAND,
 } from '../../extensions/link'
-import { useMarkdownToggle } from '../../hooks/use-markdown-toggle'
+import { canUseMarkdownSourceMode, useMarkdownToggle } from '../../hooks/use-markdown-toggle'
 import { IS_APPLE } from '../../shared/environment'
 import { DropDown, DropDownItem } from '../../ui/dropdown'
 import { getSelectedNode } from '../../utils/getSelectedNode'
@@ -136,6 +138,53 @@ function dropDownActiveClass(active: boolean): string {
   return ''
 }
 
+export type BlockFormat =
+  | 'paragraph'
+  | 'h1'
+  | 'h2'
+  | 'h3'
+  | 'h4'
+  | 'bullet'
+  | 'number'
+  | 'check'
+  | 'quote'
+  | 'code'
+
+/**
+ * Block formats this editor can actually produce. Paragraph is always
+ * available.
+ *
+ * Structural availability comes from REGISTERED NODES, not from whether
+ * an extension appears in the configuration list: table and list nodes
+ * arrive through `@lexical/table` and `@lexical/list` dependencies, so a
+ * membership test would be wrong for exactly those cases.
+ *
+ * Registered nodes are necessary but not always sufficient.
+ * `hasCheckListBehaviour` is passed in because check lists need
+ * `CheckListExtension` registered as well as the list nodes — removing
+ * that extension alone leaves `ListNode` and `ListItemNode` in place, so
+ * a node-only rule would keep offering a control that no longer works.
+ *
+ * This is a correctness concern rather than a cosmetic one: creating an
+ * unregistered node throws "Attempted to create node X that was not
+ * configured to be used on the editor", so an offered-but-unsupported
+ * format is a crash.
+ */
+export function availableBlockFormats(
+  editor: LexicalEditor,
+  hasCheckListBehaviour: boolean
+): BlockFormat[] {
+  const formats: BlockFormat[] = ['paragraph']
+  if (editor.hasNodes([HeadingNode])) formats.push('h1', 'h2', 'h3', 'h4')
+  if (editor.hasNodes([ListNode, ListItemNode])) {
+    formats.push('bullet', 'number')
+    if (hasCheckListBehaviour) formats.push('check')
+  }
+  if (editor.hasNodes([QuoteNode])) formats.push('quote')
+  if (editor.hasNodes([CodeNode])) formats.push('code')
+  return formats
+}
+
 function BlockFormatDropDown({
   editor,
   blockType,
@@ -146,15 +195,13 @@ function BlockFormatDropDown({
   rootType: keyof typeof rootTypeToRootName
   editor: LexicalEditor
   disabled?: boolean
-}): React.JSX.Element {
-  // Block-format dropdown entries are gated on whether the underlying
-  // extensions are present in the editor's extension graph. Removing
-  // ListExtension via lexicalEditor((c) => c.extensions.remove(ListExtension))
-  // hides the list options here without any flag in EditorSettings.
-  const hasList = useOptionalExtensionDependency(ListExtension) !== undefined
-  const hasCheckList = useOptionalExtensionDependency(CheckListExtension) !== undefined
+}): React.JSX.Element | null {
+  // Entries follow what the resolved editor can actually produce, so
+  // removing an extension removes its control along with its node
+  // registration — no flag in EditorSettings is involved.
   const [composerEditor] = useLexicalComposerContext()
-  const hasCodeHighlight = composerEditor.hasNodes([CodeNode])
+  const hasCheckListBehaviour = useOptionalExtensionDependency(CheckListExtension) !== undefined
+  const formats = availableBlockFormats(composerEditor, hasCheckListBehaviour)
 
   const formatParagraph = (): void => {
     editor.update(() => {
@@ -233,6 +280,10 @@ function BlockFormatDropDown({
     }
   }
 
+  // Paragraph alone is not a choice — with every structural format
+  // removed the control would offer a single no-op entry.
+  if (formats.length === 1) return null
+
   return (
     <DropDown
       disabled={disabled}
@@ -248,43 +299,47 @@ function BlockFormatDropDown({
         <i className="icon paragraph" />
         <span className="text">Normal</span>
       </DropDownItem>
-      <DropDownItem
-        className={`item ${dropDownActiveClass(blockType === 'h1')}`}
-        onClick={() => {
-          formatHeading('h1')
-        }}
-      >
-        <i className="icon h1" />
-        <span className="text">Heading 1</span>
-      </DropDownItem>
-      <DropDownItem
-        className={`item ${dropDownActiveClass(blockType === 'h2')}`}
-        onClick={() => {
-          formatHeading('h2')
-        }}
-      >
-        <i className="icon h2" />
-        <span className="text">Heading 2</span>
-      </DropDownItem>
-      <DropDownItem
-        className={`item ${dropDownActiveClass(blockType === 'h3')}`}
-        onClick={() => {
-          formatHeading('h3')
-        }}
-      >
-        <i className="icon h3" />
-        <span className="text">Heading 3</span>
-      </DropDownItem>
-      <DropDownItem
-        className={`item ${dropDownActiveClass(blockType === 'h4')}`}
-        onClick={() => {
-          formatHeading('h4')
-        }}
-      >
-        <i className="icon h4" />
-        <span className="text">Heading 4</span>
-      </DropDownItem>
-      {hasList && (
+      {formats.includes('h1') && (
+        <>
+          <DropDownItem
+            className={`item ${dropDownActiveClass(blockType === 'h1')}`}
+            onClick={() => {
+              formatHeading('h1')
+            }}
+          >
+            <i className="icon h1" />
+            <span className="text">Heading 1</span>
+          </DropDownItem>
+          <DropDownItem
+            className={`item ${dropDownActiveClass(blockType === 'h2')}`}
+            onClick={() => {
+              formatHeading('h2')
+            }}
+          >
+            <i className="icon h2" />
+            <span className="text">Heading 2</span>
+          </DropDownItem>
+          <DropDownItem
+            className={`item ${dropDownActiveClass(blockType === 'h3')}`}
+            onClick={() => {
+              formatHeading('h3')
+            }}
+          >
+            <i className="icon h3" />
+            <span className="text">Heading 3</span>
+          </DropDownItem>
+          <DropDownItem
+            className={`item ${dropDownActiveClass(blockType === 'h4')}`}
+            onClick={() => {
+              formatHeading('h4')
+            }}
+          >
+            <i className="icon h4" />
+            <span className="text">Heading 4</span>
+          </DropDownItem>
+        </>
+      )}
+      {formats.includes('bullet') && (
         <>
           <DropDownItem
             className={`item ${dropDownActiveClass(blockType === 'bullet')}`}
@@ -303,7 +358,7 @@ function BlockFormatDropDown({
         </>
       )}
 
-      {hasCheckList && (
+      {formats.includes('check') && (
         <DropDownItem
           className={`item ${dropDownActiveClass(blockType === 'check')}`}
           onClick={formatCheckList}
@@ -313,14 +368,16 @@ function BlockFormatDropDown({
         </DropDownItem>
       )}
 
-      <DropDownItem
-        className={`item ${dropDownActiveClass(blockType === 'quote')}`}
-        onClick={formatQuote}
-      >
-        <i className="icon quote" />
-        <span className="text">Quote</span>
-      </DropDownItem>
-      {hasCodeHighlight && (
+      {formats.includes('quote') && (
+        <DropDownItem
+          className={`item ${dropDownActiveClass(blockType === 'quote')}`}
+          onClick={formatQuote}
+        >
+          <i className="icon quote" />
+          <span className="text">Quote</span>
+        </DropDownItem>
+      )}
+      {formats.includes('code') && (
         <DropDownItem
           className={`item ${dropDownActiveClass(blockType === 'code')}`}
           onClick={formatCode}
@@ -373,10 +430,13 @@ export function ToolbarPlugin(): React.JSX.Element {
   const {
     uuid,
     config: {
-      options: { textAlignment, undoRedo, textStyle, inlineCode, markdownToggle },
+      controls: { textAlignment, undoRedo, blockFormat, inlineCode, markdownToggle },
     },
   } = useEditorConfig()
   const { isMarkdown, toggleMarkdown } = useMarkdownToggle()
+  // Source mode needs a CodeNode to hold the Markdown text, so the
+  // control follows that capability as well as the preference.
+  const canToggleMarkdown = canUseMarkdownSourceMode(editor)
   // const { openModal } = usePayloadModal()
   // const editDepth = useEditDepth()
 
@@ -625,7 +685,7 @@ export function ToolbarPlugin(): React.JSX.Element {
 
       {blockType in blockTypeToBlockName && activeEditor === editor && (
         <>
-          {textStyle && (
+          {blockFormat && (
             <>
               <BlockFormatDropDown
                 disabled={!isEditable}
@@ -872,7 +932,7 @@ export function ToolbarPlugin(): React.JSX.Element {
         ))}
       </ToolbarActiveEditorProvider>
 
-      {markdownToggle && (
+      {markdownToggle && canToggleMarkdown && (
         <>
           <Divider />
           <button

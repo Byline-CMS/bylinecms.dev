@@ -46,18 +46,18 @@ defineAdminConfig({
 /** Every root mounted by this file, unmounted after each test. */
 const mounted: Array<{ root: Root; container: HTMLDivElement }> = []
 
-afterEach(() => {
+afterEach(async () => {
   // Without this each test leaves a live editor and its listeners
   // attached to the document, which leaks between tests.
   for (const { root, container } of mounted.splice(0)) {
-    act(() => {
+    await act(async () => {
       root.unmount()
     })
     container.remove()
   }
 })
 
-function mountEditor(removals: string[]): LexicalEditor {
+async function mountEditor(removals: string[]): Promise<LexicalEditor> {
   const extensions = defaultClientEditorConfig.extensions?.clone()
   for (const name of removals) extensions.remove(name)
 
@@ -67,7 +67,10 @@ function mountEditor(removals: string[]): LexicalEditor {
   const root = createRoot(container)
   mounted.push({ root, container })
 
-  act(() => {
+  // Async act: Lexical flushes listeners in a microtask and ToolbarPlugin
+  // sets state from them, so a synchronous act() leaves those updates
+  // outside its scope and React warns.
+  await act(async () => {
     root.render(
       <EditorContext
         composerKey="regression"
@@ -89,18 +92,18 @@ function mountEditor(removals: string[]): LexicalEditor {
 }
 
 describe('EditorContext registers only what its extensions own', () => {
-  it('does not register headings when the heading extension is removed', () => {
-    const editor = mountEditor([builtInExtensions.Heading])
+  it('does not register headings when the heading extension is removed', async () => {
+    const editor = await mountEditor([builtInExtensions.Heading])
     expect(editor.hasNode(HeadingNode)).toBe(false)
   })
 
-  it('still registers headings with the default configuration', () => {
-    const editor = mountEditor([])
+  it('still registers headings with the default configuration', async () => {
+    const editor = await mountEditor([])
     expect(editor.hasNode(HeadingNode)).toBe(true)
   })
 
-  it('registers every readable node class with the default configuration', () => {
-    const editor = mountEditor([])
+  it('registers every readable node class with the default configuration', async () => {
+    const editor = await mountEditor([])
     // The former blanket list, now the read vocabulary. Every class in it
     // must still be reachable through an extension, or the default
     // configuration has silently lost a feature.
@@ -110,11 +113,11 @@ describe('EditorContext registers only what its extensions own', () => {
     expect(missing).toEqual([])
   })
 
-  it('keeps the core nodes even when site code tries to remove them', () => {
+  it('keeps the core nodes even when site code tries to remove them', async () => {
     // `remove()` matches by name and accepts the extension object, so
     // this is a removal a site could really attempt. The root injects
     // CoreNodesExtension outside the configurable list, so it survives.
-    const editor = mountEditor([CoreNodesExtension.name])
+    const editor = await mountEditor([CoreNodesExtension.name])
     expect(editor.hasNode(MarkNode)).toBe(true)
     expect(editor.hasNode(OverflowNode)).toBe(true)
   })
