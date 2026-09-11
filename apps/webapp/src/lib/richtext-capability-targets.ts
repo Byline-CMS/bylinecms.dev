@@ -7,9 +7,11 @@
  */
 
 import {
+  type CollectionAdminConfig,
   type Field,
   formatDeclarationPath,
   type RichTextField,
+  type SingletonAdminConfig,
   toDeclarationSegments,
   walkFieldDeclarations,
 } from '@byline/core'
@@ -63,9 +65,17 @@ export function collectRichTextTargets(adminConfig: unknown): RichTextTarget[] {
   const targets: RichTextTarget[] = []
 
   for (const collection of config.collections ?? []) {
+    // Matched on `slug`, NOT `path`: `defineAdmin()` returns
+    // `{ ...config, singleton, slug: schema.path }`, and
+    // `CollectionAdminConfig` carries no `path` at all. Comparing `entry.path`
+    // silently matched nothing, so every collection-level field override fell
+    // through to the global editor and the manifest overstated what those
+    // fields accept — the wrong direction for a tool whose whole job is to
+    // warn before content breaks. Block-level overrides were unaffected
+    // because they resolve through `blockType`, which is why this survived:
+    // the only narrowed fields in this app are inside blocks.
     const adminForCollection = (config.admin ?? []).find(
-      // biome-ignore lint/suspicious/noExplicitAny: admin resource shape varies
-      (entry: any) => entry.path === collection.path
+      (entry: CollectionAdminConfig | SingletonAdminConfig) => entry.slug === collection.path
     )
 
     walkFieldDeclarations(collection.fields as Field[], (field, segments) => {

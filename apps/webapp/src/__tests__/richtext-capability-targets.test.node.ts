@@ -57,7 +57,13 @@ const config = {
       ],
     },
   ],
-  admin: [{ path: 'pages', fields: { title: { editor: TitleEditor } } }],
+  // `slug`, not `path` — this is what `defineAdmin()` actually returns:
+  // `{ ...config, singleton: false, slug: schema.path }`. An earlier version of
+  // this fixture said `path`, which matched a `path`-based lookup in the
+  // implementation, so this suite passed while every collection-level override
+  // was silently ignored and the manifest overstated what those fields accept.
+  // A fixture invented to match the code proves nothing about the code.
+  admin: [{ slug: 'pages', fields: { title: { editor: TitleEditor } } }],
   blockAdmin: [
     { blockType: 'photoBlock', fields: { caption: { editor: CaptionEditor } } },
     { blockType: 'faqBlock', fields: { 'faq.answer': { editor: AnswerEditor } } },
