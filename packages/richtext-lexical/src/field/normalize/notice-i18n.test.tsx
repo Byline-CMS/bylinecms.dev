@@ -21,6 +21,32 @@ afterEach(async () => {
   }
 })
 
+async function renderWithBundle(
+  node: React.ReactNode,
+  // biome-ignore lint/suspicious/noExplicitAny: hand-built partial bundle
+  bundle: any,
+  locale: string
+): Promise<HTMLDivElement> {
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
+  mounted.push({ root, container })
+  await act(async () => {
+    root.render(
+      <I18nProvider
+        bundle={bundle}
+        activeLocale={locale}
+        defaultLocale="en"
+        localeDefinitions={[{ code: 'en', name: 'English' }]}
+        onMissing={() => {}}
+      >
+        {node}
+      </I18nProvider>
+    )
+  })
+  return container
+}
+
 async function render(node: React.ReactNode, locale?: string): Promise<HTMLDivElement> {
   const container = document.createElement('div')
   document.body.appendChild(container)
@@ -79,6 +105,16 @@ describe('notice translation', () => {
     expect(container.textContent).toContain('YouTube')
     // Joined the way the locale writes a list, not with a bare comma.
     expect(container.textContent).toContain(' et ')
+  })
+
+  it('falls back to English when the provider bundle predates these keys', async () => {
+    // A site pinned to an older @byline/i18n has a provider but no such
+    // key. The formatter's last resort is the raw key, which would put
+    // `richtext.adapted.notice` in front of a reader.
+    const stale = { en: { 'byline-admin': { 'common.actions.save': 'Save' } } }
+    const container = await renderWithBundle(<AdaptedNotice />, stale, 'en')
+    expect(container.textContent).toContain('no longer supports')
+    expect(container.textContent).not.toContain('richtext.adapted.notice')
   })
 
   it('keeps an unknown type as its id in any locale', async () => {

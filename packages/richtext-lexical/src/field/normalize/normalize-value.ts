@@ -8,7 +8,12 @@
 
 import type { SerializedEditorState } from 'lexical'
 
-import { conversionFor, isBlockType, type SerializedNode } from './declared-conversions'
+import {
+  conversionFor,
+  isBlockType,
+  isInlineType,
+  type SerializedNode,
+} from './declared-conversions'
 
 export type NormalizeResult =
   | { status: 'unchanged' }
@@ -64,41 +69,47 @@ const paragraphNode = (children: SerializedNode[]): SerializedNode => ({
  * The input is never mutated. Refusal wins over any conversion, so the
  * whole tree is walked before a decision is returned.
  */
-/**
- * Wrap runs of inline nodes in paragraphs, leaving blocks where they are.
- *
- * A converted block's children are not guaranteed to be inline — a
- * `listitem` may hold a nested `list` — so turning the whole lot into one
- * paragraph would nest a block inside a paragraph and produce a tree
- * Lexical will not load.
- */
-function groupIntoBlocks(nodes: SerializedNode[]): SerializedNode[] {
-  const out: SerializedNode[] = []
-  let run: SerializedNode[] = []
-  const flush = () => {
-    if (run.length > 0) {
-      out.push(paragraphNode(run))
-      run = []
-    }
-  }
-  for (const node of nodes) {
-    if (isBlockType(node.type)) {
-      flush()
-      out.push(node)
-    } else {
-      run.push(node)
-    }
-  }
-  flush()
-  return out
-}
-
 export function normalizeValue(
   value: SerializedEditorState,
   supportedTypes: ReadonlySet<string>
 ): NormalizeResult {
   const converted = new Set<string>()
   const refused = new Set<string>()
+
+  /**
+   * Wrap runs of inline nodes in paragraphs, leaving blocks where they
+   * are. A converted block's children are not guaranteed to be inline —
+   * a `listitem` may hold a nested `list` — so turning the whole lot
+   * into one paragraph would nest a block inside a paragraph.
+   *
+   * A node whose role is in neither list is refused rather than assumed
+   * inline: it may be a supported custom block from a downstream site,
+   * and wrapping one in a paragraph produces a tree Lexical rejects.
+   */
+  function groupIntoBlocks(nodes: SerializedNode[]): SerializedNode[] {
+    const out: SerializedNode[] = []
+    let run: SerializedNode[] = []
+    const flush = () => {
+      if (run.length > 0) {
+        out.push(paragraphNode(run))
+        run = []
+      }
+    }
+    for (const node of nodes) {
+      if (isInlineType(node.type)) {
+        run.push(node)
+        continue
+      }
+      if (!isBlockType(node.type)) {
+        // Unknown structural role — do not guess.
+        refused.add(node.type)
+      }
+      flush()
+      out.push(node)
+    }
+    flush()
+    return out
+  }
 
   function visit(node: SerializedNode): SerializedNode[] {
     const children = Array.isArray(node.children) ? (node.children as SerializedNode[]) : undefined

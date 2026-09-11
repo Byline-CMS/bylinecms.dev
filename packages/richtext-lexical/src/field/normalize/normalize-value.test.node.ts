@@ -384,6 +384,84 @@ describe('normalizeValue', () => {
     expect(paragraph.children[0].format).toBe(1)
   })
 
+  it('refuses rather than inlining a supported custom block inside a converted parent', () => {
+    // A supported node CAN reach the block/inline partition, as the child
+    // of an unsupported parent being converted. Its structural role is
+    // not recoverable from the serialized shape — an inline link and a
+    // block quote look identical — so assuming inline would wrap a
+    // custom block in a paragraph and produce a tree Lexical rejects.
+    const customBlock = {
+      children: [para(text('callout body'))],
+      direction: null,
+      format: '',
+      indent: 0,
+      type: 'acme-callout',
+      version: 1,
+    }
+    const item = {
+      children: [text('label'), customBlock],
+      direction: null,
+      format: '',
+      indent: 0,
+      type: 'listitem',
+      version: 1,
+      value: 1,
+    }
+    const result = normalizeValue(doc(item), new Set([...SUPPORTED, 'acme-callout']))
+    expect(result.status).toBe('refused')
+    if (result.status !== 'refused') return
+    expect(result.unsupportedTypes).toContain('acme-callout')
+  })
+
+  it('does not refuse a supported custom block left in its own position', () => {
+    // Untouched by any conversion, it never reaches the partition.
+    const customBlock = {
+      children: [para(text('callout body'))],
+      direction: null,
+      format: '',
+      indent: 0,
+      type: 'acme-callout',
+      version: 1,
+    }
+    const result = normalizeValue(
+      doc(heading('h1', text('Title')), customBlock),
+      new Set([...SUPPORTED, 'acme-callout'])
+    )
+    expect(result.status).toBe('adapted')
+    if (result.status !== 'adapted') return
+    // biome-ignore lint/suspicious/noExplicitAny: structural assertion
+    const kids = result.value.root.children as any[]
+    expect(kids.map((child) => child.type)).toEqual(['paragraph', 'acme-callout'])
+  })
+
+  it('keeps a known inline node inline inside a converted parent', () => {
+    const link = {
+      children: [text('link text')],
+      direction: null,
+      format: '',
+      indent: 0,
+      type: 'link',
+      version: 2,
+      attributes: { url: 'https://x.test' },
+    }
+    const item = {
+      children: [text('label '), link],
+      direction: null,
+      format: '',
+      indent: 0,
+      type: 'listitem',
+      version: 1,
+      value: 1,
+    }
+    const result = normalizeValue(doc(item), new Set([...SUPPORTED, 'link']))
+    if (result.status !== 'adapted') throw new Error('expected adapted')
+    // biome-ignore lint/suspicious/noExplicitAny: structural assertion
+    const kids = result.value.root.children as any[]
+    expect(kids).toHaveLength(1)
+    expect(kids[0].type).toBe('paragraph')
+    expect(kids[0].children.map((child: { type: string }) => child.type)).toEqual(['text', 'link'])
+  })
+
   it('refuses a document containing an inline image', () => {
     const result = normalizeValue(
       doc(para({ type: 'inline-image', version: 1, src: '/cat.png' })),

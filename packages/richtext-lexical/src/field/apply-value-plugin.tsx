@@ -28,6 +28,8 @@ export function ApplyValuePlugin({
   const [editor] = useLexicalComposerContext()
   const { setStatus } = useNormalizationStatus()
   const lastAppliedHashRef = useRef<string | undefined>(undefined)
+  // True while the surface is showing the read-only refusal notice.
+  const isRefusedRef = useRef(false)
 
   const cancelWaiterRef = useRef<() => void>(undefined)
 
@@ -40,7 +42,15 @@ export function ApplyValuePlugin({
 
     const nextRawHash = incomingHash
 
-    if (nextRawHash === lastEmittedHashRef.current) {
+    // Both shortcuts below assume the editor already holds this value and
+    // that there is therefore nothing to do. Neither holds while refused:
+    // a refusal applies nothing, so the editor holds whatever preceded it
+    // and the notice is still up. Taking either shortcut would leave the
+    // field stranded — including via the echo path, where the value being
+    // returned to is one the editor itself last emitted.
+    const refused = isRefusedRef.current
+
+    if (!refused && nextRawHash === lastEmittedHashRef.current) {
       if (hasNormalizedBaselineRef.current !== true) {
         hasNormalizedBaselineRef.current = true
         if (cancelWaiterRef.current) {
@@ -51,7 +61,7 @@ export function ApplyValuePlugin({
       return
     }
 
-    if (nextRawHash === lastAppliedHashRef.current) {
+    if (!refused && nextRawHash === lastAppliedHashRef.current) {
       // If the incoming value matches what we last applied, we assume the previous
       // waiter (if any) is still running or has completed.
       // We do NOT want to cancel it just because of a re-render.
@@ -80,19 +90,30 @@ export function ApplyValuePlugin({
       // than silently discarding what the document holds.
       setStatus({ kind: 'refused', unsupportedTypes: normalized.unsupportedTypes })
 
-      // Forget the last applied value. A refusal applies nothing, so the
-      // memo below ("this hash is already applied, skip") would otherwise
-      // swallow a return to that same value — the notice would stay up
-      // and the editor would never be restored. Toggling between a
-      // refused value and a valid one is the first thing a reader does.
+      // Forget the last applied value and remember that we are refused,
+      // so neither shortcut above can swallow the return to it. Toggling
+      // between a refused value and a valid one is the first thing a
+      // reader does, and the value returned to may be one the editor
+      // itself emitted.
       lastAppliedHashRef.current = undefined
+      isRefusedRef.current = true
 
-      // Nothing further will arrive to establish a baseline, and the
-      // parent suppresses change events until one exists.
-      hasNormalizedBaselineRef.current = true
+      // Leave the baseline UNESTABLISHED. It is the only thing
+      // suppressing emission in `editor-component.tsx` — the gate there
+      // is `value != null && baseline !== true` — and while refused the
+      // editor does NOT hold the stored value. Setting it true would
+      // open that gate on a field whose content is not the document's:
+      // an emission deferred through `requestIdleCallback` before the
+      // refusal would then land after it and write the PREVIOUS
+      // document's text over the refused one, which is exactly the loss
+      // refusal exists to prevent. Recovery does not need it — a later
+      // valid value re-enters the apply path and its waiter sets the
+      // baseline itself.
+      hasNormalizedBaselineRef.current = false
       return
     }
 
+    isRefusedRef.current = false
     setStatus(
       normalized.status === 'adapted'
         ? { kind: 'adapted', convertedTypes: normalized.convertedTypes }

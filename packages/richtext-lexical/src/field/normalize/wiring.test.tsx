@@ -93,6 +93,8 @@ interface Harness {
   container: HTMLDivElement
   editor: () => LexicalEditor
   render: (value: SerializedEditorState) => Promise<void>
+  /** Record a value as one the editor emitted, as the parent does on change. */
+  markAsEmitted: (value: SerializedEditorState) => void
 }
 
 /**
@@ -148,6 +150,9 @@ async function mount(removals: string[], initial?: SerializedEditorState): Promi
 
   await paint(initial)
   return {
+    markAsEmitted: (value: SerializedEditorState) => {
+      lastEmittedHashRef.current = hashSerializedState(value)
+    },
     container,
     editor: () => {
       if (instance == null) throw new Error('editor never captured')
@@ -293,6 +298,28 @@ describe('normalization wiring', () => {
         `cycle ${cycle}: expected the notice to return`
       ).not.toBeNull()
     }
+  })
+
+  it('recovers via the echo path, where the value returned to was emitted by the editor', async () => {
+    // The parent records the hash of every value the editor emits, so
+    // ApplyValuePlugin can ignore its own echo. That shortcut runs BEFORE
+    // the applied-value memo, so clearing the memo alone does not save
+    // this case: edit A (the editor emits it), receive refused B, return
+    // to A, and the echo shortcut would skip normalization and leave the
+    // notice up.
+    const harness = await mount([builtInExtensions.InlineImage], doc(heading('Edited')))
+    expect(editorText(harness.editor())).toBe('Edited')
+
+    // Simulate the parent having recorded this value as editor-emitted.
+    harness.markAsEmitted(doc(heading('Edited')))
+
+    await harness.render(doc(image()))
+    expect(harness.container.querySelector('.byline-richtext-notice--refused')).not.toBeNull()
+
+    await harness.render(doc(heading('Edited')))
+    expect(harness.container.querySelector('.byline-richtext-notice--refused')).toBeNull()
+    expect(harness.container.querySelector('.editor-container')).not.toBeNull()
+    expect(editorText(harness.editor())).toBe('Edited')
   })
 
   it('names an unknown node type by its id rather than failing', async () => {

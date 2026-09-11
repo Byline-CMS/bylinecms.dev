@@ -15,12 +15,17 @@ import { I18nContext } from '@byline/i18n/react'
 /**
  * English text for every key this package renders.
  *
- * These duplicate the `byline-admin` bundle on purpose. The editor can
- * be mounted outside the admin shell — a host embedding a field, an
- * error boundary rendering without its route's providers — and
- * `useTranslation` throws when no provider is present. A notice must
- * never be the thing that breaks a field, so it degrades to English
- * rather than to an exception.
+ * These duplicate the `byline-admin` bundle on purpose, and cover two
+ * different failures:
+ *
+ *  - No provider at all. The editor can be mounted outside the admin
+ *    shell — a host embedding a field, an error boundary rendering
+ *    without its route's providers — and `useTranslation` throws when
+ *    none is present. A notice must never be the thing that breaks a
+ *    field.
+ *  - A provider whose bundle predates these keys, on a site pinned to an
+ *    older `@byline/i18n`. The formatter's last resort is the raw key,
+ *    so without this the reader would see `richtext.unsupported.notice`.
  */
 const FALLBACKS: Readonly<Record<string, string>> = {
   'richtext.adapted.notice':
@@ -57,7 +62,15 @@ export function useNoticeText(): NoticeText {
     }
     return {
       locale: context.activeLocale,
-      t: (key, values) => context.formatter.t('byline-admin', key, values),
+      t: (key, values) => {
+        const translated = context.formatter.t('byline-admin', key, values)
+        // The formatter's last resort is the raw key, which happens when
+        // a provider IS mounted but its bundle predates these keys — a
+        // site pinned to an older @byline/i18n. Falling back only on a
+        // missing provider would leave that reader looking at
+        // `richtext.unsupported.notice`, so treat a key echo as a miss.
+        return translated === key ? interpolate(FALLBACKS[key] ?? key, values) : translated
+      },
     }
   }, [context])
 }

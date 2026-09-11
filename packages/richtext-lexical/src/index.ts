@@ -10,11 +10,6 @@ export type {
   SerializedTextNode,
 } from 'lexical'
 
-// Composition primitives. `EditorComponent` wires these together for a
-// normal field; they are exported so a host can compose the same pair
-// directly — the apply plugin is the only path by which a stored value
-// reaches the editor, so an editor without it stays empty.
-export { ApplyValuePlugin } from './field/apply-value-plugin'
 export {
   type BuiltInExtensionName,
   builtInExtensions,
@@ -26,7 +21,6 @@ export {
   defaultExtensionsList,
 } from './field/config/default-extensions'
 export { ExtensionsList } from './field/config/extensions-list'
-export { EditorContext } from './field/editor-context'
 export { EditorField } from './field/editor-field'
 // Built-in extensions exposed for `lexicalEditor((c) => c.extensions...)`
 // manipulation and for third-party extensions to declare against via

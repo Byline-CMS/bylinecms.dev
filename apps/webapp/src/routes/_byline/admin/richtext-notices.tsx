@@ -26,15 +26,10 @@
  * frontend splat, and 404.
  */
 
-import { useRef, useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
+import { createFileRoute, notFound } from '@tanstack/react-router'
 
-import {
-  ApplyValuePlugin,
-  builtInExtensions,
-  defaultClientEditorConfig,
-  EditorContext,
-} from '@byline/richtext-lexical'
+import { builtInExtensions, defaultClientEditorConfig, EditorField } from '@byline/richtext-lexical'
 import { Button } from '@byline/ui/react'
 
 /**
@@ -46,6 +41,14 @@ import { Button } from '@byline/ui/react'
 type EditorValue = { root: Record<string, unknown> }
 
 export const Route = createFileRoute('/_byline/admin/richtext-notices')({
+  // Development only, enforced rather than merely described. Vite
+  // statically replaces `import.meta.env.DEV`, so the guard also lets the
+  // page drop out of a production build.
+  beforeLoad: () => {
+    if (!import.meta.env.DEV) {
+      throw notFound()
+    }
+  },
   component: RichTextNoticesPreview,
 })
 
@@ -178,36 +181,18 @@ function PreviewEditor({
   const extensions = defaultClientEditorConfig.extensions?.clone()
   for (const name of removals) extensions?.remove(name)
 
-  // Real refs: recreating these objects each render would reset the
-  // plugin's hash bookkeeping on every update.
-  const lastEmitted = useRef<string | undefined>(undefined)
-  const normalizedIncoming = useRef<string | undefined>(undefined)
-  const hasBaseline = useRef(false)
-
   return (
     <section style={{ marginBottom: 40 }}>
       <h2 style={{ fontSize: 16, marginBottom: 4 }}>{title}</h2>
       <p style={{ color: '#555', fontSize: 13, marginTop: 0 }}>{description}</p>
       <div style={{ border: '1px solid #ddd', borderRadius: 4, padding: 12 }}>
-        <EditorContext
-          composerKey={title}
+        <EditorField
+          id={title}
+          name={title}
           editorConfig={{ ...defaultClientEditorConfig, extensions }}
-          onChange={() => {}}
-          readOnly={false}
           // biome-ignore lint/suspicious/noExplicitAny: preview fixture boundary
           value={current as any}
-        >
-          <ApplyValuePlugin
-            // Cast at the boundary: these are hand-written fixtures and
-            // the webapp does not carry Lexical's types.
-            // biome-ignore lint/suspicious/noExplicitAny: preview fixture boundary
-            value={current as any}
-            incomingHash={JSON.stringify(current)}
-            lastEmittedHashRef={lastEmitted}
-            normalizedIncomingHashRef={normalizedIncoming}
-            hasNormalizedBaselineRef={hasBaseline}
-          />
-        </EditorContext>
+        />
       </div>
       <div style={{ marginTop: 8 }}>
         <Button

@@ -36,11 +36,7 @@ export type ConversionKind = 'to-paragraph' | 'lift-blocks' | 'unwrap-inline' | 
  *
  * Needed because a converted node's children are not always inline: a
  * `listitem` may hold a nested `list`, so turning every item straight
- * into a paragraph would nest a block inside a paragraph. Anything not
- * listed here is treated as inline, which is correct for text, line
- * breaks, tabs, links, marks, overflow, highlighted code tokens and
- * inline images. An unknown type never reaches this test — it has no
- * declared conversion, so the document is refused instead.
+ * into a paragraph would nest a block inside a paragraph.
  */
 export const BLOCK_TYPES: ReadonlySet<string> = new Set([
   'paragraph',
@@ -62,6 +58,38 @@ export const BLOCK_TYPES: ReadonlySet<string> = new Set([
 
 export function isBlockType(type: string): boolean {
   return BLOCK_TYPES.has(type)
+}
+
+/**
+ * Serialized types Byline knows to be inline.
+ *
+ * The counterpart to {@link BLOCK_TYPES}, and the reason both lists
+ * exist rather than one: a node's structural role cannot be recovered
+ * from its serialized shape. An inline `link` and a block `quote` are
+ * both elements with `children`, `direction`, `format` and `indent`, so
+ * there is no reliable metadata to infer the role from.
+ *
+ * A SUPPORTED node can reach this test — it arrives as the child of an
+ * unsupported parent being converted — so "not a known block" cannot be
+ * read as "inline". A custom block from a downstream site would be
+ * wrapped into a paragraph and produce a tree Lexical rejects. When a
+ * type appears in neither list its role is unknown, and normalization
+ * refuses the document rather than guessing at it.
+ */
+export const INLINE_TYPES: ReadonlySet<string> = new Set([
+  'text',
+  'linebreak',
+  'tab',
+  'link',
+  'autolink',
+  'mark',
+  'overflow',
+  'code-highlight',
+  'inline-image',
+])
+
+export function isInlineType(type: string): boolean {
+  return INLINE_TYPES.has(type)
 }
 
 export interface DeclaredConversion {
