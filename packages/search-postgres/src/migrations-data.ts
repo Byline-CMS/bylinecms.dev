@@ -17,7 +17,8 @@
  * the SQL into the JS makes the runner bundle-safe everywhere.
  *
  * The `.sql` files remain the DBA-reviewable source of truth and still ship in
- * the package for the `psql -f migrations/0001_init.sql` install path —
+ * the package for the by-hand install path (`psql -1 -v ON_ERROR_STOP=1 -f`,
+ * every file in order — see the package README) —
  * `migrations-data.test.node.ts` asserts the two never drift.
  */
 

@@ -77,11 +77,26 @@ published versions.
 
 ### 1. Run the SQL by hand (locked-down / managed Postgres)
 
-The numbered files are the source of truth and are DBA-reviewable:
+The numbered files are the source of truth and are DBA-reviewable. Apply every
+file, in ascending order:
 
 ```sh
-psql "$DATABASE_URL" -f node_modules/@byline/search-postgres/migrations/0001_init.sql
+cd node_modules/@byline/search-postgres/migrations
+for f in $(ls *.sql | sort); do
+  psql "$DATABASE_URL" -1 -v ON_ERROR_STOP=1 -f "$f" || break
+done
 ```
+
+`-1` wraps each file in a single transaction and `ON_ERROR_STOP=1` aborts on the
+first error. Both matter: without them `psql` continues past a failed statement
+and commits what it managed, leaving a partially migrated schema that neither
+this path nor `migrate()` can recognise. `migrate()` already gets this for free —
+it runs each file inside `BEGIN` / `COMMIT`.
+
+This path does not write to `byline_search_migrations`, so a later `migrate()`
+call re-applies the same files. That is safe — every migration is idempotent —
+but it means the two paths can be mixed without harm rather than that the
+bookkeeping is optional.
 
 ### 2. Call `migrate()` deliberately (recommended for production)
 

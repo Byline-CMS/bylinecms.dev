@@ -16,8 +16,10 @@
  * a production server bundle (Nitro / rollup) inlines this package and rewrites
  * `import.meta.url`, which would break reading the `.sql` files from disk at
  * runtime. The numbered `.sql` files remain the source of truth and still ship
- * for the by-hand path (`psql -f migrations/0001_init.sql`) in locked-down
- * environments; `migrate(pool)` / `autoMigrate` are the convenience paths.
+ * for the by-hand path in locked-down environments — run every file in order,
+ * as `psql -1 -v ON_ERROR_STOP=1 -f <file>`, so a failure rolls back rather
+ * than committing a partial schema (see the package README). `migrate(pool)` /
+ * `autoMigrate` are the convenience paths and transact each file themselves.
  */
 
 import type { Pool } from 'pg'
