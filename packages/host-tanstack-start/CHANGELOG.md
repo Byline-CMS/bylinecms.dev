@@ -1,5 +1,21 @@
 # @byline/host-tanstack-start
 
+## 6.0.3
+
+### Patch Changes
+
+- fixed admin list sort direction in **`@byline/host-tanstack-start`** when the host router preserves URL search values as strings — `desc=false` now reads as ascending in collection, admin-user, and version-history lists
+- Updated dependencies
+  - @byline/admin@6.0.3
+  - @byline/ai@6.0.3
+  - @byline/analytics@6.0.3
+  - @byline/analytics-agent@6.0.3
+  - @byline/auth@6.0.3
+  - @byline/client@6.0.3
+  - @byline/core@6.0.3
+  - @byline/i18n@6.0.3
+  - @byline/ui@6.0.3
+
 ## 6.0.2
 
 ### Patch Changes
