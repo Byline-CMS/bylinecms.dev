@@ -12,6 +12,10 @@ export {
   rebuildAnalyticsDay,
 } from './maintenance.js'
 export {
+  getAnalyticsDashboardPreference,
+  setAnalyticsDashboardPreference,
+} from './preferences.js'
+export {
   type AnalyticsRuntimeState,
   type AnalyticsTopInput,
   getAnalyticsCountries,

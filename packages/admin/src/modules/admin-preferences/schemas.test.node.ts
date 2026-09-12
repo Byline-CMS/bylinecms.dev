@@ -6,11 +6,14 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { ANALYTICS_DASHBOARD_PERIODS } from '@byline/analytics/config'
 import { describe, expect, it } from 'vitest'
 
 import {
+  analyticsViewPreferenceValueSchema,
   listViewPreferenceValueSchema,
   preferenceScopeSchema,
+  resolvePreferenceValueSchema,
   setPreferenceRequestSchema,
 } from './schemas.js'
 
@@ -52,6 +55,49 @@ describe('listViewPreferenceValueSchema', () => {
   })
 })
 
+describe('analyticsViewPreferenceValueSchema', () => {
+  it('accepts every period the dashboard offers', () => {
+    for (const period of ANALYTICS_DASHBOARD_PERIODS) {
+      expect(analyticsViewPreferenceValueSchema.safeParse({ period }).success).toBe(true)
+    }
+  })
+
+  it('rejects periods the dashboard does not offer', () => {
+    expect(analyticsViewPreferenceValueSchema.safeParse({ period: 45 }).success).toBe(false)
+    // The URL carries `?period=30`; the stored value is the parsed number.
+    expect(analyticsViewPreferenceValueSchema.safeParse({ period: '30' }).success).toBe(false)
+    expect(analyticsViewPreferenceValueSchema.safeParse({ period: 'lifetime' }).success).toBe(false)
+  })
+
+  it('rejects an empty payload and unknown keys', () => {
+    expect(analyticsViewPreferenceValueSchema.safeParse({}).success).toBe(false)
+    expect(analyticsViewPreferenceValueSchema.safeParse({ period: 7, page_size: 30 }).success).toBe(
+      false
+    )
+  })
+})
+
+describe('resolvePreferenceValueSchema', () => {
+  it('routes each registered scope family to its own value schema', () => {
+    expect(resolvePreferenceValueSchema('collections.docs.list')).toBe(
+      listViewPreferenceValueSchema
+    )
+    expect(resolvePreferenceValueSchema('collections.media-items.list')).toBe(
+      listViewPreferenceValueSchema
+    )
+    expect(resolvePreferenceValueSchema('analytics.dashboard')).toBe(
+      analyticsViewPreferenceValueSchema
+    )
+  })
+
+  it('returns undefined for an unregistered scope family', () => {
+    expect(resolvePreferenceValueSchema('collections.docs')).toBeUndefined()
+    expect(resolvePreferenceValueSchema('collections.docs.list.extra')).toBeUndefined()
+    expect(resolvePreferenceValueSchema('analytics')).toBeUndefined()
+    expect(resolvePreferenceValueSchema('made.up.scope')).toBeUndefined()
+  })
+})
+
 describe('setPreferenceRequestSchema', () => {
   it('requires both scope and a non-empty value', () => {
     expect(
@@ -62,6 +108,34 @@ describe('setPreferenceRequestSchema', () => {
     ).toBe(true)
     expect(
       setPreferenceRequestSchema.safeParse({ scope: 'collections.docs.list', value: {} }).success
+    ).toBe(false)
+  })
+
+  it('validates the value against the schema its scope selects', () => {
+    expect(
+      setPreferenceRequestSchema.safeParse({
+        scope: 'analytics.dashboard',
+        value: { period: 'ytd' },
+      }).success
+    ).toBe(true)
+    // Each family rejects the other's keys — the point of keying by scope.
+    expect(
+      setPreferenceRequestSchema.safeParse({
+        scope: 'collections.docs.list',
+        value: { period: 'ytd' },
+      }).success
+    ).toBe(false)
+    expect(
+      setPreferenceRequestSchema.safeParse({
+        scope: 'analytics.dashboard',
+        value: { page_size: 30 },
+      }).success
+    ).toBe(false)
+  })
+
+  it('refuses to mint rows for an unregistered scope family', () => {
+    expect(
+      setPreferenceRequestSchema.safeParse({ scope: 'made.up.scope', value: { period: 7 } }).success
     ).toBe(false)
   })
 })

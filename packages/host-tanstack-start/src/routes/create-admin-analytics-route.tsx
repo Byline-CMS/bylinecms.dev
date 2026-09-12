@@ -21,11 +21,13 @@ import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs
 import { useNavigate } from '../admin-shell/chrome/loose-router.js'
 import {
   getAnalyticsCountries,
+  getAnalyticsDashboardPreference,
   getAnalyticsReferrers,
   getAnalyticsReportCoverage,
   getAnalyticsRuntime,
   getAnalyticsSummary,
   getAnalyticsTop,
+  setAnalyticsDashboardPreference,
 } from '../server-fns/analytics/index.js'
 import { getAdminRoutePath } from './admin-path.js'
 import { buildAnalyticsDashboardRange } from './analytics-range.js'
@@ -47,15 +49,29 @@ interface AnalyticsSearch {
 export function createAdminAnalyticsRoute(path: string) {
   const Route: any = createFileRoute(path as never)({
     validateSearch: searchSchema,
+    // `period` stays possibly-undefined here rather than defaulting to 30:
+    // "no period in the URL" is a distinct state from "30 in the URL", and
+    // only the former defers to the user's stored preference. It is still a
+    // loader dep, so an explicit period change refetches.
     loaderDeps: ({ search }: { search: AnalyticsSearch }) => ({
-      period: search.period ?? 30,
+      period: search.period,
     }),
-    loader: async ({ deps }: { deps: { period: AnalyticsDashboardPeriod } }) => {
+    loader: async ({ deps }: { deps: { period?: AnalyticsDashboardPeriod } }) => {
       const runtime = await getAnalyticsRuntime()
       if (!runtime.enabled) throw notFound()
 
-      const coverage = await getAnalyticsReportCoverage()
-      const range = buildAnalyticsDashboardRange(deps.period, new Date(), coverage.summaryFrom)
+      // Both are roundtrips the dashboard has to make before it can build a
+      // range, so the preference read rides along in parallel and costs no
+      // added latency. It is skipped entirely when the URL already decides.
+      const [coverage, preference] = await Promise.all([
+        getAnalyticsReportCoverage(),
+        deps.period == null ? getAnalyticsDashboardPreference() : Promise.resolve({ period: null }),
+      ])
+
+      // Precedence, matching the collection list: explicit URL param →
+      // stored per-user preference → the built-in default.
+      const period: AnalyticsDashboardPeriod = deps.period ?? preference.period ?? 30
+      const range = buildAnalyticsDashboardRange(period, new Date(), coverage.summaryFrom)
       const [summary, pages, downloads, referrers, countries] = await Promise.all([
         getAnalyticsSummary({ data: range }),
         // Fetch exactly the preview depth each card shows; the full list is
@@ -76,7 +92,9 @@ export function createAdminAnalyticsRoute(path: string) {
           range,
           coverage,
         } satisfies AnalyticsDashboardData,
-        period: deps.period,
+        // The *effective* period, so a params-less landing still highlights
+        // the period that actually ordered the data.
+        period,
       }
     },
     component: function AdminAnalyticsComponent() {
@@ -116,6 +134,14 @@ export function createAdminAnalyticsRoute(path: string) {
                 to: getAdminRoutePath('analytics'),
                 search: { period: nextPeriod },
               })
+              // Quietly make the choice sticky for next session. Fire-and-
+              // forget: the navigation already happened, so a failed save
+              // must never toast, block, or roll anything back.
+              setAnalyticsDashboardPreference({ data: { period: nextPeriod } }).catch(
+                (err: unknown) => {
+                  console.warn('analytics dashboard preference save failed:', err)
+                }
+              )
             }}
           />
         </>

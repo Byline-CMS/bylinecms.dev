@@ -12,12 +12,17 @@
  *
  * Self-service like `@byline/admin/admin-account`: the actor IS the
  * target, and there is no ability gate — authn-only. The `scope` string
- * (e.g. `collections.docs.list`) is the generality lever: new admin
- * surfaces claim their own scopes with no schema change.
+ * (e.g. `collections.docs.list`, `analytics.dashboard`) is the
+ * generality lever: a new admin surface claims its own scope by
+ * registering a value schema for it in `schemas.ts`, which keeps each
+ * family's payload strictly validated and unregistered scopes
+ * unwritable. Storage itself is untouched — scopes share one JSON
+ * key-value table.
  */
 
 export { getPreferenceCommand, setPreferenceCommand } from './commands.js'
 export {
+  analyticsViewPreferenceValueSchema,
   getPreferenceRequestSchema,
   listViewPreferenceValueSchema,
   preferenceResponseSchema,
