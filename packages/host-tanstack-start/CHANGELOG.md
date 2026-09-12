@@ -1,5 +1,22 @@
 # @byline/host-tanstack-start
 
+## 6.0.2
+
+### Patch Changes
+
+- fixed field-level list sort direction on tied and empty values in **`@byline/db-postgres`** and **`@byline/db-mysql`**
+  added an analytics timeseries hover card and a sticky per-user dashboard period
+- Updated dependencies
+  - @byline/admin@6.0.2
+  - @byline/ai@6.0.2
+  - @byline/analytics@6.0.2
+  - @byline/analytics-agent@6.0.2
+  - @byline/auth@6.0.2
+  - @byline/client@6.0.2
+  - @byline/core@6.0.2
+  - @byline/i18n@6.0.2
+  - @byline/ui@6.0.2
+
 ## 6.0.1
 
 ### Patch Changes

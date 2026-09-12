@@ -1,5 +1,12 @@
 # @byline/auth
 
+## 6.0.2
+
+### Patch Changes
+
+- fixed field-level list sort direction on tied and empty values in **`@byline/db-postgres`** and **`@byline/db-mysql`**
+  added an analytics timeseries hover card and a sticky per-user dashboard period
+
 ## 6.0.1
 
 ### Patch Changes
