@@ -2111,10 +2111,18 @@ export class DocumentQueries implements IDocumentQueries {
         // `ASC` sorts NULL first by default (the opposite of pg's `NULLS
         // LAST`), so the `(col IS NULL) ASC, col ASC` emulation idiom is
         // required — same idiom as `buildDocumentOrderClause`.
+        //
+        // The trailing tiebreaker follows the sort direction, matching pg (see
+        // the same clause in `db-postgres`). Sort values tie constantly in real
+        // content — every empty row ties with every other, and a checkbox or
+        // select column has only a handful of distinct values — and tied rows
+        // with no secondary key come back in whatever order the plan yields.
+        // Without it, flipping asc/desc returns identical rows for any sparse
+        // or low-cardinality column, and pagination is non-deterministic.
         orderClause =
           sort.direction === 'desc'
-            ? sql`_sort._sort_value DESC`
-            : sql`(_sort._sort_value IS NULL) ASC, _sort._sort_value ASC`
+            ? sql`_sort._sort_value DESC, d.created_at DESC, d.document_id DESC`
+            : sql`(_sort._sort_value IS NULL) ASC, _sort._sort_value ASC, d.created_at ASC, d.document_id ASC`
       } else {
         // Unrecognised store type — fall back to document-level sort
         orderClause = this.buildDocumentOrderClause(orderBy, orderDirection)

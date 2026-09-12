@@ -2043,10 +2043,25 @@ export class DocumentQueries implements IDocumentQueries {
             AND (locale = ${locale} OR locale = 'all')
           LIMIT 1
         ) _sort ON true`
+        // `NULLS LAST` in BOTH directions: a document with no stored row for
+        // this field (never filled in, or not translated into `locale`) reads
+        // as empty in the admin list, not as the smallest value, so empties
+        // belong at the bottom either way.
+        //
+        // That makes the tiebreaker load-bearing rather than cosmetic. Sort
+        // values tie constantly in real content — every empty row ties with
+        // every other, and a checkbox or select column has only a handful of
+        // distinct values — and tied rows with no secondary key come back in
+        // whatever order the plan yields. Following the sort direction here is
+        // what makes flipping asc/desc actually reverse the page; without it,
+        // both directions return identical rows for any sparse or
+        // low-cardinality column. `created_at` orders them meaningfully and
+        // `document_id` (UUIDv7) makes the result deterministic, which
+        // pagination depends on.
         orderClause =
           sort.direction === 'desc'
-            ? sql`_sort._sort_value DESC NULLS LAST`
-            : sql`_sort._sort_value ASC NULLS LAST`
+            ? sql`_sort._sort_value DESC NULLS LAST, d.created_at DESC, d.document_id DESC`
+            : sql`_sort._sort_value ASC NULLS LAST, d.created_at ASC, d.document_id ASC`
       } else {
         // Unrecognised store type — fall back to document-level sort
         orderClause = this.buildDocumentOrderClause(orderBy, orderDirection)

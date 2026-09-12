@@ -782,6 +782,7 @@
     "packages/db-conformance/src/index.ts|export|documentTreeAuditSuite",
     "packages/db-conformance/src/index.ts|export|documentTreeSuite",
     "packages/db-conformance/src/index.ts|export|fieldTypesSuite",
+    "packages/db-conformance/src/index.ts|export|findDocumentsSortSuite",
     "packages/db-conformance/src/index.ts|export|localeFallbackSuite",
     "packages/db-conformance/src/index.ts|export|restoreSuite",
     "packages/db-conformance/src/index.ts|export|schedulerSuite",

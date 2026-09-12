@@ -21,6 +21,7 @@ import { documentTreeSuite } from './suites/document-tree.js'
 import { documentTreeAuditSuite } from './suites/document-tree-audit.js'
 import { editableSnapshotsSuite } from './suites/editable-snapshots.js'
 import { fieldTypesSuite } from './suites/field-types.js'
+import { findDocumentsSortSuite } from './suites/find-documents-sort.js'
 import { guardedSavesSuite } from './suites/guarded-saves.js'
 import { localeFallbackSuite } from './suites/locale-fallback.js'
 import { publishSchedulesSuite } from './suites/publish-schedules.js'
@@ -58,6 +59,7 @@ export { documentPathsSuite } from './suites/document-paths.js'
 export { documentTreeSuite } from './suites/document-tree.js'
 export { documentTreeAuditSuite } from './suites/document-tree-audit.js'
 export { fieldTypesSuite } from './suites/field-types.js'
+export { findDocumentsSortSuite } from './suites/find-documents-sort.js'
 export { localeFallbackSuite } from './suites/locale-fallback.js'
 export { restoreSuite } from './suites/restore.js'
 export { schedulerSuite } from './suites/scheduler.js'
@@ -198,6 +200,7 @@ export function runAdapterConformanceSuite(hooks: ConformanceHooks): void {
   scheduledStructuralRevisionsSuite(hooks)
   versioningSuite(hooks)
   fieldTypesSuite(hooks)
+  findDocumentsSortSuite(hooks)
   documentPathsSuite(hooks)
   documentTreeSuite(hooks)
   documentTreeAuditSuite(hooks)
