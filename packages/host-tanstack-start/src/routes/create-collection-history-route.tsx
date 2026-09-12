@@ -23,12 +23,13 @@ import {
 import { getAdminRoutePath } from './admin-path.js'
 import { getContentLocaleRouteConfig } from './get-content-locale-route-config.js'
 import { getMultiCollectionDefinition } from './get-multi-collection-definition.js'
+import { searchBooleanSchema } from './search-boolean.js'
 
 const searchSchema = z.object({
   page: z.coerce.number().min(1).optional(),
   page_size: z.coerce.number().max(100).optional(),
   order: z.string().optional(),
-  desc: z.coerce.boolean().optional(),
+  desc: searchBooleanSchema,
   locale: z.string().optional(),
   // Which sub-view of the history page is active (docs/07-auth-and-security/02-auditability.md — Workstream
   // 3). 'versions' is the content version stream; 'document' is the

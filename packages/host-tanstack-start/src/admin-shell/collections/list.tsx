@@ -47,6 +47,7 @@ import cx from 'clsx'
 
 import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { encodeListReturnState } from '../../routes/list-return-state.js'
+import { searchBooleanSchema } from '../../routes/search-boolean.js'
 import { setListViewPreference } from '../../server-fns/collections/index.js'
 import { Link, useNavigate } from '../chrome/loose-router.js'
 import { RouterPager } from '../chrome/router-pager.js'
@@ -206,12 +207,13 @@ export const ListView = ({
   const searchParams = location.search as {
     page_size?: number
     order?: string
-    desc?: boolean
+    desc?: boolean | string
     query?: string
     status?: string
   }
+  const searchDesc = searchBooleanSchema.safeParse(searchParams.desc).data
   const isCanonicalView =
-    !searchParams.order && !searchParams.desc && !searchParams.query && !searchParams.status
+    !searchParams.order && !searchDesc && !searchParams.query && !searchParams.status
   const dragEnabled = orderable && isCanonicalView && !!onReorder && !mutation.blocked
 
   // The *effective* sort for the header indicators: explicit URL params win;
@@ -220,7 +222,7 @@ export const ListView = ({
   // which column ordered the rows. (Orderable collections never set
   // `meta.order` — their default is the drag order, indicated separately.)
   const activeOrder = searchParams.order ?? data?.meta.order
-  const activeDesc = searchParams.order != null ? searchParams.desc : data?.meta.desc
+  const activeDesc = searchParams.order != null ? searchDesc : data?.meta.desc
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),

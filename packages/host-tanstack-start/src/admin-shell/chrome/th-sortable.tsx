@@ -13,6 +13,7 @@ import { useRouterState } from '@tanstack/react-router'
 import { Table } from '@byline/ui/react'
 import cx from 'clsx'
 
+import { searchBooleanSchema } from '../../routes/search-boolean.js'
 import { useNavigate } from './loose-router.js'
 import { SortAscendingIcon, SortDescendingIcon, SortNeutralIcon } from './sort-icons.js'
 import styles from './th-sortable.module.css'
@@ -91,7 +92,9 @@ export function TableHeadingCellSortable({
           ? activeDesc
           : ((location.search as Record<string, unknown>).desc as boolean | undefined)
       if (order === fieldName) {
-        setDesc(d ?? false)
+        // location.search can contain wire strings with a custom host parser.
+        // The route validator normalizes loader deps, not this raw location.
+        setDesc(searchBooleanSchema.safeParse(d).data ?? true)
       } else {
         setDesc(null)
       }

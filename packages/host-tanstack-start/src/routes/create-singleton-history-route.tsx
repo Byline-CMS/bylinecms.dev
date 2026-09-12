@@ -18,13 +18,14 @@ import { getSingleton, getSingletonHistory } from '../server-fns/singletons/inde
 import { getAdminRoutePath } from './admin-path.js'
 import { getContentLocaleRouteConfig } from './get-content-locale-route-config.js'
 import { getSingletonDefinition } from './get-singleton-definition.js'
+import { searchBooleanSchema } from './search-boolean.js'
 import type { VersionHistoryData } from '../admin-shell/collections/version-history.js'
 
 const searchSchema = z.object({
   page: z.coerce.number().min(1).optional(),
   page_size: z.coerce.number().max(100).optional(),
   order: z.string().optional(),
-  desc: z.coerce.boolean().optional(),
+  desc: searchBooleanSchema,
   locale: z.string().optional(),
 })
 

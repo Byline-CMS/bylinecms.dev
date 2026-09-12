@@ -15,6 +15,7 @@ import { AdminUsersListView } from '../admin-shell/admin-users/list.js'
 import { BreadcrumbsClient } from '../admin-shell/chrome/breadcrumbs/breadcrumbs-client.js'
 import { type AdminUserListResponse, listAdminUsers } from '../server-fns/admin-users/index.js'
 import { getAdminRoutePath } from './admin-path.js'
+import { searchBooleanSchema } from './search-boolean.js'
 
 const orderSchema = z.enum([
   'given_name',
@@ -30,7 +31,7 @@ const searchSchema = z.object({
   page_size: z.coerce.number().int().min(1).max(100).optional(),
   query: z.string().optional(),
   order: orderSchema.optional(),
-  desc: z.coerce.boolean().optional(),
+  desc: searchBooleanSchema,
 })
 
 export function createAdminUsersListRoute(path: string) {
