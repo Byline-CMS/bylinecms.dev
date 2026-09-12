@@ -3,7 +3,9 @@
  *
  * Override handles:
  *   .byline-analytics-timeseries — the chart, axis, and readout as one block
+ *   .byline-analytics-plot       — the plot box (SVG + hover card)
  *   .byline-analytics-chart      — the SVG plot itself
+ *   .byline-analytics-hovercard  — the card shown over the hovered column
  *   .byline-analytics-axis       — first/last day labels beneath the plot
  *   .byline-analytics-readout    — hovered-day figures, or the range hint
  *
@@ -23,11 +25,171 @@
   outline-offset: 4px;
 }
 
+/* Positioning context for the hover card, so the card measures against the
+   plot rather than the whole block (which also holds the axis and readout). */
+.plot,
+:global(.byline-analytics-plot) {
+  position: relative;
+}
+
 .chart,
 :global(.byline-analytics-chart) {
   display: block;
   width: 100%;
   height: 11rem;
+}
+
+/* Hover card ------------------------------------------------------------
+   An HTML overlay rather than SVG: the plot is drawn with
+   preserveAspectRatio="none" and stretched to the container, so SVG text
+   inside it would be horizontally distorted (the same reason the axis
+   labels below are HTML).
+
+   Surfaces follow the admin's popover recipe (the tokens @byline/ui's
+   dropdown uses), so the card inherits both themes from the token layer
+   instead of needing its own dark-mode block. */
+.hoverCard,
+:global(.byline-analytics-hovercard) {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  gap: 0.125rem 0.5rem;
+  padding: 0.4rem 0.55rem;
+  background-color: var(--surface-panel-elevated);
+  border-width: var(--border-width-thin);
+  border-style: var(--border-style-solid);
+  border-color: var(--surface-panel-border);
+  border-radius: var(--border-radius-sm);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  white-space: nowrap;
+  /* The plot owns pointer tracking; the card must never intercept it or
+     hovering would flicker as the pointer crossed the card. */
+  pointer-events: none;
+
+  /* Resting state is hidden-and-just-below; `.hoverCardVisible` is the shown
+     state. The card stays mounted either way, because a transition needs a
+     previous state to animate from.
+
+     The lift rides on `translate` rather than `transform` so it composes with
+     the positioning transforms below instead of overwriting them — the two
+     properties multiply, and keeping them separate means the anchor maths and
+     the animation never have to know about each other.
+
+     The exit curve lives here and the entrance curve on the shown state: a
+     transition is read from the state being entered, so gaining the class
+     animates with the eased-out entrance and losing it with the quicker
+     ease-in exit.
+
+     On durations: the curve matters as much as the number. The popover
+     `cubic-bezier(0.16, 1, 0.3, 1)` puts both y control points at 1, so it is
+     ~88% complete at 30% of its duration — over a short transition that reads
+     as an instant pop no matter what the duration says. A plain `ease-out`
+     spends its time far more evenly (50% progress at ~34% of the time), so
+     the motion is actually visible. */
+  opacity: 0;
+  translate: 0 6px;
+  transition:
+    opacity 160ms ease-in,
+    translate 160ms ease-in;
+}
+
+.hoverCardVisible {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity 240ms ease-out,
+    translate 240ms ease-out;
+}
+
+/* Horizontal anchoring. Interior columns centre; columns near an edge pin
+   that edge so the card cannot overhang the plot. */
+.hoverCard.center {
+  transform: translateX(-50%);
+}
+
+.hoverCard.start {
+  transform: translateX(-0.5rem);
+}
+
+.hoverCard.end {
+  transform: translateX(calc(-100% + 0.5rem));
+}
+
+/* Vertical side. `top` is the hovered bar's own top edge, so the card sits
+   just clear of the mark it describes. */
+.hoverCard.above {
+  margin-top: -0.5rem;
+}
+
+.hoverCard.above.center {
+  transform: translate(-50%, -100%);
+}
+
+.hoverCard.above.start {
+  transform: translate(-0.5rem, -100%);
+}
+
+.hoverCard.above.end {
+  transform: translate(calc(-100% + 0.5rem), -100%);
+}
+
+.hoverCard.below {
+  margin-top: 0.5rem;
+}
+
+.hoverCardDate {
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.hoverCardRow {
+  display: grid;
+  grid-template-columns: 0.625rem 1fr auto;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* A short stroke, not a filled box: at this density a solid swatch is
+   data-weight ink doing a label's job. */
+.keyLine {
+  display: inline-block;
+  width: 0.625rem;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.keyViews {
+  background-color: #38bdf8;
+  /* Matches `.columnActive .views`, not the resting fill: the card is only
+     ever on screen while its column is hovered, so the key should look like
+     the mark actually looks at that moment. A 2px line also carries far less
+     ink than the readout's filled swatch, so the same opacity would read
+     fainter here than it does there. */
+  opacity: 0.62;
+}
+
+.keyVisitors {
+  background-color: #7c3aed;
+}
+
+/* The reader already knows the series; they came for the number — so the
+   value carries the emphasis and the metric name recedes.
+
+   Muted ink here is the same `--gray-*` pair the axis and readout use, not
+   `--text-secondary`: in this theme that token resolves to the amber brand
+   secondary, which reads as emphasis rather than recession. */
+.hoverCardLabel {
+  color: var(--gray-500);
+}
+
+.hoverCardValue {
+  color: var(--text);
+  font-weight: 600;
+  text-align: right;
 }
 
 .gridline {
@@ -120,7 +282,8 @@
 :is([data-theme="dark"], :global(.dark)) .axis,
 :is([data-theme="dark"], :global(.dark)) :global(.byline-analytics-axis),
 :is([data-theme="dark"], :global(.dark)) .readout,
-:is([data-theme="dark"], :global(.dark)) :global(.byline-analytics-readout) {
+:is([data-theme="dark"], :global(.dark)) :global(.byline-analytics-readout),
+:is([data-theme="dark"], :global(.dark)) .hoverCardLabel {
   color: var(--gray-400);
 }
 
@@ -128,7 +291,8 @@
   fill: #a78bfa;
 }
 
-:is([data-theme="dark"], :global(.dark)) .swatchVisitors {
+:is([data-theme="dark"], :global(.dark)) .swatchVisitors,
+:is([data-theme="dark"], :global(.dark)) .keyVisitors {
   background-color: #a78bfa;
 }
 
@@ -138,8 +302,17 @@
 
 @media (prefers-reduced-motion: reduce) {
   .column,
-  .views {
+  .views,
+  .hoverCard,
+  .hoverCardVisible {
     transition: none;
+  }
+
+  /* No transition means the lift would read as a jump rather than motion, so
+     the card simply appears in place. */
+  .hoverCard,
+  .hoverCardVisible {
+    translate: none;
   }
 }
 

@@ -14,6 +14,7 @@ import {
   bucketAnalyticsTimeseries,
   buildAnalyticsColumns,
   resolveAnalyticsChartGranularity,
+  resolveHoverCardPlacement,
 } from './timeseries.js'
 
 function day(date: string, views: number, visitors: number): AnalyticsSummaryDay {
@@ -189,5 +190,55 @@ describe('partialCoverageFrom', () => {
     expect(partialCoverageFrom('2026-05-27', '2026-05-26')).toBeUndefined()
     expect(partialCoverageFrom('2026-05-26', '2026-05-26')).toBeUndefined()
     expect(partialCoverageFrom('2025-01-01', null)).toBeUndefined()
+  })
+})
+
+describe('resolveHoverCardPlacement', () => {
+  /** Columns as `buildAnalyticsColumns` lays them out, for `count` buckets. */
+  const columnsFor = (count: number, views: number[]) =>
+    buildAnalyticsColumns(views.map((v, i) => day(`2026-08-${10 + i}`, v, 0)).slice(0, count))
+
+  it('centres the card on an interior column', () => {
+    const columns = columnsFor(5, [10, 10, 10, 10, 10])
+    const placement = resolveHoverCardPlacement(columns[2]!)
+    // Third of five columns: centre of the plot.
+    expect(placement.leftPercent).toBeCloseTo(50)
+    expect(placement.align).toBe('center')
+  })
+
+  it('anchors the leading and trailing columns to the plot edges', () => {
+    const columns = columnsFor(5, [10, 10, 10, 10, 10])
+    expect(resolveHoverCardPlacement(columns[0]!).align).toBe('start')
+    expect(resolveHoverCardPlacement(columns[4]!).align).toBe('end')
+  })
+
+  it('centres a lone column rather than treating it as an edge', () => {
+    const columns = columnsFor(1, [10])
+    const placement = resolveHoverCardPlacement(columns[0]!)
+    expect(placement.leftPercent).toBeCloseTo(50)
+    expect(placement.align).toBe('center')
+  })
+
+  it('sits above a short column and flips below a tall one', () => {
+    // Against a ceiling of 100, a 10-view column is short and a 100-view
+    // column reaches the top of the plot — where a card above would clip.
+    const columns = columnsFor(3, [10, 100, 55])
+    expect(resolveHoverCardPlacement(columns[0]!).side).toBe('above')
+    expect(resolveHoverCardPlacement(columns[1]!).side).toBe('below')
+  })
+
+  it('reports the bar top as a percentage of plot height', () => {
+    const columns = columnsFor(2, [50, 100])
+    // Half-height column: its top is halfway down the plot.
+    expect(resolveHoverCardPlacement(columns[0]!).topPercent).toBeCloseTo(50)
+    // Full-height column: its top is the top of the plot.
+    expect(resolveHoverCardPlacement(columns[1]!).topPercent).toBeCloseTo(0)
+  })
+
+  it('keeps a zero-value column anchored on the baseline', () => {
+    const columns = columnsFor(2, [0, 10])
+    const placement = resolveHoverCardPlacement(columns[0]!)
+    expect(placement.topPercent).toBeCloseTo(100)
+    expect(placement.side).toBe('above')
   })
 })

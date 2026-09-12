@@ -124,6 +124,55 @@ export function buildAnalyticsColumns(
   })
 }
 
+/**
+ * Where the hover card sits relative to the plot box.
+ *
+ * `leftPercent` / `topPercent` are percentages of the plot rather than user
+ * -space units because the card is HTML laid over a stretched SVG: the plot
+ * is drawn `preserveAspectRatio="none"`, so anything measured in viewBox
+ * units would skew with the container width (the same reason the axis labels
+ * are HTML). Percentages survive the stretch.
+ */
+export interface AnalyticsHoverCardPlacement {
+  /** Horizontal centre of the hovered column, as a percentage of plot width. */
+  leftPercent: number
+  /** Top edge of the hovered column, as a percentage of plot height. */
+  topPercent: number
+  /**
+   * How the card lines up with `leftPercent`. Columns near a plot edge anchor
+   * that edge instead of centring, so the card never overhangs the chart.
+   */
+  align: 'start' | 'center' | 'end'
+  /**
+   * Which side of the column top the card occupies. A column tall enough that
+   * a card above it would clip the top of the plot takes the card below
+   * instead.
+   */
+  side: 'above' | 'below'
+}
+
+/** Distance from a plot edge, in percent, inside which the card anchors. */
+const CARD_EDGE_MARGIN = 15
+/** Bar tops above this percentage leave no room for a card above them. */
+const CARD_FLIP_THRESHOLD = 45
+
+/** Project one column's geometry into hover-card placement. */
+export function resolveHoverCardPlacement(column: AnalyticsColumn): AnalyticsHoverCardPlacement {
+  const leftPercent = ((column.hitX + column.hitWidth / 2) / VIEWBOX_WIDTH) * 100
+  const topPercent = (column.y / VIEWBOX_HEIGHT) * 100
+  return {
+    leftPercent,
+    topPercent,
+    align:
+      leftPercent < CARD_EDGE_MARGIN
+        ? 'start'
+        : leftPercent > 100 - CARD_EDGE_MARGIN
+          ? 'end'
+          : 'center',
+    side: topPercent < CARD_FLIP_THRESHOLD ? 'below' : 'above',
+  }
+}
+
 export interface AnalyticsTimeseriesProps {
   days: readonly AnalyticsSummaryDay[]
   granularity: AnalyticsChartGranularity
@@ -159,6 +208,24 @@ export function AnalyticsTimeseries({
       ? t('analytics.stats.dailyUniques')
       : t('analytics.stats.summedDailyUniques')
   const active = hovered == null ? undefined : buckets[hovered]
+  const activePlacement =
+    hovered == null || columns[hovered] == null
+      ? undefined
+      : resolveHoverCardPlacement(columns[hovered])
+
+  // The hover card stays mounted so it can transition in and out — an element
+  // that mounts already-visible has no previous state to animate from, which
+  // is why a transition alone would still pop. Retaining the last hovered
+  // bucket keeps its figures on screen through the fade-out, rather than
+  // blanking the card the instant the pointer leaves.
+  const lastShown = useRef<{
+    bucket: AnalyticsChartBucket
+    placement: AnalyticsHoverCardPlacement
+  } | null>(null)
+  if (active != null && activePlacement != null) {
+    lastShown.current = { bucket: active, placement: activePlacement }
+  }
+  const shown = lastShown.current
   const readBucket = (bucket: AnalyticsChartBucket) =>
     [
       formatBucket(bucket),
@@ -206,47 +273,93 @@ export function AnalyticsTimeseries({
       onKeyDown={trackKey}
       onBlur={() => setHovered(null)}
     >
-      <svg
-        ref={plot}
-        className={cx('byline-analytics-chart', styles.chart)}
-        viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
-        preserveAspectRatio="none"
-        aria-hidden="true"
-      >
-        <title>{t('analytics.chart.views')}</title>
-        {[0.5, 1].map((fraction) => (
-          <line
-            key={fraction}
-            className={styles.gridline}
-            x1={0}
-            x2={VIEWBOX_WIDTH}
-            y1={VIEWBOX_HEIGHT - VIEWBOX_HEIGHT * fraction}
-            y2={VIEWBOX_HEIGHT - VIEWBOX_HEIGHT * fraction}
-            vectorEffect="non-scaling-stroke"
-          />
-        ))}
-        {columns.map((column) => (
-          <g
-            key={buckets[column.index]?.from}
-            className={cx(styles.column, hovered === column.index && styles.columnActive)}
+      {/* The plot and its hover card share a positioned box, so the card can
+          be placed against the plot's own edges rather than the whole block
+          (which also carries the axis and the readout). */}
+      <div className={cx('byline-analytics-plot', styles.plot)}>
+        <svg
+          ref={plot}
+          className={cx('byline-analytics-chart', styles.chart)}
+          viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <title>{t('analytics.chart.views')}</title>
+          {[0.5, 1].map((fraction) => (
+            <line
+              key={fraction}
+              className={styles.gridline}
+              x1={0}
+              x2={VIEWBOX_WIDTH}
+              y1={VIEWBOX_HEIGHT - VIEWBOX_HEIGHT * fraction}
+              y2={VIEWBOX_HEIGHT - VIEWBOX_HEIGHT * fraction}
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+          {columns.map((column) => (
+            <g
+              key={buckets[column.index]?.from}
+              className={cx(styles.column, hovered === column.index && styles.columnActive)}
+            >
+              <rect
+                className={styles.views}
+                x={column.x}
+                width={column.width}
+                y={column.y}
+                height={column.height}
+              />
+              <rect
+                className={styles.visitors}
+                x={column.insetX}
+                width={column.insetWidth}
+                y={column.insetY}
+                height={column.insetHeight}
+              />
+            </g>
+          ))}
+        </svg>
+
+        {/* Sits over the hovered column. `aria-hidden` because the slider's
+            `aria-valuetext` already reads the same figures to assistive
+            technology — the card is the sighted equivalent of that readout,
+            not a second announcement. */}
+        {buckets.length > 0 && (
+          <div
+            className={cx(
+              'byline-analytics-hovercard',
+              styles.hoverCard,
+              shown != null && styles[shown.placement.align],
+              shown != null && (shown.placement.side === 'below' ? styles.below : styles.above),
+              active != null && styles.hoverCardVisible
+            )}
+            style={{
+              left: `${shown?.placement.leftPercent ?? 50}%`,
+              top: `${shown?.placement.topPercent ?? 100}%`,
+            }}
+            aria-hidden="true"
           >
-            <rect
-              className={styles.views}
-              x={column.x}
-              width={column.width}
-              y={column.y}
-              height={column.height}
-            />
-            <rect
-              className={styles.visitors}
-              x={column.insetX}
-              width={column.insetWidth}
-              y={column.insetY}
-              height={column.insetHeight}
-            />
-          </g>
-        ))}
-      </svg>
+            {shown != null && (
+              <>
+                <span className={styles.hoverCardDate}>{formatBucket(shown.bucket)}</span>
+                <span className={styles.hoverCardRow}>
+                  <span className={cx(styles.keyLine, styles.keyViews)} />
+                  <span className={styles.hoverCardLabel}>{t('analytics.stats.views')}</span>
+                  <span className={styles.hoverCardValue}>
+                    {numbers.format(shown.bucket.views)}
+                  </span>
+                </span>
+                <span className={styles.hoverCardRow}>
+                  <span className={cx(styles.keyLine, styles.keyVisitors)} />
+                  <span className={styles.hoverCardLabel}>{visitorLabel(shown.bucket)}</span>
+                  <span className={styles.hoverCardValue}>
+                    {numbers.format(shown.bucket.visitors)}
+                  </span>
+                </span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* HTML axis labels remain undistorted while the SVG stretches. */}
       <div className={cx('byline-analytics-axis', styles.axis)} aria-hidden="true">
