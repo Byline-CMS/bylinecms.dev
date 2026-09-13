@@ -3,7 +3,10 @@
 import { CopyButton } from '@byline/ui/react'
 /* eslint-disable no-param-reassign */
 import cx from 'clsx'
-import { Highlight, themes } from 'prism-react-renderer'
+import { Highlight } from 'prism-react-renderer'
+
+import styles from './code.module.css'
+import { codeTheme } from './theme'
 
 type CodeIntrinsicProps = React.JSX.IntrinsicElements['pre']
 interface CodeProps extends CodeIntrinsicProps {
@@ -17,19 +20,25 @@ export function Code({ code, className, language }: CodeProps): React.JSX.Elemen
   // Prism calls `.toLowerCase()` on this value, so null and empty legacy values need a fallback.
   const resolvedLanguage = language != null && language.length > 0 ? language : 'typescript'
   return (
-    <Highlight theme={themes.oneDark} code={code} language={resolvedLanguage}>
-      {({ tokens, getLineProps, getTokenProps }) => (
-        <div className="code scroller group overflow-y-auto rounded border border-theme-600 relative mb-4">
+    <Highlight theme={codeTheme} code={code} language={resolvedLanguage}>
+      {({ style, tokens, getLineProps, getTokenProps }) => (
+        <div
+          className={cx(
+            styles.root,
+            'code group min-w-0 overflow-hidden rounded border relative mb-4'
+          )}
+        >
           <CopyButton
             variant="outlined"
             intent="primary"
-            className="bg-gray-900 hover:bg-gray-800/50"
-            containerClassName="dark absolute top-2 right-2 invisible group-hover:visible"
-            svgClassName="fill-gray-200 dark:fill-gray-200"
+            className={styles.copyButton}
+            containerClassName="absolute top-2 right-2 invisible group-hover:visible group-focus-within:visible"
+            svgClassName={styles.copyIcon}
             text={code}
           />
           <pre
-            className={cx('m-0 py-5 px-4 rounded-none bg-gray-900 dark:bg-gray-950/80', className)}
+            style={style}
+            className={cx(styles.scroller, 'm-0 py-5 px-4 rounded-none', className)}
           >
             <code className="not-prose">
               {tokens.map((line, i) => {

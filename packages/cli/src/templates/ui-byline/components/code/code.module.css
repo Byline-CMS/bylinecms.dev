@@ -1,0 +1,101 @@
+.root,
+:global(.light) .root,
+:global([data-theme="light"]) .root {
+  /* Prism One Light palette. */
+  --code-background: hsl(230, 1%, 98%);
+  --code-text: hsl(230, 8%, 24%);
+  --code-comment: hsl(230, 4%, 64%);
+  --code-literal: hsl(35, 99%, 36%);
+  --code-keyword: hsl(301, 63%, 40%);
+  --code-property: hsl(5, 74%, 59%);
+  --code-string: hsl(119, 34%, 47%);
+  --code-function: hsl(221, 87%, 60%);
+  --code-url: hsl(198, 99%, 37%);
+  --code-punctuation: var(--code-string);
+  --code-maybe-class: var(--code-text);
+  --code-scroll-thumb: color-mix(in srgb, var(--theme-400) 40%, white);
+  --code-scroll-hover: color-mix(in srgb, var(--theme-400) 55%, white);
+  --code-scroll-track: color-mix(in srgb, var(--theme-400) 8%, white);
+  --code-border: color-mix(in srgb, var(--theme-400) 20%, white);
+  --code-copy-background: var(--gray-50);
+  --code-copy-hover: var(--gray-100);
+  --code-copy-icon: var(--gray-700);
+  --code-copy-border: color-mix(in srgb, var(--theme-400) 35%, white);
+  border-color: var(--code-border);
+  color-scheme: light;
+}
+
+:global(.dark) .root,
+:global([data-theme="dark"]) .root {
+  /* Prism One Dark syntax colors, with the existing dark code surface. */
+  --code-background: color-mix(in srgb, var(--gray-950) 80%, transparent);
+  --code-text: hsl(220, 14%, 71%);
+  --code-comment: hsl(220, 10%, 40%);
+  --code-literal: hsl(29, 54%, 61%);
+  --code-keyword: hsl(286, 60%, 67%);
+  --code-property: hsl(355, 65%, 65%);
+  --code-string: hsl(95, 38%, 62%);
+  --code-function: hsl(207, 82%, 66%);
+  --code-url: hsl(187, 47%, 55%);
+  --code-punctuation: var(--code-text);
+  --code-maybe-class: var(--code-literal);
+  --code-scroll-thumb: var(--theme-400);
+  --code-scroll-hover: var(--theme-300);
+  --code-scroll-track: var(--theme-900);
+  --code-border: var(--theme-600);
+  --code-copy-background: var(--gray-900);
+  --code-copy-hover: color-mix(in srgb, var(--gray-800) 50%, transparent);
+  --code-copy-icon: var(--gray-200);
+  --code-copy-border: initial;
+  color-scheme: dark;
+}
+
+.copyButton {
+  background-color: var(--code-copy-background);
+  border-color: var(--code-copy-border, var(--button-variant-outlined-border));
+}
+
+.copyButton:hover {
+  background-color: var(--code-copy-hover);
+}
+
+.copyButton:focus,
+.copyButton:active {
+  --ring-color: var(--code-copy-border, var(--button-ring-color));
+}
+
+.copyIcon {
+  fill: var(--code-copy-icon);
+}
+
+.scroller {
+  overflow-x: auto;
+  /* Let the explicit WebKit scrollbar render instead of the inherited
+     scrollbar-color selecting an auto-hiding native scrollbar on macOS. */
+  scrollbar-color: auto;
+  scrollbar-width: auto;
+}
+
+.scroller::-webkit-scrollbar {
+  height: 0.625rem;
+}
+
+.scroller::-webkit-scrollbar-thumb {
+  background: var(--code-scroll-thumb);
+  border-radius: 0.3125rem;
+}
+
+.scroller::-webkit-scrollbar-thumb:hover {
+  background: var(--code-scroll-hover);
+}
+
+.scroller::-webkit-scrollbar-track {
+  background: var(--code-scroll-track);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .scroller {
+    scrollbar-color: var(--code-scroll-thumb) var(--code-scroll-track);
+    scrollbar-width: thin;
+  }
+}
