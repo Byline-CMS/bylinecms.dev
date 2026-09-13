@@ -496,6 +496,8 @@
   "pathWidget.label": "경로",
   "pathWidget.suggestedHint": "제안: \"{formatted}\"",
   "pathWidget.readOnlyHint": "경로는 기본 로케일(\"{locale}\")에서 설정되며 모든 번역에 적용됩니다.",
+  "pathWidget.lockedCreateHint": "이 문서를 저장할 때 자동으로 할당됩니다.",
+  "pathWidget.lockedHint": "이 경로는 시스템에서 관리되며 여기에서 편집할 수 없습니다.",
   "pathWidget.willBeSavedAs": "\"{preview}\"(으)로 저장됩니다",
   "pathWidget.srDescription": "이 문서의 시스템 관리 URL 경로입니다.",
   "pathWidget.regenerateButton": "{field}에서 다시 생성",

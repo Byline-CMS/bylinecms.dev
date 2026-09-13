@@ -496,6 +496,8 @@
   "pathWidget.label": "พาธ",
   "pathWidget.suggestedHint": "แนะนำ: \"{formatted}\"",
   "pathWidget.readOnlyHint": "พาธถูกกำหนดในภาษาเริ่มต้น (\"{locale}\") และมีผลกับทุกคำแปล",
+  "pathWidget.lockedCreateHint": "ระบบจะกำหนดโดยอัตโนมัติเมื่อบันทึกเอกสารนี้",
+  "pathWidget.lockedHint": "พาธนี้ได้รับการจัดการโดยระบบและไม่สามารถแก้ไขได้ที่นี่",
   "pathWidget.willBeSavedAs": "จะถูกบันทึกเป็น \"{preview}\"",
   "pathWidget.srDescription": "พาธ URL ของเอกสารนี้ที่จัดการโดยระบบ",
   "pathWidget.regenerateButton": "สร้างใหม่จาก {field}",

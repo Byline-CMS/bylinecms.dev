@@ -110,6 +110,7 @@ describe('PathWidget', () => {
       activeLocale: string
       slugifier: (value: string, ctx: { locale: string; collectionPath: string }) => string
       sourceLocked: boolean
+      lockPath: boolean
     }> = {}
   ) => {
     act(() => {
@@ -124,13 +125,14 @@ describe('PathWidget', () => {
           localeDefinitions={[{ code: 'en', nativeName: 'English' }]}
         >
           <PathWidget
-            useAsPath={props.useAsPath ?? 'title'}
+            useAsPath={'useAsPath' in props ? props.useAsPath : 'title'}
             collectionPath="pages"
             defaultLocale="en"
             activeLocale={props.activeLocale ?? 'en'}
             mode={props.mode ?? 'create'}
             slugifier={props.slugifier}
             sourceLocked={props.sourceLocked}
+            lockPath={props.lockPath}
           />
         </I18nProvider>
       )
@@ -228,7 +230,7 @@ describe('PathWidget', () => {
   })
 
   it('does not render the Regenerate button when there is no useAsPath', () => {
-    setFixture({ systemPath: 'whatever', sourceValue: '' })
+    setFixture({ systemPath: 'whatever', sourceValue: 'Hello World' })
     render({ mode: 'edit', useAsPath: undefined })
     expect(container.querySelector('button')).toBeNull()
   })
@@ -245,6 +247,27 @@ describe('PathWidget', () => {
     expect(input.getAttribute('placeholder')).toBe('Will be saved as "0000001"')
   })
 
+  it('shows the translation-locale hint when editing a translation unlocked', () => {
+    setFixture({ systemPath: 'my-path', sourceValue: 'My Path' })
+    render({ mode: 'edit', activeLocale: 'fr' })
+
+    const input = getInput()
+    expect(input.readOnly).toBe(true)
+    expect(container.querySelector('[data-testid="help-text"]')?.textContent).toBe(
+      'Path is set in the default locale ("en") and applies across translations.'
+    )
+  })
+
+  it('shows the suggested-slug hint for an un-slugified stored value', () => {
+    setFixture({ systemPath: 'Not A Slug', sourceValue: 'My Path' })
+    render({ mode: 'edit' })
+
+    expect(getInput().readOnly).toBe(false)
+    expect(container.querySelector('[data-testid="help-text"]')?.textContent).toBe(
+      'Suggested: "not-a-slug"'
+    )
+  })
+
   it('suppresses the create-mode placeholder preview when the source is locked', () => {
     setFixture({ systemPath: null, sourceValue: 1 })
     render({ mode: 'create', sourceLocked: true })
@@ -257,6 +280,77 @@ describe('PathWidget', () => {
     // source can't be regenerated from the form, so it must stay hidden.
     setFixture({ systemPath: '0000001', sourceValue: 1 })
     render({ mode: 'edit', sourceLocked: true })
+    expect(container.querySelector('button')).toBeNull()
+  })
+
+  it('renders read-only and empty when creating in a locked collection', () => {
+    setFixture({ systemPath: null, sourceValue: 'Hello World' })
+    render({ mode: 'create', lockPath: true })
+
+    const input = getInput()
+    expect(input.readOnly).toBe(true)
+    expect(input.value).toBe('')
+    expect(input.getAttribute('placeholder')).toBeNull()
+    expect(container.querySelector('button')).toBeNull()
+    expect(container.querySelector('[data-testid="help-text"]')?.textContent).toBe(
+      'Assigned automatically when this document is saved.'
+    )
+  })
+
+  it('renders read-only and shows the stored path when editing a locked collection', () => {
+    setFixture({ systemPath: 'catalogue-item', sourceValue: 'Hello World' })
+    render({ mode: 'edit', lockPath: true })
+
+    const input = getInput()
+    expect(input.readOnly).toBe(true)
+    expect(input.value).toBe('catalogue-item')
+    // The stored path differs from what the source would derive, so an
+    // unlocked widget would offer Regenerate here.
+    expect(container.querySelector('button')).toBeNull()
+    expect(container.querySelector('[data-testid="help-text"]')?.textContent).toBe(
+      'This path is managed and cannot be edited here.'
+    )
+  })
+
+  it('prefers the locked hint over the translation-locale hint', () => {
+    setFixture({ systemPath: 'catalogue-item', sourceValue: 'Hello World' })
+    render({ mode: 'edit', lockPath: true, activeLocale: 'fr' })
+
+    expect(getInput().readOnly).toBe(true)
+    expect(container.querySelector('[data-testid="help-text"]')?.textContent).toBe(
+      'This path is managed and cannot be edited here.'
+    )
+  })
+
+  it('ignores a change event while locked — the lock is not merely visual', () => {
+    setFixture({ systemPath: 'catalogue-item', sourceValue: 'Hello World' })
+    render({ mode: 'edit', lockPath: true })
+
+    // Drive the input through the native prototype setter, exactly as the
+    // two typing tests above do. A direct `input.value = …` updates React's
+    // value tracker, which then suppresses onChange on its own — the
+    // assertion below would pass whether or not the guard exists.
+    const input = getInput()
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value'
+      )?.set
+      setter?.call(input, 'typed-over')
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+
+    expect(fixture.setSystemPath).not.toHaveBeenCalled()
+  })
+
+  it('leaves a counter-sourced collection editable when lockPath is not set', () => {
+    // The explicit guard against reintroducing inference: a locked *source*
+    // suppresses the preview and Regenerate, but never the input itself.
+    setFixture({ systemPath: '0000448', sourceValue: 448 })
+    render({ mode: 'edit', sourceLocked: true })
+
+    const input = getInput()
+    expect(input.readOnly).toBe(false)
     expect(container.querySelector('button')).toBeNull()
   })
 })

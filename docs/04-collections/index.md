@@ -322,7 +322,8 @@ lists every field accepted by `fields[]`.
 
 The major areas are `columns` and `defaultSort` for the list view; `itemView`
 and `itemViewSort` for compact document rows; `tabSets`, `rows`, `groups`, and
-`layout` for edit-form composition; `preview` for public preview URLs; and
+`layout` for edit-form composition; `preview` for public preview URLs;
+`lockPath` for collections whose paths are managed rather than edited; and
 `listView` / `listActions` for list-level extensions. Per-field presentation
 lives in `fields`.
 

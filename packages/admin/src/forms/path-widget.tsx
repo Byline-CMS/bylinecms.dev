@@ -66,6 +66,14 @@ export interface PathWidgetProps {
    * persisted path. Defaults to `false`.
    */
   sourceLocked?: boolean
+  /**
+   * When `true`, the collection declares its paths managed
+   * (`CollectionAdminConfig.lockPath`): the input renders read-only in both
+   * modes and the preview placeholder and "Regenerate" action are
+   * suppressed. Independent of `sourceLocked`, which answers whether the
+   * form can derive a preview at all. Defaults to `false`.
+   */
+  lockPath?: boolean
 }
 
 /**
@@ -92,6 +100,7 @@ export const PathWidget = ({
   mode,
   slugifier,
   sourceLocked = false,
+  lockPath = false,
   disabled = false,
 }: PathWidgetProps) => {
   const { setSystemPath } = useFormContext()
@@ -105,11 +114,15 @@ export const PathWidget = ({
   // with what the server persists.
   const runSlugify = slugifier ?? slugify
 
-  // Phase 1: paths are written/edited only under the default content
-  // locale. When editing a translation, the widget locks down — the
-  // input is read-only, the Regenerate action is suppressed, and a
-  // helpText line explains why.
-  const isReadOnly = activeLocale !== defaultLocale
+  // Phase 1: paths are written/edited only under the default content locale,
+  // so editing a translation locks the widget down.
+  const translationLocked = activeLocale !== defaultLocale
+
+  // A collection may also declare its paths managed. Both conditions produce
+  // the same read-only surface, so the placeholder, the Regenerate
+  // affordance, the `readOnly` attribute and the change guard all key off the
+  // combined flag.
+  const isReadOnly = lockPath || translationLocked
 
   // Live preview — what the server would derive from the current source
   // field value if no override were set. Used as placeholder in create
@@ -127,12 +140,14 @@ export const PathWidget = ({
 
   const handleChange = useCallback(
     (next: string) => {
-      if (disabled) return
+      // `readOnly` stops real typing; a programmatic change event still
+      // reaches this handler. Refuse the write so the lock holds in the form.
+      if (disabled || isReadOnly) return
       // Empty string clears the override — server falls back to derive
       // (create) or sticky (update).
       setSystemPath(next.length === 0 ? null : next)
     },
-    [disabled, setSystemPath]
+    [disabled, isReadOnly, setSystemPath]
   )
 
   const handleRegenerate = useCallback(() => {
@@ -154,13 +169,18 @@ export const PathWidget = ({
       ? t('pathWidget.suggestedHint', { formatted })
       : undefined
 
-  // When read-only, replace the live validation hint with a fixed
-  // explanatory line so editors understand why the field is locked.
-  const readOnlyHint = isReadOnly
+  // Hint precedence: locked, then translation, then live validation.
+  const lockedHint = lockPath
+    ? mode === 'create'
+      ? t('pathWidget.lockedCreateHint')
+      : t('pathWidget.lockedHint')
+    : undefined
+
+  const translationHint = translationLocked
     ? t('pathWidget.readOnlyHint', { locale: defaultLocale })
     : undefined
 
-  const hint = readOnlyHint ?? validationHint
+  const hint = lockedHint ?? translationHint ?? validationHint
 
   const placeholder =
     !isReadOnly && mode === 'create' && livePreview.length > 0

@@ -1,5 +1,16 @@
 # @byline/storage-s3
 
+## 6.1.0
+
+### Minor Changes
+
+- added `CollectionAdminConfig.lockPath` — a collection can declare its document paths managed, rendering the admin path widget read-only in both create and edit mode
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@6.1.0
+
 ## 6.0.3
 
 ### Patch Changes

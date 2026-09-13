@@ -200,6 +200,7 @@ export const ArticlesAdmin = defineAdmin(Articles, {
 | `layout` | All schema fields in `main` | Composes raw fields and named primitives into `main` and optional `sidebar`. |
 | `fields` | `{}` | Per-field presentation overrides keyed by index-free schema path. Block field overrides belong in `BlockAdminConfig`. |
 | `preview` | Collection path fallback | Custom preview URL function. It falls back through `buildDocumentPath`, then `/${collectionPath}/${doc.path}`. |
+| `lockPath` | `false` | Declares the collection's document paths managed, rendering the admin path widget read-only in both modes and keeping it visible even with no `useAsPath`. An admin-interface guard only — every programmatic write path can still set any path. |
 | `listView` | Default table | Component that completely replaces the default collection list view. |
 | `listActions` | `[]` | Components rendered in the default list header. Ignored when `listView` replaces the default view. |
 
@@ -348,6 +349,7 @@ export const SiteSettingsAdmin = defineSingletonAdmin(SiteSettings, {
 | `itemViewSort` | `never` | Collection item-list sort option. |
 | `listView` | `never` | Collection list replacement. |
 | `listActions` | `never` | Collection list-header extension. |
+| `lockPath` | `never` | Collection path-widget option. A singleton has no document path. |
 
 The explicit `?: never` list prevents generic excess-property absorption. Startup validation applies the same kind and option checks to untyped configuration.
 

@@ -496,6 +496,8 @@
   "pathWidget.label": "Path",
   "pathWidget.suggestedHint": "Suggested: \"{formatted}\"",
   "pathWidget.readOnlyHint": "Path is set in the default locale (\"{locale}\") and applies across translations.",
+  "pathWidget.lockedCreateHint": "Assigned automatically when this document is saved.",
+  "pathWidget.lockedHint": "This path is managed and cannot be edited here.",
   "pathWidget.willBeSavedAs": "Will be saved as \"{preview}\"",
   "pathWidget.srDescription": "System-managed URL path for this document.",
   "pathWidget.regenerateButton": "Regenerate from {field}",

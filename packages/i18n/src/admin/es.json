@@ -496,6 +496,8 @@
   "pathWidget.label": "Ruta",
   "pathWidget.suggestedHint": "Sugerido: \"{formatted}\"",
   "pathWidget.readOnlyHint": "La ruta se establece en la configuración regional predeterminada (\"{locale}\") y se aplica a todas las traducciones.",
+  "pathWidget.lockedCreateHint": "Se asigna automáticamente al guardar este documento.",
+  "pathWidget.lockedHint": "Esta ruta está gestionada y no se puede editar aquí.",
   "pathWidget.willBeSavedAs": "Se guardará como \"{preview}\"",
   "pathWidget.srDescription": "Ruta URL gestionada por el sistema para este documento.",
   "pathWidget.regenerateButton": "Regenerar desde {field}",

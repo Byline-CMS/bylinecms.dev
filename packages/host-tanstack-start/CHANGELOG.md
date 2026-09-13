@@ -1,5 +1,24 @@
 # @byline/host-tanstack-start
 
+## 6.1.0
+
+### Minor Changes
+
+- added `CollectionAdminConfig.lockPath` — a collection can declare its document paths managed, rendering the admin path widget read-only in both create and edit mode
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@6.1.0
+  - @byline/ai@6.1.0
+  - @byline/analytics@6.1.0
+  - @byline/analytics-agent@6.1.0
+  - @byline/auth@6.1.0
+  - @byline/client@6.1.0
+  - @byline/core@6.1.0
+  - @byline/i18n@6.1.0
+  - @byline/ui@6.1.0
+
 ## 6.0.3
 
 ### Patch Changes
