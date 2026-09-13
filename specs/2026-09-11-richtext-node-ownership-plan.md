@@ -2076,7 +2076,7 @@ This is the same construction the runtime performs, so the manifest cannot drift
 
 `richtext-scan.ts` reads that manifest, iterates stored versions through the database adapter, calls `scanDocument` per richtext field, and prints a report grouped by collection: documents that will be adapted, and documents that will open read-only. Exit non-zero when any refusal is found, so it is usable as a pre-upgrade gate.
 
-It must cover **every** version, not only current ones — the known FORRU case is a stray heading in an archived version — and every locale of a localized field. Walk richtext fields by their instance paths, so a field nested in a block or array (`content.1.photoBlock.caption`) is reached rather than only top-level fields.
+It must cover **every** version, not only current ones — the known downstream case is a stray heading in an archived version — and every locale of a localized field. Walk richtext fields by their instance paths, so a field nested in a block or array (`content.1.photoBlock.caption`) is reached rather than only top-level fields.
 
 - [ ] **Step 5: Run the script against the development database**
 

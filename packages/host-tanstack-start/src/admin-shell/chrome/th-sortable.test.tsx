@@ -21,8 +21,9 @@ vi.mock('@byline/ui/react', () => ({
   },
 }))
 
-// FORRU preserves wire values as strings and repeated keys as arrays for its
-// public library URLs. Admin routes share that router and must parse booleans.
+// Some host applications preserve wire values as strings and repeated keys as
+// arrays for their public catalogue URLs. Admin routes share that router and
+// must parse booleans rather than assume the default parser.
 function parseWireSearch(search: string): Record<string, unknown> {
   const params = new URLSearchParams(search)
   return Object.fromEntries(

@@ -156,7 +156,7 @@ Suppressing `onChange` during normalization is necessary but does not establish 
 
 ## Compatibility and the scan script
 
-Byline ships a script that reports which stored documents contain structures a collection's current field configuration no longer supports, distinguishing structures that will be adapted from those that will make a field read-only. Operators run it before upgrading. The two downstream sites are expected to report clean, or nearly so: one archived version of one FORRU document carries a stray heading.
+Byline ships a script that reports which stored documents contain structures a collection's current field configuration no longer supports, distinguishing structures that will be adapted from those that will make a field read-only. Operators run it before upgrading. The two downstream sites are expected to report clean, or nearly so: one archived version of one downstream document carries a stray heading.
 
 ## Verification
 

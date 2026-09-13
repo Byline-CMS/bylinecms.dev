@@ -14,7 +14,7 @@
  * schemas in a shared database. The TypeScript exports are unprefixed —
  * the prefix is a DB-side concern.
  *
- * Shape mirrors the mature Modulus Learning implementation with minor
+ * Shape mirrors the mature Modulus project implementation with minor
  * Byline conventions:
  *   - UUIDv7 primary keys (generated at insert time in the repository).
  *   - `vid` integer version column for optimistic concurrency (defaults

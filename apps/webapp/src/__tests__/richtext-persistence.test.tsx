@@ -67,7 +67,7 @@ vi.mock('@byline/ui/react', async (importOriginal) => {
 
 ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
 
-/** A field configured without headings — the FORRU-shaped case. */
+/** A field configured without headings — the constrained-toolbar case. */
 const headinglessEditor = lexicalEditor((config) => {
   config.extensions.remove(builtInExtensions.Heading)
   return config

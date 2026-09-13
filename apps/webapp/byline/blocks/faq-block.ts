@@ -31,8 +31,8 @@ const answerEditorConfig: EditorConfig = (() => {
 
 /**
  * Reference block for an `array` field nested inside a block — an
- * accordion of question/answer pairs (ported from the FORRU beta
- * migration's legacy-block port). In the admin the `faq` array is fully
+ * accordion of question/answer pairs (ported from a downstream site's
+ * legacy-block migration). In the admin the `faq` array is fully
  * editable and drag-sortable inside the block (e2e:
  * apps/webapp/e2e/array-in-block.spec.ts).
  *

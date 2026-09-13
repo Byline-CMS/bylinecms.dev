@@ -24,8 +24,8 @@ Primary framework repository:
 Owned downstream production applications:
 
 - `/Users/tony/Clients/Infonomic/Projects/Byline/Solutions/bylinecms.app`
-- `/Users/tony/Clients/OSU/Solutions/modulus-learning.org`
-- `/Users/tony/Clients/FORRU/01-Website/Solutions/beta.forru.org`
+- `<downstream-app-a>`
+- `<downstream-app-b>`
 
 The downstream applications are owned and can accept coordinated breaking
 changes. This removes the need for deprecated aliases, compatibility shims, or a
@@ -144,7 +144,7 @@ adding temporary compatibility aliases to partially land the new API.
 - [x] Confirm all four repositories are on known clean branches and record their
   branch names in the implementation session notes.
 - [x] Read each repository's current `AGENTS.md` before editing it. In particular,
-  `beta.forru.org/AGENTS.md` requires checking `TODO-INTERNAL.md` before
+  downstream app B's `AGENTS.md` requires checking `TODO-INTERNAL.md` before
   re-deriving deferred design decisions.
 - [x] Repeat the serializer gate across all repositories:
 
@@ -152,8 +152,8 @@ adding temporary compatibility aliases to partially land the new API.
   rg -n "toSerializableCollection|SerializableCollectionDefinition|SerializableField|SerializableBlock" \
     /Users/tony/Clients/Infonomic/Projects/Byline/Solutions/bylinecms.dev \
     /Users/tony/Clients/Infonomic/Projects/Byline/Solutions/bylinecms.app \
-    /Users/tony/Clients/OSU/Solutions/modulus-learning.org \
-    /Users/tony/Clients/FORRU/01-Website/Solutions/beta.forru.org
+    <downstream-app-a> \
+    <downstream-app-b>
   ```
 
   Expected before Phase 1: definitions in `bylinecms.dev` only; no callers.
@@ -310,13 +310,13 @@ The downstream audit found thirteen active `picker:` declarations.
 - `apps/webapp/byline/collections/media/admin.tsx`
 - `apps/webapp/byline/collections/news-categories/admin.tsx`
 
-`modulus-learning.org`:
+Downstream app A:
 
 - `apps/webapp/byline/collections/media/admin.tsx`
 - `apps/webapp/byline/collections/topics/admin.tsx`
 - `apps/webapp/byline/collections/news-categories/admin.tsx`
 
-`beta.forru.org`:
+Downstream app B:
 
 - `apps/webapp/byline/collections/content-types/bios/admin.tsx`
 - `apps/webapp/byline/collections/content-types/bios-categories/admin.tsx`
@@ -601,7 +601,7 @@ Byline package graph. The primary repository passed generation, lint, typecheck,
 unit tests, production build, Knip, the non-blocking public-export audit,
 documentation checks, and changeset status. Each downstream passed generation,
 lint, typecheck, and production build; the repositories with tests passed their
-configured suites. Modulus also gained the missing Biome exclusion for its
+configured suites. Downstream app A also gained the missing Biome exclusion for its
 generated collection types after the final gate exposed a formatter/generator
 conflict.
 
@@ -622,8 +622,8 @@ Published draft pull requests:
 
 - `Byline-CMS/bylinecms.dev#74`
 - `Byline-CMS/bylinecms.app#1`
-- `Modulus-Learning/modulus-learning.org#1`
-- `infonomic/beta.forru.org#1`
+- downstream app A PR #1
+- downstream app B PR #1
 
 All implementation branches are pushed and clean. The three downstream pull
 requests remain drafts until the framework 4.12 package set is published and
@@ -669,11 +669,11 @@ pnpm build
 git diff --check
 ```
 
-For `beta.forru.org`, root `pnpm test` does not run webapp tests. Also run:
+For downstream app B, root `pnpm test` does not run webapp tests. Also run:
 
 ```bash
-pnpm --filter @forru/webapp exec vitest run
-pnpm --filter @forru/webapp exec vitest run --mode=node
+pnpm --filter <downstream-app-b>/webapp exec vitest run
+pnpm --filter <downstream-app-b>/webapp exec vitest run --mode=node
 ```
 
 Do not run database initialization, migrations, content migration, S3 cleanup, or

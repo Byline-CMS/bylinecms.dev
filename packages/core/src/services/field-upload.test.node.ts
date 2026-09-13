@@ -529,7 +529,7 @@ describe('uploadField service', () => {
   it('beforeStore { storagePath } threads targetStoragePath verbatim and derives the filename from its basename', async () => {
     const definition = withFieldUpload(uploadCollection, 'image', (f) => {
       f.upload.hooks = {
-        beforeStore: () => ({ storagePath: 'publications/forru-0000447-0001-en.png' }),
+        beforeStore: () => ({ storagePath: 'publications/pub-0000447-0001-en.png' }),
       }
     })
 
@@ -548,19 +548,19 @@ describe('uploadField service', () => {
     expect(upload).toHaveBeenCalledWith(
       expect.any(Buffer),
       expect.objectContaining({
-        targetStoragePath: 'publications/forru-0000447-0001-en.png',
-        filename: 'forru-0000447-0001-en.png',
+        targetStoragePath: 'publications/pub-0000447-0001-en.png',
+        filename: 'pub-0000447-0001-en.png',
       })
     )
     // Stored filename follows the explicit key's basename.
-    expect(result.storedFile.filename).toBe('forru-0000447-0001-en.png')
+    expect(result.storedFile.filename).toBe('pub-0000447-0001-en.png')
   })
 
   it('beforeStore { storagePath, filename } honours both; a leading slash is stripped from the key', async () => {
     const definition = withFieldUpload(uploadCollection, 'image', (f) => {
       f.upload.hooks = {
         beforeStore: () => ({
-          storagePath: '/publications/forru-0000447-0002-en.png',
+          storagePath: '/publications/pub-0000447-0002-en.png',
           filename: 'display-name.png',
         }),
       }
@@ -579,7 +579,7 @@ describe('uploadField service', () => {
     expect(upload).toHaveBeenCalledWith(
       expect.any(Buffer),
       expect.objectContaining({
-        targetStoragePath: 'publications/forru-0000447-0002-en.png',
+        targetStoragePath: 'publications/pub-0000447-0002-en.png',
         filename: 'display-name.png',
       })
     )
