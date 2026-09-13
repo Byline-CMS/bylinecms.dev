@@ -46,8 +46,8 @@ vi.mock('@byline/ui/react', async (importOriginal) => {
       Separator: () => <hr />,
     },
     Modal,
-    Input: ({ name, value, onChange }: any) => (
-      <input name={name} value={value ?? ''} onChange={onChange} />
+    Input: ({ name, value, onChange, readOnly }: any) => (
+      <input name={name} value={value ?? ''} onChange={onChange} readOnly={readOnly ?? false} />
     ),
   }
 })
@@ -128,6 +128,76 @@ describe('FormRenderer capabilities', () => {
     expect(widget).not.toBeNull()
     const input = container.querySelector<HTMLInputElement>('input[name="__systemPath__"]')
     expect(input?.value).toBe('about-us')
+  })
+
+  it('forwards adminConfig.lockPath to the path widget', () => {
+    render({ ...baseProps, adminConfig: { slug: 'pages', lockPath: true } })
+
+    const input = container.querySelector<HTMLInputElement>('input[name="__systemPath__"]')
+    expect(input?.readOnly).toBe(true)
+    expect(input?.value).toBe('about-us')
+  })
+
+  it('leaves the path widget editable when no lockPath is declared', () => {
+    render({ ...baseProps, adminConfig: { slug: 'pages' } })
+
+    const input = container.querySelector<HTMLInputElement>('input[name="__systemPath__"]')
+    expect(input?.readOnly).toBe(false)
+  })
+
+  it('keeps a counter source suppressing Regenerate without locking the input', () => {
+    // `sourceLocked` and `lockPath` stay independent: a counter-sourced path
+    // still has no derivable preview, but remains editable unless declared.
+    // The source needs a real value whose slug ('448') differs from the
+    // stored path ('about-us'), or Regenerate would be absent anyway and the
+    // assertion would hold even if `sourceLocked` forwarding broke.
+    render({
+      ...baseProps,
+      fields: [{ name: 'ref', label: 'Ref', type: 'counter' as const }],
+      useAsPath: 'ref',
+      initialData: { id: 'doc-1', path: 'about-us', fields: { ref: 448 } },
+      adminConfig: { slug: 'pages' },
+    })
+
+    const input = container.querySelector<HTMLInputElement>('input[name="__systemPath__"]')
+    expect(input?.readOnly).toBe(false)
+    expect(container.querySelector('.byline-form-path-regenerate')).toBeNull()
+  })
+
+  it('renders the locked widget on create with no useAsPath and no stored path', () => {
+    // A collection whose paths come from an external system declares no
+    // `useAsPath` and has nothing stored yet — the case the old render gate
+    // hid outright.
+    render({
+      ...baseProps,
+      mode: 'create' as const,
+      useAsPath: undefined,
+      initialData: { fields: {} },
+      adminConfig: { slug: 'pages', lockPath: true },
+    })
+
+    expect(container.querySelector('.byline-form-path')).not.toBeNull()
+    const input = container.querySelector<HTMLInputElement>('input[name="__systemPath__"]')
+    expect(input?.readOnly).toBe(true)
+    expect(input?.value).toBe('')
+  })
+
+  it('keeps the widget hidden on create without useAsPath when unlocked', () => {
+    render({
+      ...baseProps,
+      mode: 'create' as const,
+      useAsPath: undefined,
+      initialData: { fields: {} },
+      adminConfig: { slug: 'pages' },
+    })
+
+    expect(container.querySelector('.byline-form-path')).toBeNull()
+  })
+
+  it('lets showPath: false override lockPath', () => {
+    render({ ...baseProps, showPath: false, adminConfig: { slug: 'pages', lockPath: true } })
+
+    expect(container.querySelector('.byline-form-path')).toBeNull()
   })
 
   it('suppresses the path widget when showPath is false', () => {

@@ -11,8 +11,8 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type {
+  AdminResourceConfig,
   Field,
-  FormAdminConfig,
   GroupDefinition,
   RowDefinition,
   TabSetDefinition,
@@ -133,7 +133,13 @@ export interface FormRendererProps {
   workflowStatuses?: WorkflowStatus[]
   publishedVersion?: PublishedVersionInfo | null
   initialData?: Record<string, any>
-  adminConfig?: FormAdminConfig
+  /**
+   * Presentation configuration for the resource being edited — a collection
+   * or a singleton. Typed as the union rather than the shared
+   * `FormAdminConfig` base so the renderer can read collection-only members
+   * such as `lockPath`.
+   */
+  adminConfig?: AdminResourceConfig
   /**
    * Name of the schema field to render as the live form heading.
    * Sourced from `CollectionDefinition.useAsTitle` by the caller.
@@ -952,8 +958,13 @@ const FormContent = ({
               {layout.main.map((name) => renderItem(name))}
             </div>
             <div className={cx('byline-form-sidebar', styles.sidebar)}>
+              {/* A locked collection's widget renders even with no `useAsPath`
+                  and nothing stored yet: its path is managed, and the editor
+                  needs to see that. `showPath: false` still wins — it marks a
+                  path that must never be presented at all. */}
               {showPath &&
                 (useAsPath ||
+                  adminConfig?.lockPath === true ||
                   (typeof initialData?.path === 'string' && initialData.path.length > 0)) && (
                   <PathWidget
                     disabled={mutationsBlocked || discarding}
@@ -964,6 +975,7 @@ const FormContent = ({
                     mode={mode}
                     slugifier={pathSlugifier}
                     sourceLocked={pathSourceLocked}
+                    lockPath={adminConfig?.lockPath}
                   />
                 )}
               {tree && mode === 'edit' && typeof initialData?.id === 'string' && (
