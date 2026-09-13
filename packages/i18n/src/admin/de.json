@@ -496,6 +496,8 @@
   "pathWidget.label": "Pfad",
   "pathWidget.suggestedHint": "Vorgeschlagen: \"{formatted}\"",
   "pathWidget.readOnlyHint": "Der Pfad wird in der Standardsprache (\"{locale}\") festgelegt und gilt für alle Übersetzungen.",
+  "pathWidget.lockedCreateHint": "Wird beim Speichern dieses Dokuments automatisch zugewiesen.",
+  "pathWidget.lockedHint": "Dieser Pfad wird verwaltet und kann hier nicht bearbeitet werden.",
   "pathWidget.willBeSavedAs": "Wird gespeichert als \"{preview}\"",
   "pathWidget.srDescription": "Systemverwalteter URL-Pfad für dieses Dokument.",
   "pathWidget.regenerateButton": "Aus {field} neu generieren",

@@ -496,6 +496,8 @@
   "pathWidget.label": "Percorso",
   "pathWidget.suggestedHint": "Suggerito: \"{formatted}\"",
   "pathWidget.readOnlyHint": "Il percorso è impostato nella lingua predefinita (\"{locale}\") e si applica a tutte le traduzioni.",
+  "pathWidget.lockedCreateHint": "Assegnato automaticamente al salvataggio di questo documento.",
+  "pathWidget.lockedHint": "Questo percorso è gestito e non può essere modificato qui.",
   "pathWidget.willBeSavedAs": "Verrà salvato come \"{preview}\"",
   "pathWidget.srDescription": "Percorso URL gestito dal sistema per questo documento.",
   "pathWidget.regenerateButton": "Rigenera da {field}",

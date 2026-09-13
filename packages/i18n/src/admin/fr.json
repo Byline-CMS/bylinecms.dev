@@ -496,6 +496,8 @@
   "pathWidget.label": "Chemin",
   "pathWidget.suggestedHint": "Suggestion : « {formatted} »",
   "pathWidget.readOnlyHint": "Le chemin est défini dans la langue par défaut (« {locale} ») et s'applique à toutes les traductions.",
+  "pathWidget.lockedCreateHint": "Attribué automatiquement lors de l'enregistrement de ce document.",
+  "pathWidget.lockedHint": "Ce chemin est géré par le système et ne peut pas être modifié ici.",
   "pathWidget.willBeSavedAs": "Sera enregistré sous « {preview} »",
   "pathWidget.srDescription": "Chemin URL géré par le système pour ce document.",
   "pathWidget.regenerateButton": "Régénérer depuis {field}",

@@ -496,6 +496,8 @@
   "pathWidget.label": "路径",
   "pathWidget.suggestedHint": "建议：“{formatted}”",
   "pathWidget.readOnlyHint": "路径在默认语言区域（“{locale}”）中设置，并适用于所有翻译。",
+  "pathWidget.lockedCreateHint": "保存此文档时自动分配。",
+  "pathWidget.lockedHint": "此路径由系统管理，无法在此处编辑。",
   "pathWidget.willBeSavedAs": "将保存为“{preview}”",
   "pathWidget.srDescription": "此文档的系统管理 URL 路径。",
   "pathWidget.regenerateButton": "从 {field} 重新生成",
