@@ -96,6 +96,17 @@ describe('validateAdminConfigs', () => {
     )
   })
 
+  it('rejects the collection-only lockPath option on a singleton from untyped callers', () => {
+    const admin = {
+      ...defineSingletonAdmin(singleton, {}),
+      lockPath: true,
+    } as unknown as AdminResourceConfig
+
+    expect(() => validateAdminConfigs([admin], [collection, singleton])).toThrow(
+      /lockPath.*not allowed on a singleton admin config/
+    )
+  })
+
   it('rejects a singleton admin config targeting a multi-collection', () => {
     const admin = { ...defineSingletonAdmin(singleton, {}), slug: collection.path }
 

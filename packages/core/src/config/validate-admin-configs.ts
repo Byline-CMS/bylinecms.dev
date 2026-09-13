@@ -50,6 +50,7 @@ const COLLECTION_ONLY_ADMIN_KEYS = completeCollectionOnlyAdminKeys([
   'itemViewSort',
   'listView',
   'listActions',
+  'lockPath',
 ])
 
 /**

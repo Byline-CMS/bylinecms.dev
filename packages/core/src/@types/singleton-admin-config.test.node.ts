@@ -64,6 +64,15 @@ describe('singleton admin config', () => {
     })
   })
 
+  it('rejects lockPath at the singleton definition site and accepts it on a collection', () => {
+    defineSingletonAdmin(settings, {
+      // @ts-expect-error — a singleton has no document path and no path widget.
+      lockPath: true,
+    })
+
+    expect(defineAdmin(pages, { lockPath: true }).lockPath).toBe(true)
+  })
+
   it('keeps the singleton preview document pathless', () => {
     defineSingletonAdmin(settings, {
       preview: {

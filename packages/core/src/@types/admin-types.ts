@@ -445,6 +445,20 @@ export interface CollectionAdminConfig<T = any> extends FormAdminConfig {
   }
 
   /**
+   * Declares this collection's document paths managed — minted by the system
+   * or an import rather than typed by an editor. The admin path widget then
+   * renders read-only in both modes, with no preview or "Regenerate" action,
+   * and renders even when the collection declares no `useAsPath`.
+   *
+   * An admin-interface guard only: it does not make the path immutable, and
+   * it is independent of `useAsPath`. See
+   * [Document paths](../../../../docs/04-collections/05-document-paths.md).
+   *
+   * @default false
+   */
+  lockPath?: boolean
+
+  /**
    * Custom list-view component for this collection.
    *
    * When provided, this component completely replaces the default table-based
@@ -514,6 +528,9 @@ export interface SingletonAdminConfig<T = any> extends FormAdminConfig {
   itemViewSort?: never
   listView?: never
   listActions?: never
+
+  /** A singleton has no document path and no path widget. */
+  lockPath?: never
 }
 
 /** Admin presentation config for either registered document-resource kind. */
