@@ -35,7 +35,8 @@ export const DRAG_THRESHOLD_PX = 5
  */
 export const CLICK_SUPPRESSION_MS = 100
 
-export interface DragOrigin {
+/** Where a gesture began. An internal part of `DragState`, not a public type. */
+interface DragOrigin {
   /** Pointer x at the moment the button went down. */
   pointerX: number
   /** The viewport's scroll offset at that same moment. */
