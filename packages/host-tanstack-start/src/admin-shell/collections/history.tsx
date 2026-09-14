@@ -8,7 +8,13 @@
 
 import { useParams, useRouter, useRouterState } from '@tanstack/react-router'
 
-import { AdminTabs, renderFormatted, StatusBadge } from '@byline/admin/react'
+import {
+  AdminTabs,
+  renderFormatted,
+  StatusBadge,
+  tabPanelId,
+  tabTriggerId,
+} from '@byline/admin/react'
 import { useBylineAdminServices } from '@byline/admin/services'
 import type { CollectionAdminConfig, MultiCollectionDefinition, WorkflowStatus } from '@byline/core'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
@@ -30,6 +36,9 @@ import {
 } from './version-history.js'
 import { ViewMenu } from './view-menu.js'
 import type { ContentLocaleOption } from './view-menu.js'
+
+/** Id prefix shared by the history tablist and the panels it controls. */
+const HISTORY_TABS_ID = 'collection-history'
 
 /** Resolve user fields before root document metadata such as status. */
 function getColumnValue(document: Record<string, unknown>, fieldName: string): unknown {
@@ -251,6 +260,7 @@ export const HistoryView = ({
             />
           </div>
           <AdminTabs
+            idBase={HISTORY_TABS_ID}
             tabs={[
               { name: 'versions', label: t('collections.history.tabs.versions') },
               { name: 'document', label: t('collections.history.tabs.document') },
@@ -263,13 +273,24 @@ export const HistoryView = ({
       </Section>
 
       {activeTab === 'document' ? (
-        <DocumentHistoryView
-          data={
-            auditLog ?? { entries: [], meta: { total: 0, page: 1, pageSize: 0, totalPages: 0 } }
-          }
-        />
+        <div
+          role="tabpanel"
+          id={tabPanelId(HISTORY_TABS_ID, 'document')}
+          aria-labelledby={tabTriggerId(HISTORY_TABS_ID, 'document')}
+        >
+          <DocumentHistoryView
+            data={
+              auditLog ?? { entries: [], meta: { total: 0, page: 1, pageSize: 0, totalPages: 0 } }
+            }
+          />
+        </div>
       ) : (
-        <Section>
+        <Section
+          role="tabpanel"
+          id={tabPanelId(HISTORY_TABS_ID, 'versions')}
+          aria-labelledby={tabTriggerId(HISTORY_TABS_ID, 'versions')}
+          tabIndex={0}
+        >
           <Container>
             <VersionHistoryCore
               data={data as unknown as VersionHistoryData}
