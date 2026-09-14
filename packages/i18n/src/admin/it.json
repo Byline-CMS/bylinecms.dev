@@ -579,6 +579,7 @@
   "diffModal.currentVersion": "Versione attuale",
   "statusBadge.publishedVersionLive": "Una versione pubblicata è online",
   "presentation.formTabsAriaLabel": "Schede del modulo",
+  "presentation.formTabsAllTabsLabel": "Tutte le schede",
   "validation.password.tooShort": "La password deve contenere almeno 8 caratteri.",
   "validation.password.tooLong": "La password non deve superare i 128 caratteri.",
   "validation.password.complexity": "La password deve contenere almeno una lettera maiuscola, una lettera minuscola, un numero e uno dei seguenti caratteri: #?!@$%^&*-",

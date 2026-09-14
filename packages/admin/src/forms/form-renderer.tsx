@@ -29,7 +29,7 @@ import { FieldRenderer } from '../fields/field-renderer'
 import { useBylineFieldServices } from '../fields/field-services-context'
 import { AdminGroup } from '../presentation/group'
 import { AdminRow } from '../presentation/row'
-import { AdminTabs } from '../presentation/tabs'
+import { AdminTabs, tabPanelId, tabTriggerId } from '../presentation/tabs'
 import { AvailableLocalesWidget } from './available-locales-widget'
 import { DocumentActions, type DocumentActionsLocaleOption } from './document-actions'
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
@@ -671,11 +671,13 @@ const FormContent = ({
         ? (visibleTabs[0]?.name ?? requested)
         : requested
     const activeTab = visibleTabs.find((t) => t.name === resolvedActive)
+    const idBase = `tabset:${set.name}`
 
     return (
-      <div key={`tabset:${set.name}`} className={cx('byline-form-tabset', styles.tabset)}>
+      <div key={idBase} className={cx('byline-form-tabset', styles.tabset)}>
         {visibleTabs.length > 0 && (
           <AdminTabs
+            idBase={idBase}
             tabs={visibleTabs}
             activeTab={resolvedActive}
             onChange={(tabName) => handleTabChange(set.name, tabName)}
@@ -684,7 +686,12 @@ const FormContent = ({
           />
         )}
         {activeTab && (
-          <div className={cx('byline-form-tabset-fields', styles['tabset-fields'])}>
+          <div
+            role="tabpanel"
+            id={tabPanelId(idBase, activeTab.name)}
+            aria-labelledby={tabTriggerId(idBase, activeTab.name)}
+            className={cx('byline-form-tabset-fields', styles['tabset-fields'])}
+          >
             {activeTab.fields.map((name) => renderItem(name))}
           </div>
         )}

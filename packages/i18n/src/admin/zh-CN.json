@@ -579,6 +579,7 @@
   "diffModal.currentVersion": "当前版本",
   "statusBadge.publishedVersionLive": "已发布版本在线",
   "presentation.formTabsAriaLabel": "表单标签页",
+  "presentation.formTabsAllTabsLabel": "所有标签页",
   "validation.password.tooShort": "密码长度至少为 8 个字符。",
   "validation.password.tooLong": "密码不得超过 128 个字符。",
   "validation.password.complexity": "密码必须至少包含一个大写字母、一个小写字母、一个数字，以及以下字符之一：#?!@$%^&*-",

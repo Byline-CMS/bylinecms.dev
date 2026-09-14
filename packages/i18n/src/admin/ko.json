@@ -579,6 +579,7 @@
   "diffModal.currentVersion": "현재 버전",
   "statusBadge.publishedVersionLive": "게시된 버전이 라이브 상태입니다",
   "presentation.formTabsAriaLabel": "양식 탭",
+  "presentation.formTabsAllTabsLabel": "모든 탭",
   "validation.password.tooShort": "비밀번호는 8자 이상이어야 합니다.",
   "validation.password.tooLong": "비밀번호는 128자를 초과할 수 없습니다.",
   "validation.password.complexity": "비밀번호에는 대문자, 소문자, 숫자, 그리고 다음 문자 중 하나(#?!@$%^&*-)가 각각 최소 하나 이상 포함되어야 합니다.",

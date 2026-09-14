@@ -1,31 +1,127 @@
 /**
  * Tabs — navigation bar for admin form layouts.
  *
+ * The strip is a scrolling viewport plus an overflow trigger that appears only
+ * when the tabs exceed the column. `--byline-admin-tabs-trigger-size` and
+ * `--byline-admin-tabs-trigger-gap` are set on the element by tabs.tsx, so the
+ * trigger is laid out from the same numbers the overflow geometry reserves
+ * space with.
+ *
  * Override handles:
- *   .byline-admin-tabs        — the tablist container
- *   .byline-admin-tab         — each tab button
- *   .byline-admin-tab-active  — added when the tab is the active one
- *   .byline-admin-tab-label   — the inner label span (with optional badge)
- *   .byline-admin-tab-badge   — the inline error-count badge
+ *   .byline-admin-tabs                   — the strip container
+ *   .byline-admin-tabs-viewport          — the horizontally scrolling viewport
+ *   .byline-admin-tablist                — the tablist row inside the viewport
+ *   .byline-admin-tab                    — each tab button
+ *   .byline-admin-tab-active             — added when the tab is the active one
+ *   .byline-admin-tab-label              — the inner label span (with optional badge)
+ *   .byline-admin-tab-badge              — the inline error-count badge
+ *   .byline-admin-tabs-overflow-trigger  — the "all tabs" menu button
+ *   .byline-admin-tabs-overflow-icon     — the icon inside that button
+ *   .byline-admin-tabs-overflow-menu     — the menu popup
+ *   .byline-admin-tabs-overflow-item     — each menu item
  */
 
 .tabs,
 :global(.byline-admin-tabs) {
+  position: relative;
   display: flex;
+  align-items: stretch;
+  gap: var(--byline-admin-tabs-trigger-gap, 12px);
+}
+
+/* The strip's hairline, drawn as a pseudo-element rather than a border so it
+   spans the viewport and the trigger together and so the active tab's 2px
+   underline can paint over it. */
+.tabs::after,
+:global(.byline-admin-tabs)::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  height: var(--border-width-thin);
+  background-color: var(--gray-200);
+}
+
+.viewport,
+:global(.byline-admin-tabs-viewport) {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  /* A flex item refuses to shrink below its content's min-content width
+     unless told otherwise, which would push the row past the column instead
+     of scrolling it. */
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Stops a horizontal flick or trackpad swipe at either end of the strip
+     from chaining into the browser's back/forward navigation. */
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.viewport::-webkit-scrollbar,
+:global(.byline-admin-tabs-viewport)::-webkit-scrollbar {
+  display: none;
+}
+
+/* Edge fades, applied as a mask so they neither scroll with the content nor
+   need elements of their own. Each side is sized to zero unless that edge has
+   something beyond it, which tabs.tsx reports via the data attributes. */
+.viewport,
+:global(.byline-admin-tabs-viewport) {
+  --fade-start: 0px;
+  --fade-end: 0px;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black var(--fade-start),
+    black calc(100% - var(--fade-end)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black var(--fade-start),
+    black calc(100% - var(--fade-end)),
+    transparent 100%
+  );
+}
+
+.viewport[data-at-start="false"],
+:global(.byline-admin-tabs-viewport)[data-at-start="false"] {
+  --fade-start: 1.5rem;
+}
+
+.viewport[data-at-end="false"],
+:global(.byline-admin-tabs-viewport)[data-at-end="false"] {
+  --fade-end: 1.5rem;
+}
+
+.tablist,
+:global(.byline-admin-tablist) {
+  /* `max-content` keeps the row at its intrinsic width whatever the viewport
+     is doing. A row that shrank to fit would report the viewport's width back
+     to the overflow geometry, which could then never detect overflow. It also
+     makes the row the offset parent the reveal arithmetic measures against. */
+  position: relative;
+  display: flex;
+  width: max-content;
   gap: var(--spacing-16);
-  border-bottom: var(--border-width-thin) var(--border-style-solid) var(--gray-200);
 }
 
 .tab,
 :global(.byline-admin-tab) {
   position: relative;
-  margin-bottom: -1px;
+  flex: none;
   padding: 0.625rem 0;
   border-bottom: 2px solid transparent;
   background: none;
   color: var(--gray-500);
   font-size: 1.1rem;
   font-weight: var(--font-weight-medium);
+  white-space: nowrap;
   cursor: pointer;
   transition:
     color 150ms ease,
@@ -39,9 +135,12 @@
   border-bottom-color: var(--gray-300);
 }
 
+/* An inset ring rather than an outset one: the viewport clips overflow, and an
+   outset focus ring on the first or last tab would be cut in half. */
 .tab:focus-visible,
 :global(.byline-admin-tab):focus-visible {
-  box-shadow: 0 0 0 2px var(--blue-500);
+  box-shadow: inset 0 0 0 2px var(--blue-500);
+  border-radius: var(--radius-sm, 3px);
 }
 
 .tab-active,
@@ -74,12 +173,73 @@
   font-size: 0.7rem;
 }
 
+.overflow-trigger,
+:global(.byline-admin-tabs-overflow-trigger) {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--byline-admin-tabs-trigger-size, 32px);
+  height: var(--byline-admin-tabs-trigger-size, 32px);
+  padding: 0;
+  border: var(--border-width-thin) var(--border-style-solid) transparent;
+  border-radius: var(--radius-sm, 3px);
+  background: none;
+  color: var(--gray-500);
+  cursor: pointer;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
+}
+
+.overflow-trigger:hover,
+:global(.byline-admin-tabs-overflow-trigger):hover {
+  color: var(--gray-800);
+  background-color: var(--gray-100);
+}
+
+.overflow-trigger:focus-visible,
+:global(.byline-admin-tabs-overflow-trigger):focus-visible {
+  outline: 2px solid var(--blue-500);
+  outline-offset: 1px;
+}
+
+.overflow-icon,
+:global(.byline-admin-tabs-overflow-icon) {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.overflow-menu,
+:global(.byline-admin-tabs-overflow-menu) {
+  min-width: 12rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.overflow-item,
+:global(.byline-admin-tabs-overflow-item) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-8);
+}
+
+.overflow-item[data-active="true"],
+:global(.byline-admin-tabs-overflow-item)[data-active="true"] {
+  color: var(--primary-600);
+  font-weight: var(--font-weight-medium);
+}
+
 /* ─── Dark theme variants ───────────────────────────────────── */
 
 :is([data-theme="dark"], :global(.dark)) {
-  .tabs,
-  :global(.byline-admin-tabs) {
-    border-bottom-color: var(--gray-700);
+  .tabs::after,
+  :global(.byline-admin-tabs)::after {
+    background-color: var(--gray-700);
   }
 
   .tab,
@@ -103,5 +263,21 @@
   :global(.byline-admin-tab-active):hover {
     color: var(--primary-200);
     border-bottom-color: var(--primary-400);
+  }
+
+  .overflow-trigger,
+  :global(.byline-admin-tabs-overflow-trigger) {
+    color: var(--gray-400);
+  }
+
+  .overflow-trigger:hover,
+  :global(.byline-admin-tabs-overflow-trigger):hover {
+    color: var(--gray-200);
+    background-color: var(--gray-800);
+  }
+
+  .overflow-item[data-active="true"],
+  :global(.byline-admin-tabs-overflow-item)[data-active="true"] {
+    color: var(--primary-200);
   }
 }

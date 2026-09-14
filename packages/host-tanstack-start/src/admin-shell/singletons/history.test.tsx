@@ -43,6 +43,8 @@ vi.mock('@byline/admin/react', () => ({
       ))}
     </div>
   ),
+  tabPanelId: (idBase: string, name: string) => `${idBase}-panel-${name}`,
+  tabTriggerId: (idBase: string, name: string) => `${idBase}-tab-${name}`,
   renderFormatted: (value: unknown) => String(value ?? ''),
   StatusBadge: ({ status }: { status: string }) => <span>{status}</span>,
   DiffModal: (props: Record<string, unknown>) => {
