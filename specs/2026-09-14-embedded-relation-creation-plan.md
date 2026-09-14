@@ -21,6 +21,18 @@ modes), Biome, pnpm + Turborepo.
 **Spec:** `specs/2026-09-14-embedded-relation-creation-spec.md` — read it in full
 before Task 1. The plan argues from the spec; where they disagree, the spec wins.
 
+**Branches:** this plan ships as **two independent branches**, in order.
+
+| Part | Branch | Tasks | Checkpoints | Merges |
+|---|---|---|---|---|
+| I — Form refactor and concurrent-form correctness | `refactor/forms` | 1–7 | 1–3 | to `develop` **before** Part II starts |
+| II — Embedded relationship creation | `feature/relation-create-new` | 8–22 | 4–7 | to `develop` when complete |
+
+Part I stands entirely on its own: it is #94's extraction work plus a latent
+accessibility fix, both of which improve the existing full-page editor and are worth
+merging whether or not the feature is ever built. Part I carries **no open product or
+API decisions**. Part II branches from `develop` only after Part I has merged.
+
 **Related issue:** [#94 refactor(admin): split FormContent into focused workflows](https://github.com/Byline-CMS/bylinecms.dev/issues/94).
 Phase 1 of this plan *is* the subset of #94 this feature depends on. Those tasks
 must stay behaviour-preserving and are reviewable as #94 work in their own right.
@@ -86,15 +98,15 @@ sidebar slot, `onBeforeBusy`, content-locale propagation, and the strengthened b
 assertions). Nothing from that review remains outstanding at the plan level — but it is
 still implementation work, and each checkpoint verifies it landed.
 
-| # | Timing | Review scope |
-|---|---|---|
-| 1 | After Task 1 | Synchronous re-entry protection across validation through submission; phase transitions; system-field confirmation; dirty-state handling; upload sequencing; mutation blocking; full-page focus preservation |
-| 2 | After Tasks 2–3 | Full-page behaviour preservation; sidebar fields and widgets; custom field rendering; conditional visibility; tab persistence across locale/version remounts |
-| 3 | After Tasks 4–7 | Field/tab ID ownership; explicit-ID handling; SSR/hydration stability; independently tested parent and child submit defences. Includes a small real-browser check — see Task 7, Step 6 |
-| 4 | After Tasks 8–9, **before** Task 10 | Additive creation outcomes; retained version/revision and structured failure metadata; authenticated draft reads with explicit `status: 'any'`; display projections; proposed capability/provider types. **The outstanding product/API decisions must be resolved here**, before the tasks they block |
-| 5 | After Tasks 10–13 | Consistent server/service/receipt types; capability degradation; supported-caller opt-in; nested-creation suppression; provider context; parent content-locale propagation; real upload-widget behaviour; picker state preservation |
-| 6 | After Tasks 14–17 | Receipt retention before view transitions; single-select handoff; hydration retries after picker closure; committed-hook warnings; uncertain outcomes; selection-application failures; multiple-selection capacity, ordering and deduplication |
-| 7 | After Tasks 18–22 and final verification | Guard coordination; real-browser focus/Escape/Enter behaviour; meaningful cross-form label/tab assertions; translations; documentation; the complete specification acceptance matrix. Reviews both the final incremental changes **and** the cumulative feature |
+| # | Part | Timing | Review scope |
+|---|---|---|---|
+| 1 | I | After Task 1 | Synchronous re-entry protection across validation through submission; phase transitions; system-field confirmation; dirty-state handling; upload sequencing; mutation blocking; full-page focus preservation |
+| 2 | I | After Tasks 2–3 | Full-page behaviour preservation; sidebar fields and widgets; custom field rendering; conditional visibility; tab persistence across locale/version remounts |
+| 3 | I | After Tasks 4–7 | Field/tab ID ownership; explicit-ID handling; SSR/hydration stability; independently tested parent and child submit defences. Includes a small real-browser check — see Task 7, Step 6 |
+| 4 | II | After Tasks 8–9, **before** Task 10 | Additive creation outcomes; retained version/revision and structured failure metadata; authenticated draft reads with explicit `status: 'any'`; display projections; proposed capability/provider types. **The outstanding product/API decisions must be resolved here**, before the tasks they block |
+| 5 | II | After Tasks 10–13 | Consistent server/service/receipt types; capability degradation; supported-caller opt-in; nested-creation suppression; provider context; parent content-locale propagation; real upload-widget behaviour; picker state preservation |
+| 6 | II | After Tasks 14–17 | Receipt retention before view transitions; single-select handoff; hydration retries after picker closure; committed-hook warnings; uncertain outcomes; selection-application failures; multiple-selection capacity, ordering and deduplication |
+| 7 | II | After Tasks 18–22 and final verification | Guard coordination; real-browser focus/Escape/Enter behaviour; meaningful cross-form label/tab assertions; translations; documentation; the complete specification acceptance matrix. Reviews both the final incremental changes **and** the cumulative feature |
 
 ### Handoff template
 
@@ -130,6 +142,8 @@ Resolve review findings and report their verification before continuing dependen
 
 ## File Structure
 
+### Part I — `refactor/forms`
+
 **Phase 1 — #94 extractions (modify `packages/admin/src/forms/`)**
 
 | File | Responsibility |
@@ -149,6 +163,8 @@ Resolve review findings and report their verification before continuing dependen
 | `fields/*/*-field.tsx` (modify) | Scope the `htmlId = id ?? fieldPath` fallback in each widget. |
 | `presentation/tabs.tsx` (modify:73,76) | Take the scope in `tabTriggerId` / `tabPanelId`. |
 | `forms/form-renderer.tsx` (modify:507) | Ignore submit events bubbling from a portalled child form. |
+
+### Part II — `feature/relation-create-new`
 
 **Phase 3 — host capabilities**
 
@@ -174,14 +190,36 @@ Resolve review findings and report their verification before continuing dependen
 
 ---
 
-## Phase 1 — Prerequisite extractions from #94
+## Part I — Form refactor and concurrent-form correctness
+
+**Branch:** `refactor/forms`, cut from `develop`.
+
+```bash
+git checkout develop && git pull
+git checkout -b refactor/forms
+```
+
+Tasks 1–7, Checkpoints 1–3. Everything here is justified without embedded creation:
+Phase 1 is #94's decomposition, behaviour-preserving by definition; Phase 2 fixes DOM
+id collisions and cross-form submit leakage that are real accessibility and correctness
+defects today, latent only because nothing currently nests.
+
+**No open decisions block any of this.** Start immediately.
+
+One constraint specific to this branch: `knip` and the public-export audit run on
+pre-push, and this repo has bitten people before with newly-exported-but-unconsumed
+types. Everything Part I adds must have a real consumer on this branch —
+`FormContent` consumes the extracted hooks, the widgets consume the id scope. Do not
+land feature-shaped scaffolding here just because it looks preparatory.
+
+### Phase 1 — Prerequisite extractions from #94
 
 Tracked by issue #94. **Acceptance for this phase is behaviour preservation**:
 every existing form, navigation, scheduling, upload and concurrency test stays
 green, and `FormRendererProps` does not change. The contribution this plan makes
 to #94 is the *boundaries* — the signatures below are what Phase 4 consumes.
 
-### Task 1: Extract `useFormSubmission()`
+#### Task 1: Extract `useFormSubmission()`
 
 **Files:**
 - Create: `packages/admin/src/forms/use-form-submission.ts`
@@ -337,7 +375,7 @@ git commit -s -m "refactor(admin): extracted useFormSubmission from FormContent"
 > system-field confirmation, dirty-state handling, upload sequencing, mutation
 > blocking, and full-page focus preservation.
 
-### Task 2: Extract `FormLayout` and `useFormTabs()`
+#### Task 2: Extract `FormLayout` and `useFormTabs()`
 
 **Files:**
 - Create: `packages/admin/src/forms/form-layout.tsx`, `packages/admin/src/forms/use-form-tabs.ts`
@@ -452,7 +490,7 @@ git add packages/admin/src/forms/form-layout.tsx \
 git commit -s -m "refactor(admin): extracted FormLayout and useFormTabs from FormContent"
 ```
 
-### Task 3: Split page-level chrome out of `FormContent`
+#### Task 3: Split page-level chrome out of `FormContent`
 
 **Files:**
 - Create: `packages/admin/src/forms/form-page-chrome.tsx`
@@ -495,12 +533,12 @@ git commit -s -m "refactor(admin): split page-level chrome out of FormContent"
 > sidebar fields *and* widgets, custom field rendering, conditional visibility, and
 > tab persistence across locale/version remounts.
 
-## Phase 2 — Concurrent-form correctness
+### Phase 2 — Concurrent-form correctness
 
 A standalone correctness change. Ship it even if embedded creation slips: it fixes
 a latent accessibility defect. Review it separately from Phase 1.
 
-### Task 4: Introduce the form DOM scope
+#### Task 4: Introduce the form DOM scope
 
 **Files:**
 - Create: `packages/admin/src/forms/form-dom-scope.tsx`
@@ -591,7 +629,7 @@ git add packages/admin/src/forms/form-dom-scope.tsx \
 git commit -s -m "feat(admin): added a per-form-instance DOM id scope"
 ```
 
-### Task 5: Apply the scope to field ids
+#### Task 5: Apply the scope to field ids
 
 **Files:**
 - Modify: `packages/admin/src/fields/field-renderer.tsx:93`
@@ -652,7 +690,7 @@ git add packages/admin/src/fields
 git commit -s -m "fix(admin): scoped field dom ids to the form instance"
 ```
 
-### Task 6: Apply the scope to tab ids
+#### Task 6: Apply the scope to tab ids
 
 **Files:**
 - Modify: `packages/admin/src/presentation/tabs.tsx:73,76,351,352`
@@ -703,7 +741,7 @@ git add packages/admin/src
 git commit -s -m "fix(admin): scoped tab dom ids to the form instance"
 ```
 
-### Task 7: Isolate submit events across the portal
+#### Task 7: Isolate submit events across the portal
 
 **Files:**
 - Modify: `packages/admin/src/forms/form-renderer.tsx:507` (`handleSubmit`)
@@ -848,9 +886,65 @@ git commit -s -m "fix(admin): isolated form submit events from portalled child f
 > defences tested independently. Include the Task 7 Step 6 browser check (manual or
 > extension-driven — there is no e2e suite).
 
-## Phase 3 — Host capabilities
+---
 
-### Task 8: Return the collection id on every creation outcome
+## Part I complete — verify, merge, then branch for Part II
+
+- [ ] **Run the Part I gates**
+
+```
+pnpm byline:generate:check
+pnpm lint
+pnpm typecheck
+pnpm knip
+pnpm test
+pnpm test:integration
+```
+
+Plus the Task 7 Step 6 browser check (manual or extension-driven), with its observed
+output recorded.
+
+- [ ] **Confirm Part I preserved behaviour**
+
+`FormRendererProps` is unchanged. Every pre-existing form, navigation, scheduling,
+upload and concurrency test passes untouched. The full-page editor looks and behaves
+exactly as before — tab choices still survive a locale change, focus still returns
+after a save, sidebar widgets still sit in the sidebar with the sidebar schema fields.
+
+- [ ] **Merge `refactor/forms` into `develop`**
+
+This is a hot-path change to the editing surface. Merge it on its own, so that if
+something surfaces later it bisects to a small, behaviour-preserving diff rather than
+being tangled with feature work.
+
+- [ ] **Cut the feature branch from the merged `develop`**
+
+```bash
+git checkout develop && git pull
+git checkout -b feature/relation-create-new
+```
+
+Do not branch Part II from `refactor/forms`, and do not start Part II before the merge
+lands — Part II consumes `useFormSubmission`, `FormLayout` and the id scope directly,
+and rebasing that consumption across an unmerged refactor is avoidable pain.
+
+---
+
+## Part II — Embedded relationship creation
+
+**Branch:** `feature/relation-create-new`, cut from `develop` after Part I merges.
+
+Tasks 8–22, Checkpoints 4–7. Unlike Part I, this part **is** gated: the five product
+and API decisions at the end of this plan must be answered at Checkpoint 4, and Task 10
+onward is blocked until they are.
+
+Tasks 8 and 9 are the first work on this branch — **"first" meaning once Part I has
+merged and this branch exists, not in parallel with Part I.** No Part II task runs
+alongside Part I.
+
+### Phase 3 — Host capabilities
+
+#### Task 8: Return the collection id on every creation outcome
 
 **Files:**
 - Modify: `packages/host-tanstack-start/src/server-fns/collections/create.ts:84-89`
@@ -963,7 +1057,7 @@ git add packages/host-tanstack-start/src/server-fns/collections/create.ts \
 git commit -s -m "feat(host): returned the collection id on every create outcome"
 ```
 
-### Task 9: Authorised exact-ID display read
+#### Task 9: Authorised exact-ID display read
 
 **Files:**
 - Create: `packages/host-tanstack-start/src/server-fns/collections/get-display-record.ts`
@@ -1066,7 +1160,7 @@ git commit -s -m "feat(host): added an authorised exact-id display read"
 > *Open decisions that gate implementation* at the end of this plan. Task 10 and
 > everything after it are blocked until they are.
 
-### Task 10: Inject the three capabilities into the field layer
+#### Task 10: Inject the three capabilities into the field layer
 
 **Files:**
 - Modify: `packages/admin/src/fields/field-services-types.ts:114`
@@ -1205,9 +1299,9 @@ git commit -s -m "feat(admin): added optional create, display-read and create-co
 
 ---
 
-## Phase 4 — Picker session and the creation view
+### Phase 4 — Picker session and the creation view
 
-### Task 11: Identity-first selection
+#### Task 11: Identity-first selection
 
 **Files:**
 - Create: `packages/admin/src/fields/relation/picker-session.ts`
@@ -1299,7 +1393,7 @@ git add packages/admin/src/fields/relation/picker-session.ts \
 git commit -s -m "refactor(admin): moved relation picker state into an identity-first session reducer"
 ```
 
-### Task 12: Two views in one modal
+#### Task 12: Two views in one modal
 
 **Files:**
 - Modify: `packages/admin/src/fields/relation/relation-picker.tsx:262-461`
@@ -1394,7 +1488,7 @@ git add packages/admin/src/fields/relation
 git commit -s -m "feat(admin): added a creation view to the relation picker"
 ```
 
-### Task 13: Mount the ordinary form in the creation view
+#### Task 13: Mount the ordinary form in the creation view
 
 **Files:**
 - Modify: `packages/admin/src/forms/form-context.tsx:176-194` (expose the active content locale)
@@ -1538,9 +1632,9 @@ git commit -s -m "feat(admin): mounted the ordinary collection form in the relat
 > suppression, provider context, parent content-locale propagation, real
 > upload-widget behaviour, and picker state preservation.
 
-## Phase 5 — Submission, receipts and failures
+### Phase 5 — Submission, receipts and failures
 
-### Task 14: Single-flight submission through the ordinary flow
+#### Task 14: Single-flight submission through the ordinary flow
 
 **Files:**
 - Modify: `packages/admin/src/fields/relation/relation-create-view.tsx`
@@ -1589,7 +1683,7 @@ git add packages/admin/src/fields/relation
 git commit -s -m "feat(admin): submitted embedded creation through the ordinary upload and create flow"
 ```
 
-### Task 15: Receipt handoff and display presentation state
+#### Task 15: Receipt handoff and display presentation state
 
 **Files:**
 - Create: `packages/admin/src/fields/relation/relation-display-state.ts`
@@ -1666,7 +1760,7 @@ git add packages/admin/src/fields/relation
 git commit -s -m "feat(admin): handed creation receipts and display state to the parent relation field"
 ```
 
-### Task 16: The failure matrix
+#### Task 16: The failure matrix
 
 **Files:**
 - Test: `packages/admin/src/fields/relation/relation-create-failures.test.tsx`
@@ -1717,7 +1811,7 @@ git add packages/admin/src/fields/relation
 git commit -s -m "feat(admin): handled every embedded creation failure outcome"
 ```
 
-### Task 17: `hasMany` capacity, ordering and deduplication
+#### Task 17: `hasMany` capacity, ordering and deduplication
 
 **Files:**
 - Modify: `packages/admin/src/fields/relation/relation-many-field.tsx`
@@ -1760,9 +1854,9 @@ git commit -s -m "feat(admin): added capacity, ordering and dedupe rules to mult
 > committed-hook warnings, uncertain outcomes, selection-application failures, and
 > multiple-selection capacity, ordering and deduplication.
 
-## Phase 6 — Dismissal, focus, translations, docs
+### Phase 6 — Dismissal, focus, translations, docs
 
-### Task 18: Dirty-state dismissal and parent-guard coordination
+#### Task 18: Dirty-state dismissal and parent-guard coordination
 
 **Files:**
 - Modify: `relation-create-view.tsx`, `relation-picker.tsx`
@@ -1837,7 +1931,7 @@ git add packages/admin/src/fields/relation
 git commit -s -m "feat(admin): added dirty-state dismissal for the relation creation view"
 ```
 
-### Task 19: Focus ownership
+#### Task 19: Focus ownership
 
 **Files:**
 - Modify: `relation-create-view.tsx`, `relation-picker.tsx`
@@ -1868,7 +1962,7 @@ git add packages/admin/src/fields/relation
 git commit -s -m "feat(admin): gave the relation creation view explicit focus ownership"
 ```
 
-### Task 20: Translations across all eight locales
+#### Task 20: Translations across all eight locales
 
 **Files:**
 - Modify: `packages/i18n/src/admin/{en,fr,de,es,it,ko,th,zh-CN}.json`
@@ -1893,7 +1987,7 @@ git add packages/i18n/src/admin
 git commit -s -m "feat(i18n): added embedded relation creation strings to all bundled locales"
 ```
 
-### Task 21: Browser verification
+#### Task 21: Browser verification
 
 **Files:** none — this task produces a recorded result, not a committed spec.
 
@@ -1962,7 +2056,7 @@ both forms mounted.
 **Expected:** all rows PASS, and `tab panels seen` counts at least two — otherwise the
 assertion proved nothing, which is the failure mode this scenario exists to avoid.
 
-### Task 22: Documentation
+#### Task 22: Documentation
 
 **Files:**
 - Modify: `docs/04-collections/03-relationships.md`
@@ -1990,7 +2084,7 @@ git commit -s -m "docs: documented embedded creation from relationship fields"
 
 ---
 
-## Final verification
+## Part II — final verification
 
 - [ ] `pnpm byline:generate:check`
 - [ ] `pnpm lint`
@@ -2017,20 +2111,21 @@ git commit -s -m "docs: documented embedded creation from relationship fields"
 
 These come from the spec's *Review decisions before implementation* table.
 
-**Phases 1 and 2 (Tasks 1–7) are unblocked** — they are #94 extraction and
-concurrent-form correctness work that depends on no open decision, and both are
-independently shippable.
+**All of Part I (Tasks 1–7, branch `refactor/forms`) is unblocked** — it is #94
+extraction and concurrent-form correctness work that depends on no open decision, and
+it merges to `develop` on its own merits.
 
-**Phase 3 is partly blocked.** Tasks 8 and 9 are self-contained server changes and may
-proceed. **Task 10 is blocked** on the host capability-surface decision below, since
-it fixes the exported names and the provider placement.
-
-**Phase 4 onward is blocked** until every row is settled.
+**Part II starts partly blocked.** Tasks 8 and 9 are self-contained server changes and
+are the first work once `feature/relation-create-new` exists — that is, after Part I
+has merged into `develop`. They never run in parallel with Part I. **Task 10 is blocked** on the host
+capability-surface decision below, since it fixes the exported names and the provider
+placement. **Task 11 onward is blocked** until every row is settled — which is why
+Checkpoint 4 sits immediately before Task 10.
 
 | Decision | Blocks | Proposed baseline |
 |---|---|---|
 | Initial publication status (media starts Draft; public reads will not resolve it until activated) | Task 13 copy, Task 20 keys | Preserve ordinary lifecycle defaults and explain the consequence in the view |
-| Creation locale experience for a parent editing a non-default locale | Task 12 notice, Task 19 keys | Create in the default locale and show "New documents are created in {locale}" |
+| Creation locale experience for a parent editing a non-default locale | Task 13 notice, Task 20 keys | Create in the default locale and show "New documents are created in {locale}" |
 | Omitted system controls (path derivation, advertised locales, tree placement) | Task 13 | Server derivation only; send no overrides; no tree placement |
 | Host capability surface — exported names and provider placement | Task 10 | Three optional members on `BylineFieldServices` |
 | Receipt and selection-handoff types | Tasks 11, 15 | `CreationReceipt` + `RelationPresentation` as defined above |
@@ -2045,3 +2140,9 @@ it fixes the exported names and the provider placement.
    receipt-handoff work in Task 15.
 3. **Task 22 (docs) is included**, which the spec does not require. A user-visible
    editing affordance should not ship undocumented.
+4. **The work is split across two branches**, which the spec does not specify. The spec
+   sequences #94's extractions ahead of the feature but treats it as one effort.
+   Separating `refactor/forms` from `feature/relation-create-new`, and merging the
+   first to `develop` before starting the second, keeps a behaviour-preserving hot-path
+   change bisectable on its own and lets Part I ship whether or not the feature
+   proceeds. It changes no requirement in the spec, only the delivery shape.
