@@ -66,6 +66,28 @@
   display: none;
 }
 
+/* Drag-to-scroll affordance. Only an overflowing strip has anywhere to go, so
+   only an overflowing strip offers the grab cursor. The tabs keep their own
+   pointer cursor, so they still read as clickable. */
+.viewport[data-draggable="true"],
+:global(.byline-admin-tabs-viewport)[data-draggable="true"] {
+  cursor: grab;
+}
+
+.viewport[data-dragging="true"],
+:global(.byline-admin-tabs-viewport)[data-dragging="true"] {
+  cursor: grabbing;
+  /* Suppress text selection for the duration: without this a drag across the
+     labels selects them, and the selection highlight follows the pointer. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.viewport[data-dragging="true"] :global(.byline-admin-tab),
+:global(.byline-admin-tabs-viewport)[data-dragging="true"] :global(.byline-admin-tab) {
+  cursor: grabbing;
+}
+
 /* Edge fades, applied as a mask so they neither scroll with the content nor
    need elements of their own. Each side is sized to zero unless that edge has
    something beyond it, which tabs.tsx reports via the data attributes. */

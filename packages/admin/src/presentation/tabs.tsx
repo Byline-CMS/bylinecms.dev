@@ -11,6 +11,8 @@
 import {
   type CSSProperties,
   type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -22,6 +24,7 @@ import { useTranslation } from '@byline/i18n/react'
 import { Badge, Dropdown, EllipsisIcon } from '@byline/ui/react'
 import cx from 'clsx'
 
+import { advanceDrag, type DragState, shouldStartDrag, shouldSuppressClick } from './tab-strip-drag'
 import { computeRevealScroll, computeStripState, type StripState } from './tab-strip-geometry'
 import styles from './tabs.module.css'
 
@@ -202,6 +205,77 @@ export const AdminTabs = ({
     [onChange]
   )
 
+  // ─── Drag-to-scroll ────────────────────────────────────────────────────
+  //
+  // Touch scrolls the viewport natively; this exists for mouse users, who
+  // otherwise have no way to reach an off-screen tab but the menu — a plain
+  // wheel has no horizontal axis.
+
+  const dragRef = useRef<DragState | null>(null)
+  // When the last drag ended. A drag finishing over a tab would otherwise
+  // select it, and a timestamp expires on its own where a flag would sit armed
+  // waiting for a click that a drag released off-strip never produces.
+  const dragEndedAtRef = useRef<number | null>(null)
+  const [dragging, setDragging] = useState(false)
+
+  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    const viewport = viewportRef.current
+    if (viewport == null) return
+    if (
+      shouldStartDrag({
+        pointerType: event.pointerType,
+        button: event.button,
+        overflowing: strip.overflowing,
+      }) === false
+    ) {
+      return
+    }
+    dragRef.current = {
+      origin: { pointerX: event.clientX, scrollLeft: viewport.scrollLeft },
+      dragging: false,
+    }
+  }
+
+  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const state = dragRef.current
+    const viewport = viewportRef.current
+    const row = rowRef.current
+    if (state == null || viewport == null || row == null) return
+
+    const maxScroll = Math.max(0, row.scrollWidth - viewport.clientWidth)
+    const next = advanceDrag(state, event.clientX, maxScroll)
+    // Still inside the threshold — leave the viewport alone so the gesture can
+    // still resolve as a click.
+    if (next.scrollLeft == null) return
+
+    if (state.dragging === false) {
+      state.dragging = true
+      setDragging(true)
+      // Capture so the drag survives the pointer leaving the strip, which is
+      // most of the point: you can pull well past the edge and keep going.
+      viewport.setPointerCapture?.(event.pointerId)
+    }
+    viewport.scrollLeft = next.scrollLeft
+  }
+
+  const handlePointerEnd = (event: PointerEvent<HTMLDivElement>) => {
+    const state = dragRef.current
+    if (state == null) return
+    dragRef.current = null
+    if (state.dragging === false) return
+
+    setDragging(false)
+    viewportRef.current?.releasePointerCapture?.(event.pointerId)
+    dragEndedAtRef.current = performance.now()
+  }
+
+  const handleClickCapture = (event: MouseEvent<HTMLDivElement>) => {
+    if (shouldSuppressClick(dragEndedAtRef.current, performance.now()) === false) return
+    dragEndedAtRef.current = null
+    event.stopPropagation()
+    event.preventDefault()
+  }
+
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const current = tabs.findIndex((tab) => tab.name === activeTab)
     if (current < 0 || tabs.length === 0) return
@@ -244,8 +318,15 @@ export const AdminTabs = ({
       <div
         ref={viewportRef}
         onScroll={measure}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
+        onClickCapture={handleClickCapture}
         data-at-start={strip.atStart}
         data-at-end={strip.atEnd}
+        data-draggable={strip.overflowing}
+        data-dragging={dragging}
         className={cx('byline-admin-tabs-viewport', styles.viewport)}
       >
         <div
