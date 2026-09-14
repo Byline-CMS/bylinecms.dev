@@ -25,7 +25,7 @@ Byline CMS — an open-source, AI-first headless CMS. Currently at a stable v6.x
 | `packages/storage-local` | `@byline/storage-local` | Local filesystem storage provider |
 | `packages/storage-s3` | `@byline/storage-s3` | S3-compatible storage provider |
 | `packages/ui` | `@byline/ui` | Framework-agnostic React primitives — Button, Input, Modal, Drawer, Table, Alert, icons, datepicker, generic `DraggableSortable`. No CMS concepts; importable independent of admin. Single barrel at `@byline/ui/react`. |
-| `packages/i18n` | `@byline/i18n` | Admin-interface translation system — `TranslationBundle` types, `mergeTranslations`, ICU formatter, locale resolution. React surface (`I18nProvider`, `useTranslation`, `LanguageMenu`) at `@byline/i18n/react`. Built-in `byline-admin` bundle (EN/FR) + `adminTranslations({ locales })` factory at `@byline/i18n/admin`. |
+| `packages/i18n` | `@byline/i18n` | Admin-interface translation system — `TranslationBundle` types, `mergeTranslations`, ICU formatter, locale resolution. React surface (`I18nProvider`, `useTranslation`, `LanguageMenu`) at `@byline/i18n/react`. Built-in `byline-admin` bundle (8 locales: `en`, `fr`, `de`, `es`, `it`, `ko`, `th`, `zh-CN`) + `adminTranslations({ locales })` factory at `@byline/i18n/admin`. |
 | `packages/richtext-lexical` | `@byline/richtext-lexical` | Lexical-based richtext editor adapter |
 | `packages/search-analysis` | `@byline/search-analysis` | Portable multilingual term analysis, backend-neutral query planning, and offset-aware highlighting — NFKC normalization, locale resolution, protected identifiers, ICU word segmentation, language expansion hooks, Han bigrams, analyzer fingerprints, and SQL-safe physical tokens |
 | `packages/search-conformance` | `@byline/search-conformance` | Private backend-neutral behavioral suite for `SearchProvider` adapters — capabilities, lifecycle/scoping, full-text matching, highlighting, portable parser survival, weighting, and analyzer-fingerprint rebuild enforcement |
@@ -247,7 +247,7 @@ the planned attachment-extraction boundary is
 
 ### Admin interface i18n (`@byline/i18n`)
 
-Shipped in v2.6.0 — the admin shell renders end-to-end in English and French, with hooks for plugins / custom fields / extensions to register their own translations.
+Shipped in v2.6.0 — the admin shell renders end-to-end in eight bundled locales (`en`, `fr`, `de`, `es`, `it`, `ko`, `th`, `zh-CN`), with hooks for plugins / custom fields / extensions to register their own translations. Key parity across all eight is enforced by `packages/i18n/src/admin/index.test.node.ts`, so a new key must land in every bundle.
 
 - **Package layout**: `@byline/i18n` root is React-free (types, `mergeTranslations`, ICU formatter, locale resolver — safe in server contexts). `@byline/i18n/react` is the single React barrel (`I18nProvider`, `useTranslation`, `LanguageMenu`). `@byline/i18n/admin` ships the `byline-admin` namespace bundle + the `adminTranslations({ locales })` factory.
 - **Host integration**: `packages/host-tanstack-start/src/i18n/*` wires the per-request locale (`resolve-locale.ts`), cookie helpers (`locale-cookie.ts`), and server-side translator (`server-translator.ts`). Server fns under `packages/host-tanstack-start/src/server-fns/i18n/*` handle locale persistence (`set-locale.ts`) and client-graph-safe reads (`get-active-locale.ts`).
