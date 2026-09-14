@@ -579,6 +579,7 @@
   "diffModal.currentVersion": "Versión actual",
   "statusBadge.publishedVersionLive": "Hay una versión publicada en vivo",
   "presentation.formTabsAriaLabel": "Pestañas del formulario",
+  "presentation.formTabsAllTabsLabel": "Todas las pestañas",
   "validation.password.tooShort": "La contraseña debe tener al menos 8 caracteres.",
   "validation.password.tooLong": "La contraseña no debe superar los 128 caracteres.",
   "validation.password.complexity": "La contraseña debe contener al menos una letra mayúscula, una letra minúscula, un número y uno de los siguientes caracteres: #?!@$%^&*-",

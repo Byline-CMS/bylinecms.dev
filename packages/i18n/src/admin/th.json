@@ -579,6 +579,7 @@
   "diffModal.currentVersion": "เวอร์ชันปัจจุบัน",
   "statusBadge.publishedVersionLive": "มีเวอร์ชันที่เผยแพร่ใช้งานอยู่",
   "presentation.formTabsAriaLabel": "แท็บฟอร์ม",
+  "presentation.formTabsAllTabsLabel": "แท็บทั้งหมด",
   "validation.password.tooShort": "รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร",
   "validation.password.tooLong": "รหัสผ่านต้องมีไม่เกิน 128 ตัวอักษร",
   "validation.password.complexity": "รหัสผ่านต้องมีตัวอักษรพิมพ์ใหญ่อย่างน้อยหนึ่งตัว ตัวอักษรพิมพ์เล็กหนึ่งตัว ตัวเลขหนึ่งตัว และอักขระหนึ่งตัวจากรายการต่อไปนี้: #?!@$%^&*-",
