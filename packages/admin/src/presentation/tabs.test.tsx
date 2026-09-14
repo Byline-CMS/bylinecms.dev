@@ -53,6 +53,39 @@ import { AdminTabs } from './tabs'
  */
 const layout = { container: 0, row: 0 }
 
+function installPointerStubs() {
+  // jsdom implements neither pointer capture nor scrollTo; the component guards
+  // both, and these stubs let the drag path run end to end in a test.
+  HTMLElement.prototype.setPointerCapture = () => {}
+  HTMLElement.prototype.releasePointerCapture = () => {}
+  HTMLElement.prototype.hasPointerCapture = () => false
+  Object.defineProperty(HTMLElement.prototype, 'scrollLeft', {
+    configurable: true,
+    get(this: HTMLElement & { _scrollLeft?: number }) {
+      return this._scrollLeft ?? 0
+    },
+    set(this: HTMLElement & { _scrollLeft?: number }, value: number) {
+      this._scrollLeft = value
+    },
+  })
+}
+
+/** jsdom has no PointerEvent constructor, so synthesise one from MouseEvent. */
+function pointerEvent(
+  type: string,
+  init: { clientX?: number; pointerType?: string; button?: number }
+) {
+  const event = new MouseEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    clientX: init.clientX ?? 0,
+    button: init.button ?? 0,
+  })
+  Object.defineProperty(event, 'pointerType', { value: init.pointerType ?? 'mouse' })
+  Object.defineProperty(event, 'pointerId', { value: 1 })
+  return event
+}
+
 function installLayoutStubs() {
   Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
     configurable: true,
@@ -96,6 +129,7 @@ describe('AdminTabs', () => {
 
   beforeEach(() => {
     installLayoutStubs()
+    installPointerStubs()
     ;(globalThis as any).ResizeObserver = StubResizeObserver
     resizeCallbacks.length = 0
     observed.length = 0
@@ -331,5 +365,117 @@ describe('AdminTabs', () => {
     expect(observedClasses.some((c) => c.includes('byline-admin-tabs-viewport'))).toBe(false)
     expect(observedClasses.some((c) => c.includes('byline-admin-tablist'))).toBe(true)
     expect(observedClasses.some((c) => c.includes('byline-admin-tabs '))).toBe(true)
+  })
+
+  // ─── Drag-to-scroll (desktop) ─────────────────────────────────────────
+
+  const viewport = () =>
+    container.querySelector<HTMLElement>('.byline-admin-tabs-viewport') as HTMLElement
+
+  const drag = (from: number, to: number, pointerType = 'mouse') => {
+    const vp = viewport()
+    act(() => {
+      vp.dispatchEvent(pointerEvent('pointerdown', { clientX: from, pointerType }))
+      vp.dispatchEvent(pointerEvent('pointermove', { clientX: to, pointerType }))
+      vp.dispatchEvent(pointerEvent('pointerup', { clientX: to, pointerType }))
+    })
+  }
+
+  it('scrolls the strip when dragged with the mouse', () => {
+    layout.row = 1600
+    render()
+    viewport().scrollLeft = 100
+
+    drag(300, 240)
+
+    expect(viewport().scrollLeft).toBe(160)
+  })
+
+  it('leaves touch dragging to the browser', () => {
+    layout.row = 1600
+    render()
+    viewport().scrollLeft = 100
+
+    drag(300, 240, 'touch')
+
+    expect(viewport().scrollLeft).toBe(100)
+  })
+
+  it('does not drag a strip that has no overflow', () => {
+    layout.row = 400
+    render()
+    viewport().scrollLeft = 0
+
+    drag(300, 240)
+
+    expect(viewport().scrollLeft).toBe(0)
+  })
+
+  /**
+   * The whole reason for the movement threshold: a plain click must still
+   * select its tab.
+   */
+  it('still selects a tab on a click that never became a drag', () => {
+    layout.row = 1600
+    render()
+    const vp = viewport()
+
+    act(() => {
+      vp.dispatchEvent(pointerEvent('pointerdown', { clientX: 300 }))
+      vp.dispatchEvent(pointerEvent('pointermove', { clientX: 302 }))
+      vp.dispatchEvent(pointerEvent('pointerup', { clientX: 302 }))
+      tabButtons()[2].click()
+    })
+
+    expect(onChange).toHaveBeenCalledWith('bibliographic')
+  })
+
+  it('does not select a tab on the click that ends a drag', () => {
+    layout.row = 1600
+    render()
+
+    drag(300, 240)
+    act(() => {
+      tabButtons()[2].click()
+    })
+
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  /**
+   * The case that a consume-once flag gets wrong. A drag released outside the
+   * strip produces no click at all, so nothing arrives to clear the flag, and
+   * the reader's next deliberate click on a tab would be swallowed instead.
+   */
+  it('selects normally on a later click when the drag produced no click', () => {
+    layout.row = 1600
+    render()
+
+    drag(300, 240)
+
+    // No click followed the drag. Time passes, then the reader clicks a tab.
+    const now = performance.now()
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(now + 5000)
+    act(() => {
+      tabButtons()[2].click()
+    })
+    clock.mockRestore()
+
+    expect(onChange).toHaveBeenCalledWith('bibliographic')
+  })
+
+  /** The suppression is one-shot — the next click must select normally. */
+  it('selects again on the click after the drag-ending one', () => {
+    layout.row = 1600
+    render()
+
+    drag(300, 240)
+    act(() => {
+      tabButtons()[2].click()
+      tabButtons()[1].click()
+    })
+
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange).toHaveBeenCalledWith('classification')
   })
 })
