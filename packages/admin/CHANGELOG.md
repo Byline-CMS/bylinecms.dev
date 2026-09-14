@@ -1,5 +1,31 @@
 # @byline/admin
 
+## 6.2.0
+
+### Minor Changes
+
+- made the admin tab strip overflow-aware, with horizontal scrolling, drag-to-scroll on desktop and an all-tabs menu when tabs exceed the column
+  closed the tablist accessibility gaps: roving tabindex, arrow/Home/End traversal and aria-controls panel wiring
+- c035938: Added drag-to-scroll to the admin tab strip. Touch already slid the strip natively; a mouse now does too, with a grab cursor advertising it on an overflowing strip. Touch and pen keep the browser's own scrolling. A drag does not begin until the pointer has travelled five pixels, so clicking a tab still selects it, and the click that ends a drag does not.
+- b07fdec: Made the admin tab strip overflow-aware. A collection may declare any number of tabs while the column holding them is fixed, so the strip now scrolls horizontally and grows a menu listing every tab once the tabs exceed the column. Tabs keep their declared order and never move as a result of being selected.
+  
+  Also closes the tablist's standing accessibility gaps: roving tabindex, arrow/Home/End traversal, and `aria-controls` wiring to the panels, which the form renderer and history view now mark up as tabpanels.
+  
+  `AdminTabs` takes a new required `idBase` prop, used to derive the tab and panel ids; the exported `tabTriggerId` / `tabPanelId` helpers build the matching panel ids. Custom callers of `AdminTabs` must pass it and mark their panel up as a `tabpanel`.
+  
+  The markup gained a scrolling viewport between the strip container and the tablist. `.byline-admin-tabs` is now the outer strip rather than the tablist itself, and the tablist has its own `.byline-admin-tablist` handle — stylesheets overriding `.byline-admin-tabs` for tab layout (`gap`, `display`) should move those rules to `.byline-admin-tablist`.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [b07fdec]
+  - @byline/analytics@6.2.0
+  - @byline/analytics-agent@6.2.0
+  - @byline/auth@6.2.0
+  - @byline/core@6.2.0
+  - @byline/i18n@6.2.0
+  - @byline/ui@6.2.0
+
 ## 6.1.0
 
 ### Minor Changes

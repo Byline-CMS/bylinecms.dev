@@ -1,5 +1,18 @@
 # @byline/search-mysql
 
+## 6.2.0
+
+### Minor Changes
+
+- made the admin tab strip overflow-aware, with horizontal scrolling, drag-to-scroll on desktop and an all-tabs menu when tabs exceed the column
+  closed the tablist accessibility gaps: roving tabindex, arrow/Home/End traversal and aria-controls panel wiring
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@6.2.0
+  - @byline/search-analysis@6.2.0
+
 ## 6.1.0
 
 ### Minor Changes
