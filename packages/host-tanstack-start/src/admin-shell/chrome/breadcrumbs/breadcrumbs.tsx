@@ -45,13 +45,10 @@ export function Breadcrumbs({
   // visibleIndices = indices into breadcrumbs[] that are shown inline.
   // Anything missing from this set is rolled into the overflow dropdown.
   // Default to "all visible" so SSR and pre-measurement paints look right.
+  // No reset effect is needed when the trail changes: the hidden measurement
+  // layer always renders every breadcrumb regardless of visibility, so the
+  // effect below recomputes the final indices from scratch before paint.
   const [visibleIndices, setVisibleIndices] = useState<number[]>(() => breadcrumbs.map((_, i) => i))
-
-  // Reset visibility when breadcrumbs change; the measurement effect below
-  // will collapse again on the next layout tick if needed.
-  useIsoLayoutEffect(() => {
-    setVisibleIndices(breadcrumbs.map((_, i) => i))
-  }, [breadcrumbs])
 
   useIsoLayoutEffect(() => {
     const nav = navRef.current
@@ -113,7 +110,10 @@ export function Breadcrumbs({
     const ro = new ResizeObserver(compute)
     ro.observe(nav)
     return () => ro.disconnect()
-  }, [breadcrumbs])
+    // `homeLabel` renders as text in the measured row, so its width feeds the
+    // same calculation. Now that the breadcrumb array is referentially stable,
+    // a home-label-only change no longer re-measures incidentally.
+  }, [breadcrumbs, homeLabel])
 
   const overflowed = useMemo(() => {
     const visible = new Set(visibleIndices)

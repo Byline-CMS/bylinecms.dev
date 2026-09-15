@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { createContext, type ReactNode, useContext, useState } from 'react'
+import { createContext, type ReactNode, useCallback, useContext, useState } from 'react'
 
 import type { Breadcrumb } from './@types.js'
 
@@ -23,6 +23,32 @@ interface BreadcrumbsContextType {
 
 const BreadcrumbsContext = createContext<BreadcrumbsContextType | undefined>(undefined)
 
+/**
+ * Route components build their breadcrumb trail from an inline array literal,
+ * so every render submits a new array that is almost always value-identical to
+ * the last one. Comparing by value lets the provider hand back the previous
+ * state, which keeps the array reference — and therefore the measurement
+ * effect in `Breadcrumbs` — stable across unrelated renders.
+ */
+function sameBreadcrumbs(a: Breadcrumb[], b: Breadcrumb[]): boolean {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  return a.every(
+    (crumb, index) =>
+      crumb.label === b[index].label &&
+      crumb.href === b[index].href &&
+      crumb.active === b[index].active
+  )
+}
+
+function sameSettings(a: BreadcrumbsSettings, b: BreadcrumbsSettings): boolean {
+  return (
+    a.homeLabel === b.homeLabel &&
+    a.homePath === b.homePath &&
+    sameBreadcrumbs(a.breadcrumbs, b.breadcrumbs)
+  )
+}
+
 export function BreadcrumbsProvider({ children }: { children: ReactNode }) {
   const [breadcrumbSettings, setBreadcrumbSettings] = useState<BreadcrumbsSettings>({
     homeLabel: 'Home',
@@ -30,10 +56,14 @@ export function BreadcrumbsProvider({ children }: { children: ReactNode }) {
     breadcrumbs: [],
   })
 
+  // `BreadcrumbsClient` lists this setter in its effect dependencies, so it
+  // has to stay referentially stable or the effect refires on every render.
+  const setBreadcrumbs = useCallback((settings: BreadcrumbsSettings) => {
+    setBreadcrumbSettings((previous) => (sameSettings(previous, settings) ? previous : settings))
+  }, [])
+
   return (
-    <BreadcrumbsContext
-      value={{ breadCrumbSettings: breadcrumbSettings, setBreadcrumbs: setBreadcrumbSettings }}
-    >
+    <BreadcrumbsContext value={{ breadCrumbSettings: breadcrumbSettings, setBreadcrumbs }}>
       {children}
     </BreadcrumbsContext>
   )
