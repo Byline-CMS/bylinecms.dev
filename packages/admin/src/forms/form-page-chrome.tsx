@@ -117,6 +117,21 @@ export const FormStatusBar = ({
 }: FormStatusBarProps): ReactNode => {
   const { t } = useTranslation('byline-admin')
   const { primaryStatus, secondaryStatuses, isTerminal } = transitions
+  const runTransition = async (status: string) => {
+    if (isBlocked() || !onStatusChange) return
+    if (hasChanges) {
+      onUnsavedChanges()
+      return
+    }
+    onStatusBusyChange(true)
+    try {
+      await onStatusChange(status)
+    } catch (error) {
+      onMutationError?.(error)
+    } finally {
+      onStatusBusyChange(false)
+    }
+  }
 
   return (
     <div className={cx('byline-form-status-bar', styles['status-bar'])}>
@@ -192,40 +207,8 @@ export const FormStatusBar = ({
               type="button"
               intent={isTerminal ? 'info' : 'success'}
               disabled={disabled || statusBusy}
-              onOptionSelect={async (value: string) => {
-                if (isBlocked()) return
-                if (hasChanges) {
-                  onUnsavedChanges()
-                  return
-                }
-                onStatusBusyChange(true)
-                try {
-                  await onStatusChange(value)
-                } catch (error) {
-                  onMutationError?.(error)
-                } finally {
-                  onStatusBusyChange(false)
-                }
-              }}
-              onButtonClick={
-                isTerminal
-                  ? undefined
-                  : async () => {
-                      if (isBlocked()) return
-                      if (hasChanges) {
-                        onUnsavedChanges()
-                        return
-                      }
-                      onStatusBusyChange(true)
-                      try {
-                        await onStatusChange(primaryStatus.name)
-                      } catch (error) {
-                        onMutationError?.(error)
-                      } finally {
-                        onStatusBusyChange(false)
-                      }
-                    }
-              }
+              onOptionSelect={runTransition}
+              onButtonClick={isTerminal ? undefined : () => runTransition(primaryStatus.name)}
             >
               {statusBusy
                 ? '...'

@@ -33,7 +33,8 @@ import {
   useScheduledPublication,
 } from './scheduled-publication-control'
 import { computeStatusTransitions } from './status-transitions'
-import { useFormSubmission } from './use-form-submission'
+import { useDocumentReloadRecovery } from './use-document-reload-recovery'
+import { type SystemFieldsSubmitPayload, useFormSubmission } from './use-form-submission'
 import type { DocumentActionsLocaleOption } from './document-actions'
 import type { UseNavigationGuard } from './navigation-guard'
 
@@ -63,7 +64,7 @@ export interface FormRendererProps {
   onReloadDocument?: () => void | Promise<void>
   mode: 'create' | 'edit'
   fields: Field[]
-  onSubmit: (data: any) => void | Promise<void>
+  onSubmit: (data: SystemFieldsSubmitPayload) => void | Promise<void>
   onCancel: () => void
   onStatusChange?: (nextStatus: string) => Promise<void>
   onUnpublish?: () => Promise<void>
@@ -238,9 +239,6 @@ const FormContent = ({
 
   const [hasChanges, setHasChanges] = useState(hasChangesFn())
   const [statusBusy, setStatusBusy] = useState(false)
-  const formRef = useRef<HTMLFormElement>(null)
-  const focusBeforeBusyRef = useRef<HTMLElement | null>(null)
-  const restoreFocusAfterBusyRef = useRef(false)
   // Block-only "save first" guard. Set true when the editor triggers a
   // guarded action (status change, duplicate, copy-to-locale) while the form
   // is dirty — those actions operate on the saved version, so unsaved edits
@@ -332,26 +330,6 @@ const FormContent = ({
   // The guard hook is injected by the consuming framework (prop > context > no-op fallback).
   const guardFromContext = useNavigationGuardAdapter()
   const useGuard = useNavigationGuardProp ?? guardFromContext
-  const [discarding, setDiscarding] = useState(false)
-  const [reloadFailed, setReloadFailed] = useState(false)
-  const warningRef = useRef<HTMLDivElement>(null)
-  const mutationBlockedRef = useRef(mutationsBlocked)
-  mutationBlockedRef.current = mutationsBlocked || discarding
-  const guard = useGuard(hasChanges && !discarding)
-  useEffect(() => {
-    if (mutationIssue) warningRef.current?.focus()
-  }, [mutationIssue])
-  useEffect(() => {
-    if (!discarding) return
-    // Let the guard's beforeunload listener detach before the explicit discard.
-    Promise.resolve()
-      .then(() => (onReloadDocument ? onReloadDocument() : window.location.reload()))
-      .catch(() => {
-        setDiscarding(false)
-        setReloadFailed(true)
-      })
-  }, [discarding, onReloadDocument])
-
   // Compute available status transitions
   const currentStatus = initialData?.status
   const { primaryStatus, secondaryStatuses, isTerminal } = computeStatusTransitions(
@@ -364,14 +342,6 @@ const FormContent = ({
     return subscribeMeta(() => setHasChanges(hasChangesFn()))
   }, [subscribeMeta, hasChangesFn])
 
-  const captureFocusBeforeBusy = useCallback(() => {
-    if (focusBeforeBusyRef.current != null) return
-    const activeElement = document.activeElement
-    if (!(activeElement instanceof HTMLElement) || !formRef.current?.contains(activeElement)) return
-    focusBeforeBusyRef.current = activeElement
-    restoreFocusAfterBusyRef.current = true
-  }, [])
-
   // One save at a time: validate -> upload -> (confirm) -> submit. Admission is
   // decided synchronously inside the hook, so two Saves in the same turn cannot
   // both get through. `phase` is what the UI renders.
@@ -381,39 +351,23 @@ const FormContent = ({
     documentId: mode === 'edit' && typeof initialData?.id === 'string' ? initialData.id : undefined,
     advertiseLocales,
     onSubmit,
-    isBlocked: () => mutationBlockedRef.current,
-    onBeforeBusy: captureFocusBeforeBusy,
+    isBlocked: (): boolean => recovery.mutationBlockedRef.current,
+    onBeforeBusy: (): void => recovery.captureFocusBeforeBusy(),
   })
+  const recovery = useDocumentReloadRecovery({
+    mutationsBlocked,
+    mutationIssue,
+    onReloadDocument,
+    isBusy: submission.isBusy,
+  })
+  const { formRef, warningRef, mutationBlockedRef, discarding, reloadFailed, requestDiscard } =
+    recovery
+  const guard = useGuard(hasChanges && !discarding)
   const isUploading = submission.phase.kind === 'uploading'
   const isSubmitting = submission.phase.kind === 'submitting'
   const isBusy = submission.isBusy
   const pendingSystemFieldsSubmit =
     submission.phase.kind === 'confirmingSystemFields' ? submission.phase.payload : null
-
-  // `inert` removes the active control from the tab order while a save is in
-  // flight. Restore the editor's position after React has removed `inert`;
-  // when the original control became disabled, fall back to the first usable
-  // form control instead of leaving focus on <body>.
-  useEffect(() => {
-    if (isBusy || !restoreFocusAfterBusyRef.current) return
-    restoreFocusAfterBusyRef.current = false
-
-    if (mutationIssue) {
-      warningRef.current?.focus()
-      focusBeforeBusyRef.current = null
-      return
-    }
-    const original = focusBeforeBusyRef.current
-    focusBeforeBusyRef.current = null
-    const originalCanReceiveFocus =
-      original?.isConnected === true && !original.matches(':disabled, [aria-disabled="true"]')
-    const target = originalCanReceiveFocus
-      ? original
-      : formRef.current?.querySelector<HTMLElement>(
-          'input:not(:disabled), textarea:not(:disabled), select:not(:disabled), button:not(:disabled), [tabindex]:not([tabindex="-1"])'
-        )
-    target?.focus({ preventScroll: true })
-  }, [isBusy, mutationIssue])
 
   const handleCancel = () => {
     if (onCancel && typeof onCancel === 'function') {
@@ -498,10 +452,7 @@ const FormContent = ({
             warningRef={warningRef}
             discarding={discarding}
             reloadFailed={reloadFailed}
-            onDiscardRequested={() => {
-              setReloadFailed(false)
-              setDiscarding(true)
-            }}
+            onDiscardRequested={requestDiscard}
             scheduling={scheduling}
             restoreWarnings={restoreWarnings}
           />
