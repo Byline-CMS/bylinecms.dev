@@ -44,13 +44,13 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
-    "@changesets/cli": "^3.0.2",
+    "@changesets/cli": "^3.0.3",
     "knip": "^6.35.1",
     "lint-staged": "^17.5.1",
     "simple-git-hooks": "^2.14.0"
   },
   "dependencies": {
-    "turbo": "^2.10.12",
+    "turbo": "^2.10.13",
     "typescript": "^7.0.2"
   },
   "engines": {
