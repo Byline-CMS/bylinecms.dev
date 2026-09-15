@@ -211,6 +211,39 @@ describe('FormRenderer submit contract', () => {
     expect(saveButton?.querySelector('.byline-loader-ellipsis')).toBeNull()
   })
 
+  it('restores focus to the control that had it before the form went busy', async () => {
+    // `inert` drops the active control out of the tab order mid-save. The hook
+    // signals the transition through onBeforeBusy; the component owns the DOM
+    // refs. Drop that signal and focus silently lands on <body>.
+    const submission = deferred()
+    render({ ...baseProps, onSubmit: () => submission.promise })
+    typeIntoTitle('Hello')
+
+    const input = container.querySelector<HTMLInputElement>('input[name="title"]')
+    if (input == null) throw new Error('title input not found')
+    act(() => {
+      input.focus()
+    })
+    expect(document.activeElement).toBe(input)
+
+    submitForm()
+    await act(async () => {})
+
+    // jsdom does not implement `inert`, so the browser's own focus removal has
+    // to be stood in for here. What is under test is the recovery afterwards.
+    act(() => {
+      input.blur()
+    })
+    expect(document.activeElement).not.toBe(input)
+
+    await act(async () => {
+      submission.resolve()
+      await submission.promise
+    })
+
+    expect(document.activeElement).toBe(input)
+  })
+
   it('hides the busy indicator when onSubmit rejects', async () => {
     const submission = deferred()
     render({ ...baseProps, onSubmit: () => submission.promise })

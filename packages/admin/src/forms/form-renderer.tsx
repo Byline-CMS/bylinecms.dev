@@ -10,46 +10,36 @@
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type {
-  AdminResourceConfig,
-  Field,
-  GroupDefinition,
-  RowDefinition,
-  TabSetDefinition,
-  WorkflowStatus,
-} from '@byline/core'
+import type { AdminResourceConfig, Field, WorkflowStatus } from '@byline/core'
 import { getAdminConfig } from '@byline/core'
-import type { DocumentPatch } from '@byline/core/patches'
 import { useTranslation } from '@byline/i18n/react'
-import { Alert, Button, ComboButton, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'clsx'
 
-import { sliceFieldAdmin } from '../fields/field-admin'
-import { FieldRenderer } from '../fields/field-renderer'
 import { useBylineFieldServices } from '../fields/field-services-context'
-import { AdminGroup } from '../presentation/group'
-import { AdminRow } from '../presentation/row'
-import { AdminTabs, tabPanelId, tabTriggerId } from '../presentation/tabs'
-import { AvailableLocalesWidget } from './available-locales-widget'
-import { DocumentActions, type DocumentActionsLocaleOption } from './document-actions'
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
+import { FormLayout } from './form-layout'
 import { NavigationGuardModal, SystemFieldsConfirmModal, UnsavedChangesModal } from './form-modals'
-import styles from './form-renderer.module.css'
-import { FormStatusDisplay } from './form-status-display'
-import { useNavigationGuardAdapter } from './navigation-guard'
-import { PathWidget } from './path-widget'
 import {
-  ScheduledPublicationCell,
+  FormConcurrencyNotices,
+  FormHeadingRow,
+  FormSidebarWidgets,
+  FormStatusBar,
+} from './form-page-chrome'
+import styles from './form-renderer.module.css'
+import { useNavigationGuardAdapter } from './navigation-guard'
+import {
   type ScheduledPublicationInfo,
-  ScheduledPublicationNotice,
   type SchedulePublicationInput,
   useScheduledPublication,
 } from './scheduled-publication-control'
 import { computeStatusTransitions } from './status-transitions'
-import { TreePlacementWidget } from './tree-placement-widget'
-import { executeUploadsWithProgress } from './upload-executor'
-import { useFormLayout } from './use-form-layout'
+import { useFormSubmission } from './use-form-submission'
+import type { DocumentActionsLocaleOption } from './document-actions'
 import type { UseNavigationGuard } from './navigation-guard'
+
+// Re-exported so existing importers of this module keep working; the type now
+// lives with `useFormSubmission`, which produces it.
+export type { SystemFieldsSubmitPayload } from './use-form-submission'
 
 /** Metadata about a previously published version that is still live. */
 export interface PublishedVersionInfo {
@@ -58,24 +48,6 @@ export interface PublishedVersionInfo {
   status: string
   createdAt: string | Date
   updatedAt: string | Date
-}
-
-/**
- * Payload emitted by the form on Save. Carries the content (field data +
- * patches) alongside the document-grain system fields (path / advertised
- * locales) and per-bucket dirty flags so the host can route each piece to the
- * right write path — versioned for content, immediate/non-versioned for the
- * system fields. See docs/08-internationalization/index.md.
- */
-export interface SystemFieldsSubmitPayload {
-  // biome-ignore lint/suspicious/noExplicitAny: data is collection-specific
-  data: any
-  patches: DocumentPatch[]
-  contentDirty: boolean
-  pathDirty: boolean
-  systemPath?: string | null
-  availableLocalesDirty: boolean
-  systemAvailableLocales?: string[]
 }
 
 /** Props shared by both the public FormRenderer and its internal FormContent component. */
@@ -259,34 +231,13 @@ const FormContent = ({
   _activeTabBySet?: Record<string, string>
   _onTabChange?: (tabSetName: string, tabName: string) => void
 }) => {
-  const {
-    getFieldValues,
-    runFieldHooks,
-    validateForm,
-    errors: initialErrors,
-    hasChanges: hasChangesFn,
-    resetHasChanges,
-    getPatches,
-    getDirtyBreakdown,
-    getSystemPath,
-    getSystemAvailableLocales,
-    subscribeErrors,
-    subscribeMeta,
-    setFieldValue,
-    setFieldError,
-    getPendingUploads,
-    clearPendingUploads,
-    setFieldUploading,
-  } = useFormContext()
+  // Field state now reaches the submission hook and the layout walk directly;
+  // FormContent keeps only what its own chrome needs.
+  const { hasChanges: hasChangesFn, subscribeMeta } = useFormContext()
   const { t } = useTranslation('byline-admin')
 
-  const [errors, setErrors] = useState(initialErrors)
   const [hasChanges, setHasChanges] = useState(hasChangesFn())
   const [statusBusy, setStatusBusy] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
-  const submittingRef = useRef(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const isBusy = isUploading || isSubmitting
   const formRef = useRef<HTMLFormElement>(null)
   const focusBeforeBusyRef = useRef<HTMLElement | null>(null)
   const restoreFocusAfterBusyRef = useRef(false)
@@ -295,11 +246,6 @@ const FormContent = ({
   // is dirty — those actions operate on the saved version, so unsaved edits
   // would be silently excluded.
   const [showUnsavedModal, setShowUnsavedModal] = useState(false)
-  // Holds the pending Save payload while the editor confirms an immediate,
-  // non-versioned system-field write (path / advertised locales). Non-null
-  // means the confirmation modal is open. See docs/08-internationalization/index.md.
-  const [pendingSystemFieldsSubmit, setPendingSystemFieldsSubmit] =
-    useState<SystemFieldsSubmitPayload | null>(null)
   const [contentLocale, setContentLocale] = useState(initialLocale ?? defaultLocale)
 
   // Scheduled publication owns three placements — a status-bar cell, an
@@ -333,13 +279,6 @@ const FormContent = ({
   useEffect(() => {
     if (initialLocale) setContentLocale(initialLocale)
   }, [initialLocale])
-
-  // Layout primitives + lookup tables — pure derivations of `adminConfig` +
-  // `fields`. The validator at startup guarantees every reachable name
-  // resolves and every schema field is placed at most once, so the render-time
-  // lookups below are unguarded. See ./use-form-layout.
-  const { fieldByName, tabSetByName, rowByName, groupByName, layout, fieldToTabPath } =
-    useFormLayout(adminConfig, fields)
 
   // ---------------------------------------------------------------------
   // Active-tab state — one tab name per declared tab set.
@@ -375,10 +314,6 @@ const FormContent = ({
     },
     [_onTabChange]
   )
-
-  // Track live form data so TabDefinition.condition functions can react to
-  // field changes. Re-evaluated per keystroke via the meta-subscribe loop.
-  const [formData, setFormData] = useState<Record<string, any>>(() => getFieldValues())
 
   // Live document heading — tracks the useAsTitle field as the user types
   const liveTitle = useFieldValue<string>(useAsTitle ?? '')
@@ -426,17 +361,34 @@ const FormContent = ({
   )
 
   useEffect(() => {
-    return subscribeErrors((newErrors) => setErrors(newErrors))
-  }, [subscribeErrors])
-
-  useEffect(() => {
     return subscribeMeta(() => setHasChanges(hasChangesFn()))
   }, [subscribeMeta, hasChangesFn])
 
-  // Keep formData in sync for evaluating TabDefinition.condition functions
-  useEffect(() => {
-    return subscribeMeta(() => setFormData(getFieldValues()))
-  }, [subscribeMeta, getFieldValues])
+  const captureFocusBeforeBusy = useCallback(() => {
+    if (focusBeforeBusyRef.current != null) return
+    const activeElement = document.activeElement
+    if (!(activeElement instanceof HTMLElement) || !formRef.current?.contains(activeElement)) return
+    focusBeforeBusyRef.current = activeElement
+    restoreFocusAfterBusyRef.current = true
+  }, [])
+
+  // One save at a time: validate -> upload -> (confirm) -> submit. Admission is
+  // decided synchronously inside the hook, so two Saves in the same turn cannot
+  // both get through. `phase` is what the UI renders.
+  const submission = useFormSubmission({
+    mode,
+    fields,
+    documentId: mode === 'edit' && typeof initialData?.id === 'string' ? initialData.id : undefined,
+    advertiseLocales,
+    onSubmit,
+    isBlocked: () => mutationBlockedRef.current,
+    onBeforeBusy: captureFocusBeforeBusy,
+  })
+  const isUploading = submission.phase.kind === 'uploading'
+  const isSubmitting = submission.phase.kind === 'submitting'
+  const isBusy = submission.isBusy
+  const pendingSystemFieldsSubmit =
+    submission.phase.kind === 'confirmingSystemFields' ? submission.phase.payload : null
 
   // `inert` removes the active control from the tab order while a save is in
   // flight. Restore the editor's position after React has removed `inert`;
@@ -463,240 +415,16 @@ const FormContent = ({
     target?.focus({ preventScroll: true })
   }, [isBusy, mutationIssue])
 
-  const captureFocusBeforeBusy = useCallback(() => {
-    if (focusBeforeBusyRef.current != null) return
-    const activeElement = document.activeElement
-    if (!(activeElement instanceof HTMLElement) || !formRef.current?.contains(activeElement)) return
-    focusBeforeBusyRef.current = activeElement
-    restoreFocusAfterBusyRef.current = true
-  }, [])
-
   const handleCancel = () => {
     if (onCancel && typeof onCancel === 'function') {
       onCancel()
     }
   }
 
-  // Await the host handler. Resolution means the save succeeded and the clean
-  // baseline can be committed; rejection preserves dirty state so the editor
-  // does not lose work and the navigation guard keeps blocking. Host handlers
-  // that surface their own toast MUST rethrow afterwards.
-  // Re-entry guard lives in a ref so the callback identity does not change
-  // mid-flight; the mirrored state drives the Save button's disabled prop.
-  const submitPayload = useCallback(
-    async (payload: SystemFieldsSubmitPayload) => {
-      if (mutationBlockedRef.current || typeof onSubmit !== 'function') return
-      if (submittingRef.current) return
-      submittingRef.current = true
-      captureFocusBeforeBusy()
-      setIsSubmitting(true)
-      try {
-        await onSubmit(payload)
-        resetHasChanges()
-      } catch {
-        // Intentionally swallowed here — the host has already reported the
-        // failure to the user. Dirty state is preserved by not resetting.
-      } finally {
-        submittingRef.current = false
-        setIsSubmitting(false)
-      }
-    },
-    [captureFocusBeforeBusy, onSubmit, resetHasChanges]
-  )
-
   const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
-    if (mutationBlockedRef.current) {
-      e.preventDefault()
-      return
-    }
     e.preventDefault()
-
-    // Run field-level beforeValidate hooks (submit-time), then validate
-    void (async () => {
-      const hookErrors = await runFieldHooks(fields)
-      const formErrors = validateForm(fields)
-      const allErrors = [...hookErrors, ...formErrors]
-
-      if (allErrors.length > 0) {
-        console.error('Form validation failed:', allErrors)
-        return
-      }
-
-      if (mutationBlockedRef.current) return
-
-      // Execute any pending uploads before submitting
-      const pendingUploads = getPendingUploads()
-      if (pendingUploads.size > 0) {
-        captureFocusBeforeBusy()
-        setIsUploading(true)
-        try {
-          const uploadResult = await executeUploadsWithProgress(
-            pendingUploads,
-            uploadField,
-            ({ fieldPath, status }) => {
-              setFieldUploading(fieldPath, status === 'uploading')
-            },
-            {
-              // Document context for server-side upload hooks: the persisted
-              // document id (edit mode only) plus any `upload.context` form
-              // values declared on the schema field. See UploadConfig.context
-              // in @byline/core.
-              documentId:
-                mode === 'edit' && typeof initialData?.id === 'string' ? initialData.id : undefined,
-              fields,
-              getFormValues: getFieldValues,
-            }
-          )
-
-          // Check for upload errors
-          if (!uploadResult.allSucceeded) {
-            // Set field-level errors for failed uploads
-            for (const [fieldPath, errorMessage] of uploadResult.errors.entries()) {
-              setFieldError(fieldPath, t('forms.uploadFailedFieldError', { message: errorMessage }))
-            }
-            console.error('One or more uploads failed:', uploadResult.errors)
-            setIsUploading(false)
-            return
-          }
-
-          // Replace pending StoredFileValues with real ones in form data
-          for (const [fieldPath, storedFile] of uploadResult.successful.entries()) {
-            setFieldValue(fieldPath, storedFile)
-          }
-
-          // Clear pending uploads (blob URLs already revoked by clearPendingUploads)
-          clearPendingUploads()
-        } catch (err) {
-          console.error('Upload execution error:', err)
-          setIsUploading(false)
-          return
-        }
-        setIsUploading(false)
-      }
-
-      const data = getFieldValues()
-      const patches = getPatches()
-      const { contentDirty, pathDirty, availableLocalesDirty, reason } = getDirtyBreakdown()
-      const systemPath = getSystemPath()
-      // Only emit the advertised-locale set for collections that opted into the
-      // widget — otherwise leave it undefined so the write path never touches
-      // `byline_document_available_locales` for non-advertising collections.
-      const systemAvailableLocales = advertiseLocales ? getSystemAvailableLocales() : undefined
-
-      const payload: SystemFieldsSubmitPayload = {
-        data,
-        patches,
-        contentDirty,
-        pathDirty,
-        systemPath,
-        availableLocalesDirty,
-        systemAvailableLocales,
-      }
-
-      // Editing the document-grain system fields (path / advertised locales) is
-      // an immediate, non-versioned write that does NOT reset workflow status,
-      // so confirm it before saving. Create mode writes everything as part of
-      // the initial version, so no confirmation applies there.
-      if (mode === 'edit' && (reason === 'direct-write' || reason === 'both')) {
-        setPendingSystemFieldsSubmit(payload)
-        return
-      }
-
-      await submitPayload(payload)
-    })()
-  }
-
-  // Per-tab-set error counts: { [tabSetName]: { [tabName]: count } }.
-  // Each <Tabs> bar consumes its own slice.
-  const tabErrorCountsBySet = useMemo<Record<string, Record<string, number>>>(() => {
-    const result: Record<string, Record<string, number>> = {}
-    for (const err of errors) {
-      const path = fieldToTabPath.get(err.field)
-      if (!path) continue
-      result[path.tabSetName] ??= {}
-      result[path.tabSetName]![path.tabName] = (result[path.tabSetName]?.[path.tabName] ?? 0) + 1
-    }
-    return result
-  }, [errors, fieldToTabPath])
-
-  // -------------------------------------------------------------------
-  // Layout walk — recursively dispatches each name in a region to the
-  // appropriate primitive renderer or to <FieldRenderer>.
-  // -------------------------------------------------------------------
-
-  const renderField = (fieldName: string): ReactNode => {
-    const field = fieldByName.get(fieldName)
-    if (!field) return null
-    return (
-      <FieldRenderer
-        key={field.name}
-        field={field}
-        defaultValue={initialData?.fields?.[field.name]}
-        contentLocale={contentLocale}
-        components={adminConfig?.fields?.[field.name]?.components}
-        editor={adminConfig?.fields?.[field.name]?.editor}
-        fieldAdmin={sliceFieldAdmin(adminConfig?.fields, field.name)}
-      />
-    )
-  }
-
-  const renderItem = (name: string): ReactNode => {
-    const tabSet = tabSetByName.get(name)
-    if (tabSet) return renderTabSet(tabSet)
-
-    const group = groupByName.get(name)
-    if (group) return renderGroup(group)
-
-    const row = rowByName.get(name)
-    if (row) return renderRow(row)
-
-    return renderField(name)
-  }
-
-  const renderRow = (row: RowDefinition): ReactNode => (
-    <AdminRow key={`row:${row.name}`}>{row.fields.map((name) => renderField(name))}</AdminRow>
-  )
-
-  const renderGroup = (group: GroupDefinition): ReactNode => (
-    <AdminGroup key={`group:${group.name}`} label={group.label}>
-      {group.fields.map((name) => renderItem(name))}
-    </AdminGroup>
-  )
-
-  const renderTabSet = (set: TabSetDefinition): ReactNode => {
-    const visibleTabs = set.tabs.filter((tab) => !tab.condition || tab.condition(formData))
-    const requested = activeTabBySet[set.name] ?? ''
-    const resolvedActive =
-      visibleTabs.length > 0 && !visibleTabs.some((t) => t.name === requested)
-        ? (visibleTabs[0]?.name ?? requested)
-        : requested
-    const activeTab = visibleTabs.find((t) => t.name === resolvedActive)
-    const idBase = `tabset:${set.name}`
-
-    return (
-      <div key={idBase} className={cx('byline-form-tabset', styles.tabset)}>
-        {visibleTabs.length > 0 && (
-          <AdminTabs
-            idBase={idBase}
-            tabs={visibleTabs}
-            activeTab={resolvedActive}
-            onChange={(tabName) => handleTabChange(set.name, tabName)}
-            errorCounts={tabErrorCountsBySet[set.name]}
-            className={cx('byline-form-tabset-tabs', styles['tabset-tabs'])}
-          />
-        )}
-        {activeTab && (
-          <div
-            role="tabpanel"
-            id={tabPanelId(idBase, activeTab.name)}
-            aria-labelledby={tabTriggerId(idBase, activeTab.name)}
-            className={cx('byline-form-tabset-fields', styles['tabset-fields'])}
-          >
-            {activeTab.fields.map((name) => renderItem(name))}
-          </div>
-        )}
-      </div>
-    )
+    if (mutationBlockedRef.current) return
+    void submission.submit()
   }
 
   const busyAnnouncement = isUploading
@@ -723,302 +451,89 @@ const FormContent = ({
           className={cx('byline-form', styles.form)}
           inert={isBusy ? true : undefined}
         >
-          <div className={cx('byline-form-heading-row', styles['heading-row'])}>
-            <h1 className={cx('byline-form-heading', styles.heading)}>{computedHeading}</h1>
-            {/* Source-locale anchor indicator removed pending heading-layout work.
-            To re-enable: render `<SourceLocaleBadge locale={sourceLocale} />`
-            here from `initialData.sourceLocale` (mismatch-only is the intended
-            end state). See docs/08-internationalization/index.md. */}
-            {headerSlot}
-          </div>
-          <div className={cx('byline-form-status-bar', styles['status-bar'])}>
-            <div className={cx('byline-form-status-details', styles['status-details'])}>
-              <FormStatusDisplay
-                disabled={mutationsBlocked || discarding}
-                initialData={initialData}
-                workflowStatuses={workflowStatuses}
-                publishedVersion={publishedVersion}
-                onUnpublish={onUnpublish}
-                afterStatusCells={
-                  <ScheduledPublicationCell
-                    state={scheduling.state}
-                    timeZone={scheduling.timeZone}
-                  />
-                }
-              />
-            </div>
-            <div className={cx('byline-form-actions', styles.actions)}>
-              <Button
-                className={cx('byline-form-actions-button', styles['actions-button'])}
-                size="sm"
-                intent="noeffect"
-                type="button"
-                onClick={handleCancel}
-              >
-                {hasChanges === false ? t('common.actions.close') : t('common.actions.cancel')}
-              </Button>
-              <Button
-                className={cx('byline-form-actions-button', styles['actions-button'])}
-                size="sm"
-                type="submit"
-                disabled={
-                  mutationsBlocked ||
-                  discarding ||
-                  hasChanges === false ||
-                  isUploading ||
-                  isSubmitting
-                }
-                aria-label={isSubmitting ? t('common.actions.save') : undefined}
-              >
-                {isUploading ? (
-                  t('forms.actions.uploading')
-                ) : (
-                  <span className={cx('byline-form-save-content', styles['save-content'])}>
-                    <span
-                      className={cx(
-                        'byline-form-save-label',
-                        styles['save-label'],
-                        isSubmitting && styles['save-label-hidden']
-                      )}
-                    >
-                      {t('common.actions.save')}
-                    </span>
-                    {isSubmitting ? (
-                      <span className={cx('byline-form-save-loader', styles['save-loader'])}>
-                        <LoaderEllipsis size={28} aria-hidden="true" />
-                      </span>
-                    ) : null}
-                  </span>
-                )}
-              </Button>
-              {primaryStatus && onStatusChange && (
-                <div
-                  className={cx('byline-form-actions-status-wrap', styles['actions-status-wrap'])}
-                >
-                  <ComboButton
-                    buttonClassName={cx(
-                      'byline-form-actions-combo-button',
-                      styles['actions-combo-button']
-                    )}
-                    triggerClassName={cx(
-                      'byline-form-actions-combo-trigger',
-                      styles['actions-combo-trigger']
-                    )}
-                    options={secondaryStatuses.map((s) => ({
-                      label: isTerminal
-                        ? t('forms.actions.revertTo', { label: s.label ?? s.name })
-                        : (s.verb ?? s.label ?? s.name),
-                      value: s.name,
-                    }))}
-                    sideOffset={5}
-                    size="sm"
-                    type="button"
-                    intent={isTerminal ? 'info' : 'success'}
-                    disabled={mutationsBlocked || discarding || statusBusy}
-                    onOptionSelect={async (value: string) => {
-                      if (mutationBlockedRef.current) return
-                      if (hasChanges) {
-                        setShowUnsavedModal(true)
-                        return
-                      }
-                      setStatusBusy(true)
-                      try {
-                        await onStatusChange(value)
-                      } catch (error) {
-                        onMutationError?.(error)
-                      } finally {
-                        setStatusBusy(false)
-                      }
-                    }}
-                    onButtonClick={
-                      isTerminal
-                        ? undefined
-                        : async () => {
-                            if (mutationBlockedRef.current) return
-                            if (hasChanges) {
-                              setShowUnsavedModal(true)
-                              return
-                            }
-                            setStatusBusy(true)
-                            try {
-                              await onStatusChange(primaryStatus.name)
-                            } catch (error) {
-                              onMutationError?.(error)
-                            } finally {
-                              setStatusBusy(false)
-                            }
-                          }
-                    }
-                  >
-                    {statusBusy
-                      ? '...'
-                      : isTerminal
-                        ? (primaryStatus.label ?? primaryStatus.name)
-                        : (primaryStatus.verb ?? primaryStatus.label ?? primaryStatus.name)}
-                  </ComboButton>
-                </div>
-              )}
-              <DocumentActions
-                disabled={mutationsBlocked || discarding}
-                publishedVersion={publishedVersion}
-                onUnpublish={onUnpublish}
-                onDelete={onDelete}
-                onDuplicate={onDuplicate}
-                sourceTitle={
-                  useAsTitle != null && initialData != null
-                    ? ((initialData as Record<string, unknown>)[useAsTitle] as
-                        | string
-                        | null
-                        | undefined)
-                    : null
-                }
-                onCopyToLocale={onCopyToLocale}
-                sourceLocale={contentLocale}
-                contentLocales={contentLocales}
-                hasUnsavedChanges={hasChanges}
-                onUnsavedChanges={() => setShowUnsavedModal(true)}
-                onDeleteLocale={onDeleteLocale}
-                defaultLocale={defaultLocale}
-                availableLocales={initialData?._availableVersionLocales as string[] | undefined}
-                scheduledPublicationState={scheduling.state}
-                onSchedulePublication={scheduling.openSchedule}
-                onConfirmScheduledPublication={scheduling.confirm}
-                onCancelScheduledPublication={scheduling.cancel}
-              />
-            </div>
-          </div>
-          {(mutationIssue || scheduledPublicationsNeedReconfirmation) && (
-            <div
-              ref={warningRef}
-              tabIndex={-1}
-              role="alert"
-              aria-live="assertive"
-              className={cx('byline-document-concurrency', styles.concurrency)}
-            >
-              {mutationIssue && (
-                <Alert
-                  intent="warning"
-                  icon
-                  close={false}
-                  title={t(`documentConcurrency.${mutationIssue}Title`)}
-                >
-                  <p>{t(`documentConcurrency.${mutationIssue}`)}</p>
-                  {mutationIssue !== 'committed' && (
-                    <Button
-                      type="button"
-                      disabled={discarding}
-                      onClick={() => {
-                        setReloadFailed(false)
-                        setDiscarding(true)
-                      }}
-                    >
-                      {t('documentConcurrency.reloadAction')}
-                    </Button>
-                  )}
-                  {reloadFailed && <p>{t('documentConcurrency.reloadFailed')}</p>}
-                </Alert>
-              )}
-              {scheduledPublicationsNeedReconfirmation && (
-                <Alert
-                  intent="warning"
-                  icon
-                  close={false}
-                  title={t('documentConcurrency.schedulesTitle')}
-                >
-                  <p>{t('documentConcurrency.schedules')}</p>
-                  {scheduledPublicationsHref && (
-                    <a href={scheduledPublicationsHref}>
-                      {t('documentConcurrency.reviewSchedules')}
-                    </a>
-                  )}
-                </Alert>
-              )}
-            </div>
-          )}
-          <ScheduledPublicationNotice
-            state={scheduling.state}
-            timeZone={scheduling.timeZone}
-            busy={mutationsBlocked || discarding || scheduling.busy}
-            onConfirm={scheduling.confirm}
-            onReschedule={scheduling.openSchedule}
-            onCancel={scheduling.cancel}
+          <FormHeadingRow heading={computedHeading} headerSlot={headerSlot} />
+          <FormStatusBar
+            disabled={mutationsBlocked || discarding}
+            initialData={initialData}
+            workflowStatuses={workflowStatuses}
+            publishedVersion={publishedVersion}
+            scheduling={scheduling}
+            hasChanges={hasChanges}
+            isUploading={isUploading}
+            isSubmitting={isSubmitting}
+            onCancel={handleCancel}
+            transitions={{ primaryStatus, secondaryStatuses, isTerminal }}
+            statusBusy={statusBusy}
+            onStatusBusyChange={setStatusBusy}
+            onStatusChange={onStatusChange}
+            onMutationError={onMutationError}
+            isBlocked={() => mutationBlockedRef.current}
+            onUnsavedChanges={() => setShowUnsavedModal(true)}
+            onUnpublish={onUnpublish}
+            onDelete={onDelete}
+            onDuplicate={onDuplicate}
+            onCopyToLocale={onCopyToLocale}
+            onDeleteLocale={onDeleteLocale}
+            useAsTitle={useAsTitle}
+            contentLocale={contentLocale}
+            contentLocales={contentLocales}
+            defaultLocale={defaultLocale}
           />
-          {scheduling.modal}
-          {restoreWarnings && restoreWarnings.length > 0 && (
-            <Alert
-              className="m-0 mt-4"
-              intent="warning"
-              icon={true}
-              close={false}
-              title={t('forms.restoreWarnings.title')}
-            >
-              <p>{t('forms.restoreWarnings.body', { count: restoreWarnings.length })}</p>
-              <ul>
-                {restoreWarnings.map((w) => (
-                  <li key={w}>{w}</li>
-                ))}
-              </ul>
-            </Alert>
-          )}
-          <div className={cx('byline-form-layout', styles.layout)}>
-            <div className={cx('byline-form-content', styles.content)}>
-              {layout.main.map((name) => renderItem(name))}
-            </div>
-            <div className={cx('byline-form-sidebar', styles.sidebar)}>
-              {/* A locked collection's widget renders even with no `useAsPath`
-                  and nothing stored yet: its path is managed, and the editor
-                  needs to see that. `showPath: false` still wins — it marks a
-                  path that must never be presented at all. */}
-              {showPath &&
-                (useAsPath ||
-                  adminConfig?.lockPath === true ||
-                  (typeof initialData?.path === 'string' && initialData.path.length > 0)) && (
-                  <PathWidget
-                    disabled={mutationsBlocked || discarding}
-                    useAsPath={useAsPath}
-                    collectionPath={collectionPath ?? ''}
-                    defaultLocale={defaultLocale}
-                    activeLocale={contentLocale}
-                    mode={mode}
-                    slugifier={pathSlugifier}
-                    sourceLocked={pathSourceLocked}
-                    lockPath={adminConfig?.lockPath}
-                  />
-                )}
-              {tree && mode === 'edit' && typeof initialData?.id === 'string' && (
-                <TreePlacementWidget
-                  disabled={mutationsBlocked || discarding}
-                  onMutationError={onMutationError}
-                  onCommitted={onTreeMutationCommitted}
-                  expectedRevision={observedRevision ?? initialData.revision}
-                  collectionPath={collectionPath ?? ''}
-                  documentId={initialData.id as string}
-                  useAsTitle={useAsTitle}
-                />
-              )}
-              {advertiseLocales && (
-                <AvailableLocalesWidget
-                  disabled={mutationsBlocked || discarding}
-                  contentLocales={contentLocales ?? []}
-                  availableVersionLocales={
-                    (initialData?._availableVersionLocales as string[] | undefined) ?? []
-                  }
-                />
-              )}
-              {(layout.sidebar ?? []).map((name) => renderItem(name))}
-            </div>
-          </div>
+          <FormConcurrencyNotices
+            disabled={mutationsBlocked || discarding}
+            mutationIssue={mutationIssue}
+            scheduledPublicationsNeedReconfirmation={scheduledPublicationsNeedReconfirmation}
+            scheduledPublicationsHref={scheduledPublicationsHref}
+            warningRef={warningRef}
+            discarding={discarding}
+            reloadFailed={reloadFailed}
+            onDiscardRequested={() => {
+              setReloadFailed(false)
+              setDiscarding(true)
+            }}
+            scheduling={scheduling}
+            restoreWarnings={restoreWarnings}
+          />
+          <FormLayout
+            fields={fields}
+            adminConfig={adminConfig}
+            initialData={initialData}
+            activeLocale={contentLocale}
+            collectionPath={collectionPath ?? undefined}
+            activeTabBySet={activeTabBySet}
+            onTabChange={handleTabChange}
+            sidebarSlot={
+              <FormSidebarWidgets
+                disabled={mutationsBlocked || discarding}
+                mode={mode}
+                initialData={initialData}
+                collectionPath={collectionPath ?? ''}
+                defaultLocale={defaultLocale}
+                contentLocale={contentLocale}
+                contentLocales={contentLocales}
+                showPath={showPath}
+                useAsPath={useAsPath}
+                lockPath={adminConfig?.lockPath}
+                pathSlugifier={pathSlugifier}
+                pathSourceLocked={pathSourceLocked}
+                tree={tree}
+                useAsTitle={useAsTitle}
+                advertiseLocales={advertiseLocales}
+                observedRevision={observedRevision}
+                onMutationError={onMutationError}
+                onTreeMutationCommitted={onTreeMutationCommitted}
+              />
+            }
+          />
           {showUnsavedModal && <UnsavedChangesModal onClose={() => setShowUnsavedModal(false)} />}
           {!mutationsBlocked && !discarding && pendingSystemFieldsSubmit != null && (
             <SystemFieldsConfirmModal
               contentDirty={pendingSystemFieldsSubmit.contentDirty}
               pathDirty={pendingSystemFieldsSubmit.pathDirty}
               availableLocalesDirty={pendingSystemFieldsSubmit.availableLocalesDirty}
-              onCancel={() => setPendingSystemFieldsSubmit(null)}
+              onCancel={submission.cancelSystemFields}
               onConfirm={() => {
-                const payload = pendingSystemFieldsSubmit
-                setPendingSystemFieldsSubmit(null)
-                void submitPayload(payload)
+                void submission.confirmSystemFields()
               }}
             />
           )}
