@@ -102,26 +102,17 @@ export function createAdminLayoutRoute(path: string) {
       useEffect(() => {
         applyStoredTheme()
       }, [])
-      // Cookie + DB write happen in setAdminLocaleFn; full reload
-      // re-runs beforeLoad so the provider re-renders with the new
-      // bundle/locale (no in-place bundle swap needed for PR 1's scope).
       // Composed here rather than imported as a constant because the create
       // affordance depends on the viewer's abilities, which only exist in route
-      // context. Memoised on the abilities' *content*: the relation picker keeps
-      // `getCollectionDocuments` in its fetch effect's dependency array, so a new
-      // services object per render would refetch the picker on every render of
-      // this layout.
-      //
-      // Keyed on the ability fingerprint rather than on `user`, deliberately:
-      // route context may hand back a new `user` object on a render where nothing
-      // about the viewer changed, and depending on it would rebuild the services
-      // object and refetch the picker.
+      // context. Keying on ability content avoids notifying context consumers
+      // when route context supplies an equivalent user object or abilities array.
       // biome-ignore lint/correctness/useExhaustiveDependencies: see above
       const fieldServices = useMemo(
         () => buildBylineFieldServices(user),
         [abilityFingerprint(user)]
       )
 
+      // The full reload re-runs beforeLoad with the saved locale and its bundle.
       const handleSetLocale = async (next: LocaleCode) => {
         await setAdminLocaleFn({ data: { locale: next } })
         window.location.reload()

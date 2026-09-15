@@ -81,8 +81,8 @@ afterEach(() => {
   container.remove()
 })
 
-const render = (services: Record<string, unknown>, props: Record<string, unknown> = {}) => {
-  act(() => {
+const render = async (services: Record<string, unknown>, props: Record<string, unknown> = {}) => {
+  await act(async () => {
     root.render(
       <I18nProvider
         bundle={adminTranslations({ locales: ['en'] })}
@@ -119,8 +119,8 @@ const bothCapabilities = {
 }
 
 describe('relation picker create affordance', () => {
-  it('is absent when the host wires no capabilities', () => {
-    render({})
+  it('is absent when the host wires no capabilities', async () => {
+    await render({})
 
     expect(createLink()).toBeNull()
   })
@@ -129,33 +129,33 @@ describe('relation picker create affordance', () => {
    * Permission is unknowable without `canCreateInCollection`, and offering a link
    * that leads to a refusal is worse than offering none.
    */
-  it('is absent when only the url capability is wired', () => {
-    render({ getCreateDocumentUrl: (path: string) => `/x/${path}/create` })
+  it('is absent when only the url capability is wired', async () => {
+    await render({ getCreateDocumentUrl: (path: string) => `/x/${path}/create` })
 
     expect(createLink()).toBeNull()
   })
 
-  it('is absent when only the permission capability is wired', () => {
-    render({ canCreateInCollection: () => true })
+  it('is absent when only the permission capability is wired', async () => {
+    await render({ canCreateInCollection: () => true })
 
     expect(createLink()).toBeNull()
   })
 
-  it('is absent when the viewer may not create in the target collection', () => {
-    render({ ...bothCapabilities, canCreateInCollection: () => false })
+  it('is absent when the viewer may not create in the target collection', async () => {
+    await render({ ...bothCapabilities, canCreateInCollection: () => false })
 
     expect(createLink()).toBeNull()
   })
 
-  it('asks about the target collection, not some other one', () => {
+  it('asks about the target collection, not some other one', async () => {
     const canCreateInCollection = vi.fn(() => true)
-    render({ ...bothCapabilities, canCreateInCollection })
+    await render({ ...bothCapabilities, canCreateInCollection })
 
     expect(canCreateInCollection).toHaveBeenCalledWith('media')
   })
 
-  it('renders the host-supplied url when permitted', () => {
-    render(bothCapabilities)
+  it('renders the host-supplied url when permitted', async () => {
+    await render(bothCapabilities)
 
     expect(createLink()?.getAttribute('href')).toBe('/control-panel/collections/media/create')
   })
@@ -165,15 +165,15 @@ describe('relation picker create affordance', () => {
    * with their unsaved state. `noopener` because the opened page must not reach
    * back into this one through `window.opener`.
    */
-  it('opens in a new tab without handing over a window reference', () => {
-    render(bothCapabilities)
+  it('opens in a new tab without handing over a window reference', async () => {
+    await render(bothCapabilities)
 
     expect(createLink()?.getAttribute('target')).toBe('_blank')
     expect(createLink()?.getAttribute('rel')).toContain('noopener')
   })
 
-  it('names the target collection so the reader knows what they are creating', () => {
-    render(bothCapabilities)
+  it('names the target collection so the reader knows what they are creating', async () => {
+    await render(bothCapabilities)
 
     expect(createLink()?.textContent).toContain('Media item')
   })
@@ -182,17 +182,17 @@ describe('relation picker create affordance', () => {
    * An anchor rather than a button calling `window.open`: keyboard and
    * middle-click work for free, and popup blockers leave it alone.
    */
-  it('is a real link, reachable by keyboard', () => {
-    render(bothCapabilities)
+  it('is a real link, reachable by keyboard', async () => {
+    await render(bothCapabilities)
 
     const link = createLink()
     expect(link?.tagName).toBe('A')
     expect(link?.getAttribute('href')).toBeTruthy()
   })
 
-  it('does not dismiss the picker when followed', () => {
+  it('does not dismiss the picker when followed', async () => {
     const onDismiss = vi.fn()
-    render(bothCapabilities, { onDismiss })
+    await render(bothCapabilities, { onDismiss })
 
     act(() => {
       createLink()?.click()

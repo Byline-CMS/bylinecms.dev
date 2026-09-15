@@ -186,18 +186,17 @@ describe('relation picker refresh', () => {
     }))
     await render(getCollectionDocuments)
 
-    const next = Array.from(container.querySelectorAll('button')).find((button) =>
-      (button.textContent ?? '').match(/next|›|»/i)
+    const next = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Next'
     )
-    if (next != null) {
-      await act(async () => {
-        next.click()
-      })
-    }
-    const pageBefore = lastRequest(getCollectionDocuments).params.page
+    if (next == null) throw new Error('Next button not found')
+    await act(async () => {
+      next.click()
+    })
+    expect(lastRequest(getCollectionDocuments).params.page).toBe(2)
     await clickRefresh()
 
-    expect(lastRequest(getCollectionDocuments).params.page).toBe(pageBefore)
+    expect(lastRequest(getCollectionDocuments).params.page).toBe(2)
   })
 
   it('keeps a multi-select choice through a refresh', async () => {
@@ -207,17 +206,72 @@ describe('relation picker refresh', () => {
         { id: 'b', title: 'Banana' },
       ])
     )
-    await render(getCollectionDocuments, { multiple: true, onSelectMany: () => {} })
+    const onSelectMany = vi.fn()
+    await render(getCollectionDocuments, { multiple: true, onSelectMany })
 
-    const firstRow = container.querySelector<HTMLElement>('.byline-field-relation-picker-rows li')
+    const firstChoice = container.querySelector<HTMLButtonElement>(
+      '.byline-field-relation-picker-rows li button'
+    )
+    if (firstChoice == null) throw new Error('First choice not found')
     await act(async () => {
-      firstRow?.querySelector('button')?.click()
+      firstChoice.click()
     })
-    const selectedBefore = container.querySelectorAll('[aria-selected="true"]').length
+    expect(firstChoice.getAttribute('aria-pressed')).toBe('true')
 
     await clickRefresh()
 
-    expect(container.querySelectorAll('[aria-selected="true"]').length).toBe(selectedBefore)
+    const selected = container.querySelectorAll('[aria-pressed="true"]')
+    expect(selected).toHaveLength(1)
+    expect(selected[0]?.textContent).toContain('Apple')
+    const confirm = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Add selected (1)'
+    )
+    if (confirm == null) throw new Error('Selection confirmation not found')
+    await act(async () => {
+      confirm.click()
+    })
+    expect(onSelectMany).toHaveBeenCalledExactlyOnceWith([
+      {
+        targetDocumentId: 'a',
+        targetCollectionId: 'collection-1',
+        record: { id: 'a', fields: { title: 'Apple' } },
+      },
+    ])
+  })
+
+  it('keeps a single choice and confirms its refreshed record', async () => {
+    let title = 'Apple'
+    const getCollectionDocuments = vi.fn(async () => page([{ id: 'a', title }]))
+    const onSelect = vi.fn()
+    await render(getCollectionDocuments, { onSelect })
+
+    const choice = container.querySelector<HTMLButtonElement>(
+      '.byline-field-relation-picker-rows li button'
+    )
+    if (choice == null) throw new Error('Choice not found')
+    await act(async () => {
+      choice.click()
+    })
+    expect(choice.classList.contains('byline-field-relation-picker-row-selected')).toBe(true)
+
+    title = 'Updated Apple'
+    await clickRefresh()
+
+    const selected = container.querySelector('.byline-field-relation-picker-row-selected')
+    expect(selected?.textContent).toContain('Updated Apple')
+    const confirm = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Select'
+    )
+    if (confirm == null) throw new Error('Select button not found')
+    expect(confirm.disabled).toBe(false)
+    await act(async () => {
+      confirm.click()
+    })
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith({
+      targetDocumentId: 'a',
+      targetCollectionId: 'collection-1',
+      record: { id: 'a', fields: { title: 'Updated Apple' } },
+    })
   })
 
   /**

@@ -82,12 +82,10 @@ export interface FieldServicesViewer {
 /**
  * Content-addressed memo key for the services object.
  *
- * `bylineFieldServices` is a module constant, and the relation picker keeps
- * `getCollectionDocuments` in its fetch effect's dependency array. Composing a
- * viewer-dependent object per render would therefore refetch the picker on every
- * host render. Memoising on the abilities array would too, since the host may
- * hand back a fresh array each time. Key on the *content* instead: sorted,
- * because ability order is not meaningful and the server promises none.
+ * Avoids notifying field-service context consumers when the host supplies an
+ * equivalent viewer object or abilities array. Existing service functions retain
+ * their module-level identity even when the containing object is rebuilt.
+ * Ability order is not meaningful, so sort a copy before building the key.
  */
 export function abilityFingerprint(viewer: FieldServicesViewer): string {
   if (viewer.is_super_admin) return 'super-admin'

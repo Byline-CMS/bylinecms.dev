@@ -9,7 +9,11 @@
 import { defineAdminConfig } from '@byline/core'
 import { describe, expect, it } from 'vitest'
 
-import { abilityFingerprint, buildBylineFieldServices } from './byline-field-services.js'
+import {
+  abilityFingerprint,
+  buildBylineFieldServices,
+  bylineFieldServices,
+} from './byline-field-services.js'
 
 // A deliberately non-default admin base: the create URL must come from host
 // configuration, and a hardcoded `/admin` would pass against the usual value.
@@ -36,11 +40,8 @@ const viewer = (abilities: string[], isSuperAdmin = false) => ({
 
 describe('ability fingerprint', () => {
   /**
-   * The services object is a dependency of the relation picker's fetch effect.
-   * Memoising it on the abilities *array* would rebuild it whenever the host
-   * re-rendered with a fresh array, and the picker would refetch on every parent
-   * render. The fingerprint is content-addressed so a new array with the same
-   * abilities produces the same key.
+   * An equivalent abilities array should not invalidate the memoised services
+   * object and notify its context consumers.
    */
   it('is equal for a different array holding the same abilities', () => {
     const a = abilityFingerprint(viewer(['collections.media.create', 'collections.media.read']))
@@ -79,10 +80,12 @@ describe('field services built for a viewer', () => {
   it('keeps the existing services intact', () => {
     const services = buildBylineFieldServices(viewer([]))
 
-    expect(typeof services.getCollectionDocuments).toBe('function')
-    expect(typeof services.uploadField).toBe('function')
-    expect(typeof services.placeTreeNode).toBe('function')
-    expect(typeof services.getTreeAncestors).toBe('function')
+    expect(services.getCollectionDocuments).toBe(bylineFieldServices.getCollectionDocuments)
+    expect(services.uploadField).toBe(bylineFieldServices.uploadField)
+    expect(services.placeTreeNode).toBe(bylineFieldServices.placeTreeNode)
+    expect(services.removeFromTree).toBe(bylineFieldServices.removeFromTree)
+    expect(services.getTreeAncestors).toBe(bylineFieldServices.getTreeAncestors)
+    expect(services.getTreeParent).toBe(bylineFieldServices.getTreeParent)
   })
 
   it('permits creation only for a collection the viewer may create in', () => {
