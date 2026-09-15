@@ -124,6 +124,16 @@ export const AdminTabs = ({
 
   const [strip, setStrip] = useState<StripState>(INITIAL_STRIP_STATE)
 
+  // The measurement effect is keyed on what the tabs *are*, not on the identity
+  // of the array carrying them. A form layout rebuilds that array on every
+  // render — `useFormTabs.resolve()` filters `set.tabs` against live form data,
+  // so a new array arrives per keystroke — and re-running the effect for one of
+  // those renders would disconnect the observer and force a synchronous layout
+  // read on a tree the browser has just invalidated. Labels are part of the key
+  // because the label is what carries the width: a translation change has to
+  // re-measure, a keystroke elsewhere in the form does not.
+  const tabsKey = tabs.map((tab) => `${tab.name}:${tab.label}`).join('\u0000')
+
   const measure = useCallback(() => {
     const container = containerRef.current
     const row = rowRef.current
@@ -162,7 +172,7 @@ export const AdminTabs = ({
     observer.observe(container)
     observer.observe(row)
     return () => observer.disconnect()
-  }, [measure, tabs])
+  }, [measure, tabsKey])
 
   const reveal = useCallback((name: string) => {
     const viewport = viewportRef.current

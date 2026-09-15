@@ -51,7 +51,7 @@ import { AdminTabs } from './tabs'
  * report overflow. Drive the two widths the component reads off its stable
  * override handles.
  */
-const layout = { container: 0, row: 0 }
+const layout = { container: 0, row: 0, rowReads: 0 }
 
 function installPointerStubs() {
   // jsdom implements neither pointer capture nor scrollTo; the component guards
@@ -96,7 +96,11 @@ function installLayoutStubs() {
   Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
     configurable: true,
     get(this: HTMLElement) {
-      return this.classList.contains('byline-admin-tablist') ? layout.row : 0
+      if (!this.classList.contains('byline-admin-tablist')) return 0
+      // Counted, not just answered: in a browser this getter is what forces
+      // the synchronous layout, so the count is the cost under test.
+      layout.rowReads += 1
+      return layout.row
     },
   })
 }
@@ -135,6 +139,7 @@ describe('AdminTabs', () => {
     observed.length = 0
     layout.container = 1000
     layout.row = 400
+    layout.rowReads = 0
     onChange = vi.fn()
     container = document.createElement('div')
     document.body.appendChild(container)
@@ -365,6 +370,48 @@ describe('AdminTabs', () => {
     expect(observedClasses.some((c) => c.includes('byline-admin-tabs-viewport'))).toBe(false)
     expect(observedClasses.some((c) => c.includes('byline-admin-tablist'))).toBe(true)
     expect(observedClasses.some((c) => c.includes('byline-admin-tabs '))).toBe(true)
+  })
+
+  /**
+   * The tab array arrives with a fresh identity on every render of the form
+   * layout: `useFormTabs.resolve()` filters `set.tabs` each time it is called,
+   * and the live form data it filters against updates per keystroke. Keying the
+   * measurement effect on that identity made every unrelated render tear down
+   * the ResizeObserver and force a synchronous layout read — measured in Chrome
+   * against a seeded `pages` document as one forced read per keystroke, and two
+   * on an editor mount.
+   */
+  it('does not re-measure when the parent re-renders with an equal tab array', () => {
+    render()
+    const readsAfterMount = layout.rowReads
+    const observedAfterMount = observed.length
+
+    render({ tabs: TABS.map((tab) => ({ ...tab })) })
+
+    expect(layout.rowReads).toBe(readsAfterMount)
+    expect(observed.length).toBe(observedAfterMount)
+  })
+
+  it('re-measures when a tab is added or removed', () => {
+    render()
+    const readsAfterMount = layout.rowReads
+
+    render({ tabs: [...TABS, { name: 'indexing', label: 'Indexing' }] })
+
+    expect(layout.rowReads).toBeGreaterThan(readsAfterMount)
+  })
+
+  /**
+   * A label carries the width, so a translation change has to re-measure even
+   * though the tab names are untouched.
+   */
+  it('re-measures when a label changes', () => {
+    render()
+    const readsAfterMount = layout.rowReads
+
+    render({ tabs: TABS.map((tab, i) => (i === 0 ? { ...tab, label: 'Détails' } : tab)) })
+
+    expect(layout.rowReads).toBeGreaterThan(readsAfterMount)
   })
 
   // ─── Drag-to-scroll (desktop) ─────────────────────────────────────────
