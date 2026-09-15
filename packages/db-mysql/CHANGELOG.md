@@ -1,5 +1,18 @@
 # @byline/db-mysql
 
+## 6.3.0
+
+### Minor Changes
+
+- added a relation-picker create link and explicit refresh, with host-supplied create-affordance capabilities on field services
+  scoped form and field DOM ids per form instance, fixing id collisions and submit leakage from portalled child forms
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@6.3.0
+  - @byline/core@6.3.0
+
 ## 6.2.1
 
 ### Patch Changes
