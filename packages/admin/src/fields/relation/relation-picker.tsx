@@ -294,29 +294,32 @@ export const RelationPicker = ({
                 it. */}
             <Button
               type="button"
-              size="sm"
-              variant="text"
+              size="xs"
+              variant="outlined"
               className={cx('byline-field-relation-picker-refresh', styles.refresh)}
               onClick={() => setRefreshNonce((nonce) => nonce + 1)}
             >
               {t('fields.relation.picker.refresh')}
             </Button>
             {createHref != null && (
-              // A real link, not a button calling `window.open`: keyboard
-              // activation and middle-click work without help, and popup blockers
-              // leave it alone. A new tab keeps this picker and the parent editor
-              // mounted, so unsaved work survives — which is the whole point of the
-              // affordance. `noopener` keeps the opened page out of `window.opener`.
-              <a
+              // Rendered as an anchor, styled as a button: keyboard activation and
+              // middle-click work without help and popup blockers leave real links
+              // alone, while `Button`'s `render` prop keeps it visually part of the
+              // toolbar. A new tab keeps this picker and the parent editor mounted,
+              // so unsaved work survives — the whole point of the affordance.
+              // `noopener` keeps the opened page out of `window.opener`.
+              <Button
+                size="xs"
+                variant="outlined"
                 className={cx('byline-field-relation-picker-create', styles.create)}
-                href={createHref}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {t('fields.relation.picker.createNew', {
-                  label: targetDefinition?.labels.singular ?? targetCollectionPath,
-                })}
-              </a>
+                render={
+                  <a href={createHref} target="_blank" rel="noopener noreferrer">
+                    {t('fields.relation.picker.createNew', {
+                      label: targetDefinition?.labels.singular ?? targetCollectionPath,
+                    })}
+                  </a>
+                }
+              />
             )}
           </div>
         </Modal.Header>

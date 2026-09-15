@@ -52,7 +52,10 @@
    handle: `.byline-field-relation-picker-create`. */
 .create,
 :global(.byline-field-relation-picker-create) {
-  font-size: var(--font-size-sm, 0.875rem);
+  /* Rendered as an anchor so it behaves like a link, but it belongs to the
+     toolbar visually: drop the global anchor underline, and set no font size so
+     the button's own `xs` sizing governs rather than being overridden here. */
+  text-decoration: none;
   white-space: nowrap;
 }
 
