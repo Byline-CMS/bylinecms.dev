@@ -1,0 +1,103 @@
+{
+  "context": {
+    "date": "2026-09-15",
+    "machine": "single darwin workstation, one Chrome window",
+    "documents": {
+      "pages": "01a0a2b2-ac3e-73bd-be07-e7f1335dd6d2",
+      "docs": "019e618e-dbd8-7330-beb7-8a809016caf1"
+    },
+    "units": "milliseconds",
+    "ms": "navigation-to-double-requestAnimationFrame, a proxy for paint (~16.7ms quantisation)",
+    "readMs": "summed duration of timed geometry reads, a proxy for the cost of the forcing reads",
+    "note": "counts are geometry reads, not forced layouts"
+  },
+  "devEditorOpenClientSideNav": {
+    "path": "collection list -> editor, client-side, pages doc, visible tab",
+    "preFix": {
+      "ms": [211.9, 173.9, 184.5, 207.2, 174.7, 183.4, 174.9, 192.6, 140.7, 158.1],
+      "medianMs": 179.2,
+      "medianReadMs": 19.1,
+      "medianMaxRead": 12.5,
+      "readsPerOpen": 26
+    },
+    "postFix": {
+      "ms": [234.8, 183.2, 183.4, 184.2, 183.3, 174.8, 175.2, 200.0, 167.9, 186.4],
+      "medianMs": 183.4,
+      "medianReadMs": 19.1,
+      "medianMaxRead": 12.4,
+      "readsPerOpen": 26
+    }
+  },
+  "devKeystrokes": {
+    "path": "10 keystrokes in Title, pages doc, visible tab",
+    "preFix": { "reads": 40, "readMs": 4.9, "tabsMs": 4.9 },
+    "postFix": { "reads": 0, "readMs": 0, "tabsMs": 0 },
+    "earlierRealTypingScrollWidthOnly": { "preFix": 10, "postFix": 0 }
+  },
+  "devEditorFullPageLoad": {
+    "path": "full page load of the editor, pages doc, visible tab, post-fix",
+    "samples": [
+      { "reads": 35, "readMs": 28.1, "maxRead": 16.0, "tabsMs": 0.0, "site": "breadcrumbs.js:30" },
+      { "reads": 35, "readMs": 30.1, "maxRead": 16.7, "tabsMs": 0.1, "site": "breadcrumbs.js:30" },
+      {
+        "reads": 24,
+        "readMs": 188.3,
+        "maxRead": 167.0,
+        "tabsMs": 0.1,
+        "site": "breadcrumbs.js:30"
+      },
+      { "reads": 24, "readMs": 188.5, "maxRead": 165.9, "tabsMs": 0.2, "site": "breadcrumbs.js:30" }
+    ],
+    "note": "two regimes; relative frequency unknown and not inferable from four samples"
+  },
+  "prodEditorOpenTabsAB": {
+    "path": "collection list -> editor, client-side, pages doc, visible tab, interleaved pairs",
+    "armA_asShipped": [154.9, 116.5, 116.0, 107.7, 108.0, 107.9, 99.4, 108.0, 82.9, 115.2],
+    "armB_tabsGeometryCached": [107.8, 99.3, 99.7, 107.9, 99.0, 99.6, 99.5, 91.2, 74.2, 99.1],
+    "medianA": 108.0,
+    "medianB": 99.4,
+    "readTimeRemovedInArmB": 15.4,
+    "caveat": "arm B removed ALL tab-strip geometry reads, more than any real fix could. Overflow state matched across arms at this viewport; reveal() scroll position, selection and pixel output were not verified equivalent. Does not partition work between blocking and paint."
+  },
+  "prodApiViewAB": {
+    "path": "editor -> API view, client-side, docs doc, visible tab",
+    "baseline_allExpanded": [
+      { "ms": 278.6, "maxRead": 136.9, "viewerNodes": 4182, "long": [157] },
+      { "ms": 229.2, "maxRead": 125.7, "viewerNodes": 4182, "long": [150] },
+      { "ms": 237.8, "maxRead": 120.2, "viewerNodes": 4182, "long": [141] },
+      { "ms": 256.7, "maxRead": 129.1, "viewerNodes": 4182, "long": [154] },
+      { "ms": 235.4, "maxRead": 120.1, "viewerNodes": 4182, "long": [141] },
+      { "ms": 238.2, "maxRead": 119.7, "viewerNodes": 4182, "long": [140] }
+    ],
+    "variant_levelLessThan2": [
+      { "ms": 140.7, "maxRead": 7.8, "viewerNodes": 96, "long": [] },
+      { "ms": 98.6, "maxRead": 6.8, "viewerNodes": 96, "long": [] },
+      { "ms": 99.3, "maxRead": 6.6, "viewerNodes": 96, "long": [] },
+      { "ms": 99.3, "maxRead": 6.5, "viewerNodes": 96, "long": [] },
+      { "ms": 99.5, "maxRead": 6.2, "viewerNodes": 96, "long": [] },
+      { "ms": 116.1, "maxRead": 6.7, "viewerNodes": 96, "long": [] }
+    ],
+    "medianMs": { "baseline": 238.0, "variant": 99.4 },
+    "caveat": "visibility confirmed before and after the run, not recorded per row"
+  },
+  "prodApiViewFullPageLoad": {
+    "baseline": { "pageNodes": 4554, "viewerNodes": 4182, "maxRead": 3.7, "long": [156] },
+    "variant": { "pageNodes": 478, "viewerNodes": 96, "maxRead": 9.4, "long": [] }
+  },
+  "voidSamples": {
+    "prodEditorFullPageLoad": {
+      "status": "VOID — every sample taken while document.visibilityState === 'hidden'",
+      "why": "Chrome performs no rendering for an occluded tab, so the forced read pays for layout a visible tab would already have done after painting the server-rendered HTML. Inflated by an unknown amount.",
+      "samples": [
+        { "reads": 9, "readMs": 74.8, "maxRead": 74.8, "crumbMs": 74.8, "tabsMs": 0 },
+        { "reads": 15, "readMs": 196.8, "maxRead": 113.6, "crumbMs": 196.8, "tabsMs": 0 },
+        { "reads": 15, "readMs": 179.2, "maxRead": 104.1, "crumbMs": 179.2, "tabsMs": 0 },
+        { "reads": 23, "readMs": 169.2, "maxRead": 112.2, "crumbMs": 169.2, "tabsMs": 0.1 }
+      ]
+    },
+    "prodApiViewPagesDocHiddenTab": {
+      "status": "VOID — hidden tab",
+      "sample": { "reads": 7, "readMs": 34.9, "pageNodes": 496, "viewerNodes": 123 }
+    }
+  }
+}
