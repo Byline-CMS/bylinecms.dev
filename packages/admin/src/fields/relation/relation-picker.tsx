@@ -133,6 +133,11 @@ export const RelationPicker = ({
   const [documents, setDocuments] = useState<any[]>([])
   const [totalPages, setTotalPages] = useState<number>(1)
   const [collectionId, setCollectionId] = useState<string | null>(null)
+  // Refresh is a dependency of the fetch effect rather than an imperative
+  // refetch, so re-running it goes through the effect's `cancelled` cleanup
+  // below: a superseded request that resolves late is discarded instead of
+  // overwriting newer results. Calling the service directly would lose that.
+  const [refreshNonce, setRefreshNonce] = useState(0)
 
   const { getCollectionDocuments, canCreateInCollection, getCreateDocumentUrl } =
     useBylineFieldServices()
@@ -163,6 +168,12 @@ export const RelationPicker = ({
   }, [isOpen])
 
   // Fetch whenever the modal is open and the query / page changes.
+  //
+  // `refreshNonce` is a re-run trigger rather than a value this effect reads, so
+  // the exhaustive-dependencies rule sees it as surplus. It is not: bumping it is
+  // how the refresh button re-runs the fetch, and routing refresh through the
+  // effect is what makes the `cancelled` cleanup discard a superseded request.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: see above
   useEffect(() => {
     if (!isOpen) return
     let cancelled = false
@@ -224,6 +235,7 @@ export const RelationPicker = ({
     getCollectionDocuments,
     t,
     targetAdminConfig?.itemViewSort,
+    refreshNonce,
   ])
 
   const resolvedDisplayField =
@@ -275,23 +287,38 @@ export const RelationPicker = ({
       <Modal.Container style={{ maxWidth: '600px', width: '100%' }}>
         <Modal.Header className={cx('byline-field-relation-picker-header', styles.header)}>
           <h3 className={cx('byline-field-relation-picker-title', styles.title)}>{title}</h3>
-          {createHref != null && (
-            // A real link, not a button calling `window.open`: keyboard
-            // activation and middle-click work without help, and popup blockers
-            // leave it alone. A new tab keeps this picker and the parent editor
-            // mounted, so unsaved work survives — which is the whole point of the
-            // affordance. `noopener` keeps the opened page out of `window.opener`.
-            <a
-              className={cx('byline-field-relation-picker-create', styles.create)}
-              href={createHref}
-              target="_blank"
-              rel="noopener noreferrer"
+          <div className={cx('byline-field-relation-picker-actions', styles.actions)}>
+            {/* Deliberately not disabled while loading: a request that never
+                settles must not leave the reader unable to retry, and a refresh
+                issued mid-flight supersedes the earlier one rather than racing
+                it. */}
+            <Button
+              type="button"
+              size="sm"
+              variant="text"
+              className={cx('byline-field-relation-picker-refresh', styles.refresh)}
+              onClick={() => setRefreshNonce((nonce) => nonce + 1)}
             >
-              {t('fields.relation.picker.createNew', {
-                label: targetDefinition?.labels.singular ?? targetCollectionPath,
-              })}
-            </a>
-          )}
+              {t('fields.relation.picker.refresh')}
+            </Button>
+            {createHref != null && (
+              // A real link, not a button calling `window.open`: keyboard
+              // activation and middle-click work without help, and popup blockers
+              // leave it alone. A new tab keeps this picker and the parent editor
+              // mounted, so unsaved work survives — which is the whole point of the
+              // affordance. `noopener` keeps the opened page out of `window.opener`.
+              <a
+                className={cx('byline-field-relation-picker-create', styles.create)}
+                href={createHref}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t('fields.relation.picker.createNew', {
+                  label: targetDefinition?.labels.singular ?? targetCollectionPath,
+                })}
+              </a>
+            )}
+          </div>
         </Modal.Header>
         <Modal.Content>
           <div className={cx('byline-field-relation-picker-body', styles.body)}>

@@ -32,6 +32,22 @@
   flex-wrap: wrap;
 }
 
+/* Header actions: refresh, and the create link when the host permits it.
+   Stable override handle: `.byline-field-relation-picker-actions`. */
+.actions,
+:global(.byline-field-relation-picker-actions) {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+}
+
+/* Re-runs the current query. Stable override handle:
+   `.byline-field-relation-picker-refresh`. */
+.refresh,
+:global(.byline-field-relation-picker-refresh) {
+  white-space: nowrap;
+}
+
 /* Opens the target collection's create view in a new tab. Stable override
    handle: `.byline-field-relation-picker-create`. */
 .create,

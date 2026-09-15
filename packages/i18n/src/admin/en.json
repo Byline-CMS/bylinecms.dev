@@ -530,6 +530,7 @@
   "fields.relation.unknownHint": "Register the collection in your Byline config or correct the target path.",
   "fields.relation.picker.searchPlaceholder": "Search",
   "fields.relation.picker.createNew": "Create {label}",
+  "fields.relation.picker.refresh": "Refresh",
   "fields.relation.picker.empty": "No documents found",
   "fields.relation.picker.loadFailed": "Failed to load documents",
   "fields.relation.picker.addSelected": "Add selected ({count})",

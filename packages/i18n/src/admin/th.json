@@ -530,6 +530,7 @@
   "fields.relation.unknownHint": "กรุณาลงทะเบียนคอลเลกชันในการตั้งค่า Byline ของคุณ หรือแก้ไขพาธปลายทางให้ถูกต้อง",
   "fields.relation.picker.searchPlaceholder": "ค้นหา",
   "fields.relation.picker.createNew": "สร้าง {label}",
+  "fields.relation.picker.refresh": "รีเฟรช",
   "fields.relation.picker.empty": "ไม่พบเอกสาร",
   "fields.relation.picker.loadFailed": "โหลดเอกสารไม่สำเร็จ",
   "fields.relation.picker.addSelected": "เพิ่มรายการที่เลือก ({count})",
