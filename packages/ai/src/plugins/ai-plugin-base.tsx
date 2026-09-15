@@ -9,7 +9,7 @@
  */
 
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 import {
   Button,
@@ -114,6 +114,13 @@ export const AiPluginBase = React.memo(function AiPluginBase(
   const hydratedRef = useRef(false)
   const skipPersistOnceRef = useRef(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // One drawer mounts per AI-enabled field, so literal ids collided as soon as a
+  // document declared two of them: `label[for]` and `aria-describedby` resolve
+  // document-wide and would reach the first drawer's controls from the second
+  // drawer's label. `useId` rather than a form scope — this package is a leaf and
+  // the drawer is not inside a form provider.
+  const promptId = useId()
+  const streamingId = useId()
   const open = props.open ?? props.defaultOpen ?? false
 
   const resetStreamPreview = () => {
@@ -265,7 +272,7 @@ export const AiPluginBase = React.memo(function AiPluginBase(
       <TextArea
         className="ai-plugin__prompt"
         label="Prompt"
-        id="prompt"
+        id={promptId}
         name="prompt"
         rows={5}
         value={prompt}
@@ -372,7 +379,7 @@ export const AiPluginBase = React.memo(function AiPluginBase(
           <Checkbox
             name="streaming"
             size="sm"
-            id="streaming"
+            id={streamingId}
             disabled={isPending === true || settingsOpen === false}
             checked={useStreaming}
             onCheckedChange={(checked, _eventDetails) => {
