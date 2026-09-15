@@ -1,5 +1,14 @@
 # @byline/storage-s3
 
+## 6.2.1
+
+### Patch Changes
+
+- extracted **`@byline/admin`**'s form submission, layout and page chrome out of FormContent
+  widened save re-entry protection to cover validation through submission
+- Updated dependencies
+  - @byline/core@6.2.1
+
 ## 6.2.0
 
 ### Minor Changes

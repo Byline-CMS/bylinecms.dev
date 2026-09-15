@@ -1,5 +1,22 @@
 # @byline/host-tanstack-start
 
+## 6.2.1
+
+### Patch Changes
+
+- extracted **`@byline/admin`**'s form submission, layout and page chrome out of FormContent
+  widened save re-entry protection to cover validation through submission
+- Updated dependencies
+  - @byline/admin@6.2.1
+  - @byline/ai@6.2.1
+  - @byline/analytics@6.2.1
+  - @byline/analytics-agent@6.2.1
+  - @byline/auth@6.2.1
+  - @byline/client@6.2.1
+  - @byline/core@6.2.1
+  - @byline/i18n@6.2.1
+  - @byline/ui@6.2.1
+
 ## 6.2.0
 
 ### Minor Changes
