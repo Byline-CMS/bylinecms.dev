@@ -19,7 +19,6 @@ import type {
   WorkflowStatus,
 } from '@byline/core'
 import { getAdminConfig } from '@byline/core'
-import type { DocumentPatch } from '@byline/core/patches'
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, ComboButton, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'clsx'
@@ -47,9 +46,13 @@ import {
 } from './scheduled-publication-control'
 import { computeStatusTransitions } from './status-transitions'
 import { TreePlacementWidget } from './tree-placement-widget'
-import { executeUploadsWithProgress } from './upload-executor'
 import { useFormLayout } from './use-form-layout'
+import { useFormSubmission } from './use-form-submission'
 import type { UseNavigationGuard } from './navigation-guard'
+
+// Re-exported so existing importers of this module keep working; the type now
+// lives with `useFormSubmission`, which produces it.
+export type { SystemFieldsSubmitPayload } from './use-form-submission'
 
 /** Metadata about a previously published version that is still live. */
 export interface PublishedVersionInfo {
@@ -58,24 +61,6 @@ export interface PublishedVersionInfo {
   status: string
   createdAt: string | Date
   updatedAt: string | Date
-}
-
-/**
- * Payload emitted by the form on Save. Carries the content (field data +
- * patches) alongside the document-grain system fields (path / advertised
- * locales) and per-bucket dirty flags so the host can route each piece to the
- * right write path — versioned for content, immediate/non-versioned for the
- * system fields. See docs/08-internationalization/index.md.
- */
-export interface SystemFieldsSubmitPayload {
-  // biome-ignore lint/suspicious/noExplicitAny: data is collection-specific
-  data: any
-  patches: DocumentPatch[]
-  contentDirty: boolean
-  pathDirty: boolean
-  systemPath?: string | null
-  availableLocalesDirty: boolean
-  systemAvailableLocales?: string[]
 }
 
 /** Props shared by both the public FormRenderer and its internal FormContent component. */
@@ -283,10 +268,6 @@ const FormContent = ({
   const [errors, setErrors] = useState(initialErrors)
   const [hasChanges, setHasChanges] = useState(hasChangesFn())
   const [statusBusy, setStatusBusy] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
-  const submittingRef = useRef(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const isBusy = isUploading || isSubmitting
   const formRef = useRef<HTMLFormElement>(null)
   const focusBeforeBusyRef = useRef<HTMLElement | null>(null)
   const restoreFocusAfterBusyRef = useRef(false)
@@ -295,11 +276,6 @@ const FormContent = ({
   // is dirty — those actions operate on the saved version, so unsaved edits
   // would be silently excluded.
   const [showUnsavedModal, setShowUnsavedModal] = useState(false)
-  // Holds the pending Save payload while the editor confirms an immediate,
-  // non-versioned system-field write (path / advertised locales). Non-null
-  // means the confirmation modal is open. See docs/08-internationalization/index.md.
-  const [pendingSystemFieldsSubmit, setPendingSystemFieldsSubmit] =
-    useState<SystemFieldsSubmitPayload | null>(null)
   const [contentLocale, setContentLocale] = useState(initialLocale ?? defaultLocale)
 
   // Scheduled publication owns three placements — a status-bar cell, an
@@ -438,6 +414,32 @@ const FormContent = ({
     return subscribeMeta(() => setFormData(getFieldValues()))
   }, [subscribeMeta, getFieldValues])
 
+  const captureFocusBeforeBusy = useCallback(() => {
+    if (focusBeforeBusyRef.current != null) return
+    const activeElement = document.activeElement
+    if (!(activeElement instanceof HTMLElement) || !formRef.current?.contains(activeElement)) return
+    focusBeforeBusyRef.current = activeElement
+    restoreFocusAfterBusyRef.current = true
+  }, [])
+
+  // One save at a time: validate -> upload -> (confirm) -> submit. Admission is
+  // decided synchronously inside the hook, so two Saves in the same turn cannot
+  // both get through. `phase` is what the UI renders.
+  const submission = useFormSubmission({
+    mode,
+    fields,
+    documentId: mode === 'edit' && typeof initialData?.id === 'string' ? initialData.id : undefined,
+    advertiseLocales,
+    onSubmit,
+    isBlocked: () => mutationBlockedRef.current,
+    onBeforeBusy: captureFocusBeforeBusy,
+  })
+  const isUploading = submission.phase.kind === 'uploading'
+  const isSubmitting = submission.phase.kind === 'submitting'
+  const isBusy = submission.isBusy
+  const pendingSystemFieldsSubmit =
+    submission.phase.kind === 'confirmingSystemFields' ? submission.phase.payload : null
+
   // `inert` removes the active control from the tab order while a save is in
   // flight. Restore the editor's position after React has removed `inert`;
   // when the original control became disabled, fall back to the first usable
@@ -463,147 +465,16 @@ const FormContent = ({
     target?.focus({ preventScroll: true })
   }, [isBusy, mutationIssue])
 
-  const captureFocusBeforeBusy = useCallback(() => {
-    if (focusBeforeBusyRef.current != null) return
-    const activeElement = document.activeElement
-    if (!(activeElement instanceof HTMLElement) || !formRef.current?.contains(activeElement)) return
-    focusBeforeBusyRef.current = activeElement
-    restoreFocusAfterBusyRef.current = true
-  }, [])
-
   const handleCancel = () => {
     if (onCancel && typeof onCancel === 'function') {
       onCancel()
     }
   }
 
-  // Await the host handler. Resolution means the save succeeded and the clean
-  // baseline can be committed; rejection preserves dirty state so the editor
-  // does not lose work and the navigation guard keeps blocking. Host handlers
-  // that surface their own toast MUST rethrow afterwards.
-  // Re-entry guard lives in a ref so the callback identity does not change
-  // mid-flight; the mirrored state drives the Save button's disabled prop.
-  const submitPayload = useCallback(
-    async (payload: SystemFieldsSubmitPayload) => {
-      if (mutationBlockedRef.current || typeof onSubmit !== 'function') return
-      if (submittingRef.current) return
-      submittingRef.current = true
-      captureFocusBeforeBusy()
-      setIsSubmitting(true)
-      try {
-        await onSubmit(payload)
-        resetHasChanges()
-      } catch {
-        // Intentionally swallowed here — the host has already reported the
-        // failure to the user. Dirty state is preserved by not resetting.
-      } finally {
-        submittingRef.current = false
-        setIsSubmitting(false)
-      }
-    },
-    [captureFocusBeforeBusy, onSubmit, resetHasChanges]
-  )
-
   const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
-    if (mutationBlockedRef.current) {
-      e.preventDefault()
-      return
-    }
     e.preventDefault()
-
-    // Run field-level beforeValidate hooks (submit-time), then validate
-    void (async () => {
-      const hookErrors = await runFieldHooks(fields)
-      const formErrors = validateForm(fields)
-      const allErrors = [...hookErrors, ...formErrors]
-
-      if (allErrors.length > 0) {
-        console.error('Form validation failed:', allErrors)
-        return
-      }
-
-      if (mutationBlockedRef.current) return
-
-      // Execute any pending uploads before submitting
-      const pendingUploads = getPendingUploads()
-      if (pendingUploads.size > 0) {
-        captureFocusBeforeBusy()
-        setIsUploading(true)
-        try {
-          const uploadResult = await executeUploadsWithProgress(
-            pendingUploads,
-            uploadField,
-            ({ fieldPath, status }) => {
-              setFieldUploading(fieldPath, status === 'uploading')
-            },
-            {
-              // Document context for server-side upload hooks: the persisted
-              // document id (edit mode only) plus any `upload.context` form
-              // values declared on the schema field. See UploadConfig.context
-              // in @byline/core.
-              documentId:
-                mode === 'edit' && typeof initialData?.id === 'string' ? initialData.id : undefined,
-              fields,
-              getFormValues: getFieldValues,
-            }
-          )
-
-          // Check for upload errors
-          if (!uploadResult.allSucceeded) {
-            // Set field-level errors for failed uploads
-            for (const [fieldPath, errorMessage] of uploadResult.errors.entries()) {
-              setFieldError(fieldPath, t('forms.uploadFailedFieldError', { message: errorMessage }))
-            }
-            console.error('One or more uploads failed:', uploadResult.errors)
-            setIsUploading(false)
-            return
-          }
-
-          // Replace pending StoredFileValues with real ones in form data
-          for (const [fieldPath, storedFile] of uploadResult.successful.entries()) {
-            setFieldValue(fieldPath, storedFile)
-          }
-
-          // Clear pending uploads (blob URLs already revoked by clearPendingUploads)
-          clearPendingUploads()
-        } catch (err) {
-          console.error('Upload execution error:', err)
-          setIsUploading(false)
-          return
-        }
-        setIsUploading(false)
-      }
-
-      const data = getFieldValues()
-      const patches = getPatches()
-      const { contentDirty, pathDirty, availableLocalesDirty, reason } = getDirtyBreakdown()
-      const systemPath = getSystemPath()
-      // Only emit the advertised-locale set for collections that opted into the
-      // widget — otherwise leave it undefined so the write path never touches
-      // `byline_document_available_locales` for non-advertising collections.
-      const systemAvailableLocales = advertiseLocales ? getSystemAvailableLocales() : undefined
-
-      const payload: SystemFieldsSubmitPayload = {
-        data,
-        patches,
-        contentDirty,
-        pathDirty,
-        systemPath,
-        availableLocalesDirty,
-        systemAvailableLocales,
-      }
-
-      // Editing the document-grain system fields (path / advertised locales) is
-      // an immediate, non-versioned write that does NOT reset workflow status,
-      // so confirm it before saving. Create mode writes everything as part of
-      // the initial version, so no confirmation applies there.
-      if (mode === 'edit' && (reason === 'direct-write' || reason === 'both')) {
-        setPendingSystemFieldsSubmit(payload)
-        return
-      }
-
-      await submitPayload(payload)
-    })()
+    if (mutationBlockedRef.current) return
+    void submission.submit()
   }
 
   // Per-tab-set error counts: { [tabSetName]: { [tabName]: count } }.
@@ -1014,11 +885,9 @@ const FormContent = ({
               contentDirty={pendingSystemFieldsSubmit.contentDirty}
               pathDirty={pendingSystemFieldsSubmit.pathDirty}
               availableLocalesDirty={pendingSystemFieldsSubmit.availableLocalesDirty}
-              onCancel={() => setPendingSystemFieldsSubmit(null)}
+              onCancel={submission.cancelSystemFields}
               onConfirm={() => {
-                const payload = pendingSystemFieldsSubmit
-                setPendingSystemFieldsSubmit(null)
-                void submitPayload(payload)
+                void submission.confirmSystemFields()
               }}
             />
           )}
