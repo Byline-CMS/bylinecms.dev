@@ -37,30 +37,31 @@ export function isCanonicalNumericValue(
 export function normalizeNumericValue(
   fieldType: CanonicalNumericFieldType,
   value: unknown,
-  path: string
+  path: string,
+  issuePath = path
 ): CanonicalNumericValue | undefined {
   if (typeof value === 'string') {
     const trimmed = value.trim()
     if (trimmed === '') return undefined
-    if (!NUMERIC_LITERAL_RE.test(trimmed)) throwNumericValidation(fieldType, value, path)
+    if (!NUMERIC_LITERAL_RE.test(trimmed)) throwNumericValidation(fieldType, value, path, issuePath)
     if (fieldType === 'decimal') return trimmed
     const numberValue = Number(trimmed)
-    if (!Number.isFinite(numberValue)) throwNumericValidation(fieldType, value, path)
+    if (!Number.isFinite(numberValue)) throwNumericValidation(fieldType, value, path, issuePath)
     if (fieldType === 'integer' && !Number.isInteger(numberValue)) {
-      throwNumericValidation(fieldType, value, path)
+      throwNumericValidation(fieldType, value, path, issuePath)
     }
     return numberValue
   }
 
   if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throwNumericValidation(fieldType, value, path)
+    if (!Number.isFinite(value)) throwNumericValidation(fieldType, value, path, issuePath)
     if (fieldType === 'integer' && !Number.isInteger(value)) {
-      throwNumericValidation(fieldType, value, path)
+      throwNumericValidation(fieldType, value, path, issuePath)
     }
     return fieldType === 'decimal' ? String(value) : value
   }
 
-  throwNumericValidation(fieldType, value, path)
+  throwNumericValidation(fieldType, value, path, issuePath)
 }
 
 /**
@@ -79,13 +80,21 @@ export function normalizeNumericFields(fields: FieldSet, data: Record<string, an
           leaf.value,
           locale,
           localeValue,
-          `${leaf.fieldPath}.${locale}`
+          `${leaf.fieldPath}.${locale}`,
+          toInstancePath(data, `${leaf.fieldPath}.${locale}`)
         )
       }
       continue
     }
 
-    normalizeLeafValue(leaf.field.type, leaf.parent, leaf.key, leaf.value, leaf.fieldPath)
+    normalizeLeafValue(
+      leaf.field.type,
+      leaf.parent,
+      leaf.key,
+      leaf.value,
+      leaf.fieldPath,
+      toInstancePath(data, leaf.fieldPath)
+    )
   }
 }
 
@@ -94,9 +103,10 @@ function normalizeLeafValue(
   parent: Record<string, any>,
   key: string,
   value: unknown,
-  path: string
+  path: string,
+  issuePath: string
 ): void {
-  const normalized = normalizeNumericValue(fieldType, value, path)
+  const normalized = normalizeNumericValue(fieldType, value, path, issuePath)
   if (normalized === undefined) {
     delete parent[key]
   } else {
@@ -115,10 +125,36 @@ function isLocaleMap(value: unknown): value is Record<string, unknown> {
 function throwNumericValidation(
   fieldType: CanonicalNumericFieldType,
   value: unknown,
-  path: string
+  path: string,
+  issuePath: string
 ): never {
   throw ERR_VALIDATION({
     message: `invalid ${fieldType} value at '${path}'`,
-    details: { path, fieldType, value },
+    details: {
+      reason: 'invalid_document_fields',
+      issues: [{ field: issuePath, message: `Invalid ${fieldType} value` }],
+      path,
+      fieldType,
+      value,
+    },
   })
+}
+
+/** Map walker diagnostic indices to the editor's stable instance paths. */
+function toInstancePath(data: Record<string, any>, path: string): string {
+  let current: any = data
+  let result = ''
+  for (const part of path.split('.')) {
+    if (Array.isArray(current) && /^\d+$/.test(part)) {
+      current = current[Number(part)]
+      result +=
+        typeof current?._id === 'string' && /^[\w-]+$/.test(current._id)
+          ? `[id=${current._id}]`
+          : `[${part}]`
+    } else {
+      result += `${result ? '.' : ''}${part}`
+      current = current?.[part]
+    }
+  }
+  return result
 }

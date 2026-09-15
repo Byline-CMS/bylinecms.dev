@@ -105,6 +105,19 @@ describe('normalizeNumericFields', () => {
     )
   })
 
+  it('preserves diagnostic paths and maps field errors to stable item identities', () => {
+    expect(() =>
+      normalizeNumericFields(fields, { rows: [{ _id: 'row-1', quantity: 'bad' }] })
+    ).toThrowError(
+      expect.objectContaining({
+        details: expect.objectContaining({
+          path: 'rows.0.quantity',
+          issues: [{ field: 'rows[id=row-1].quantity', message: 'Invalid integer value' }],
+        }),
+      })
+    )
+  })
+
   it('throws a BylineError with ERR_VALIDATION', () => {
     try {
       normalizeNumericValue('integer', {}, 'count')

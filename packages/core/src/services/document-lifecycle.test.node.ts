@@ -389,6 +389,81 @@ describe('Document lifecycle service', () => {
   // createDocument
   // -----------------------------------------------------------------------
   describe('createDocument', () => {
+    it.each(['explicit', 'legacy'])(
+      'rejects a create-only published override (%s)',
+      async (source) => {
+        const { db, createDocumentVersion } = createMockDb()
+        const ctx = buildCtx(db)
+        ctx.requestContext = createRequestContext({
+          actor: new AdminAuth({ id: 'editor', abilities: ['collections.articles.create'] }),
+        })
+        await expect(
+          createDocument(ctx, {
+            data: { title: 'Hello', ...(source === 'legacy' ? { status: 'published' } : {}) },
+            ...(source === 'explicit' ? { status: 'published' } : {}),
+          })
+        ).rejects.toMatchObject({ code: AuthErrorCodes.FORBIDDEN })
+        expect(createDocumentVersion).not.toHaveBeenCalled()
+      }
+    )
+
+    it('rejects undeclared statuses and hook-produced publication', async () => {
+      const { db, createDocumentVersion } = createMockDb()
+      await expect(
+        createDocument(buildCtx(db), { data: { title: 'Hello' }, status: 'bogus' })
+      ).rejects.toMatchObject({ code: ErrorCodes.VALIDATION })
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        hooks: {
+          beforeCreate: ({ data }) => {
+            data.status = 'published'
+          },
+        },
+      })
+      ctx.requestContext = createRequestContext({
+        actor: new AdminAuth({ id: 'editor', abilities: ['collections.articles.create'] }),
+      })
+      await expect(createDocument(ctx, { data: { title: 'Hello' } })).rejects.toMatchObject({
+        code: AuthErrorCodes.FORBIDDEN,
+      })
+      expect(createDocumentVersion).not.toHaveBeenCalled()
+    })
+
+    it('preserves publication by configured default for create-only actors', async () => {
+      const { db, createDocumentVersion } = createMockDb()
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        workflow: { statuses: [{ name: 'published', label: 'Published' }] },
+      })
+      ctx.requestContext = createRequestContext({
+        actor: new AdminAuth({ id: 'editor', abilities: ['collections.articles.create'] }),
+      })
+      await createDocument(ctx, { data: { title: 'Hello' } })
+      expect(createDocumentVersion).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'published' })
+      )
+    })
+
+    it('rejects missing required data and values invalidated by hooks before persistence', async () => {
+      const { db, createDocumentVersion } = createMockDb()
+      await expect(createDocument(buildCtx(db), { data: {} })).rejects.toMatchObject({
+        code: ErrorCodes.VALIDATION,
+        details: { reason: 'invalid_document_fields' },
+      })
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        hooks: {
+          beforeCreate: ({ data }) => {
+            data.title = 42
+          },
+        },
+      })
+      await expect(createDocument(ctx, { data: { title: 'Hello' } })).rejects.toMatchObject({
+        code: ErrorCodes.VALIDATION,
+      })
+      expect(createDocumentVersion).not.toHaveBeenCalled()
+    })
+
     it('calls createDocumentVersion and returns IDs', async () => {
       const { db, createDocumentVersion } = createMockDb()
       const ctx = buildCtx(db)
@@ -2688,7 +2763,10 @@ describe('Document lifecycle service', () => {
     it('reads the source with locale: "all" and re-emits via createDocumentVersion', async () => {
       const { db, createDocumentVersion, sourceVersionId, sourceFields, currentVersionId } =
         setupRestore()
-      const ctx = buildCtx(db)
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        fields: [{ name: 'title', type: 'text', localized: true }],
+      })
 
       const result = await restoreDocumentVersion(ctx, {
         expectedRevision: 1,
@@ -2716,7 +2794,10 @@ describe('Document lifecycle service', () => {
 
     it('hard-defaults the new version status to the workflow default (never inherits source status)', async () => {
       const { db, createDocumentVersion, sourceVersionId } = setupRestore()
-      const ctx = buildCtx(db)
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        fields: [{ name: 'title', type: 'text', localized: true }],
+      })
 
       await restoreDocumentVersion(ctx, {
         expectedRevision: 1,
@@ -2732,7 +2813,10 @@ describe('Document lifecycle service', () => {
       const { db, createDocumentVersion, sourceVersionId } = setupRestore({
         currentPath: 'sticky-path',
       })
-      const ctx = buildCtx(db)
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        fields: [{ name: 'title', type: 'text', localized: true }],
+      })
 
       await restoreDocumentVersion(ctx, {
         expectedRevision: 1,
@@ -2750,7 +2834,10 @@ describe('Document lifecycle service', () => {
       const { db, sourceVersionId, createDocumentVersion } = setupRestore({
         sourceDocumentId: 'doc-OTHER',
       })
-      const ctx = buildCtx(db)
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        fields: [{ name: 'title', type: 'text', localized: true }],
+      })
 
       try {
         await restoreDocumentVersion(ctx, {
@@ -2786,7 +2873,10 @@ describe('Document lifecycle service', () => {
         created_at: new Date(),
         updated_at: new Date(),
       })
-      const ctx = buildCtx(db)
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        fields: [{ name: 'title', type: 'text', localized: true }],
+      })
 
       try {
         await restoreDocumentVersion(ctx, {
@@ -2805,7 +2895,11 @@ describe('Document lifecycle service', () => {
       const beforeUpdate = vi.fn()
       const afterUpdate = vi.fn()
       const { db, sourceVersionId } = setupRestore()
-      const definition = { ...minimalCollection, hooks: { beforeUpdate, afterUpdate } }
+      const definition = {
+        ...minimalCollection,
+        fields: [{ name: 'title', type: 'text' as const, localized: true }],
+        hooks: { beforeUpdate, afterUpdate },
+      }
       const ctx = buildCtx(db, definition)
 
       await restoreDocumentVersion(ctx, {
@@ -2838,6 +2932,7 @@ describe('Document lifecycle service', () => {
       const { db, sourceVersionId, createDocumentVersion } = setupRestore()
       const definition = {
         ...minimalCollection,
+        fields: [{ name: 'title', type: 'text' as const, localized: true }],
         hooks: { afterUpdate: vi.fn().mockRejectedValue(new Error('search unavailable')) },
       }
 
@@ -2861,7 +2956,10 @@ describe('Document lifecycle service', () => {
 
     it('throws ERR_FORBIDDEN when actor lacks collections.<path>.update', async () => {
       const { db, sourceVersionId } = setupRestore()
-      const ctx = buildCtx(db)
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        fields: [{ name: 'title', type: 'text', localized: true }],
+      })
       const actor = new AdminAuth({
         id: 'editor',
         abilities: ['collections.articles.read'],
@@ -2883,7 +2981,10 @@ describe('Document lifecycle service', () => {
 
     it('permits restore when actor holds only collections.<path>.update (no separate restore verb needed)', async () => {
       const { db, createDocumentVersion, sourceVersionId } = setupRestore()
-      const ctx = buildCtx(db)
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        fields: [{ name: 'title', type: 'text', localized: true }],
+      })
       const actor = new AdminAuth({
         id: 'editor',
         abilities: ['collections.articles.update', 'collections.articles.read'],
@@ -3289,7 +3390,7 @@ describe('Document lifecycle service', () => {
       useAsTitle: 'title',
       fields: [
         { name: 'title', type: 'text', localized: true },
-        { name: 'tagline', type: 'text', localized: true },
+        { name: 'tagline', type: 'text', optional: true, localized: true },
         { name: 'sku', type: 'text' /* non-localized */ },
         {
           name: 'sections',

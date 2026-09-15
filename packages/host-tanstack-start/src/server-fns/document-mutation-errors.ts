@@ -1,6 +1,7 @@
 import {
   BylineError,
   ErrorCodes,
+  getDocumentFieldValidationDetails,
   getDocumentRevisionValidationDetails,
   getDocumentStaleDetails,
   getLockConflictDetails,
@@ -26,6 +27,13 @@ export function documentMutationError(error: unknown): unknown {
       code: ErrorCodes.VALIDATION,
       message: 'Reload this document before making changes.',
       details: validation,
+    }
+  const fields = getDocumentFieldValidationDetails(error)
+  if (fields)
+    return {
+      code: ErrorCodes.VALIDATION,
+      message: 'Some document fields are invalid.',
+      details: fields,
     }
   const lock = getLockConflictDetails(error)
   if (lock)

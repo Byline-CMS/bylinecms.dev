@@ -56,6 +56,16 @@
     "test": {
       "outputs": []
     },
+    "@byline/client#typecheck": {
+      "dependsOn": ["^build", "@byline/host-tanstack-start#build"],
+      "outputs": [],
+      "inputs": ["src/**/*.ts", "tests/**/*", "tsconfig*.json"]
+    },
+    "@byline/client#test:integration": {
+      "dependsOn": ["^build", "@byline/host-tanstack-start#build"],
+      "outputs": [],
+      "cache": false
+    },
     "test:integration": {
       "dependsOn": ["^build"],
       "outputs": [],

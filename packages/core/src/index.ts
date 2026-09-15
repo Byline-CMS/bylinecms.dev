@@ -136,6 +136,12 @@ export {
   slugifyFilename,
 } from './utils/slugify-filename.js'
 export { getUploadFields, hasUploadField, isUploadField } from './utils/storage-utils.js'
+export {
+  type DocumentFieldIssue,
+  type DocumentFieldValidationDetails,
+  getDocumentFieldValidationDetails,
+  validateDocumentFields,
+} from './validation/document-fields.js'
 export * from './workflow/index.js'
 export type {
   ClaimedRecurringTask,

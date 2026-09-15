@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { assertDocumentFields } from '../../validation/document-fields.js'
 import { requireAuditCapability } from './audit.js'
 import { actorId } from './internals.js'
 import { commitContentVersionWithScheduleSuspension } from './publish-schedule-consistency.js'
@@ -43,6 +44,7 @@ export async function persistInitialDocumentVersion(
   ctx: DocumentLifecycleContext,
   write: InitialDocumentVersionWrite
 ): ReturnType<IDocumentCommands['createDocumentVersion']> {
+  assertDocumentFields(ctx.definition.fields, write.documentData, write.locale ?? ctx.defaultLocale)
   return requireAuditCapability(ctx.db).withTransaction(async () => {
     await ctx.db.commands.collections.lockCollectionRegistration(
       ctx.collectionId,
@@ -69,6 +71,7 @@ export function persistExistingDocumentVersion(
   ctx: DocumentLifecycleContext,
   write: ExistingDocumentVersionWrite
 ): ReturnType<IDocumentCommands['createDocumentVersion']> {
+  assertDocumentFields(ctx.definition.fields, write.documentData, write.locale ?? ctx.defaultLocale)
   return commitContentVersionWithScheduleSuspension({
     ctx,
     documentId: write.documentId,

@@ -17,6 +17,7 @@ import { saveDocument, updateDocumentSystemFields } from '@byline/core/services'
 import { ensureCollection } from '../../integrations/api-utils.js'
 import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 import { withDocumentMutationErrors } from '../document-mutation-errors.js'
+import { validateDocumentWriteInput } from '../document-write-input.js'
 import { toCommittedDocumentHookFailureResponse } from './save-outcome.js'
 
 // ---------------------------------------------------------------------------
@@ -35,7 +36,7 @@ export const updateCollectionDocumentWithPatches = createServerFn({ method: 'POS
       path?: string | null
       availableLocales?: string[]
       locale?: string
-    }) => input
+    }) => validateDocumentWriteInput(input, 'patch')
   )
   .handler(
     withDocumentMutationErrors(async ({ data: input }) => {
@@ -115,7 +116,7 @@ export const updateCollectionDocumentSystemFields = createServerFn({ method: 'PO
       path?: string | null
       /** Editorial advertised-locale set; omitted means no advertised-locale write. */
       availableLocales?: string[]
-    }) => input
+    }) => validateDocumentWriteInput(input, 'metadata')
   )
   .handler(
     withDocumentMutationErrors(async ({ data: input }) => {

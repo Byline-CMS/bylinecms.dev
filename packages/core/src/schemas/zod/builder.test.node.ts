@@ -116,12 +116,12 @@ describe('array item schemas', () => {
     expect(result.success).toBe(false)
   })
 
-  it('leaves group children permissive inside items', () => {
+  it('validates required group children inside items', () => {
     const result = schemas.fields.safeParse({
       title: 'FAQ page',
       faq: [{ ...faqItem, meta: { anything: true } }],
     })
-    expect(result.success).toBe(true)
+    expect(result.success).toBe(false)
   })
 
   it('keeps reads lenient — items with missing children still parse in the get schema', () => {

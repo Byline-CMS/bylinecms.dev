@@ -12,10 +12,12 @@ import { getAdminRequestContext } from '@byline/client/server'
 import { ERR_NOT_FOUND, getLogger, getServerConfig } from '@byline/core'
 import type { CreateDocumentResult, DocumentLifecycleContext } from '@byline/core/services'
 import { createDocument } from '@byline/core/services'
+import { getDefaultStatus } from '@byline/core/workflow'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
 import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 import { withDocumentMutationErrors } from '../document-mutation-errors.js'
+import { validateDocumentWriteInput } from '../document-write-input.js'
 import { toCommittedDocumentHookFailureResponse } from './save-outcome.js'
 
 // ---------------------------------------------------------------------------
@@ -31,7 +33,7 @@ export const createCollectionDocument = createServerFn({ method: 'POST' })
       locale?: string
       path?: string
       availableLocales?: string[]
-    }) => input
+    }) => validateDocumentWriteInput(input, 'create')
   )
   .handler(
     withDocumentMutationErrors(async ({ data: input }) => {
@@ -68,7 +70,8 @@ export const createCollectionDocument = createServerFn({ method: 'POST' })
       try {
         result = await createDocument(ctx, {
           data: structuredClone(documentData),
-          status: documentData.status,
+          // The admin create flow always uses the configured initial status.
+          status: getDefaultStatus(config.definition),
           locale: locale ?? serverConfig.i18n.content.defaultLocale,
           path: explicitPath,
           availableLocales,

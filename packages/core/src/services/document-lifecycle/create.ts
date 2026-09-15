@@ -12,7 +12,7 @@ import { ERR_VALIDATION } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
 import { normaliseDateFields } from '../../utils/normalise-dates.js'
 import { slugify } from '../../utils/slugify.js'
-import { getDefaultStatus } from '../../workflow/workflow.js'
+import { getDefaultStatus, getWorkflowStatuses } from '../../workflow/workflow.js'
 import { assignCounterValues } from '../assign-counter-values.js'
 import { normalizeNumericFields } from '../normalize-numeric-fields.js'
 import { requireTreeAuditCapability } from './audit.js'
@@ -34,6 +34,23 @@ export interface CreateDocumentResult {
   revision: number
   documentId: string
   documentVersionId: string
+}
+
+/** Creating at the configured default is authorized by create itself. */
+function initialStatus(ctx: DocumentLifecycleContext, requested: unknown): string {
+  const defaultStatus = getDefaultStatus(ctx.definition)
+  const status = requested ?? defaultStatus
+  if (
+    typeof status !== 'string' ||
+    !getWorkflowStatuses(ctx.definition).some((s) => s.name === status)
+  ) {
+    throw ERR_VALIDATION({ message: 'The initial status is not declared by this collection.' })
+  }
+  if (status !== defaultStatus) {
+    assertActorCanPerform(ctx.requestContext, ctx.definition, 'changeStatus')
+    if (status === 'published') assertActorCanPerform(ctx.requestContext, ctx.definition, 'publish')
+  }
+  return status
 }
 
 /**
@@ -84,6 +101,12 @@ export async function createDocument(
       const slugifier = ctx.slugifier ?? slugify
       const hooks = await resolveHooks(definition)
       const data = params.data
+      if (data == null || typeof data !== 'object' || Array.isArray(data)) {
+        throw ERR_VALIDATION({ message: 'Document fields must be an object.' })
+      }
+      // Reject unauthorized overrides before hooks or counter allocation. Recheck
+      // after preparation too: hooks can change the legacy data.status value.
+      initialStatus(ctx, params.status ?? data.status)
 
       if (params.locale != null && params.locale !== defaultLocale) {
         throw ERR_VALIDATION({
@@ -128,7 +151,7 @@ export async function createDocument(
         documentData: data,
         path: resolvedPath,
         availableLocales: params.availableLocales,
-        status: params.status ?? data.status ?? getDefaultStatus(definition),
+        status: initialStatus(ctx, params.status ?? data.status),
         locale: params.locale ?? defaultLocale,
         orderKey,
       }).catch((err: unknown) =>

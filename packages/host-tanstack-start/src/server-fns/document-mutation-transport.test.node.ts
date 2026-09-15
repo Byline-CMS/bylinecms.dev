@@ -9,6 +9,7 @@ import {
   ERR_NOT_FOUND,
   ERR_TREE_HOOK_COMMITTED,
   ERR_VALIDATION,
+  getDocumentFieldValidationDetails,
   getDocumentRevisionValidationDetails,
   getDocumentStaleDetails,
   getLockConflictDetails,
@@ -208,4 +209,23 @@ it('transports unavailable-document errors without provider details', async () =
     message: 'This document is no longer available.',
   })
   expect(wire).not.toMatch(/private|internal/)
+})
+
+describe('field validation over the installed transport', () => {
+  it('retains stable field paths and messages while dropping diagnostics', async () => {
+    const issues = [{ field: 'items[id=item-1].title', message: 'Title is required' }]
+    const { value, wire } = await roundTrip({}, async () => {
+      throw ERR_VALIDATION({
+        message: 'private detail',
+        details: { reason: 'invalid_document_fields', issues, sql: 'SELECT secret' },
+        cause: new Error('private cause'),
+      })
+    })
+    expect(getDocumentFieldValidationDetails(value.error)).toEqual({
+      reason: 'invalid_document_fields',
+      issues,
+    })
+    expect(wire).not.toMatch(/private detail|SELECT secret|private cause/)
+    expect(getDocumentRevisionValidationDetails(value.error)).toBeNull()
+  })
 })

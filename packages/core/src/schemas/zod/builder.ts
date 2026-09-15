@@ -3,9 +3,11 @@ import * as z from 'zod'
 import { REQUIRED_WORKFLOW_STATUSES } from '../../@types/index.js'
 import { getCollectionDefinition } from '../../config/config.js'
 import type {
+  CodeField,
   CollectionDefinition,
   DateTimeField,
   Field,
+  TextAreaField,
   TextField,
   ValidationRule,
 } from '../../@types/index.js'
@@ -14,10 +16,14 @@ import type {
 const applyValidationRules = (schema: z.ZodType, rules: ValidationRule[]): z.ZodType => {
   return rules.reduce((acc, rule) => {
     switch (rule.type) {
+      case 'min':
+        return (acc as z.ZodString).min(rule.value, rule.message)
+      case 'max':
+        return (acc as z.ZodString).max(rule.value, rule.message)
       case 'email':
-        return (acc as z.ZodEmail).describe(rule.message || 'Invalid email address')
+        return (acc as z.ZodString).email(rule.message || 'Invalid email address')
       case 'url':
-        return (acc as z.ZodURL).describe(rule.message || 'Invalid URL')
+        return (acc as z.ZodString).url(rule.message || 'Invalid URL')
       case 'pattern':
         return (acc as z.ZodString).regex(new RegExp(rule.value), rule.message)
       case 'custom':
@@ -29,18 +35,21 @@ const applyValidationRules = (schema: z.ZodType, rules: ValidationRule[]): z.Zod
 }
 
 // Helper function to apply text field validation
-const applyTextValidation = (schema: z.ZodString, field: TextField): z.ZodString => {
+const applyTextValidation = (
+  schema: z.ZodString,
+  field: TextField | TextAreaField | CodeField
+): z.ZodString => {
   let validatedSchema = schema
 
-  if (field.validation?.minLength) {
+  if (field.validation?.minLength != null) {
     validatedSchema = validatedSchema.min(field.validation.minLength)
   }
 
-  if (field.validation?.maxLength) {
+  if (field.validation?.maxLength != null) {
     validatedSchema = validatedSchema.max(field.validation.maxLength)
   }
 
-  if (field.validation?.pattern) {
+  if (field.validation && 'pattern' in field.validation && field.validation.pattern) {
     validatedSchema = validatedSchema.regex(new RegExp(field.validation.pattern))
   }
 
@@ -74,8 +83,6 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       // (assigned client-side on add, persisted via store_meta) — always
       // accepted, never required. `.passthrough()` tolerates auxiliary keys
       // (e.g. legacy seed-data `id` aliases) instead of stripping them.
-      // Group children stay `z.any()` via the `group` case below — the same
-      // depth boundary top-level groups have.
       const itemShape: Record<string, z.ZodType<any>> = {
         _id: z.string().optional(),
       }
@@ -93,6 +100,8 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       break
     }
 
+    case 'textArea':
+    case 'code':
     case 'text': {
       let textSchema = z.string()
       textSchema = applyTextValidation(textSchema, field)
@@ -119,6 +128,11 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       }
       break
 
+    case 'time':
+      schema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/)
+      break
+
+    case 'date':
     case 'datetime': {
       const dateSchema = z.preprocess(
         (val) => (val === '' || val == null ? null : val),
@@ -131,6 +145,14 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       schema = dateSchema
       break
     }
+
+    case 'json':
+      schema = z.json()
+      break
+
+    case 'object':
+      schema = z.record(z.string(), z.json())
+      break
 
     case 'richText': {
       const richTextSchema = z.any()
@@ -150,42 +172,19 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       break
     }
 
-    case 'textArea': {
-      let textAreaSchema = z.string()
-      if (field.validation?.minLength) {
-        textAreaSchema = textAreaSchema.min(field.validation.minLength)
-      }
-      if (field.validation?.maxLength) {
-        textAreaSchema = textAreaSchema.max(field.validation.maxLength)
-      }
-      schema = textAreaSchema
-      break
-    }
-
-    case 'code': {
-      let codeSchema = z.string()
-      if (field.validation?.minLength) {
-        codeSchema = codeSchema.min(field.validation.minLength)
-      }
-      if (field.validation?.maxLength) {
-        codeSchema = codeSchema.max(field.validation.maxLength)
-      }
-      schema = codeSchema
-      break
-    }
-
     case 'integer':
-      schema = z.number().int()
+    case 'float': {
+      let numeric = field.type === 'integer' ? z.number().int() : z.number()
+      if (field.validation?.min != null) numeric = numeric.min(field.validation.min)
+      if (field.validation?.max != null) numeric = numeric.max(field.validation.max)
+      schema = numeric
       break
+    }
 
     case 'counter':
       // Counter values are allocator-assigned; the wrapping below forces
       // the schema to allow undefined regardless of `field.optional`.
       schema = z.number().int()
-      break
-
-    case 'float':
-      schema = z.number()
       break
 
     case 'decimal':
@@ -219,15 +218,22 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
       break
     }
 
-    case 'blocks':
-      schema = z.any().array()
+    case 'blocks': {
+      const variants = field.blocks.map((block) =>
+        z
+          .object({
+            ...createFieldsSchema(block.fields, strict).shape,
+            _id: z.string().optional(),
+            _type: z.literal(block.blockType),
+          })
+          .passthrough()
+      )
+      schema = strict ? z.array(variants.length ? z.union(variants) : z.never()) : z.any().array()
       break
+    }
 
     case 'group':
-      // Group fields are complex nested structures validated at the
-      // field-renderer level. The shape depends on the group's child fields
-      // (recursive) and is not constrained here.
-      schema = z.any()
+      schema = strict ? createFieldsSchema(field.fields, true) : z.any()
       break
 
     case 'relation': {
@@ -307,7 +313,7 @@ export const createBaseSchema = (collection?: CollectionDefinition) => {
 // Create field schemas for a collection.
 // strict=true  → required fields are non-nullable (write / validation use)
 // strict=false → all fields are nullable+optional (read / serialisation use)
-export const createFieldsSchema = (fields: Field[], strict = true) => {
+export const createFieldsSchema = (fields: readonly Field[], strict = true) => {
   // Use ZodType<any> so the inferred object output is { [x: string]: any }
   // rather than { [x: string]: unknown } (Zod v4 defaults ZodType to <unknown>).
   // This keeps the schema assignable through TanStack Start's serialisation boundary.

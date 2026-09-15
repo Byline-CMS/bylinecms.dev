@@ -40,7 +40,11 @@ afterAll(async () => {
 describe('confirmed lock conflicts through the SDK', () => {
   it('propagates the error without retrying or replacing the observation', async () => {
     const handle = ctx.client.collection(ctx.definition.path)
-    const doc = await handle.create({ title: 'Lock conflict', path: 'lock-conflict' })
+    const doc = await handle.create({
+      title: 'Lock conflict',
+      path: 'lock-conflict',
+      summary: 'Valid fixture',
+    })
     const conflict = ERR_LOCK_CONFLICT({
       message: 'confirmed rollback',
       cause: new Error('driver diagnostic'),
@@ -50,7 +54,7 @@ describe('confirmed lock conflicts through the SDK', () => {
       await expect(
         handle.update(
           doc.documentId,
-          { title: 'Must not retry' },
+          { title: 'Must not retry', summary: 'Valid fixture' },
           { expectedRevision: doc.revision }
         )
       ).rejects.toBe(conflict)

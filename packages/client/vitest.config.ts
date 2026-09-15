@@ -9,6 +9,8 @@ export default defineConfig(({ mode }) => {
   return {
     test: {
       environment: 'node',
+      // The cross-layer save test uses built host handlers with session stubs.
+      server: { deps: { inline: isIntegration ? [/\/packages\/host-tanstack-start\//] : [] } },
       include: testFiles,
       reporter: 'verbose',
       globals: true,
