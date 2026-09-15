@@ -215,6 +215,13 @@ describe('FormRenderer submit contract', () => {
     // `inert` drops the active control out of the tab order mid-save. The hook
     // signals the transition through onBeforeBusy; the component owns the DOM
     // refs. Drop that signal and focus silently lands on <body>.
+    //
+    // This covers the KEYBOARD path only: focus is in a field and the form is
+    // submitted from there, so the captured element is still focusable when the
+    // form comes back. Clicking Save is different -- the captured element is the
+    // Save button, which is disabled once the save succeeds -- and that path is
+    // broken in a real browser. See issue #98. Do not read this passing test as
+    // "focus recovery works" in general.
     const submission = deferred()
     render({ ...baseProps, onSubmit: () => submission.promise })
     typeIntoTitle('Hello')
