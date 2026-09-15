@@ -13,22 +13,19 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import type { AdminResourceConfig, Field, WorkflowStatus } from '@byline/core'
 import { getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
-import { Alert, Button, ComboButton, LoaderEllipsis } from '@byline/ui/react'
+import { Alert, Button } from '@byline/ui/react'
 import cx from 'clsx'
 
 import { useBylineFieldServices } from '../fields/field-services-context'
 import { AvailableLocalesWidget } from './available-locales-widget'
-import { DocumentActions, type DocumentActionsLocaleOption } from './document-actions'
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
 import { FormLayout } from './form-layout'
 import { NavigationGuardModal, SystemFieldsConfirmModal, UnsavedChangesModal } from './form-modals'
-import { FormHeadingRow } from './form-page-chrome'
+import { FormHeadingRow, FormStatusBar } from './form-page-chrome'
 import styles from './form-renderer.module.css'
-import { FormStatusDisplay } from './form-status-display'
 import { useNavigationGuardAdapter } from './navigation-guard'
 import { PathWidget } from './path-widget'
 import {
-  ScheduledPublicationCell,
   type ScheduledPublicationInfo,
   ScheduledPublicationNotice,
   type SchedulePublicationInput,
@@ -37,6 +34,7 @@ import {
 import { computeStatusTransitions } from './status-transitions'
 import { TreePlacementWidget } from './tree-placement-widget'
 import { useFormSubmission } from './use-form-submission'
+import type { DocumentActionsLocaleOption } from './document-actions'
 import type { UseNavigationGuard } from './navigation-guard'
 
 // Re-exported so existing importers of this module keep working; the type now
@@ -454,162 +452,33 @@ const FormContent = ({
           inert={isBusy ? true : undefined}
         >
           <FormHeadingRow heading={computedHeading} headerSlot={headerSlot} />
-          <div className={cx('byline-form-status-bar', styles['status-bar'])}>
-            <div className={cx('byline-form-status-details', styles['status-details'])}>
-              <FormStatusDisplay
-                disabled={mutationsBlocked || discarding}
-                initialData={initialData}
-                workflowStatuses={workflowStatuses}
-                publishedVersion={publishedVersion}
-                onUnpublish={onUnpublish}
-                afterStatusCells={
-                  <ScheduledPublicationCell
-                    state={scheduling.state}
-                    timeZone={scheduling.timeZone}
-                  />
-                }
-              />
-            </div>
-            <div className={cx('byline-form-actions', styles.actions)}>
-              <Button
-                className={cx('byline-form-actions-button', styles['actions-button'])}
-                size="sm"
-                intent="noeffect"
-                type="button"
-                onClick={handleCancel}
-              >
-                {hasChanges === false ? t('common.actions.close') : t('common.actions.cancel')}
-              </Button>
-              <Button
-                className={cx('byline-form-actions-button', styles['actions-button'])}
-                size="sm"
-                type="submit"
-                disabled={
-                  mutationsBlocked ||
-                  discarding ||
-                  hasChanges === false ||
-                  isUploading ||
-                  isSubmitting
-                }
-                aria-label={isSubmitting ? t('common.actions.save') : undefined}
-              >
-                {isUploading ? (
-                  t('forms.actions.uploading')
-                ) : (
-                  <span className={cx('byline-form-save-content', styles['save-content'])}>
-                    <span
-                      className={cx(
-                        'byline-form-save-label',
-                        styles['save-label'],
-                        isSubmitting && styles['save-label-hidden']
-                      )}
-                    >
-                      {t('common.actions.save')}
-                    </span>
-                    {isSubmitting ? (
-                      <span className={cx('byline-form-save-loader', styles['save-loader'])}>
-                        <LoaderEllipsis size={28} aria-hidden="true" />
-                      </span>
-                    ) : null}
-                  </span>
-                )}
-              </Button>
-              {primaryStatus && onStatusChange && (
-                <div
-                  className={cx('byline-form-actions-status-wrap', styles['actions-status-wrap'])}
-                >
-                  <ComboButton
-                    buttonClassName={cx(
-                      'byline-form-actions-combo-button',
-                      styles['actions-combo-button']
-                    )}
-                    triggerClassName={cx(
-                      'byline-form-actions-combo-trigger',
-                      styles['actions-combo-trigger']
-                    )}
-                    options={secondaryStatuses.map((s) => ({
-                      label: isTerminal
-                        ? t('forms.actions.revertTo', { label: s.label ?? s.name })
-                        : (s.verb ?? s.label ?? s.name),
-                      value: s.name,
-                    }))}
-                    sideOffset={5}
-                    size="sm"
-                    type="button"
-                    intent={isTerminal ? 'info' : 'success'}
-                    disabled={mutationsBlocked || discarding || statusBusy}
-                    onOptionSelect={async (value: string) => {
-                      if (mutationBlockedRef.current) return
-                      if (hasChanges) {
-                        setShowUnsavedModal(true)
-                        return
-                      }
-                      setStatusBusy(true)
-                      try {
-                        await onStatusChange(value)
-                      } catch (error) {
-                        onMutationError?.(error)
-                      } finally {
-                        setStatusBusy(false)
-                      }
-                    }}
-                    onButtonClick={
-                      isTerminal
-                        ? undefined
-                        : async () => {
-                            if (mutationBlockedRef.current) return
-                            if (hasChanges) {
-                              setShowUnsavedModal(true)
-                              return
-                            }
-                            setStatusBusy(true)
-                            try {
-                              await onStatusChange(primaryStatus.name)
-                            } catch (error) {
-                              onMutationError?.(error)
-                            } finally {
-                              setStatusBusy(false)
-                            }
-                          }
-                    }
-                  >
-                    {statusBusy
-                      ? '...'
-                      : isTerminal
-                        ? (primaryStatus.label ?? primaryStatus.name)
-                        : (primaryStatus.verb ?? primaryStatus.label ?? primaryStatus.name)}
-                  </ComboButton>
-                </div>
-              )}
-              <DocumentActions
-                disabled={mutationsBlocked || discarding}
-                publishedVersion={publishedVersion}
-                onUnpublish={onUnpublish}
-                onDelete={onDelete}
-                onDuplicate={onDuplicate}
-                sourceTitle={
-                  useAsTitle != null && initialData != null
-                    ? ((initialData as Record<string, unknown>)[useAsTitle] as
-                        | string
-                        | null
-                        | undefined)
-                    : null
-                }
-                onCopyToLocale={onCopyToLocale}
-                sourceLocale={contentLocale}
-                contentLocales={contentLocales}
-                hasUnsavedChanges={hasChanges}
-                onUnsavedChanges={() => setShowUnsavedModal(true)}
-                onDeleteLocale={onDeleteLocale}
-                defaultLocale={defaultLocale}
-                availableLocales={initialData?._availableVersionLocales as string[] | undefined}
-                scheduledPublicationState={scheduling.state}
-                onSchedulePublication={scheduling.openSchedule}
-                onConfirmScheduledPublication={scheduling.confirm}
-                onCancelScheduledPublication={scheduling.cancel}
-              />
-            </div>
-          </div>
+          <FormStatusBar
+            disabled={mutationsBlocked || discarding}
+            initialData={initialData}
+            workflowStatuses={workflowStatuses}
+            publishedVersion={publishedVersion}
+            scheduling={scheduling}
+            hasChanges={hasChanges}
+            isUploading={isUploading}
+            isSubmitting={isSubmitting}
+            onCancel={handleCancel}
+            transitions={{ primaryStatus, secondaryStatuses, isTerminal }}
+            statusBusy={statusBusy}
+            onStatusBusyChange={setStatusBusy}
+            onStatusChange={onStatusChange}
+            onMutationError={onMutationError}
+            isBlocked={() => mutationBlockedRef.current}
+            onUnsavedChanges={() => setShowUnsavedModal(true)}
+            onUnpublish={onUnpublish}
+            onDelete={onDelete}
+            onDuplicate={onDuplicate}
+            onCopyToLocale={onCopyToLocale}
+            onDeleteLocale={onDeleteLocale}
+            useAsTitle={useAsTitle}
+            contentLocale={contentLocale}
+            contentLocales={contentLocales}
+            defaultLocale={defaultLocale}
+          />
           {(mutationIssue || scheduledPublicationsNeedReconfirmation) && (
             <div
               ref={warningRef}
