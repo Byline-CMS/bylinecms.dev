@@ -11,12 +11,27 @@ import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { useTranslation } from '@byline/i18n/react'
 import { Container, Section } from '@byline/ui/react'
 import cx from 'clsx'
-import { allExpanded, darkStyles, JsonView } from 'react-json-view-lite'
+import { darkStyles, JsonView } from 'react-json-view-lite'
 
 import styles from './api.module.css'
 import { ViewMenu } from './view-menu.js'
 import type { ContentLocaleOption } from './view-menu.js'
 import 'react-json-view-lite/dist/index.css'
+
+/**
+ * Expand the document root and the level below it — the document's own metadata
+ * and the names of its content fields — and leave everything deeper collapsed.
+ *
+ * `react-json-view-lite` does not mount collapsed descendants, so this reduces the
+ * size of the mounted tree rather than merely hiding nodes. A document with rich
+ * text, blocks, several locales and populated relations otherwise mounts thousands
+ * of nodes that the reader has to scroll past before finding anything.
+ *
+ * Declared at module scope so its identity is stable: the viewer treats a new
+ * callback as a reason to re-derive expansion state, which would discard whatever
+ * the reader had opened.
+ */
+const expandToFirstLevel = (level: number): boolean => level < 2
 
 /**
  * JSON inspector view for a collection document.
@@ -64,7 +79,7 @@ export const ApiView = ({
         <div className={cx('byline-api-viewer', styles.viewer)}>
           <JsonView
             data={initialData}
-            shouldExpandNode={allExpanded}
+            shouldExpandNode={expandToFirstLevel}
             style={{ ...darkStyles, container: 'api-json-view' }}
           />
         </div>
