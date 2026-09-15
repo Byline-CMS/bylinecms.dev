@@ -8,8 +8,9 @@
 
 import { act } from 'react'
 
-import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { createRoot, hydrateRoot, type Root } from 'react-dom/client'
+import { renderToString } from 'react-dom/server'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { FormProvider } from './form-context'
 import { useFormDomScope, useScopedDomId } from './form-dom-scope'
@@ -141,13 +142,7 @@ describe('form DOM scope', () => {
     expect(derived).toBe('title')
   })
 
-  /**
-   * `useId` is the only source that agrees between the server render and
-   * hydration. A counter or a random value would differ, React would discard the
-   * server-rendered attributes, and every `for`/`aria-labelledby` pairing written
-   * during SSR would silently point at an id that no longer exists.
-   */
-  it('derives the scope from React useId, so ids survive hydration', () => {
+  it('produces a non-empty scope inside a provider', () => {
     const scopes: string[] = []
     const Probe = () => {
       scopes.push(useFormDomScope())
@@ -161,8 +156,58 @@ describe('form DOM scope', () => {
     )
 
     expect(scopes[0]).not.toBe('')
-    // React 19 brackets its generated ids; the exact spelling is React's to
-    // choose, so assert the shape rather than the characters.
-    expect(scopes[0]).toMatch(/[^a-zA-Z0-9]/)
+  })
+
+  /**
+   * The reason the scope comes from `useId` rather than a counter or a random
+   * value: the server render and the hydration pass must agree. If they do not,
+   * React discards the server-rendered attributes and every `for` and
+   * `aria-labelledby` written during SSR points at an id that no longer exists.
+   *
+   * This renders on the server for real and hydrates that markup, rather than
+   * inspecting the shape of the generated string.
+   */
+  it('derives the same id on the server render and on hydration', async () => {
+    let renderedId = ''
+    const Probe = () => {
+      const id = useScopedDomId('title')
+      renderedId = id
+      return <span id={id}>title</span>
+    }
+    const tree = (
+      <FormProvider initialData={{}}>
+        <Probe />
+      </FormProvider>
+    )
+
+    const html = renderToString(tree)
+    const serverId = /id="([^"]+)"/.exec(html)?.[1]
+    expect(serverId).toBeTruthy()
+
+    const host = document.createElement('div')
+    host.innerHTML = html
+    document.body.appendChild(host)
+
+    // React reports a hydration mismatch through console.error rather than by
+    // throwing, so silence alone is not evidence — collect and assert on it.
+    const consoleErrors: unknown[][] = []
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      consoleErrors.push(args)
+    })
+
+    let hydrated: Root | undefined
+    await act(async () => {
+      hydrated = hydrateRoot(host, tree)
+    })
+    spy.mockRestore()
+
+    expect(consoleErrors).toEqual([])
+    expect(renderedId).toBe(serverId)
+    expect(host.querySelector('span')?.id).toBe(serverId)
+
+    act(() => {
+      hydrated?.unmount()
+    })
+    host.remove()
   })
 })
