@@ -19,19 +19,22 @@
 
 import type { ReactNode, RefObject } from 'react'
 
-import type { WorkflowStatus } from '@byline/core'
+import type { SlugifierFn, StructuralMutationReceipt, WorkflowStatus } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, ComboButton, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'clsx'
 
+import { AvailableLocalesWidget } from './available-locales-widget'
 import { DocumentActions, type DocumentActionsLocaleOption } from './document-actions'
 import styles from './form-renderer.module.css'
 import { FormStatusDisplay } from './form-status-display'
+import { PathWidget } from './path-widget'
 import {
   ScheduledPublicationCell,
   ScheduledPublicationNotice,
   type UseScheduledPublicationReturn,
 } from './scheduled-publication-control'
+import { TreePlacementWidget } from './tree-placement-widget'
 import type { PublishedVersionInfo } from './form-renderer'
 import type { StatusTransitions } from './status-transitions'
 
@@ -362,3 +365,96 @@ export const FormConcurrencyNotices = ({
     </>
   )
 }
+
+export interface FormSidebarWidgetsProps {
+  /** Mutations blocked or a discard in flight. */
+  disabled: boolean
+  mode: 'create' | 'edit'
+  // biome-ignore lint/suspicious/noExplicitAny: document shape is collection-specific
+  initialData?: any
+  collectionPath?: string
+  defaultLocale: string
+  contentLocale: string
+  contentLocales?: ReadonlyArray<DocumentActionsLocaleOption>
+  showPath: boolean
+  useAsPath?: string
+  lockPath?: boolean
+  pathSlugifier?: SlugifierFn
+  pathSourceLocked?: boolean
+  tree?: boolean
+  useAsTitle?: string
+  advertiseLocales?: boolean
+  observedRevision?: number
+  onMutationError?: (error: unknown) => 'blocked' | 'committed' | null | void
+  onTreeMutationCommitted?: (receipt: StructuralMutationReceipt) => void
+}
+
+/**
+ * The page-level widgets in the editor's sidebar: path, tree placement and
+ * advertised locales. They are page concerns rather than schema fields, so they
+ * reach `FormLayout` through its `sidebarSlot` and the embedded creation view
+ * passes none of them.
+ */
+export const FormSidebarWidgets = ({
+  disabled,
+  mode,
+  initialData,
+  collectionPath,
+  defaultLocale,
+  contentLocale,
+  contentLocales,
+  showPath,
+  useAsPath,
+  lockPath,
+  pathSlugifier,
+  pathSourceLocked,
+  tree,
+  useAsTitle,
+  advertiseLocales,
+  observedRevision,
+  onMutationError,
+  onTreeMutationCommitted,
+}: FormSidebarWidgetsProps): ReactNode => (
+  <>
+    {/* A locked collection's widget renders even with no `useAsPath`
+        and nothing stored yet: its path is managed, and the editor
+        needs to see that. `showPath: false` still wins — it marks a
+        path that must never be presented at all. */}
+    {showPath &&
+      (useAsPath ||
+        lockPath === true ||
+        (typeof initialData?.path === 'string' && initialData.path.length > 0)) && (
+        <PathWidget
+          disabled={disabled}
+          useAsPath={useAsPath}
+          collectionPath={collectionPath ?? ''}
+          defaultLocale={defaultLocale}
+          activeLocale={contentLocale}
+          mode={mode}
+          slugifier={pathSlugifier}
+          sourceLocked={pathSourceLocked}
+          lockPath={lockPath}
+        />
+      )}
+    {tree && mode === 'edit' && typeof initialData?.id === 'string' && (
+      <TreePlacementWidget
+        disabled={disabled}
+        onMutationError={onMutationError}
+        onCommitted={onTreeMutationCommitted}
+        expectedRevision={observedRevision ?? initialData.revision}
+        collectionPath={collectionPath ?? ''}
+        documentId={initialData.id as string}
+        useAsTitle={useAsTitle}
+      />
+    )}
+    {advertiseLocales && (
+      <AvailableLocalesWidget
+        disabled={disabled}
+        contentLocales={contentLocales ?? []}
+        availableVersionLocales={
+          (initialData?._availableVersionLocales as string[] | undefined) ?? []
+        }
+      />
+    )}
+  </>
+)

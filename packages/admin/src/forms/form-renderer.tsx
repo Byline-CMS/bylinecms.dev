@@ -16,21 +16,23 @@ import { useTranslation } from '@byline/i18n/react'
 import cx from 'clsx'
 
 import { useBylineFieldServices } from '../fields/field-services-context'
-import { AvailableLocalesWidget } from './available-locales-widget'
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
 import { FormLayout } from './form-layout'
 import { NavigationGuardModal, SystemFieldsConfirmModal, UnsavedChangesModal } from './form-modals'
-import { FormConcurrencyNotices, FormHeadingRow, FormStatusBar } from './form-page-chrome'
+import {
+  FormConcurrencyNotices,
+  FormHeadingRow,
+  FormSidebarWidgets,
+  FormStatusBar,
+} from './form-page-chrome'
 import styles from './form-renderer.module.css'
 import { useNavigationGuardAdapter } from './navigation-guard'
-import { PathWidget } from './path-widget'
 import {
   type ScheduledPublicationInfo,
   type SchedulePublicationInput,
   useScheduledPublication,
 } from './scheduled-publication-control'
 import { computeStatusTransitions } from './status-transitions'
-import { TreePlacementWidget } from './tree-placement-widget'
 import { useFormSubmission } from './use-form-submission'
 import type { DocumentActionsLocaleOption } from './document-actions'
 import type { UseNavigationGuard } from './navigation-guard'
@@ -501,48 +503,26 @@ const FormContent = ({
             activeTabBySet={activeTabBySet}
             onTabChange={handleTabChange}
             sidebarSlot={
-              <>
-                {/* A locked collection's widget renders even with no `useAsPath`
-                    and nothing stored yet: its path is managed, and the editor
-                    needs to see that. `showPath: false` still wins — it marks a
-                    path that must never be presented at all. */}
-                {showPath &&
-                  (useAsPath ||
-                    adminConfig?.lockPath === true ||
-                    (typeof initialData?.path === 'string' && initialData.path.length > 0)) && (
-                    <PathWidget
-                      disabled={mutationsBlocked || discarding}
-                      useAsPath={useAsPath}
-                      collectionPath={collectionPath ?? ''}
-                      defaultLocale={defaultLocale}
-                      activeLocale={contentLocale}
-                      mode={mode}
-                      slugifier={pathSlugifier}
-                      sourceLocked={pathSourceLocked}
-                      lockPath={adminConfig?.lockPath}
-                    />
-                  )}
-                {tree && mode === 'edit' && typeof initialData?.id === 'string' && (
-                  <TreePlacementWidget
-                    disabled={mutationsBlocked || discarding}
-                    onMutationError={onMutationError}
-                    onCommitted={onTreeMutationCommitted}
-                    expectedRevision={observedRevision ?? initialData.revision}
-                    collectionPath={collectionPath ?? ''}
-                    documentId={initialData.id as string}
-                    useAsTitle={useAsTitle}
-                  />
-                )}
-                {advertiseLocales && (
-                  <AvailableLocalesWidget
-                    disabled={mutationsBlocked || discarding}
-                    contentLocales={contentLocales ?? []}
-                    availableVersionLocales={
-                      (initialData?._availableVersionLocales as string[] | undefined) ?? []
-                    }
-                  />
-                )}
-              </>
+              <FormSidebarWidgets
+                disabled={mutationsBlocked || discarding}
+                mode={mode}
+                initialData={initialData}
+                collectionPath={collectionPath ?? ''}
+                defaultLocale={defaultLocale}
+                contentLocale={contentLocale}
+                contentLocales={contentLocales}
+                showPath={showPath}
+                useAsPath={useAsPath}
+                lockPath={adminConfig?.lockPath}
+                pathSlugifier={pathSlugifier}
+                pathSourceLocked={pathSourceLocked}
+                tree={tree}
+                useAsTitle={useAsTitle}
+                advertiseLocales={advertiseLocales}
+                observedRevision={observedRevision}
+                onMutationError={onMutationError}
+                onTreeMutationCommitted={onTreeMutationCommitted}
+              />
             }
           />
           {showUnsavedModal && <UnsavedChangesModal onClose={() => setShowUnsavedModal(false)} />}
