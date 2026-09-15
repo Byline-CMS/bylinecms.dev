@@ -496,6 +496,47 @@ describe('singleton lifecycle service', () => {
     )
   })
 
+  it('reports validation issues on a restore without blocking it', async () => {
+    // The singleton restore path shares the persistence exemption, so it must
+    // also share the reporting the shared restore modal renders.
+    const harness = createHarness({ mapped: true })
+    harness.views.set('all', { fields: { title: { en: 'Current' }, count: 2 } })
+    harness.versions.set('ver-source', {
+      document_id: 'doc-1',
+      // Predates `title` — a required localized field — and carries a count
+      // that today's integer rule rejects.
+      fields: { count: 'not-a-number' },
+    })
+
+    const result = await restoreSingletonVersion(harness.ctx, {
+      expectedRevision: 1,
+      sourceVersionId: 'ver-source',
+    })
+
+    expect(harness.createDocumentVersion).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'restore', locale: 'all' })
+    )
+    expect(result.validationIssues?.map((issue) => [issue.field, issue.kind])).toEqual([
+      ['title', 'required'],
+      ['count', 'invalid'],
+    ])
+  })
+
+  it('omits validationIssues when the restored singleton version is clean', async () => {
+    const harness = createHarness({ mapped: true })
+    harness.views.set('all', { fields: { title: { en: 'Current' }, count: 2 } })
+    harness.versions.set('ver-source', {
+      document_id: 'doc-1',
+      fields: { title: { en: 'Historic' }, count: 1 },
+    })
+
+    const result = await restoreSingletonVersion(harness.ctx, {
+      expectedRevision: 1,
+      sourceVersionId: 'ver-source',
+    })
+    expect(result.validationIssues).toBeUndefined()
+  })
+
   it('copies the merged target payload and distinguishes overwrite modes', async () => {
     const run = async (overwrite: boolean) => {
       const beforeSave = vi.fn()

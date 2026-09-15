@@ -8,24 +8,40 @@
 
 import { ERR_INVALID_TRANSITION, ERR_NOT_FOUND, ERR_VALIDATION } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
+import { validateDocumentFields } from '../../validation/document-fields.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
 import { applyRichTextEmbed } from '../document-lifecycle/internals.js'
 import { persistExistingDocumentVersion } from '../document-lifecycle/persistence.js'
 import { authorizeSingletonUpdate, commitSingletonSave } from './internals.js'
+import type { DocumentFieldIssue } from '../../validation/document-fields.js'
 import type { DocumentLifecycleContext } from '../document-lifecycle/context.js'
 import type { SingletonSaveResult } from './internals.js'
+
+export interface RestoreSingletonVersionResult extends SingletonSaveResult {
+  /**
+   * Ways the restored content fails today's field validation. Restore is
+   * exempt from that gate, so these never block it — they are reported so the
+   * editor can say what must be fixed before the next ordinary save. Mirrors
+   * `RestoreVersionResult.validationIssues` on the collection path.
+   */
+  validationIssues?: DocumentFieldIssue[]
+}
 
 /** Restore one historical singleton version as the new current version. */
 export async function restoreSingletonVersion(
   ctx: DocumentLifecycleContext,
   params: { sourceVersionId: string; expectedRevision: number }
-): Promise<SingletonSaveResult> {
+): Promise<RestoreSingletonVersionResult> {
   params = { ...params }
   return withLogContext(
     { domain: 'services', module: 'singleton-lifecycle', function: 'restoreSingletonVersion' },
     async () => {
       const definition = authorizeSingletonUpdate(ctx)
-      return commitSingletonSave({
+      // Restore is exempt from the content gate (see assertWritableContent).
+      // Collect the issues for reporting only, after the embed pass, so the
+      // editor can explain why its next ordinary save is refused.
+      let validationIssues: DocumentFieldIssue[] = []
+      const result = await commitSingletonSave({
         ctx,
         definition,
         expectedRevision: params.expectedRevision,
@@ -88,7 +104,10 @@ export async function restoreSingletonVersion(
             data,
             originalData,
             locale: 'all',
-            prepareWrite: () => applyRichTextEmbed(ctx, data),
+            prepareWrite: async () => {
+              await applyRichTextEmbed(ctx, data)
+              validationIssues = validateDocumentFields(definition.fields, data, { locale: 'all' })
+            },
             write: async () => {
               return persistExistingDocumentVersion(ctx, {
                 documentId: slot.documentId as string,
@@ -102,6 +121,7 @@ export async function restoreSingletonVersion(
           }
         },
       })
+      return { ...result, ...(validationIssues.length > 0 ? { validationIssues } : {}) }
     }
   )
 }

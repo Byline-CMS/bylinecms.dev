@@ -529,6 +529,40 @@ circumstantial requirement — `optional: true` plus a `validate` callback, whic
 the lifecycle enforces and the admin reports wherever the field is visible — and
 records the `locale: 'all'` shape difference.
 
+### Review of the exemption commit
+
+A review of `bcb0f927` accepted the exemption and found three gaps, all fixed.
+
+**Advisory validation could still block a restore.** The diagnostic pass runs
+`validate` and `condition` — schema-author callbacks — against data they may not
+anticipate. A validator calling `value.trim()` throws when a historical version
+lacks the field, and the exception escaped, aborting the recovery the exemption
+exists to protect. Reproduced for both callbacks.
+
+`validateDocumentFields` now isolates each callback and records a failure as an
+`invalid` issue rather than letting it escape. This fixes more than restore: an
+ordinary save previously surfaced a raw `TypeError` from the lifecycle and now
+refuses the write with a readable field message, so validation stays strict
+where it should be. The walk also keeps collecting issues after one callback
+fails, instead of discarding what it had. A throwing `condition` fails closed —
+the field stays visible and validated — and is reported, so the misconfiguration
+is loud rather than silently hiding a field.
+
+**Singleton reporting was incomplete.** Singleton restores shared the
+persistence exemption but never computed `validationIssues`, so the shared
+restore modal could not show the warning the collection path promised.
+`restoreSingletonVersion` now returns them through a
+`RestoreSingletonVersionResult`, threaded through the client handle. Singleton
+copy-to-locale showed a generic failure; it now names its invalid fields through
+the same `describeMutationFailure` helper the collection view uses, extracted so
+the two cannot drift.
+
+**Publication guidance named the wrong hook.** The fields reference recommended
+`beforeUpdate` for publication preconditions, but status transitions invoke
+`beforeStatusChange` (`document-lifecycle/status.ts`, and scheduled publication
+in `scheduled-publish.ts`); a precondition placed in `beforeUpdate` would not
+have guarded that pathway at all. Corrected, with the distinction stated.
+
 ### Verification
 
 Repository lint, typechecking, Knip, documentation validation and
@@ -539,4 +573,6 @@ a `kind` from a malformed payload (unit and over the installed server-function
 serializer), and five lifecycle cases — restore reports a version predating a
 required field, restores content failing a rule whose schema never changed,
 restores into a published default status, omits `validationIssues` for a clean
-source, and does not extend the exemption to duplication.
+source, and does not extend the exemption to duplication. The review fixes add
+five callback-isolation cases, an end-to-end restore against a throwing
+validator, and two singleton reporting cases.

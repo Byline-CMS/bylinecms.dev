@@ -2885,6 +2885,34 @@ describe('Document lifecycle service', () => {
         expect(result.validationIssues).toBeUndefined()
       })
 
+      it('is not blocked by a validator that throws on the historical shape', async () => {
+        // The diagnostic pass runs schema-author code against data it may not
+        // anticipate. An exception there must not abort recovery.
+        const throwing: CollectionDefinition = {
+          ...minimalCollection,
+          fields: [
+            { name: 'title', type: 'text', localized: true },
+            {
+              name: 'slug',
+              type: 'text',
+              optional: true,
+              validate: (value: any) => (value.trim() === '' ? 'empty' : undefined),
+            },
+          ],
+        }
+        const { db, createDocumentVersion, sourceVersionId } = setupRestore()
+
+        const result = await restoreDocumentVersion(buildCtx(db, throwing), {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          sourceVersionId,
+        })
+
+        expect(createDocumentVersion).toHaveBeenCalledOnce()
+        expect(result.validationIssues?.map((issue) => issue.field)).toEqual(['slug'])
+        expect(result.validationIssues?.[0]?.message).toContain('validate failed')
+      })
+
       it('does not extend the exemption to duplication', async () => {
         // Duplicate reads the current version, which the editor can open and
         // correct, so it keeps the gate.

@@ -14,6 +14,7 @@ import type {
   DocumentWritePrecondition,
   ReadContext,
   ReadMode,
+  RestoreSingletonVersionResult,
   SingletonAbilityVerb,
   SingletonDefinition,
   SingletonSaveResult,
@@ -203,7 +204,7 @@ export class SingletonHandle<TFields extends Record<string, any> = Record<string
   async restoreVersion(
     sourceVersionId: string,
     options: DocumentWritePrecondition
-  ): Promise<SingletonSaveResult> {
+  ): Promise<RestoreSingletonVersionResult> {
     const ctx = await this.buildAuthorizedLifecycleContext(['update'])
     return restoreSingletonVersion(ctx, {
       sourceVersionId,

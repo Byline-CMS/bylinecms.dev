@@ -196,6 +196,68 @@ describe('document field validation', () => {
     })
   })
 
+  describe('schema-author callbacks that throw', () => {
+    // A validator written against today's shape meets a historical version
+    // that lacks the field. An exception must not escape the walk.
+    const throwingValidate: Field[] = [
+      { name: 'title', type: 'text' },
+      {
+        name: 'slug',
+        type: 'text',
+        optional: true,
+        validate: (value: any) => (value.trim() === '' ? 'empty' : undefined),
+      },
+    ]
+
+    it('records a failed validator as an issue instead of throwing', () => {
+      const issues = validateDocumentFields(throwingValidate, { title: 'ok' })
+      expect(issues).toHaveLength(1)
+      expect(issues[0]?.field).toBe('slug')
+      expect(issues[0]?.kind).toBe('invalid')
+      expect(issues[0]?.message).toContain('validate failed')
+    })
+
+    it('keeps collecting issues after one callback fails', () => {
+      const issues = validateDocumentFields(throwingValidate, {})
+      expect(issues.map((issue) => issue.field)).toEqual(['title', 'slug'])
+    })
+
+    it('still refuses an ordinary save, with a readable message', () => {
+      expect(() => assertDocumentFields(throwingValidate, { title: 'ok' })).toThrow(
+        'Some document fields are invalid'
+      )
+    })
+
+    it('treats a throwing condition as visible and surfaces it', () => {
+      const throwingCondition: Field[] = [
+        { name: 'a', type: 'text', condition: (data: any) => data.missing.deep === 1 },
+      ]
+      const issues = validateDocumentFields(throwingCondition, {}, { respectConditions: true })
+      // Fail closed: the field is still validated, and the misconfiguration
+      // is reported rather than silently hiding the field.
+      expect(issues.map((issue) => issue.message)).toEqual([
+        expect.stringContaining('condition failed'),
+        'a is required',
+      ])
+    })
+
+    it('does not leak a stack trace into the message', () => {
+      const issues = validateDocumentFields(
+        [
+          {
+            name: 'x',
+            type: 'text',
+            validate: () => {
+              throw new Error('boom')
+            },
+          },
+        ],
+        { x: 'v' }
+      )
+      expect(issues[0]?.message).toBe('x: validate failed (boom)')
+    })
+  })
+
   describe('the serialized decoder', () => {
     it('decodes an unknown or absent kind as invalid, never as waivable', () => {
       const details = getDocumentFieldValidationDetails({

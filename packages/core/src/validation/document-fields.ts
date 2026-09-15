@@ -32,7 +32,22 @@ export interface DocumentFieldValidationDetails {
 const record = (value: unknown): value is Record<string, any> =>
   value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)
 
-/** Validate schema data without transforming or stripping persistence values. */
+/** Describe a failed schema-author callback without leaking a stack trace. */
+const callbackFailure = (hook: 'validate' | 'condition', error: unknown): string =>
+  `${hook} failed (${error instanceof Error ? error.message : 'unknown error'})`
+
+/**
+ * Validate schema data without transforming or stripping persistence values.
+ *
+ * Never throws. `validate` and `condition` are schema-author callbacks and can
+ * fail on data they did not anticipate — a validator calling `value.trim()`
+ * meets a historical version that lacks the field. A raw exception would
+ * abort the walk, discarding the issues already collected, and escape as an
+ * unhandled error rather than a field result. Each callback is therefore
+ * isolated and a failure recorded as an `invalid` issue, so an ordinary save
+ * still refuses the write with a readable message, and a caller using this for
+ * diagnostics only — restore — is never blocked by it.
+ */
 export function validateDocumentFields(
   fields: FieldSet,
   data: Record<string, any>,
@@ -51,7 +66,17 @@ export function validateDocumentFields(
     for (const field of fieldSet) {
       const path = prefix ? `${prefix}.${field.name}` : field.name
       if (options.skip?.(path)) continue
-      if (options.respectConditions && field.condition && !field.condition(data, values)) continue
+      // A condition that throws is a misconfiguration: keep the field visible
+      // (fail closed) and surface it, rather than silently hiding the field.
+      if (options.respectConditions && field.condition) {
+        let visible = true
+        try {
+          visible = Boolean(field.condition(data, values))
+        } catch (error) {
+          add(path, `${field.label ?? field.name}: ${callbackFailure('condition', error)}`)
+        }
+        if (!visible) continue
+      }
       const value = values[field.name]
       if (field.localized && options.locale === 'all' && record(value)) {
         const locales = Object.keys(value)
@@ -64,8 +89,12 @@ export function validateDocumentFields(
   const validate = (field: Field, value: any, path: string) => {
     const label = field.label ?? field.name
     if (field.validate) {
-      const message = field.validate(value, data)
-      if (message) add(path, message)
+      try {
+        const message = field.validate(value, data)
+        if (message) add(path, message)
+      } catch (error) {
+        add(path, `${label}: ${callbackFailure('validate', error)}`)
+      }
     }
     if (value == null || value === '') {
       if (!field.optional && field.type !== 'counter') add(path, `${label} is required`, 'required')

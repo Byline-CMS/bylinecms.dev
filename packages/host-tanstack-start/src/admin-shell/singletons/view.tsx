@@ -37,6 +37,7 @@ import {
 } from '../../server-fns/singletons/index.js'
 import { useNavigate } from '../chrome/loose-router.js'
 import { useTanStackNavigationGuard } from '../collections/tanstack-navigation-guard.js'
+import { describeMutationFailure } from '../describe-mutation-failure.js'
 import { useDocumentMutationState } from '../document-mutation-state.js'
 import { SingletonViewMenu } from './view-menu.js'
 import type { ContentLocaleOption } from '../collections/view-menu.js'
@@ -287,7 +288,7 @@ export function SingletonView({
       }
       toast(
         t('collections.edit.copyToLocaleTitle', { label }),
-        t('collections.edit.copyFailedDescription', { message: t('documentConcurrency.failed') }),
+        t('collections.edit.copyFailedDescription', { message: describeMutationFailure(err, t) }),
         'danger'
       )
       throw err
