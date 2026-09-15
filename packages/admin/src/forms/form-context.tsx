@@ -15,6 +15,7 @@ import type { Field, FieldBeforeChangeResult, FieldHookContext } from '@byline/c
 import { normalizeHooks } from '@byline/core'
 import type { DocumentPatch, FieldSetPatch } from '@byline/core/patches'
 
+import { FormDomScopeProvider } from './form-dom-scope'
 // Vendored nested get/set (see ./nested-path) — removes the lodash-es dep
 // outright. A bare `from 'lodash-es'` import otherwise pools into a single
 // ~85KB chunk that leaks onto the public frontend bundle (form-context is
@@ -749,7 +750,7 @@ export const FormProvider = ({
         subscribeSystemAvailableLocales: availableLocalesSlot.subscribe,
       }}
     >
-      {children}
+      <FormDomScopeProvider>{children}</FormDomScopeProvider>
     </FormContext.Provider>
   )
 }
