@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 import type { Field, FieldBeforeChangeResult, FieldHookContext } from '@byline/core'
 import { normalizeHooks } from '@byline/core'
@@ -28,11 +28,31 @@ import { useFormContext } from '../forms/form-context'
  * to `setFieldValue` (no promises, no extra allocations).
  */
 export function useFieldChangeHandler(field: Field, path: string) {
-  const { setFieldValue, getFieldValue, getFieldValues, setFieldError, clearFieldError } =
-    useFormContext()
+  const {
+    setFieldValue,
+    getFieldValue,
+    getFieldValues,
+    setFieldError,
+    clearFieldError,
+    trackFieldChange,
+  } = useFormContext()
+
+  const generation = useRef(0)
+  const releasePending = useRef<(() => void) | undefined>(undefined)
+  useEffect(
+    () => () => {
+      generation.current++
+      releasePending.current?.()
+    },
+    []
+  )
 
   return useCallback(
     (value: any) => {
+      releasePending.current?.()
+      const invocation = ++generation.current
+      if (field.readOnly) return
+      const current = () => invocation === generation.current
       const hooks = field.hooks
 
       // ── fast path: no hooks defined ────────────────────────────
@@ -56,7 +76,9 @@ export function useFieldChangeHandler(field: Field, path: string) {
         // Raw store write for cross-field behaviour (e.g. mutual exclusivity
         // across array items). Deliberately does not run the target field's
         // own hooks — see FieldHookContext.setFieldValue.
-        setFieldValue,
+        setFieldValue: (target, next) => {
+          if (current()) setFieldValue(target, next)
+        },
       }
 
       clearFieldError(path)
@@ -70,12 +92,13 @@ export function useFieldChangeHandler(field: Field, path: string) {
         setFieldValue(path, value)
       }
 
-      void (async () => {
+      const pending = (async () => {
         try {
           // 1. beforeValidate (advisory — value is always committed)
           let advisoryError: string | undefined
           for (const fn of validateFns) {
             const result = (await fn(ctx)) as FieldBeforeChangeResult | undefined
+            if (!current()) return
             if (result?.error) {
               advisoryError = result.error
             }
@@ -87,6 +110,7 @@ export function useFieldChangeHandler(field: Field, path: string) {
           // 2. beforeChange
           for (const fn of changeFns) {
             const result = (await fn(ctx)) as FieldBeforeChangeResult | undefined
+            if (!current()) return
             if (result?.error) {
               setFieldError(path, result.error)
               return // block the change
@@ -97,20 +121,30 @@ export function useFieldChangeHandler(field: Field, path: string) {
           }
 
           // 3. commit the (possibly transformed) value and surface any advisory error.
-          // If there were no beforeChange hooks we already committed synchronously above;
-          // this call is a no-op if the value hasn't been altered by a hook.
-          setFieldValue(path, ctx.value)
+          if (!current()) return
+          if (changeFns.length > 0 || !Object.is(ctx.value, value)) setFieldValue(path, ctx.value)
           if (advisoryError) {
             setFieldError(path, advisoryError)
           }
         } catch (err) {
+          if (!current()) return
           // Surface unexpected hook errors as field errors rather than crashing
           const message = err instanceof Error ? err.message : 'Unexpected hook error'
           setFieldError(path, message)
         }
       })()
+      releasePending.current = trackFieldChange(pending)
     },
     // field reference is stable per render cycle; path is derived from props
-    [field, path, setFieldValue, getFieldValue, getFieldValues, setFieldError, clearFieldError]
+    [
+      field,
+      path,
+      setFieldValue,
+      getFieldValue,
+      getFieldValues,
+      setFieldError,
+      clearFieldError,
+      trackFieldChange,
+    ]
   )
 }

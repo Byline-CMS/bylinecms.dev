@@ -46,11 +46,11 @@ export const TextField = ({
 
   const handleChange = useCallback(
     (value: string) => {
-      if (onChange) {
+      if (onChange && !field.readOnly) {
         onChange(value)
       }
     },
-    [onChange]
+    [onChange, field.readOnly]
   )
 
   // Custom component slots (from admin config)
@@ -122,6 +122,7 @@ export const TextField = ({
     }
     return (
       <Input
+        readOnly={field.readOnly}
         id={htmlId}
         name={field.name}
         label={suppressInputLabel ? undefined : field.label}

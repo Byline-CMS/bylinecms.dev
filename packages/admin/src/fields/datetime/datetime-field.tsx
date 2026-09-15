@@ -39,6 +39,7 @@ export const DateTimeField = ({
   return (
     <div className={`byline-field-datetime ${field.name}`}>
       <DatePicker
+        disabled={field.readOnly}
         id={htmlId}
         name={field.name}
         label={field.label}

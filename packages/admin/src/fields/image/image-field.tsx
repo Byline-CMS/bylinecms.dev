@@ -104,6 +104,7 @@ export const ImageField = ({
 
   // Handle remove, including cleanup of pending uploads
   const handleRemove = () => {
+    if (field.readOnly) return
     if (isPending) {
       removePendingUpload(fieldPath)
     }
@@ -137,7 +138,7 @@ export const ImageField = ({
           >
             {t('fields.upload.requireSavedDocument')}
           </div>
-        ) : collectionPath ? (
+        ) : collectionPath && !field.readOnly ? (
           <ImageUploadField
             field={field}
             collectionPath={collectionPath}
@@ -170,7 +171,7 @@ export const ImageField = ({
                 intent="noeffect"
                 onClick={handleRemove}
                 size="xs"
-                disabled={isUploading}
+                disabled={isUploading || field.readOnly}
                 aria-label={t('fields.image.removeAriaLabel')}
               >
                 <CloseIcon width="15px" height="15px" />

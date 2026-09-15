@@ -104,6 +104,7 @@ export const RelationField = ({
     targetCollectionId: string
     record?: Record<string, any>
   }) => {
+    if (field.readOnly) return
     setPickerOpen(false)
     if (selection.record) {
       setPickedRecord({ id: selection.targetDocumentId, record: selection.record })
@@ -117,6 +118,7 @@ export const RelationField = ({
   }
 
   const handleRemove = () => {
+    if (field.readOnly) return
     setPickedRecord(null)
     onChange?.(null)
   }
@@ -168,6 +170,7 @@ export const RelationField = ({
               />
               <div className={cx('byline-field-relation-actions', styles.actions)}>
                 <IconButton
+                  disabled={field.readOnly}
                   id={htmlId}
                   type="button"
                   intent="noeffect"
@@ -180,6 +183,7 @@ export const RelationField = ({
                   <EditIcon width="15px" height="15px" />
                 </IconButton>
                 <IconButton
+                  disabled={field.readOnly}
                   type="button"
                   intent="noeffect"
                   size="xs"
@@ -194,6 +198,7 @@ export const RelationField = ({
             </div>
           ) : (
             <Button
+              disabled={field.readOnly}
               id={htmlId}
               size="xs"
               variant="outlined"

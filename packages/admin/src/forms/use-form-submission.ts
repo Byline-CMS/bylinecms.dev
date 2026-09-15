@@ -10,7 +10,7 @@
 
 import { useCallback, useRef, useState } from 'react'
 
-import type { Field } from '@byline/core'
+import { type Field, getDocumentFieldValidationDetails } from '@byline/core'
 import type { DocumentPatch } from '@byline/core/patches'
 import { useTranslation } from '@byline/i18n/react'
 
@@ -105,7 +105,9 @@ export function useFormSubmission(options: UseFormSubmissionOptions): UseFormSub
     setFieldValue,
     setFieldError,
     getPendingUploads,
-    clearPendingUploads,
+    removePendingUpload,
+    clearFieldError,
+    waitForFieldChanges,
     setFieldUploading,
   } = useFormContext()
   const { t } = useTranslation('byline-admin')
@@ -113,6 +115,7 @@ export function useFormSubmission(options: UseFormSubmissionOptions): UseFormSub
 
   const [phase, setPhase] = useState<SubmissionPhase>(IDLE)
   const inFlightRef = useRef(false)
+  const confirmationRef = useRef<SystemFieldsSubmitPayload | null>(null)
 
   const isBusy = phase.kind === 'uploading' || phase.kind === 'submitting'
 
@@ -136,14 +139,16 @@ export function useFormSubmission(options: UseFormSubmissionOptions): UseFormSub
       try {
         await onSubmit(payload)
         resetHasChanges()
-      } catch {
+      } catch (error) {
+        const validation = getDocumentFieldValidationDetails(error)
+        for (const issue of validation?.issues ?? []) setFieldError(issue.field, issue.message)
         // Intentionally swallowed here — the host has already reported the
         // failure to the user. Dirty state is preserved by not resetting.
       } finally {
         setPhase(IDLE)
       }
     },
-    [isBlocked, onBeforeBusy, onSubmit, resetHasChanges]
+    [isBlocked, onBeforeBusy, onSubmit, resetHasChanges, setFieldError]
   )
 
   const runUploads = useCallback(async (): Promise<boolean> => {
@@ -170,28 +175,31 @@ export function useFormSubmission(options: UseFormSubmissionOptions): UseFormSub
         }
       )
 
+      // Adopt each success before reporting partial failure, so retries only
+      // transport failed files. Do not overwrite a selection replaced in flight.
+      for (const [fieldPath, storedFile] of uploadResult.successful) {
+        if (getPendingUploads().get(fieldPath) !== pendingUploads.get(fieldPath)) continue
+        setFieldValue(fieldPath, storedFile)
+        clearFieldError(fieldPath)
+        removePendingUpload(fieldPath)
+      }
       if (!uploadResult.allSucceeded) {
-        for (const [fieldPath, errorMessage] of uploadResult.errors.entries()) {
-          setFieldError(fieldPath, t('forms.uploadFailedFieldError', { message: errorMessage }))
+        for (const [fieldPath, errorMessage] of uploadResult.errors) {
+          if (getPendingUploads().get(fieldPath) === pendingUploads.get(fieldPath)) {
+            setFieldError(fieldPath, t('forms.uploadFailedFieldError', { message: errorMessage }))
+          }
         }
-        console.error('One or more uploads failed:', uploadResult.errors)
         return false
       }
-
-      // Replace pending StoredFileValues with real ones in form data
-      for (const [fieldPath, storedFile] of uploadResult.successful.entries()) {
-        setFieldValue(fieldPath, storedFile)
-      }
-
-      // Clear pending uploads (blob URLs already revoked by clearPendingUploads)
-      clearPendingUploads()
+      if (getPendingUploads().size > 0) return false
       return true
     } catch (err) {
       console.error('Upload execution error:', err)
       return false
     }
   }, [
-    clearPendingUploads,
+    removePendingUpload,
+    clearFieldError,
     documentId,
     fields,
     getFieldValues,
@@ -210,8 +218,8 @@ export function useFormSubmission(options: UseFormSubmissionOptions): UseFormSub
     return {
       reason,
       payload: {
-        data: getFieldValues(),
-        patches: getPatches(),
+        data: structuredClone(getFieldValues()),
+        patches: structuredClone(getPatches()),
         contentDirty,
         pathDirty,
         systemPath: getSystemPath(),
@@ -230,20 +238,27 @@ export function useFormSubmission(options: UseFormSubmissionOptions): UseFormSub
 
   const submit = useCallback(async () => {
     if (isBlocked()) return
-    if (inFlightRef.current) return
+    if (inFlightRef.current || confirmationRef.current) return
     inFlightRef.current = true
     try {
       setPhase({ kind: 'validating' })
 
       // Run field-level beforeValidate hooks (submit-time), then validate
-      const hookErrors = await runFieldHooks(fields)
-      const formErrors = validateForm(fields)
-      const allErrors = [...hookErrors, ...formErrors]
-
-      if (allErrors.length > 0) {
-        console.error('Form validation failed:', allErrors)
+      await waitForFieldChanges()
+      if (isBlocked()) {
         setPhase(IDLE)
         return
+      }
+      // Metadata-only saves do not create a content version and must remain
+      // available even when an older document lacks newly required fields.
+      if (mode !== 'edit' || getDirtyBreakdown().reason !== 'direct-write') {
+        const hookErrors = await runFieldHooks(fields)
+        const formErrors = validateForm(fields, hookErrors)
+        if (formErrors.length > 0) {
+          console.error('Form validation failed:', formErrors)
+          setPhase(IDLE)
+          return
+        }
       }
 
       if (isBlocked()) {
@@ -263,6 +278,7 @@ export function useFormSubmission(options: UseFormSubmissionOptions): UseFormSub
       // so confirm it before saving. Create mode writes everything as part of
       // the initial version, so no confirmation applies there.
       if (mode === 'edit' && (reason === 'direct-write' || reason === 'both')) {
+        confirmationRef.current = payload
         setPhase({ kind: 'confirmingSystemFields', payload })
         return
       }
@@ -271,13 +287,25 @@ export function useFormSubmission(options: UseFormSubmissionOptions): UseFormSub
     } finally {
       inFlightRef.current = false
     }
-  }, [buildPayload, deliver, fields, isBlocked, mode, runUploads, runFieldHooks, validateForm])
+  }, [
+    buildPayload,
+    getDirtyBreakdown,
+    deliver,
+    fields,
+    isBlocked,
+    mode,
+    runUploads,
+    runFieldHooks,
+    validateForm,
+    waitForFieldChanges,
+  ])
 
   const confirmSystemFields = useCallback(async () => {
-    if (phase.kind !== 'confirmingSystemFields') return
+    if (phase.kind !== 'confirmingSystemFields' || confirmationRef.current !== phase.payload) return
     if (inFlightRef.current) return
     inFlightRef.current = true
     const { payload } = phase
+    confirmationRef.current = null
     try {
       await deliver(payload)
     } finally {
@@ -286,6 +314,7 @@ export function useFormSubmission(options: UseFormSubmissionOptions): UseFormSub
   }, [deliver, phase])
 
   const cancelSystemFields = useCallback(() => {
+    confirmationRef.current = null
     setPhase((current) => (current.kind === 'confirmingSystemFields' ? IDLE : current))
   }, [])
 

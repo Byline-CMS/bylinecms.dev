@@ -48,6 +48,7 @@ export const SelectField = ({
         />
       )}
       <Select<string>
+        disabled={field.readOnly}
         size="xs"
         variant="outlined"
         id={htmlId}

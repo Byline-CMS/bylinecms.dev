@@ -9,10 +9,18 @@
  */
 
 import type React from 'react'
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from 'react'
 
 import type { Field, FieldBeforeChangeResult, FieldHookContext } from '@byline/core'
-import { normalizeHooks } from '@byline/core'
+import { normalizeHooks, validateDocumentFields } from '@byline/core'
 import type { DocumentPatch, FieldSetPatch } from '@byline/core/patches'
 
 import { FormDomScopeProvider } from './form-dom-scope'
@@ -20,11 +28,7 @@ import { FormDomScopeProvider } from './form-dom-scope'
 // outright. A bare `from 'lodash-es'` import otherwise pools into a single
 // ~85KB chunk that leaks onto the public frontend bundle (form-context is
 // reachable from the layout graph).
-import {
-  get as getNestedValue,
-  hasExistingIdTargets,
-  setWithResult as setNestedValue,
-} from './nested-path'
+import { get as getNestedValue, hasExistingIdTargets, withValue } from './nested-path'
 import { deletePendingUploadsUnderPath } from './pending-uploads'
 import { useTrackedSlot } from './use-tracked-slot'
 
@@ -119,7 +123,9 @@ interface FormContextType {
   hasChanges: () => boolean
   resetHasChanges: () => void
   runFieldHooks: (fields: Field[]) => Promise<FormError[]>
-  validateForm: (fields: Field[]) => FormError[]
+  validateForm: (fields: Field[], additionalErrors?: FormError[]) => FormError[]
+  trackFieldChange: (pending: Promise<void>) => () => void
+  waitForFieldChanges: () => Promise<void>
   errors: FormError[]
   getErrors: () => FormError[]
   clearErrors: () => void
@@ -197,7 +203,6 @@ export const FormProvider = ({
   const fieldValues = useRef<Record<string, any>>(
     JSON.parse(JSON.stringify(initialData?.fields ?? initialData))
   )
-  const initialValues = useRef<Record<string, any>>(initialData?.fields ?? initialData)
   const errorsRef = useRef<FormError[]>([])
   const dirtyFields = useRef<Set<string>>(new Set())
   const patchesRef = useRef<DocumentPatch[]>([])
@@ -288,10 +293,8 @@ export const FormProvider = ({
 
   const updateFieldStoreInternal = useCallback(
     (name: string, value: any) => {
-      const newFieldValues = { ...fieldValues.current }
-
-      // Keep nested path values up to date for generic usage and patches.
-      if (!setNestedValue(newFieldValues, name, value)) return false
+      const newFieldValues = withValue(fieldValues.current, name, value)
+      if (!newFieldValues) return false
 
       fieldValues.current = newFieldValues
       dirtyFields.current.add(name)
@@ -366,18 +369,9 @@ export const FormProvider = ({
     [notifyMetaListeners]
   )
 
-  const getFieldValue = useCallback((name: string) => {
-    const dirty = dirtyFields.current.has(name)
-    const currentValue = getNestedValue(fieldValues.current, name)
-
-    if (currentValue !== undefined) {
-      return currentValue
-    }
-    if (!dirty) {
-      return getNestedValue(initialValues.current, name)
-    }
-    return undefined
-  }, [])
+  // The store starts with the complete initial snapshot. Falling back to that
+  // snapshot after an ancestor is cleared would resurrect removed descendants.
+  const getFieldValue = useCallback((name: string) => getNestedValue(fieldValues.current, name), [])
 
   const hasChanges = useCallback(() => {
     return dirtyFields.current.size > 0
@@ -539,83 +533,36 @@ export const FormProvider = ({
     }
   }, [])
 
-  const validateForm = useCallback(
-    (fields: Field[]): FormError[] => {
-      const formErrors: FormError[] = []
-      const data = getFieldValues()
-
-      for (const field of fields) {
-        // Condition-hidden fields are exempt from client-side validation — a
-        // field the editor cannot currently see must not block submit. Only
-        // top-level fields flow through this walk, and a root-level field's
-        // sibling scope is the form data itself (see FieldCondition).
-        if (field.condition && !field.condition(data, data)) continue
-
-        const value = getFieldValue(field.name)
-
-        // Required field validation
-        if (!field.optional && (value == null || value === '')) {
-          formErrors.push({
-            field: field.name,
-            message: `${field.label} is required`,
-          })
-        }
-
-        // Type-specific validation
-        if (value != null && value !== '') {
-          switch (field.type) {
-            case 'text':
-              if (typeof value !== 'string') {
-                formErrors.push({
-                  field: field.name,
-                  message: `${field.label} must be text`,
-                })
-              }
-              break
-            case 'checkbox':
-              if (typeof value !== 'boolean') {
-                formErrors.push({
-                  field: field.name,
-                  message: `${field.label} must be true or false`,
-                })
-              }
-              break
-            case 'select':
-              if ('options' in field && field.options) {
-                const validValues = field.options.map((opt) => opt.value)
-                if (!validValues.includes(value)) {
-                  formErrors.push({
-                    field: field.name,
-                    message: `${field.label} must be one of: ${validValues.join(', ')}`,
-                  })
-                }
-              }
-              break
-            case 'datetime':
-              if (value instanceof Date === false && typeof value !== 'string') {
-                formErrors.push({
-                  field: field.name,
-                  message: `${field.label} must be a valid date`,
-                })
-              }
-              break
-          }
-        }
-
-        // Custom validate function — applies to all field types including structure fields.
-        if (field.validate) {
-          const error = field.validate(value, data)
-          if (error) {
-            formErrors.push({ field: field.name, message: error })
-          }
-        }
+  const fieldChanges = useRef(new Set<Promise<void>>())
+  const fieldChangeWaiters = useRef(new Set<() => void>())
+  const trackFieldChange = useCallback((pending: Promise<void>) => {
+    fieldChanges.current.add(pending)
+    const release = () => {
+      fieldChanges.current.delete(pending)
+      if (fieldChanges.current.size === 0) {
+        for (const resolve of fieldChangeWaiters.current) resolve()
+        fieldChangeWaiters.current.clear()
       }
+    }
+    void pending.then(release, release)
+    return release
+  }, [])
+  const waitForFieldChanges = useCallback(async () => {
+    while (fieldChanges.current.size)
+      await new Promise<void>((resolve) => fieldChangeWaiters.current.add(resolve))
+  }, [])
 
-      errorsRef.current = formErrors
+  const validateForm = useCallback(
+    (fields: Field[], additionalErrors: FormError[] = []): FormError[] => {
+      const formErrors = validateDocumentFields(fields, getFieldValues(), {
+        respectConditions: true,
+        skip: (path) => pendingUploadsRef.current.has(path),
+      })
+      errorsRef.current = [...additionalErrors, ...formErrors]
       notifyErrorListeners()
-      return formErrors
+      return errorsRef.current
     },
-    [getFieldValue, getFieldValues, notifyErrorListeners]
+    [getFieldValues, notifyErrorListeners]
   )
 
   const clearErrors = useCallback(() => {
@@ -705,51 +652,100 @@ export const FormProvider = ({
     [getFieldValue, setFieldValue, notifyErrorListeners]
   )
 
+  const resetPatches = useCallback(() => {
+    patchesRef.current = []
+  }, [])
+  const getErrors = useCallback(() => errorsRef.current, [])
+  const context = useMemo(
+    () => ({
+      documentId,
+      collectionPath,
+      setFieldValue,
+      setFieldStore,
+      getFieldValue,
+      getFieldValues,
+      getPatches,
+      appendPatch,
+      resetPatches,
+      hasChanges,
+      resetHasChanges,
+      runFieldHooks,
+      validateForm,
+      get errors() {
+        return errorsRef.current
+      },
+      getErrors,
+      trackFieldChange,
+      waitForFieldChanges,
+      clearErrors,
+      setFieldError,
+      clearFieldError,
+      isDirty,
+      getDirtyBreakdown,
+      subscribeField,
+      subscribeErrors,
+      subscribeMeta,
+      addPendingUpload,
+      removePendingUpload,
+      removePendingUploadsUnder,
+      getPendingUploads,
+      hasPendingUploads,
+      clearPendingUploads,
+      setFieldUploading,
+      getIsFieldUploading,
+      subscribeFieldUploading,
+      getSystemPath: pathSlot.get,
+      setSystemPath: pathSlot.set,
+      subscribeSystemPath: pathSlot.subscribe,
+      getSystemAvailableLocales: availableLocalesSlot.get,
+      setSystemAvailableLocales: availableLocalesSlot.set,
+      subscribeSystemAvailableLocales: availableLocalesSlot.subscribe,
+    }),
+    [
+      documentId,
+      collectionPath,
+      setFieldValue,
+      setFieldStore,
+      getFieldValue,
+      getFieldValues,
+      getPatches,
+      appendPatch,
+      resetPatches,
+      hasChanges,
+      resetHasChanges,
+      runFieldHooks,
+      validateForm,
+      getErrors,
+      trackFieldChange,
+      waitForFieldChanges,
+      clearErrors,
+      setFieldError,
+      clearFieldError,
+      isDirty,
+      getDirtyBreakdown,
+      subscribeField,
+      subscribeErrors,
+      subscribeMeta,
+      addPendingUpload,
+      removePendingUpload,
+      removePendingUploadsUnder,
+      getPendingUploads,
+      hasPendingUploads,
+      clearPendingUploads,
+      setFieldUploading,
+      getIsFieldUploading,
+      subscribeFieldUploading,
+      pathSlot.get,
+      pathSlot.set,
+      pathSlot.subscribe,
+      availableLocalesSlot.get,
+      availableLocalesSlot.set,
+      availableLocalesSlot.subscribe,
+    ]
+  )
+
   return (
-    <FormContext.Provider
-      value={{
-        documentId,
-        collectionPath,
-        setFieldValue,
-        setFieldStore,
-        getFieldValue,
-        getFieldValues,
-        getPatches,
-        appendPatch,
-        resetPatches: () => {
-          patchesRef.current = []
-        },
-        hasChanges,
-        resetHasChanges,
-        runFieldHooks,
-        validateForm,
-        errors: errorsRef.current,
-        getErrors: () => errorsRef.current,
-        clearErrors,
-        setFieldError,
-        clearFieldError,
-        isDirty,
-        getDirtyBreakdown,
-        subscribeField,
-        subscribeErrors,
-        subscribeMeta,
-        addPendingUpload,
-        removePendingUpload,
-        removePendingUploadsUnder,
-        getPendingUploads,
-        hasPendingUploads,
-        clearPendingUploads,
-        setFieldUploading,
-        getIsFieldUploading,
-        subscribeFieldUploading,
-        getSystemPath: pathSlot.get,
-        setSystemPath: pathSlot.set,
-        subscribeSystemPath: pathSlot.subscribe,
-        getSystemAvailableLocales: availableLocalesSlot.get,
-        setSystemAvailableLocales: availableLocalesSlot.set,
-        subscribeSystemAvailableLocales: availableLocalesSlot.subscribe,
-      }}
-    >
+    <FormContext.Provider value={context}>
       <FormDomScopeProvider>{children}</FormDomScopeProvider>
     </FormContext.Provider>
   )
@@ -761,117 +757,54 @@ export const FormProvider = ({
  */
 export const useSystemPath = (): string | null => {
   const { getSystemPath, subscribeSystemPath } = useFormContext()
-  const [value, setValue] = useState<string | null>(() => getSystemPath())
-
-  useEffect(() => {
-    return subscribeSystemPath((next) => setValue(next))
-  }, [subscribeSystemPath])
-
-  return value
+  return useSyncExternalStore(subscribeSystemPath, getSystemPath, getSystemPath)
 }
 
-/**
- * Subscribe to the system `availableLocales` slot edited by the
- * available-locales widget. Returns the current advertised set (or `[]` when
- * nothing is advertised / not yet surfaced).
- */
 export const useSystemAvailableLocales = (): string[] => {
   const { getSystemAvailableLocales, subscribeSystemAvailableLocales } = useFormContext()
-  const [value, setValue] = useState<string[]>(() => getSystemAvailableLocales())
-
-  useEffect(() => {
-    return subscribeSystemAvailableLocales((next) => setValue(next))
-  }, [subscribeSystemAvailableLocales])
-
-  return value
+  return useSyncExternalStore(
+    subscribeSystemAvailableLocales,
+    getSystemAvailableLocales,
+    getSystemAvailableLocales
+  )
 }
 
-export const useFormStore = () => {
-  return useFormContext()
-}
+export const useFormStore = () => useFormContext()
 
 export const useFieldError = (name: string) => {
   const { getErrors, subscribeErrors } = useFormContext()
-  // Seed from the live errors ref via getErrors() rather than the context's
-  // `errors` snapshot — the snapshot is bound at FormProvider's first render
-  // and goes stale as soon as validateForm replaces errorsRef.current. Fields
-  // mounted after validation has already run (e.g. switching to a tab whose
-  // error badge is non-zero) would otherwise initialise to undefined and miss
-  // the existing error until something else fires notifyErrorListeners.
-  const [error, setError] = useState<string | undefined>(
-    () => getErrors().find((e) => e.field === name)?.message
-  )
-
-  useEffect(() => {
-    const unsubscribe = subscribeErrors((currentErrors) => {
-      const fieldError = currentErrors.find((e) => e.field === name)
-      setError(fieldError?.message)
-    })
-    return unsubscribe
-  }, [subscribeErrors, name])
-
-  return error
+  const errors = useSyncExternalStore(subscribeErrors, getErrors, getErrors)
+  return errors.find((error) => error.field === name)?.message
 }
 
 export const useFormMeta = () => {
   const { hasChanges, subscribeMeta } = useFormContext()
-  const [hasChangesValue, setHasChangesValue] = useState(hasChanges())
-
-  useEffect(() => {
-    const unsubscribe = subscribeMeta(() => {
-      setHasChangesValue(hasChanges())
-    })
-    return unsubscribe
-  }, [subscribeMeta, hasChanges])
-
-  return {
-    hasChanges: hasChangesValue,
-  }
+  return { hasChanges: useSyncExternalStore(subscribeMeta, hasChanges, hasChanges) }
 }
 
 export const useIsDirty = (name: string) => {
   const { isDirty, subscribeMeta } = useFormContext()
-  const [dirty, setDirty] = useState(isDirty(name))
-
-  useEffect(() => {
-    const unsubscribe = subscribeMeta(() => {
-      setDirty(isDirty(name))
-    })
-    return unsubscribe
-  }, [subscribeMeta, isDirty, name])
-
-  return dirty
+  const snapshot = useCallback(() => isDirty(name), [isDirty, name])
+  return useSyncExternalStore(subscribeMeta, snapshot, snapshot)
 }
 
 export const useFieldValue = <T = any>(name: string): T | undefined => {
-  const { getFieldValue, subscribeField } = useFormContext()
-  const [value, setValue] = useState<T | undefined>(() => getFieldValue(name))
-
-  useEffect(() => {
-    const unsubscribe = subscribeField(name, (nextValue) => {
-      setValue(nextValue)
-    })
-    return unsubscribe
-  }, [subscribeField, name])
-
-  return value
+  const { getFieldValue, subscribeMeta } = useFormContext()
+  const snapshot = useCallback(() => getFieldValue(name), [getFieldValue, name])
+  // Ancestor replacement and descendant edits both affect a composite value.
+  // Structural sharing keeps unrelated field snapshots referentially stable.
+  return useSyncExternalStore(subscribeMeta, snapshot, snapshot)
 }
 
-/**
- * Subscribe to a single field's upload-in-flight state. Returns `true` while
- * the form orchestrator is actively transporting this field's pending upload
- * (between the `setFieldUploading(path, true)` and the matching `false`
- * emitted by the upload executor's progress callback).
- */
 export const useIsFieldUploading = (fieldPath: string): boolean => {
   const { getIsFieldUploading, subscribeFieldUploading } = useFormContext()
-  const [uploading, setUploading] = useState<boolean>(() => getIsFieldUploading(fieldPath))
-
-  useEffect(() => {
-    return subscribeFieldUploading(fieldPath, (next) => {
-      setUploading(next)
-    })
-  }, [subscribeFieldUploading, fieldPath])
-
-  return uploading
+  const subscribe = useCallback(
+    (notify: () => void) => subscribeFieldUploading(fieldPath, notify),
+    [subscribeFieldUploading, fieldPath]
+  )
+  const snapshot = useCallback(
+    () => getIsFieldUploading(fieldPath),
+    [getIsFieldUploading, fieldPath]
+  )
+  return useSyncExternalStore(subscribe, snapshot, snapshot)
 }

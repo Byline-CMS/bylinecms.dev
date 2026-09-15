@@ -8,7 +8,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, type ReactNode, useMemo } from 'react'
 
 import type {
   AdminResourceConfig,
@@ -75,7 +75,8 @@ export const FormLayout = ({
 }: FormLayoutProps): ReactNode => {
   const { fieldByName, tabSetByName, rowByName, groupByName, layout, fieldToTabPath } =
     useFormLayout(adminConfig, fields)
-  const tabs = useFormTabs(fieldToTabPath, activeTabBySet)
+  const tabSets = useMemo(() => [...tabSetByName.values()], [tabSetByName])
+  const tabs = useFormTabs(fieldToTabPath, activeTabBySet, tabSets)
   // Two forms over one collection share its admin configuration, so their tab
   // sets carry the same name and would otherwise derive the same trigger and
   // panel ids. `aria-labelledby` resolves document-wide, so the second form's

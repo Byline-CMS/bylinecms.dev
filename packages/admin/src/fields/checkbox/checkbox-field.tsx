@@ -37,6 +37,7 @@ export const CheckboxField = ({
   return (
     <div className={`byline-field-checkbox ${field.name} ${styles['field-checkbox']}`}>
       <Checkbox
+        disabled={field.readOnly}
         id={htmlId}
         name={field.name}
         label={field.label}

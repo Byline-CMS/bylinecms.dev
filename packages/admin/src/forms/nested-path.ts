@@ -146,3 +146,38 @@ export function set<T extends object>(object: T, path: string, value: unknown): 
   setWithResult(object, path, value)
   return object
 }
+
+/** Clone only the containers along a write path, preserving other snapshots. */
+export function withValue<T extends object>(
+  object: T,
+  path: string,
+  value: unknown
+): T | undefined {
+  const parsed = parseInstancePath(path)
+  if (!parsed.ok || !hasExistingIdTargets(object, path)) return undefined
+  const result: any = Array.isArray(object) ? [...object] : { ...object }
+  let current = result
+  for (const [index, segment] of parsed.segments.entries()) {
+    const key =
+      segment.kind === 'field'
+        ? segment.name
+        : segment.kind === 'index'
+          ? segment.index
+          : segment.kind === 'id'
+            ? selectId(current, segment.id)
+            : undefined
+    if (key === undefined || key === -1) return undefined
+    if (index === parsed.segments.length - 1) {
+      current[key] = value
+      return result
+    }
+    const existing = current[key]
+    current[key] = Array.isArray(existing)
+      ? [...existing]
+      : existing != null && typeof existing === 'object'
+        ? { ...existing }
+        : newContainer(parsed.segments[index + 1])
+    current = current[key]
+  }
+  return undefined
+}

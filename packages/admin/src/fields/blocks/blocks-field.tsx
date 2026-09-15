@@ -20,6 +20,7 @@ import {
   Card,
   CloseIcon,
   DraggableSortable,
+  ErrorText,
   IconButton,
   Modal,
   moveItem,
@@ -29,8 +30,9 @@ import cx from 'clsx'
 
 import { defaultScalarForField } from '../../fields/field-helpers'
 import { GroupField } from '../../fields/group/group-field'
-import { SortableItem } from '../../fields/sortable-item'
-import { useFormContext } from '../../forms/form-context'
+import { SortableItem, StaticItem } from '../../fields/sortable-item'
+import { useFieldError, useFormContext } from '../../forms/form-context'
+import { useScopedDomId } from '../../forms/form-dom-scope'
 import { hasExistingIdTargets } from '../../forms/nested-path'
 import { moveRepeatingItems, repeatingItemId, repeatingItemPath } from '../../forms/repeating-items'
 import styles from './blocks-field.module.css'
@@ -59,6 +61,8 @@ export const BlocksField = ({
   const { appendPatch, getFieldValue, getFieldValues, removePendingUploadsUnder, setFieldStore } =
     useFormContext()
   const { t } = useTranslation('byline-admin')
+  const fieldError = useFieldError(path)
+  const htmlId = useScopedDomId(path)
   const [items, setItems] = useState<{ id: string; data: any }[]>([])
   const [showAddBlockModal, setShowAddBlockModal] = useState(false)
   const [pendingInsertIndex, setPendingInsertIndex] = useState<number | null>(null)
@@ -121,6 +125,7 @@ export const BlocksField = ({
     moveFromIndex: number
     moveToIndex: number
   }) => {
+    if (field.readOnly) return
     const currentArray = (getFieldValue(path) ?? defaultValue) as any[]
     if (!Array.isArray(currentArray)) return
 
@@ -138,6 +143,7 @@ export const BlocksField = ({
   }
 
   const handleAddItem = async (forcedVariantName?: string, atIndex?: number) => {
+    if (field.readOnly) return
     setShowAddBlockModal(false)
     setPendingInsertIndex(null)
 
@@ -184,6 +190,7 @@ export const BlocksField = ({
   }
 
   const handleRemoveItem = (index: number) => {
+    if (field.readOnly) return
     const currentArray = (getFieldValue(path) ?? defaultValue) as any[]
     if (!Array.isArray(currentArray) || index < 0 || index >= currentArray.length) return
 
@@ -241,6 +248,7 @@ export const BlocksField = ({
             type: 'group',
             name: subField.blockType,
             fields: subField.fields,
+            readOnly: field.readOnly,
             label: undefined,
           } as GroupFieldType
         }
@@ -256,16 +264,17 @@ export const BlocksField = ({
       />
     )
 
+    const Item = field.readOnly ? StaticItem : SortableItem
     return (
-      <SortableItem
+      <Item
         key={itemWrapper.id}
         id={itemWrapper.id}
         label={label ?? subField.blockType}
-        onAddBelow={() => handleInsertBelow(index)}
-        onRemove={() => handleRemoveItem(index)}
+        onAddBelow={field.readOnly ? undefined : () => handleInsertBelow(index)}
+        onRemove={field.readOnly ? undefined : () => handleRemoveItem(index)}
       >
         {body}
-      </SortableItem>
+      </Item>
     )
   }
 
@@ -286,7 +295,7 @@ export const BlocksField = ({
               setPendingInsertIndex(null)
               setShowAddBlockModal(true)
             }}
-            disabled={!selectedBlockName}
+            disabled={field.readOnly || !selectedBlockName}
             aria-label={t('fields.blocks.addBlockAriaLabel')}
             variant="outlined"
           >
@@ -298,7 +307,7 @@ export const BlocksField = ({
           <button
             type="button"
             tabIndex={-1}
-            disabled={!selectedBlockName}
+            disabled={field.readOnly || !selectedBlockName}
             onClick={() => {
               setPendingInsertIndex(null)
               setShowAddBlockModal(true)
@@ -368,6 +377,7 @@ export const BlocksField = ({
           </Modal.Content>
         </Modal.Container>
       </Modal>
+      {fieldError && <ErrorText id={`${htmlId}-error`} text={fieldError} />}
     </div>
   )
 }

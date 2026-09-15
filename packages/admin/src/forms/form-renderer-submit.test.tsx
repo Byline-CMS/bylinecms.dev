@@ -306,6 +306,42 @@ describe('FormRenderer submit contract', () => {
     document.body.removeAttribute('tabindex')
   })
 
+  it('starts a clean baseline after a successful save installs a new document version', async () => {
+    const onSubmit = vi.fn(async () => {})
+    const props = {
+      ...baseProps,
+      mode: 'edit',
+      onSubmit,
+      initialData: { id: 'doc', versionId: 'v1', revision: 1, fields: { title: 'Original' } },
+    }
+    render(props)
+    typeIntoTitle('Saved')
+    submitForm()
+    await act(async () => {})
+    expect(onSubmit.mock.calls).toHaveLength(1)
+    render({
+      ...props,
+      initialData: {
+        ...props.initialData,
+        versionId: 'v2',
+        revision: 2,
+        fields: { title: 'Saved' },
+      },
+    })
+    expect(container.querySelector<HTMLInputElement>('input[name="title"]')?.value).toBe('Saved')
+    typeIntoTitle('Next edit')
+    submitForm()
+    await act(async () => {})
+    const payload = (onSubmit.mock.calls as unknown as Array<[any]>)[1]?.[0]
+    expect(payload.data.title).toBe('Next edit')
+    expect(payload.patches).toHaveLength(1)
+    expect(payload.patches[0]).toMatchObject({
+      kind: 'field.set',
+      path: 'title',
+      value: 'Next edit',
+    })
+  })
+
   it('ignores a second submit while the first is still in flight', async () => {
     const submission = deferred()
     const onSubmit = vi.fn(async () => {

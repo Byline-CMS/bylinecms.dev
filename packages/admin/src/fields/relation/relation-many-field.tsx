@@ -61,12 +61,20 @@ interface RelationManyTileProps {
   id: string
   children: ReactNode
   onRemove: () => void
+  readOnly?: boolean
   removeAriaLabel: string
 }
 
-const RelationManyTile = ({ id, children, onRemove, removeAriaLabel }: RelationManyTileProps) => {
+const RelationManyTile = ({
+  id,
+  children,
+  onRemove,
+  removeAriaLabel,
+  readOnly,
+}: RelationManyTileProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
+    disabled: readOnly,
     transition: { duration: 250, easing: 'cubic-bezier(0, 0.2, 0.2, 1)' },
   })
 
@@ -87,6 +95,7 @@ const RelationManyTile = ({ id, children, onRemove, removeAriaLabel }: RelationM
       )}
     >
       <button
+        disabled={readOnly}
         type="button"
         className={cx('byline-field-relation-many-grip', styles['many-grip'])}
         {...attributes}
@@ -96,6 +105,7 @@ const RelationManyTile = ({ id, children, onRemove, removeAriaLabel }: RelationM
       </button>
       <div className={cx('byline-field-relation-many-body', styles['many-body'])}>{children}</div>
       <IconButton
+        disabled={readOnly}
         type="button"
         size="xs"
         intent="noeffect"
@@ -152,6 +162,7 @@ export const RelationManyField = ({ field, defaultValue, id, path }: RelationMan
   }
 
   const handleAddMany = (selections: RelationPickerSelection[]) => {
+    if (field.readOnly) return
     setPickerOpen(false)
     const current = currentArray()
     // Dedup the batch against the current array — a target may appear at most
@@ -178,6 +189,7 @@ export const RelationManyField = ({ field, defaultValue, id, path }: RelationMan
   }
 
   const handleRemove = (targetDocumentId: string) => {
+    if (field.readOnly) return
     setFieldValue(
       fieldPath,
       currentArray().filter((v) => v.targetDocumentId !== targetDocumentId)
@@ -191,7 +203,7 @@ export const RelationManyField = ({ field, defaultValue, id, path }: RelationMan
     moveFromIndex: number
     moveToIndex: number
   }) => {
-    if (moveFromIndex === moveToIndex) return
+    if (field.readOnly || moveFromIndex === moveToIndex) return
     setFieldValue(fieldPath, moveItem(currentArray(), moveFromIndex, moveToIndex))
   }
 
@@ -235,6 +247,7 @@ export const RelationManyField = ({ field, defaultValue, id, path }: RelationMan
               >
                 {items.map((value) => (
                   <RelationManyTile
+                    readOnly={field.readOnly}
                     key={value.targetDocumentId}
                     id={value.targetDocumentId}
                     onRemove={() => handleRemove(value.targetDocumentId)}
@@ -254,6 +267,7 @@ export const RelationManyField = ({ field, defaultValue, id, path }: RelationMan
 
             <div className={cx('byline-field-relation-many-add', styles['many-add'])}>
               <Button
+                disabled={field.readOnly}
                 id={htmlId}
                 size="xs"
                 variant="outlined"

@@ -121,7 +121,7 @@ export const RichTextField = ({
           id={fieldId}
           name={field.name}
           description={field.helpText}
-          readonly={readonly}
+          readonly={readonly || field.readOnly === true}
           label={labelNode}
           required={!field.optional}
           value={incomingValue}

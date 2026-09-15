@@ -110,6 +110,7 @@ export const FileField = ({
   const uploadGated = field.upload?.requireSavedDocument === true && documentId == null
 
   const handleRemove = () => {
+    if (field.readOnly) return
     if (isPending) {
       removePendingUpload(fieldPath)
     }
@@ -146,7 +147,7 @@ export const FileField = ({
           >
             {t('fields.upload.requireSavedDocument')}
           </div>
-        ) : collectionPath ? (
+        ) : collectionPath && !field.readOnly ? (
           <FileUploadField
             field={field}
             collectionPath={collectionPath}
@@ -195,7 +196,7 @@ export const FileField = ({
                 intent="noeffect"
                 onClick={handleRemove}
                 size="xs"
-                disabled={isUploading}
+                disabled={isUploading || field.readOnly}
                 aria-label={t('fields.file.removeAriaLabel')}
               >
                 <CloseIcon width="15px" height="15px" />

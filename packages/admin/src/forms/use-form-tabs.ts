@@ -8,9 +8,9 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
 
-import type { TabDefinition, TabSetDefinition } from '@byline/core'
+import { parseInstancePath, type TabDefinition, type TabSetDefinition } from '@byline/core'
 
 import { useFormContext } from './form-context'
 
@@ -42,27 +42,35 @@ export interface UseFormTabsResult {
  */
 export function useFormTabs(
   fieldToTabPath: Map<string, { tabSetName: string; tabName: string }>,
-  activeTabBySet: Record<string, string>
+  activeTabBySet: Record<string, string>,
+  tabSets: TabSetDefinition[]
 ): UseFormTabsResult {
-  const { errors: initialErrors, subscribeErrors, subscribeMeta, getFieldValues } = useFormContext()
-
-  const [errors, setErrors] = useState(initialErrors)
-  useEffect(() => {
-    return subscribeErrors((newErrors) => setErrors(newErrors))
-  }, [subscribeErrors])
-
-  // Live form data, so TabDefinition.condition re-evaluates per keystroke.
-  const [formData, setFormData] = useState<Record<string, any>>(() => getFieldValues())
-  useEffect(() => {
-    return subscribeMeta(() => setFormData(getFieldValues()))
-  }, [subscribeMeta, getFieldValues])
+  const { getErrors, subscribeErrors, subscribeMeta, getFieldValues } = useFormContext()
+  const errors = useSyncExternalStore(subscribeErrors, getErrors, getErrors)
+  const conditionalTabs = useMemo(
+    () => tabSets.flatMap((set) => set.tabs.filter((tab) => tab.condition)),
+    [tabSets]
+  )
+  const snapshot = useCallback(
+    () => JSON.stringify(conditionalTabs.map((tab) => Boolean(tab.condition?.(getFieldValues())))),
+    [conditionalTabs, getFieldValues]
+  )
+  const subscribe = useCallback(
+    (notify: () => void) => (conditionalTabs.length ? subscribeMeta(notify) : () => {}),
+    [conditionalTabs, subscribeMeta]
+  )
+  useSyncExternalStore(subscribe, snapshot, snapshot)
 
   // Per-tab-set error counts: { [tabSetName]: { [tabName]: count } }.
   // Each tab bar consumes its own slice.
   const errorCountsBySet = useMemo<Record<string, Record<string, number>>>(() => {
     const result: Record<string, Record<string, number>> = {}
     for (const err of errors) {
-      const path = fieldToTabPath.get(err.field)
+      const parsed = parseInstancePath(err.field)
+      const root = parsed.ok ? parsed.segments[0] : undefined
+      const path =
+        fieldToTabPath.get(err.field) ??
+        (root?.kind === 'field' ? fieldToTabPath.get(root.name) : undefined)
       if (!path) continue
       result[path.tabSetName] ??= {}
       result[path.tabSetName]![path.tabName] = (result[path.tabSetName]?.[path.tabName] ?? 0) + 1
@@ -71,7 +79,7 @@ export function useFormTabs(
   }, [errors, fieldToTabPath])
 
   const resolve = (set: TabSetDefinition): ResolvedTabSet => {
-    const visibleTabs = set.tabs.filter((tab) => !tab.condition || tab.condition(formData))
+    const visibleTabs = set.tabs.filter((tab) => !tab.condition || tab.condition(getFieldValues()))
     const requested = activeTabBySet[set.name] ?? ''
     const activeTabName =
       visibleTabs.length > 0 && !visibleTabs.some((t) => t.name === requested)

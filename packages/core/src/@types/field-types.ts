@@ -286,9 +286,9 @@ interface BaseField {
    * externally-assigned IDs like DOIs, fields that should only be set
    * by a workflow transition), not as a security boundary.
    *
-   * Whether a given widget honours this flag is per-widget — most ui-kit
-   * input components support a native readOnly state, and widgets are
-   * being progressively updated to forward this prop through.
+   * Built-in admin widgets honor this flag, including structural controls
+   * and descendants of groups, arrays, and blocks. Custom field components
+   * and rich-text editor replacements must implement the hint themselves.
    */
   readOnly?: boolean
 

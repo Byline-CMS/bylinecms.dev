@@ -10,14 +10,15 @@ import { useEffect, useState } from 'react'
 
 import type { ArrayField as ArrayFieldType, Field, FieldAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
-import { DraggableSortable, IconButton, moveItem, PlusIcon } from '@byline/ui/react'
+import { DraggableSortable, ErrorText, IconButton, moveItem, PlusIcon } from '@byline/ui/react'
 import cx from 'clsx'
 
 import { sliceFieldAdmin } from '../../fields/field-admin'
 import { defaultScalarForField } from '../../fields/field-helpers'
 import { FieldRenderer } from '../../fields/field-renderer'
 import { SortableItem, StaticItem } from '../../fields/sortable-item'
-import { useFormContext } from '../../forms/form-context'
+import { useFieldError, useFormContext } from '../../forms/form-context'
+import { useScopedDomId } from '../../forms/form-dom-scope'
 import { hasExistingIdTargets } from '../../forms/nested-path'
 import { moveRepeatingItems, repeatingItemId, repeatingItemPath } from '../../forms/repeating-items'
 import styles from './array-field.module.css'
@@ -60,6 +61,8 @@ export const ArrayField = ({
   const { appendPatch, getFieldValue, getFieldValues, removePendingUploadsUnder, setFieldStore } =
     useFormContext()
   const { t } = useTranslation('byline-admin')
+  const fieldError = useFieldError(path)
+  const htmlId = useScopedDomId(path)
   const [items, setItems] = useState<{ id: string; data: any }[]>([])
 
   useEffect(() => {
@@ -95,6 +98,7 @@ export const ArrayField = ({
     moveFromIndex: number
     moveToIndex: number
   }) => {
+    if (field.readOnly) return
     const currentArray = (getFieldValue(path) ?? defaultValue) as any[]
     if (!Array.isArray(currentArray)) return
 
@@ -112,6 +116,7 @@ export const ArrayField = ({
   }
 
   const handleAddItem = async (atIndex?: number) => {
+    if (field.readOnly) return
     const childFields = field.fields ?? []
     if (childFields.length === 0) return
 
@@ -164,6 +169,7 @@ export const ArrayField = ({
   }
 
   const handleRemoveItem = (index: number) => {
+    if (field.readOnly) return
     const currentArray = (getFieldValue(path) ?? defaultValue) as any[]
     if (!Array.isArray(currentArray) || index < 0 || index >= currentArray.length) return
 
@@ -185,6 +191,7 @@ export const ArrayField = ({
   }
 
   const handleInsertBelow = (index: number) => {
+    if (field.readOnly) return
     void handleAddItem(index + 1)
   }
 
@@ -220,7 +227,11 @@ export const ArrayField = ({
             {(childField.fields as Field[]).map((innerField) => (
               <FieldRenderer
                 key={innerField.name}
-                field={innerField}
+                field={
+                  field.readOnly || childField.readOnly
+                    ? { ...innerField, readOnly: true }
+                    : innerField
+                }
                 defaultValue={groupData[innerField.name]}
                 basePath={`${arrayElementPath}.${childField.name}`}
                 disableSorting={true}
@@ -237,7 +248,7 @@ export const ArrayField = ({
       return (
         <FieldRenderer
           key={childField.name}
-          field={childField}
+          field={field.readOnly ? { ...childField, readOnly: true } : childField}
           defaultValue={initial}
           basePath={arrayElementPath}
           disableSorting={true}
@@ -258,13 +269,13 @@ export const ArrayField = ({
     // (add-below / remove / collapse) is always available — StaticItem is
     // the grip-less sibling of SortableItem (see sortable-item.tsx for why
     // it is a separate component rather than a prop).
-    if (disableSorting) {
+    if (disableSorting || field.readOnly) {
       return (
         <StaticItem
           key={itemWrapper.id}
           label={itemLabel}
-          onAddBelow={() => handleInsertBelow(index)}
-          onRemove={() => handleRemoveItem(index)}
+          onAddBelow={field.readOnly ? undefined : () => handleInsertBelow(index)}
+          onRemove={field.readOnly ? undefined : () => handleRemoveItem(index)}
         >
           <div className={cx('byline-field-array-group-fields', styles['group-fields'])}>
             {innerBody}
@@ -278,8 +289,8 @@ export const ArrayField = ({
         key={itemWrapper.id}
         id={itemWrapper.id}
         label={itemLabel}
-        onAddBelow={() => handleInsertBelow(index)}
-        onRemove={() => handleRemoveItem(index)}
+        onAddBelow={field.readOnly ? undefined : () => handleInsertBelow(index)}
+        onRemove={field.readOnly ? undefined : () => handleRemoveItem(index)}
       >
         <div className={cx('byline-field-array-group-fields', styles['group-fields'])}>
           {innerBody}
@@ -321,10 +332,10 @@ export const ArrayField = ({
       {field.label && (
         <h3 className={cx('byline-field-array-title', styles.title)}>{field.label}</h3>
       )}
-      {disableSorting ? (
+      {disableSorting || field.readOnly ? (
         <div className={cx('byline-field-array-stack', styles.stack)}>
           {items.map((item, index) => renderItem(item, index))}
-          {addRow}
+          {!field.readOnly && addRow}
         </div>
       ) : (
         <DraggableSortable
@@ -333,9 +344,10 @@ export const ArrayField = ({
           className={cx('byline-field-array-stack', styles.stack)}
         >
           {items.map((item, index) => renderItem(item, index))}
-          {addRow}
+          {!field.readOnly && addRow}
         </DraggableSortable>
       )}
+      {fieldError && <ErrorText id={`${htmlId}-error`} text={fieldError} />}
     </div>
   )
 }

@@ -72,7 +72,7 @@ export const GroupField = ({
   fieldAdmin,
 }: GroupFieldProps) => {
   const htmlId = useScopedDomId(path ?? field.name)
-  const fieldError = useFieldError(field.name)
+  const fieldError = useFieldError(path ?? field.name)
   // Default value for a group field is a plain object: { rating: 5, comment: '...' }
   // Normalize to a plain object if not already one.
   const groupData = useMemo(() => {
@@ -107,7 +107,7 @@ export const GroupField = ({
           return (
             <FieldRenderer
               key={innerField.name}
-              field={innerField}
+              field={field.readOnly ? { ...innerField, readOnly: true } : innerField}
               defaultValue={groupData[innerField.name]}
               basePath={path}
               disableSorting={disableSorting}
