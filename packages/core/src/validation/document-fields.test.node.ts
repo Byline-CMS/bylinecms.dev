@@ -294,6 +294,31 @@ describe('document field validation', () => {
       expect(seen).toEqual([['validate', expect.objectContaining({ message: secret })]])
     })
 
+    it('is not aborted by a diagnostic sink that throws', () => {
+      // The sink reaches a logger, which can fail too. Diagnostics must never
+      // abort the validation they describe.
+      const issues = validateDocumentFields(
+        [
+          {
+            name: 'x',
+            type: 'text',
+            validate: () => {
+              throw new Error('inner')
+            },
+          },
+        ],
+        { x: 'v' },
+        {
+          onCallbackError: () => {
+            throw new Error('logger is down')
+          },
+        }
+      )
+      expect(issues).toEqual([
+        { field: 'x', message: 'x: could not be validated', kind: 'invalid' },
+      ])
+    })
+
     it('keeps a message a validator deliberately returns', () => {
       const issues = validateDocumentFields(
         [

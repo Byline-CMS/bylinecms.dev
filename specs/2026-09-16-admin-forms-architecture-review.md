@@ -588,6 +588,27 @@ still called the predicate unguarded during render, so a throwing condition took
 the render down rather than leaving the field visible. It now fails closed and
 reports once per field, making the documented behaviour true end to end.
 
+### Third review: the last two exception paths
+
+**Diagnostic logging could abort a restore.** `onCallbackError` ran unguarded
+inside the catch blocks, so a failing sink escaped in place of the exception it
+was describing. The sink is caller-supplied and reaches a logger, which can fail
+on its own. It is now isolated in a `report` helper, so diagnostics can never
+abort the validation they describe — least of all on the recovery path whose
+purpose is not to be blocked.
+
+**Submit-time conditions were unguarded.** `runFieldHooks` evaluates
+`field.condition` before `beforeValidate`, so a field with both a throwing
+condition and a hook rejected the submission with a raw `TypeError` before
+structured validation could report anything. It now fails closed like the render
+hook and the walker: the hooks run, and `validateForm` — which evaluates the same
+predicate — reports the failure as a field error the editor can see. The
+regression test fails with the original `TypeError` when the guard is removed.
+
+That completes the three sites that evaluate schema-author predicates: the
+validation walker, the render hook (`useFieldCondition`), and the submit-time
+hook pass. All three now agree that a throwing predicate means visible.
+
 ### Corrected verification claim
 
 `pnpm test` reported green over `bcb0f927` while
@@ -616,4 +637,5 @@ validator, and two singleton reporting cases. The second review adds isolation
 cases for a throwing `custom` rule and for schema construction, a probe
 asserting no exception text reaches an issue while the sink still receives it, a
 case pinning deliberately returned messages, and a component test for the
-render-path condition guard.
+render-path condition guard. The third review adds a guarded-sink case and a
+submit-time condition regression test.

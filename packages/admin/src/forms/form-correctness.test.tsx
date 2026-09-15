@@ -138,6 +138,35 @@ describe('form correctness', () => {
     expect(onSubmit).not.toHaveBeenCalled()
     expect(h.ctx.getErrors()).toContainEqual({ field: 'title', message: 'Title is reserved' })
   })
+  it('reports a throwing condition at submit instead of rejecting the submission', async () => {
+    // Submit-time hooks evaluate the same predicate as the walker. An
+    // exception there must not escape submit(), or the editor is refused with
+    // nothing shown and no way to find out why.
+    const onSubmit = vi.fn()
+    const beforeValidate = vi.fn(() => undefined)
+    const h = renderHookInForm({
+      onSubmit,
+      fields: [
+        {
+          ...fields[0],
+          condition: (data: any) => data.missing.deep === 1,
+          hooks: { beforeValidate },
+        },
+      ],
+    })
+    await act(async () => {
+      await h.result.submit()
+    })
+    expect(onSubmit).not.toHaveBeenCalled()
+    // Visible (fail closed), so its hooks still ran...
+    expect(beforeValidate).toHaveBeenCalled()
+    // ...and the failure reached the editor as a field error.
+    expect(h.ctx.getErrors()).toContainEqual({
+      field: 'title',
+      message: 'Title: could not be validated',
+      kind: 'invalid',
+    })
+  })
   it('does not upload a successful file again after another file failed', async () => {
     const uploadField = vi.fn(async (_collection, body) => {
       if (body.get('field') === 'second') throw new Error('second failed')

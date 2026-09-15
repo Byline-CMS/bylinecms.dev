@@ -606,8 +606,20 @@ export const FormProvider = ({
         if (fns.length === 0) continue
 
         // Condition-hidden fields skip submit-time hooks, mirroring their
-        // exemption from validateForm below.
-        if (field.condition && !field.condition(data, data)) continue
+        // exemption from validateForm below. A predicate that throws leaves the
+        // field visible, matching the render hook and the validation walker: the
+        // hooks run, and validateForm reports the failure as a field error
+        // rather than the exception rejecting submission before anything can be
+        // shown.
+        if (field.condition) {
+          let visible = true
+          try {
+            visible = Boolean(field.condition(data, data))
+          } catch {
+            // Reported by validateForm, which evaluates the same predicate.
+          }
+          if (!visible) continue
+        }
 
         const path = field.name
         const value = getFieldValue(path)

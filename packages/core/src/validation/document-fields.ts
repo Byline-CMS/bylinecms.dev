@@ -82,6 +82,19 @@ export function validateDocumentFields(
   const issues: DocumentFieldIssue[] = []
   const add = (field: string, message: string, kind: DocumentFieldIssue['kind'] = 'invalid') =>
     issues.push({ field, message, kind })
+  /**
+   * Report a failed callback. The sink is caller-supplied and reaches a logger,
+   * so it can fail too — a full disk, a transport error. Diagnostics must never
+   * be able to abort the validation they are describing, least of all on the
+   * recovery path whose whole purpose is to not be blocked.
+   */
+  const report = (path: string, site: CallbackSite, error: unknown) => {
+    try {
+      options.onCallbackError?.({ path, site, error })
+    } catch {
+      // Nothing left to report it to.
+    }
+  }
   const visit = (fieldSet: FieldSet, values: Record<string, any>, prefix = '') => {
     for (const field of fieldSet) {
       const path = prefix ? `${prefix}.${field.name}` : field.name
@@ -93,7 +106,7 @@ export function validateDocumentFields(
         try {
           visible = Boolean(field.condition(data, values))
         } catch (error) {
-          options.onCallbackError?.({ path, site: 'condition', error })
+          report(path, 'condition', error)
           add(path, `${field.label ?? field.name}: ${CALLBACK_FAILED}`)
         }
         if (!visible) continue
@@ -115,7 +128,7 @@ export function validateDocumentFields(
         const message = field.validate(value, data)
         if (message) add(path, message)
       } catch (error) {
-        options.onCallbackError?.({ path, site: 'validate', error })
+        report(path, 'validate', error)
         add(path, `${label}: ${CALLBACK_FAILED}`)
       }
     }
@@ -163,7 +176,7 @@ export function validateDocumentFields(
         if (!parsed.success)
           add(path, `${label}: ${parsed.error.issues[0]?.message ?? 'Invalid value'}`)
       } catch (error) {
-        options.onCallbackError?.({ path, site: 'schema', error })
+        report(path, 'schema', error)
         add(path, `${label}: ${CALLBACK_FAILED}`)
       }
     }
