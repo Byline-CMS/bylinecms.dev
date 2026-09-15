@@ -12,6 +12,7 @@ import { FormRenderer } from '@byline/admin/react'
 import type { CollectionAdminConfig, MultiCollectionDefinition } from '@byline/core'
 import {
   getDefaultStatus,
+  getDocumentFieldValidationDetails,
   getWorkflow,
   getWorkflowStatuses,
   validateStatusTransition,
@@ -42,6 +43,21 @@ import { useTanStackNavigationGuard } from './tanstack-navigation-guard.js'
 import { ViewMenu } from './view-menu.js'
 import type { SerializedDocumentPublishSchedule } from '../../server-fns/collections/index.js'
 import type { ContentLocaleOption } from './view-menu.js'
+
+/**
+ * Describe a failed document mutation for the editor.
+ *
+ * Duplicate and copy-to-locale keep full content validation — unlike restore,
+ * their source is the current version, which the editor can open and correct.
+ * Naming the offending fields is what makes that correction actionable.
+ */
+function describeMutationFailure(err: unknown, t: (key: string, vars?: any) => string): string {
+  const validation = getDocumentFieldValidationDetails(err)
+  if (validation == null) return t('documentConcurrency.failed')
+  return t('collections.edit.invalidFieldsMessage', {
+    fields: validation.issues.map((issue) => issue.field || '?').join(', '),
+  })
+}
 
 type EditState = {
   status: 'success' | 'warning' | 'failed' | 'busy' | 'idle'
@@ -430,7 +446,7 @@ export const EditView = ({
       }
       console.error('Duplicate error:', err)
       const description = t('collections.edit.duplicateFailedDescription', {
-        message: t('documentConcurrency.failed'),
+        message: describeMutationFailure(err, t),
       })
       toastManager.add({
         title: t('collections.edit.duplicateTitle', { label: singular }),
@@ -526,7 +542,7 @@ export const EditView = ({
       }
       console.error('Copy to locale error:', err)
       const description = t('collections.edit.copyFailedDescription', {
-        message: t('documentConcurrency.failed'),
+        message: describeMutationFailure(err, t),
       })
       toastManager.add({
         title: t('collections.edit.copyToLocaleTitle', { label: singular }),

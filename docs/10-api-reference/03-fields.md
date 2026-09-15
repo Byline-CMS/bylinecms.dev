@@ -56,7 +56,22 @@ type FieldCondition = (
 ) => boolean
 ```
 
-The admin re-evaluates the condition as form data changes. Hidden fields retain their values and are exempt from client validation while hidden. A conditionally hidden required field should normally be `optional` or have a default.
+The admin re-evaluates the condition as form data changes. Hidden fields retain their values and are exempt from client validation while hidden. `condition` is a rendering hint: the lifecycle does not evaluate it, so a conditionally hidden field that is not `optional` and has no default is still required on the server, and the editor cannot satisfy it because the field is not rendered.
+
+Express a requirement that applies only in particular circumstances explicitly, with `optional: true` plus a `validate` callback that decides from the document. The callback runs on both sides — the lifecycle enforces it, and the admin reports it wherever the field is visible:
+
+```ts
+{
+  type: 'text',
+  name: 'doi',
+  optional: true,
+  condition: (data) => data.kind === 'journal',
+  validate: (value, data) =>
+    data.kind === 'journal' && !value ? 'DOI is required for journal articles' : undefined,
+}
+```
+
+Do not use `condition` to express requiredness. Beyond the contract above, restores and duplications validate with `locale: 'all'`, where a localized value is a per-locale map rather than the single value the editor supplies, so a predicate reading one can disagree with itself across those paths. A `validate` callback that must run under `'all'` should account for the same shape.
 
 ```ts
 {
@@ -414,7 +429,25 @@ Core lifecycle services validate the prepared document immediately before writin
 
 The admin performs the same recursive checks before submission, while exempting condition-hidden fields and pending uploads. The server does not exempt hidden fields. Supply required values through the editor, the caller, or lifecycle hooks; a schema `defaultValue` alone does not fill a missing SDK write value. An omitted optional container is accepted; a present container must satisfy its child fields. Counter allocation remains lifecycle-owned.
 
-Field errors use `ERR_VALIDATION` with `details.reason: 'invalid_document_fields'` and an `issues` array of `{ field, message }`. `getDocumentFieldValidationDetails(error)` from `@byline/core` safely decodes this contract from live or serialized errors. Array and block paths use stable item identities when available, for example `content[id=abc].title`. The admin displays these errors without discarding edits. Rich-text content remains editor-defined JSON; core does not impose a Lexical document schema or measure its rendered text length.
+Field errors use `ERR_VALIDATION` with `details.reason: 'invalid_document_fields'` and an `issues` array of `{ field, message, kind }`, where `kind` is `required` for a declared value that is absent and `invalid` for every other failure, including a `validate` callback's message. `getDocumentFieldValidationDetails(error)` from `@byline/core` safely decodes this contract from live or serialized errors. Array and block paths use stable item identities when available, for example `content[id=abc].title`. The admin displays these errors without discarding edits. Rich-text content remains editor-defined JSON; core does not impose a Lexical document schema or measure its rendered text length.
+
+### Restoring a historical version
+
+Restoring a version is exempt from this gate. A historical version cannot be corrected through ordinary editing before it is restored, so enforcing today's rules on it would make the content permanently unrecoverable. Two independent things can put a historical version out of step:
+
+- **The schema moved.** A field became required, a bound tightened, a block type was removed.
+- **The rules moved, while the schema stood still.** Validation itself changed, so a version whose collection never changed can still fail. Corrected `email` and `url` rules are a concrete case.
+
+A restore therefore persists whatever the version holds. It remains subject to authorization, revision and version-ownership checks, hooks, and storage constraints; only the field-validation gate is skipped. The issues are still computed and returned as `validationIssues` on the restore result, and the admin reports them so you know what to fix before the next ordinary save — which is validated in full.
+
+Two consequences are deliberate recovery semantics rather than guarantees about restored content:
+
+- A `beforeUpdate` hook on a restore runs inside the exemption, so content it produces is not validated either.
+- Restore uses the collection's configured default status. A workflow whose `defaultStatus` is `published` — `SINGLE_STATUS_WORKFLOW`, or any workflow configured that way — therefore republishes restored content that fails current validation.
+
+Read the exemption narrowly. Create, update, patch saves, duplication and locale copies all keep the gate: each reads or authors content the editor can open and correct, so a refusal there is a prompt to act. Publication is a separate boundary again — workflow status is lifecycle metadata rather than content, so `changeStatus` mutates it in place without validating fields, and an incomplete draft can reach `published` through an ordinary transition whether or not a restore put it there. Content validation gates content writes; it is not a publication gate. Enforce publication preconditions in abilities or a `beforeUpdate` hook if your editorial process needs them.
+
+One limitation is not addressed here: a historical version may be incompatible with the current schema in ways validation cannot see, because reconstruction resolves stored rows against today's field set and does not preserve data it no longer recognises. Schema-aware restoration — identifying the schema a version was written under, reconstructing without loss, and repairing a restore candidate before committing it — is separate future work.
 
 ### `validation`
 

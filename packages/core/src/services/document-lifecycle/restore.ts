@@ -10,11 +10,13 @@ import { resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { ERR_INVALID_TRANSITION, ERR_NOT_FOUND, ERR_VALIDATION } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
+import { validateDocumentFields } from '../../validation/document-fields.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
 import { runCommittedDocumentHook } from './committed-hook.js'
 import { applyRichTextEmbed, extractDocumentId, extractVersionId, invokeHook } from './internals.js'
 import { persistExistingDocumentVersion } from './persistence.js'
 import { commitGuardedDocumentMutation, readDocumentForMutation } from './revision-guard.js'
+import type { DocumentFieldIssue } from '../../validation/document-fields.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 export interface RestoreVersionResult {
@@ -22,6 +24,13 @@ export interface RestoreVersionResult {
   documentId: string
   documentVersionId: string
   sourceVersionId: string
+  /**
+   * Ways the restored content fails today's field validation. Restore is
+   * exempt from that gate, so these never block it — they are reported so the
+   * editor can say what must be fixed before the next ordinary save, which is
+   * validated in full.
+   */
+  validationIssues?: DocumentFieldIssue[]
 }
 
 /**
@@ -35,9 +44,22 @@ export interface RestoreVersionResult {
  * `current_documents` view (`ROW_NUMBER() OVER PARTITION BY document_id
  * ORDER BY created_at DESC`) automatically promotes the new row to current.
  *
- * Status is hard-defaulted to the workflow's first status — restoring an
- * old `published` version must never silently re-publish content. The user
- * runs the restored draft through the normal workflow.
+ * Status is hard-defaulted to the collection's configured default status.
+ * For the standard editorial workflow that is `draft`, so restoring an old
+ * `published` version does not re-publish it and the user runs the restored
+ * draft through the normal workflow. It is NOT a guarantee: a workflow whose
+ * `defaultStatus` is `published` — `SINGLE_STATUS_WORKFLOW`, or any workflow
+ * configured that way — restores directly to published.
+ *
+ * Restore is exempt from the field-validation gate that every other versioned
+ * write passes through (see `assertWritableContent`). Historical content was
+ * persisted under earlier schema and validation rules, and cannot be corrected
+ * before it is restored; enforcing today's rules would make it permanently
+ * unrecoverable. Combined with the status default above, that means a
+ * published-default workflow can republish restored content which fails
+ * current validation, and `beforeUpdate` hooks on a restore run inside the
+ * same exemption. Both are accepted recovery semantics. The issues are
+ * computed and returned as `validationIssues` for the editor to report.
  *
  * `path` is sticky from the previous current version (not from the source),
  * matching the semantics of `updateDocument`. A path change made between
@@ -147,6 +169,14 @@ export async function restoreDocumentVersion(
       //
       // No `path` is passed: restore does not change the document's path
       // (the existing byline_document_paths row stays as-is — sticky).
+      // Restore is exempt from the content-validation gate (see
+      // assertWritableContent). Validate anyway, for reporting only: the
+      // editor needs to know what today's rules object to before its next
+      // save, which is validated in full. Run it after the hook and embed
+      // pass so it describes exactly what is about to be persisted.
+      const validationIssues = validateDocumentFields(definition.fields, sourceFields, {
+        locale: 'all',
+      })
       const committed = await commitGuardedDocumentMutation(
         ctx,
         { ...params, previousVersionId, locale: 'all' },
@@ -190,6 +220,7 @@ export async function restoreDocumentVersion(
         documentVersionId,
         sourceVersionId: params.sourceVersionId,
         revision,
+        ...(validationIssues.length > 0 ? { validationIssues } : {}),
       }
     }
   )

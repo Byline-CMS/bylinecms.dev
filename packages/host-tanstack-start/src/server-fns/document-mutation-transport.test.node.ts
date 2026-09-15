@@ -213,7 +213,9 @@ it('transports unavailable-document errors without provider details', async () =
 
 describe('field validation over the installed transport', () => {
   it('retains stable field paths and messages while dropping diagnostics', async () => {
-    const issues = [{ field: 'items[id=item-1].title', message: 'Title is required' }]
+    const issues = [
+      { field: 'items[id=item-1].title', message: 'Title is required', kind: 'required' as const },
+    ]
     const { value, wire } = await roundTrip({}, async () => {
       throw ERR_VALIDATION({
         message: 'private detail',
@@ -227,5 +229,24 @@ describe('field validation over the installed transport', () => {
     })
     expect(wire).not.toMatch(/private detail|SELECT secret|private cause/)
     expect(getDocumentRevisionValidationDetails(value.error)).toBeNull()
+  })
+
+  it('never lets a malformed payload smuggle a waivable kind across the wire', async () => {
+    const { value } = await roundTrip({}, async () => {
+      throw ERR_VALIDATION({
+        message: 'private detail',
+        details: {
+          reason: 'invalid_document_fields',
+          issues: [
+            { field: 'title', message: 'Title is required' },
+            { field: 'summary', message: 'Summary is wrong', kind: 'bogus' },
+          ],
+        },
+      })
+    })
+    expect(getDocumentFieldValidationDetails(value.error)?.issues.map((i) => i.kind)).toEqual([
+      'invalid',
+      'invalid',
+    ])
   })
 })

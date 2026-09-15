@@ -440,3 +440,103 @@ The implementation was committed in these independently reviewable steps:
 - `0d163523` — extracted reload recovery and shared status actions.
 
 No push, issue closure, or deployment was performed.
+
+## Follow-up: restore as a recovery operation, and the condition contract
+
+A second review of the implementation above raised two consequences of enforcing
+validation on every content save.
+
+### Restore is exempt from field validation
+
+Validation sits on the two shared persistence entry points, so it also gated
+`restoreDocumentVersion`. Duplication and locale copies read the *current*
+version, which the editor can open, correct and save, so a refusal there is a
+prompt to act; they keep the gate. A restore reads a *historical* version, which
+no route can edit, so a refusal there is a recovery dead end.
+
+The position moved twice before settling, and both intermediate positions are
+recorded because the reasoning matters:
+
+1. **A blanket `validateContent: false`** was rejected. Restore is not an
+   unchanged replay — `beforeUpdate` and `applyRichTextEmbed` mutate the source
+   tree before persistence — and prior persistence proves nothing about validity,
+   since authoritative validation did not exist before this work. A general
+   option also invites use from paths that should never have it.
+2. **A `required`-only waiver, refused when the destination status is
+   published**, was implemented and then withdrawn. It assumed the only way a
+   historical version can fail is a field that became required. That is wrong on
+   both halves: validation *rules* changed in this release independently of any
+   schema — the corrected `email` and `url` rules had previously been inert — so
+   versions under entirely unchanged collections could stop restoring today. And
+   refusing to waive into a published status leaves published-default workflows
+   with the original dead end.
+
+**Implemented.** Restore is exempt from the field-validation gate. The exemption
+is tied to `action: 'restore'` rather than to a caller-supplied flag, so a write
+cannot obtain it without also declaring itself a restore in the audit trail; the
+document and singleton restore services are the only writers of that action. A
+restore remains subject to authorization, revision and version-ownership checks,
+hooks, and storage constraints.
+
+Validation still runs on a restore, for reporting only, after the hook and embed
+pass so it describes exactly what is persisted. The issues return as
+`validationIssues` on the restore result and the admin reports them in a warning
+toast naming the fields, so the next ordinary save's refusal is understandable.
+Failed duplications and locale copies now name their offending fields too,
+instead of showing a generic failure.
+
+`DocumentFieldIssue` carries `kind: 'required' | 'invalid'`. Nothing branches on
+it to decide whether a write proceeds; it exists so the editor can separate what
+is missing from what is wrong. A custom `validate` callback's message is always
+`invalid`, even when it describes a conditional requirement.
+
+**Consequences, stated rather than engineered around:**
+
+- A `beforeUpdate` hook on a restore runs inside the exemption.
+- A workflow whose `defaultStatus` is `published` republishes restored content
+  that fails current validation.
+- Publication is a separate boundary in any case: status is lifecycle metadata,
+  so `changeStatus` mutates it in place without validating content. An
+  incomplete draft can reach `published` through an ordinary transition whether
+  or not a restore put it there. Content validation gates content writes; it is
+  not a publication gate.
+
+**Deferred: schema-aware restoration.** A historical version may be incompatible
+with the current schema in ways validation cannot see, because reconstruction
+resolves stored rows against today's field set and does not preserve data it no
+longer recognises. Identifying the schema a version was written under (a
+collection's current fingerprint is insufficient unless the fingerprint is
+retained per version), reconstructing without loss, treating renames and type
+conversions as explicit migrations, and repairing a restore candidate before
+committing it, all need their own design. Skipping validation does not address
+any of them. The next useful step is to verify historical schema identification
+and reconstruction behaviour, then choose the smallest restoration change that
+preserves data and permits repair.
+
+### The condition contract stands
+
+`condition` is documented as a rendering hint that the lifecycle does not
+evaluate, with the remedy stated alongside it. A proposal to make the lifecycle
+condition-aware was withdrawn: it would have changed a stated contract, skipped
+all validation for a hidden field rather than only requiredness, and could not
+hold its "same predicate, same result" claim — restore and duplicate validate
+with `locale: 'all'`, where a localized value is a per-locale map rather than the
+single value the editor supplies, so a predicate reading one disagrees with
+itself across those paths.
+
+No code change. The documentation now names the pattern that actually enforces a
+circumstantial requirement — `optional: true` plus a `validate` callback, which
+the lifecycle enforces and the admin reports wherever the field is visible — and
+records the `locale: 'all'` shape difference.
+
+### Verification
+
+Repository lint, typechecking, Knip, documentation validation and
+`git diff --check` passed. Unit suites passed in full; the integration suites
+passed against the guarded `_test` databases. New coverage: issue
+classification, custom-validator classification, the decoder's refusal to infer
+a `kind` from a malformed payload (unit and over the installed server-function
+serializer), and five lifecycle cases — restore reports a version predating a
+required field, restores content failing a rule whose schema never changed,
+restores into a published default status, omits `validationIssues` for a clean
+source, and does not extend the exemption to duplication.

@@ -128,7 +128,7 @@ describe('document field validation', () => {
     })
     expect(getDocumentFieldValidationDetails(error)).toEqual({
       reason: 'invalid_document_fields',
-      issues: [{ field: 'title', message: 'Required' }],
+      issues: [{ field: 'title', message: 'Required', kind: 'invalid' }],
     })
     expect(
       getDocumentFieldValidationDetails({
@@ -152,5 +152,64 @@ describe('document field validation', () => {
   })
   it('throws a structured validation error', () => {
     expect(() => assertDocumentFields(fields, {})).toThrow('Some document fields are invalid')
+  })
+
+  describe('issue classification', () => {
+    it('marks absent declared values required and everything else invalid', () => {
+      const issues = validateDocumentFields(fields, {
+        title: 'ab',
+        details: { name: 'ok' },
+        items: 'not-an-array',
+        content: [{ _id: 'b1', _type: 'unknown' }],
+      })
+      const byField = Object.fromEntries(issues.map((issue) => [issue.field, issue.kind]))
+      expect(byField).toEqual({
+        title: 'invalid',
+        items: 'invalid',
+        'content[id=b1]': 'invalid',
+      })
+      expect(validateDocumentFields(fields, {}).every((issue) => issue.kind === 'required')).toBe(
+        true
+      )
+    })
+
+    it('classifies a custom validator as invalid even when it describes a requirement', () => {
+      const conditional: Field[] = [
+        { name: 'kind', type: 'text' },
+        {
+          name: 'doi',
+          type: 'text',
+          optional: true,
+          validate: (value, data) =>
+            data.kind === 'journal' && !value ? 'DOI is required for journal articles' : undefined,
+        },
+      ]
+      const issues = validateDocumentFields(conditional, { kind: 'journal' })
+      expect(issues).toEqual([
+        { field: 'doi', message: 'DOI is required for journal articles', kind: 'invalid' },
+      ])
+      expect(() => assertDocumentFields(conditional, { kind: 'journal' })).toThrow(
+        'Some document fields are invalid'
+      )
+      // The condition itself is never consulted by the lifecycle.
+      expect(validateDocumentFields(conditional, { kind: 'blog' })).toEqual([])
+    })
+  })
+
+  describe('the serialized decoder', () => {
+    it('decodes an unknown or absent kind as invalid, never as waivable', () => {
+      const details = getDocumentFieldValidationDetails({
+        code: ERR_VALIDATION({ message: 'x' }).code,
+        details: {
+          reason: 'invalid_document_fields',
+          issues: [
+            { field: 'a', message: 'A' },
+            { field: 'b', message: 'B', kind: 'bogus' },
+            { field: 'c', message: 'C', kind: 'required' },
+          ],
+        },
+      })
+      expect(details?.issues.map((issue) => issue.kind)).toEqual(['invalid', 'invalid', 'required'])
+    })
   })
 })

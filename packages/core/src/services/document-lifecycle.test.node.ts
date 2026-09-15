@@ -2792,6 +2792,120 @@ describe('Document lifecycle service', () => {
       })
     })
 
+    describe('exemption from field validation', () => {
+      // A historical version cannot be corrected through ordinary editing
+      // before it is restored, and both the schema and the validation rules
+      // may have moved since it was written. Enforcing today's rules would
+      // make that content permanently unrecoverable.
+      const tightened: CollectionDefinition = {
+        ...minimalCollection,
+        fields: [
+          { name: 'title', type: 'text', localized: true },
+          { name: 'summary', type: 'text', label: 'Summary' },
+        ],
+      }
+
+      it('restores a version that predates a required field and reports it', async () => {
+        const { db, createDocumentVersion, sourceVersionId } = setupRestore()
+        const result = await restoreDocumentVersion(buildCtx(db, tightened), {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          sourceVersionId,
+        })
+
+        expect(createDocumentVersion).toHaveBeenCalledOnce()
+        expect(result.validationIssues).toEqual([
+          { field: 'summary', message: 'Summary is required', kind: 'required' },
+        ])
+      })
+
+      it('restores content that fails a rule the schema never changed', async () => {
+        // The corrected email rule is the concrete case: a version written
+        // when the rule was inert must stay restorable.
+        const emailCollection: CollectionDefinition = {
+          ...minimalCollection,
+          fields: [
+            { name: 'title', type: 'text', localized: true },
+            {
+              name: 'contact',
+              type: 'text',
+              validation: { rules: [{ type: 'email', value: true }] },
+            },
+          ],
+        }
+        const { db, createDocumentVersion, sourceVersionId } = setupRestore({
+          sourceFields: { title: { en: 'Old EN' }, contact: 'not-an-email' },
+        })
+
+        const result = await restoreDocumentVersion(buildCtx(db, emailCollection), {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          sourceVersionId,
+        })
+
+        expect(createDocumentVersion).toHaveBeenCalledOnce()
+        expect(result.validationIssues?.map((issue) => issue.field)).toEqual(['contact'])
+        expect(result.validationIssues?.[0]?.kind).toBe('invalid')
+      })
+
+      it('restores into a published default status, republishing invalid content', async () => {
+        // Accepted recovery semantics, not a guarantee about restored content.
+        const publishedOnly: CollectionDefinition = {
+          ...tightened,
+          workflow: {
+            statuses: [
+              { name: 'draft', label: 'Draft' },
+              { name: 'published', label: 'Published' },
+              { name: 'archived', label: 'Archived' },
+            ],
+            defaultStatus: 'published',
+          },
+        }
+        const { db, createDocumentVersion, sourceVersionId } = setupRestore()
+
+        const result = await restoreDocumentVersion(buildCtx(db, publishedOnly), {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          sourceVersionId,
+        })
+
+        expect(createDocumentVersion.mock.calls[0]?.[0].status).toBe('published')
+        expect(result.validationIssues?.map((issue) => issue.field)).toEqual(['summary'])
+      })
+
+      it('omits validationIssues when the source satisfies the current rules', async () => {
+        const { db, sourceVersionId } = setupRestore({
+          sourceFields: { title: { en: 'Old EN' }, summary: 'Present' },
+        })
+        const result = await restoreDocumentVersion(buildCtx(db, tightened), {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          sourceVersionId,
+        })
+        expect(result.validationIssues).toBeUndefined()
+      })
+
+      it('does not extend the exemption to duplication', async () => {
+        // Duplicate reads the current version, which the editor can open and
+        // correct, so it keeps the gate.
+        const { db } = setupRestore()
+        vi.mocked(db.queries.documents.getDocumentById).mockResolvedValue({
+          document_version_id: 'ver-current',
+          document_id: 'doc-1',
+          path: 'sticky-path',
+          status: 'published',
+          fields: { title: { en: 'Current' } },
+        } as any)
+
+        await expect(
+          duplicateDocument(buildCtx(db, tightened), {
+            expectedRevision: 1,
+            sourceDocumentId: 'doc-1',
+          })
+        ).rejects.toThrow('Some document fields are invalid')
+      })
+    })
+
     it('hard-defaults the new version status to the workflow default (never inherits source status)', async () => {
       const { db, createDocumentVersion, sourceVersionId } = setupRestore()
       const ctx = buildCtx(db, {

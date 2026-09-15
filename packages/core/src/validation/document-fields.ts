@@ -13,6 +13,15 @@ import type { Field, FieldSet } from '../@types/field-types.js'
 export interface DocumentFieldIssue {
   field: string
   message: string
+  /**
+   * `required` marks a value that is absent but declared non-optional — the
+   * shape schema tightening produces. Every other failure, including a custom
+   * `validate` callback's message, is `invalid`: it describes a value that is
+   * present and wrong, or a container that cannot be stored. Nothing branches
+   * on this to decide whether a write proceeds; it exists so callers can tell
+   * an editor what is missing separately from what is wrong.
+   */
+  kind: 'required' | 'invalid'
 }
 
 export interface DocumentFieldValidationDetails {
@@ -36,7 +45,8 @@ export function validateDocumentFields(
   } = {}
 ): DocumentFieldIssue[] {
   const issues: DocumentFieldIssue[] = []
-  const add = (field: string, message: string) => issues.push({ field, message })
+  const add = (field: string, message: string, kind: DocumentFieldIssue['kind'] = 'invalid') =>
+    issues.push({ field, message, kind })
   const visit = (fieldSet: FieldSet, values: Record<string, any>, prefix = '') => {
     for (const field of fieldSet) {
       const path = prefix ? `${prefix}.${field.name}` : field.name
@@ -46,7 +56,7 @@ export function validateDocumentFields(
       if (field.localized && options.locale === 'all' && record(value)) {
         const locales = Object.keys(value)
         if (!locales.length && !field.optional)
-          add(path, `${field.label ?? field.name} is required`)
+          add(path, `${field.label ?? field.name} is required`, 'required')
         for (const locale of locales) validate(field, value[locale], `${path}.${locale}`)
       } else validate(field, value, path)
     }
@@ -58,7 +68,7 @@ export function validateDocumentFields(
       if (message) add(path, message)
     }
     if (value == null || value === '') {
-      if (!field.optional && field.type !== 'counter') add(path, `${label} is required`)
+      if (!field.optional && field.type !== 'counter') add(path, `${label} is required`, 'required')
       // Empty values count as absent when checking requiredness.
       return
     }
@@ -97,11 +107,20 @@ export function validateDocumentFields(
         add(path, `${label}: ${parsed.error.issues[0]?.message ?? 'Invalid value'}`)
     }
   }
-  if (!record(data)) return [{ field: '', message: 'Document fields must be an object' }]
+  if (!record(data))
+    return [{ field: '', message: 'Document fields must be an object', kind: 'invalid' }]
   visit(fields, data)
   return issues
 }
 
+/**
+ * Enforce the collection's declared field contract over prepared content.
+ *
+ * Every versioned write passes through this except a restore, which is exempt
+ * structurally rather than by a parameter here — see `assertWritableContent`
+ * in the lifecycle's `persistence.ts` for why, and for what that exemption
+ * does and does not promise.
+ */
 export function assertDocumentFields(
   fields: FieldSet,
   data: Record<string, any>,
@@ -141,7 +160,13 @@ export function getDocumentFieldValidationDetails(
         !issue.message.trim()
       )
         return null
-      issues.push({ field: issue.field, message: issue.message })
+      // An unrecognised or absent `kind` decodes as `invalid` — the blocking
+      // reading. A waiver must never be inferred from a malformed payload.
+      issues.push({
+        field: issue.field,
+        message: issue.message,
+        kind: issue.kind === 'required' ? 'required' : 'invalid',
+      })
     }
     return { reason: 'invalid_document_fields', issues }
   } catch {

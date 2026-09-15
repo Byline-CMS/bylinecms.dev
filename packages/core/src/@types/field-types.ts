@@ -313,6 +313,25 @@ interface BaseField {
    * validation. Server-side schema validation knows nothing about
    * conditions, so pair conditionally-hidden required fields with
    * `optional: true` or a `defaultValue`.
+   *
+   * A field that is required only in particular circumstances is expressed
+   * explicitly, with `optional: true` plus a `validate` callback that decides
+   * from the document. The callback runs on both sides — the lifecycle
+   * enforces it, and the form reports it wherever the field is visible:
+   *
+   *     {
+   *       type: 'text', name: 'doi', optional: true,
+   *       condition: (data) => data.kind === 'journal',
+   *       validate: (value, data) =>
+   *         data.kind === 'journal' && !value ? 'DOI is required for journal articles' : undefined,
+   *     }
+   *
+   * Do not reach for `condition` to express requiredness. Beyond the contract
+   * above, restore and duplicate validate with `locale: 'all'`, where a
+   * localized value is a per-locale map rather than the single value the
+   * editor supplies — so a predicate reading one can disagree with itself
+   * across those paths. A `validate` callback that must run under `'all'`
+   * should account for the same shape.
    */
   condition?: FieldCondition
 

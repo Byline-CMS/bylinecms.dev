@@ -57,6 +57,18 @@ export function RestoreVersionModal({
     setError(null)
     try {
       const result = await restoreVersion()
+      // Restore is exempt from field validation, so this never blocks it. Name
+      // the fields so the editor understands why the next save is refused.
+      const issues = getRestoreValidationIssues(result)
+      if (issues.length > 0) {
+        toastManager.add({
+          title: t('collections.restore.validationIssuesToast'),
+          description: t('collections.restore.validationIssuesDescription', {
+            fields: issues.join(', '),
+          }),
+          data: { intent: 'warning', iconType: 'warning', icon: true, close: true },
+        })
+      }
       if (hasCommittedDocumentHookFailure(result)) {
         toastManager.add({
           title: t('collections.save.hookFailedToast'),
@@ -144,6 +156,20 @@ export function RestoreVersionModal({
       </div>
     </Modal.Content>
   )
+}
+
+/** Field paths of the restored content that today's validation rejects. */
+function getRestoreValidationIssues(result: unknown): string[] {
+  if (result == null || typeof result !== 'object') return []
+  const issues = (result as { validationIssues?: unknown }).validationIssues
+  if (!Array.isArray(issues)) return []
+  return issues
+    .map((issue) =>
+      issue != null && typeof issue === 'object' && typeof (issue as any).field === 'string'
+        ? (issue as { field: string }).field
+        : ''
+    )
+    .filter((field) => field.length > 0)
 }
 
 function getErrorCode(err: unknown): string | null {

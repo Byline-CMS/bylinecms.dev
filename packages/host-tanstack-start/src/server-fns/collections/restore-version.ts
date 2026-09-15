@@ -66,6 +66,10 @@ export const restoreDocumentVersion = createServerFn({ method: 'POST' })
           revision: result.revision,
           documentVersionId: result.documentVersionId,
           sourceVersionId: result.sourceVersionId,
+          // Restore is exempt from field validation; these describe what
+          // today's rules object to, so the editor can say what must be fixed
+          // before the next ordinary save.
+          ...(result.validationIssues ? { validationIssues: result.validationIssues } : {}),
         }
       } catch (error) {
         const committedFailure = toCommittedDocumentHookFailureResponse(error)
