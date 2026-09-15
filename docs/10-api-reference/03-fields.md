@@ -31,7 +31,7 @@ Every field accepts these properties in addition to its required `name` and `typ
 | `hooks` | None | Client-side `beforeValidate` and `beforeChange` hook slots. |
 | `condition` | None | Client-side visibility predicate over the full form data and current sibling scope. Hidden values remain stored. |
 | `virtual` | `false` | Makes the value available to form state and lifecycle hooks but excludes it from persistence. |
-| `validate` | None | Submit-time validator `(value, data) => string \| undefined` available on every field, including structure fields. |
+| `validate` | None | Content-save validator `(value, data) => string \| undefined` available on every field, including structure fields. |
 | `localized` | `false` | Available only on localizable field kinds. Stores a distinct value per content locale when `true`. |
 
 ### `optional`
@@ -45,7 +45,7 @@ An optional field becomes an optional property in inferred and generated object 
 
 ### `readOnly`
 
-`readOnly` prevents normal editing in widgets that implement the hint. API clients can still submit the field. Enforce security and immutability in abilities, hooks, lifecycle services, or a field-specific server rule.
+`readOnly` prevents normal editing in Byline’s built-in admin widgets. Groups, arrays, and blocks pass the hint to their descendants and disable structural changes. File and image widgets retain preview and download actions. Custom field components and rich-text editor replacements must implement the hint themselves. API clients can still submit the field. Enforce security and immutability in abilities, hooks, lifecycle services, or a field-specific server rule.
 
 ### `condition`
 
@@ -410,6 +410,12 @@ type DefaultValue<T> =
 
 ## Validation
 
+Core lifecycle services validate the prepared document immediately before writing a content version. This includes create, update, patch saves, duplication, locale copies, and version restores. Validation runs after lifecycle hooks and normalization, recursively checking groups, array items, and declared block variants. Required fields and declared scalar constraints apply to drafts as well as published content. An older document missing a newly required field remains readable, but its next content save must supply that field. Metadata-only path, advertised-locale, and status operations do not validate or rewrite content.
+
+The admin performs the same recursive checks before submission, while exempting condition-hidden fields and pending uploads. The server does not exempt hidden fields. Supply required values through the editor, the caller, or lifecycle hooks; a schema `defaultValue` alone does not fill a missing SDK write value. An omitted optional container is accepted; a present container must satisfy its child fields. Counter allocation remains lifecycle-owned.
+
+Field errors use `ERR_VALIDATION` with `details.reason: 'invalid_document_fields'` and an `issues` array of `{ field, message }`. `getDocumentFieldValidationDetails(error)` from `@byline/core` safely decodes this contract from live or serialized errors. Array and block paths use stable item identities when available, for example `content[id=abc].title`. The admin displays these errors without discarding edits. Rich-text content remains editor-defined JSON; core does not impose a Lexical document schema or measure its rendered text length.
+
 ### `validation`
 
 Type-specific `validation` objects provide declarative length, range, pattern, or rule checks. Supported generic rules are:
@@ -424,7 +430,7 @@ interface ValidationRule {
 
 ### `validate`
 
-Every field also accepts a submit-time function:
+Every field also accepts a synchronous validator used by the admin precheck and the authoritative lifecycle check:
 
 ```ts
 validate?: (value: any, data: Record<string, any>) => string | undefined

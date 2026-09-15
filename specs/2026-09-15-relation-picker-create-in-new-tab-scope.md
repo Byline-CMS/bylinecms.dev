@@ -22,9 +22,10 @@ workflow the affordance is meant to support.
 Opening in a new tab removes that cost: the parent form, its unsaved values and the open
 picker all survive untouched.
 
-It does **not** remove the separate publication step. A newly created document follows the
-ordinary lifecycle and starts as a draft, exactly as it would if the editor had navigated
-there themselves. That is a feature of using the ordinary create view, not a gap.
+A newly created document follows the ordinary lifecycle and starts at its collection’s
+configured default status. A workflow whose default is draft still requires publication;
+`SINGLE_STATUS_WORKFLOW` creates directly at published status. This is the same behavior
+as navigating to the ordinary create view.
 
 ## Why this is small
 

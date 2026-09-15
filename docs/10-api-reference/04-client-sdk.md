@@ -552,6 +552,10 @@ handle.create(data: Record<string, any>, options?: {
 | `path` | Derived from `useAsPath`, then UUID | Explicit initial document path. |
 | `availableLocales` | Empty set | Initial editor-advertised content locales. |
 
+Creating at the configured default status requires the collection’s `create` ability. A non-default initial status must belong to the workflow and additionally requires `changeStatus`; selecting `published` also requires `publish`. This applies to both `options.status` and the legacy `data.status` fallback. A collection using `SINGLE_STATUS_WORKFLOW` can therefore create directly at its default `published` status with `create` permission alone. The admin create handler always chooses the configured default.
+
+Content writes enforce required fields and declared constraints after lifecycle preparation, including drafts and older documents. See [field validation](./03-fields.md#validation) for the policy and structured error contract.
+
 ### `update(id, data, options)`
 
 ```ts
