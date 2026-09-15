@@ -1,5 +1,12 @@
 # @byline/auth
 
+## 6.4.0
+
+### Minor Changes
+
+- enforced the declared field contract on every content save and required publication abilities for a non-default initial status, with version restore exempt so historical content stays recoverable
+  fixed stale asynchronous field hooks, repeated uploads after a partial failure, missed form subscriptions and inconsistent read-only presentation in the editor
+
 ## 6.3.0
 
 ### Minor Changes
