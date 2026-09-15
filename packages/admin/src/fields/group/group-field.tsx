@@ -16,6 +16,7 @@ import { sliceFieldAdmin } from '../../fields/field-admin'
 import { placeholderForField } from '../../fields/field-helpers'
 import { FieldRenderer } from '../../fields/field-renderer'
 import { useFieldError } from '../../forms/form-context'
+import { useScopedDomId } from '../../forms/form-dom-scope'
 import styles from './group-field.module.css'
 
 // ---------------------------------------------------------------------------
@@ -70,6 +71,7 @@ export const GroupField = ({
   contentLocale,
   fieldAdmin,
 }: GroupFieldProps) => {
+  const htmlId = useScopedDomId(path ?? field.name)
   const fieldError = useFieldError(field.name)
   // Default value for a group field is a plain object: { rating: 5, comment: '...' }
   // Normalize to a plain object if not already one.
@@ -117,7 +119,7 @@ export const GroupField = ({
           )
         })}
       </div>
-      {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
+      {fieldError && <ErrorText id={`${htmlId}-error`} text={fieldError} />}
     </div>
   )
 }

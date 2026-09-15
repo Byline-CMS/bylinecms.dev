@@ -11,6 +11,7 @@ import { DatePicker, ErrorText } from '@byline/ui/react'
 import cx from 'clsx'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
+import { useScopedDomId } from '../../forms/form-dom-scope'
 import styles from './datetime-field.module.css'
 
 export const DateTimeField = ({
@@ -29,6 +30,7 @@ export const DateTimeField = ({
   path?: string
 }) => {
   const fieldPath = path ?? field.name
+  const htmlId = useScopedDomId(fieldPath, id)
   const fieldError = useFieldError(fieldPath)
   const isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<Date | null | undefined>(fieldPath)
@@ -48,7 +50,7 @@ export const DateTimeField = ({
         onDateChange={(date) => onChange?.(date)}
         className={cx(isDirty && ['byline-field-datetime-dirty', styles.dirty])}
       />
-      {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
+      {fieldError && <ErrorText id={`${htmlId}-error`} text={fieldError} />}
     </div>
   )
 }

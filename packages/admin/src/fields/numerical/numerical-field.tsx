@@ -20,6 +20,7 @@ import { normalizeNumericValue } from '@byline/core'
 import { Input } from '@byline/ui/react'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
+import { useScopedDomId } from '../../forms/form-dom-scope'
 
 type NumericalValue = string | number | null
 
@@ -48,7 +49,7 @@ export const NumericalField = ({
   const fieldValue = useFieldValue<NumericalValue | undefined>(fieldPath)
   const incomingValue =
     value !== undefined ? value : fieldValue !== undefined ? fieldValue : (defaultValue ?? null)
-  const htmlId = id ?? fieldPath
+  const htmlId = useScopedDomId(fieldPath, id)
   const canonicalDisplay = incomingValue == null ? '' : String(incomingValue)
   const [displayValue, setDisplayValue] = useState(canonicalDisplay)
   const [isEditing, setIsEditing] = useState(false)

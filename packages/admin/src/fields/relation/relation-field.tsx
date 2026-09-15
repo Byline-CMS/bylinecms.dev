@@ -28,6 +28,7 @@ import {
 import cx from 'clsx'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
+import { useScopedDomId } from '../../forms/form-dom-scope'
 import styles from './relation-field.module.css'
 import { RelationPicker } from './relation-picker'
 import { RelationSummary } from './relation-summary'
@@ -65,7 +66,7 @@ export const RelationField = ({
   path,
 }: RelationFieldProps) => {
   const fieldPath = path ?? field.name
-  const htmlId = id ?? fieldPath
+  const htmlId = useScopedDomId(fieldPath, id)
   const fieldError = useFieldError(fieldPath)
   const fieldValue = useFieldValue<IncomingRelationValue | null | undefined>(fieldPath)
 
@@ -208,7 +209,7 @@ export const RelationField = ({
 
       {field.helpText != null && <HelpText text={field.helpText} />}
 
-      {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
+      {fieldError && <ErrorText id={`${htmlId}-error`} text={fieldError} />}
 
       {!isUnknown && (
         <RelationPicker

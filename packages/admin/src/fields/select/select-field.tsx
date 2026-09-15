@@ -11,6 +11,7 @@ import { ErrorText, Label, Select } from '@byline/ui/react'
 import cx from 'clsx'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
+import { useScopedDomId } from '../../forms/form-dom-scope'
 import styles from './select-field.module.css'
 
 export const SelectField = ({
@@ -33,7 +34,7 @@ export const SelectField = ({
   const isDirty = useIsDirty(fieldPath)
   const fieldValue = useFieldValue<string | undefined>(fieldPath)
   const incomingValue = value ?? fieldValue ?? defaultValue ?? ''
-  const htmlId = id ?? fieldPath
+  const htmlId = useScopedDomId(fieldPath, id)
 
   return (
     <div className={`byline-field-select ${field.name}`}>
@@ -62,7 +63,7 @@ export const SelectField = ({
         }}
         className={cx(isDirty && ['byline-field-select-dirty', styles.dirty])}
       />
-      {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
+      {fieldError && <ErrorText id={`${htmlId}-error`} text={fieldError} />}
     </div>
   )
 }

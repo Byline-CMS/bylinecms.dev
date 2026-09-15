@@ -13,6 +13,7 @@ import { Input, Label } from '@byline/ui/react'
 import cx from 'clsx'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
+import { useScopedDomId } from '../../forms/form-dom-scope'
 import { LocaleBadge } from '../locale-badge'
 import styles from './text-field.module.css'
 
@@ -41,7 +42,7 @@ export const TextField = ({
   const fieldError = useFieldError(fieldPath)
   const fieldValue = useFieldValue<string | undefined>(fieldPath)
   const incomingValue = value ?? fieldValue ?? defaultValue ?? ''
-  const htmlId = id ?? fieldPath
+  const htmlId = useScopedDomId(fieldPath, id)
 
   const handleChange = useCallback(
     (value: string) => {

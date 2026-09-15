@@ -32,6 +32,7 @@ import {
 import cx from 'clsx'
 
 import { useFieldError, useFieldValue, useFormContext } from '../../forms/form-context'
+import { useScopedDomId } from '../../forms/form-dom-scope'
 import styles from './relation-field.module.css'
 import { RelationPicker, type RelationPickerSelection } from './relation-picker'
 import { RelationSummary } from './relation-summary'
@@ -117,7 +118,7 @@ interface RelationManyFieldProps {
 
 export const RelationManyField = ({ field, defaultValue, id, path }: RelationManyFieldProps) => {
   const fieldPath = path ?? field.name
-  const htmlId = id ?? fieldPath
+  const htmlId = useScopedDomId(fieldPath, id)
   const { t } = useTranslation('byline-admin')
   const fieldError = useFieldError(fieldPath)
   const { getFieldValue, setFieldValue } = useFormContext()
@@ -268,7 +269,7 @@ export const RelationManyField = ({ field, defaultValue, id, path }: RelationMan
 
           {field.helpText != null && <HelpText text={field.helpText} />}
 
-          {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
+          {fieldError && <ErrorText id={`${htmlId}-error`} text={fieldError} />}
 
           <RelationPicker
             multiple
