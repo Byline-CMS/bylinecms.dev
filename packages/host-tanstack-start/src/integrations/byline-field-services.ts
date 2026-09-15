@@ -18,7 +18,9 @@
 
 import type {
   BylineFieldServices,
+  CanCreateInCollectionFn,
   GetCollectionDocumentsFn,
+  GetCreateDocumentUrlFn,
   GetTreeAncestorsFn,
   GetTreeParentFn,
   PlaceTreeNodeFn,
@@ -26,6 +28,7 @@ import type {
   UploadFieldFn,
 } from '@byline/admin/react'
 
+import { getAdminRoutePath } from '../routes/admin-path.js'
 import { getCollectionDocuments as serverGetCollectionDocuments } from '../server-fns/collections/list.js'
 import {
   getTreeAncestors as serverGetTreeAncestors,
@@ -57,6 +60,9 @@ const getTreeAncestors: GetTreeAncestorsFn = (input) =>
 const getTreeParent: GetTreeParentFn = (input) =>
   serverGetTreeParent({ data: input }) as ReturnType<GetTreeParentFn>
 
+const getCreateDocumentUrl: GetCreateDocumentUrlFn = (collectionPath) =>
+  getAdminRoutePath('collections', collectionPath, 'create')
+
 export const bylineFieldServices: BylineFieldServices = {
   getCollectionDocuments,
   uploadField,
@@ -64,4 +70,37 @@ export const bylineFieldServices: BylineFieldServices = {
   removeFromTree,
   getTreeAncestors,
   getTreeParent,
+  getCreateDocumentUrl,
+}
+
+/** The subset of the admin session the field services need. */
+export interface FieldServicesViewer {
+  is_super_admin: boolean
+  abilities: ReadonlyArray<string>
+}
+
+/**
+ * Content-addressed memo key for the services object.
+ *
+ * `bylineFieldServices` is a module constant, and the relation picker keeps
+ * `getCollectionDocuments` in its fetch effect's dependency array. Composing a
+ * viewer-dependent object per render would therefore refetch the picker on every
+ * host render. Memoising on the abilities array would too, since the host may
+ * hand back a fresh array each time. Key on the *content* instead: sorted,
+ * because ability order is not meaningful and the server promises none.
+ */
+export function abilityFingerprint(viewer: FieldServicesViewer): string {
+  if (viewer.is_super_admin) return 'super-admin'
+  return [...viewer.abilities].sort().join(' ')
+}
+
+/**
+ * Field services for one viewer. Call inside `useMemo`, keyed on
+ * `abilityFingerprint(viewer)`.
+ */
+export function buildBylineFieldServices(viewer: FieldServicesViewer): BylineFieldServices {
+  const canCreateInCollection: CanCreateInCollectionFn = (collectionPath) =>
+    viewer.is_super_admin || viewer.abilities.includes(`collections.${collectionPath}.create`)
+
+  return { ...bylineFieldServices, canCreateInCollection }
 }

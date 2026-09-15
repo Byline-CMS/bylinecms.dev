@@ -81,10 +81,12 @@ export * from './widgets/status-badge/status-badge.js'
 // Field-side service contract types.
 export type {
   BylineFieldServices,
+  CanCreateInCollectionFn,
   CollectionListDoc,
   CollectionListParams,
   CollectionListResponse,
   GetCollectionDocumentsFn,
+  GetCreateDocumentUrlFn,
   GetTreeAncestorsFn,
   GetTreeParentFn,
   PlaceTreeNodeFn,

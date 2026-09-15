@@ -49,7 +49,11 @@ wires neither simply gets no affordance:
  * server enforces the ability on the create page regardless.
  */
 canCreateInCollection?: (collectionPath: string) => boolean
-/** Absolute URL of the collection's create view, from the host's configured admin path. */
+/**
+ * Root-relative URL of the collection's create view, built from the host's configured
+ * admin path. Root-relative deliberately: an origin lookup is not available during SSR,
+ * and `getAdminRoutePath` already returns exactly this shape.
+ */
 getCreateDocumentUrl?: (collectionPath: string) => string
 ```
 

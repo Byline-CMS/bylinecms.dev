@@ -111,6 +111,12 @@ export type GetTreeParentFn = (input: {
   documentId: string
 }) => Promise<{ placed: boolean; parentDocumentId: string | null }>
 
+/** See `BylineFieldServices.canCreateInCollection`. */
+export type CanCreateInCollectionFn = (collectionPath: string) => boolean
+
+/** See `BylineFieldServices.getCreateDocumentUrl`. */
+export type GetCreateDocumentUrlFn = (collectionPath: string) => string
+
 export interface BylineFieldServices {
   getCollectionDocuments: GetCollectionDocumentsFn
   uploadField: UploadFieldFn
@@ -123,4 +129,23 @@ export interface BylineFieldServices {
   removeFromTree?: RemoveFromTreeFn
   getTreeAncestors?: GetTreeAncestorsFn
   getTreeParent?: GetTreeParentFn
+  /**
+   * Whether the viewer may create documents in a collection, used to decide
+   * whether to offer a create affordance in the relation picker.
+   *
+   * Cosmetic only: the create view enforces the ability server-side regardless
+   * of what this returns. Optional, like the tree operations above — a host that
+   * wires neither this nor `getCreateDocumentUrl` simply gets no affordance, and
+   * the widget guards on their presence.
+   */
+  canCreateInCollection?: CanCreateInCollectionFn
+  /**
+   * Root-relative URL of a collection's create view, built from the host's
+   * configured admin path.
+   *
+   * Root-relative rather than absolute because no origin is available during the
+   * server render, and the admin base path is host configuration —
+   * `@byline/admin` must not assume `/admin`.
+   */
+  getCreateDocumentUrl?: GetCreateDocumentUrlFn
 }
