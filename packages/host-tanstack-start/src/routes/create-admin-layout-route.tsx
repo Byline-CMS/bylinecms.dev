@@ -21,7 +21,7 @@
  * route (and the `AdminAppBar`) can read it without an extra fetch.
  */
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 
 import { applyStoredTheme } from '@byline/admin/admin-account/components/theme'
@@ -43,7 +43,10 @@ import { SessionChangeBoundary } from '../admin-shell/chrome/session-change-boun
 import { buildLocaleDefinitions } from '../i18n/locale-definitions.js'
 import { bylineAdminServices } from '../integrations/byline-admin-services.js'
 import { BylineAiAdminProvider } from '../integrations/byline-ai.js'
-import { bylineFieldServices } from '../integrations/byline-field-services.js'
+import {
+  abilityFingerprint,
+  buildBylineFieldServices,
+} from '../integrations/byline-field-services.js'
 import { observeSession, sessionIsChanged } from '../integrations/session-coordination.js'
 import { renewExpectedSession } from '../integrations/session-renewal.js'
 import { getAnalyticsRuntime } from '../server-fns/analytics/index.js'
@@ -102,6 +105,23 @@ export function createAdminLayoutRoute(path: string) {
       // Cookie + DB write happen in setAdminLocaleFn; full reload
       // re-runs beforeLoad so the provider re-renders with the new
       // bundle/locale (no in-place bundle swap needed for PR 1's scope).
+      // Composed here rather than imported as a constant because the create
+      // affordance depends on the viewer's abilities, which only exist in route
+      // context. Memoised on the abilities' *content*: the relation picker keeps
+      // `getCollectionDocuments` in its fetch effect's dependency array, so a new
+      // services object per render would refetch the picker on every render of
+      // this layout.
+      //
+      // Keyed on the ability fingerprint rather than on `user`, deliberately:
+      // route context may hand back a new `user` object on a render where nothing
+      // about the viewer changed, and depending on it would rebuild the services
+      // object and refetch the picker.
+      // biome-ignore lint/correctness/useExhaustiveDependencies: see above
+      const fieldServices = useMemo(
+        () => buildBylineFieldServices(user),
+        [abilityFingerprint(user)]
+      )
+
       const handleSetLocale = async (next: LocaleCode) => {
         await setAdminLocaleFn({ data: { locale: next } })
         window.location.reload()
@@ -116,7 +136,7 @@ export function createAdminLayoutRoute(path: string) {
             setLocale={handleSetLocale}
           >
             <BylineAdminServicesProvider services={bylineAdminServices}>
-              <BylineFieldServicesProvider services={bylineFieldServices}>
+              <BylineFieldServicesProvider services={fieldServices}>
                 <BylineAiAdminProvider>
                   <AdminMenuProvider>
                     <RouteProgressBar />
