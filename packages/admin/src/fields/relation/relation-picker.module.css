@@ -25,6 +25,19 @@
 :global(.byline-field-relation-picker-header) {
   padding-top: 1rem;
   margin-bottom: var(--spacing-8);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-8);
+  flex-wrap: wrap;
+}
+
+/* Opens the target collection's create view in a new tab. Stable override
+   handle: `.byline-field-relation-picker-create`. */
+.create,
+:global(.byline-field-relation-picker-create) {
+  font-size: var(--font-size-sm, 0.875rem);
+  white-space: nowrap;
 }
 
 .title,

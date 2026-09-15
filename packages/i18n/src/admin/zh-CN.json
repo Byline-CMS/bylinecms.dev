@@ -529,6 +529,7 @@
   "fields.relation.unknownError": "关系字段“{name}”指向未知集合“{target}”。",
   "fields.relation.unknownHint": "请在您的 Byline 配置中注册该集合，或更正目标路径。",
   "fields.relation.picker.searchPlaceholder": "搜索",
+  "fields.relation.picker.createNew": "创建{label}",
   "fields.relation.picker.empty": "未找到文档",
   "fields.relation.picker.loadFailed": "加载文档失败",
   "fields.relation.picker.addSelected": "添加所选（{count}）",

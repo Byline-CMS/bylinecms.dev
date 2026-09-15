@@ -529,6 +529,7 @@
   "fields.relation.unknownError": "Il campo relazione \"{name}\" punta a una raccolta sconosciuta \"{target}\".",
   "fields.relation.unknownHint": "Registra la raccolta nella tua configurazione di Byline o correggi il percorso di destinazione.",
   "fields.relation.picker.searchPlaceholder": "Cerca",
+  "fields.relation.picker.createNew": "Crea {label}",
   "fields.relation.picker.empty": "Nessun documento trovato",
   "fields.relation.picker.loadFailed": "Impossibile caricare i documenti",
   "fields.relation.picker.addSelected": "Aggiungi selezionati ({count})",

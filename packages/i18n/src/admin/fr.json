@@ -529,6 +529,7 @@
   "fields.relation.unknownError": "Le champ de relation « {name} » cible une collection inconnue « {target} ».",
   "fields.relation.unknownHint": "Enregistrez la collection dans votre configuration Byline ou corrigez le chemin cible.",
   "fields.relation.picker.searchPlaceholder": "Rechercher",
+  "fields.relation.picker.createNew": "Créer {label}",
   "fields.relation.picker.empty": "Aucun document trouvé",
   "fields.relation.picker.loadFailed": "Échec du chargement des documents",
   "fields.relation.picker.addSelected": "Ajouter la sélection ({count})",

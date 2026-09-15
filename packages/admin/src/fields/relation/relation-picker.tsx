@@ -134,7 +134,18 @@ export const RelationPicker = ({
   const [totalPages, setTotalPages] = useState<number>(1)
   const [collectionId, setCollectionId] = useState<string | null>(null)
 
-  const { getCollectionDocuments } = useBylineFieldServices()
+  const { getCollectionDocuments, canCreateInCollection, getCreateDocumentUrl } =
+    useBylineFieldServices()
+
+  // Both capabilities are optional, and the affordance needs both: without
+  // `getCreateDocumentUrl` there is nowhere to send the reader, and without
+  // `canCreateInCollection` their permission is unknowable — offering a link that
+  // leads to a refusal is worse than offering none. The check is cosmetic; the
+  // create view enforces the ability server-side regardless.
+  const createHref =
+    getCreateDocumentUrl != null && canCreateInCollection?.(targetCollectionPath) === true
+      ? getCreateDocumentUrl(targetCollectionPath)
+      : null
 
   const targetAdminConfig: CollectionAdminConfig | null =
     getCollectionAdminConfig(targetCollectionPath)
@@ -264,6 +275,23 @@ export const RelationPicker = ({
       <Modal.Container style={{ maxWidth: '600px', width: '100%' }}>
         <Modal.Header className={cx('byline-field-relation-picker-header', styles.header)}>
           <h3 className={cx('byline-field-relation-picker-title', styles.title)}>{title}</h3>
+          {createHref != null && (
+            // A real link, not a button calling `window.open`: keyboard
+            // activation and middle-click work without help, and popup blockers
+            // leave it alone. A new tab keeps this picker and the parent editor
+            // mounted, so unsaved work survives — which is the whole point of the
+            // affordance. `noopener` keeps the opened page out of `window.opener`.
+            <a
+              className={cx('byline-field-relation-picker-create', styles.create)}
+              href={createHref}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t('fields.relation.picker.createNew', {
+                label: targetDefinition?.labels.singular ?? targetCollectionPath,
+              })}
+            </a>
+          )}
         </Modal.Header>
         <Modal.Content>
           <div className={cx('byline-field-relation-picker-body', styles.body)}>
