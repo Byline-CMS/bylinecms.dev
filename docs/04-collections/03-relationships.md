@@ -451,7 +451,7 @@ Editing a relation field uses the components in `packages/admin/src/fields/relat
 
 - **`relation-field.tsx`** — the single-relation in-form widget. Renders a compact summary card via `RelationSummary` when set, plus Remove and Change buttons. When empty, renders a "Select…" button.
 - **`relation-many-field.tsx`** — the `hasMany` widget. A drag-reorderable list of `RelationSummary` tiles with per-tile remove and an "Add" button that appends through the picker.
-- **`relation-picker.tsx`** — the modal that opens on Select / Change / Add. Lists documents from the `targetCollection` via the host's `getCollectionDocuments` server fn, with search and pagination.
+- **`relation-picker.tsx`** — the modal that opens on Select / Change / Add. Lists documents from the `targetCollection` through the host's `getCollectionDocuments` service, with search, pagination and Refresh. When the host provides creation capabilities and the viewer has permission, it also offers a link to create a target document in a new tab.
 - **`relation-column-formatter.tsx`** — renders a relation cell in list views as the target's `useAsTitle` (single) or "A, B, +N more" (`hasMany`).
 
 Selection flows through the standard `setFieldValue` → `FieldSetPatch` pipeline, no new patch family. The patch contract is `field.set` with `value = { target_document_id, target_collection_id }`; `field.clear` on Remove. Both already supported by `setFieldValue`.
@@ -472,6 +472,37 @@ z.object({
 ```
 
 The old `z.any()` catch-all is gone: the picker's contract is enforced at form-validate time.
+
+#### Create a missing target without leaving the parent editor
+
+If the document you need does not exist, you can create it in another browser tab while keeping the parent editor and its unsaved values open. This works in both single-relation and `hasMany` pickers.
+
+1. Open the relation picker using **Select**, **Change** or **Add**.
+2. Choose **Create {label}**, where `{label}` is the target collection's singular label. The target collection's ordinary create view opens in a new tab; the original picker stays open.
+3. Complete and save the new document in that tab.
+4. Return to the original tab and choose **Refresh**. Use search or pagination to find the document if it is not in the visible results.
+5. Select the document and confirm with **Select**, or **Add selected** for a `hasMany` field. Save the parent document when you are ready to persist its relation change.
+
+Creating the target and saving the parent are separate operations. The target follows its collection's normal creation rules, including its workflow's default status and the default content locale. Selecting a draft does not publish it; public relation reads still follow the [status rules](#status-awareness-through-populate). See [Content Locales](../08-internationalization/03-content-locales.md) for the document locale model.
+
+**Refresh preserves your search, page and current selections.** It reloads the current query rather than moving to the first page or selecting the new document automatically. The target collection's picker sort still applies: the reference application's media picker sorts by title ascending, so a newly created media item need not appear first. A retained search or page offset can also keep it outside the visible results.
+
+If a refresh fails, the picker displays an error and you can choose **Refresh** again. Refresh remains available while a request is pending; a superseded response cannot replace results from the newer request.
+
+#### Host capabilities for the create link
+
+`BylineFieldServices`, exported from `@byline/admin/react`, has two optional members for this flow:
+
+| Member | Contract |
+|---|---|
+| `canCreateInCollection?: (collectionPath: string) => boolean` | Whether the current viewer should see the create link for the target collection. |
+| `getCreateDocumentUrl?: (collectionPath: string) => string` | The root-relative URL of that collection's create view, built from the host's configured admin path. |
+
+The picker renders the link only when both members are supplied and `canCreateInCollection` returns `true`. A host that omits either member keeps the existing selection workflow and Refresh, without a create link.
+
+The TanStack Start host wires these capabilities into its admin layout. `buildBylineFieldServices(user)` checks `collections.<collectionPath>.create`, permits super-admins, and builds the URL with `getAdminRoutePath`. Custom hosts supply the same capabilities through `BylineFieldServicesProvider`; `@byline/admin` does not import a host router or assume an `/admin` prefix.
+
+The permission check controls presentation only. The server continues to enforce creation permissions, and the picker lists documents through the existing authorized read service. Selection receives the document and collection identities from the list response; creation in the other tab does not send a selection back to the parent editor.
 
 ### Richtext document links
 
@@ -606,6 +637,8 @@ indexed paths where `field_name` is the index segment).
 | `store_relation` schema | `packages/db-postgres/src/database/schema/index.ts` |
 | Zod schema for relation | `packages/core/src/schemas/zod/builder.ts` |
 | Relation field admin widgets | `packages/admin/src/fields/relation/{relation-field,relation-many-field,relation-picker,relation-summary,relation-display,relation-column-formatter}.tsx` |
+| Relation picker host capabilities | `packages/admin/src/fields/field-services-types.ts` (`BylineFieldServices`) |
+| TanStack Start create-link wiring | `packages/host-tanstack-start/src/integrations/byline-field-services.ts`, `packages/host-tanstack-start/src/routes/create-admin-layout-route.tsx` |
 | Relation item projection | `packages/core/src/services/relation-projection.ts` (`resolveRelationProjection`) |
 | Admin API preview depth selector | `apps/webapp/src/routes/_byline/<configured-admin-segment>/collections/$collection/$id/api.tsx` |
 | Admin `getDocument` server fn | `packages/host-tanstack-start/src/server-fns/collections/get.ts` |
