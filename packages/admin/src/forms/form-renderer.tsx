@@ -10,28 +10,17 @@
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type {
-  AdminResourceConfig,
-  Field,
-  GroupDefinition,
-  RowDefinition,
-  TabSetDefinition,
-  WorkflowStatus,
-} from '@byline/core'
+import type { AdminResourceConfig, Field, WorkflowStatus } from '@byline/core'
 import { getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, ComboButton, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'clsx'
 
-import { sliceFieldAdmin } from '../fields/field-admin'
-import { FieldRenderer } from '../fields/field-renderer'
 import { useBylineFieldServices } from '../fields/field-services-context'
-import { AdminGroup } from '../presentation/group'
-import { AdminRow } from '../presentation/row'
-import { AdminTabs, tabPanelId, tabTriggerId } from '../presentation/tabs'
 import { AvailableLocalesWidget } from './available-locales-widget'
 import { DocumentActions, type DocumentActionsLocaleOption } from './document-actions'
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
+import { FormLayout } from './form-layout'
 import { NavigationGuardModal, SystemFieldsConfirmModal, UnsavedChangesModal } from './form-modals'
 import styles from './form-renderer.module.css'
 import { FormStatusDisplay } from './form-status-display'
@@ -46,7 +35,6 @@ import {
 } from './scheduled-publication-control'
 import { computeStatusTransitions } from './status-transitions'
 import { TreePlacementWidget } from './tree-placement-widget'
-import { useFormLayout } from './use-form-layout'
 import { useFormSubmission } from './use-form-submission'
 import type { UseNavigationGuard } from './navigation-guard'
 
@@ -244,28 +232,11 @@ const FormContent = ({
   _activeTabBySet?: Record<string, string>
   _onTabChange?: (tabSetName: string, tabName: string) => void
 }) => {
-  const {
-    getFieldValues,
-    runFieldHooks,
-    validateForm,
-    errors: initialErrors,
-    hasChanges: hasChangesFn,
-    resetHasChanges,
-    getPatches,
-    getDirtyBreakdown,
-    getSystemPath,
-    getSystemAvailableLocales,
-    subscribeErrors,
-    subscribeMeta,
-    setFieldValue,
-    setFieldError,
-    getPendingUploads,
-    clearPendingUploads,
-    setFieldUploading,
-  } = useFormContext()
+  // Field state now reaches the submission hook and the layout walk directly;
+  // FormContent keeps only what its own chrome needs.
+  const { hasChanges: hasChangesFn, subscribeMeta } = useFormContext()
   const { t } = useTranslation('byline-admin')
 
-  const [errors, setErrors] = useState(initialErrors)
   const [hasChanges, setHasChanges] = useState(hasChangesFn())
   const [statusBusy, setStatusBusy] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
@@ -310,13 +281,6 @@ const FormContent = ({
     if (initialLocale) setContentLocale(initialLocale)
   }, [initialLocale])
 
-  // Layout primitives + lookup tables — pure derivations of `adminConfig` +
-  // `fields`. The validator at startup guarantees every reachable name
-  // resolves and every schema field is placed at most once, so the render-time
-  // lookups below are unguarded. See ./use-form-layout.
-  const { fieldByName, tabSetByName, rowByName, groupByName, layout, fieldToTabPath } =
-    useFormLayout(adminConfig, fields)
-
   // ---------------------------------------------------------------------
   // Active-tab state — one tab name per declared tab set.
   // Lifted into FormRenderer via `_activeTabBySet` / `_onTabChange` so the
@@ -354,7 +318,6 @@ const FormContent = ({
 
   // Track live form data so TabDefinition.condition functions can react to
   // field changes. Re-evaluated per keystroke via the meta-subscribe loop.
-  const [formData, setFormData] = useState<Record<string, any>>(() => getFieldValues())
 
   // Live document heading — tracks the useAsTitle field as the user types
   const liveTitle = useFieldValue<string>(useAsTitle ?? '')
@@ -402,17 +365,8 @@ const FormContent = ({
   )
 
   useEffect(() => {
-    return subscribeErrors((newErrors) => setErrors(newErrors))
-  }, [subscribeErrors])
-
-  useEffect(() => {
     return subscribeMeta(() => setHasChanges(hasChangesFn()))
   }, [subscribeMeta, hasChangesFn])
-
-  // Keep formData in sync for evaluating TabDefinition.condition functions
-  useEffect(() => {
-    return subscribeMeta(() => setFormData(getFieldValues()))
-  }, [subscribeMeta, getFieldValues])
 
   const captureFocusBeforeBusy = useCallback(() => {
     if (focusBeforeBusyRef.current != null) return
@@ -475,99 +429,6 @@ const FormContent = ({
     e.preventDefault()
     if (mutationBlockedRef.current) return
     void submission.submit()
-  }
-
-  // Per-tab-set error counts: { [tabSetName]: { [tabName]: count } }.
-  // Each <Tabs> bar consumes its own slice.
-  const tabErrorCountsBySet = useMemo<Record<string, Record<string, number>>>(() => {
-    const result: Record<string, Record<string, number>> = {}
-    for (const err of errors) {
-      const path = fieldToTabPath.get(err.field)
-      if (!path) continue
-      result[path.tabSetName] ??= {}
-      result[path.tabSetName]![path.tabName] = (result[path.tabSetName]?.[path.tabName] ?? 0) + 1
-    }
-    return result
-  }, [errors, fieldToTabPath])
-
-  // -------------------------------------------------------------------
-  // Layout walk — recursively dispatches each name in a region to the
-  // appropriate primitive renderer or to <FieldRenderer>.
-  // -------------------------------------------------------------------
-
-  const renderField = (fieldName: string): ReactNode => {
-    const field = fieldByName.get(fieldName)
-    if (!field) return null
-    return (
-      <FieldRenderer
-        key={field.name}
-        field={field}
-        defaultValue={initialData?.fields?.[field.name]}
-        contentLocale={contentLocale}
-        components={adminConfig?.fields?.[field.name]?.components}
-        editor={adminConfig?.fields?.[field.name]?.editor}
-        fieldAdmin={sliceFieldAdmin(adminConfig?.fields, field.name)}
-      />
-    )
-  }
-
-  const renderItem = (name: string): ReactNode => {
-    const tabSet = tabSetByName.get(name)
-    if (tabSet) return renderTabSet(tabSet)
-
-    const group = groupByName.get(name)
-    if (group) return renderGroup(group)
-
-    const row = rowByName.get(name)
-    if (row) return renderRow(row)
-
-    return renderField(name)
-  }
-
-  const renderRow = (row: RowDefinition): ReactNode => (
-    <AdminRow key={`row:${row.name}`}>{row.fields.map((name) => renderField(name))}</AdminRow>
-  )
-
-  const renderGroup = (group: GroupDefinition): ReactNode => (
-    <AdminGroup key={`group:${group.name}`} label={group.label}>
-      {group.fields.map((name) => renderItem(name))}
-    </AdminGroup>
-  )
-
-  const renderTabSet = (set: TabSetDefinition): ReactNode => {
-    const visibleTabs = set.tabs.filter((tab) => !tab.condition || tab.condition(formData))
-    const requested = activeTabBySet[set.name] ?? ''
-    const resolvedActive =
-      visibleTabs.length > 0 && !visibleTabs.some((t) => t.name === requested)
-        ? (visibleTabs[0]?.name ?? requested)
-        : requested
-    const activeTab = visibleTabs.find((t) => t.name === resolvedActive)
-    const idBase = `tabset:${set.name}`
-
-    return (
-      <div key={idBase} className={cx('byline-form-tabset', styles.tabset)}>
-        {visibleTabs.length > 0 && (
-          <AdminTabs
-            idBase={idBase}
-            tabs={visibleTabs}
-            activeTab={resolvedActive}
-            onChange={(tabName) => handleTabChange(set.name, tabName)}
-            errorCounts={tabErrorCountsBySet[set.name]}
-            className={cx('byline-form-tabset-tabs', styles['tabset-tabs'])}
-          />
-        )}
-        {activeTab && (
-          <div
-            role="tabpanel"
-            id={tabPanelId(idBase, activeTab.name)}
-            aria-labelledby={tabTriggerId(idBase, activeTab.name)}
-            className={cx('byline-form-tabset-fields', styles['tabset-fields'])}
-          >
-            {activeTab.fields.map((name) => renderItem(name))}
-          </div>
-        )}
-      </div>
-    )
   }
 
   const busyAnnouncement = isUploading
@@ -831,54 +692,59 @@ const FormContent = ({
               </ul>
             </Alert>
           )}
-          <div className={cx('byline-form-layout', styles.layout)}>
-            <div className={cx('byline-form-content', styles.content)}>
-              {layout.main.map((name) => renderItem(name))}
-            </div>
-            <div className={cx('byline-form-sidebar', styles.sidebar)}>
-              {/* A locked collection's widget renders even with no `useAsPath`
-                  and nothing stored yet: its path is managed, and the editor
-                  needs to see that. `showPath: false` still wins — it marks a
-                  path that must never be presented at all. */}
-              {showPath &&
-                (useAsPath ||
-                  adminConfig?.lockPath === true ||
-                  (typeof initialData?.path === 'string' && initialData.path.length > 0)) && (
-                  <PathWidget
+          <FormLayout
+            fields={fields}
+            adminConfig={adminConfig}
+            initialData={initialData}
+            activeLocale={contentLocale}
+            collectionPath={collectionPath ?? undefined}
+            activeTabBySet={activeTabBySet}
+            onTabChange={handleTabChange}
+            sidebarSlot={
+              <>
+                {/* A locked collection's widget renders even with no `useAsPath`
+                    and nothing stored yet: its path is managed, and the editor
+                    needs to see that. `showPath: false` still wins — it marks a
+                    path that must never be presented at all. */}
+                {showPath &&
+                  (useAsPath ||
+                    adminConfig?.lockPath === true ||
+                    (typeof initialData?.path === 'string' && initialData.path.length > 0)) && (
+                    <PathWidget
+                      disabled={mutationsBlocked || discarding}
+                      useAsPath={useAsPath}
+                      collectionPath={collectionPath ?? ''}
+                      defaultLocale={defaultLocale}
+                      activeLocale={contentLocale}
+                      mode={mode}
+                      slugifier={pathSlugifier}
+                      sourceLocked={pathSourceLocked}
+                      lockPath={adminConfig?.lockPath}
+                    />
+                  )}
+                {tree && mode === 'edit' && typeof initialData?.id === 'string' && (
+                  <TreePlacementWidget
                     disabled={mutationsBlocked || discarding}
-                    useAsPath={useAsPath}
+                    onMutationError={onMutationError}
+                    onCommitted={onTreeMutationCommitted}
+                    expectedRevision={observedRevision ?? initialData.revision}
                     collectionPath={collectionPath ?? ''}
-                    defaultLocale={defaultLocale}
-                    activeLocale={contentLocale}
-                    mode={mode}
-                    slugifier={pathSlugifier}
-                    sourceLocked={pathSourceLocked}
-                    lockPath={adminConfig?.lockPath}
+                    documentId={initialData.id as string}
+                    useAsTitle={useAsTitle}
                   />
                 )}
-              {tree && mode === 'edit' && typeof initialData?.id === 'string' && (
-                <TreePlacementWidget
-                  disabled={mutationsBlocked || discarding}
-                  onMutationError={onMutationError}
-                  onCommitted={onTreeMutationCommitted}
-                  expectedRevision={observedRevision ?? initialData.revision}
-                  collectionPath={collectionPath ?? ''}
-                  documentId={initialData.id as string}
-                  useAsTitle={useAsTitle}
-                />
-              )}
-              {advertiseLocales && (
-                <AvailableLocalesWidget
-                  disabled={mutationsBlocked || discarding}
-                  contentLocales={contentLocales ?? []}
-                  availableVersionLocales={
-                    (initialData?._availableVersionLocales as string[] | undefined) ?? []
-                  }
-                />
-              )}
-              {(layout.sidebar ?? []).map((name) => renderItem(name))}
-            </div>
-          </div>
+                {advertiseLocales && (
+                  <AvailableLocalesWidget
+                    disabled={mutationsBlocked || discarding}
+                    contentLocales={contentLocales ?? []}
+                    availableVersionLocales={
+                      (initialData?._availableVersionLocales as string[] | undefined) ?? []
+                    }
+                  />
+                )}
+              </>
+            }
+          />
           {showUnsavedModal && <UnsavedChangesModal onClose={() => setShowUnsavedModal(false)} />}
           {!mutationsBlocked && !discarding && pendingSystemFieldsSubmit != null && (
             <SystemFieldsConfirmModal
