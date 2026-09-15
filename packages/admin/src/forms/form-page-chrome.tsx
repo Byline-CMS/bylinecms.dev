@@ -17,11 +17,11 @@
  * visible at its call site.
  */
 
-import type { ReactNode } from 'react'
+import type { ReactNode, RefObject } from 'react'
 
 import type { WorkflowStatus } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
-import { Button, ComboButton, LoaderEllipsis } from '@byline/ui/react'
+import { Alert, Button, ComboButton, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'clsx'
 
 import { DocumentActions, type DocumentActionsLocaleOption } from './document-actions'
@@ -29,6 +29,7 @@ import styles from './form-renderer.module.css'
 import { FormStatusDisplay } from './form-status-display'
 import {
   ScheduledPublicationCell,
+  ScheduledPublicationNotice,
   type UseScheduledPublicationReturn,
 } from './scheduled-publication-control'
 import type { PublishedVersionInfo } from './form-renderer'
@@ -257,5 +258,107 @@ export const FormStatusBar = ({
         />
       </div>
     </div>
+  )
+}
+
+export interface FormConcurrencyNoticesProps {
+  /** Mutations blocked or a discard in flight. */
+  disabled: boolean
+  mutationIssue?: 'stale' | 'reload' | 'lock' | 'unavailable' | 'committed' | null
+  scheduledPublicationsNeedReconfirmation?: boolean
+  scheduledPublicationsHref?: string
+  /**
+   * Focus target when a mutation issue appears. The ref belongs to the form
+   * component, which restores focus after a save; this region only attaches it.
+   */
+  warningRef: RefObject<HTMLDivElement | null>
+  discarding: boolean
+  reloadFailed: boolean
+  onDiscardRequested: () => void
+  scheduling: UseScheduledPublicationReturn
+  restoreWarnings?: string[]
+}
+
+export const FormConcurrencyNotices = ({
+  disabled,
+  mutationIssue,
+  scheduledPublicationsNeedReconfirmation,
+  scheduledPublicationsHref,
+  warningRef,
+  discarding,
+  reloadFailed,
+  onDiscardRequested,
+  scheduling,
+  restoreWarnings,
+}: FormConcurrencyNoticesProps): ReactNode => {
+  const { t } = useTranslation('byline-admin')
+
+  return (
+    <>
+      {(mutationIssue || scheduledPublicationsNeedReconfirmation) && (
+        <div
+          ref={warningRef}
+          tabIndex={-1}
+          role="alert"
+          aria-live="assertive"
+          className={cx('byline-document-concurrency', styles.concurrency)}
+        >
+          {mutationIssue && (
+            <Alert
+              intent="warning"
+              icon
+              close={false}
+              title={t(`documentConcurrency.${mutationIssue}Title`)}
+            >
+              <p>{t(`documentConcurrency.${mutationIssue}`)}</p>
+              {mutationIssue !== 'committed' && (
+                <Button type="button" disabled={discarding} onClick={onDiscardRequested}>
+                  {t('documentConcurrency.reloadAction')}
+                </Button>
+              )}
+              {reloadFailed && <p>{t('documentConcurrency.reloadFailed')}</p>}
+            </Alert>
+          )}
+          {scheduledPublicationsNeedReconfirmation && (
+            <Alert
+              intent="warning"
+              icon
+              close={false}
+              title={t('documentConcurrency.schedulesTitle')}
+            >
+              <p>{t('documentConcurrency.schedules')}</p>
+              {scheduledPublicationsHref && (
+                <a href={scheduledPublicationsHref}>{t('documentConcurrency.reviewSchedules')}</a>
+              )}
+            </Alert>
+          )}
+        </div>
+      )}
+      <ScheduledPublicationNotice
+        state={scheduling.state}
+        timeZone={scheduling.timeZone}
+        busy={disabled || scheduling.busy}
+        onConfirm={scheduling.confirm}
+        onReschedule={scheduling.openSchedule}
+        onCancel={scheduling.cancel}
+      />
+      {scheduling.modal}
+      {restoreWarnings && restoreWarnings.length > 0 && (
+        <Alert
+          className="m-0 mt-4"
+          intent="warning"
+          icon={true}
+          close={false}
+          title={t('forms.restoreWarnings.title')}
+        >
+          <p>{t('forms.restoreWarnings.body', { count: restoreWarnings.length })}</p>
+          <ul>
+            {restoreWarnings.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+        </Alert>
+      )}
+    </>
   )
 }

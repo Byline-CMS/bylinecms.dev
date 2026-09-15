@@ -13,7 +13,6 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import type { AdminResourceConfig, Field, WorkflowStatus } from '@byline/core'
 import { getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
-import { Alert, Button } from '@byline/ui/react'
 import cx from 'clsx'
 
 import { useBylineFieldServices } from '../fields/field-services-context'
@@ -21,13 +20,12 @@ import { AvailableLocalesWidget } from './available-locales-widget'
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
 import { FormLayout } from './form-layout'
 import { NavigationGuardModal, SystemFieldsConfirmModal, UnsavedChangesModal } from './form-modals'
-import { FormHeadingRow, FormStatusBar } from './form-page-chrome'
+import { FormConcurrencyNotices, FormHeadingRow, FormStatusBar } from './form-page-chrome'
 import styles from './form-renderer.module.css'
 import { useNavigationGuardAdapter } from './navigation-guard'
 import { PathWidget } from './path-widget'
 import {
   type ScheduledPublicationInfo,
-  ScheduledPublicationNotice,
   type SchedulePublicationInput,
   useScheduledPublication,
 } from './scheduled-publication-control'
@@ -479,79 +477,21 @@ const FormContent = ({
             contentLocales={contentLocales}
             defaultLocale={defaultLocale}
           />
-          {(mutationIssue || scheduledPublicationsNeedReconfirmation) && (
-            <div
-              ref={warningRef}
-              tabIndex={-1}
-              role="alert"
-              aria-live="assertive"
-              className={cx('byline-document-concurrency', styles.concurrency)}
-            >
-              {mutationIssue && (
-                <Alert
-                  intent="warning"
-                  icon
-                  close={false}
-                  title={t(`documentConcurrency.${mutationIssue}Title`)}
-                >
-                  <p>{t(`documentConcurrency.${mutationIssue}`)}</p>
-                  {mutationIssue !== 'committed' && (
-                    <Button
-                      type="button"
-                      disabled={discarding}
-                      onClick={() => {
-                        setReloadFailed(false)
-                        setDiscarding(true)
-                      }}
-                    >
-                      {t('documentConcurrency.reloadAction')}
-                    </Button>
-                  )}
-                  {reloadFailed && <p>{t('documentConcurrency.reloadFailed')}</p>}
-                </Alert>
-              )}
-              {scheduledPublicationsNeedReconfirmation && (
-                <Alert
-                  intent="warning"
-                  icon
-                  close={false}
-                  title={t('documentConcurrency.schedulesTitle')}
-                >
-                  <p>{t('documentConcurrency.schedules')}</p>
-                  {scheduledPublicationsHref && (
-                    <a href={scheduledPublicationsHref}>
-                      {t('documentConcurrency.reviewSchedules')}
-                    </a>
-                  )}
-                </Alert>
-              )}
-            </div>
-          )}
-          <ScheduledPublicationNotice
-            state={scheduling.state}
-            timeZone={scheduling.timeZone}
-            busy={mutationsBlocked || discarding || scheduling.busy}
-            onConfirm={scheduling.confirm}
-            onReschedule={scheduling.openSchedule}
-            onCancel={scheduling.cancel}
+          <FormConcurrencyNotices
+            disabled={mutationsBlocked || discarding}
+            mutationIssue={mutationIssue}
+            scheduledPublicationsNeedReconfirmation={scheduledPublicationsNeedReconfirmation}
+            scheduledPublicationsHref={scheduledPublicationsHref}
+            warningRef={warningRef}
+            discarding={discarding}
+            reloadFailed={reloadFailed}
+            onDiscardRequested={() => {
+              setReloadFailed(false)
+              setDiscarding(true)
+            }}
+            scheduling={scheduling}
+            restoreWarnings={restoreWarnings}
           />
-          {scheduling.modal}
-          {restoreWarnings && restoreWarnings.length > 0 && (
-            <Alert
-              className="m-0 mt-4"
-              intent="warning"
-              icon={true}
-              close={false}
-              title={t('forms.restoreWarnings.title')}
-            >
-              <p>{t('forms.restoreWarnings.body', { count: restoreWarnings.length })}</p>
-              <ul>
-                {restoreWarnings.map((w) => (
-                  <li key={w}>{w}</li>
-                ))}
-              </ul>
-            </Alert>
-          )}
           <FormLayout
             fields={fields}
             adminConfig={adminConfig}
