@@ -1,5 +1,18 @@
 # Embedded Relationship Creation Implementation Plan
 
+> **Decision — 2026-09-15: paused.** This design is not being implemented for now. Part I
+> (the form refactor and concurrent-form correctness work, Tasks 1–7) shipped and merged on
+> its own merits. Part II is deferred in favour of a much smaller flow — opening the target
+> collection's ordinary create view in a new browser tab while the parent editor and picker
+> stay mounted — scoped in
+> [`2026-09-15-relation-picker-create-in-new-tab-scope.md`](./2026-09-15-relation-picker-create-in-new-tab-scope.md).
+> The reasoning: embedded creation's cost is dominated by coordinating two independently
+> saved documents — uncertain creation outcomes, receipt retention, selection-failure
+> recovery, dismissal and parent-guard coordination — and none of that is needed when
+> selection continues to flow through the ordinary list response. Revisit when real editing
+> sessions show the interruption is frequent enough to justify it. This document stands as
+> the fuller design.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Let an editor create a related document — media first — from inside the
