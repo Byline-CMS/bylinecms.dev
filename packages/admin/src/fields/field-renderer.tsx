@@ -19,6 +19,7 @@ import { getAdminConfig } from '@byline/core'
 import cx from 'clsx'
 
 import { useFormContext } from '../forms/form-context'
+import { useScopedDomId } from '../forms/form-dom-scope'
 import { ArrayField } from './array/array-field'
 import { BlocksField } from './blocks/blocks-field'
 import { CheckboxField } from './checkbox/checkbox-field'
@@ -90,7 +91,7 @@ export const FieldRenderer = ({
   fieldAdmin,
 }: FieldRendererProps) => {
   const path = basePath ? `${basePath}.${field.name}` : field.name
-  const htmlId = path.replace(/[[\].]/g, '-')
+  const htmlId = useScopedDomId(path.replace(/[[\].]/g, '-'))
 
   const handleChange = useFieldChangeHandler(field, path)
   const { getFieldValue } = useFormContext()

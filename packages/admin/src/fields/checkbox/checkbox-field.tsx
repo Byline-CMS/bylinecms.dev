@@ -10,6 +10,7 @@ import type { CheckboxField as FieldType } from '@byline/core'
 import { Checkbox } from '@byline/ui/react'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
+import { useScopedDomId } from '../../forms/form-dom-scope'
 import styles from './checkbox-field.module.css'
 
 export const CheckboxField = ({
@@ -28,6 +29,7 @@ export const CheckboxField = ({
   path?: string
 }) => {
   const fieldPath = path ?? field.name
+  const htmlId = useScopedDomId(fieldPath, id)
   const fieldError = useFieldError(fieldPath)
   const fieldValue = useFieldValue<boolean | undefined>(fieldPath)
   const checked = value ?? fieldValue ?? defaultValue ?? false
@@ -35,7 +37,7 @@ export const CheckboxField = ({
   return (
     <div className={`byline-field-checkbox ${field.name} ${styles['field-checkbox']}`}>
       <Checkbox
-        id={id ?? fieldPath}
+        id={htmlId}
         name={field.name}
         label={field.label}
         checked={checked}

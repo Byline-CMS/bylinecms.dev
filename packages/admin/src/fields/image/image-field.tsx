@@ -32,6 +32,7 @@ import {
   useIsDirty,
   useIsFieldUploading,
 } from '../../forms/form-context'
+import { useScopedDomId } from '../../forms/form-dom-scope'
 import { useFieldChangeHandler } from '../use-field-change-handler'
 import styles from './image-field.module.css'
 import { ImageUploadField } from './image-upload-field'
@@ -114,7 +115,7 @@ export const ImageField = ({
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const canOpenLightbox = !isPending && !!incomingValue?.storageUrl
 
-  const htmlId = fieldPath
+  const htmlId = useScopedDomId(fieldPath)
 
   return (
     <div className={`byline-field-image ${field.name}`}>
@@ -297,7 +298,7 @@ export const ImageField = ({
 
       {field.helpText && <HelpText text={field.helpText} />}
 
-      {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
+      {fieldError && <ErrorText id={`${htmlId}-error`} text={fieldError} />}
 
       {canOpenLightbox && incomingValue?.storageUrl && (
         <ImageLightbox

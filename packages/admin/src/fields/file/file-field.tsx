@@ -32,6 +32,7 @@ import {
   useIsDirty,
   useIsFieldUploading,
 } from '../../forms/form-context'
+import { useScopedDomId } from '../../forms/form-dom-scope'
 import { useFieldChangeHandler } from '../use-field-change-handler'
 import styles from './file-field.module.css'
 import { FileUploadField } from './file-upload-field'
@@ -123,7 +124,7 @@ export const FileField = ({
   const isVideo = incomingValue?.mimeType?.startsWith('video/') === true
   const FileGlyph = isVideo ? VideoIcon : DocumentIcon
 
-  const htmlId = fieldPath
+  const htmlId = useScopedDomId(fieldPath)
 
   return (
     <div className={`byline-field-file ${field.name}`}>
@@ -294,7 +295,7 @@ export const FileField = ({
 
       {field.helpText && <HelpText text={field.helpText} />}
 
-      {fieldError && <ErrorText id={`${field.name}-error`} text={fieldError} />}
+      {fieldError && <ErrorText id={`${htmlId}-error`} text={fieldError} />}
     </div>
   )
 }
