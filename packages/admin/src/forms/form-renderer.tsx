@@ -422,6 +422,17 @@ const FormContent = ({
   }
 
   const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
+    // A form rendered into a portal is not a DOM descendant of this one, so no
+    // invalid nested-form markup arises — but React propagates synthetic events
+    // along the *React* tree, so its submit still reaches this handler. Nothing
+    // about `currentTarget` reveals that: it is always this form while the
+    // handler runs, bubbled event or not. The event's origin is what
+    // distinguishes them.
+    //
+    // Deliberately no `preventDefault()` on the way out: the submit belongs to
+    // the inner form, and suppressing its default here would take that decision
+    // away from the handler that owns it.
+    if (e.target !== e.currentTarget) return
     e.preventDefault()
     if (mutationBlockedRef.current) return
     void submission.submit()
