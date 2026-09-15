@@ -176,6 +176,11 @@ export async function restoreDocumentVersion(
       // pass so it describes exactly what is about to be persisted.
       const validationIssues = validateDocumentFields(definition.fields, sourceFields, {
         locale: 'all',
+        onCallbackError: ({ path, site, error }) =>
+          ctx.logger.error(
+            { err: error, fieldPath: path, site },
+            'restore diagnostic callback threw'
+          ),
       })
       const committed = await commitGuardedDocumentMutation(
         ctx,

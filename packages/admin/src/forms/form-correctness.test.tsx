@@ -18,6 +18,7 @@ import { FieldRenderer } from '../fields/field-renderer'
 import { BylineFieldServicesProvider } from '../fields/field-services-context'
 import { TextField } from '../fields/text/text-field'
 import { useFieldChangeHandler } from '../fields/use-field-change-handler'
+import { useFieldCondition } from '../fields/use-field-condition'
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
 import { type UseFormSubmissionResult, useFormSubmission } from './use-form-submission'
 import { useFormTabs } from './use-form-tabs'
@@ -177,7 +178,11 @@ describe('form correctness', () => {
         fields: [{ name: 'caption', label: 'Caption', type: 'text' }],
       },
     ])
-    expect(errors).toContainEqual({ field: 'details.caption', message: 'Caption is required' })
+    expect(errors).toContainEqual({
+      field: 'details.caption',
+      message: 'Caption is required',
+      kind: 'required',
+    })
   })
   it('does not let an old asynchronous change overwrite newer input', async () => {
     const older = deferred()
@@ -370,6 +375,32 @@ describe('submission and store contracts', () => {
     expect(container.textContent).toBe('')
     act(() => ctx.resetHasChanges())
     expect(ctx.getFieldValue('details.title')).toBeUndefined()
+  })
+
+  it('keeps a field visible when its condition throws, instead of taking the render down', () => {
+    // The predicate runs on every form edit against live, partly-filled data.
+    // A predicate assuming a shape the editor has not reached yet must not
+    // crash the form; failing closed matches the validation walker.
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const field: Field = {
+        name: 'doi',
+        type: 'text',
+        condition: (data: any) => data.missing.deep === 1,
+      }
+      const Probe = () => <span>{useFieldCondition(field) ? 'visible' : 'hidden'}</span>
+      act(() =>
+        root.render(
+          <FormProvider>
+            <Probe />
+          </FormProvider>
+        )
+      )
+      expect(container.textContent).toBe('visible')
+      expect(errors).toHaveBeenCalledTimes(1)
+    } finally {
+      errors.mockRestore()
+    }
   })
 
   it('only rerenders tab visibility when a predicate changes, and badges nested errors', () => {

@@ -54,6 +54,7 @@
       ]
     },
     "test": {
+      "dependsOn": ["^build"],
       "outputs": []
     },
     "@byline/client#typecheck": {

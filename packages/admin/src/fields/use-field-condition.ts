@@ -27,7 +27,15 @@ import { get as getNestedValue } from '../forms/nested-path'
  * sibling scope, mirroring `FieldCondition`'s contract.
  *
  * Fields without a condition are always visible and no subscription is made.
+ *
+ * A condition that throws leaves the field visible. It runs on every form edit
+ * against live, partly-filled data, so a predicate that assumes a shape the
+ * editor has not reached yet would otherwise take the render down. Failing
+ * closed keeps the field editable and matches the validation walker, which
+ * treats the same failure as visible-and-invalid. The misconfiguration is
+ * reported once per field rather than on every keystroke.
  */
+const reportedConditionFailures = new WeakSet<Field>()
 export const useFieldCondition = (field: Field, basePath?: string): boolean => {
   const { getFieldValues, subscribeMeta } = useFormContext()
 
@@ -35,7 +43,15 @@ export const useFieldCondition = (field: Field, basePath?: string): boolean => {
     if (!field.condition) return true
     const data = getFieldValues()
     const siblingData = basePath ? (getNestedValue(data, basePath) ?? {}) : data
-    return Boolean(field.condition(data, siblingData))
+    try {
+      return Boolean(field.condition(data, siblingData))
+    } catch (error) {
+      if (!reportedConditionFailures.has(field)) {
+        reportedConditionFailures.add(field)
+        console.error(`Field condition threw for '${field.name}'; keeping the field visible`, error)
+      }
+      return true
+    }
   }, [field, basePath, getFieldValues])
 
   const [visible, setVisible] = useState<boolean>(evaluate)

@@ -69,7 +69,12 @@ function assertWritableContent(
   write: { documentData: Record<string, any>; locale?: string; action?: string }
 ): void {
   if (write.action === 'restore') return
-  assertDocumentFields(ctx.definition.fields, write.documentData, write.locale ?? ctx.defaultLocale)
+  assertDocumentFields(
+    ctx.definition.fields,
+    write.documentData,
+    write.locale ?? ctx.defaultLocale,
+    ctx.logger
+  )
 }
 
 /**

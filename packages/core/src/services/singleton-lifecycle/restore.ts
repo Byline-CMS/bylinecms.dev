@@ -106,7 +106,14 @@ export async function restoreSingletonVersion(
             locale: 'all',
             prepareWrite: async () => {
               await applyRichTextEmbed(ctx, data)
-              validationIssues = validateDocumentFields(definition.fields, data, { locale: 'all' })
+              validationIssues = validateDocumentFields(definition.fields, data, {
+                locale: 'all',
+                onCallbackError: ({ path, site, error }) =>
+                  ctx.logger.error(
+                    { err: error, fieldPath: path, site },
+                    'restore diagnostic callback threw'
+                  ),
+              })
             },
             write: async () => {
               return persistExistingDocumentVersion(ctx, {

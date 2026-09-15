@@ -211,10 +211,37 @@ describe('document field validation', () => {
 
     it('records a failed validator as an issue instead of throwing', () => {
       const issues = validateDocumentFields(throwingValidate, { title: 'ok' })
-      expect(issues).toHaveLength(1)
-      expect(issues[0]?.field).toBe('slug')
-      expect(issues[0]?.kind).toBe('invalid')
-      expect(issues[0]?.message).toContain('validate failed')
+      expect(issues).toEqual([
+        { field: 'slug', message: 'slug: could not be validated', kind: 'invalid' },
+      ])
+    })
+
+    it('isolates a throwing custom validation rule', () => {
+      const issues = validateDocumentFields(
+        [
+          { name: 'title', type: 'text' },
+          {
+            name: 'code',
+            type: 'text',
+            validation: { rules: [{ type: 'custom', value: (v: any) => v.deep.thing === 1 }] },
+          },
+        ],
+        { title: 't', code: 'x' }
+      )
+      expect(issues).toEqual([
+        { field: 'code', message: 'code: could not be validated', kind: 'invalid' },
+      ])
+    })
+
+    it('isolates a failure while the schema itself is being built', () => {
+      // A malformed `pattern` throws from `new RegExp` before any parse.
+      const issues = validateDocumentFields(
+        [{ name: 'p', type: 'text', validation: { rules: [{ type: 'pattern', value: '([' }] } }],
+        { p: 'x' }
+      )
+      expect(issues).toEqual([
+        { field: 'p', message: 'p: could not be validated', kind: 'invalid' },
+      ])
     })
 
     it('keeps collecting issues after one callback fails', () => {
@@ -236,25 +263,50 @@ describe('document field validation', () => {
       // Fail closed: the field is still validated, and the misconfiguration
       // is reported rather than silently hiding the field.
       expect(issues.map((issue) => issue.message)).toEqual([
-        expect.stringContaining('condition failed'),
+        'a: could not be validated',
         'a is required',
       ])
     })
 
-    it('does not leak a stack trace into the message', () => {
+    it('never copies an exception message into an editor-facing issue', () => {
+      // Issue messages cross the server boundary. An unexpected exception can
+      // carry internal diagnostics, so the message is fixed and detail-free.
+      const secret = 'ECONNREFUSED postgres://user:hunter2@10.0.0.4:5432/prod'
+      const seen: unknown[] = []
       const issues = validateDocumentFields(
         [
           {
             name: 'x',
             type: 'text',
             validate: () => {
-              throw new Error('boom')
+              throw new Error(secret)
             },
           },
         ],
-        { x: 'v' }
+        { x: 'v' },
+        { onCallbackError: ({ error, site }) => seen.push([site, error]) }
       )
-      expect(issues[0]?.message).toBe('x: validate failed (boom)')
+      expect(issues).toEqual([
+        { field: 'x', message: 'x: could not be validated', kind: 'invalid' },
+      ])
+      expect(JSON.stringify(issues)).not.toContain('hunter2')
+      // The real error is still available to server-side diagnostics.
+      expect(seen).toEqual([['validate', expect.objectContaining({ message: secret })]])
+    })
+
+    it('keeps a message a validator deliberately returns', () => {
+      const issues = validateDocumentFields(
+        [
+          {
+            name: 'doi',
+            type: 'text',
+            optional: true,
+            validate: () => 'DOI must be a 10.x prefix',
+          },
+        ],
+        { doi: 'x' }
+      )
+      expect(issues[0]?.message).toBe('DOI must be a 10.x prefix')
     })
   })
 

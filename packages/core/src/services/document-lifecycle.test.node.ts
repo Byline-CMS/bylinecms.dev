@@ -2910,7 +2910,7 @@ describe('Document lifecycle service', () => {
 
         expect(createDocumentVersion).toHaveBeenCalledOnce()
         expect(result.validationIssues?.map((issue) => issue.field)).toEqual(['slug'])
-        expect(result.validationIssues?.[0]?.message).toContain('validate failed')
+        expect(result.validationIssues?.[0]?.message).toBe('slug: could not be validated')
       })
 
       it('does not extend the exemption to duplication', async () => {

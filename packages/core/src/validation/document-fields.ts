@@ -9,6 +9,7 @@
 import { ERR_VALIDATION, ErrorCodes } from '../lib/errors.js'
 import { fieldToZodSchema } from '../schemas/zod/builder.js'
 import type { Field, FieldSet } from '../@types/field-types.js'
+import type { BylineLogger } from '../lib/logger.js'
 
 export interface DocumentFieldIssue {
   field: string
@@ -32,21 +33,35 @@ export interface DocumentFieldValidationDetails {
 const record = (value: unknown): value is Record<string, any> =>
   value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)
 
-/** Describe a failed schema-author callback without leaking a stack trace. */
-const callbackFailure = (hook: 'validate' | 'condition', error: unknown): string =>
-  `${hook} failed (${error instanceof Error ? error.message : 'unknown error'})`
+/**
+ * Message for a schema-author callback that threw.
+ *
+ * Deliberately fixed and detail-free. Issue messages cross the server boundary
+ * into the editor, and an unexpected exception can carry internal diagnostics —
+ * a connection string, a file path, an upstream response. Omitting the stack is
+ * not enough, because `error.message` itself is the leak. The real error goes
+ * to `onCallbackError` for server-side logging; a message a validator
+ * deliberately *returns* is authored for the editor and is kept verbatim.
+ */
+const CALLBACK_FAILED = 'could not be validated'
+
+type CallbackSite = 'validate' | 'condition' | 'schema'
 
 /**
  * Validate schema data without transforming or stripping persistence values.
  *
- * Never throws. `validate` and `condition` are schema-author callbacks and can
- * fail on data they did not anticipate — a validator calling `value.trim()`
- * meets a historical version that lacks the field. A raw exception would
- * abort the walk, discarding the issues already collected, and escape as an
- * unhandled error rather than a field result. Each callback is therefore
- * isolated and a failure recorded as an `invalid` issue, so an ordinary save
- * still refuses the write with a readable message, and a caller using this for
- * diagnostics only — restore — is never blocked by it.
+ * Never throws. Three things here run schema-author code and can fail on data
+ * they did not anticipate: `validate`, `condition`, and the per-field Zod
+ * schema, whose `validation.rules` may carry a throwing `custom` predicate or a
+ * malformed `pattern` that fails while the schema is being built. A validator
+ * calling `value.trim()` meets a historical version that lacks the field. A raw
+ * exception would abort the walk, discarding the issues already collected, and
+ * escape as an unhandled error rather than a field result.
+ *
+ * Each site is therefore isolated and a failure recorded as an `invalid` issue,
+ * so an ordinary save still refuses the write, and a caller using this for
+ * diagnostics only — restore — is never blocked by it. The editor-facing
+ * message is fixed; the exception goes to `onCallbackError`.
  */
 export function validateDocumentFields(
   fields: FieldSet,
@@ -57,6 +72,11 @@ export function validateDocumentFields(
     respectConditions?: boolean
     /** Pending uploads are validated after transport by the lifecycle. */
     skip?: (path: string) => boolean
+    /**
+     * Receives the real exception when a schema-author callback throws, for
+     * server-side diagnostics. The editor only ever sees `CALLBACK_FAILED`.
+     */
+    onCallbackError?: (detail: { path: string; site: CallbackSite; error: unknown }) => void
   } = {}
 ): DocumentFieldIssue[] {
   const issues: DocumentFieldIssue[] = []
@@ -73,7 +93,8 @@ export function validateDocumentFields(
         try {
           visible = Boolean(field.condition(data, values))
         } catch (error) {
-          add(path, `${field.label ?? field.name}: ${callbackFailure('condition', error)}`)
+          options.onCallbackError?.({ path, site: 'condition', error })
+          add(path, `${field.label ?? field.name}: ${CALLBACK_FAILED}`)
         }
         if (!visible) continue
       }
@@ -90,10 +111,12 @@ export function validateDocumentFields(
     const label = field.label ?? field.name
     if (field.validate) {
       try {
+        // A returned message is authored for the editor: keep it verbatim.
         const message = field.validate(value, data)
         if (message) add(path, message)
       } catch (error) {
-        add(path, `${label}: ${callbackFailure('validate', error)}`)
+        options.onCallbackError?.({ path, site: 'validate', error })
+        add(path, `${label}: ${CALLBACK_FAILED}`)
       }
     }
     if (value == null || value === '') {
@@ -131,9 +154,18 @@ export function validateDocumentFields(
         })
       }
     } else {
-      const parsed = fieldToZodSchema(field).safeParse(value)
-      if (!parsed.success)
-        add(path, `${label}: ${parsed.error.issues[0]?.message ?? 'Invalid value'}`)
+      // Both halves are schema-author reachable: `validation.rules` can carry a
+      // `custom` predicate that throws through `refine`, and a malformed
+      // `pattern` throws from `new RegExp` while the schema is still being
+      // built — before any value is parsed.
+      try {
+        const parsed = fieldToZodSchema(field).safeParse(value)
+        if (!parsed.success)
+          add(path, `${label}: ${parsed.error.issues[0]?.message ?? 'Invalid value'}`)
+      } catch (error) {
+        options.onCallbackError?.({ path, site: 'schema', error })
+        add(path, `${label}: ${CALLBACK_FAILED}`)
+      }
     }
   }
   if (!record(data))
@@ -153,9 +185,16 @@ export function validateDocumentFields(
 export function assertDocumentFields(
   fields: FieldSet,
   data: Record<string, any>,
-  locale?: string
+  locale?: string,
+  logger?: Pick<BylineLogger, 'error'>
 ): void {
-  const issues = validateDocumentFields(fields, data, { locale })
+  const issues = validateDocumentFields(fields, data, {
+    locale,
+    onCallbackError: logger
+      ? ({ path, site, error }) =>
+          logger.error({ err: error, fieldPath: path, site }, 'field validation callback threw')
+      : undefined,
+  })
   if (issues.length)
     throw ERR_VALIDATION({
       message: 'Some document fields are invalid.',

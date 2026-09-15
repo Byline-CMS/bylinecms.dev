@@ -563,6 +563,43 @@ the two cannot drift.
 in `scheduled-publish.ts`); a precondition placed in `beforeUpdate` would not
 have guarded that pathway at all. Corrected, with the distinction stated.
 
+### Second review of the callback isolation
+
+A review of `26c43fdd` found two remaining holes and one overstated claim.
+
+**Custom validation rules could still abort a restore.** The guard covered
+`validate` and `condition` but not `fieldToZodSchema(field).safeParse(value)`.
+A `validation.rules` entry of `type: 'custom'` throws out through Zod's
+`refine`. The hole is wider than reported: schema *construction* throws too — a
+malformed `pattern` fails inside `new RegExp` before any value is parsed. Both
+sites are now inside one guard.
+
+**Exception messages crossed the server boundary.** The handler copied
+`error.message` into the issue, and the transport decoder retained it. Omitting
+the stack was not enough, because the message is the leak: a probe put
+`ECONNREFUSED postgres://user:hunter2@…` verbatim into a field message bound for
+the browser. Thrown exceptions now produce a fixed `could not be validated`
+message, with the real error routed to an `onCallbackError` sink that the
+lifecycle wires to `ctx.logger`. A message a validator deliberately *returns* is
+authored for the editor and is still kept verbatim.
+
+**"The field stays visible" was only true of the walker.** `useFieldCondition`
+still called the predicate unguarded during render, so a throwing condition took
+the render down rather than leaving the field visible. It now fails closed and
+reports once per field, making the documented behaviour true end to end.
+
+### Corrected verification claim
+
+`pnpm test` reported green over `bcb0f927` while
+`form-correctness.test.tsx > validates required descendants of a group` was
+failing — it asserted an issue shape without `kind`. The cause was a Turborepo
+configuration gap, not a flaky run: the `test` task carried no
+`dependsOn: ["^build"]`, unlike its `typecheck` and `test:integration` siblings.
+`@byline/admin:test`'s cache key therefore excluded `@byline/core`, so a core
+change with no admin source change replayed a stale pass. `test` now declares
+the dependency, the assertion is fixed, and the suite passes for real. Any
+cross-package change in this repository could have been masked the same way.
+
 ### Verification
 
 Repository lint, typechecking, Knip, documentation validation and
@@ -575,4 +612,8 @@ required field, restores content failing a rule whose schema never changed,
 restores into a published default status, omits `validationIssues` for a clean
 source, and does not extend the exemption to duplication. The review fixes add
 five callback-isolation cases, an end-to-end restore against a throwing
-validator, and two singleton reporting cases.
+validator, and two singleton reporting cases. The second review adds isolation
+cases for a throwing `custom` rule and for schema construction, a probe
+asserting no exception text reaches an issue while the sink still receives it, a
+case pinning deliberately returned messages, and a component test for the
+render-path condition guard.
