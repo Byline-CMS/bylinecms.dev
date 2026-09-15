@@ -22,6 +22,7 @@ import { DocumentActions, type DocumentActionsLocaleOption } from './document-ac
 import { FormProvider, useFieldValue, useFormContext } from './form-context'
 import { FormLayout } from './form-layout'
 import { NavigationGuardModal, SystemFieldsConfirmModal, UnsavedChangesModal } from './form-modals'
+import { FormHeadingRow } from './form-page-chrome'
 import styles from './form-renderer.module.css'
 import { FormStatusDisplay } from './form-status-display'
 import { useNavigationGuardAdapter } from './navigation-guard'
@@ -316,9 +317,6 @@ const FormContent = ({
     [_onTabChange]
   )
 
-  // Track live form data so TabDefinition.condition functions can react to
-  // field changes. Re-evaluated per keystroke via the meta-subscribe loop.
-
   // Live document heading — tracks the useAsTitle field as the user types
   const liveTitle = useFieldValue<string>(useAsTitle ?? '')
   const computedHeading =
@@ -455,14 +453,7 @@ const FormContent = ({
           className={cx('byline-form', styles.form)}
           inert={isBusy ? true : undefined}
         >
-          <div className={cx('byline-form-heading-row', styles['heading-row'])}>
-            <h1 className={cx('byline-form-heading', styles.heading)}>{computedHeading}</h1>
-            {/* Source-locale anchor indicator removed pending heading-layout work.
-            To re-enable: render `<SourceLocaleBadge locale={sourceLocale} />`
-            here from `initialData.sourceLocale` (mismatch-only is the intended
-            end state). See docs/08-internationalization/index.md. */}
-            {headerSlot}
-          </div>
+          <FormHeadingRow heading={computedHeading} headerSlot={headerSlot} />
           <div className={cx('byline-form-status-bar', styles['status-bar'])}>
             <div className={cx('byline-form-status-details', styles['status-details'])}>
               <FormStatusDisplay
