@@ -24,6 +24,7 @@ import { FieldRenderer } from '../fields/field-renderer'
 import { AdminGroup } from '../presentation/group'
 import { AdminRow } from '../presentation/row'
 import { AdminTabs, tabPanelId, tabTriggerId } from '../presentation/tabs'
+import { useFormDomScope } from './form-dom-scope'
 import styles from './form-renderer.module.css'
 import { useFormLayout } from './use-form-layout'
 import { useFormTabs } from './use-form-tabs'
@@ -75,6 +76,11 @@ export const FormLayout = ({
   const { fieldByName, tabSetByName, rowByName, groupByName, layout, fieldToTabPath } =
     useFormLayout(adminConfig, fields)
   const tabs = useFormTabs(fieldToTabPath, activeTabBySet)
+  // Two forms over one collection share its admin configuration, so their tab
+  // sets carry the same name and would otherwise derive the same trigger and
+  // panel ids. `aria-labelledby` resolves document-wide, so the second form's
+  // panel would name the first form's trigger.
+  const domScope = useFormDomScope()
 
   const renderField = (fieldName: string): ReactNode => {
     const field = fieldByName.get(fieldName)
@@ -117,7 +123,7 @@ export const FormLayout = ({
 
   const renderTabSet = (set: TabSetDefinition): ReactNode => {
     const { visibleTabs, activeTabName, activeTab, errorCounts } = tabs.resolve(set)
-    const idBase = `tabset:${set.name}`
+    const idBase = `${domScope}tabset:${set.name}`
 
     return (
       <div key={idBase} className={cx('byline-form-tabset', styles.tabset)}>
