@@ -88,6 +88,28 @@ A document from `collection_version = 2` loaded against a live v3 definition rec
 
 This is the deliberate scope of Phase 1: record now so the migration story can land later **without a schema migration**. Until Phase 3+ ships, treat `collection_version` as recorded data without semantics in the read path.
 
+#### Removed block types
+
+Removing a block definition does not remove its stored rows, but it can remove the block from the reconstructed document without a warning. `restoreBlocksFieldData` in `packages/core/src/storage/storage-restore.ts` skips rows whose block type is absent from the current definition. Surviving blocks retain their stored array indices. This affects ordinary reads and reads of historical versions because both use the current schema.
+
+The outcome depends on the removed block's position. In the examples below, `retired` denotes a block type removed from the collection and `live` denotes a type still declared:
+
+| Stored block order | Reconstructed content | Consequence |
+| --- | --- | --- |
+| `[retired, live]` | An empty array slot at index 0, followed by `live` at index 1 | JSON serialization represents the empty slot as `null`; validating that payload reports `content[0]: Item must be an object`. |
+| `[live, retired]` | Only `live` at index 0 | Field validation can pass even though the retired block is missing. Flattening this payload emits no rows for the retired block in the new version. |
+| `[retired]` | An empty array for a required blocks field; `undefined` for an optional one | Field validation can pass — an empty array does not fail a required blocks field — and flattening emits no rows for the retired block. |
+
+The sparse array in the first case has another failure mode. `validateDocumentFields` currently visits items with `Array.prototype.forEach`, which skips empty slots. Validating that array directly can therefore report no issues, while `flattenFieldSetData` subsequently throws when it tries to destructure the missing item. A successful field-validation audit alone does not establish that reconstruction retained all stored content or that the payload can be flattened.
+
+The original version's rows remain stored. Their presence does not make the omitted block readable through the current schema, and a collection-version bump does not select the old definition. Restoring a historical version alone does not restore its schema either.
+
+Before removing a block type used by stored content, keep its definition available while you identify affected documents and migrate their blocks to supported types through revision-guarded writes. Verify block identities, order, and values as well as validation results. Historical versions can still need the old definition after current documents have been migrated. Do not treat filtering empty entries from reconstructed arrays as a content-preserving repair: that removes the visible symptom while accepting the omission.
+
+Explicit diagnostics for unknown stored block types, preservation of their identity and position during recovery, and rejection of sparse arrays at validation are unresolved work. These limitations require a compatibility policy; the current implementation does not provide automatic block migration.
+
+Byline's admin user interface already supports a document-level reconstruction warning banner, but removed block types do not currently produce those warnings. Its blocks field also renders no item when the value is malformed or its type is undeclared. An error placeholder at the original block position is a proposed recovery behavior, not a feature available today. Such a placeholder also needs a server-side save safeguard so editing a supported block cannot accidentally omit the unavailable content from a new version.
+
 ### Startup reconciliation
 
 `initBylineCore()` calls `ensureCollections()` once and caches the result on `BylineCore`. Reconciliation involves:

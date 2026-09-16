@@ -37,7 +37,7 @@ Byline persists documents in a **typed entity-attribute-value (EAV) store, parti
 
 The architecture exists to deliver three properties at once:
 
-1. **Schema changes need no migration.** When you add, remove, or restructure a field on a `CollectionDefinition`, you do not write a database migration. The shape of your data lives in the schema; the database only holds rows. Frameworks that give each collection its own table need a migration for the same change.
+1. **Collection changes need no database DDL migration.** When you add, remove, or restructure a field on a `CollectionDefinition`, the typed store tables keep the same structure. Existing content can still require a content migration: reads use the current collection definition, so removing or renaming fields or block types can hide stored values or prevent subsequent saves. See [removed block types](../04-collections/08-collection-versioning.md#removed-block-types) for the current reconstruction limitation.
 2. **Localization is metadata, not schema.** Every store row carries a `locale` column. Switching a field from non-localized to localized is a runtime change, not a schema migration.
 3. **Immutable versioning composes naturally.** A new version is an insert of new rows under a new version id. There is no copy-on-write of a JSON blob, no diff to compute against the previous version's columns, and no special handling for partial-version writes.
 
