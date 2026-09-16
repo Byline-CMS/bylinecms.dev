@@ -10,7 +10,9 @@ import type { StoredFileValue } from '@byline/core'
 import { describe, expect, test, vi } from 'vitest'
 
 import {
-  collectImageUrls,
+  collectImageOccurrences,
+  collectImages,
+  mediaAltText,
   mediaPathForUrl,
   mimeTypeFromContentType,
   persistUploadedMediaDocument,
@@ -26,28 +28,66 @@ const slug = (value: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
-describe('collectImageUrls', () => {
-  test('finds standalone and inline images in source order', () => {
-    const urls = collectImageUrls(
-      parseBodyToMdast('![one](./a.png)\n\ntext ![two](./b.svg) more\n')
-    )
-    expect(urls).toEqual(['./a.png', './b.svg'])
+describe('collectImages', () => {
+  test('finds standalone and inline images in source order, carrying alt text', () => {
+    const images = collectImages(parseBodyToMdast('![one](./a.png)\n\ntext ![two](./b.svg) more\n'))
+    expect(images).toEqual([
+      { url: './a.png', alt: 'one' },
+      { url: './b.svg', alt: 'two' },
+    ])
   })
 
-  test('collapses repeats of the same URL to a single entry', () => {
-    const urls = collectImageUrls(parseBodyToMdast('![a](./x.png)\n\n![b](./x.png)\n'))
-    expect(urls).toEqual(['./x.png'])
+  test('collapses repeats of the same URL to a single entry, keeping the first alt', () => {
+    const images = collectImages(parseBodyToMdast('![a](./x.png)\n\n![b](./x.png)\n'))
+    expect(images).toEqual([{ url: './x.png', alt: 'a' }])
   })
 
   test('descends into nested containers', () => {
-    const urls = collectImageUrls(
+    const images = collectImages(
       parseBodyToMdast('- item ![in-list](./l.png)\n\n> quote ![in-quote](./q.png)\n')
     )
-    expect(urls).toEqual(['./l.png', './q.png'])
+    expect(images).toEqual([
+      { url: './l.png', alt: 'in-list' },
+      { url: './q.png', alt: 'in-quote' },
+    ])
+  })
+
+  test('an image with no alt text yields an empty string', () => {
+    expect(collectImages(parseBodyToMdast('![](./bare.png)\n'))).toEqual([
+      { url: './bare.png', alt: '' },
+    ])
   })
 
   test('a document with no images yields an empty list', () => {
-    expect(collectImageUrls(parseBodyToMdast('# just prose\n'))).toEqual([])
+    expect(collectImages(parseBodyToMdast('# just prose\n'))).toEqual([])
+  })
+})
+
+describe('collectImageOccurrences', () => {
+  test('keeps every occurrence, including repeats of one URL', () => {
+    // Ingestion dedupes by URL; callers that compare what each occurrence says
+    // about an image need them all.
+    expect(
+      collectImageOccurrences(parseBodyToMdast('![one](./x.png)\n\n![two](./x.png)\n'))
+    ).toEqual([
+      { url: './x.png', alt: 'one' },
+      { url: './x.png', alt: 'two' },
+    ])
+  })
+})
+
+describe('mediaAltText', () => {
+  test('uses the markdown alt text when the author wrote one', () => {
+    // `altText` is required by the media collection: an ingested image that
+    // carries none is refused by field validation on create.
+    expect(mediaAltText('A diagram of the event flow', 'flow.svg')).toBe(
+      'A diagram of the event flow'
+    )
+  })
+
+  test('falls back to the filename when the markdown carries no alt', () => {
+    expect(mediaAltText('', 'flow.svg')).toBe('flow.svg')
+    expect(mediaAltText('   ', 'flow.svg')).toBe('flow.svg')
   })
 })
 

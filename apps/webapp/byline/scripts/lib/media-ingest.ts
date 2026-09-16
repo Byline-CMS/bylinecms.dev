@@ -98,26 +98,85 @@ export interface IngestResult {
   reused: number
 }
 
+/** A markdown image reference: where the bytes are, and how it reads aloud. */
+export interface ImageRef {
+  url: string
+  /** The markdown `![alt]` text; an empty string when the author wrote none. */
+  alt: string
+}
+
 /**
- * Collect every distinct image URL in a document, block-level and inline.
- * Order is source order; duplicates within one file collapse to one entry.
+ * Every image occurrence in a document, block-level and inline, in source
+ * order, with nothing collapsed.
+ *
+ * Two occurrences of one URL are two entries, because they may say different
+ * things about the same image. Ingestion wants the deduped view — use
+ * `collectImages` for that — but a caller comparing what a document says about
+ * an image must see each occurrence.
  */
-export function collectImageUrls(root: Root): string[] {
-  const urls: string[] = []
-  const seen = new Set<string>()
+export function collectImageOccurrences(root: Root): ImageRef[] {
+  const images: ImageRef[] = []
   const visit = (node: Content | Root): void => {
     if ((node as { type: string }).type === 'image') {
-      const url = (node as Image).url
-      if (url && !seen.has(url)) {
-        seen.add(url)
-        urls.push(url)
-      }
+      const image = node as Image
+      if (image.url) images.push({ url: image.url, alt: image.alt ?? '' })
     }
     const children = (node as { children?: Content[] }).children
     if (children) for (const child of children) visit(child)
   }
   visit(root)
-  return urls
+  return images
+}
+
+/**
+ * Collect every distinct image in a document, block-level and inline.
+ * Order is source order; duplicates within one file collapse to one entry,
+ * keeping the first occurrence's alt text — one URL becomes one media
+ * document, so ingestion needs exactly one decision per URL.
+ */
+export function collectImages(root: Root): ImageRef[] {
+  const seen = new Set<string>()
+  const images: ImageRef[] = []
+  for (const image of collectImageOccurrences(root)) {
+    if (seen.has(image.url)) continue
+    seen.add(image.url)
+    images.push(image)
+  }
+  return images
+}
+
+/**
+ * Resolve the `altText` value for a newly ingested image.
+ *
+ * The media collection declares `altText` as required, and every versioned
+ * write is validated against the collection's declared fields, so an ingested
+ * image without one is refused outright. Markdown already carries the text an
+ * author wrote for exactly this purpose, so prefer it; a bare `![](…)` leaves
+ * nothing better than the filename, which at least identifies the asset for an
+ * editor filling it in later.
+ */
+export function mediaAltText(alt: string, originalFilename: string): string {
+  return alt.trim() === '' ? originalFilename : alt
+}
+
+/**
+ * Field data for a newly ingested image.
+ *
+ * Kept as its own function so the shape can be validated against the live
+ * `media` schema in a test: an omitted required field is otherwise invisible
+ * until a real ingest reaches the write gate, which only happens for an image
+ * the collection has never seen.
+ */
+export function buildMediaFields(args: {
+  originalFilename: string
+  alt: string
+  storedFile: StoredFileValue
+}): Record<string, unknown> {
+  return {
+    title: args.originalFilename,
+    altText: mediaAltText(args.alt, args.originalFilename),
+    [MEDIA_UPLOAD_FIELD]: args.storedFile,
+  }
 }
 
 function isRemote(url: string): boolean {
@@ -299,14 +358,14 @@ export async function ingestImages({
   requestContext,
   dryRun,
 }: IngestImagesArgs): Promise<IngestResult> {
-  const urls = collectImageUrls(root)
+  const images = collectImages(root)
   const result: IngestResult = {
     images: new Map(),
     warnings: [],
     created: 0,
     reused: 0,
   }
-  if (urls.length === 0) return result
+  if (images.length === 0) return result
 
   const config = getServerConfig()
   const storage = config.storage
@@ -328,7 +387,7 @@ export async function ingestImages({
   }
 
   try {
-    for (const url of urls) {
+    for (const { url, alt } of images) {
       try {
         // A local file has only its extension to go on, so an unknown one is
         // decided here. A remote URL may carry no extension at all (GitHub
@@ -428,7 +487,7 @@ export async function ingestImages({
           shouldCreateDocument: false,
         })
 
-        const fields = { title: originalFilename, [MEDIA_UPLOAD_FIELD]: storedFile }
+        const fields = buildMediaFields({ originalFilename, alt, storedFile })
 
         // The bytes are in storage now, but `shouldCreateDocument: false`
         // means core has no document write to roll back against — cleanup on
