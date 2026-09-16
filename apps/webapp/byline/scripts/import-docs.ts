@@ -68,8 +68,18 @@ import { resolve } from 'node:path'
 
 import { createSuperAdminContext, type RequestContext } from '@byline/auth'
 import { type CollectionHandle, createBylineClient } from '@byline/client'
-import { getCollectionDefinition, getServerConfig, slugify } from '@byline/core'
+import {
+  getCollectionDefinition,
+  getDocumentFieldValidationDetails,
+  getServerConfig,
+  slugify,
+} from '@byline/core'
 
+import {
+  buildDocPayload,
+  carryForwardPublishedOn,
+  type ResolvedFeatureImage,
+} from './lib/build-doc-payload.js'
 import { type DocFrontmatter, parseDocFile } from './lib/frontmatter.js'
 import {
   exitImportDocsWithFailure,
@@ -130,11 +140,6 @@ function logMediaWarnings(filePath: string, warnings: MediaIngestWarning[]): voi
   }
 }
 
-interface ResolvedFeatureImage {
-  targetCollectionId: string
-  targetDocumentId: string
-}
-
 async function resolveFeatureImage(
   client: ReturnType<typeof createBylineClient>,
   path: string
@@ -148,44 +153,10 @@ async function resolveFeatureImage(
   return { targetCollectionId: mediaCollectionId, targetDocumentId: doc.id }
 }
 
-interface BuildPayloadArgs {
-  frontmatter: DocFrontmatter
-  lexicalState: unknown
-  featureImage: ResolvedFeatureImage | null
-}
-
-function buildDocPayload({
-  frontmatter,
-  lexicalState,
-  featureImage,
-}: BuildPayloadArgs): Record<string, unknown> {
-  const payload: Record<string, unknown> = {
-    title: frontmatter.title,
-    content: [
-      {
-        _type: 'richTextBlock',
-        richText: lexicalState,
-        constrainedWidth: frontmatter.constrainedWidth ?? true,
-      },
-    ],
-  }
-  if (frontmatter.summary !== undefined) payload.summary = frontmatter.summary
-  if (frontmatter.publishedOn !== undefined) payload.publishedOn = frontmatter.publishedOn
-  if (featureImage) payload.featureImage = featureImage
-  return payload
-}
-
 function derivePath(frontmatter: DocFrontmatter, locale: string): string {
   if (frontmatter.path) return frontmatter.path
   return slugify(frontmatter.title, { locale, collectionPath: DOCS_COLLECTION })
 }
-
-/**
- * Walk a document's status forward to `targetStatus`. The workflow only
- * permits ±1 step transitions, so jumping draft → published has to step
- * through any intermediate statuses (e.g. needs_review). No-op when the
- * workflow doesn't include the target or when already at/past it.
- */
 
 interface ProcessResult {
   filePath: string
@@ -308,10 +279,8 @@ async function processFile(
     throw new Error('Import target is no longer available; rerun the import.')
 
   const updateExisting = async (document: NonNullable<typeof existing>): Promise<ProcessResult> => {
-    // Don't clobber publishedOn if Byline already has one.
-    if (document.fields?.publishedOn) {
-      delete payload.publishedOn
-    }
+    // Editorial state wins: keep the publication date Byline already holds.
+    carryForwardPublishedOn(payload, document)
     const result = await handle.update(document.id, payload, {
       expectedRevision: document.revision,
       locale,
@@ -396,6 +365,11 @@ async function run(): Promise<void> {
       failed += 1
       console.error(`  ✗ failed   ${file}`)
       console.error(err instanceof Error ? `      ${err.message}` : err)
+      // A field-validation refusal names the offending fields in its details;
+      // the message alone ('Some document fields are invalid.') does not.
+      for (const issue of getDocumentFieldValidationDetails(err)?.issues ?? []) {
+        console.error(`      [${issue.kind}] ${issue.field}: ${issue.message}`)
+      }
     }
   }
 

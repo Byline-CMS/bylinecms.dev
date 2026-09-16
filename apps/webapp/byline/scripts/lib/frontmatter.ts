@@ -13,6 +13,13 @@
  * Optional:  path, summary, status, locale, publishedOn, featureImage,
  *            constrainedWidth
  *
+ * Optional here means optional *in the file*, not in the collection. The
+ * `docs` collection requires `publishedOn`, and every versioned write is
+ * validated against the collection's declared fields, so `import-docs.ts`
+ * supplies the import time when a file omits it (see `build-doc-payload.ts`);
+ * a file that wants a specific date sets `publishedOn:` here, and an
+ * already-imported document keeps the date Byline holds.
+ *
  * Titles are plain prose strings — no markdown formatting (no backticks,
  * no emphasis). The body's leading H1 may carry inline formatting; the
  * importer strips that H1 when its flattened text matches `title`, so

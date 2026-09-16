@@ -1,7 +1,14 @@
 import type { CollectionHandle } from '@byline/client'
 
-/** Preserve the revision returned by each successful workflow transition.
- * A conflict terminates the walk; it never fetches a newer observation. */
+/**
+ * Walk a document's status forward to `targetStatus`. The workflow only
+ * permits ±1 step transitions, so jumping draft → published has to step
+ * through any intermediate statuses (e.g. needs_review). No-op when the
+ * workflow doesn't include the target or when already at/past it.
+ *
+ * Preserves the revision returned by each successful transition. A conflict
+ * terminates the walk; it never fetches a newer observation.
+ */
 export async function walkToStatus(
   handle: Pick<CollectionHandle, 'changeStatus'>,
   documentId: string,
