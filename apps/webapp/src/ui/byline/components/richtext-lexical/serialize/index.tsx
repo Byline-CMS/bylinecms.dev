@@ -10,7 +10,7 @@ import { CodeSerializer } from '../../code/code-serializer.tsx'
 import { HeadingWithAnchorSerializer } from '../../heading-anchor/index.ts'
 import { InlineImageSerializer } from '../../inline-image/index.tsx'
 import { LayoutContainerSerializer, LayoutItemSerializer } from '../../layout/index.tsx'
-import { LinkLexicalSerializer } from '../../link/link-lexical.tsx'
+import { getHref, LinkLexicalSerializer } from '../../link/link-lexical.tsx'
 import { ListItemSerializer, ListSerializer } from '../../list/index.ts'
 import { TableCellSerializer } from '../../table-cell/index.tsx'
 import { VimeoSerializer } from '../../vimeo/index.tsx'
@@ -30,6 +30,21 @@ import type { SerializedLexicalNode } from './types.ts'
 export interface SerializeOptions {
   renderParagraphInline: boolean
   disableAnimation?: boolean
+  /**
+   * True while serializing the children of a `link` node.
+   *
+   * An `<a>` may not contain another `<a>`: the HTML parser un-nests them,
+   * which silently changes the document structure and breaks the layout
+   * around it. An inline image carries its own optional click target, and
+   * an image inside a text link is reachable — `import-docs` turns
+   * markdown `[![alt](img)](url)` into a `link` node containing an
+   * `inline-image` node, and the image dialog can then give that image a
+   * link of its own.
+   *
+   * The outer link wins: it already makes the image clickable, which is
+   * what a reader expects from an image inside a link.
+   */
+  insideLink?: boolean
 }
 
 export interface SerializeProps {
@@ -148,9 +163,38 @@ export function Serialize({
             )
           }
           case 'link': {
+            // `LinkLexicalSerializer` renders its children plain when the
+            // href is unusable (an unresolved internal target, an empty
+            // custom url), so a link node does not always produce an
+            // anchor. `insideLink` must track the anchor, not the node —
+            // setting it unconditionally would strip a working image link
+            // for the benefit of an outer anchor that was never emitted.
+            //
+            // When an anchor IS emitted, children are re-serialized with
+            // the flag rather than reusing `serializedChildren`, so nested
+            // anchor-bearing nodes (an inline image with its own link)
+            // render without their own `<a>`.
+            //
+            // A link node reached while already inside an anchor renders its
+            // children plain. `<a>` inside `<a>` is un-nested by the parser
+            // whatever produced it, and a link node is just as capable of
+            // nesting as an inline image — an image caption, for instance,
+            // is a nested editor whose links arrive here with the flag set.
+            if (options?.insideLink === true) {
+              return <Fragment key={index}>{serializedChildren}</Fragment>
+            }
+            const rendersAnchor = getHref(node.attributes).length > 0
             return (
               <LinkLexicalSerializer key={index} attributes={node.attributes} lng={lng}>
-                {serializedChildren}
+                {node.children != null && rendersAnchor ? (
+                  <Serialize
+                    nodes={node.children}
+                    lng={lng}
+                    options={{ ...options, insideLink: true }}
+                  />
+                ) : (
+                  serializedChildren
+                )}
               </LinkLexicalSerializer>
             )
           }

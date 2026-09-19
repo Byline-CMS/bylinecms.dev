@@ -13,7 +13,7 @@ import { useMemo, useState } from 'react'
 
 import { RelationPicker } from '@byline/admin/react'
 import type { MultiCollectionDefinition, StoredFileValue } from '@byline/core'
-import { getCollectionDefinition, isSingleton } from '@byline/core'
+import { getAdminConfig, getCollectionDefinition, isSingleton } from '@byline/core'
 import {
   Button,
   Checkbox,
@@ -25,9 +25,17 @@ import {
   Modal,
   RadioGroup,
   RadioGroupItem,
+  Tabs,
 } from '@byline/ui/react'
 
 import { useModalFormState } from '../../shared/useModalFormState'
+import { LinkTargetFields } from '../link/link-target-fields'
+import {
+  fromLinkAttributes,
+  type LinkTargetState,
+  toLinkAttributes,
+  validateLinkTarget,
+} from '../link/link-target-state'
 import { isAltTextValid, positionOptions } from './fields'
 import { deriveImageSizes, getPreferredSize } from './utils'
 import type { DocumentRelation } from '../../nodes/document-relation'
@@ -41,24 +49,38 @@ interface FormState {
   altText: string
   position: Position
   showCaption: boolean
+  /** Optional click-through target — see `../link/link-target-state.ts`. */
+  target: LinkTargetState
 }
 
-function emptyState(): FormState {
+/**
+ * Unlike a link node, an inline image is perfectly valid with no click
+ * target, so the shared sub-form runs with `allowNone` and `toLinkAttributes`
+ * is allowed to return undefined.
+ */
+const LINK_TARGET_OPTIONS = { allowNone: true } as const
+
+function emptyState(linkable: MultiCollectionDefinition[]): FormState {
   return {
     documentRelation: null,
     altText: '',
     position: 'full',
     showCaption: false,
+    target: fromLinkAttributes(undefined, linkable, LINK_TARGET_OPTIONS),
   }
 }
 
-function fromInlineImageData(data: InlineImageData | undefined): FormState {
-  if (!data) return emptyState()
+function fromInlineImageData(
+  data: InlineImageData | undefined,
+  linkable: MultiCollectionDefinition[]
+): FormState {
+  if (!data) return emptyState(linkable)
   return {
     documentRelation: data.documentRelation ?? null,
     altText: data.altText ?? '',
     position: data.position ?? 'full',
     showCaption: data.showCaption ?? false,
+    target: fromLinkAttributes(data.link, linkable, LINK_TARGET_OPTIONS),
   }
 }
 
@@ -96,13 +118,29 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
   const [pickerOpen, setPickerOpen] = useState(false)
   const [altError, setAltError] = useState<string | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
+  const [linkError, setLinkError] = useState<string | null>(null)
+  // Which tab is showing. Validation can move this: an error on a hidden
+  // panel would otherwise be invisible, and the user would just see Save
+  // do nothing.
+  const [activeTab, setActiveTab] = useState<'image' | 'link'>('image')
+
+  const linkable = useMemo<MultiCollectionDefinition[]>(
+    () =>
+      getAdminConfig().collections.filter(
+        (collection): collection is MultiCollectionDefinition =>
+          !isSingleton(collection) && collection.linksInEditor === true
+      ),
+    []
+  )
 
   const [state, setState] = useModalFormState<FormState>(
     isOpen,
-    () => fromInlineImageData(dataFromProps),
+    () => fromInlineImageData(dataFromProps, linkable),
     () => {
       setAltError(null)
       setImageError(null)
+      setLinkError(null)
+      setActiveTab('image')
     }
   )
 
@@ -175,10 +213,18 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
   const handleSave = () => {
     if (!state.documentRelation || !pickedImage) {
       setImageError('Pick an image')
+      setActiveTab('image')
       return
     }
     if (!isAltTextValid(state.altText)) {
       setAltError('Alt text is required')
+      setActiveTab('image')
+      return
+    }
+    const linkProblem = validateLinkTarget(state.target)
+    if (linkProblem != null) {
+      setLinkError(linkProblem)
+      setActiveTab('link')
       return
     }
 
@@ -196,6 +242,9 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
       width: preferred?.width,
       height: preferred?.height,
       showCaption: state.showCaption,
+      // Always present, so `InlineImageNode.update()` sees the key and can
+      // CLEAR an existing link when the editor chooses "No link".
+      link: toLinkAttributes(state.target),
     }
     onSubmit(data)
     onClose()
@@ -214,91 +263,135 @@ export const InlineImageModal: React.FC<InlineImageModalProps> = ({
             </IconButton>
           </Modal.Header>
           <Modal.Content>
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <span className="text-sm font-medium">Image</span>
-                <div className="inline-image-modal-picker">
-                  {pickedThumbUrl ? (
-                    <img
-                      src={pickedThumbUrl}
-                      alt={pickedTitle ?? ''}
-                      className="inline-image-modal-thumb"
-                    />
-                  ) : (
-                    <div className="inline-image-modal-thumb-placeholder">—</div>
-                  )}
-                  <div className="inline-image-modal-picker-details">
-                    {pickedTitle && <span className="inline-image-modal-title">{pickedTitle}</span>}
-                    <Button
-                      size="sm"
-                      className="inline-image-modal-change-btn"
-                      variant="outlined"
-                      intent="noeffect"
-                      type="button"
-                      onClick={() => setPickerOpen(true)}
-                    >
-                      {state.documentRelation
-                        ? 'Change image…'
-                        : `Pick ${targetDef?.labels.singular ?? 'image'}…`}
-                    </Button>
+            {/*
+              Two tabs rather than one long column. The link sub-form adds a
+              collection select, a picker row and a checkbox, which together
+              pushed the modal past the viewport on shorter screens. Tabs keep
+              the dialog a fixed, predictable height.
+
+              `Tabs.Content` keeps both panels mounted, so switching away and
+              back does not discard a half-filled form — and `handleSave`
+              switches `activeTab` to whichever panel holds a validation
+              error, so Save never appears to do nothing.
+            */}
+            <Tabs
+              className="inline-image-modal-tabs"
+              value={activeTab}
+              onValueChange={(value) => setActiveTab(value as 'image' | 'link')}
+            >
+              <Tabs.List className="mb-4">
+                <Tabs.Trigger value="image">Image</Tabs.Trigger>
+                <Tabs.Trigger value="link">Link</Tabs.Trigger>
+              </Tabs.List>
+
+              <Tabs.Content value="image">
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-sm font-medium">Image</span>
+                    <div className="inline-image-modal-picker">
+                      {pickedThumbUrl ? (
+                        <img
+                          src={pickedThumbUrl}
+                          alt={pickedTitle ?? ''}
+                          className="inline-image-modal-thumb"
+                        />
+                      ) : (
+                        <div className="inline-image-modal-thumb-placeholder">—</div>
+                      )}
+                      <div className="inline-image-modal-picker-details">
+                        {pickedTitle && (
+                          <span className="inline-image-modal-title">{pickedTitle}</span>
+                        )}
+                        <Button
+                          size="sm"
+                          className="inline-image-modal-change-btn"
+                          variant="outlined"
+                          intent="noeffect"
+                          type="button"
+                          onClick={() => setPickerOpen(true)}
+                        >
+                          {state.documentRelation
+                            ? 'Change image…'
+                            : `Pick ${targetDef?.labels.singular ?? 'image'}…`}
+                        </Button>
+                      </div>
+                    </div>
+                    {imageError && <ErrorText id="image-error" text={imageError} />}
                   </div>
-                </div>
-                {imageError && <ErrorText id="image-error" text={imageError} />}
-              </div>
 
-              <Input
-                id="inline-image-alt"
-                name="altText"
-                label="Alt text"
-                required
-                placeholder="Describe the image for screen readers"
-                value={state.altText}
-                error={altError != null}
-                errorText={altError ?? undefined}
-                onChange={(e) => {
-                  setAltError(null)
-                  setState((s) => ({ ...s, altText: e.target.value }))
-                }}
-              />
+                  <Input
+                    id="inline-image-alt"
+                    name="altText"
+                    label="Alt text"
+                    required
+                    placeholder="Describe the image for screen readers"
+                    value={state.altText}
+                    error={altError != null}
+                    errorText={altError ?? undefined}
+                    onChange={(e) => {
+                      setAltError(null)
+                      setState((s) => ({ ...s, altText: e.target.value }))
+                    }}
+                  />
 
-              <div className="flex flex-col gap-2 mb-3">
-                <Label
-                  htmlFor="inline-image-position"
-                  id="inline-image-position-label"
-                  className="text-sm font-medium"
-                  label="Position"
-                />
-                <RadioGroup
-                  id="inline-image-position"
-                  name="position"
-                  aria-labelledby="inline-image-position-label"
-                  direction="row"
-                  value={state.position ?? 'full'}
-                  onValueChange={(value) =>
-                    setState((s) => ({ ...s, position: value as Position }))
-                  }
-                >
-                  {positionOptions.map((opt) => (
-                    <RadioGroupItem
-                      key={String(opt.value)}
-                      id={`inline-image-position-${opt.value}`}
-                      value={String(opt.value)}
-                      label={opt.label}
+                  <div className="flex flex-col gap-2 mb-3">
+                    <Label
+                      htmlFor="inline-image-position"
+                      id="inline-image-position-label"
+                      className="text-sm font-medium"
+                      label="Position"
                     />
-                  ))}
-                </RadioGroup>
-              </div>
+                    <RadioGroup
+                      id="inline-image-position"
+                      name="position"
+                      aria-labelledby="inline-image-position-label"
+                      direction="row"
+                      value={state.position ?? 'full'}
+                      onValueChange={(value) =>
+                        setState((s) => ({ ...s, position: value as Position }))
+                      }
+                    >
+                      {positionOptions.map((opt) => (
+                        <RadioGroupItem
+                          key={String(opt.value)}
+                          id={`inline-image-position-${opt.value}`}
+                          value={String(opt.value)}
+                          label={opt.label}
+                        />
+                      ))}
+                    </RadioGroup>
+                  </div>
 
-              <Checkbox
-                id="inline-image-caption"
-                name="showCaption"
-                label="Show caption"
-                checked={state.showCaption}
-                onCheckedChange={(checked) =>
-                  setState((s) => ({ ...s, showCaption: checked === true }))
-                }
-              />
-            </div>
+                  <Checkbox
+                    id="inline-image-caption"
+                    name="showCaption"
+                    label="Show caption"
+                    checked={state.showCaption}
+                    onCheckedChange={(checked) =>
+                      setState((s) => ({ ...s, showCaption: checked === true }))
+                    }
+                  />
+                </div>
+              </Tabs.Content>
+
+              <Tabs.Content value="link" className="inline-image-modal-link-panel">
+                <p className="mt-0 mb-3 text-sm text-accent-400">
+                  Give the image a click target. Leave this as “No link” for a plain image.
+                </p>
+                <LinkTargetFields
+                  idPrefix="inline-image-link"
+                  state={state.target}
+                  onChange={(target) => {
+                    setLinkError(null)
+                    setState((s) => ({ ...s, target }))
+                  }}
+                  linkable={linkable}
+                  allowNone
+                  error={linkError}
+                  legend="Link to"
+                />
+              </Tabs.Content>
+            </Tabs>
           </Modal.Content>
           <Modal.Actions className="flex gap-3">
             <Button

@@ -24,9 +24,59 @@ import type {
 import { $applyNodeReplacement, createEditor, DecoratorNode } from 'lexical'
 
 import type { DocumentRelation } from '../../nodes/document-relation'
+import type { LinkAttributes } from '../link'
 import type { InlineImageAttributes, Position, SerializedInlineImageNode } from './node-types'
 
 const InlineImageComponent = React.lazy(async () => await import('./inline-image-node-component'))
+
+/**
+ * Encode an optional click-through target onto the exported `<img>`.
+ *
+ * Deliberately NOT an `<a>` wrapper: Lexical's own link conversion would
+ * claim that anchor on re-import and produce a link node wrapping an
+ * inline-image node — a shape this plugin does not model. Discrete
+ * `data-link-*` attributes survive the existing `img` conversion instead.
+ *
+ * The denormalised `{ title, path }` bag is not encoded. It is re-derived
+ * by `inlineImageLinkVisitor` on the next save or read, so the relation
+ * ids are all the markup needs to carry.
+ */
+function writeLinkAttributes(element: HTMLElement, link: LinkAttributes | undefined): void {
+  if (link == null) return
+  element.setAttribute('data-link-type', link.linkType ?? 'custom')
+  if (link.newTab === true) element.setAttribute('data-link-new-tab', 'true')
+  if (link.linkType === 'internal') {
+    element.setAttribute('data-link-target-document-id', link.targetDocumentId)
+    element.setAttribute('data-link-target-collection-id', link.targetCollectionId)
+    element.setAttribute('data-link-target-collection-path', link.targetCollectionPath)
+  } else if (link.url != null) {
+    element.setAttribute('data-link-url', link.url)
+  }
+}
+
+/** Inverse of `writeLinkAttributes`. Returns undefined for an unlinked image. */
+function readLinkAttributes(domNode: HTMLElement): LinkAttributes | undefined {
+  const linkType = domNode.dataset.linkType
+  if (linkType !== 'custom' && linkType !== 'internal') return undefined
+  const newTab = domNode.dataset.linkNewTab === 'true'
+  if (linkType === 'internal') {
+    const targetDocumentId = domNode.dataset.linkTargetDocumentId
+    const targetCollectionPath = domNode.dataset.linkTargetCollectionPath
+    // Without both ids there is nothing to resolve; drop the link rather
+    // than carry an envelope the visitor can never hydrate.
+    if (!targetDocumentId || !targetCollectionPath) return undefined
+    return {
+      linkType: 'internal',
+      newTab,
+      targetDocumentId,
+      targetCollectionId: domNode.dataset.linkTargetCollectionId ?? '',
+      targetCollectionPath,
+    }
+  }
+  const url = domNode.dataset.linkUrl
+  if (!url) return undefined
+  return { linkType: 'custom', url, newTab }
+}
 
 function convertInlineImageElement(domNode: Node): null | DOMConversionOutput {
   if (domNode instanceof HTMLImageElement) {
@@ -42,6 +92,7 @@ function convertInlineImageElement(domNode: Node): null | DOMConversionOutput {
       altText,
       height,
       width,
+      link: readLinkAttributes(domNode),
     })
     return { node }
   }
@@ -57,6 +108,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
   __height: number | string | undefined
   __showCaption: boolean
   __caption: LexicalEditor
+  __link: LinkAttributes | undefined
 
   static getType(): string {
     return 'inline-image'
@@ -72,6 +124,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
       node.__height,
       node.__showCaption,
       node.__caption,
+      node.__link,
       node.__key
     )
   }
@@ -85,6 +138,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
       width,
       showCaption,
       caption,
+      link,
       targetDocumentId,
       targetCollectionId,
       targetCollectionPath,
@@ -101,6 +155,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
       width,
       height,
       showCaption,
+      link,
     })
     const nestedEditor = node.__caption
     const editorState = nestedEditor.parseEditorState(caption.editorState)
@@ -128,6 +183,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
     height?: number | string,
     showCaption?: boolean,
     caption?: LexicalEditor,
+    link?: LinkAttributes,
     key?: NodeKey
   ) {
     super(key)
@@ -139,6 +195,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
     this.__height = height
     this.__showCaption = showCaption ?? false
     this.__caption = caption ?? createEditor()
+    this.__link = link
   }
 
   exportDOM(): DOMExportOutput {
@@ -155,6 +212,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
     if (this.__height != null) {
       element.setAttribute('height', this.__height.toString())
     }
+    writeLinkAttributes(element, this.__link)
     return { element }
   }
 
@@ -168,6 +226,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
       width: this.__width,
       showCaption: this.__showCaption,
       caption: this.__caption.toJSON(),
+      link: this.__link,
       type: 'inline-image',
       version: 1,
     }
@@ -205,6 +264,15 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
     writable.__showCaption = showCaption
   }
 
+  getLink(): LinkAttributes | undefined {
+    return this.__link
+  }
+
+  setLink(link: LinkAttributes | undefined): void {
+    const writable = this.getWritable()
+    writable.__link = link
+  }
+
   getPosition(): Position {
     return this.__position
   }
@@ -228,6 +296,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
       width,
       showCaption,
     } = payload
+
     if (targetDocumentId != null) {
       writable.__relation = {
         targetDocumentId,
@@ -254,29 +323,44 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
     if (showCaption != null) {
       writable.__showCaption = showCaption
     }
+    // `link` is keyed on PRESENCE, not on null-ness, unlike every field
+    // above. The `!= null` convention cannot express "remove the link" —
+    // an explicit `link: undefined` would be a silent no-op — and
+    // clearing a click target has to work.
+    if ('link' in payload) {
+      writable.__link = payload.link
+    }
   }
 
   // View
 
+  /**
+   * `has-link` drives the editor's cursor affordance — see
+   * `inline-image-node-component.css`. It is a class rather than a
+   * decorator-side style so the hover state is correct before React has
+   * hydrated the decorator.
+   */
+  private buildClassName(config: EditorConfig): string {
+    const linked = this.__link != null ? ' has-link' : ''
+    return `${config.theme.inlineImage} position-${this.__position}${linked}`
+  }
+
   createDOM(config: EditorConfig): HTMLElement {
     const span = document.createElement('span')
-    const className = `${config.theme.inlineImage} position-${this.__position}`
-    if (className !== undefined) {
-      span.className = className
-    }
+    span.className = this.buildClassName(config)
     return span
   }
 
   updateDOM(prevNode: InlineImageNode, dom: HTMLElement, config: EditorConfig): boolean {
-    const position = this.__position
-    if (position !== prevNode.__position) {
-      const className = `${config.theme.inlineImage} position-${position}`
-      if (className !== undefined) {
-        dom.className = className
-      }
+    if (
+      this.__position !== prevNode.__position ||
+      (this.__link != null) !== (prevNode.__link != null)
+    ) {
+      dom.className = this.buildClassName(config)
       return true
     }
     if (this.__showCaption !== prevNode.__showCaption) return true
+    if (this.__link !== prevNode.__link) return true
     return false
   }
 
@@ -292,6 +376,7 @@ export class InlineImageNode extends DecoratorNode<React.JSX.Element> {
           height={this.__height}
           showCaption={this.__showCaption}
           caption={this.__caption}
+          link={this.__link}
           nodeKey={this.getKey()}
         />
       </Suspense>
@@ -311,6 +396,7 @@ export function $createInlineImageNode({
   width,
   showCaption,
   caption,
+  link,
   key,
 }: InlineImageAttributes): InlineImageNode {
   const relation: DocumentRelation = {
@@ -320,7 +406,18 @@ export function $createInlineImageNode({
     document,
   }
   return $applyNodeReplacement(
-    new InlineImageNode(relation, src, position, altText, width, height, showCaption, caption, key)
+    new InlineImageNode(
+      relation,
+      src,
+      position,
+      altText,
+      width,
+      height,
+      showCaption,
+      caption,
+      link,
+      key
+    )
   )
 }
 

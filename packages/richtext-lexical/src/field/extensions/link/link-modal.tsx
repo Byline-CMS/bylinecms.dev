@@ -11,92 +11,32 @@
 import type * as React from 'react'
 import { useMemo, useState } from 'react'
 
-import { RelationPicker } from '@byline/admin/react'
 import type { MultiCollectionDefinition } from '@byline/core'
-import { getAdminConfig, getCollectionDefinition, isSingleton } from '@byline/core'
-import {
-  Button,
-  Checkbox,
-  CloseIcon,
-  IconButton,
-  Input,
-  Label,
-  Modal,
-  RadioGroup,
-  RadioGroupItem,
-  Select,
-  type SelectValue,
-} from '@byline/ui/react'
+import { getAdminConfig, isSingleton } from '@byline/core'
+import { Button, CloseIcon, IconButton, Input, Modal } from '@byline/ui/react'
 
 import { useModalFormState } from '../../shared/useModalFormState'
-import { validateUrl } from '../../utils/url'
-import type { DocumentRelation } from '../../nodes/document-relation'
+import { LinkTargetFields } from './link-target-fields'
+import {
+  fromLinkAttributes,
+  type LinkTargetState,
+  toLinkAttributes,
+  validateLinkTarget,
+} from './link-target-state'
 import type { LinkAttributes } from '.'
-import type { LinkData, LinkModalProps } from './link-modal-types'
+import type { LinkModalProps } from './link-modal-types'
 
 interface FormState {
   text: string
-  linkType: 'custom' | 'internal'
-  url: string
-  newTab: boolean
-  /** Which collection the Select is currently previewing — UI state only. */
-  targetCollection: string | null
-  /** Currently chosen document relation. `targetCollectionPath` is the
-   * source-of-truth collection for this doc and is independent of
-   * `targetCollection` so the user can explore other collections in the
-   * Select without losing their pick. */
-  picked: DocumentRelation | null
+  target: LinkTargetState
 }
 
-function emptyState(linkable: MultiCollectionDefinition[]): FormState {
-  return {
-    text: '',
-    linkType: linkable.length > 0 ? 'internal' : 'custom',
-    url: '',
-    newTab: false,
-    targetCollection: linkable[0]?.path ?? null,
-    picked: null,
-  }
-}
-
-function fromLinkData(
-  data: LinkData | undefined,
-  linkable: MultiCollectionDefinition[]
-): FormState {
-  const base = emptyState(linkable)
-  if (!data) return base
-  const fields = data.fields
-  if (!fields) return base
-  // Default to internal when:
-  //   • the stored data already says internal, or
-  //   • this is a fresh placeholder link from the toolbar (linkType: 'custom'
-  //     with an empty / `https://` url) — in that case the user hasn't
-  //     decided yet, so prefer the picker when any collection has
-  //     `linksInEditor: true`.
-  const url = fields.linkType === 'internal' ? '' : (fields.url ?? '')
-  const isPlaceholderUrl = url === '' || url === 'https://'
-  const wantsInternal = linkable.length > 0 && (fields.linkType === 'internal' || isPlaceholderUrl)
-  const linkType: 'custom' | 'internal' = wantsInternal ? 'internal' : 'custom'
-  const picked: DocumentRelation | null =
-    fields.linkType === 'internal'
-      ? {
-          targetDocumentId: fields.targetDocumentId,
-          targetCollectionId: fields.targetCollectionId,
-          targetCollectionPath: fields.targetCollectionPath,
-          document: fields.document,
-        }
-      : null
-  return {
-    text: data.text ?? '',
-    linkType,
-    // Don't surface the placeholder `https://` in the URL input — it makes
-    // the field look pre-filled with garbage.
-    url: isPlaceholderUrl ? '' : url,
-    newTab: fields.newTab ?? false,
-    targetCollection: picked?.targetCollectionPath ?? linkable[0]?.path ?? null,
-    picked,
-  }
-}
+/**
+ * A link node exists because it points somewhere, so "no target" is not a
+ * valid outcome here — unlike the inline-image modal, where the link is
+ * optional. Everything else about the target sub-form is shared.
+ */
+const LINK_TARGET_OPTIONS = { allowNone: false } as const
 
 export const LinkModal: React.FC<LinkModalProps> = ({
   isOpen = false,
@@ -113,109 +53,32 @@ export const LinkModal: React.FC<LinkModalProps> = ({
     []
   )
 
-  const [pickerOpen, setPickerOpen] = useState(false)
   const [urlError, setUrlError] = useState<string | null>(null)
 
   const [state, setState] = useModalFormState<FormState>(
     isOpen,
-    () => fromLinkData(dataFromProps, linkable),
+    () => ({
+      text: dataFromProps?.text ?? '',
+      target: fromLinkAttributes(dataFromProps?.fields, linkable, LINK_TARGET_OPTIONS),
+    }),
     () => setUrlError(null)
   )
 
-  const targetDefinition = state.targetCollection
-    ? getCollectionDefinition(state.targetCollection)
-    : null
-  const targetDef: MultiCollectionDefinition | null =
-    targetDefinition != null && !isSingleton(targetDefinition) ? targetDefinition : null
-
-  const collectionItems: SelectValue<string>[] = useMemo(
-    () => linkable.map((c) => ({ label: c.labels.singular, value: c.path })),
-    [linkable]
-  )
-
-  const pickedLabel: string | null = useMemo(() => {
-    if (state.linkType !== 'internal' || !state.picked) return null
-    const title = state.picked.document?.title
-    if (typeof title === 'string' && title.length > 0) return title
-    // No title cached — show a stable stub keyed off the collection.
-    const pickedDefinition = getCollectionDefinition(state.picked.targetCollectionPath)
-    const pickedDef =
-      pickedDefinition != null && !isSingleton(pickedDefinition) ? pickedDefinition : null
-    const short = state.picked.targetDocumentId.slice(0, 8)
-    return `${pickedDef?.labels.singular ?? state.picked.targetCollectionPath} · ${short}…`
-  }, [state.linkType, state.picked])
-
-  const handlePickerSelect = (selection: {
-    targetDocumentId: string
-    targetCollectionId: string
-    record?: Record<string, any>
-  }) => {
-    setPickerOpen(false)
-    setState((s) => {
-      const targetCollection = s.targetCollection as string
-      // Normalise the picked record into a small `{ title, path }` envelope.
-      // `useAsTitle` is always in the picker projection; `path` is top-level
-      // metadata on every list response. This is everything the public
-      // client needs to build a link to the document — no afterRead hook
-      // needed for the common case.
-      const titleField = getCollectionDefinition(targetCollection)?.useAsTitle
-      const title = titleField ? selection.record?.fields?.[titleField] : undefined
-      const path = selection.record?.path
-      const document: Record<string, any> = {}
-      if (typeof title === 'string' && title.length > 0) document.title = title
-      if (typeof path === 'string' && path.length > 0) document.path = path
-      return {
-        ...s,
-        picked: {
-          targetDocumentId: selection.targetDocumentId,
-          targetCollectionId: selection.targetCollectionId,
-          targetCollectionPath: targetCollection,
-          document: Object.keys(document).length > 0 ? document : undefined,
-        },
-      }
-    })
-  }
-
   const handleSave = () => {
-    if (state.linkType === 'custom') {
-      const url = state.url
-      if (!url.startsWith('/') && !validateUrl(url)) {
-        setUrlError('Enter a valid URL or a root-relative path starting with /')
-        return
-      }
+    const problem = validateLinkTarget(state.target)
+    if (problem != null) {
+      setUrlError(problem)
+      return
     }
-    if (state.linkType === 'internal') {
-      if (!state.picked) {
-        setUrlError('Pick a target document')
-        return
-      }
+    const fields = toLinkAttributes(state.target)
+    if (fields == null) {
+      setUrlError('Pick a target document')
+      return
     }
-
-    const picked = state.picked as DocumentRelation
-    // Always embed the picker's `{ title, path }` envelope on save —
-    // the in-editor display reads it back to render a label without a
-    // round-trip, and the server-side write-time walker
-    // (`embedRichTextFields` in `@byline/core` + `lexicalEditorEmbedServer`)
-    // refreshes / canonicalises it on persistence.
-    const fields: LinkAttributes =
-      state.linkType === 'custom'
-        ? {
-            linkType: 'custom',
-            url: state.url,
-            newTab: state.newTab,
-          }
-        : {
-            linkType: 'internal',
-            newTab: state.newTab,
-            targetDocumentId: picked.targetDocumentId,
-            targetCollectionId: picked.targetCollectionId,
-            targetCollectionPath: picked.targetCollectionPath,
-            document: picked.document,
-          }
 
     onSubmit({
       text: state.text.length > 0 ? state.text : null,
-      fields,
+      fields: fields as LinkAttributes,
     })
     onClose()
   }
@@ -223,163 +86,61 @@ export const LinkModal: React.FC<LinkModalProps> = ({
   if (!isOpen) return null
 
   return (
-    <>
-      <Modal isOpen={isOpen} onDismiss={onClose} closeOnOverlayClick={false}>
-        <Modal.Container style={{ maxWidth: '480px', width: '100%' }}>
-          <Modal.Header className="flex items-center justify-between pt-4 mb-4">
-            <h3 className="m-0 text-xl">Edit link</h3>
-            <IconButton aria-label="Close" size="xs" onClick={onClose}>
-              <CloseIcon width="15px" height="15px" svgClassName="white-icon" />
-            </IconButton>
-          </Modal.Header>
-          <Modal.Content>
-            <div className="flex flex-col gap-4">
-              <Input
-                id="link-text"
-                className="mb-2"
-                name="text"
-                label="Link text"
-                placeholder="Visible link text"
-                value={state.text}
-                onChange={(e) => setState((s) => ({ ...s, text: e.target.value }))}
-              />
+    <Modal isOpen={isOpen} onDismiss={onClose} closeOnOverlayClick={false}>
+      <Modal.Container style={{ maxWidth: '480px', width: '100%' }}>
+        <Modal.Header className="flex items-center justify-between pt-4 mb-4">
+          <h3 className="m-0 text-xl">Edit link</h3>
+          <IconButton aria-label="Close" size="xs" onClick={onClose}>
+            <CloseIcon width="15px" height="15px" svgClassName="white-icon" />
+          </IconButton>
+        </Modal.Header>
+        <Modal.Content>
+          <div className="flex flex-col gap-4">
+            <Input
+              id="link-text"
+              className="mb-2"
+              name="text"
+              label="Link text"
+              placeholder="Visible link text"
+              value={state.text}
+              onChange={(e) => setState((s) => ({ ...s, text: e.target.value }))}
+            />
 
-              {linkable.length > 0 && (
-                <RadioGroup
-                  id="link-type"
-                  name="linkType"
-                  aria-label="Link type"
-                  direction="row"
-                  value={state.linkType}
-                  onValueChange={(value) =>
-                    setState((s) => ({
-                      ...s,
-                      linkType: value === 'internal' ? 'internal' : 'custom',
-                    }))
-                  }
-                >
-                  <RadioGroupItem id="link-type-internal" value="internal" label="Document" />
-                  <RadioGroupItem id="link-type-custom" value="custom" label="Custom URL" />
-                </RadioGroup>
-              )}
-
-              {state.linkType === 'custom' && (
-                <Input
-                  id="link-url"
-                  name="url"
-                  label="URL"
-                  placeholder="https://example.com or /path"
-                  value={state.url}
-                  errorText={urlError ?? undefined}
-                  error={urlError != null}
-                  onChange={(e) => {
-                    setUrlError(null)
-                    setState((s) => ({ ...s, url: e.target.value }))
-                  }}
-                />
-              )}
-
-              {state.linkType === 'internal' && (
-                <div className="flex flex-col gap-3 mt-2">
-                  {linkable.length > 1 && (
-                    <div>
-                      <Label
-                        id="link-target-collection"
-                        htmlFor="link-target-collection"
-                        className="mb-1"
-                        label="Target collection"
-                      />
-                      <Select<string>
-                        size="sm"
-                        items={collectionItems}
-                        placeholder="Target collection"
-                        value={state.targetCollection ?? undefined}
-                        onValueChange={(value) => {
-                          if (value == null) return
-                          // Switching the Select is exploratory — we keep the
-                          // currently picked document; only the picker target
-                          // changes. Picking a new document via the picker is
-                          // the only path that replaces `picked`.
-                          setState((s) => ({ ...s, targetCollection: value }))
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  <div className="border rounded p-3">
-                    <Label
-                      id="link-target-document"
-                      htmlFor="link-target-document"
-                      className="mb-1"
-                      label="Target document"
-                    />
-
-                    <div className="flex items-center justify-between gap-2">
-                      {pickedLabel && (
-                        <span className="text-sm text-accent-400 truncate">{pickedLabel}</span>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="outlined"
-                        intent="noeffect"
-                        type="button"
-                        onClick={() => setPickerOpen(true)}
-                        disabled={!state.targetCollection}
-                      >
-                        {pickedLabel
-                          ? 'Change'
-                          : `Pick ${targetDef?.labels.singular ?? 'document'}…`}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {urlError && state.linkType === 'internal' && (
-                    <span className="text-xs text-red-400">{urlError}</span>
-                  )}
-                </div>
-              )}
-
-              <Checkbox
-                id="link-new-tab"
-                name="newTab"
-                label="Open in new tab"
-                checked={state.newTab}
-                onCheckedChange={(checked) => setState((s) => ({ ...s, newTab: checked === true }))}
-              />
-            </div>
-          </Modal.Content>
-          <Modal.Actions className="flex gap-3">
-            <Button
-              size="sm"
-              intent="noeffect"
-              type="button"
-              onClick={onClose}
-              className="min-w-[70px]"
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              intent="primary"
-              type="button"
-              onClick={handleSave}
-              className="min-w-[70px]"
-            >
-              Save
-            </Button>
-          </Modal.Actions>
-        </Modal.Container>
-      </Modal>
-
-      {state.linkType === 'internal' && state.targetCollection && (
-        <RelationPicker
-          targetCollectionPath={state.targetCollection}
-          targetDefinition={targetDef}
-          isOpen={pickerOpen}
-          onSelect={handlePickerSelect}
-          onDismiss={() => setPickerOpen(false)}
-        />
-      )}
-    </>
+            <LinkTargetFields
+              idPrefix="link"
+              state={state.target}
+              onChange={(target) => {
+                setUrlError(null)
+                setState((s) => ({ ...s, target }))
+              }}
+              linkable={linkable}
+              allowNone={false}
+              error={urlError}
+              legend="Link type"
+            />
+          </div>
+        </Modal.Content>
+        <Modal.Actions className="flex gap-3">
+          <Button
+            size="sm"
+            intent="noeffect"
+            type="button"
+            onClick={onClose}
+            className="min-w-[70px]"
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            intent="primary"
+            type="button"
+            onClick={handleSave}
+            className="min-w-[70px]"
+          >
+            Save
+          </Button>
+        </Modal.Actions>
+      </Modal.Container>
+    </Modal>
   )
 }

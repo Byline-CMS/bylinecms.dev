@@ -424,7 +424,16 @@ function serializeImage(node: AnyNode, ctx: Ctx): string {
   const src = typeof node.src === 'string' ? node.src : ''
   if (src.length === 0) return ''
   const alt = typeof node.altText === 'string' ? node.altText : ''
-  const image = `![${alt.replace(/[[\]]/g, '')}](${src})`
+  let image = `![${alt.replace(/[[\]]/g, '')}](${src})`
+
+  // Optional click-through target. Resolved through the same rules as a
+  // text link, so an unresolved internal target drops the link and keeps
+  // the image rather than emitting a broken href.
+  const link = node.link as Record<string, unknown> | undefined
+  if (link != null) {
+    const href = resolveLinkUrl(link, ctx)
+    if (href != null) image = `[${image}](${href})`
+  }
   // The caption is a nested SerializedEditor — flatten to emphasized text.
   const caption = node.caption as { editorState?: unknown } | undefined
   if (node.showCaption === true && caption?.editorState != null) {

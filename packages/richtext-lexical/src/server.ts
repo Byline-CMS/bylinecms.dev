@@ -47,7 +47,10 @@ import type {
   RichTextToTextFn,
 } from '@byline/core'
 
-import { inlineImageVisitor } from './field/extensions/inline-image/populate'
+import {
+  inlineImageLinkVisitor,
+  inlineImageVisitor,
+} from './field/extensions/inline-image/populate'
 import { linkVisitor } from './field/extensions/link/populate'
 import { type LexicalNodeVisitor, runLexicalPopulate } from './field/lexical-populate-shared'
 
@@ -72,7 +75,10 @@ import {
   lexicalToMarkdown,
 } from './field/markdown/lexical-to-markdown'
 
-export { inlineImageVisitor } from './field/extensions/inline-image/populate'
+export {
+  inlineImageLinkVisitor,
+  inlineImageVisitor,
+} from './field/extensions/inline-image/populate'
 export { linkVisitor } from './field/extensions/link/populate'
 export type { EditorConfig, EditorSettings, EditorSettingsOverride } from './field/config/types'
 export type {
@@ -91,7 +97,7 @@ export interface LexicalServerOptions {
   getClient: () => BylineClient<any>
   /**
    * Override the visitor list. Defaults to every visitor the package
-   * ships — currently `[inlineImageVisitor, linkVisitor]`. Useful when a
+   * ships — currently `[inlineImageVisitor, inlineImageLinkVisitor, linkVisitor]`. Useful when a
    * host wants to register additional custom visitors alongside the
    * built-ins, or temporarily disable a built-in:
    *
@@ -112,7 +118,7 @@ export interface LexicalServerOptions {
  * document tree, gated by each leaf field's `populateRelationsOnRead`.
  */
 export function lexicalEditorPopulateServer(options: LexicalServerOptions): RichTextPopulateFn {
-  const visitors = options.visitors ?? [inlineImageVisitor, linkVisitor]
+  const visitors = options.visitors ?? [inlineImageVisitor, inlineImageLinkVisitor, linkVisitor]
   return async (ctx: RichTextPopulateContext): Promise<void> => {
     await runLexicalPopulate({
       readContext: ctx.readContext,
@@ -162,7 +168,7 @@ export function lexicalEditorToTextServer(): RichTextToTextFn {
 }
 
 export function lexicalEditorEmbedServer(options: LexicalServerOptions): RichTextEmbedFn {
-  const visitors = options.visitors ?? [inlineImageVisitor, linkVisitor]
+  const visitors = options.visitors ?? [inlineImageVisitor, inlineImageLinkVisitor, linkVisitor]
   return async (ctx: RichTextEmbedContext): Promise<void> => {
     await runLexicalPopulate({
       readContext: ctx.readContext,

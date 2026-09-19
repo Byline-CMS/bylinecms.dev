@@ -105,6 +105,7 @@ function readNodeAsInitialData(
       altText: node.getAltText(),
       position: node.getPosition(),
       showCaption: node.getShowCaption(),
+      link: node.getLink(),
     }
   })
   return data
@@ -181,6 +182,10 @@ export function InlineImagePlugin(): React.JSX.Element {
         width: data.width,
         height: data.height,
         showCaption: data.showCaption,
+        // Spread unconditionally — `InlineImageNode.update()` keys on the
+        // presence of `link`, so omitting it would make "remove this link"
+        // a silent no-op.
+        link: data.link,
       }
 
       if (modalState.mode === 'edit' && modalState.nodeKey != null) {

@@ -11,6 +11,22 @@
   cursor: default;
 }
 
+/*
+ * A linked image gets the pointer cursor, which is honest because
+ * cmd/ctrl-click opens the target (see the CLICK_COMMAND handler in
+ * inline-image-node-component.tsx). A plain click still selects the node,
+ * so the hover hint is paired with a real action rather than promising
+ * navigation the editor never performs.
+ */
+.LexicalEditor__inline-image.has-link img {
+  cursor: pointer;
+}
+
+/* Selection and dragging outrank the link hint. */
+.LexicalEditor__inline-image.has-link img.focused.draggable {
+  cursor: grab;
+}
+
 .LexicalEditor__inline-image img.focused {
   outline: 2px solid rgb(60, 132, 244);
   /* user-select: none; */
@@ -67,6 +83,34 @@
 
 .LexicalEditor__inline-image .image-edit-button:hover {
   background-color: rgba(60, 132, 244, 0.5);
+}
+
+.LexicalEditor__inline-image .image-link-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  max-width: calc(100% - 90px);
+  padding: 1px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 5px;
+  background-color: rgba(0, 0, 0, 0.5);
+  font-size: 0.8rem;
+  color: #fff;
+  cursor: pointer;
+  user-select: none;
+}
+
+.LexicalEditor__inline-image .image-link-badge:hover {
+  background-color: rgba(60, 132, 244, 0.5);
+}
+
+.LexicalEditor__inline-image .image-link-badge__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .LexicalEditor__inline-image .InlineImageNode__caption_container {

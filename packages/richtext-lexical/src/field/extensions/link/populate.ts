@@ -45,7 +45,99 @@
 
 import { getCollectionDefinition, getLogger } from '@byline/core'
 
-import type { LexicalNodeLike, LexicalNodeVisitor } from '../../lexical-populate-shared'
+import type {
+  LexicalNodeLike,
+  LexicalNodeVisitor,
+  PendingHydration,
+} from '../../lexical-populate-shared'
+
+/**
+ * Build the `apply` / `applyMissing` pair that refreshes an internal-link
+ * relation envelope in place.
+ *
+ * Shared by `linkVisitor` (where the envelope is `node.attributes`) and by
+ * the inline-image plugin's `inlineImageLinkVisitor` (where it is
+ * `node.link`). Both carry the same `DocumentRelation` shape and want the
+ * same three branches, so the resolution rules documented above live here
+ * once rather than being copied per node type.
+ *
+ * `envelope` is mutated in place — the caller owns where it hangs off the
+ * node.
+ */
+export function createInternalLinkHydration(
+  envelope: Record<string, any>,
+  collectionPath: string,
+  documentId: string
+): Pick<PendingHydration, 'apply' | 'applyMissing'> {
+  return {
+    apply(target: Record<string, any>) {
+      const definition = getCollectionDefinition(collectionPath)
+      const useAsTitle = definition?.useAsTitle ?? 'title'
+      const targetFields = (target.fields ?? {}) as Record<string, any>
+      const next: Record<string, any> = { ...(envelope.document ?? {}) }
+
+      // Title — `useAsTitle` lookup with `title` fallback.
+      const title = targetFields[useAsTitle]
+      if (typeof title === 'string' && title.length > 0) {
+        next.title = title
+      }
+
+      // Path — buildDocumentPath, then generic compose fallback.
+      // Branch A: hook threw — leave any existing `document.path`
+      // untouched and surface a log line so operators can find the
+      // bug without it taking the save / read down with it.
+      let pathThrew = false
+      let built: string | null | undefined
+      if (definition?.buildDocumentPath != null) {
+        try {
+          built = definition.buildDocumentPath(
+            {
+              id: target.id as string,
+              path: target.path as string,
+              status: target.status as string,
+              fields: targetFields,
+            },
+            { collectionPath }
+          )
+        } catch (err) {
+          pathThrew = true
+          getLogger().info({ collectionPath, documentId, err }, 'buildDocumentPath threw')
+        }
+      }
+
+      if (!pathThrew) {
+        if (typeof built === 'string') {
+          next.path = built
+        } else {
+          // Generic compose fallback. Only fires when the target has a
+          // non-empty `path` — otherwise we'd produce `/${collectionPath}/`
+          // or `/${collectionPath}/undefined`, both of which are worse
+          // than leaving the previous value alone.
+          const targetPath = target.path as string | undefined
+          if (typeof targetPath === 'string' && targetPath.length > 0) {
+            next.path = `/${collectionPath}/${targetPath}`
+          }
+        }
+      }
+
+      // Found-and-resolved: clear any stale miss flag from a prior pass.
+      if ('_resolved' in next) {
+        delete next._resolved
+      }
+
+      envelope.document = next
+    },
+    applyMissing() {
+      // Branch B — target deleted between picker and walker.
+      getLogger().warn({ collectionPath, documentId }, 'internal link target not found')
+      const next: Record<string, any> = { ...(envelope.document ?? {}) }
+      delete next.title
+      delete next.path
+      next._resolved = false
+      envelope.document = next
+    },
+  }
+}
 
 export const linkVisitor: LexicalNodeVisitor = {
   match(node: LexicalNodeLike) {
@@ -61,72 +153,7 @@ export const linkVisitor: LexicalNodeVisitor = {
       node,
       collectionPath,
       documentId,
-      apply(target: Record<string, any>) {
-        const definition = getCollectionDefinition(collectionPath)
-        const useAsTitle = definition?.useAsTitle ?? 'title'
-        const targetFields = (target.fields ?? {}) as Record<string, any>
-        const next: Record<string, any> = { ...(attributes.document ?? {}) }
-
-        // Title — `useAsTitle` lookup with `title` fallback.
-        const title = targetFields[useAsTitle]
-        if (typeof title === 'string' && title.length > 0) {
-          next.title = title
-        }
-
-        // Path — buildDocumentPath, then generic compose fallback.
-        // Branch A: hook threw — leave any existing `document.path`
-        // untouched and surface a log line so operators can find the
-        // bug without it taking the save / read down with it.
-        let pathThrew = false
-        let built: string | null | undefined
-        if (definition?.buildDocumentPath != null) {
-          try {
-            built = definition.buildDocumentPath(
-              {
-                id: target.id as string,
-                path: target.path as string,
-                status: target.status as string,
-                fields: targetFields,
-              },
-              { collectionPath }
-            )
-          } catch (err) {
-            pathThrew = true
-            getLogger().info({ collectionPath, documentId, err }, 'buildDocumentPath threw')
-          }
-        }
-
-        if (!pathThrew) {
-          if (typeof built === 'string') {
-            next.path = built
-          } else {
-            // Generic compose fallback. Only fires when the target has a
-            // non-empty `path` — otherwise we'd produce `/${collectionPath}/`
-            // or `/${collectionPath}/undefined`, both of which are worse
-            // than leaving the previous value alone.
-            const targetPath = target.path as string | undefined
-            if (typeof targetPath === 'string' && targetPath.length > 0) {
-              next.path = `/${collectionPath}/${targetPath}`
-            }
-          }
-        }
-
-        // Found-and-resolved: clear any stale miss flag from a prior pass.
-        if ('_resolved' in next) {
-          delete next._resolved
-        }
-
-        attributes.document = next
-      },
-      applyMissing() {
-        // Branch B — target deleted between picker and walker.
-        getLogger().warn({ collectionPath, documentId }, 'internal link target not found')
-        const next: Record<string, any> = { ...(attributes.document ?? {}) }
-        delete next.title
-        delete next.path
-        next._resolved = false
-        attributes.document = next
-      },
+      ...createInternalLinkHydration(attributes, collectionPath, documentId),
     }
   },
 }

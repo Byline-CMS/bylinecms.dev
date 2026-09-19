@@ -7,6 +7,7 @@
  */
 
 import type { DocumentRelation } from '../../nodes/document-relation'
+import type { LinkAttributes } from '../link'
 import type { Position } from './node-types'
 
 /**
@@ -25,6 +26,12 @@ export interface InlineImageData {
   width?: number | string
   height?: number | string
   showCaption?: boolean
+  /**
+   * Optional click-through target. `undefined` means "no link" — and the
+   * modal always emits the key, so the node's `update()` can tell
+   * "unchanged" from "cleared".
+   */
+  link?: LinkAttributes
 }
 
 export interface InlineImageModalProps {

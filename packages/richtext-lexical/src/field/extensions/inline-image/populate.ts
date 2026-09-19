@@ -29,8 +29,10 @@
 
 import type { StoredFileValue } from '@byline/core'
 
+import { createInternalLinkHydration } from '../link/populate'
 import { deriveImageSizes, getPreferredSize } from './utils'
 import type { LexicalNodeLike, LexicalNodeVisitor } from '../../lexical-populate-shared'
+import type { LinkAttributes } from '../link'
 import type { Position } from './node-types'
 
 /**
@@ -44,6 +46,8 @@ interface InlineImageNodeLike extends LexicalNodeLike {
   position?: Position
   width?: number | string
   height?: number | string
+  /** Optional click-through target — a SECOND relation, see below. */
+  link?: LinkAttributes
 }
 
 export const inlineImageVisitor: LexicalNodeVisitor = {
@@ -75,6 +79,46 @@ export const inlineImageVisitor: LexicalNodeVisitor = {
           if (preferred?.height != null) imageNode.height = preferred.height
         }
       },
+    }
+  },
+}
+
+/**
+ * Second visitor for the same node type. An inline image carries **two**
+ * independent relations:
+ *
+ *   - the flat `DocumentRelation` envelope on the node — the *media*
+ *     document the image comes from, refreshed by `inlineImageVisitor`
+ *     above;
+ *   - `node.link` — an optional *click-through target*, which is an
+ *     unrelated document in an unrelated collection.
+ *
+ * They cannot share one visitor: `PendingHydration` addresses exactly one
+ * `{ collectionPath, documentId }` pair. `runLexicalPopulate` runs every
+ * visitor against every node and enqueues each match separately, so
+ * registering this alongside `inlineImageVisitor` hydrates both relations
+ * in the same batched pass with no change to the driver contract.
+ *
+ * Only `linkType: 'internal'` links carry a relation; custom-URL links are
+ * a literal href and are skipped. Resolution branches — found, hook threw,
+ * target missing — are the internal-link rules shared with `linkVisitor`
+ * (see `../link/populate.ts`).
+ */
+export const inlineImageLinkVisitor: LexicalNodeVisitor = {
+  match(node: LexicalNodeLike) {
+    if (node.type !== 'inline-image') return null
+    const link = (node as InlineImageNodeLike).link
+    if (link == null) return null
+    if (link.linkType !== 'internal') return null
+    const collectionPath = link.targetCollectionPath
+    const documentId = link.targetDocumentId
+    if (!collectionPath || !documentId) return null
+
+    return {
+      node,
+      collectionPath,
+      documentId,
+      ...createInternalLinkHydration(link, collectionPath, documentId),
     }
   },
 }

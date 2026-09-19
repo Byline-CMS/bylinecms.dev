@@ -110,7 +110,7 @@ function isLocalHref(href: string): boolean {
  *      walked sessions.
  *   4. Neither — strip wrapper.
  */
-function getHref(args: LinkAttributes): string {
+export function getHref(args: LinkAttributes): string {
   let href = ''
   const publicWebsiteUrl = '/' // getPublicWebsiteUrl()
 

@@ -43,9 +43,11 @@ import PlaceholderInline from '../../ui/placeholder-inline'
 import { FloatingTextFormatToolbarPlugin } from '../floating-text-format'
 import { FloatingLinkEditorPlugin } from '../link/floating-link-editor'
 import { LinkPlugin } from '../link/link-extension'
+import { resolveLinkHref } from '../link/link-href'
 import { OPEN_INLINE_IMAGE_MODAL_COMMAND } from './inline-image-extension'
 import { $isInlineImageNode } from './inline-image-node'
 import type { DocumentRelation } from '../../nodes/document-relation'
+import type { LinkAttributes } from '../link'
 import type { Position } from './node-types'
 
 import './inline-image-node-component.css'
@@ -116,6 +118,7 @@ export default function InlineImageComponent({
   height,
   showCaption,
   caption,
+  link,
   nodeKey,
 }: {
   relation: DocumentRelation
@@ -126,6 +129,7 @@ export default function InlineImageComponent({
   width?: number | string
   showCaption: boolean
   caption: LexicalEditor
+  link?: LinkAttributes
   nodeKey: NodeKey
 }): React.JSX.Element {
   const { targetDocumentId: id, targetCollectionPath: collection } = relation
@@ -140,6 +144,12 @@ export default function InlineImageComponent({
   )
 
   const activeEditorRef = useRef<LexicalEditor | null>(null)
+
+  // Held in a ref so the CLICK_COMMAND registration (which must not
+  // re-register on every link change) always reads the current target.
+  const linkHref = resolveLinkHref(link)
+  const linkHrefRef = useRef<string | null>(linkHref)
+  linkHrefRef.current = linkHref
 
   const onDelete = useCallback(
     (payload: KeyboardEvent) => {
@@ -226,6 +236,17 @@ export default function InlineImageComponent({
         (payload) => {
           const event = payload
           if (event.target === imageRef.current) {
+            // Cmd/ctrl-click opens the click target, matching the
+            // convention of every other editor that shows a pointer
+            // cursor over linked content. Without this the `has-link`
+            // cursor would promise something a plain click never does —
+            // a plain click must keep selecting the node.
+            const href = linkHrefRef.current
+            if (href != null && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault()
+              window.open(href, '_blank', 'noopener,noreferrer')
+              return true
+            }
             if (event.shiftKey) {
               setSelected(!isSelected)
             } else {
@@ -268,6 +289,22 @@ export default function InlineImageComponent({
 
   // Open the plugin-hosted modal in edit mode for this node. The plugin
   // reads the current attributes via `nodeKey` and pre-fills the form.
+  // Short, human-readable description of where the image points. Falls
+  // back to a plain warning when the target is gone, which mirrors what
+  // the public renderer does (it drops the anchor entirely).
+  const linkBadgeLabel = ((): string => {
+    if (link == null) return ''
+    if (link.linkType === 'internal') {
+      if (link.document?._resolved === false) return 'Missing target'
+      return link.document?.title ?? link.targetCollectionPath
+    }
+    try {
+      return new URL(link.url ?? '').hostname
+    } catch {
+      return link.url ?? ''
+    }
+  })()
+
   const handleToggleModal = (): void => {
     editor.dispatchCommand(OPEN_INLINE_IMAGE_MODAL_COMMAND, { nodeKey })
   }
@@ -292,6 +329,21 @@ export default function InlineImageComponent({
         >
           Edit
         </button>
+        {link != null && (
+          <button
+            type="button"
+            className="image-link-badge"
+            title={
+              linkHref != null
+                ? `Links to ${linkHref} — ⌘/Ctrl-click the image to open`
+                : 'Link target could not be resolved'
+            }
+            onClick={handleToggleModal}
+          >
+            <span aria-hidden="true">🔗</span>
+            <span className="image-link-badge__label">{linkBadgeLabel}</span>
+          </button>
+        )}
         <LazyImage
           id={id}
           collection={collection}

@@ -309,6 +309,74 @@ describe('lexicalToMarkdown — inline', () => {
     )
   })
 
+  it('wraps a linked inline image in a markdown link', () => {
+    const image = {
+      type: 'inline-image',
+      src: '/uploads/media/photo.avif',
+      altText: 'A photo',
+      showCaption: false,
+      link: { linkType: 'custom', url: 'https://example.com/report', newTab: true },
+      version: 1,
+    }
+    expect(md(root(paragraph(image)))).toBe(
+      '[![A photo](/uploads/media/photo.avif)](https://example.com/report)'
+    )
+  })
+
+  it('resolves an internal link target on a linked inline image', () => {
+    const image = {
+      type: 'inline-image',
+      src: '/uploads/media/photo.avif',
+      altText: 'A photo',
+      showCaption: false,
+      link: {
+        linkType: 'internal',
+        targetDocumentId: 'doc-1',
+        targetCollectionPath: 'pages',
+        document: { title: 'About Us', path: '/pages/about' },
+      },
+      version: 1,
+    }
+    expect(md(root(paragraph(image)))).toBe('[![A photo](/uploads/media/photo.avif)](/pages/about)')
+  })
+
+  // The link wraps the image only. The caption is separate content and
+  // may carry its own links, so nesting it inside the image's link would
+  // produce a nested-anchor shape in every downstream renderer.
+  it('links the image but not its caption', () => {
+    const image = {
+      type: 'inline-image',
+      src: '/uploads/media/photo.avif',
+      altText: 'A photo',
+      showCaption: true,
+      caption: { editorState: root(paragraph(text('Taken in 2026.'))) },
+      link: { linkType: 'custom', url: 'https://example.com/report' },
+      version: 1,
+    }
+    expect(md(root(paragraph(image)))).toBe(
+      '[![A photo](/uploads/media/photo.avif)](https://example.com/report)\n*Taken in 2026.*'
+    )
+  })
+
+  it('drops the link but keeps the image when the target is unresolved', () => {
+    const image = {
+      type: 'inline-image',
+      src: '/uploads/media/photo.avif',
+      altText: 'A photo',
+      showCaption: false,
+      link: {
+        linkType: 'internal',
+        targetDocumentId: 'doc-1',
+        targetCollectionPath: 'pages',
+        document: { _resolved: false },
+      },
+      version: 1,
+    }
+    const result = lexicalToMarkdown(root(paragraph(image)))
+    expect(result.markdown).toBe('![A photo](/uploads/media/photo.avif)')
+    expect(result.warnings).toContainEqual(expect.objectContaining({ kind: 'unresolved-link' }))
+  })
+
   it('serializes hard line breaks', () => {
     expect(
       md(root(paragraph(text('line one'), { type: 'linebreak', version: 1 }, text('line two'))))
