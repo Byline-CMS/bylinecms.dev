@@ -31,6 +31,9 @@ import { getCollectionDefinition, isSingleton } from '@byline/core'
 import {
   Button,
   Checkbox,
+  CloseIcon,
+  EditIcon,
+  IconButton,
   Input,
   Label,
   RadioGroup,
@@ -40,6 +43,8 @@ import {
 } from '@byline/ui/react'
 
 import type { LinkTargetState } from './link-target-state'
+
+import './link-target-fields.css'
 
 export interface LinkTargetFieldsProps {
   idPrefix: string
@@ -180,28 +185,64 @@ export const LinkTargetFields: React.FC<LinkTargetFieldsProps> = ({
               </div>
             )}
 
-            <div className="border rounded p-3">
+            <div>
               <Label
                 id={`${idPrefix}-document-label`}
                 htmlFor={`${idPrefix}-document`}
                 className="mb-1"
                 label="Target document"
               />
-              <div className="flex items-center justify-between gap-2">
-                {pickedLabel && (
-                  <span className="text-sm text-accent-400 truncate">{pickedLabel}</span>
+              {/*
+                Frame → tile → icon actions, matching the admin relation
+                field. A chosen document is a summary line with edit and
+                remove icons, not a text button whose label changes; an
+                empty one is a single outlined select button.
+              */}
+              <div className="byline-link-target-frame">
+                {state.picked ? (
+                  <div className="byline-link-target-tile">
+                    <span className="byline-link-target-summary">
+                      <span className="byline-link-target-kind">
+                        {targetDef?.labels.singular ?? state.picked.targetCollectionPath}
+                      </span>
+                      <span className="byline-link-target-value">{pickedLabel}</span>
+                    </span>
+                    <span className="byline-link-target-actions">
+                      <IconButton
+                        id={`${idPrefix}-document`}
+                        type="button"
+                        intent="noeffect"
+                        size="xs"
+                        aria-label={`Change ${targetDef?.labels.singular ?? 'document'}`}
+                        onClick={() => setPickerOpen(true)}
+                        disabled={!state.targetCollection}
+                      >
+                        <EditIcon width="15px" height="15px" />
+                      </IconButton>
+                      <IconButton
+                        type="button"
+                        intent="noeffect"
+                        size="xs"
+                        aria-label={`Remove ${targetDef?.labels.singular ?? 'document'}`}
+                        onClick={() => onChange({ ...state, picked: null })}
+                      >
+                        <CloseIcon width="15px" height="15px" />
+                      </IconButton>
+                    </span>
+                  </div>
+                ) : (
+                  <Button
+                    id={`${idPrefix}-document`}
+                    size="xs"
+                    variant="outlined"
+                    intent="noeffect"
+                    type="button"
+                    onClick={() => setPickerOpen(true)}
+                    disabled={!state.targetCollection}
+                  >
+                    {`Select ${targetDef?.labels.singular ?? 'document'}`}
+                  </Button>
                 )}
-                <Button
-                  id={`${idPrefix}-document`}
-                  size="sm"
-                  variant="outlined"
-                  intent="noeffect"
-                  type="button"
-                  onClick={() => setPickerOpen(true)}
-                  disabled={!state.targetCollection}
-                >
-                  {pickedLabel ? 'Change' : `Pick ${targetDef?.labels.singular ?? 'document'}…`}
-                </Button>
               </div>
             </div>
 

@@ -1,0 +1,81 @@
+/**
+ * Link-target picker — the "Target document" frame.
+ *
+ * Deliberately mirrors the admin relation field
+ * (`packages/admin/src/fields/relation/relation-field.module.css`), because
+ * this is the same job: show the chosen document and offer a way to change
+ * it. Same frame token, same primary-bordered tile, same icon-button pair,
+ * so the editor's picker reads as the widget editors already know rather
+ * than a second dialect.
+ *
+ * Own class names rather than reusing `.byline-field-relation-*`: this
+ * package renders inside hosts that may not load the admin field
+ * stylesheet, and silently inheriting another package's internals would
+ * break without warning. The values are what keep the two in step.
+ */
+
+.byline-link-target-frame {
+  margin-top: 0.25rem;
+  padding: 0.5rem;
+  border: var(--border-width-thin, 1px) var(--border-style-solid, solid) var(--field-border);
+  border-radius: var(--border-radius-md, 6px);
+}
+
+/* The chosen document: summary on the left, actions pinned right. */
+.byline-link-target-tile {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-8, 0.5rem);
+  padding: var(--spacing-8, 0.5rem);
+  border: var(--border-width-thin, 1px) var(--border-style-solid, solid) var(--primary-500);
+  border-radius: var(--border-radius-md, 6px);
+  font-size: var(--font-size-xs);
+}
+
+.byline-link-target-summary {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+/* Small "type" line above the value — the target collection's label. */
+.byline-link-target-kind {
+  color: var(--gray-500);
+}
+
+.byline-link-target-value {
+  overflow: hidden;
+  color: var(--gray-900);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.byline-link-target-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--spacing-4, 0.25rem);
+}
+
+.byline-link-target-actions .byline-button {
+  color: var(--gray-900);
+}
+
+:is([data-theme="dark"], .dark) {
+  /* A darker hairline than `--field-border` gives on this surface: the
+     modal sits on an already-raised panel, so the default reads as a
+     bright outline rather than a division. */
+  .byline-link-target-frame {
+    border-color: var(--canvas-700, var(--field-border));
+  }
+
+  .byline-link-target-value {
+    color: var(--gray-100);
+  }
+
+  .byline-link-target-actions .byline-button {
+    color: var(--gray-200);
+  }
+}
