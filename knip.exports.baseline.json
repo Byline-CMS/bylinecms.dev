@@ -1054,6 +1054,7 @@
     "packages/richtext-lexical/src/index.ts|type|SerializedEditor",
     "packages/richtext-lexical/src/index.ts|type|SerializedEditorState",
     "packages/richtext-lexical/src/index.ts|type|SerializedElementNode",
+    "packages/richtext-lexical/src/index.ts|type|SerializedLexicalNode",
     "packages/richtext-lexical/src/lexical-editor.tsx|type|LexicalEditorConfigureInput",
     "packages/richtext-lexical/src/richtext-field.tsx|export|RichTextField",
     "packages/richtext-lexical/src/scan.ts|export|scanDocument",

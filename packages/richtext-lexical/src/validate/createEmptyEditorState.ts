@@ -1,9 +1,4 @@
-import type {
-  SerializedEditorState,
-  SerializedLexicalNode,
-  SerializedParagraphNode,
-  SerializedRootNode,
-} from 'lexical'
+import type { SerializedEditorState, SerializedParagraphNode, SerializedRootNode } from 'lexical'
 
 /**
  * createEmptyEditorState
@@ -27,7 +22,7 @@ import type {
         "version": 1
     }
  */
-export function createEmptyEditorState(): SerializedEditorState<SerializedLexicalNode> {
+export function createEmptyEditorState(): SerializedEditorState {
   const emptyParagraphNode: SerializedParagraphNode = {
     children: [],
     direction: null,

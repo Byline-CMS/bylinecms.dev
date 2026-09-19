@@ -1,6 +1,5 @@
 import type {
   SerializedEditorState,
-  SerializedLexicalNode,
   SerializedParagraphNode,
   SerializedRootNode,
   SerializedTextNode,
@@ -9,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 
 import { hasText } from './hasText'
 
-type State = SerializedEditorState<SerializedLexicalNode>
+type State = SerializedEditorState
 
 import { createEmptyEditorState } from './createEmptyEditorState'
 

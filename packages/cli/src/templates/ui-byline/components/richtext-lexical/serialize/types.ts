@@ -6,10 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type {
-  SerializedLexicalNode as LexicalSerializedLexicalNode,
-  SerializedRootNode as LexicalSerializedRootNode,
-} from '@byline/richtext-lexical'
+import type { SerializedRootNode as LexicalSerializedRootNode } from '@byline/richtext-lexical'
 
 /**
  * Root of a Lexical editor state — `editorState.root` from a persisted
@@ -33,10 +30,22 @@ export interface SerializedLexicalEditorState {
  * `checked`, `attributes`, `headerState`, `kind`, etc.) without
  * enumerating every node type.
  *
- * Structurally a superset of Lexical's `SerializedLexicalNode`, so
- * values of either flavor flow through the dispatcher without casts.
+ * Deliberately standalone rather than an intersection with Lexical's
+ * `SerializedLexicalNode`. Lexical 0.51 types a nested editor's children —
+ * an inline image's caption, say — as `SerializedPartialNode[]`, whose
+ * `version` and `$slots` relax because a compact export omits what parsing
+ * restores on its own. Intersecting with the strict type reimposes those
+ * requirements at every depth (`$slots` recurses), which would reject the
+ * partial form over properties this dispatcher never reads and force a cast
+ * at every nested-editor call site.
+ *
+ * The open index signature is what makes both flavours assignable, so
+ * strict and partial nodes alike flow through the dispatcher without casts.
  */
-export type SerializedLexicalNode = LexicalSerializedLexicalNode & {
+export type SerializedLexicalNode = {
+  type: string
+  /** @deprecated Lexical writes it, nothing reads it; a compact export omits it. */
+  version?: number
   format?: number | string
   text?: string
   mode?: string

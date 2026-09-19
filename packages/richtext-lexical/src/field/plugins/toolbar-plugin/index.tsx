@@ -18,14 +18,17 @@
 import type * as React from 'react'
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 
+import { $createCodeNode, $isCodeNode, CodeNode } from '@lexical/code'
+// Lexical 0.51 moved the Prism language tables out of `@lexical/code` and
+// into `@lexical/code-prism`, alongside the tokenizer that populates them.
+// `@lexical/code-shiki` is the other highlighter and exposes
+// `getCodeLanguageOptions()` instead of these maps, so a switch to it would
+// change this dropdown's source of truth, not just its import path.
 import {
-  $createCodeNode,
-  $isCodeNode,
   CODE_LANGUAGE_FRIENDLY_NAME_MAP,
   CODE_LANGUAGE_MAP,
-  CodeNode,
   getLanguageFriendlyName,
-} from '@lexical/code'
+} from '@lexical/code-prism'
 import {
   $isListNode,
   CheckListExtension,

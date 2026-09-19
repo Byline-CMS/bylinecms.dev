@@ -1,13 +1,6 @@
-import type {
-  SerializedEditorState,
-  SerializedLexicalNode,
-  SerializedParagraphNode,
-  SerializedTextNode,
-} from 'lexical'
+import type { SerializedEditorState, SerializedParagraphNode, SerializedTextNode } from 'lexical'
 
-export function hasText(
-  value: SerializedEditorState<SerializedLexicalNode> | null | undefined
-): boolean {
+export function hasText(value: SerializedEditorState | null | undefined): boolean {
   if (value === null || value === undefined) return false
 
   const rootChildren = value.root?.children
