@@ -6,8 +6,26 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { HeroTagline } from '@/modules/home/hero-tagline'
+/**
+ * Reference home page for the demonstration site.
+ *
+ * Hero and intro are placeholder content — they exist so that a developer
+ * who has just started the dev server can see the shape of a Byline
+ * installation's home page. `RecentNews` is real: the route loader reads
+ * the three most recently published items from the `news` collection.
+ */
 
-export function HomeView() {
-  return <HeroTagline />
+import { Hero } from '@/modules/home/hero'
+import { Intro } from '@/modules/home/intro'
+import { RecentNews } from '@/modules/home/recent-news'
+import type { NewsListResult } from '@/modules/news/list'
+
+export function HomeView({ recentNews }: { recentNews: NewsListResult }) {
+  return (
+    <>
+      <Hero />
+      <Intro />
+      <RecentNews result={recentNews} />
+    </>
+  )
 }

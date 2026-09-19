@@ -19,6 +19,7 @@ import { GradientBackground } from '@/modules/home/gradient-background'
 import { AppBarFront } from '@/ui/components/app-bar-front'
 import { BreadcrumbsProvider } from '@/ui/components/breadcrumbs/breadcrumbs-provider'
 import { ContentAdminBar } from '@/ui/components/content-admin-bar'
+import { SiteFooter } from '@/ui/components/site-footer'
 import type { Locale } from '@/i18n/i18n-config'
 import type { FrontendLayoutData } from '@/ui/layouts/frontend-layout-loader'
 
@@ -51,6 +52,7 @@ export function FrontendLayout({
         <main id="main-content" className="flex flex-1 flex-col">
           {children ?? <Outlet />}
         </main>
+        <SiteFooter />
       </DocsProvider>
     </BreadcrumbsProvider>
   )
