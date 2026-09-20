@@ -245,7 +245,7 @@ async function resolveAppPassword(ctx: Context, databaseLabel: string): Promise<
     return fromEnv
   }
   const password = await ctx.prompter.password({
-    message: `Choose a password for the ${databaseLabel} application user (min 8 chars)`,
+    message: `Choose a password for that ${databaseLabel} database login (min 8 chars)`,
     validate: (value) => (value.length < 8 ? 'must be at least 8 characters' : undefined),
   })
   return password || null

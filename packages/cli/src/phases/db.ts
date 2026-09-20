@@ -79,8 +79,14 @@ export const dbPhase: Phase = {
       return { state: 'blocked' }
     }
 
+    // Not to be confused with Byline's own admin roles: this is the database
+    // login the running application connects as, created if it is absent.
+    // Postgres calls such a login a role, which reads as a permission role
+    // next to the admin roles in the CMS, so the wording says both.
     const dbUser = await ctx.prompter.text({
-      message: `Application ${adapter === 'postgres' ? 'role' : 'database user'}`,
+      message: `Database login for the app to connect as (${
+        adapter === 'postgres' ? 'a Postgres role' : 'a MySQL user'
+      }, created if it does not exist)`,
       defaultValue: 'byline',
     })
     if (!isValidDatabaseIdentifier(adapter, 'user', dbUser)) {
