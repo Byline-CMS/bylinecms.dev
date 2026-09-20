@@ -14,8 +14,8 @@ export const PhotoBlock = defineBlock({
   helpText: 'A block for displaying a photo with optional caption and alt text.',
   fields: [
     {
-      name: 'display',
-      label: 'Display',
+      name: 'position',
+      label: 'Position',
       type: 'select',
       optional: true,
       defaultValue: 'default',
