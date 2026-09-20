@@ -1,5 +1,18 @@
 # @byline/db-mysql
 
+## 6.6.0
+
+### Minor Changes
+
+- fixed **`@byline/cli`** rejecting apps that were not on the very latest release, and clarified the database login prompt during setup
+  updated the starter templates to the `position` block option and a typed block registry
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@6.6.0
+  - @byline/core@6.6.0
+
 ## 6.5.0
 
 ### Minor Changes
