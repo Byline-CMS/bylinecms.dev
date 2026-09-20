@@ -79,7 +79,7 @@ export function VideoBlock({
       ? `${video.poster.imageWidth} / ${video.poster.imageHeight}`
       : undefined
 
-  const Comp = block.display === 'full_width' ? 'div' : Container
+  const Comp = block.position === 'full_width' ? 'div' : Container
 
   return (
     <Comp
@@ -88,7 +88,7 @@ export function VideoBlock({
         'px-0',
         {
           'lg:max-w-[920px] xl:max-w-[920px] 2xl:max-w-[920px] mx-auto':
-            block.display === 'default',
+            block.position === 'default',
         },
         className
       )}
@@ -102,7 +102,7 @@ export function VideoBlock({
           className={cx('video-block--video not-prose block h-auto w-full', {
             // Editorial full-bleed. Suppressed in a narrowed column — see the
             // note on `constrained` in `document-layout.tsx`.
-            'block-full-bleed': block.display === 'full_width' && !constrainedLayout,
+            'block-full-bleed': block.position === 'full_width' && !constrainedLayout,
           })}
           controls
           playsInline

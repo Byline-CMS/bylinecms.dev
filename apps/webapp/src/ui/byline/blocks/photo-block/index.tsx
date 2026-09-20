@@ -25,13 +25,13 @@ export function PhotoBlock({
   className,
   constrainedLayout,
 }: Props): React.JSX.Element | null {
-  const { photo, alt, caption, display } = block
+  const { photo, alt, caption, position } = block
 
   // Missing, unresolved, and cycle-suppressed relations have no document.
   const media = photo?.document?.fields
   if (media == null) return null
 
-  const Comp = display === 'full_width' ? 'div' : Container
+  const Comp = position === 'full_width' ? 'div' : Container
 
   const captionRoot =
     caption != null && !Array.isArray(caption) && typeof caption === 'object'
@@ -48,7 +48,7 @@ export function PhotoBlock({
       className={cx(
         'px-0',
         {
-          'lg:max-w-[920px] xl:max-w-[920px] 2xl:max-w-[920px] mx-auto': display === 'default',
+          'lg:max-w-[920px] xl:max-w-[920px] 2xl:max-w-[920px] mx-auto': position === 'default',
         },
         className
       )}
@@ -64,7 +64,7 @@ export function PhotoBlock({
             // so `full_width` has to break out of its containing block — see
             // `styles/blocks/full-bleed.css`. Suppressed in a narrowed column,
             // which should be filled rather than escaped.
-            'block-full-bleed': display === 'full_width' && !constrainedLayout,
+            'block-full-bleed': position === 'full_width' && !constrainedLayout,
           })}
           imgClassName="photo-block--photo"
         />

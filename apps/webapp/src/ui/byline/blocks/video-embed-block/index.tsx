@@ -36,7 +36,7 @@ export function VideoEmbedBlock({
   if (videoID == null) return null
 
   const caption = block.caption as Record<string, any> | undefined
-  const Comp = block.display === 'full_width' ? 'div' : Container
+  const Comp = block.position === 'full_width' ? 'div' : Container
 
   return (
     <Comp
@@ -45,7 +45,7 @@ export function VideoEmbedBlock({
         'px-0',
         {
           'lg:max-w-[920px] xl:max-w-[920px] 2xl:max-w-[920px] mx-auto':
-            block.display === 'default',
+            block.position === 'default',
         },
         className
       )}
@@ -53,7 +53,7 @@ export function VideoEmbedBlock({
       <FadeInLift as="div" delay={0.25}>
         <iframe
           className={cx('video-embed-block--player not-prose block w-full', {
-            'block-full-bleed': block.display === 'full_width' && !constrainedLayout,
+            'block-full-bleed': block.position === 'full_width' && !constrainedLayout,
           })}
           style={{ aspectRatio: '16 / 9' }}
           src={videoEmbedSrc(provider, videoID)}

@@ -96,7 +96,7 @@ const sampleDocument = {
     },
     {
       _type: 'photoBlock',
-      display: 'wide',
+      position: 'wide',
       alt: 'Some alt text here',
       caption: {
         en: {

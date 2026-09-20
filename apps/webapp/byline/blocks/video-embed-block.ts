@@ -32,7 +32,7 @@ const captionEditorConfig: EditorConfig = (() => {
  * collection through the native player. The same two providers are also
  * available as Lexical nodes inside a `richTextBlock` — the node form is what
  * the 58 legacy YouTube embeds use. This block is the standalone form, adding
- * a `display` option and a caption the node form has no room for.
+ * a `position` option and a caption the node form has no room for.
  */
 export const VideoEmbedBlock = defineBlock({
   blockType: 'videoEmbedBlock',
@@ -50,8 +50,8 @@ export const VideoEmbedBlock = defineBlock({
       ],
     },
     {
-      name: 'display',
-      label: 'Display',
+      name: 'position',
+      label: 'Position',
       type: 'select',
       optional: true,
       defaultValue: 'default',

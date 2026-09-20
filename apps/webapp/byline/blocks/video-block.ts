@@ -27,8 +27,8 @@ export const VideoBlock = defineBlock({
   helpText: 'A video with an optional mobile source and caption.',
   fields: [
     {
-      name: 'display',
-      label: 'Display',
+      name: 'position',
+      label: 'Position',
       type: 'select',
       optional: true,
       defaultValue: 'default',
