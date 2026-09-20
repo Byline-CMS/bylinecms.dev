@@ -32,7 +32,7 @@ export async function getPageMarkdown(lng: string, path: string): Promise<string
     collection: 'pages',
     lng,
     path,
-    populate: { featureImage: '*', photo: '*' },
+    populate: { featureImage: '*', photo: '*', video: '*', videoMobile: '*' },
     canonicalSegments: (fields) => [...(AREA_PREFIX[fields.area ?? 'root'] ?? []), path],
   })
 }

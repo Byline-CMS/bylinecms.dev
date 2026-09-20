@@ -6,6 +6,8 @@ import { FAQBlock } from '@/ui/byline/blocks/faq-block'
 import { PhotoBlock } from '@/ui/byline/blocks/photo-block'
 import { QuoteBlock } from '@/ui/byline/blocks/quote-block'
 import { RichTextBlock } from '@/ui/byline/blocks/richtext-block'
+import { VideoBlock } from '@/ui/byline/blocks/video-block'
+import { VideoEmbedBlock } from '@/ui/byline/blocks/video-embed-block'
 import { toKebabCase } from '@/ui/utils/to-kebab-case'
 import type { Locale } from '@/i18n/i18n-config'
 import type { PopulatedContentBlock } from '@/lib/content-types'
@@ -44,6 +46,8 @@ const blockComponents: BlockRegistry = {
   codeBlock: CodeBlock,
   quoteBlock: QuoteBlock,
   faqBlock: FAQBlock,
+  videoBlock: VideoBlock,
+  videoEmbedBlock: VideoEmbedBlock,
 }
 
 /**

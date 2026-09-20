@@ -26,12 +26,15 @@ import { defineAdminConfig } from '@byline/core'
 import { FAQBlockAdmin } from './blocks/faq-block.admin.js'
 import { PhotoBlockAdmin } from './blocks/photo-block.admin.js'
 import { QuoteBlockAdmin } from './blocks/quote-block.admin.js'
+import { VideoBlockAdmin } from './blocks/video-block.admin.js'
+import { VideoEmbedBlockAdmin } from './blocks/video-embed-block.admin.js'
 import { DocsAdmin } from './collections/docs/admin.js'
 import { collections } from './collections/index.js'
 import { MediaAdmin } from './collections/media/admin.js'
 import { NewsAdmin } from './collections/news/admin.js'
 import { NewsCategoriesAdmin } from './collections/news-categories/admin.js'
 import { PagesAdmin } from './collections/pages/admin.js'
+import { VideosAdmin } from './collections/videos/admin.js'
 import { LexicalRichTextAi } from './fields/richtext/lexical-richtext-ai.js'
 import { i18n } from './i18n.js'
 import { routes } from './routes.js'
@@ -60,14 +63,28 @@ export const config: AdminConfig = {
   // Per-collection presentation config: labels, columns, widgets, and other
   // admin-only behavior. Every entry corresponds to one schema in
   // `collections`; array order supplies the ungrouped dashboard order.
-  admin: [DocsAdmin, NewsAdmin, PagesAdmin, MediaAdmin, NewsCategoriesAdmin, SiteSettingsAdmin],
+  admin: [
+    DocsAdmin,
+    NewsAdmin,
+    PagesAdmin,
+    MediaAdmin,
+    VideosAdmin,
+    NewsCategoriesAdmin,
+    SiteSettingsAdmin,
+  ],
   // Per-block admin config, keyed by blockType — applies wherever the block
   // renders. Quote/Photo opt a block richtext field into the minimal
   // editor (extension half of `lexicalRichTextMinimal`, see the block
   // schema files) while the site-wide registration below stays AI-enabled.
   // FAQ is the dotted schema-path reference: its `faq.answer` key reaches
   // the answer field inside the block's array.
-  blockAdmin: [QuoteBlockAdmin, PhotoBlockAdmin, FAQBlockAdmin],
+  blockAdmin: [
+    QuoteBlockAdmin,
+    PhotoBlockAdmin,
+    FAQBlockAdmin,
+    VideoBlockAdmin,
+    VideoEmbedBlockAdmin,
+  ],
   // Site-wide defaults for field editors. Collection-specific field admin
   // config can still override these choices.
   fields: {

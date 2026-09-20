@@ -16,8 +16,9 @@ import { Media } from './media/schema.js'
 import { News } from './news/schema.js'
 import { NewsCategories } from './news-categories/schema.js'
 import { Pages } from './pages/schema.js'
+import { Videos } from './videos/schema.js'
 
-export const collections = [Docs, News, Pages, Media, NewsCategories, SiteSettings] as const
+export const collections = [Docs, News, Pages, Media, Videos, NewsCategories, SiteSettings] as const
 
 export type InferredBylineCollections = InferCollectionRegistry<typeof collections>
 export type BylineCollections = CollectionFieldsByPath

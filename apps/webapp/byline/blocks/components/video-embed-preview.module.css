@@ -1,0 +1,29 @@
+/**
+ * VideoEmbedPreview — thumbnail shown beneath the `videoEmbedBlock` URL field.
+ */
+
+.frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 13rem;
+  height: 7.5rem;
+  margin-top: 0.5rem;
+  overflow: hidden;
+  border-radius: var(--border-radius-sm);
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-700);
+  background-color: var(--gray-800);
+  color: var(--gray-500);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.warning {
+  color: var(--color-warning, var(--gray-400));
+}
+
+.thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

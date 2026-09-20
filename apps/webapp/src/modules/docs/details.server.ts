@@ -53,7 +53,11 @@ export async function getDocBySplat({ splat, lng }: DocSplatInput): Promise<DocS
         locale: lng,
         status: preview ? 'any' : 'published',
         enforceSpine: !preview,
-        populate: { featureImage: '*', photo: '*' },
+        // A block's relation is only resolved if it is named here: an
+        // unnamed one arrives as a bare envelope and the block renders as
+        // nothing. Keep in step with the block set on this collection's
+        // `content` field.
+        populate: { featureImage: '*', photo: '*', video: '*', videoMobile: '*' },
       }),
   })
 }

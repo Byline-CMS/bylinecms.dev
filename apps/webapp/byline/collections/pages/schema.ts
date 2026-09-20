@@ -14,6 +14,8 @@ import { FAQBlock } from '~/blocks/faq-block'
 import { PhotoBlock } from '~/blocks/photo-block'
 import { QuoteBlock } from '~/blocks/quote-block'
 import { RichTextBlock } from '~/blocks/richtext-block'
+import { VideoBlock } from '~/blocks/video-block'
+import { VideoEmbedBlock } from '~/blocks/video-embed-block'
 import { publishedOnField } from '~/fields/published-on-field'
 
 // ---- Schema (server-safe, no UI concerns) ----
@@ -126,7 +128,15 @@ export const Pages = defineCollection({
       label: 'Content',
       type: 'blocks',
       optional: true,
-      blocks: [RichTextBlock, PhotoBlock, CodeBlock, QuoteBlock, FAQBlock],
+      blocks: [
+        RichTextBlock,
+        PhotoBlock,
+        CodeBlock,
+        QuoteBlock,
+        FAQBlock,
+        VideoBlock,
+        VideoEmbedBlock,
+      ],
     },
     // ── Search-engine and social metadata ──────────────────────────────
     // Optional throughout: a page is publishable without any of it, and the

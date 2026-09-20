@@ -24,10 +24,10 @@ import type { ClientDocument, WithPopulated } from '@byline/client'
 import type { DocsFields as DocFields, MediaFields } from '@byline/generated-types'
 
 import { publicCacheMiddleware } from '@/middleware/public-cache'
-import type { WithPopulatedPhotoBlockContent } from '@/lib/content-types'
+import type { WithPopulatedBlockContent } from '@/lib/content-types'
 import type { DocTreeResolution } from './resolve.server'
 
-export type DocDetailsFields = WithPopulatedPhotoBlockContent<
+export type DocDetailsFields = WithPopulatedBlockContent<
   WithPopulated<DocFields, 'featureImage', MediaFields>
 >
 

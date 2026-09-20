@@ -30,9 +30,9 @@ import type { ClientDocument, WithPopulated } from '@byline/client'
 import type { MediaFields, PagesFields as PageFields } from '@byline/generated-types'
 
 import { publicCacheMiddleware } from '@/middleware/public-cache'
-import type { WithPopulatedPhotoBlockContent } from '@/lib/content-types'
+import type { WithPopulatedBlockContent } from '@/lib/content-types'
 
-export type PageDetailsFields = WithPopulatedPhotoBlockContent<
+export type PageDetailsFields = WithPopulatedBlockContent<
   WithPopulated<PageFields, 'featureImage', MediaFields>
 >
 

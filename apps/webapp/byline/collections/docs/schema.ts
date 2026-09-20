@@ -14,6 +14,8 @@ import { FAQBlock } from '../../blocks/faq-block.js'
 import { PhotoBlock } from '../../blocks/photo-block.js'
 import { QuoteBlock } from '../../blocks/quote-block.js'
 import { RichTextBlock } from '../../blocks/richtext-block.js'
+import { VideoBlock } from '../../blocks/video-block.js'
+import { VideoEmbedBlock } from '../../blocks/video-embed-block.js'
 import { publishedOnField } from '../../fields/published-on-field.js'
 
 // ---- Schema (server-safe, no UI concerns) ----
@@ -111,7 +113,15 @@ export const Docs = defineCollection({
       label: 'Content',
       type: 'blocks',
       optional: true,
-      blocks: [RichTextBlock, PhotoBlock, CodeBlock, QuoteBlock, FAQBlock],
+      blocks: [
+        RichTextBlock,
+        PhotoBlock,
+        CodeBlock,
+        QuoteBlock,
+        FAQBlock,
+        VideoBlock,
+        VideoEmbedBlock,
+      ],
     },
   ],
 })

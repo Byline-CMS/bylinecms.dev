@@ -1,0 +1,24 @@
+/**
+ * VideoPosterThumbnail — preview cell for the Videos list view and relation
+ * picker.
+ */
+
+.placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 3rem;
+  border-radius: var(--border-radius-sm);
+  background-color: var(--gray-800);
+  color: var(--gray-600);
+  font-size: 0.6rem;
+}
+
+.thumbnail {
+  width: 4.5rem;
+  height: 3rem;
+  object-fit: cover;
+  border-radius: var(--border-radius-sm);
+  border: var(--border-width-thin) var(--border-style-solid) var(--gray-700);
+}
