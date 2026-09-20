@@ -1,4 +1,5 @@
 import { Section } from '@byline/ui/react'
+import cx from 'clsx'
 
 import { CodeBlock } from '@/ui/byline/blocks/code-block'
 import { FAQBlock } from '@/ui/byline/blocks/faq-block'
@@ -29,7 +30,11 @@ export function RenderBlocks({
         if (content == null) return null
 
         return (
-          <Section className={toKebabCase(block._type)} key={block._id}>
+          // `content-block` carries the vertical rhythm between blocks — see
+          // `styles/blocks/rhythm.css`. It lives here rather than in each
+          // block so every block, including ones added later, is spaced the
+          // same way and no block can forget.
+          <Section className={cx('content-block', toKebabCase(block._type))} key={block._id}>
             {content}
           </Section>
         )

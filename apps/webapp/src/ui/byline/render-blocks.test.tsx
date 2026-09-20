@@ -60,4 +60,15 @@ describe('RenderBlocks', () => {
     expect(markup).toContain('A memorable line')
     expect(markup).toContain('A. Author')
   })
+
+  it('wraps every block in the shared vertical rhythm class', () => {
+    const richText = {
+      _id: 'rt1',
+      _type: 'richTextBlock',
+      richText: { root: { children: [] } },
+    } satisfies PopulatedContentBlock
+
+    const markup = renderToStaticMarkup(RenderBlocks({ blocks: [richText], lng: 'en' }))
+    expect(markup).toContain('content-block')
+  })
 })

@@ -1,0 +1,38 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ *
+ * Vertical rhythm between body blocks.
+ *
+ * Applied to the `<Section>` wrapper `render-blocks.tsx` puts around every
+ * block, so one rule covers every block type and a block added later inherits
+ * it without having to remember. Blocks keep their own *internal* padding —
+ * that belongs to the block's design — while the space *between* blocks is
+ * owned here.
+ *
+ * Adjacent siblings collapse, so two blocks are separated by 2rem rather than
+ * 4rem. Collapse also runs through a block's own first/last child when that
+ * child carries a margin (a rich-text block's opening paragraph, say), which
+ * makes this value a floor rather than an addition: prose keeps its own
+ * spacing, and the rhythm only takes over where it is larger. That is why the
+ * block wrappers must not gain vertical padding to "help" — padding stops the
+ * collapse and the spacing turns additive.
+ *
+ * Zeroed at the ends so the column starts and finishes flush: the space
+ * belongs between blocks, not around the set.
+ */
+
+.content-block {
+  margin-block: 2rem;
+}
+
+.content-block:first-child {
+  margin-top: 0;
+}
+
+.content-block:last-child {
+  margin-bottom: 0;
+}

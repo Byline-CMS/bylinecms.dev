@@ -45,7 +45,7 @@ export function FAQBlock({
   }
 
   return (
-    <Container id={id} className={cx('py-4', { 'px-0': constrainedLayout }, className)}>
+    <Container id={id} className={cx({ 'px-0': constrainedLayout }, className)}>
       <div className="mx-auto max-w-[920px]">
         <Accordion.Root
           render={<ul className="pl-4 !my-0" />}

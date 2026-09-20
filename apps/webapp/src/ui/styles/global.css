@@ -53,4 +53,6 @@
 @import "./layouts/grid.css";
 @import "./layouts/sections.css";
 @import "./layouts/inline-layouts.css";
+@import "./blocks/caption.css";
+@import "./blocks/rhythm.css";
 @import "./app.css";
