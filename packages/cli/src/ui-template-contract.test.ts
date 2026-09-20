@@ -37,16 +37,22 @@ describe('public block renderer templates', () => {
       ...contentBlockNames('PagesFields'),
     ])
     const expectedTypes = [...blockNames].map(blockDiscriminant).sort()
-    const switchStatement = renderer
-      .getDescendantsOfKind(SyntaxKind.SwitchStatement)
-      .find((node) => node.getExpression().getText() === 'block._type')
-    const renderedTypes = switchStatement
-      ?.getCaseBlock()
-      .getClauses()
-      .flatMap((clause) => {
-        if (!clause.isKind(SyntaxKind.CaseClause)) return []
-        const expression = clause.getExpression()
-        return expression.isKind(SyntaxKind.StringLiteral) ? [expression.getLiteralValue()] : []
+    // The renderer is a `_type`-keyed registry. `BlockRegistry` makes a
+    // missing entry a compile error in a scaffolded app, but nothing
+    // typechecks the templates here (see templates-editor-api-drift), so the
+    // registry's keys are compared against the generated discriminants
+    // directly.
+    const registry = renderer
+      .getVariableDeclarationOrThrow('blockComponents')
+      .getInitializerIfKindOrThrow(SyntaxKind.ObjectLiteralExpression)
+    const renderedTypes = registry
+      .getProperties()
+      .flatMap((property) => {
+        if (!property.isKind(SyntaxKind.PropertyAssignment)) return []
+        const name = property.getNameNode()
+        if (name.isKind(SyntaxKind.StringLiteral)) return [name.getLiteralValue()]
+        if (name.isKind(SyntaxKind.Identifier)) return [name.getText()]
+        return []
       })
       .sort()
 
@@ -57,7 +63,7 @@ describe('public block renderer templates', () => {
     expect(contentTypes.getTypeAliasOrThrow('ContentBlock').getTypeNodeOrThrow().getText()).toBe(
       'ContentBlockOf<DocsFields> | ContentBlockOf<PagesFields>'
     )
-    expect(contentTypes.getTypeAlias('WithPopulatedPhotoBlockContent')).toBeDefined()
+    expect(contentTypes.getTypeAlias('WithPopulatedBlockContent')).toBeDefined()
   })
 
   it('typechecks the populated union and consumer-specific overlay contract', () => {
@@ -101,7 +107,7 @@ describe('public block renderer templates', () => {
         import type { DocsFields, MediaFields, PagesFields } from './generated.js'
         import type {
           PopulatedContentBlock,
-          WithPopulatedPhotoBlockContent,
+          WithPopulatedBlockContent,
         } from './content.js'
 
         type Equal<Left, Right> =
@@ -120,7 +126,7 @@ describe('public block renderer templates', () => {
           content?: Array<NonNullable<PagesFields['content']>[number] | PagesOnlyBlock>
         }
         type PopulatedExtendedBlock = NonNullable<
-          WithPopulatedPhotoBlockContent<ExtendedPages>['content']
+          WithPopulatedBlockContent<ExtendedPages>['content']
         >[number]
 
         type PopulatedUnionContract = Assert<Equal<PopulatedContentBlock, ExpectedBlock>>
