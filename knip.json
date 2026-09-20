@@ -16,10 +16,9 @@
         "byline/seeds/**/*.ts",
         "byline/scripts/**/*.ts",
         "byline/collections/**/index.ts",
-        "byline/collections/**/hooks.ts",
-        "e2e/**/*.ts"
+        "byline/collections/**/hooks.ts"
       ],
-      "project": ["src/**", "byline/**", "e2e/**"]
+      "project": ["src/**", "byline/**"]
     },
     "packages/cli": {
       "entry": ["src/cli.ts", "tests/**/*.ts"],

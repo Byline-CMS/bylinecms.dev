@@ -160,55 +160,41 @@ Watch mode (re-runs on file change) is a per-package script; run it from inside 
 cd packages/core && pnpm test:watch
 ```
 
-## Legacy editor smoke suite (paused)
+## Browser verification
 
-:::note[Not a release gate]
-The repository still contains the previous Playwright editor and agent-surface
-specifications, but Byline no longer uses Playwright as a current release gate.
-Do not add new coverage to these suites or report an unrun Playwright command as
-passing evidence. The instructions below document the retained files for
-maintenance until they are removed or replaced.
-:::
+Byline has no automated browser suite. The Playwright editor smoke suite and the
+agent-surface route specifications were removed, and no replacement harness has
+been adopted. Do not add Playwright specifications or report a browser
+command as passing evidence for a change.
 
-Browser-level happy paths over the admin document editor: the regression net for the
-surfaces unit tests structurally can't see (`@byline/admin` forms/fields, host-adapter
-server fns, richtext) and for Lexical / TanStack Start version bumps. Lives in
-`apps/webapp/e2e/` with `apps/webapp/playwright.config.ts`. Scope is ~10–15 happy-path
-scenarios, not coverage (see the growth checklist at the top of
-`apps/webapp/e2e/editor-smoke.spec.ts`).
+Verify browser behaviour by hand against a running development server, and record
+what you exercised and what you observed. Boot the server with the development
+Postgres up and `byline_dev` migrated and seeded:
 
 ```sh
-# One-time per machine
-cd apps/webapp && pnpm exec playwright install chromium
-
-# Requirements: dev Postgres up, byline_dev migrated + seeded, and .env.local
-# carrying BYLINE_SUPERADMIN_EMAIL / BYLINE_SUPERADMIN_PASSWORD
-cd apps/webapp && pnpm tsx byline/seed.ts   # if not already seeded
-
-# Run (starts or reuses the Vite dev server on :5173)
-cd apps/webapp && pnpm test:e2e
-cd apps/webapp && pnpm test:e2e:ui          # headed UI mode
+cd postgres && ./postgres.sh up -d
+cd apps/webapp && pnpm tsx byline/seed.ts
+cd apps/webapp && pnpm dev
 ```
 
-The retained `setup` project signs in through the real form (the surface the
-v3.5.1 form-GET leak lived on) and persists the session to
-`e2e/.auth/admin.json` for the other projects. Tests that mutate documents create their
-own document first, so reruns stay clean against a long-lived dev database.
+Two behaviours are worth knowing before you interact with the admin document
+editor. Interactions that land before React hydrates set native input values
+without reaching the form context, so the dirty-gated Save button never enables,
+and a submit before hydration falls back to the native form post. Wait for
+hydration before you click. Documents you create during a check persist in the
+long-lived development database, so name them so you can find and remove them
+afterwards.
 
-**Hydration caveat:** interactions that land before React hydrates set native input values
-without reaching the form context, so the dirty-gated Save button never enables, and a
-pre-hydration submit falls back to the native form post. The retained suite's
-`waitForHydration` helper inspects React fiber keys before interacting after a
-full page load.
+`apps/webapp/tests/manual/` holds hand-written manual scripts for flows that
+repay a repeatable checklist, such as repeating-field identity across reorder and
+upload. Copy a script to a new file with a fresh timestamp suffix, record the
+branch and commit under test, and preserve the completed result log.
 
-## Legacy agent-surface specs (Playwright)
-
-The same Playwright run carries contract specs for the public agent-facing routes,
-alongside the editor smoke suite: `e2e/sitemap.spec.ts` (dynamic `sitemap.xml` with
-hreflang alternates), `e2e/markdown.spec.ts` (the `.md` document representations), and
-`e2e/llms.spec.ts` (the `llms.txt` index). These pin the served output of the markdown
-export surface. The format contract itself is documented in
-[Markdown Export](./05-reading-and-delivery/04-markdown-export.md) and unit-pinned in `packages/richtext-lexical`
-and `packages/core`; the e2e specs cover the route/negotiation layer on top (locale
-prefixing, caching headers, the `Accept: text/markdown` redirect). Same requirements as
-above: seeded dev database, `pnpm test:e2e`.
+The public agent-facing routes — `sitemap.xml`, the `.md` document
+representations, and `llms.txt` — no longer have route-level coverage. The
+serialization format they expose is still pinned by unit tests in
+`packages/core` (`document-to-markdown.test.node.ts`) and
+`packages/richtext-lexical`, and the `Accept: text/markdown` negotiation rule is
+pinned by `apps/webapp/src/lib/markdown-negotiation.test.ts`. What is unpinned is
+the route layer on top: locale prefixing, caching headers, and the redirect
+itself. Check those by hand when you change them.

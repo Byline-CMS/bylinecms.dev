@@ -73,7 +73,7 @@
 - Package node tests conventionally use `*.test.node.ts`; client integration tests use `*.integration.test.ts`; db-postgres integration tests live under `src/**/tests/**/*.test.ts`.
 - `packages/db-postgres` intentionally has no unit suite: its `pnpm test` is a message; use its integration mode.
 - Check each package's `vitest.config.ts` before adding browser tests: plain `*.test.tsx` is not discovered by every package's default `pnpm test`.
-- Playwright is separate: `pnpm --filter @byline/webapp test:e2e` requires migrated/seeded `byline_dev`, `.env.local` admin credentials, and Chromium. Tests mutate data serially.
+- There is no automated browser suite. Playwright was removed; do not add it back or treat a browser command as a gate. Verify browser behaviour by hand against a running dev server and record what you observed.
 
 ## Commits
 

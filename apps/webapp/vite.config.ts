@@ -36,7 +36,7 @@ const browserAsyncHooksAlias = (): Plugin => ({
 
 // Dev-only: let content `.md` URLs reach the TanStack Start SSR handler.
 // Vite's dev middlewares claim extension-bearing requests whose `Accept`
-// header is not `text/html` (curl, agents, Playwright `request` — exactly
+// header is not `text/html` (curl, agents, HTTP clients — exactly
 // the clients the markdown surface serves) and 404 them as missing static
 // files before Start's catch-all runs. Production has no Vite middleware,
 // so without this shim dev and prod would diverge on the feature's primary

@@ -183,7 +183,7 @@ Mechanics worth knowing (each cost a spike to learn):
   with the default locale like the HTML page, while `/llms.txt` and
   `/sitemap.xml` stay locale-less. Pinned in `locale-rewrite.test.ts`.
 - **Dev-server passthrough.** Vite's dev middlewares claim `.md` requests
-  whose `Accept` header is not `text/html` (curl, agents, Playwright — the
+  whose `Accept` header is not `text/html` (curl, agents, HTTP clients — the
   feature's actual consumers) and 404 them as missing static files before
   Start's catch-all runs. `devMarkdownPassthrough` (`vite.config.ts`)
   normalises `Accept` on `.md` GETs in dev only; production has no Vite
