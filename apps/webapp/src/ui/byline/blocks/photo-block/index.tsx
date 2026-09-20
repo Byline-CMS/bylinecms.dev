@@ -59,7 +59,13 @@ export function PhotoBlock({
           size="large"
           constrainedLayout={constrainedLayout}
           alt={alt ?? media.altText ?? ''}
-          className="photo-block"
+          className={cx('photo-block', {
+            // Editorial full-bleed: the block renders inside a `<Container>`,
+            // so `full_width` has to break out of its containing block — see
+            // `styles/blocks/full-bleed.css`. Suppressed in a narrowed column,
+            // which should be filled rather than escaped.
+            'block-full-bleed': display === 'full_width' && !constrainedLayout,
+          })}
           imgClassName="photo-block--photo"
         />
         {captionChildren != null && (

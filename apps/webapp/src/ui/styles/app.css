@@ -1,3 +1,16 @@
+/**
+ * Full-bleed blocks (`display: full_width`) span `100vw`, which includes the
+ * classic scrollbar, so they overhang each viewport edge by roughly half its
+ * width. Clip that WITHOUT creating a scroll container: `overflow-x: hidden`
+ * would force the other axis to `auto`, making html/body the nearest
+ * scrollport and breaking `position: sticky` on anything above. `clip` does
+ * not. Do not "tidy" this to `hidden`.
+ */
+html,
+body {
+  overflow-x: clip;
+}
+
 body {
   background-color: white;
 }

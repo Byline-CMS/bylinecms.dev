@@ -1,0 +1,31 @@
+/**
+ * This Source Code is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright (c) Infonomic Company Limited
+ *
+ * Editorial full-bleed for a block's `full_width` display option.
+ *
+ * Body blocks render inside a `<Container>`, which caps width and adds a
+ * gutter, so a full-width block cannot reach the viewport edge by markup
+ * alone — it has to break out of its own containing block. The centred-
+ * container formula does that: pull each margin out by the distance from the
+ * container's edge to the viewport's, then span a full viewport width.
+ *
+ * `100vw` includes the classic scrollbar, so the element overhangs each edge
+ * by roughly half the scrollbar width. That is deliberate — it guarantees no
+ * sliver of page background shows at either edge — and it is why `app.css`
+ * clips horizontal overflow on `html, body`. Do not "fix" that with
+ * `overflow-x: hidden`; the note there explains why.
+ *
+ * Applied by the block only when it is NOT inside a narrowed column
+ * (`constrainedLayout`), since a block in a sidebar or a half-width column
+ * should fill that column rather than the viewport.
+ */
+
+.block-full-bleed {
+  width: 100vw;
+  max-width: 100vw;
+  margin-inline: calc(50% - 50vw);
+}
