@@ -28,12 +28,14 @@ const [CURRENT_MAJOR, CURRENT_MINOR, CURRENT_PATCH] = CURRENT_VERSION.split('.')
 ]
 const NEXT_MAJOR_VERSION = `${CURRENT_MAJOR + 1}.0.0`
 const SAME_MAJOR_LATER_VERSION = `${CURRENT_MAJOR}.${CURRENT_MINOR}.${CURRENT_PATCH + 1}`
-const BELOW_FLOOR_VERSION =
-  CURRENT_PATCH > 0
-    ? `${CURRENT_MAJOR}.${CURRENT_MINOR}.${CURRENT_PATCH - 1}`
-    : CURRENT_MINOR > 0
-      ? `${CURRENT_MAJOR}.${CURRENT_MINOR - 1}.99`
-      : `${CURRENT_MAJOR - 1}.99.99`
+/**
+ * Genuinely outside the supported range. The CLI accepts its whole major
+ * line, so only a previous major is below the floor — an earlier release
+ * within the same major is supported (see EARLIER_SAME_MAJOR_VERSION).
+ */
+const BELOW_FLOOR_VERSION = `${CURRENT_MAJOR - 1}.0.0`
+/** The oldest release this CLI still supports: its own major's baseline. */
+const EARLIER_SAME_MAJOR_VERSION = `${CURRENT_MAJOR}.0.0`
 afterEach(() => {
   for (const ctx of contexts.splice(0)) rmSync(ctx.cwd, { recursive: true, force: true })
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
@@ -115,6 +117,13 @@ describe('Byline dependency compatibility', () => {
     [`workspace:${CURRENT_VERSION}`, true],
     [`workspace:^${BELOW_FLOOR_VERSION}`, false],
     [`^${BELOW_FLOOR_VERSION}`, false],
+    // An app one release behind this CLI is still supported. `npx` always
+    // fetches the newest CLI, so gating on the CLI's own version rejected
+    // every app that was not on the latest release.
+    [`^${EARLIER_SAME_MAJOR_VERSION}`, true],
+    [`workspace:^${EARLIER_SAME_MAJOR_VERSION}`, true],
+    [`~${EARLIER_SAME_MAJOR_VERSION}`, true],
+    [EARLIER_SAME_MAJOR_VERSION, true],
     [`>=${CURRENT_VERSION}`, false],
     [`^${NEXT_MAJOR_VERSION}`, false],
     [`${BYLINE_VERSION} || ^${NEXT_MAJOR_VERSION}`, false],

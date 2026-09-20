@@ -8,8 +8,8 @@ describe('deriveBylineReleasePolicy', () => {
       '3.21.0',
       {
         dependencyRange: '^3.21.0',
-        supportedRange: '>=3.21.0 <4.0.0-0',
-        displayFloor: '3.21.x+',
+        supportedRange: '>=3.0.0 <4.0.0-0',
+        displayFloor: '3.x',
       },
     ],
     [
@@ -17,15 +17,15 @@ describe('deriveBylineReleasePolicy', () => {
       {
         dependencyRange: '^4.0.0',
         supportedRange: '>=4.0.0 <5.0.0-0',
-        displayFloor: '4.0.x+',
+        displayFloor: '4.x',
       },
     ],
     [
       '5.2.1',
       {
         dependencyRange: '^5.2.1',
-        supportedRange: '>=5.2.1 <6.0.0-0',
-        displayFloor: '5.2.x+',
+        supportedRange: '>=5.0.0 <6.0.0-0',
+        displayFloor: '5.x',
       },
     ],
   ])('derives the lockstep policy for %s', (version, expected) => {
