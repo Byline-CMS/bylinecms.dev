@@ -1,5 +1,17 @@
 # @byline/core
 
+## 6.5.0
+
+### Minor Changes
+
+- added optional click-through links to inline images in **`@byline/richtext-lexical`**, targeting a Byline document or an arbitrary url, with the document target refreshed on save and read and its anchor dropped rather than broken when that target goes away
+  migrated to the Lexical 0.51 code and serialization apis, and made the password reveal toggle keyboard accessible across every admin password field
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/auth@6.5.0
+
 ## 6.4.0
 
 ### Minor Changes
