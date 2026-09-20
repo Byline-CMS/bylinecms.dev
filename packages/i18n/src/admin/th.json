@@ -13,6 +13,8 @@
   "common.actions.restore": "กู้คืน",
   "common.actions.search": "ค้นหา",
   "common.actions.select": "เลือก",
+  "common.actions.showPassword": "แสดงรหัสผ่าน",
+  "common.actions.hidePassword": "ซ่อนรหัสผ่าน",
   "common.pager.previous": "ก่อนหน้า",
   "common.pager.next": "ถัดไป",
   "common.pager.pageOf": "หน้า {page, number} จาก {total, number}",

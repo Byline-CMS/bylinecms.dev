@@ -13,6 +13,8 @@
   "common.actions.restore": "Restore",
   "common.actions.search": "Search",
   "common.actions.select": "Select",
+  "common.actions.showPassword": "Show password",
+  "common.actions.hidePassword": "Hide password",
   "common.pager.previous": "Previous",
   "common.pager.next": "Next",
   "common.pager.pageOf": "Page {page, number} of {total, number}",

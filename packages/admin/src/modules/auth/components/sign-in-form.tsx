@@ -27,7 +27,7 @@ import { type FormEvent, useState } from 'react'
 
 import { getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
-import { Alert, Button, Card, Input, LoaderEllipsis } from '@byline/ui/react'
+import { Alert, Button, Card, Input, InputPassword, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'clsx'
 
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'
@@ -111,12 +111,13 @@ export function SignInForm({ redirectTo, homeUrl }: SignInFormProps) {
               onChange={(event) => setEmail(event.currentTarget.value)}
               disabled={pending}
             />
-            <Input
+            <InputPassword
               label={t('common.fields.password')}
               id="password"
               name="password"
-              type="password"
               autoComplete="current-password"
+              showPasswordLabel={t('common.actions.showPassword')}
+              hidePasswordLabel={t('common.actions.hidePassword')}
               required
               value={password}
               onChange={(event) => setPassword(event.currentTarget.value)}

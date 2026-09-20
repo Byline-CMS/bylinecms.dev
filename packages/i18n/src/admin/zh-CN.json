@@ -13,6 +13,8 @@
   "common.actions.restore": "恢复",
   "common.actions.search": "搜索",
   "common.actions.select": "选择",
+  "common.actions.showPassword": "显示密码",
+  "common.actions.hidePassword": "隐藏密码",
   "common.pager.previous": "上一页",
   "common.pager.next": "下一页",
   "common.pager.pageOf": "第 {page, number} 页，共 {total, number} 页",

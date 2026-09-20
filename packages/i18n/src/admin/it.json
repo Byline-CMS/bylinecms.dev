@@ -13,6 +13,8 @@
   "common.actions.restore": "Ripristina",
   "common.actions.search": "Cerca",
   "common.actions.select": "Seleziona",
+  "common.actions.showPassword": "Mostra password",
+  "common.actions.hidePassword": "Nascondi password",
   "common.pager.previous": "Precedente",
   "common.pager.next": "Successivo",
   "common.pager.pageOf": "Pagina {page, number} di {total, number}",

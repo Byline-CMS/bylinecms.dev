@@ -28,7 +28,7 @@ import { revalidateLogic, useForm } from '@tanstack/react-form-start'
 
 import { passwordSchema } from '@byline/core/validation'
 import { useTranslation } from '@byline/i18n/react'
-import { Alert, Button, Checkbox, Input, LoaderEllipsis } from '@byline/ui/react'
+import { Alert, Button, Checkbox, Input, InputPassword, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'clsx'
 import { z } from 'zod'
 
@@ -237,11 +237,10 @@ export function CreateAdminUser({ onClose, onSuccess }: CreateAdminUserProps) {
 
         <form.Field name="password">
           {(field) => (
-            <Input
+            <InputPassword
               label={t('adminUsers.create.fields.password')}
               id="new-password"
               name={field.name}
-              type="password"
               value={field.state.value}
               onBlur={field.handleBlur}
               onChange={(e) => field.handleChange(e.currentTarget.value)}
@@ -249,6 +248,8 @@ export function CreateAdminUser({ onClose, onSuccess }: CreateAdminUserProps) {
               errorText={translateValidationError(t, firstError(field.state.meta.errors))}
               helpText={t('adminUsers.create.fields.passwordHelp')}
               autoComplete="new-password"
+              showPasswordLabel={t('common.actions.showPassword')}
+              hidePasswordLabel={t('common.actions.hidePassword')}
               required
             />
           )}

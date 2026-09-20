@@ -167,6 +167,8 @@ export function ChangeAccountPassword({ account, onClose, onSuccess }: ChangePas
               error={field.state.meta.errors.length > 0}
               errorText={firstError(field.state.meta.errors)}
               autoComplete="current-password"
+              showPasswordLabel={t('common.actions.showPassword')}
+              hidePasswordLabel={t('common.actions.hidePassword')}
               required
             />
           )}
@@ -184,6 +186,8 @@ export function ChangeAccountPassword({ account, onClose, onSuccess }: ChangePas
               error={field.state.meta.errors.length > 0}
               errorText={translateValidationError(t, firstError(field.state.meta.errors))}
               autoComplete="new-password"
+              showPasswordLabel={t('common.actions.showPassword')}
+              hidePasswordLabel={t('common.actions.hidePassword')}
               required
             />
           )}
@@ -201,6 +205,8 @@ export function ChangeAccountPassword({ account, onClose, onSuccess }: ChangePas
               error={field.state.meta.errors.length > 0}
               errorText={firstError(field.state.meta.errors)}
               autoComplete="new-password"
+              showPasswordLabel={t('common.actions.showPassword')}
+              hidePasswordLabel={t('common.actions.hidePassword')}
               required
             />
           )}

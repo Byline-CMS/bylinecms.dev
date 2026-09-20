@@ -131,6 +131,8 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
               error={field.state.meta.errors.length > 0}
               errorText={translateValidationError(t, firstError(field.state.meta.errors))}
               autoComplete="new-password"
+              showPasswordLabel={t('common.actions.showPassword')}
+              hidePasswordLabel={t('common.actions.hidePassword')}
               required
             />
           )}
@@ -148,6 +150,8 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
               error={field.state.meta.errors.length > 0}
               errorText={firstError(field.state.meta.errors)}
               autoComplete="new-password"
+              showPasswordLabel={t('common.actions.showPassword')}
+              hidePasswordLabel={t('common.actions.hidePassword')}
               required
             />
           )}

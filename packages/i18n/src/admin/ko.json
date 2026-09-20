@@ -13,6 +13,8 @@
   "common.actions.restore": "복원",
   "common.actions.search": "검색",
   "common.actions.select": "선택",
+  "common.actions.showPassword": "비밀번호 표시",
+  "common.actions.hidePassword": "비밀번호 숨기기",
   "common.pager.previous": "이전",
   "common.pager.next": "다음",
   "common.pager.pageOf": "{page, number} / {total, number} 페이지",
