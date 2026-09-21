@@ -23,8 +23,33 @@
 
 import { getViewerBylineClient, isPreviewActive } from '@byline/client/server'
 
+import { buildPagePath } from '~/collections/pages/path'
+import { defaultContentLocale } from '~/public'
+
 import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
 import type { PageDetailsFields, PageDetailsInput, PageDetailsResult } from './details'
+
+export async function getPagePath(path: string): Promise<string | null> {
+  const client = getViewerBylineClient()
+  const preview = await isPreviewActive()
+  // Area and slug are not localized. Keep this small navigation projection
+  // separate from detail bodies, with the same edit invalidation and preview rules.
+  return withCache({
+    cacheKey: `${cacheKeys.details('pages', path, defaultContentLocale)}::path`,
+    tags: [tags.collection('pages'), tags.details('pages', path)],
+    preview,
+    fn: async () => {
+      const doc = await client
+        .collection('pages')
+        .findByPath<Pick<PageDetailsFields, 'area'>>(path, {
+          select: ['area'],
+          locale: defaultContentLocale,
+          status: preview ? 'any' : 'published',
+        })
+      return doc == null ? null : buildPagePath(doc)
+    },
+  })
+}
 
 export async function getPageDetails({ path, lng }: PageDetailsInput): Promise<PageDetailsResult> {
   const client = getViewerBylineClient()

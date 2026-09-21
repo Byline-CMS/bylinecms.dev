@@ -21,7 +21,7 @@
  * that `getMeta` uses, so the sitemap and per-page meta advertise an
  * identical language set per document — one source of truth, no drift.
  *
- * One `<url>` per document: `<loc>` is the default-locale URL, and each
+ * One `<url>` per document: `<loc>` is the source-locale URL, and each
  * *advertised* language (plus `x-default`) becomes an `<xhtml:link
  * rel="alternate">`. Because the advertised set is the same regardless of
  * read locale and slugs aren't localized, each document yields exactly one
@@ -39,6 +39,8 @@ export interface SitemapEntry {
   /** The document's public advertised locale set (`availableLocales ∩
    * _availableVersionLocales`) → hreflang alternates. See `advertisedLocalesFor`. */
   advertisedLocales?: string[] | null
+  /** Document source locale; absent on legacy rows. */
+  sourceLocale?: string | null
 }
 
 /**
@@ -58,6 +60,8 @@ export interface PublishedEntry {
   lastmod?: Date | string | null
   /** Advertised locale set (`availableLocales ∩ _availableVersionLocales`). */
   advertisedLocales?: string[] | null
+  /** Document source locale; absent on legacy rows. */
+  sourceLocale?: string | null
 }
 
 /** Published-document scans change infrequently; cache for an hour. */
@@ -100,12 +104,10 @@ export async function getSitemapData(
 export function generateSitemap(entries: SitemapEntry[], serverUrl: string): string {
   const body = entries
     .map((entry) => {
-      // <loc> + alternates are resolved against the *default* locale: the
-      // canonical sitemap URL is the unprefixed default-locale URL, and the
-      // advertised languages hang off it as xhtml:link alternates.
+      // The source URL is the baseline canonical even when it is unchecked.
+      // Omitting pathLocale selects that same fallback used by document heads.
       const { canonical, alternates, xDefaultPath } = resolveAlternates(
-        entry.advertisedLocales,
-        i18nConfig.defaultLocale,
+        { advertisedLocales: entry.advertisedLocales, sourceLocale: entry.sourceLocale },
         ...entry.segments
       )
       const loc = new URL(canonical, serverUrl).toString()
@@ -142,5 +144,8 @@ export function generateSitemap(entries: SitemapEntry[], serverUrl: string): str
  * hreflang cluster is reserved for the content dimension.
  */
 export async function getStaticSitemap(): Promise<SitemapEntry[]> {
-  return [{ segments: [] }, { segments: ['news'] }, { segments: ['docs'] }]
+  return [{ segments: [] }, { segments: ['news'] }, { segments: ['docs'] }].map((entry) => ({
+    ...entry,
+    sourceLocale: i18nConfig.defaultLocale,
+  }))
 }

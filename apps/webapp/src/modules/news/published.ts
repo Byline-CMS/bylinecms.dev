@@ -48,6 +48,7 @@ export async function getPublishedNews(): Promise<PublishedEntry[]> {
         description: stringOrUndefined(doc.fields.summary),
         lastmod: doc.fields.publishedOn ?? doc.updatedAt,
         advertisedLocales: advertisedLocalesFor(doc),
+        sourceLocale: doc.sourceLocale,
       }))
     },
   })

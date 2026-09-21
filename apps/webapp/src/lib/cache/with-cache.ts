@@ -109,7 +109,8 @@ export const cacheKeys = {
   details: (collectionPath: CollectionPath, path: string, locale: string | undefined): string =>
     `cms::${collectionPath}::details::${path}::${locale ?? 'default'}::${PUBLISHED}`,
   sitemap: (collectionPath: CollectionPath): string =>
-    `cms::${collectionPath}::sitemap::${PUBLISHED}`,
+    // v2 published entries carry sourceLocale for canonical URL generation.
+    `cms::${collectionPath}::sitemap::${PUBLISHED}::v2`,
 }
 
 export interface WithCacheOptions<T> {

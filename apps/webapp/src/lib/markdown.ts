@@ -26,6 +26,7 @@ import type { CollectionPath } from '@byline/generated-types'
 
 import { getPublicConfig } from '@/config'
 import { isRoutableLocale } from '@/i18n/i18n-config'
+import { advertisedLocalesFor, resolveAlternates } from '@/lib/alternates'
 import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
 import { buildLocalizedPath } from '@/lib/meta'
 
@@ -81,7 +82,8 @@ export async function getDocumentMarkdown(
     // One entry per (collection, path, locale): every URL shape for one
     // document serves identical output (the canonical is derived from the
     // document itself), so the shapes deliberately share the entry.
-    cacheKey: `${cacheKeys.details(collection, path, lng)}::md`,
+    // v2 separates serialized output from the former URL-locale canonical policy.
+    cacheKey: `${cacheKeys.details(collection, path, lng)}::md:v2`,
     tags: [tags.details(collection, path), tags.collection(collection)],
     ttl: MD_TTL_MS,
     fn: async () => {
@@ -101,9 +103,20 @@ export async function getDocumentMarkdown(
       const toMarkdown = getServerConfig().fields?.richText?.toMarkdown
       const absolute = (relative: string) => new URL(relative, serverUrl).toString()
 
+      const { canonical } = resolveAlternates(
+        {
+          advertisedLocales: advertisedLocalesFor(doc),
+          pathLocale: lng,
+          sourceLocale: doc.sourceLocale,
+        },
+        ...segments
+      )
+
+      // Canonical policy is editorial. Keep read/serialization locale separate:
+      // an unchecked translation may still be served until delivery gating lands.
       return documentToMarkdown(doc, definition, {
         locale: lng,
-        canonicalUrl: absolute(buildLocalizedPath(lng, ...segments)),
+        canonicalUrl: absolute(canonical),
         richTextToMarkdown: toMarkdown,
         resolveUrl: (collectionPath, documentPath) => {
           const segments = publicUrlFor(collectionPath, documentPath)

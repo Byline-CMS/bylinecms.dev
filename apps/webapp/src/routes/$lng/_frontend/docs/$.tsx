@@ -86,8 +86,11 @@ export const Route = createFileRoute('/$lng/_frontend/docs/$')({
     const description = summary != null && summary.length > 0 ? truncateForMeta(summary) : undefined
 
     const { canonical, alternates, xDefaultPath } = resolveAlternates(
-      advertisedLocalesFor(doc),
-      lng,
+      {
+        advertisedLocales: advertisedLocalesFor(doc),
+        pathLocale: lng,
+        sourceLocale: doc.sourceLocale,
+      },
       'docs',
       ...chainSegments
     )
@@ -121,7 +124,16 @@ function RouteComponent() {
 
   // The markdown representation this document already advertises — the same
   // URL carried by the head `rel=alternate` link.
-  const markdownPath = `${buildLocalizedPath(lng, 'docs', ...chainSegments)}.md`
+  const { canonical } = resolveAlternates(
+    {
+      advertisedLocales: advertisedLocalesFor(doc),
+      pathLocale: lng,
+      sourceLocale: doc.sourceLocale,
+    },
+    'docs',
+    ...chainSegments
+  )
+  const markdownPath = `${canonical}.md`
 
   // Breadcrumbs follow the tree (structure) but link to the composed
   // hierarchical URL (presentation) — each ancestor's href is the cumulative

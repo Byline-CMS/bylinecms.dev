@@ -35,6 +35,7 @@ export interface FrontendLayoutProps extends FrontendLayoutData {
 }
 
 export function FrontendLayout({
+  aboutPath,
   adminUser,
   adminPath,
   preview,
@@ -48,7 +49,7 @@ export function FrontendLayout({
         <GradientBackground />
         <AdminSessionRecovery renewable={sessionRenewable} />
         <ContentAdminBar user={adminUser} admin={adminPath} preview={preview} />
-        <AppBarFront lng={locale} />
+        <AppBarFront lng={locale} aboutPath={aboutPath} />
         <main id="main-content" className="flex flex-1 flex-col">
           {children ?? <Outlet />}
         </main>

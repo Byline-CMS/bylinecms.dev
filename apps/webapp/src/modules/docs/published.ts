@@ -58,6 +58,7 @@ export async function getPublishedDocs(): Promise<PublishedEntry[]> {
           description: stringOrUndefined(doc.fields.summary),
           lastmod: doc.fields.publishedOn ?? doc.updatedAt,
           advertisedLocales: advertisedLocalesFor(doc),
+          sourceLocale: doc.sourceLocale,
         })
         for (const child of node.children) walk(child, chain)
       }

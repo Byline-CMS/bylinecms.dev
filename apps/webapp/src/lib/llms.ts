@@ -16,11 +16,12 @@
  * Sections are built from the same per-collection published-URL
  * enumeration the sitemap uses (`@/modules/<x>/published`) — one
  * scan, one cache entry, no drift between the two surfaces. Like the
- * sitemap, the index is locale-agnostic: links are default-locale canonical
+ * sitemap, the index is locale-agnostic: links are source-locale canonical
  * URLs and the per-locale variants advertise themselves via the documents'
  * own hreflang alternates.
  */
 
+import { resolveAlternates } from '@/lib/alternates'
 import type { PublishedEntry } from '@/lib/sitemap'
 
 export interface LlmsSection {
@@ -42,7 +43,11 @@ export function generateLlmsTxt(
     lines.push('', `## ${section.title}`, '')
     for (const entry of section.entries) {
       const title = entry.title ?? entry.segments[entry.segments.length - 1] ?? ''
-      const url = new URL(`/${entry.segments.join('/')}.md`, site.serverUrl).toString()
+      const { canonical } = resolveAlternates(
+        { advertisedLocales: entry.advertisedLocales, sourceLocale: entry.sourceLocale },
+        ...entry.segments
+      )
+      const url = new URL(`${canonical}.md`, site.serverUrl).toString()
       lines.push(
         entry.description ? `- [${title}](${url}): ${entry.description}` : `- [${title}](${url})`
       )

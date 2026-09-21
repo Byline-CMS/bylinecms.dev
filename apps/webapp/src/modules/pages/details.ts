@@ -55,3 +55,12 @@ export const getPageDetailsFn = createServerFn({ method: 'GET' })
     const { getPageDetails } = await import('./details.server')
     return getPageDetails(ctx.data as PageDetailsInput)
   })
+
+/** Resolve a configured navigation slug through the document's current area. */
+export const getPagePathFn = createServerFn({ method: 'GET' })
+  .middleware([publicCacheMiddleware])
+  .validator((input: { path: string }) => ({ path: input.path }))
+  .handler(async (ctx): Promise<string | null> => {
+    const { getPagePath } = await import('./details.server')
+    return getPagePath((ctx.data as Pick<PageDetailsInput, 'path'>).path)
+  })

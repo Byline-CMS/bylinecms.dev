@@ -21,5 +21,6 @@ export async function getNewsSitemap(): Promise<SitemapEntry[]> {
     segments: entry.segments,
     lastmod: toSitemapDate(entry.lastmod),
     advertisedLocales: entry.advertisedLocales,
+    sourceLocale: entry.sourceLocale,
   }))
 }

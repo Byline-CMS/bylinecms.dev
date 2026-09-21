@@ -6,9 +6,11 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { createFileRoute, notFound } from '@tanstack/react-router'
+import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
 
 import { Container, Section } from '@byline/ui/react'
+
+import { buildPagePath } from '~/collections/pages/path'
 
 import { useInterfaceLocale } from '@/i18n/hooks/use-locale-navigation'
 import { advertisedLocalesFor, resolveAlternates } from '@/lib/alternates'
@@ -19,6 +21,7 @@ import {
 } from '@/lib/meta'
 import { PageDetails } from '@/modules/pages/components/details'
 import { getPageDetailsFn, type PageDetailsResult } from '@/modules/pages/details'
+import { pageAreaRedirect } from '@/modules/pages/path'
 import { Breadcrumbs } from '@/ui/components/breadcrumbs'
 import { RouteError, RouteNotFound } from '@/ui/components/route-error'
 import type { RoutableLocale } from '@/i18n/i18n-config'
@@ -32,10 +35,19 @@ import type { RoutableLocale } from '@/i18n/i18n-config'
 type RouteLoaderData = { result: NonNullable<PageDetailsResult>; lng: RoutableLocale }
 
 export const Route = createFileRoute('/$lng/_frontend/$path')({
-  loader: async ({ params, context }) => {
+  loader: async ({ params, context, location }) => {
     const lng = context.locale
     const result = await getPageDetailsFn({ data: { path: params.path, lng } })
     if (result == null) throw notFound()
+    const destination = pageAreaRedirect(result, 'root', lng)
+    if (destination != null) {
+      throw redirect({
+        href: `${destination}${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
+        statusCode: 301,
+        // Area is editable; do not let a browser retain a superseded redirect.
+        headers: { 'Cache-Control': 'no-store' },
+      })
+    }
     return { result, lng }
   },
   // The `head` function is merged with every other matched route's `head`
@@ -62,9 +74,12 @@ export const Route = createFileRoute('/$lng/_frontend/$path')({
     // const image = metaImageFromUpload(featureMedia?.image, featureMedia?.altText ?? title)
 
     const { canonical, alternates, xDefaultPath } = resolveAlternates(
-      advertisedLocalesFor(result),
-      lng,
-      result.path
+      {
+        advertisedLocales: advertisedLocalesFor(result),
+        pathLocale: lng,
+        sourceLocale: result.sourceLocale,
+      },
+      buildPagePath(result)
     )
 
     return getMeta({
@@ -99,7 +114,7 @@ function RouteComponent() {
       />
       <Section>
         <Container className="mt-3">
-          <Breadcrumbs breadcrumbs={[{ label: title, href: `/${result.path}` }]} />
+          <Breadcrumbs breadcrumbs={[{ label: title, href: buildPagePath(result) ?? '/' }]} />
         </Container>
       </Section>
       <PageDetails result={result} lng={interfaceLocale} />

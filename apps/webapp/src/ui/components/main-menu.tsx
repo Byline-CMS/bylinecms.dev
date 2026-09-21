@@ -21,11 +21,10 @@ import { i18nConfig } from '@/i18n/i18n-config'
 import type { Locale } from '@/i18n/i18n-config'
 import type { Translations } from '@/i18n/translations'
 
-const items: ReadonlyArray<{ to: string; labelKey: keyof Translations['frontend'] }> = [
+const staticItems: ReadonlyArray<{ to: string; labelKey: keyof Translations['frontend'] }> = [
   { to: '/', labelKey: 'navHome' },
   { to: '/docs', labelKey: 'navDocs' },
   { to: '/news', labelKey: 'navNews' },
-  { to: '/about-byline', labelKey: 'navAbout' },
 ]
 
 function stripLocalePrefix(pathname: string): string {
@@ -43,7 +42,17 @@ function getActive(pathname: string, to: string): boolean {
   return stripped === to || stripped.startsWith(`${to}/`)
 }
 
-export function MainMenu({ lng, color }: { lng: Locale; color?: string }): React.JSX.Element {
+export function MainMenu({
+  lng,
+  color,
+  aboutPath,
+}: {
+  lng: Locale
+  color?: string
+  aboutPath: string | null
+}): React.JSX.Element {
+  const items = [...staticItems]
+  if (aboutPath != null) items.push({ to: aboutPath, labelKey: 'navAbout' })
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { t } = useTranslations('frontend')
 

@@ -18,6 +18,8 @@ import { VideoBlock } from '~/blocks/video-block'
 import { VideoEmbedBlock } from '~/blocks/video-embed-block'
 import { publishedOnField } from '~/fields/published-on-field'
 
+import { buildPagePath } from './path'
+
 // ---- Schema (server-safe, no UI concerns) ----
 
 export const Pages = defineCollection({
@@ -67,14 +69,7 @@ export const Pages = defineCollection({
    * (brand-new draft) so the embed walker / preview both fall back to
    * "no link available" rather than producing a broken URL.
    */
-  buildDocumentPath: (doc, _ctx) => {
-    if (!doc.path) return null
-    const area = doc.fields?.area
-    if (typeof area === 'string' && area !== 'root') {
-      return `/${area}/${doc.path}`
-    }
-    return `/${doc.path}`
-  },
+  buildDocumentPath: (doc, _ctx) => buildPagePath(doc),
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
     {

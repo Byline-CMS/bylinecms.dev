@@ -56,8 +56,11 @@ export const Route = createFileRoute('/$lng/_frontend/news/$path')({
     // const image = metaImageFromUpload(featureMedia?.image, featureMedia?.altText ?? title)
 
     const { canonical, alternates, xDefaultPath } = resolveAlternates(
-      advertisedLocalesFor(result),
-      lng,
+      {
+        advertisedLocales: advertisedLocalesFor(result),
+        pathLocale: lng,
+        sourceLocale: result.sourceLocale,
+      },
       'news',
       result.path
     )

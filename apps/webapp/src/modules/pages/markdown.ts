@@ -10,29 +10,53 @@
  * Markdown representation of a published `pages` document — handler body
  * for `/{lng}/{path}.md`, `/{lng}/about/{path}.md`, `/{lng}/legal/{path}.md`.
  *
- * Mirrors the HTML routes' semantics exactly: a page serves at any prefix
- * (the HTML loaders never enforce `area` — it drives link composition
- * only), and the frontmatter `canonical` composes from the document's own
- * `area`, independent of which URL shape the request used. The shared
- * machinery lives in `@/lib/markdown`.
+ * A wrong area redirects to the document's own path, just like HTML.
+ * Published-only: preview never applies to this agent-facing surface.
  */
 
-import { getDocumentMarkdown } from '@/lib/markdown'
+import { getPublicBylineClient } from '@byline/client/server'
+import type { PagesFields } from '@byline/generated-types'
 
-export { markdownResponse } from '@/lib/markdown'
+import { buildPagePath, type PageArea } from '~/collections/pages/path'
 
-const AREA_PREFIX: Record<string, string[]> = {
-  about: ['about'],
-  legal: ['legal'],
-  // `root` (and anything unrecognised) → no prefix.
-}
+import { isRoutableLocale } from '@/i18n/i18n-config'
+import { getDocumentMarkdown, markdownResponse } from '@/lib/markdown'
+import { pageAreaRedirect } from './path'
 
-export async function getPageMarkdown(lng: string, path: string): Promise<string | null> {
-  return getDocumentMarkdown({
-    collection: 'pages',
-    lng,
-    path,
-    populate: { featureImage: '*', photo: '*', video: '*', videoMobile: '*' },
-    canonicalSegments: (fields) => [...(AREA_PREFIX[fields.area ?? 'root'] ?? []), path],
-  })
+export async function pageMarkdownResponse(
+  lng: string,
+  path: string,
+  requestedArea: PageArea,
+  search = ''
+): Promise<Response> {
+  if (!isRoutableLocale(lng)) return markdownResponse(null)
+  const doc = await getPublicBylineClient()
+    .collection('pages')
+    .findByPath<Pick<PagesFields, 'area'>>(path, {
+      select: ['area'],
+      locale: lng,
+      status: 'published',
+    })
+  if (doc == null) return markdownResponse(null)
+
+  const destination = pageAreaRedirect(doc, requestedArea, lng)
+  if (destination != null) {
+    return new Response(null, {
+      status: 301,
+      headers: { Location: `${destination}.md${search}`, 'Cache-Control': 'no-store' },
+    })
+  }
+
+  return markdownResponse(
+    await getDocumentMarkdown({
+      collection: 'pages',
+      lng,
+      path,
+      populate: { featureImage: '*', photo: '*', video: '*', videoMobile: '*' },
+      canonicalSegments: (fields) => {
+        const pagePath = buildPagePath({ path, fields })
+        return pagePath == null ? [] : [pagePath]
+      },
+    })
+  )
 }

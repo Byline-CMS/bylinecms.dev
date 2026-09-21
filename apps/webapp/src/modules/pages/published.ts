@@ -63,6 +63,7 @@ export async function getPublishedPages(): Promise<PublishedEntry[]> {
           description: stringOrUndefined(doc.fields.summary),
           lastmod: doc.fields.publishedOn ?? doc.updatedAt,
           advertisedLocales: advertisedLocalesFor(doc),
+          sourceLocale: doc.sourceLocale,
         })
       }
       return entries

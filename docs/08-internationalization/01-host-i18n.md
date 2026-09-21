@@ -242,3 +242,25 @@ intersection `availableLocales ∩ _availableVersionLocales` (see
 `resolveAlternates(...)` turns it into `{ canonical, alternates, xDefaultPath }`,
 the single resolver that `hreflang` meta (and a `sitemap.xml`) both derive
 from, so the two can never drift.
+
+
+### Editorial canonical policy
+
+The example host passes the requested URL locale, the document's `sourceLocale`,
+and its advertised set to `resolveAlternates`. A checked-and-complete translation
+uses its own canonical URL; every other request points to the source-locale URL.
+The source remains canonical-eligible even when no locales are checked. Only
+legacy rows without a source marker use the configured content default.
+
+`og:url`, Markdown canonical metadata, and the advertised Markdown URL follow
+this decision. Sitemap entries and `llms.txt` use the source URL as their
+baseline. `x-default` also points to the source, deliberately even when the
+source is not in the advertised language set; it does not implicitly add a
+language-specific hreflang entry. No hreflang links are emitted for an empty set.
+
+This is an editorial URL policy, not a delivery gate or a factual content-language
+label. A complete but unchecked translation can still be served directly and
+point to the source canonical. Search engines may ignore that preference. Making
+unchecked translations unavailable requires a separate upstream read-policy
+change; deriving article `lang` and Markdown `locale` from the language actually
+served is also separate work.

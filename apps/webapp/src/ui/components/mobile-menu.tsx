@@ -22,7 +22,7 @@ interface MenuItem {
   children: MenuItem[] | null
 }
 
-const menuItems: MenuItem[] = [
+const staticMenuItems: MenuItem[] = [
   {
     labelKey: 'navDocs',
     path: '/docs',
@@ -33,14 +33,10 @@ const menuItems: MenuItem[] = [
     path: '/news',
     children: null,
   },
-  {
-    labelKey: 'navAbout',
-    path: '/about-byline',
-    children: null,
-  },
 ]
 
 interface MobileMenuProps {
+  aboutPath: string | null
   open: boolean
   lng: Locale
   onClose: () => void
@@ -56,12 +52,15 @@ function getActive(pathname: string, path: string): boolean {
 }
 
 export function MobileMenu({
+  aboutPath,
   open,
   lng,
   onClose,
   joinRef,
   ...other
 }: MobileMenuProps): React.JSX.Element {
+  const menuItems = [...staticMenuItems]
+  if (aboutPath != null) menuItems.push({ labelKey: 'navAbout', path: aboutPath, children: null })
   const { navigate } = useLocaleNavigation()
   const pathname = useLocation({ select: (loc) => loc.pathname })
   const { t } = useTranslations('frontend')

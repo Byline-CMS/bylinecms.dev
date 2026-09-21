@@ -6,10 +6,17 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('~/public', () => ({ routes: { admin: '/admin' } }))
-const mocks = vi.hoisted(() => ({ session: { user: null as unknown, renewable: false } }))
+const mocks = vi.hoisted(() => ({
+  session: { user: null as unknown, renewable: false },
+  pagePath: vi.fn<() => Promise<string | null>>(),
+}))
+// Area resolution has its own tests. Mock this server-function boundary so
+// this suite still exercises the real preview-state dependency below without
+// importing the page reader's HTTP middleware or requiring a content database.
+vi.mock('@/modules/pages/details', () => ({ getPagePathFn: mocks.pagePath }))
 vi.mock('@byline/host-tanstack-start/server-fns/auth', () => ({
   getCurrentAdminSessionSoft: async () => mocks.session,
 }))
@@ -39,14 +46,22 @@ vi.mock(
 
 import { loadFrontendLayoutData } from './frontend-layout-loader.js'
 
+beforeEach(() => {
+  vi.clearAllMocks()
+  mocks.session = { user: null, renewable: false }
+  mocks.pagePath.mockResolvedValue('/about/about-byline')
+})
+
 describe('anonymous public layout', () => {
   it('loads without admin credentials or preview cookies', async () => {
     await expect(loadFrontendLayoutData()).resolves.toEqual({
       adminUser: null,
       adminPath: '/admin',
+      aboutPath: '/about/about-byline',
       preview: false,
       sessionRenewable: false,
     })
+    expect(mocks.pagePath).toHaveBeenCalledWith({ data: { path: 'about-byline' } })
   })
 
   it('threads the renewable hint through so the layout can recover an expired session', async () => {
@@ -54,6 +69,15 @@ describe('anonymous public layout', () => {
     await expect(loadFrontendLayoutData()).resolves.toMatchObject({
       adminUser: null,
       sessionRenewable: true,
+    })
+  })
+
+  it('keeps the layout available when there is no visible About page', async () => {
+    mocks.pagePath.mockResolvedValue(null)
+    await expect(loadFrontendLayoutData()).resolves.toMatchObject({
+      adminUser: null,
+      aboutPath: null,
+      preview: false,
     })
   })
 })

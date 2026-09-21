@@ -26,7 +26,8 @@
  * document carries one set of alternates — no per-locale fan-out.
  */
 
-import { i18nConfig } from '@/i18n/i18n-config'
+import { defaultContentLocale } from '~/public'
+
 import { buildLocalizedPath } from '@/lib/meta'
 
 export interface AlternateLink {
@@ -37,12 +38,12 @@ export interface AlternateLink {
 }
 
 export interface ResolvedAlternates {
-  /** Canonical path for the current URL, in its own (path) locale. */
+  /** Advertised path locale, otherwise the document's source-locale path. */
   canonical: string
   /** One entry per *advertised* language (incl. a self-referential entry when
    * the path locale is advertised). Empty when the document advertises nothing. */
   alternates: AlternateLink[]
-  /** Path for the `x-default` hreflang — always the default-locale URL. */
+  /** Source-locale fallback, even when the source is not advertised. */
   xDefaultPath: string
 }
 
@@ -62,28 +63,41 @@ export function advertisedLocalesFor(doc: {
   return editorial.filter((code) => complete.has(code))
 }
 
+export interface AlternateOptions {
+  /** Checked AND complete locales, from `advertisedLocalesFor`. */
+  advertisedLocales?: readonly string[] | null
+  /** Requested URL locale. Omit to select the source URL (e.g. a sitemap entry). */
+  pathLocale?: string
+  /** Document's authoring locale; legacy rows fall back to the content default. */
+  sourceLocale?: string | null
+}
+
 /**
- * Resolve canonical + hreflang alternates for a document URL.
+ * Editorial URL policy: only checked-and-complete translations own a canonical
+ * URL; every other request defers to the source document. The source remains
+ * canonical-eligible even when no locales are advertised.
  *
- * @param advertisedLocales the document's public advertised locale set (the
- *   `availableLocales ∩ _availableVersionLocales` intersection — see
- *   `advertisedLocalesFor`); `null`/`undefined`/empty ⇒ no alternates.
- * @param pathLng the current URL's content locale (drives the canonical).
- * @param segments path segments after the locale, e.g. `'news', doc.path`.
+ * This does not gate reads or describe the language actually served. A complete
+ * but unchecked translation can still render until upstream delivery gating is
+ * implemented; canonical is a preference, not an access or indexing barrier.
  */
 export function resolveAlternates(
-  advertisedLocales: readonly string[] | null | undefined,
-  pathLng: string,
+  { advertisedLocales, pathLocale, sourceLocale }: AlternateOptions,
   ...segments: Array<string | null | undefined>
 ): ResolvedAlternates {
   const advertised = advertisedLocales != null ? [...advertisedLocales] : []
+  const source = sourceLocale ?? defaultContentLocale
+  const canonicalLocale =
+    pathLocale != null && advertised.includes(pathLocale) ? pathLocale : source
 
   return {
-    canonical: buildLocalizedPath(pathLng, ...segments),
+    canonical: buildLocalizedPath(canonicalLocale, ...segments),
     alternates: advertised.map((code) => ({
       hreflang: code,
       path: buildLocalizedPath(code, ...segments),
     })),
-    xDefaultPath: buildLocalizedPath(i18nConfig.defaultLocale, ...segments),
+    // Deliberately allow x-default outside the advertised language set: the
+    // source is the generic fallback, not an implicitly approved translation.
+    xDefaultPath: buildLocalizedPath(source, ...segments),
   }
 }

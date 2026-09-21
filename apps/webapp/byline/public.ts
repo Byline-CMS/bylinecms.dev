@@ -17,6 +17,6 @@
 
 // Content-language definitions are safe for language menus, alternates, and
 // sitemap generation. Admin locale bundles deliberately remain private.
-export { contentLocales } from './locales.js'
+export { contentLocales, defaultContentLocale } from './locales.js'
 // Resolved host paths are shared without importing either registered config.
 export { routes } from './routes.js'

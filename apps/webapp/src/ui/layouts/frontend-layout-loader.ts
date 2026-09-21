@@ -18,7 +18,10 @@ import { getPreviewStateFn } from '@byline/host-tanstack-start/server-fns/previe
 
 import { routes } from '~/public'
 
+import { getPagePathFn } from '@/modules/pages/details'
+
 export interface FrontendLayoutData {
+  aboutPath: string | null
   adminUser: CurrentAdminUser | null
   adminPath: string
   preview: boolean
@@ -33,12 +36,14 @@ export interface FrontendLayoutData {
 
 export async function loadFrontendLayoutData(): Promise<FrontendLayoutData> {
   // Independent reads — resolve in parallel.
-  const [session, previewState] = await Promise.all([
+  const [session, previewState, aboutPath] = await Promise.all([
     getCurrentAdminSessionSoft(),
     getPreviewStateFn(),
+    getPagePathFn({ data: { path: 'about-byline' } }),
   ])
   const { admin: adminPath } = routes
   return {
+    aboutPath,
     adminUser: session.user,
     adminPath,
     preview: previewState.preview,

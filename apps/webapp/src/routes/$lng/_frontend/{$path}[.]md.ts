@@ -18,9 +18,15 @@ import { createFileRoute } from '@tanstack/react-router'
 export const Route = createFileRoute('/$lng/_frontend/{$path}.md')({
   server: {
     handlers: {
-      GET: async ({ params }: { params: { lng: string; path: string } }) => {
-        const { getPageMarkdown, markdownResponse } = await import('@/modules/pages/markdown')
-        return markdownResponse(await getPageMarkdown(params.lng, params.path))
+      GET: async ({
+        params,
+        request,
+      }: {
+        params: { lng: string; path: string }
+        request: Request
+      }) => {
+        const { pageMarkdownResponse } = await import('@/modules/pages/markdown')
+        return pageMarkdownResponse(params.lng, params.path, 'root', new URL(request.url).search)
       },
     },
   },

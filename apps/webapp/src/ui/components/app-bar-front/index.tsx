@@ -19,12 +19,13 @@ import type { Locale } from '@/i18n/i18n-config'
 const DOCS_PATH_RE = new RegExp(`^(?:/(?:${routableLocales.join('|')}))?/docs(?:/|$)`)
 
 interface AppBarFrontProps {
+  aboutPath: string | null
   className?: string
   lng: Locale
   ref?: React.Ref<HTMLDivElement>
 }
 
-export const AppBarFront = ({ className, lng, ref, ...other }: AppBarFrontProps) => {
+export const AppBarFront = ({ className, lng, aboutPath, ref, ...other }: AppBarFrontProps) => {
   const pathname = useLocation({ select: (loc) => loc.pathname })
   const firstSegment = pathname.split('/')[1] ?? ''
   // Home = the site root, with or without a bare routable-locale prefix
@@ -120,7 +121,7 @@ export const AppBarFront = ({ className, lng, ref, ...other }: AppBarFrontProps)
           {DOCS_PATH_RE.test(pathname) ? <DocsDrawerToggle /> : null}
           <Branding lng={lng} />
         </div>
-        <MainMenu lng={lng} color={appBarTextColor} />
+        <MainMenu aboutPath={aboutPath} lng={lng} color={appBarTextColor} />
         <div className="flex items-center gap-2 lg:gap-4 ml-auto">
           <LanguageMenu lng={lng} color={appBarTextColor} />
           <ThemeSwitch />
@@ -136,7 +137,12 @@ export const AppBarFront = ({ className, lng, ref, ...other }: AppBarFrontProps)
           <div className="lg:hidden">
             <Hamburger open={mobileMenuOpen} onChange={handleToggleMobileMenu} />
           </div>
-          <MobileMenu lng={lng} open={mobileMenuOpen} onClose={handleMobileMenuClose} />
+          <MobileMenu
+            aboutPath={aboutPath}
+            lng={lng}
+            open={mobileMenuOpen}
+            onClose={handleMobileMenuClose}
+          />
         </div>
       </div>
     </header>
