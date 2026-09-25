@@ -550,6 +550,50 @@ describe('content-locale resolution — source_locale internals (Postgres)', () 
     expect(soloDoc?.document_id).toBe(c)
   })
 
+  it('filters match each document in its own source across a mixed-source page', async () => {
+    // A is English-source, B is French-source; neither has Spanish, so a
+    // Spanish fallback read shows each in its own source.
+    const frCommands = createCommandBuilders(dbManager, 'fr')
+    const make = async (commands: typeof commandBuilders, title: Record<string, string>) =>
+      (
+        await commands.documents.createDocumentVersion({
+          collectionId: testCollection.id,
+          collectionVersion: 1,
+          collectionConfig: LocaleCollectionConfig,
+          action: 'create',
+          documentData: { title, sku: `mixed-${timestamp}` },
+          path: `mixed-${timestamp}-${Object.keys(title)[0]}`,
+          locale: 'all',
+          status: 'published',
+        })
+      ).document.document_id as string
+    const a = await make(commandBuilders, { en: 'Mixed A EN' })
+    const b = await make(frCommands, { fr: 'Mixed B FR' })
+    const matching = async (value: string) =>
+      (
+        await queryBuilders.documents.findDocuments({
+          collection_id: testCollection.id,
+          locale: 'es',
+          onMissingLocale: 'fallback',
+          localeVisibility: 'public',
+          filters: [
+            {
+              kind: 'field',
+              fieldName: 'title',
+              storeType: 'text',
+              valueColumn: 'value',
+              operator: '$eq',
+              value,
+            },
+          ],
+          pageSize: 500,
+        })
+      ).documents.map((d) => d.document_id)
+
+    expect(await matching('Mixed A EN')).toEqual([a])
+    expect(await matching('Mixed B FR')).toEqual([b])
+  })
+
   it('a translated path row cannot bypass content eligibility', async () => {
     // German is incomplete (title only), yet a German path row exists.
     const id = await createDoc({

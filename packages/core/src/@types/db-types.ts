@@ -1447,6 +1447,13 @@ export interface IDocumentQueries {
     readMode?: ReadMode
     locale?: string
     filters?: DocumentFilter[]
+    /**
+     * The read's resolved locale visibility. When supplied, localized
+     * `filters` evaluate each node in the locale hydration shows (fallback
+     * under this visibility). Omitted ⇒ exact requested-locale matching, as
+     * editing reads expect.
+     */
+    localeVisibility?: LocaleVisibility
   }): Promise<Array<{ document_id: string; depth: number }>>
 
   /**
@@ -1480,6 +1487,13 @@ export interface IDocumentQueries {
     readMode?: ReadMode
     locale?: string
     filters?: DocumentFilter[]
+    /**
+     * The read's resolved locale visibility. When supplied, localized
+     * `filters` evaluate each node in the locale hydration shows (fallback
+     * under this visibility). Omitted ⇒ exact requested-locale matching, as
+     * editing reads expect.
+     */
+    localeVisibility?: LocaleVisibility
   }): Promise<{ placed: boolean; parentDocumentId: string | null; parentRedacted?: true }>
 
   /**
@@ -1511,6 +1525,13 @@ export interface IDocumentQueries {
     readMode?: ReadMode
     locale?: string
     filters?: DocumentFilter[]
+    /**
+     * The read's resolved locale visibility. When supplied, localized
+     * `filters` evaluate each node in the locale hydration shows (fallback
+     * under this visibility). Omitted ⇒ exact requested-locale matching, as
+     * editing reads expect.
+     */
+    localeVisibility?: LocaleVisibility
   }): Promise<
     Array<{
       document_id: string

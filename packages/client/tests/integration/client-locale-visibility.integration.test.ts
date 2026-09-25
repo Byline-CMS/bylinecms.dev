@@ -110,6 +110,20 @@ const Pages: CollectionDefinition = {
   ],
 }
 
+// A tree whose beforeRead predicate matches localized English titles, so the
+// structural queries must evaluate it in the locale hydration shows.
+const GatedNodes: CollectionDefinition = {
+  path: `test-vis-gated-${suffix}`,
+  labels: { singular: 'Gated', plural: 'Gated' },
+  useAsTitle: 'title',
+  advertiseLocales: true,
+  tree: true,
+  fields: richTextFields,
+  hooks: {
+    beforeRead: () => ({ title: { $in: ['G Root EN', 'G Child EN'] } }),
+  },
+}
+
 const rt = (text: string) => ({ root: { type: 'root', children: [{ type: 'text', text }] } })
 
 const linkTo = (collectionPath: string, documentId: string) => ({
@@ -171,6 +185,9 @@ const id = {} as {
   agnosticTopic: string
   agnosticNote: string
   agnosticNode: string
+  gatedRoot: string
+  gatedChild: string
+  q4: string[]
 }
 
 function collectionId(def: CollectionDefinition): string {
@@ -204,7 +221,7 @@ function check(def: CollectionDefinition, documentId: string, locales: string[])
 }
 
 beforeAll(async () => {
-  ctx = await setupMultiCollectionTestClient([Topics, Tags, Notes, Nodes, Pages], {
+  ctx = await setupMultiCollectionTestClient([Topics, Tags, Notes, Nodes, Pages, GatedNodes], {
     richTextPopulate,
     richTextEmbed,
   })
@@ -280,10 +297,43 @@ beforeAll(async () => {
   await ctx.client
     .collection(Nodes.path)
     .placeTreeNode(id.agnosticNode, { parentDocumentId: id.root, expectedRevision: 1 })
+
+  id.gatedRoot = await seed(
+    GatedNodes,
+    { title: { en: 'G Root EN', es: 'G Root ES' }, body: { en: rt('b'), es: rt('b') } },
+    'gated-root'
+  )
+  id.gatedChild = await seed(
+    GatedNodes,
+    { title: { en: 'G Child EN', es: 'G Child ES' }, body: { en: rt('b'), es: rt('b') } },
+    'gated-child'
+  )
+  await ctx.client
+    .collection(GatedNodes.path)
+    .placeTreeNode(id.gatedRoot, { parentDocumentId: null, expectedRevision: 1 })
+  await ctx.client
+    .collection(GatedNodes.path)
+    .placeTreeNode(id.gatedChild, { parentDocumentId: id.gatedRoot, expectedRevision: 1 })
+
+  // Q4: three pages checked in Spanish and one unchecked, sharing one sku.
+  id.q4 = []
+  for (const [index, letter] of ['C', 'A', 'B', 'D'].entries()) {
+    const docId = await seed(
+      Pages,
+      {
+        title: { en: `Q4 ${letter} EN`, es: `Q4 ${letter} ES` },
+        body: { en: rt('b'), es: rt('b') },
+        sku: 'q4sdk',
+      },
+      `q4-${index}`
+    )
+    if (letter !== 'D') await check(Pages, docId, ['es'])
+    id.q4.push(docId)
+  }
 }, 60_000)
 
 afterAll(async () => {
-  for (const def of [Notes, Tags, Topics, Nodes, Pages]) {
+  for (const def of [Notes, Tags, Topics, Nodes, Pages, GatedNodes]) {
     try {
       await ctx.db.commands.collections.delete(collectionId(def))
     } catch (err) {
@@ -320,7 +370,7 @@ describe('direct reads', () => {
   it('an anonymous public read falls back too', async () => {
     const anonymous = createBylineClient({
       db: ctx.db,
-      collections: [Topics, Tags, Notes, Nodes, Pages],
+      collections: [Topics, Tags, Notes, Nodes, Pages, GatedNodes],
       requestContext: createRequestContext({ actor: null, readMode: 'published' }),
     })
     const { docs } = await anonymous.collection(Topics.path).find({ locale: 'es' })
@@ -568,6 +618,75 @@ describe('resolvedLocale result types through SDK shaping', () => {
   })
 })
 
+describe('tree structural reads receive the visibility (SDK)', () => {
+  const gated = () => ctx.client.collection(GatedNodes.path)
+
+  it('a public subtree admits nodes whose shown source matches beforeRead', async () => {
+    const tree = await gated().getSubtree({ locale: 'es' })
+    expect(tree.map((n) => n.document.id)).toEqual([id.gatedRoot])
+    expect(tree[0]?.children.map((n) => n.document.id)).toEqual([id.gatedChild])
+    expect(tree[0]?.document.fields.title).toBe('G Root EN')
+  })
+
+  it('published editorial evaluates the same predicate against the unchecked Spanish', async () => {
+    const tree = await gated().getSubtree({
+      locale: 'es',
+      status: 'published',
+      localeVisibility: 'editorial',
+    })
+    expect(tree).toEqual([])
+  })
+
+  it('ancestors and the structure-only parent lookup follow the same policy', async () => {
+    const ancestors = await gated().getAncestors(id.gatedChild, { locale: 'es' })
+    expect(ancestors.map((a) => a.id)).toEqual([id.gatedRoot])
+    const parent = await gated().getTreeParent(id.gatedChild, { locale: 'es' })
+    expect(parent.parentDocumentId).toBe(id.gatedRoot)
+
+    const editorialParent = await gated().getTreeParent(id.gatedChild, {
+      locale: 'es',
+      status: 'published',
+      localeVisibility: 'editorial',
+    })
+    expect(editorialParent.parentDocumentId).toBeNull()
+  })
+})
+
+describe('public omit pagination through the SDK (Q4)', () => {
+  it('ids, order, total, totalPages and successive pages agree; projection changes nothing', async () => {
+    const [c, a, b] = id.q4 as [string, string, string, string]
+    const read = (page: number, select?: string[]) =>
+      ctx.client.collection(Pages.path).find({
+        locale: 'es',
+        onMissingLocale: 'omit',
+        where: { sku: 'q4sdk' },
+        sort: { title: 'asc' },
+        pageSize: 2,
+        page,
+        ...(select ? { select } : {}),
+      })
+
+    const page1 = await read(1)
+    const page2 = await read(2)
+    expect(page1.docs.map((d) => d.id)).toEqual([a, b])
+    expect(page2.docs.map((d) => d.id)).toEqual([c])
+    expect(page1.meta).toMatchObject({ total: 3, totalPages: 2, page: 1, pageSize: 2 })
+    expect(page2.meta).toMatchObject({ total: 3, totalPages: 2, page: 2 })
+    expect([...page1.docs, ...page2.docs].map((d) => [d.fields.title, d.resolvedLocale])).toEqual([
+      ['Q4 A ES', 'es'],
+      ['Q4 B ES', 'es'],
+      ['Q4 C ES', 'es'],
+    ])
+
+    const projected1 = await read(1, ['title'])
+    const projected2 = await read(2, ['title'])
+    expect(projected1.docs.map((d) => d.id)).toEqual(page1.docs.map((d) => d.id))
+    expect(projected2.docs.map((d) => d.id)).toEqual(page2.docs.map((d) => d.id))
+    expect(projected1.meta).toEqual(page1.meta)
+    expect(projected1.docs.map((d) => d.resolvedLocale)).toEqual(['es', 'es'])
+  })
+})
+
 describe('save-time rich-text embed (F3)', () => {
   it('an authenticated save embeds only publicly eligible target values', async () => {
     // A French-source target: the lifecycle default is English, and the
@@ -575,7 +694,7 @@ describe('save-time rich-text embed (F3)', () => {
     const connectionString = process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING as string
     const frenchAuthoring = pgAdapter({
       connectionString,
-      collections: [Topics, Tags, Notes, Nodes, Pages],
+      collections: [Topics, Tags, Notes, Nodes, Pages, GatedNodes],
       defaultContentLocale: 'fr',
     })
     const created = await frenchAuthoring.commands.documents.createDocumentVersion({

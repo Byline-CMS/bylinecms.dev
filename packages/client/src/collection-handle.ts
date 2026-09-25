@@ -1248,6 +1248,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       locale,
       filters,
+      localeVisibility,
     })
     if (structure.length === 0) return []
 
@@ -1448,6 +1449,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       locale,
       filters,
+      localeVisibility,
     })
     if (ancestors.length === 0) return []
 
@@ -1493,10 +1495,11 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     this.assertTreeCollection()
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
+    const localeVisibility = resolveLocaleVisibility(options.status, options.localeVisibility)
     const requestContext = await this.resolveAndAssertRead(
       readMode,
       readCtx,
-      resolveLocaleVisibility(options.status, options.localeVisibility),
+      localeVisibility,
       options.locale
     )
     const filters = await this.resolveBeforeReadFilters(
@@ -1509,6 +1512,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       locale: options.locale ?? this.client.defaultLocale,
       filters,
+      localeVisibility,
     })
     return {
       placed: result.placed,

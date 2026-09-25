@@ -102,6 +102,33 @@ interface OuterScope {
   documentId: SQL
   status: SQL
   path: SQL
+  /**
+   * SQL for the content locale this scope's localized values are matched in:
+   * the locale reconstruction shows for the document (see
+   * `effectiveLocaleSql`). Omitted ⇒ the requested locale, exactly.
+   */
+  effectiveLocale?: SQL
+  /** Present when relation hops must resolve each target's own effective locale. */
+  policy?: FilterLocalePolicy
+}
+
+/** A tree structural read's filter policy, anchored to the tree's collection. */
+interface TreeFilterPolicy {
+  collectionId: string
+  policy: FilterLocalePolicy
+}
+
+/**
+ * The language policy a read's filter, sort and list-text predicates evaluate
+ * localized values under, so they match exactly the values the read displays:
+ * a withheld or incomplete translation can neither match a predicate nor
+ * influence ordering while the response shows the source.
+ */
+interface FilterLocalePolicy {
+  onMissingLocale?: MissingLocalePolicy
+  visibility?: LocaleVisibility
+  /** `advertiseLocales` for the read's collection and every relation-hop target. */
+  advertiseByCollectionId: Map<string, boolean>
 }
 
 /**
@@ -321,30 +348,139 @@ export class DocumentQueries implements IDocumentQueries {
     }
   ): SQL | null {
     if (onMissingLocale !== 'omit' || locale === 'all') return null
+    return this.localeEligibleSql(
+      { versionId, documentId: gate.documentId, sourceLocale: gate.sourceLocale },
+      locale,
+      gate.visibility,
+      gate.advertiseLocales
+    )
+  }
+
+  /**
+   * SQL predicate: may `locale` be delivered for this document version? The
+   * SQL twin of `isLocaleEligible` in `@byline/core` — the source is always
+   * eligible; a locale-agnostic version (`'all'` sentinel) is eligible; any
+   * other locale must be complete in the version's ledger and, under
+   * `'public'` visibility in a collection with `advertiseLocales`, checked in
+   * `byline_document_available_locales`.
+   */
+  private localeEligibleSql(
+    row: { versionId: SQL; documentId: SQL; sourceLocale: SQL },
+    locale: string,
+    visibility: LocaleVisibility | undefined,
+    advertiseLocales: boolean
+  ): SQL {
     const checked =
-      gate.visibility === 'public' && gate.advertiseLocales
+      visibility === 'public' && advertiseLocales
         ? sql`AND EXISTS (
             SELECT 1 FROM byline_document_available_locales dal
-            WHERE dal.document_id = ${gate.documentId}
+            WHERE dal.document_id = ${row.documentId}
               AND dal.locale = ${locale}
           )`
         : sql``
     return sql`(
-      COALESCE(${gate.sourceLocale}, ${this.defaultContentLocale}) = ${locale}
+      COALESCE(${row.sourceLocale}, ${this.defaultContentLocale}) = ${locale}
       OR EXISTS (
         SELECT 1 FROM byline_document_version_locales dvl
-        WHERE dvl.document_version_id = ${versionId}
+        WHERE dvl.document_version_id = ${row.versionId}
           AND dvl.locale = 'all'
       )
       OR (
         EXISTS (
           SELECT 1 FROM byline_document_version_locales dvl
-          WHERE dvl.document_version_id = ${versionId}
+          WHERE dvl.document_version_id = ${row.versionId}
             AND dvl.locale = ${locale}
         )
         ${checked}
       )
     )`
+  }
+
+  /**
+   * SQL for the content locale a document's localized values are matched in,
+   * mirroring `resolveReadLocale`: under `'fallback'` the requested locale
+   * when eligible, otherwise the document's source; under `'omit'` the
+   * requested locale (the gate already guarantees eligibility); under a
+   * public exact read the requested locale when eligible, otherwise `NULL`
+   * (withheld values match nothing and are not replaced by the source); under
+   * an editorial exact read the requested locale, partial or not.
+   */
+  private effectiveLocaleSql(
+    row: { versionId: SQL; documentId: SQL; sourceLocale: SQL },
+    locale: string,
+    onMissingLocale: MissingLocalePolicy | undefined,
+    visibility: LocaleVisibility | undefined,
+    advertiseLocales: boolean
+  ): SQL {
+    if (locale === 'all' || onMissingLocale === 'omit') return sql`${locale}`
+    const eligible = this.localeEligibleSql(row, locale, visibility, advertiseLocales)
+    if (onMissingLocale === 'fallback') {
+      return sql`(CASE WHEN ${eligible} THEN ${locale} ELSE COALESCE(${row.sourceLocale}, ${this.defaultContentLocale}) END)`
+    }
+    if (visibility === 'public') return sql`(CASE WHEN ${eligible} THEN ${locale} END)`
+    return sql`${locale}`
+  }
+
+  /**
+   * The filter policy for a public-capable tree structural read: only when the
+   * caller supplies `localeVisibility` (editing reads omit it and keep exact
+   * requested-locale matching) and there are predicates to evaluate. Tree
+   * edges stay within one collection, resolved from the anchor document when
+   * the caller has only a document id.
+   */
+  private async treeFilterPolicy(
+    filters: DocumentFilter[] | undefined,
+    visibility: LocaleVisibility | undefined,
+    anchor: { collectionId?: string; documentId?: string }
+  ): Promise<TreeFilterPolicy | undefined> {
+    if (visibility == null || !filters?.length) return undefined
+    let collectionId = anchor.collectionId
+    if (collectionId == null && anchor.documentId != null) {
+      const [row] = await this.db
+        .select({ collection_id: documents.collection_id })
+        .from(documents)
+        .where(eq(documents.id, anchor.documentId))
+        .limit(1)
+      collectionId = row?.collection_id
+    }
+    if (collectionId == null) return undefined
+    return {
+      collectionId,
+      policy: await this.buildFilterLocalePolicy(collectionId, filters, 'fallback', visibility),
+    }
+  }
+
+  /**
+   * Build the filter locale policy for a read: its missing-locale policy and
+   * visibility, plus the `advertiseLocales` flag of the read's collection and
+   * of every collection a relation filter hops into.
+   */
+  private async buildFilterLocalePolicy(
+    collectionId: string,
+    filters: readonly DocumentFilter[],
+    onMissingLocale: MissingLocalePolicy | undefined,
+    visibility: LocaleVisibility | undefined
+  ): Promise<FilterLocalePolicy> {
+    const ids = new Set<string>([collectionId])
+    const walk = (list: readonly DocumentFilter[]) => {
+      for (const filter of list) {
+        if (filter.kind === 'relation') {
+          ids.add(filter.targetCollectionId)
+          walk(filter.nested)
+        } else if (filter.kind === 'and' || filter.kind === 'or') {
+          walk(filter.children)
+        }
+      }
+    }
+    walk(filters)
+    const advertiseByCollectionId = new Map<string, boolean>()
+    for (const id of ids) {
+      advertiseByCollectionId.set(
+        id,
+        (await this.getDefinitionForCollection(id)).advertiseLocales === true
+      )
+    }
+    return { onMissingLocale, visibility, advertiseByCollectionId }
   }
 
   /**
@@ -825,11 +961,30 @@ export class DocumentQueries implements IDocumentQueries {
       eq(view.document_id, document_id),
     ]
     if (filters?.length) {
+      const policy = await this.buildFilterLocalePolicy(
+        collection_id,
+        filters,
+        onMissingLocale,
+        localeVisibility
+      )
+      const row = {
+        versionId: sql`${view.id}`,
+        documentId: sql`${view.document_id}`,
+        sourceLocale: sql`${view.source_locale}`,
+      }
       const outerScope: OuterScope = {
         docVersionId: sql`${view.id}`,
         documentId: sql`${view.document_id}`,
         status: sql`${view.status}`,
         path: this.pathProjection(sql`${view.document_id}`, locale, sql`${view.source_locale}`),
+        effectiveLocale: this.effectiveLocaleSql(
+          row,
+          locale,
+          onMissingLocale,
+          localeVisibility,
+          policy.advertiseByCollectionId.get(collection_id) ?? false
+        ),
+        policy,
       }
       for (const f of filters) {
         baseConditions.push(this.buildFilterExists(f, locale, outerScope, readMode, 0))
@@ -958,11 +1113,30 @@ export class DocumentQueries implements IDocumentQueries {
       sql`${view.document_id} = ${this.resolveDocumentIdByPath(collection_id, path, locale)}`,
     ]
     if (filters?.length) {
+      const policy = await this.buildFilterLocalePolicy(
+        collection_id,
+        filters,
+        onMissingLocale,
+        localeVisibility
+      )
+      const row = {
+        versionId: sql`${view.id}`,
+        documentId: sql`${view.document_id}`,
+        sourceLocale: sql`${view.source_locale}`,
+      }
       const outerScope: OuterScope = {
         docVersionId: sql`${view.id}`,
         documentId: sql`${view.document_id}`,
         status: sql`${view.status}`,
         path: this.pathProjection(sql`${view.document_id}`, locale, sql`${view.source_locale}`),
+        effectiveLocale: this.effectiveLocaleSql(
+          row,
+          locale,
+          onMissingLocale,
+          localeVisibility,
+          policy.advertiseByCollectionId.get(collection_id) ?? false
+        ),
+        policy,
       }
       for (const f of filters) {
         baseConditions.push(this.buildFilterExists(f, locale, outerScope, readMode, 0))
@@ -1209,6 +1383,14 @@ export class DocumentQueries implements IDocumentQueries {
       inArray(view.document_id, document_ids),
     ]
     if (filters?.length) {
+      // Populate shows targets under fallback, so their predicates match in
+      // each target's effective fallback locale.
+      const policy = await this.buildFilterLocalePolicy(
+        collection_id,
+        filters,
+        'fallback',
+        localeVisibility
+      )
       const outerScope: OuterScope = {
         docVersionId: sql`${view.id}`,
         documentId: sql`${view.document_id}`,
@@ -1218,6 +1400,18 @@ export class DocumentQueries implements IDocumentQueries {
           filterLocale,
           sql`${view.source_locale}`
         ),
+        effectiveLocale: this.effectiveLocaleSql(
+          {
+            versionId: sql`${view.id}`,
+            documentId: sql`${view.document_id}`,
+            sourceLocale: sql`${view.source_locale}`,
+          },
+          filterLocale,
+          'fallback',
+          localeVisibility,
+          policy.advertiseByCollectionId.get(collection_id) ?? false
+        ),
+        policy,
       }
       for (const f of filters) {
         baseConditions.push(this.buildFilterExists(f, filterLocale, outerScope, readMode, 0))
@@ -1517,33 +1711,44 @@ export class DocumentQueries implements IDocumentQueries {
     readMode = 'any',
     locale = this.defaultContentLocale,
     filters,
+    localeVisibility,
   }: {
     document_id: string
     maxDepth?: number
     readMode?: ReadMode
     locale?: string
     filters?: DocumentFilter[]
+    localeVisibility?: LocaleVisibility
   }): Promise<Array<{ document_id: string; depth: number }>> {
+    // Public-capable structural reads evaluate `beforeRead` predicates in the
+    // locale hydration will show (fallback, under the read's visibility), so a
+    // node is neither dropped nor admitted on a withheld translation.
+    const treePolicy = await this.treeFilterPolicy(filters, localeVisibility, {
+      documentId: document_id,
+    })
     const childGate = this.buildTreeVisibility(
       sql`child_document_id`,
       filters,
       locale,
       readMode,
-      'cv0'
+      'cv0',
+      treePolicy
     )
     const anchorParentGate = this.buildTreeVisibility(
       sql`parent_document_id`,
       filters,
       locale,
       readMode,
-      'pv0'
+      'pv0',
+      treePolicy
     )
     const recursiveParentGate = this.buildTreeVisibility(
       sql`r.parent_document_id`,
       filters,
       locale,
       readMode,
-      'pv1'
+      'pv1',
+      treePolicy
     )
 
     const { rows } = await this.db.execute(sql`
@@ -1615,25 +1820,35 @@ export class DocumentQueries implements IDocumentQueries {
     readMode = 'any',
     locale = this.defaultContentLocale,
     filters,
+    localeVisibility,
   }: {
     document_id: string
     readMode?: ReadMode
     locale?: string
     filters?: DocumentFilter[]
+    localeVisibility?: LocaleVisibility
   }): Promise<{ placed: boolean; parentDocumentId: string | null; parentRedacted?: true }> {
+    // Public-capable structural reads evaluate `beforeRead` predicates in the
+    // locale hydration will show (fallback, under the read's visibility), so a
+    // node is neither dropped nor admitted on a withheld translation.
+    const treePolicy = await this.treeFilterPolicy(filters, localeVisibility, {
+      documentId: document_id,
+    })
     const childGate = this.buildTreeVisibility(
       sql`r.child_document_id`,
       filters,
       locale,
       readMode,
-      'cv0'
+      'cv0',
+      treePolicy
     )
     const parentGate = this.buildTreeVisibility(
       sql`r.parent_document_id`,
       filters,
       locale,
       readMode,
-      'pv0'
+      'pv0',
+      treePolicy
     )
     const { rows } = await this.db.execute(sql`
       SELECT r.parent_document_id,
@@ -1669,6 +1884,7 @@ export class DocumentQueries implements IDocumentQueries {
     readMode = 'any',
     locale = this.defaultContentLocale,
     filters,
+    localeVisibility,
   }: {
     collectionId: string
     rootDocumentId?: string | null
@@ -1676,6 +1892,7 @@ export class DocumentQueries implements IDocumentQueries {
     readMode?: ReadMode
     locale?: string
     filters?: DocumentFilter[]
+    localeVisibility?: LocaleVisibility
   }): Promise<
     Array<{
       document_id: string
@@ -1684,6 +1901,10 @@ export class DocumentQueries implements IDocumentQueries {
       order_key: string
     }>
   > {
+    // Public-capable structural reads evaluate `beforeRead` predicates in the
+    // locale hydration will show (fallback, under the read's visibility), so a
+    // node is neither dropped nor admitted on a withheld translation.
+    const treePolicy = await this.treeFilterPolicy(filters, localeVisibility, { collectionId })
     const rootCondition =
       rootDocumentId == null
         ? sql`r.parent_document_id IS NULL`
@@ -1693,14 +1914,16 @@ export class DocumentQueries implements IDocumentQueries {
       filters,
       locale,
       readMode,
-      'sv0'
+      'sv0',
+      treePolicy
     )
     const childGate = this.buildTreeVisibility(
       sql`r.child_document_id`,
       filters,
       locale,
       readMode,
-      'sv1'
+      'sv1',
+      treePolicy
     )
 
     const { rows } = await this.db.execute(sql`
@@ -2071,6 +2294,24 @@ export class DocumentQueries implements IDocumentQueries {
       conditions.push(sql`d.status = ${status}`)
     }
 
+    // The locale each row's localized values are matched in by filters, the
+    // list text query and field sorts: exactly the locale reconstruction will
+    // show for that row, so a withheld or incomplete translation can neither
+    // match nor influence ordering while the response displays the source.
+    const filterPolicy = await this.buildFilterLocalePolicy(
+      collection_id,
+      filters,
+      onMissingLocale,
+      localeVisibility
+    )
+    const effectiveLocale = this.effectiveLocaleSql(
+      { versionId: sql`d.id`, documentId: sql`d.document_id`, sourceLocale: sql`d.source_locale` },
+      locale,
+      onMissingLocale,
+      localeVisibility,
+      filterPolicy.advertiseByCollectionId.get(collection_id) ?? false
+    )
+
     // `onMissingLocale: 'omit'` — exclude documents not available in the
     // requested locale (filtered at the SQL layer so pagination stays correct).
     const strictGate = this.localeAvailabilityExists(sql`d.id`, locale, onMissingLocale, {
@@ -2097,6 +2338,7 @@ export class DocumentQueries implements IDocumentQueries {
 
     // Admin list-view quick search via EXISTS on store_text.
     if (query) {
+      // Matched in each document's effective locale, like the field filters.
       const definition = await this.getDefinitionForCollection(collection_id)
       // The list-view box matches store_text rows by field name, from the
       // schema-level `listSearch` declaration; fall back to the collection's
@@ -2113,14 +2355,15 @@ export class DocumentQueries implements IDocumentQueries {
       conditions.push(sql`EXISTS (
         SELECT 1 FROM byline_store_text
         WHERE document_version_id = d.id
-          AND (locale = ${locale} OR locale = 'all')
+          AND (locale = ${effectiveLocale} OR locale = 'all')
           AND (${sql.join(searchConditions, sql` OR `)})
       )`)
     }
 
     // Field-level / relation-level EXISTS subqueries. Each relation hop
     // introduces its own alias scope (`r${depth}`, `td${depth}`) so nested
-    // EXISTS clauses don't shadow their outer relation's aliases.
+    // EXISTS clauses don't shadow their outer relation's aliases. Localized
+    // values are matched in each document's effective locale (`effectiveLocale`).
     for (const filter of filters) {
       conditions.push(
         this.buildFilterExists(
@@ -2131,6 +2374,8 @@ export class DocumentQueries implements IDocumentQueries {
             documentId: sql`d.document_id`,
             status: sql`d.status`,
             path: this.pathProjection(sql`d.document_id`, locale, sql`d.source_locale`),
+            effectiveLocale,
+            policy: filterPolicy,
           },
           readMode,
           0
@@ -2153,7 +2398,7 @@ export class DocumentQueries implements IDocumentQueries {
           FROM ${sql.raw(storeTable)}
           WHERE document_version_id = d.id
             AND field_name = ${sort.fieldName}
-            AND (locale = ${locale} OR locale = 'all')
+            AND (locale = ${effectiveLocale} OR locale = 'all')
           LIMIT 1
         ) _sort ON true`
         // `NULLS LAST` in BOTH directions: a document with no stored row for
@@ -2263,7 +2508,8 @@ export class DocumentQueries implements IDocumentQueries {
     filters: DocumentFilter[] | undefined,
     locale: string,
     readMode: ReadMode,
-    aliasName: string
+    aliasName: string,
+    treePolicy?: TreeFilterPolicy
   ): SQL {
     const view =
       readMode === 'published'
@@ -2275,6 +2521,20 @@ export class DocumentQueries implements IDocumentQueries {
       documentId: sql`${alias}.document_id`,
       status: sql`${alias}.status`,
       path: this.pathProjection(sql`${alias}.document_id`, locale, sql`${alias}.source_locale`),
+      effectiveLocale: treePolicy
+        ? this.effectiveLocaleSql(
+            {
+              versionId: sql`${alias}.id`,
+              documentId: sql`${alias}.document_id`,
+              sourceLocale: sql`${alias}.source_locale`,
+            },
+            locale,
+            'fallback',
+            treePolicy.policy.visibility,
+            treePolicy.policy.advertiseByCollectionId.get(treePolicy.collectionId) ?? false
+          )
+        : undefined,
+      policy: treePolicy?.policy,
     }
     const filterSql = (filters ?? []).map((filter) =>
       this.buildFilterExists(filter, locale, scope, readMode, 0)
@@ -2313,7 +2573,11 @@ export class DocumentQueries implements IDocumentQueries {
   ): SQL {
     switch (filter.kind) {
       case 'field':
-        return this.buildFieldExists(filter, locale, outerScope.docVersionId)
+        return this.buildFieldExists(
+          filter,
+          outerScope.effectiveLocale ?? sql`${locale}`,
+          outerScope.docVersionId
+        )
       case 'relation':
         return this.buildRelationExists(filter, locale, outerScope, readMode, depth)
       case 'and':
@@ -2366,7 +2630,7 @@ export class DocumentQueries implements IDocumentQueries {
   /**
    * Build an EXISTS subquery for a single field-level filter.
    */
-  private buildFieldExists(filter: FieldFilter, locale: string, outerDocVersionId: SQL): SQL {
+  private buildFieldExists(filter: FieldFilter, locale: SQL, outerDocVersionId: SQL): SQL {
     const storeTable = storeTableNames[filter.storeType as StoreType]
     if (!storeTable) {
       throw ERR_DATABASE({
@@ -2446,6 +2710,23 @@ export class DocumentQueries implements IDocumentQueries {
         locale,
         sql.raw(`td${depth}.source_locale`)
       ),
+      // Each target is matched in its own effective locale (populate shows
+      // targets under fallback), judged by its own source, ledger, checkboxes
+      // and collection opt-in.
+      effectiveLocale: outerScope.policy
+        ? this.effectiveLocaleSql(
+            {
+              versionId: sql.raw(`td${depth}.id`),
+              documentId: sql.raw(`td${depth}.document_id`),
+              sourceLocale: sql.raw(`td${depth}.source_locale`),
+            },
+            locale,
+            'fallback',
+            outerScope.policy.visibility,
+            outerScope.policy.advertiseByCollectionId.get(filter.targetCollectionId) ?? false
+          )
+        : undefined,
+      policy: outerScope.policy,
     }
 
     const nestedConditions: SQL[] = filter.nested.map((nested) =>
@@ -2488,7 +2769,7 @@ export class DocumentQueries implements IDocumentQueries {
       WHERE ${rAlias}.document_version_id = ${outerScope.docVersionId}
         AND ${fieldMatch}
         AND ${rAlias}.target_collection_id = ${filter.targetCollectionId}
-        AND (${rAlias}.locale = ${locale} OR ${rAlias}.locale = 'all')${nestedAnd}
+        AND (${rAlias}.locale = ${outerScope.effectiveLocale ?? sql`${locale}`} OR ${rAlias}.locale = 'all')${nestedAnd}
     )`
 
     return quantifier === 'some' ? existsSql : sql`NOT ${existsSql}`
