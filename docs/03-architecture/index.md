@@ -9,6 +9,7 @@ summary: "The load-bearing design decisions behind Byline: universal EAV storage
 Companions:
 - [Configuration](../01-getting-started/03-configuration.md) — where these architectural boundaries appear in an application's files and imports.
 - [Document Storage](./01-document-storage.md) — the complete typed EAV and immutable-versioning model.
+- [Content history and document controls](./06-content-history-and-document-controls.md) explains the rationale, historical guarantees, source-locale boundary, and future design questions.
 - [API Reference](../10-api-reference/index.md) — exact configuration, collection, field, and Client SDK contracts built on these decisions.
 
 These are the load-bearing decisions behind Byline. Each is described in depth in
@@ -32,9 +33,10 @@ in the schema by *declaration* path. See [Path Grammar](./04-path-grammar.md).
 
 ## 2. Immutable versioning
 
-Every save writes a new document version (UUIDv7, time-ordered) rather than
-mutating in place. This gives version history and audit trails for free; a
-`ROW_NUMBER() OVER PARTITION` view resolves the current version per document.
+Every content save writes a new document version (UUIDv7, time-ordered) rather than
+overwriting earlier field values. A `ROW_NUMBER() OVER PARTITION` view resolves
+the current version per document. Workflow status remains mutable lifecycle
+metadata on the version; document controls have their own audited write paths.
 
 See [Document Storage → Versioning](./01-document-storage.md#versioning) for the
 document-versioning runtime, and [Collection Versioning](../04-collections/08-collection-versioning.md)
@@ -43,12 +45,13 @@ was authored against.
 
 ## 3. Document level vs version level
 
-Not everything about a document changes at the same rate, and Byline stores state
-at two distinct levels to match:
+Byline separates saved content from current document controls according to what
+each attribute describes and when its changes should take effect:
 
 - **Version level: content.** Every field value lives in the version stream.
-  Editing content mints a new immutable `documentVersions` row (decision 2);
-  nothing is overwritten.
+  Editing content mints a new version (decision 2); its content values and
+  derived completeness ledger are preserved. Workflow status is mutable metadata
+  associated with that version.
 - **Document level: identity and placement.** A few system attributes belong to
   the *logical document* rather than to any one version, and are **sticky across
   versions**:
@@ -61,24 +64,28 @@ at two distinct levels to match:
     (`byline_document_relationships`); see
     [Document Trees](../04-collections/04-document-trees.md).
 
+The document also retains `sourceLocale`, its stable content anchor. Changing the
+installation default affects new documents without reinterpreting older documents
+against a new source. Explicit re-anchoring is a separate maintenance operation,
+not an ordinary metadata edit.
+
 Document-level fields are written by dedicated, **non-versioned** commands
 (`updateDocumentPath`, `setDocumentAvailableLocales`, `placeTreeNode`) that mint
 no version and don't reset workflow status. The write is immediate and applies
 across every version of the document.
 
-The reason is that these attributes describe *where a document is and how it's
-reached*, not *what it says*. A path, a tree position, or an advertised-locale set
-cannot honestly be "pending publish": there is no per-version copy to stage.
-Coupling them to the publish workflow would reset the document to draft on a
-purely structural move and imply a staging step that never existed: the editorial
-write already lands at save time. Keeping them at document level makes the data
-model and the UX agree: re-parenting a document, fixing a slug, or toggling a
-locale is an immediate metadata edit, much like renaming a file.
+This is a deliberate workflow choice: restoring old content should not silently
+restore an obsolete URL, undo current placement, or re-enable a withdrawn language.
+These controls take effect when saved rather than waiting for content publication.
+Staging them with content would require a different, explicit publication contract;
+it is not supplied by the current version model.
 
 | Concern | Level | Storage | Written by | In version history? |
 |---|---|---|---|---|
 | Field content | version | `store_*` | `createDocumentVersion` | ✅ each edit is a version |
+| Completeness ledger | version | `byline_document_version_locales` | computed during version persistence | preserved with the version |
 | Workflow status | version (in place) | `documentVersions.status` | `changeDocumentStatus` | partial (current value only) |
+| `sourceLocale` | document | `byline_documents.source_locale` | creation; exceptional re-anchor operation | no per-version source snapshot |
 | `path` | document | `byline_document_paths` | `updateDocumentPath` | ❌ non-versioned |
 | `availableLocales` | document | `byline_document_available_locales` | `setDocumentAvailableLocales` | ❌ non-versioned |
 | tree edge (parent + order) | document | `byline_document_relationships` | `placeTreeNode` | ❌ non-versioned |
@@ -91,9 +98,15 @@ Accountability for them is the job of the document-level
 [audit log](../07-auth-and-security/02-auditability.md): every non-versioned
 mutation records who changed what, when, and from→to, written in the *same*
 transaction as the change itself (see [Transactions](./03-transactions.md)) so a
-change can never commit without its audit row. Versioning covers the content; the
-audit log covers everything that changes outside it. Together they make *every*
-change accountable.
+change through those audited lifecycle paths cannot commit without its audit row.
+Internal storage primitives can bypass those paths and are not ordinary application
+write APIs. Audit evidence does not by itself guarantee exact replay of historical
+public responses.
+
+The architectural promise is **immutable content history, with audited mutable
+workflow and document controls**. [Content history and document controls](./06-content-history-and-document-controls.md)
+explains the costs, the distinction between default changes and source re-anchoring,
+and the requirements that could justify historical replay or coordinated releases.
 
 ## 4. Patch-based updates
 
