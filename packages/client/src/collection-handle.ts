@@ -396,10 +396,12 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       offset: options.offset,
     })
 
-    // Row-level authorization (+ optional hydration) — the shared finishing
-    // pipeline the zone entry point uses too. Collections without a
-    // beforeRead predicate and no hydrate request pass through untouched.
-    const hits = await finalizeSearchHits({
+    // Row-level authorization, exact-locale eligibility (+ optional
+    // hydration) — the shared finishing pipeline the zone entry point uses
+    // too. Public searches always re-check every hit and always follow the
+    // restricted-result convention; only an editorial search without a
+    // beforeRead predicate or hydration passes hits through untouched.
+    const { hits, eligibilityRestricted } = await finalizeSearchHits({
       client: this.client,
       requestContext,
       hits: results.hits,
@@ -407,9 +409,10 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       status: options.status,
       hydrate: options.hydrate,
       bypassBeforeRead: options._bypassBeforeRead,
+      localeVisibility: resolveLocaleVisibility(readMode),
       readContext: readCtx,
     })
-    return aggregateRestricted
+    return aggregateRestricted || eligibilityRestricted
       ? { hits, total: hits.length }
       : { hits, total: results.total, facets: results.facets }
   }
@@ -437,9 +440,13 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
 
     const populate = this.buildSearchFacetPopulateMap()
     for (const locale of this.client.contentLocales) {
+      // Public delivery, pinned explicitly: the system client indexing here
+      // is authenticated, but only publicly eligible locale slices (source,
+      // or checked and complete) may enter the index.
       const view = await this.findById(documentId, {
         locale,
         status: 'published',
+        localeVisibility: 'public',
         onMissingLocale: 'omit',
         populate,
         _bypassBeforeRead: true,

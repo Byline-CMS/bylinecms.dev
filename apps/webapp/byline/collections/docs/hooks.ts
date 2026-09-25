@@ -120,7 +120,10 @@ export default defineHooks({
               ...structural,
             })
           : undefined,
-      ...(requested.path
+      // A path change moves the indexed URL; a locale change alters which
+      // translations are publicly delivered. `requested` (not `changed`) so a
+      // no-op reconciliation retry re-runs indexing after a failed attempt.
+      ...(requested.path || requested.availableLocales
         ? [getSystemBylineClient().collection('docs').indexDocument(documentId)]
         : []),
     ])

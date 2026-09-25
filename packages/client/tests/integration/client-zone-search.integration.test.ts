@@ -360,14 +360,20 @@ describe('zone (cross-collection) search', () => {
     }
   })
 
-  it('hydrate drops stale index entries whose document no longer resolves', async () => {
+  it('public search drops stale index entries whose document no longer resolves', async () => {
     // Delete an article *without* index maintenance (this collection wires no
     // lifecycle hooks), leaving a stale index row behind.
     setSuperActor('super')
     await ctx.client.collection(articlesPath).delete(articleTwo, { expectedRevision: 2 })
 
+    // Public hits are re-checked for exact-locale eligibility even without
+    // hydration, so the stale row is dropped and the restricted-result
+    // convention applies (retained-hit total, no provider facets).
     const stale = await ctx.client.search({ query: 'zonal', zone })
-    expect(stale.hits.some((h) => h.documentId === articleTwo)).toBe(true) // still ranked
+    expect(stale.hits.some((h) => h.documentId === articleTwo)).toBe(false)
+    expect(stale.hits.some((h) => h.documentId === articleOne)).toBe(true)
+    expect(stale.total).toBe(stale.hits.length)
+    expect(stale.facets).toBeUndefined()
 
     const hydrated = await ctx.client.search({ query: 'zonal', zone, hydrate: true })
     expect(hydrated.hits.some((h) => h.documentId === articleTwo)).toBe(false) // dropped

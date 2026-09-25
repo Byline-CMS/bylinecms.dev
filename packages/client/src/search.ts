@@ -15,17 +15,26 @@
  * `finalizeSearchHits`, which — per collection represented in the hits —
  * applies `beforeRead` row scoping (re-resolving candidate ids through the
  * normal read path) and, when `hydrate` is requested, batch-reads the hits
- * into shaped `ClientDocument`s in the same query.
+ * into shaped `ClientDocument`s in the same query. Under `'public'` locale
+ * visibility every hit is also re-checked for exact-locale eligibility, so a
+ * stale index entry for a withheld translation is dropped whole.
  */
 
 import type { RequestContext } from '@byline/auth'
-import type { ReadContext, ReadMode, SearchHit, SearchProvider } from '@byline/core'
+import type {
+  LocaleVisibility,
+  ReadContext,
+  ReadMode,
+  SearchHit,
+  SearchProvider,
+} from '@byline/core'
 import {
   assertActorCanPerform,
   createReadContext,
   ERR_VALIDATION,
   getCollectionAdminConfig,
   MAX_SEARCH_QUERY_LENGTH,
+  resolveLocaleVisibility,
   resolveSearchZones,
 } from '@byline/core'
 
@@ -69,8 +78,29 @@ export interface FinalizeSearchHitsParams {
   status?: ReadMode
   hydrate?: boolean
   bypassBeforeRead?: true
+  /**
+   * The search's locale visibility (derived from `status`). Under `'public'`
+   * each hit's document must be publicly eligible in the hit's locale.
+   */
+  localeVisibility: LocaleVisibility
   /** Shared per-request read context (beforeRead cache). Created when omitted. */
   readContext?: ReadContext
+}
+
+/** Finished hits, plus whether a post-ranking eligibility policy applied. */
+export interface FinalizedSearchHits {
+  hits: HydratedSearchHit[]
+  /**
+   * `true` whenever the public exact-locale eligibility policy applies — that
+   * is, for every `'public'` search, including an empty page. The provider's
+   * `total` and facets count its whole index, which can hold slices the
+   * policy would reject on other pages, so a page-only check cannot certify
+   * them. The caller follows the restricted-result convention (retained-hit
+   * `total`, no provider facets), exactly as for `beforeRead` row scoping,
+   * which also restricts on the presence of the policy, not on an observed
+   * removal.
+   */
+  eligibilityRestricted: boolean
 }
 
 /**
@@ -82,9 +112,19 @@ export interface FinalizeSearchHitsParams {
  *     hydration cost one query per collection. Hits whose document doesn't
  *     come back — dropped by scoping, or a stale index entry whose document
  *     no longer resolves — are removed; the rest carry `hit.document`.
- *   - `hydrate` off — collections with a `beforeRead` predicate get the
- *     trimmed id re-resolution (identity-field projection); collections
- *     without one pass through untouched (no second query).
+ *   - `hydrate` off, public visibility — every collection's hit ids are
+ *     re-resolved through the normal read path with `onMissingLocale:
+ *     'omit'` (identity-field projection), which applies both exact-locale
+ *     eligibility and any `beforeRead` scoping. An index entry can outlive
+ *     the checkbox that allowed it (until reindexing catches up), so this
+ *     check runs even without a hook.
+ *   - `hydrate` off, editorial visibility — collections with a `beforeRead`
+ *     predicate get the trimmed id re-resolution; collections without one
+ *     pass through untouched (no second query).
+ *
+ * Hydration also reads with `'omit'`: a hit is for one locale slice, and a
+ * source-language document substituted by fallback would not make that hit
+ * safe.
  *
  * Hits whose `collectionPath` isn't registered in the runtime config are
  * dropped with a debug log (an index can outlive a collection). Original
@@ -92,9 +132,19 @@ export interface FinalizeSearchHitsParams {
  */
 export async function finalizeSearchHits(
   params: FinalizeSearchHitsParams
-): Promise<HydratedSearchHit[]> {
-  const { client, requestContext, hits, locale, status, hydrate, bypassBeforeRead } = params
-  if (hits.length === 0) return hits
+): Promise<FinalizedSearchHits> {
+  const {
+    client,
+    requestContext,
+    hits,
+    locale,
+    status,
+    hydrate,
+    bypassBeforeRead,
+    localeVisibility,
+  } = params
+  const eligibilityRestricted = localeVisibility === 'public'
+  if (hits.length === 0) return { hits, eligibilityRestricted }
   const readCtx = params.readContext ?? createReadContext()
 
   // Group hit ids by collection, preserving overall ranking order for the
@@ -144,6 +194,8 @@ export async function finalizeSearchHits(
         select,
         locale,
         status,
+        onMissingLocale: 'omit',
+        localeVisibility,
         page: 1,
         pageSize: ids.length,
         _readContext: readCtx,
@@ -153,6 +205,25 @@ export async function finalizeSearchHits(
         collectionPath,
         new Map(result.docs.map((d) => [d.id, d as ClientDocument]))
       )
+      continue
+    }
+
+    if (localeVisibility === 'public') {
+      // Exact-locale eligibility (and beforeRead scoping, unless bypassed)
+      // for every public hit, hook or no hook.
+      const result = await handle.find({
+        where: { id: { $in: ids } },
+        select: definition.useAsTitle != null ? [definition.useAsTitle] : undefined,
+        locale,
+        status,
+        onMissingLocale: 'omit',
+        localeVisibility,
+        page: 1,
+        pageSize: ids.length,
+        _readContext: readCtx,
+        ...(bypassBeforeRead ? { _bypassBeforeRead: true as const } : {}),
+      })
+      allowedByCollection.set(collectionPath, new Set(result.docs.map((d) => d.id)))
       continue
     }
 
@@ -203,7 +274,7 @@ export async function finalizeSearchHits(
       finished.push(hit)
     }
   }
-  return finished
+  return { hits: finished, eligibilityRestricted }
 }
 
 // ---------------------------------------------------------------------------
@@ -299,7 +370,7 @@ export async function zoneSearch(
 
   // Constrain to readable member collections, then authorise / hydrate.
   const scoped = results.hits.filter((h) => readable.has(h.collectionPath))
-  const hits = await finalizeSearchHits({
+  const { hits, eligibilityRestricted } = await finalizeSearchHits({
     client,
     requestContext,
     hits: scoped,
@@ -307,10 +378,11 @@ export async function zoneSearch(
     status: options.status,
     hydrate: options.hydrate,
     bypassBeforeRead: options._bypassBeforeRead,
+    localeVisibility: resolveLocaleVisibility(readMode),
     readContext: readCtx,
   })
 
-  return aggregateRestricted
+  return aggregateRestricted || eligibilityRestricted
     ? { hits, total: hits.length }
     : { hits, total: results.total, facets: results.facets }
 }

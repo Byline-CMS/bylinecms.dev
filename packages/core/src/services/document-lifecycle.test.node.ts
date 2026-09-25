@@ -2663,6 +2663,75 @@ describe('Document lifecycle service', () => {
       )
     })
 
+    it('re-runs reconciliation on a no-op locale-only retry after a committed hook failure', async () => {
+      const { db, getDocumentSystemFieldsForUpdate, auditAppend } = createMockDb()
+      setupDoc(getDocumentSystemFieldsForUpdate)
+      const afterSystemFieldsChange = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('search unavailable'))
+        .mockResolvedValue(undefined)
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        hooks: { afterSystemFieldsChange },
+      })
+
+      await expect(
+        updateDocumentSystemFields(ctx, {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          availableLocales: ['en', 'fr'],
+        })
+      ).rejects.toMatchObject({
+        code: ErrorCodes.DOCUMENT_HOOK_COMMITTED,
+        details: { revision: 2 },
+      })
+
+      // The committed locale set stays; the retry writes nothing new.
+      setupDoc(getDocumentSystemFieldsForUpdate, { availableLocales: ['en', 'fr'] })
+      const retry = await updateDocumentSystemFields(ctx, {
+        expectedRevision: 2,
+        documentId: 'doc-1',
+        availableLocales: ['en', 'fr'],
+        reconcile: true,
+      })
+
+      expect(retry).toMatchObject({ changed: false, reconciliation: true })
+      expect(db.commands.documents.setDocumentAvailableLocales).toHaveBeenCalledOnce()
+      expect(db.commands.documents.createDocumentVersion).not.toHaveBeenCalled()
+      expect(auditAppend).toHaveBeenCalledOnce()
+      expect(afterSystemFieldsChange).toHaveBeenCalledTimes(2)
+      expect(afterSystemFieldsChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          requested: { path: false, availableLocales: true },
+          changed: { path: false, availableLocales: false },
+          reconciliation: true,
+          previousAvailableLocales: ['en', 'fr'],
+          currentAvailableLocales: ['en', 'fr'],
+        })
+      )
+    })
+
+    it('does not invoke the hook for a plain no-op locale write', async () => {
+      const { db, getDocumentSystemFieldsForUpdate, auditAppend } = createMockDb()
+      setupDoc(getDocumentSystemFieldsForUpdate, { availableLocales: ['en', 'fr'] })
+      const afterSystemFieldsChange = vi.fn()
+      const ctx = buildCtx(db, {
+        ...minimalCollection,
+        hooks: { afterSystemFieldsChange },
+      })
+
+      const result = await updateDocumentSystemFields(ctx, {
+        expectedRevision: 1,
+        documentId: 'doc-1',
+        availableLocales: ['fr', 'en', 'fr'],
+      })
+
+      expect(result).toMatchObject({ changed: false })
+      expect(db.commands.documents.setDocumentAvailableLocales).not.toHaveBeenCalled()
+      expect(auditAppend).not.toHaveBeenCalled()
+      expect(afterSystemFieldsChange).not.toHaveBeenCalled()
+    })
+
     it('uses the locked transaction snapshot for audit and invalidation payloads', async () => {
       const { db, getDocumentById, getDocumentSystemFieldsForUpdate, auditAppend } = createMockDb()
       getDocumentById.mockResolvedValue({
