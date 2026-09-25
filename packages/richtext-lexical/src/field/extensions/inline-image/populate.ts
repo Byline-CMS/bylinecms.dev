@@ -22,9 +22,17 @@
  * fallback), so the refresh must go through it rather than assigning
  * `image.storageUrl` directly — otherwise every save would swap the
  * variant for the full-size original and leave the variant's dimensions
- * describing different bytes. Missing targets, missing images, and
- * blank URLs leave all three fields untouched: the visitor never leaves
- * a node emptier than it found it.
+ * describing different bytes.
+ *
+ * Every copied media value — the envelope's `title`, `altText`, `image` and
+ * `sizes`, and the node's `src` / `width` / `height` — is **replaced, never
+ * merged**. When the media target is missing or denied to this reader, or it
+ * resolves without an image or without a usable URL, the copied image data
+ * and preview are removed and `document._resolved = false` marks the node
+ * unresolved, so no stale image is rendered, serialized or exported to
+ * Markdown. A valid current image still renders when only its title or alt
+ * text is absent. The node's identity, position, authored `altText`, caption
+ * and click-through link are never touched here.
  */
 
 import type { StoredFileValue } from '@byline/core'
@@ -50,6 +58,20 @@ interface InlineImageNodeLike extends LexicalNodeLike {
   link?: LinkAttributes
 }
 
+/** Envelope values copied from the media document on every refresh. */
+const DERIVED_KEYS = ['title', 'altText', 'image', 'sizes'] as const
+
+/**
+ * Remove the copied preview. `src` is a required string on the serialized
+ * node, so it becomes empty (the Markdown serializer and editor already treat
+ * an empty `src` as "no image") rather than being deleted.
+ */
+function clearPreview(node: InlineImageNodeLike): void {
+  node.src = ''
+  delete node.width
+  delete node.height
+}
+
 export const inlineImageVisitor: LexicalNodeVisitor = {
   match(node: LexicalNodeLike) {
     if (node.type !== 'inline-image') return null
@@ -64,20 +86,39 @@ export const inlineImageVisitor: LexicalNodeVisitor = {
       apply(target: Record<string, any>) {
         const targetFields = (target.fields ?? {}) as Record<string, any>
         const image = targetFields.image as StoredFileValue | undefined
-        const sizes = image ? deriveImageSizes(image) : []
         const next: Record<string, any> = { ...(node.document ?? {}) }
+        for (const key of DERIVED_KEYS) delete next[key]
         if (typeof targetFields.title === 'string') next.title = targetFields.title
         if (typeof targetFields.altText === 'string') next.altText = targetFields.altText
-        if (image != null) next.image = image
-        if (sizes.length > 0) next.sizes = sizes
-        node.document = next
+
         const preferred = getPreferredSize(imageNode.position, image)
         const url = preferred?.url?.trim()
-        if (url) {
+        if (image != null && url) {
+          const sizes = deriveImageSizes(image)
+          next.image = image
+          if (sizes.length > 0) next.sizes = sizes
+          delete next._resolved
           imageNode.src = url
           if (preferred?.width != null) imageNode.width = preferred.width
+          else delete imageNode.width
           if (preferred?.height != null) imageNode.height = preferred.height
+          else delete imageNode.height
+        } else {
+          // Resolved without an image, or without a usable URL.
+          next._resolved = false
+          clearPreview(imageNode)
         }
+        node.document = next
+      },
+      applyMissing() {
+        // The media target could not be read (deleted, unpublished, or
+        // denied to this reader). Remove every copied value rather than
+        // serve it as though it were a live resolution.
+        const next: Record<string, any> = { ...(node.document ?? {}) }
+        for (const key of DERIVED_KEYS) delete next[key]
+        next._resolved = false
+        node.document = next
+        clearPreview(imageNode)
       },
     }
   },

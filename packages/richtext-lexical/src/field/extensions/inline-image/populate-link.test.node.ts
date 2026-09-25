@@ -318,3 +318,73 @@ describe('inlineImageLinkVisitor', () => {
     })
   })
 })
+
+describe('inlineImageLinkVisitor never reuses a stale click-through path', () => {
+  beforeEach(() => {
+    installLogger(makeLogger())
+    clearConfig()
+  })
+
+  afterEach(() => {
+    clearConfig()
+  })
+
+  it('marks the click-through unresolved when the path hook throws, without reactivating it', () => {
+    registerCollection({
+      path: 'pages',
+      buildDocumentPath: () => {
+        throw new Error('boom')
+      },
+    })
+    const node = makeLinkedImageNode({
+      ...internalLink,
+      document: { title: 'Stale', path: '/pages/stale', _resolved: false },
+    })
+
+    inlineImageLinkVisitor.match(node)?.apply(linkTarget)
+
+    expect(node.link?.document?.path).toBeUndefined()
+    expect(node.link?.document?._resolved).toBe(false)
+    expect(node.link?.targetDocumentId, 'identity kept').toBe('doc-1')
+  })
+
+  it('marks the click-through unresolved when the target has no usable path', () => {
+    registerCollection({ path: 'pages' })
+    const node = makeLinkedImageNode({ ...internalLink })
+
+    inlineImageLinkVisitor.match(node)?.apply({ ...linkTarget, path: '' })
+
+    expect(node.link?.document?.path).toBeUndefined()
+    expect(node.link?.document?._resolved).toBe(false)
+  })
+
+  it('a missing click-through target does not suppress an independently readable image', async () => {
+    registerCollection({ path: 'pages' })
+    const node = makeLinkedImageNode({ ...internalLink })
+    const readDocuments = vi.fn(async ({ collectionPath }: { collectionPath: string }) =>
+      collectionPath === 'media'
+        ? [
+            {
+              document_id: 'media-1',
+              path: 'm',
+              status: 'published',
+              fields: { image: mediaImage },
+            },
+          ]
+        : []
+    )
+
+    await runLexicalPopulate({
+      readContext: createReadContext(),
+      readDocuments,
+      visitors: [inlineImageVisitor, inlineImageLinkVisitor],
+      values: [{ root: { type: 'root', children: [node] } }],
+    })
+
+    expect(node.link?.document?._resolved).toBe(false)
+    expect(node.link?.document?.path).toBeUndefined()
+    expect(node.document?._resolved).toBeUndefined()
+    expect(node.document?.image).toEqual(mediaImage)
+    expect(node.src).toBe('https://cdn.example.com/media/current-card.avif')
+  })
+})

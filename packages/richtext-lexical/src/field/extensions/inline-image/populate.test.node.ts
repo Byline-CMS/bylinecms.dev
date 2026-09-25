@@ -10,6 +10,7 @@ import { createReadContext, type StoredFileValue } from '@byline/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import { type LexicalNodeLike, runLexicalPopulate } from '../../lexical-populate-shared'
+import { lexicalToMarkdown } from '../../markdown/lexical-to-markdown'
 import { inlineImageVisitor } from './populate'
 import type { Position } from './node-types'
 
@@ -172,9 +173,10 @@ describe('inlineImageVisitor', () => {
     })
   })
 
-  describe('never leaves the node emptier than it found it', () => {
-    it('preserves src, width and height when the target cannot be resolved', async () => {
+  describe('never serves a stale image when no current image is available', () => {
+    it('clears the copied image and preview when the target cannot be read', async () => {
       const node = makeNode('left')
+      node.document = { title: 'Stale title', altText: 'Stale alt', image: currentImage }
       const readDocuments = vi.fn().mockResolvedValue([])
 
       await runLexicalPopulate({
@@ -188,36 +190,69 @@ describe('inlineImageVisitor', () => {
         collectionPath: 'media',
         documentIds: ['media-1'],
       })
-      expect(node.src).toBe(STALE_SRC)
-      expect(node.width).toBe(STALE_WIDTH)
-      expect(node.height).toBe(STALE_HEIGHT)
+      expect(node.document).toEqual({ _resolved: false })
+      expect(node.src).toBe('')
+      expect(node.width).toBeUndefined()
+      expect(node.height).toBeUndefined()
+      // Identity and authored state survive.
+      expect(node.targetDocumentId).toBe('media-1')
+      expect(node.position).toBe('left')
+      expect(node.children).toEqual([{ type: 'caption', children: [{ type: 'text' }] }])
     })
 
-    it('preserves the preview when the target resolves without an image', () => {
+    it('clears the copied image and preview when the target resolves without an image', () => {
       const node = makeNode('left')
+      node.document = { title: 'Old', image: currentImage, sizes: [{ name: 'card' }] }
 
       applyTo(node, undefined, 'Current title')
 
-      expect(node.src).toBe(STALE_SRC)
-      expect(node.width).toBe(STALE_WIDTH)
-      expect(node.height).toBe(STALE_HEIGHT)
-      expect(node.document).toEqual(expect.objectContaining({ title: 'Current title' }))
+      expect(node.document).toEqual({ title: 'Current title', _resolved: false })
+      expect(node.src).toBe('')
+      expect(node.width).toBeUndefined()
+      expect(node.height).toBeUndefined()
     })
 
     // Variant-less, so there is no usable variant URL to fall back to and
-    // the original is the only candidate — exactly the case the guard is for.
+    // the original is the only candidate.
     it.each([undefined, '', '   '])(
-      'preserves the preview when the resolved storageUrl is %j',
+      'clears the copied image and preview when the resolved storageUrl is %j',
       (storageUrl) => {
         const node = makeNode('left')
+        node.document = { image: currentImage }
 
         applyTo(node, { ...variantlessImage, storageUrl })
 
-        expect(node.src).toBe(STALE_SRC)
-        expect(node.width).toBe(STALE_WIDTH)
-        expect(node.height).toBe(STALE_HEIGHT)
+        expect(node.document).toEqual({ _resolved: false })
+        expect(node.src).toBe('')
+        expect(node.width).toBeUndefined()
+        expect(node.height).toBeUndefined()
       }
     )
+
+    it('marks a node resolved again once a current image is available', () => {
+      const node = makeNode('left')
+      node.document = { _resolved: false }
+
+      applyTo(node, currentImage)
+
+      expect(node.document?._resolved).toBeUndefined()
+      expect(node.document?.image).toEqual(currentImage)
+      expect(node.src).toBe('https://cdn.example.com/media/current-card.avif')
+    })
+
+    it('exports no stale image to Markdown once the target is unavailable', async () => {
+      const node = { ...makeNode('left'), altText: 'authored alt' }
+      await runLexicalPopulate({
+        readContext: createReadContext(),
+        readDocuments: vi.fn().mockResolvedValue([]),
+        visitors: [inlineImageVisitor],
+        values: [{ root: { type: 'root', children: [node] } }],
+      })
+      const markdown = lexicalToMarkdown({ root: { type: 'root', children: [node] } }).markdown
+
+      expect(markdown).not.toContain(STALE_SRC)
+      expect(node.altText, 'authored alt text is not target data').toBe('authored alt')
+    })
   })
 
   it('is idempotent and leaves unrelated node state untouched', () => {
@@ -233,5 +268,21 @@ describe('inlineImageVisitor', () => {
     expect(node.position).toBe('left')
     expect(node.children).toBe(children)
     expect(node.children).toEqual([{ type: 'caption', children: [{ type: 'text' }] }])
+  })
+})
+
+describe('inlineImageVisitor replaces derived values instead of merging them', () => {
+  it('removes a stale title and alt text while a valid current image still renders', () => {
+    const node = makeNode('left')
+    node.document = { title: 'Withheld ES', altText: 'Texto alternativo', caption: 'kept' }
+
+    inlineImageVisitor.match(node)?.apply({ fields: { image: currentImage } })
+
+    expect(node.document).not.toHaveProperty('title')
+    expect(node.document).not.toHaveProperty('altText')
+    expect(node.document?.caption, 'unrelated envelope keys are kept').toBe('kept')
+    expect(node.document?.image).toEqual(currentImage)
+    expect(node.document?._resolved).toBeUndefined()
+    expect(node.src).toBe('https://cdn.example.com/media/current-card.avif')
   })
 })
