@@ -13,30 +13,34 @@
  * the same visitor; only the trigger point differs.
  *
  * Refreshes `attributes.document` on `link` nodes whose
- * `attributes.linkType` is `'internal'`. Three branches:
+ * `attributes.linkType` is `'internal'`. The copied target values (`title`,
+ * `path`) are **replaced, never merged**: a value the current, permitted
+ * target result does not supply is removed rather than kept from an earlier
+ * copy. The link's identity (`targetDocumentId` / `targetCollectionPath`)
+ * and its authored children are never touched. Branches:
  *
- *   - **Found** — sets `document.title` to the target's `useAsTitle`
- *     field value (falling back to `title` when `useAsTitle` is not
- *     defined), composes `document.path` via the collection's
- *     `buildDocumentPath` hook (with `/${collectionPath}/${target.path}`
- *     as the generic fallback when the hook is absent or returns
- *     `null`), and clears any prior `document._resolved` flag.
+ *   - **Found, path produced** — sets `document.title` from the target's
+ *     `useAsTitle` field (falling back to `title`), or removes it when the
+ *     result has none; sets `document.path` from the collection's
+ *     `buildDocumentPath` hook, or from `/${collectionPath}/${target.path}`
+ *     when the hook is absent or returns `null`; and clears any prior
+ *     `document._resolved` flag.
  *
- *   - **Hook threw** (branch A) — logs at `info` level and leaves
- *     `document.path` and `document._resolved` untouched. The picker-
- *     time embedded value (if any) stays in place; the renderer's
- *     fallback chain copes.
+ *   - **Found, no path** (branch A) — the hook threw (logged at `info`) or
+ *     no usable path could be composed. The old copied path is removed and
+ *     `document._resolved = false`, so the renderer strips the `<a>` and
+ *     renders the children as plain text. A stale path is never reused, and
+ *     an unresolved link is only reactivated by a path actually produced.
  *
  *   - **Target not found** (branch B) — logs at `warn` level, deletes
  *     `document.title` and `document.path`, and sets
- *     `document._resolved = false` so the renderer strips the `<a>`
- *     wrapper and renders the link's children as plain text. Persisted
- *     state remains a complete record — re-linking is possible whenever
- *     the editor returns.
+ *     `document._resolved = false`. Persisted state remains a complete
+ *     record — re-linking is possible whenever the editor returns.
  *
- * Hard errors (DB unreachable, transport-level failures) propagate to
- * the caller — `document-lifecycle` / the read pipeline — which catch
- * per-field and leave the persisted state untouched (branch C).
+ * Hard reader errors (DB unreachable, transport failures) propagate (branch
+ * C). On a read, the whole read fails, so no stale snapshot is served. On a
+ * save, `document-lifecycle` catches per leaf and leaves the persisted leaf
+ * untouched.
  *
  * `linkType: 'custom'` links carry a literal URL and have no relation
  * envelope; they're skipped. Auto-link nodes (`type: 'autolink'`) are
@@ -76,16 +80,20 @@ export function createInternalLinkHydration(
       const targetFields = (target.fields ?? {}) as Record<string, any>
       const next: Record<string, any> = { ...(envelope.document ?? {}) }
 
-      // Title — `useAsTitle` lookup with `title` fallback.
+      // Title — `useAsTitle` lookup with `title` fallback. Replaced, never
+      // merged: when the current (permitted) target result supplies no title,
+      // a previously copied title is removed rather than kept. A withheld or
+      // redacted translation must not survive as a stale copy.
       const title = targetFields[useAsTitle]
       if (typeof title === 'string' && title.length > 0) {
         next.title = title
+      } else {
+        delete next.title
       }
 
-      // Path — buildDocumentPath, then generic compose fallback.
-      // Branch A: hook threw — leave any existing `document.path`
-      // untouched and surface a log line so operators can find the
-      // bug without it taking the save / read down with it.
+      // Path — buildDocumentPath, then generic compose fallback. A hook that
+      // throws is logged (so operators can find the bug without it taking the
+      // save / read down) and treated as "no path produced" (branch A).
       let pathThrew = false
       let built: string | null | undefined
       if (definition?.buildDocumentPath != null) {
@@ -105,24 +113,29 @@ export function createInternalLinkHydration(
         }
       }
 
+      let path: string | undefined
       if (!pathThrew) {
         if (typeof built === 'string') {
-          next.path = built
+          path = built
         } else {
           // Generic compose fallback. Only fires when the target has a
-          // non-empty `path` — otherwise we'd produce `/${collectionPath}/`
-          // or `/${collectionPath}/undefined`, both of which are worse
-          // than leaving the previous value alone.
+          // non-empty `path` — `/${collectionPath}/` or
+          // `/${collectionPath}/undefined` are not usable paths.
           const targetPath = target.path as string | undefined
           if (typeof targetPath === 'string' && targetPath.length > 0) {
-            next.path = `/${collectionPath}/${targetPath}`
+            path = `/${collectionPath}/${targetPath}`
           }
         }
       }
 
-      // Found-and-resolved: clear any stale miss flag from a prior pass.
-      if ('_resolved' in next) {
+      if (path != null) {
+        next.path = path
+        // Found-and-resolved: clear any stale miss flag from a prior pass.
         delete next._resolved
+      } else {
+        // Branch A — no usable current path. Never reuse the old copy.
+        delete next.path
+        next._resolved = false
       }
 
       envelope.document = next

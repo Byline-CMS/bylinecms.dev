@@ -12,6 +12,7 @@ import { ReindexButton } from '@byline/host-tanstack-start/admin-shell/collectio
 
 import { SummaryLength } from '~/components/summary-length.js'
 
+import { buildLocalizedPath } from '@/lib/localized-path'
 import { aiTextFieldAdmin } from '../../fields/ai-text.js'
 import { aiTextAreaFieldAdmin } from '../../fields/ai-textarea.js'
 import { Docs } from './schema.js'
@@ -131,24 +132,17 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
    * Preview URL builder for live preview links. Returns a URL string (relative
    * or absolute), or `null` to hide the preview affordance.
    *
-   * `doc.path` is the top-level slug (derived from `useAsPath`), not a field.
-   * Direct relations are auto-populated by the edit view (depth 1, picker
-   * projection) and appear under `doc.fields.<name>?.document`.
+   * `locale` is the content locale selected in the editor, and it is kept
+   * even when that translation is not advertised: preview is how an editor
+   * reviews an unchecked translation. The prefix follows the public routing
+   * rule (`buildLocalizedPath`), not the admin interface language.
    *
-   * @example
-   * preview: {
-   *   url: (doc, { locale }) => {
-   *     if (!doc.path) return null
-   *     // `category` is a direct relation — auto-populated to depth 1.
-   *     const category = doc.fields.category?.document?.path
-   *     const prefix = locale && locale !== 'en' ? `/${locale}` : ''
-   *     return category
-   *       ? `${prefix}/docs/${category}/${doc.path}`
-   *       : `${prefix}/docs/${doc.path}`
-   *   },
-   * }
+   * `doc.path` is the leaf slug. The public route redirects a leaf to the
+   * document's full tree path with a 301 that keeps the locale prefix.
    */
-  // preview: undefined,
+  preview: {
+    url: (doc, { locale }) => (doc.path ? buildLocalizedPath(locale, 'docs', doc.path) : null),
+  },
 
   // ---------------------------------------------------------------------------
   // UI Layout

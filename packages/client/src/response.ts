@@ -43,6 +43,13 @@ export function shapeDocument<F = Record<string, any>>(
   if (typeof raw.source_locale === 'string') {
     shaped.sourceLocale = raw.source_locale as string
   }
+  // The read's language decision for this document and selected version
+  // (storage key `resolved_locale`). `null` is a real value (withheld exact
+  // read, multi-locale read, locale-agnostic version); only a result the
+  // adapter did not reconstruct lacks the key.
+  if ('resolved_locale' in raw) {
+    shaped.resolvedLocale = (raw.resolved_locale as string | null) ?? null
+  }
   // Version audit metadata — acting user + action (storage keys
   // `created_by` / `event_type`).
   // `created_by` is NULL on rows written before audit wiring or by

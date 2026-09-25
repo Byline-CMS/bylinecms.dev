@@ -93,7 +93,7 @@ describe('public collection lifecycle hooks', () => {
     ['news', newsHooks, { prevPath: 'same-path', list: true, sitemap: true }],
     ['pages', pagesHooks, { prevPath: 'same-path', sitemap: true }],
   ] as const)(
-    '%s invalidates public locale surfaces without reindexing',
+    '%s invalidates public locale surfaces and reindexes a locale-only change',
     async (collectionPath, hooks, options) => {
       await invokeHook(hooks.afterSystemFieldsChange, {
         documentId: 'doc-1',
@@ -108,9 +108,56 @@ describe('public collection lifecycle hooks', () => {
       })
 
       expect(cache.invalidateDocument).toHaveBeenCalledWith(collectionPath, 'same-path', options)
-      expect(search.indexDocument).not.toHaveBeenCalled()
+      // A locale change alters which translations are publicly delivered.
+      expect(search.collection).toHaveBeenCalledWith(collectionPath)
+      expect(search.indexDocument).toHaveBeenCalledOnce()
+      expect(search.indexDocument).toHaveBeenCalledWith('doc-1')
     }
   )
+
+  it.each([
+    ['docs', docsHooks, { prevPath: 'same-path', list: true, sitemap: true }],
+    ['news', newsHooks, { prevPath: 'same-path', list: true, sitemap: true }],
+    ['pages', pagesHooks, { prevPath: 'same-path', sitemap: true }],
+  ] as const)(
+    '%s re-runs cache and index effects on a no-op locale reconciliation retry',
+    async (collectionPath, hooks, options) => {
+      await invokeHook(hooks.afterSystemFieldsChange, {
+        documentId: 'doc-1',
+        collectionPath,
+        requested: { path: false, availableLocales: true },
+        changed: { path: false, availableLocales: false },
+        reconciliation: true,
+        previousPath: 'same-path',
+        currentPath: 'same-path',
+        previousAvailableLocales: ['en', 'fr'],
+        currentAvailableLocales: ['en', 'fr'],
+      })
+
+      expect(cache.invalidateDocument).toHaveBeenCalledWith(collectionPath, 'same-path', options)
+      expect(search.indexDocument).toHaveBeenCalledOnce()
+    }
+  )
+
+  it('starts indexing even when locale cache invalidation rejects', async () => {
+    const cacheFailure = new Error('cache unavailable')
+    cache.invalidateDocument.mockRejectedValueOnce(cacheFailure)
+
+    await expect(
+      invokeHook(newsHooks.afterSystemFieldsChange, {
+        documentId: 'news-1',
+        collectionPath: 'news',
+        requested: { path: false, availableLocales: true },
+        changed: { path: false, availableLocales: true },
+        reconciliation: false,
+        previousPath: 'news',
+        currentPath: 'news',
+        previousAvailableLocales: ['en'],
+        currentAvailableLocales: ['en', 'fr'],
+      })
+    ).rejects.toBe(cacheFailure)
+    expect(search.indexDocument).toHaveBeenCalledWith('news-1')
+  })
 
   it.each([
     ['docs', docsHooks],
@@ -284,7 +331,10 @@ describe('public collection lifecycle hooks', () => {
     )
   })
 
-  it('does not duplicate search indexing for locale-only system plus content edits', async () => {
+  it('reindexes after each committed effect of a combined locale and content save', async () => {
+    // The locale write commits first and independently of the content write,
+    // and each changes what is publicly indexed, so each reconciles the index.
+    // Indexing is idempotent, so the second pass converges on the same state.
     await invokeHook(newsHooks.afterSystemFieldsChange, {
       documentId: 'news-1',
       collectionPath: 'news',
@@ -305,7 +355,7 @@ describe('public collection lifecycle hooks', () => {
       originalData: { path: 'news' },
     })
 
-    expect(search.indexDocument).toHaveBeenCalledTimes(1)
+    expect(search.indexDocument).toHaveBeenCalledTimes(2)
   })
 
   it('retains docs fingerprint logging on create', async () => {

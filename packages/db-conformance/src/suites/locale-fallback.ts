@@ -533,4 +533,181 @@ export function localeFallbackSuite(hooks: ConformanceHooks): void {
     // `IDbAdapter` contract, so they aren't something a conforming adapter is
     // required to implement.
   })
+
+  // --- fallback selection is projection-independent -----------------------
+  //
+  // The localized title lives in the text store and the localized body in the
+  // JSON store. A projected read that loads only the text store must still see
+  // that the German body is missing: the effective locale comes from the
+  // version's completeness ledger, not from whichever rows the projection
+  // happened to load.
+  describe('fallback locale selection is independent of the projection', () => {
+    let ledgerAdapter: IDbAdapter
+    let ledgerCollectionId: string
+    let ledgerSeq = 0
+
+    const LedgerCollectionConfig: CollectionDefinition = {
+      path: `locale-ledger-${timestamp}`,
+      labels: { singular: 'LedgerTest', plural: 'LedgerTests' },
+      fields: [
+        { name: 'title', type: 'text', localized: true, optional: true },
+        { name: 'body', type: 'richText', localized: true, optional: true },
+        { name: 'sku', type: 'text', optional: true },
+      ],
+    }
+
+    function richText(text: string) {
+      return { root: { type: 'root', children: [{ type: 'text', text }] } }
+    }
+
+    async function createLedgerDoc(
+      documentData: Record<string, unknown>,
+      status: 'draft' | 'published' = 'published'
+    ) {
+      ledgerSeq += 1
+      const result = await ledgerAdapter.commands.documents.createDocumentVersion({
+        collectionId: ledgerCollectionId,
+        collectionVersion: 1,
+        collectionConfig: LedgerCollectionConfig,
+        action: 'create',
+        documentData,
+        path: `ledger-${timestamp}-${ledgerSeq}`,
+        locale: 'all',
+        status,
+      })
+      return result.document
+    }
+
+    async function titleOnlyList(
+      locale: string,
+      readMode?: 'published' | 'any'
+    ): Promise<Map<string, any>> {
+      const { documents } = await ledgerAdapter.queries.documents.findDocuments({
+        collection_id: ledgerCollectionId,
+        locale,
+        onMissingLocale: 'fallback',
+        fields: ['title'],
+        readMode,
+        pageSize: 200,
+      })
+      return new Map(documents.map((d) => [d.document_id, d]))
+    }
+
+    beforeAll(async () => {
+      await hooks.truncate()
+      ledgerAdapter = await hooks.createAdapter([LedgerCollectionConfig])
+      const result = await ledgerAdapter.commands.collections.create(
+        LedgerCollectionConfig.path,
+        LedgerCollectionConfig
+      )
+      const collection = result[0]
+      if (collection == null) throw new Error('Failed to create ledger test collection')
+      ledgerCollectionId = collection.id
+    })
+
+    afterAll(async () => {
+      try {
+        await ledgerAdapter.commands.collections.delete(ledgerCollectionId)
+      } catch (error) {
+        console.error('Failed to cleanup ledger test collection:', error)
+      }
+    })
+
+    it('a title-only list falls back when the body translation is missing', async () => {
+      const partial = await createLedgerDoc({
+        title: { en: 'Partial EN', de: 'Partial DE' },
+        body: { en: richText('Body EN') },
+        sku: 'P1',
+      })
+      const complete = await createLedgerDoc({
+        title: { en: 'Complete EN', de: 'Complete DE' },
+        body: { en: richText('Body EN'), de: richText('Body DE') },
+        sku: 'C1',
+      })
+
+      const byId = await titleOnlyList('de')
+      expect(byId.get(partial.document_id)?.fields.title, 'partial German falls back').toBe(
+        'Partial EN'
+      )
+      expect(byId.get(complete.document_id)?.fields.title, 'complete German renders').toBe(
+        'Complete DE'
+      )
+    })
+
+    it('title-only, full, detail and batch reads choose the same locale', async () => {
+      const partial = await createLedgerDoc({
+        title: { en: 'Agree EN', de: 'Agree DE' },
+        body: { en: richText('Body EN') },
+        sku: 'A1',
+      })
+      const id = partial.document_id
+
+      const projected = (await titleOnlyList('de')).get(id)
+      const { documents: full } = await ledgerAdapter.queries.documents.findDocuments({
+        collection_id: ledgerCollectionId,
+        locale: 'de',
+        onMissingLocale: 'fallback',
+        pageSize: 200,
+      })
+      const detail = (await ledgerAdapter.queries.documents.getDocumentById({
+        collection_id: ledgerCollectionId,
+        document_id: id,
+        locale: 'de',
+        onMissingLocale: 'fallback',
+      })) as { fields: Record<string, any> } | null
+      // The populate batch path always resolves under fallback.
+      const [batch] = await ledgerAdapter.queries.documents.getDocumentsByDocumentIds({
+        collection_id: ledgerCollectionId,
+        document_ids: [id],
+        locale: 'de',
+        fields: ['title'],
+      })
+
+      expect(projected?.fields.title).toBe('Agree EN')
+      expect(full.find((d) => d.document_id === id)?.fields.title).toBe('Agree EN')
+      expect(detail?.fields.title).toBe('Agree EN')
+      expect(batch?.fields.title, 'populate batch projection').toBe('Agree EN')
+    })
+
+    it('uses the selected version: published partial, newer draft complete', async () => {
+      const published = await createLedgerDoc({
+        title: { en: 'Versioned EN', de: 'Versioned DE' },
+        body: { en: richText('Body EN') },
+        sku: 'V1',
+      })
+      // A newer draft completes the German body; the published version stays partial.
+      await ledgerAdapter.commands.documents.createDocumentVersion({
+        documentId: published.document_id,
+        collectionId: ledgerCollectionId,
+        collectionVersion: 1,
+        collectionConfig: LedgerCollectionConfig,
+        action: 'update',
+        documentData: { title: 'Versioned DE', body: richText('Body DE'), sku: 'V1' },
+        locale: 'de',
+        status: 'draft',
+        previousVersionId: published.id,
+      })
+
+      const publishedView = await titleOnlyList('de', 'published')
+      const latestView = await titleOnlyList('de', 'any')
+      expect(publishedView.get(published.document_id)?.fields.title).toBe('Versioned EN')
+      expect(latestView.get(published.document_id)?.fields.title).toBe('Versioned DE')
+    })
+
+    it('omit excludes a partial translation from a title-only list', async () => {
+      const partial = await createLedgerDoc({
+        title: { en: 'Omit EN', de: 'Omit DE' },
+        body: { en: richText('Body EN') },
+        sku: 'O1',
+      })
+      const { documents } = await ledgerAdapter.queries.documents.findDocuments({
+        collection_id: ledgerCollectionId,
+        locale: 'de',
+        onMissingLocale: 'omit',
+        fields: ['title'],
+        pageSize: 200,
+      })
+      expect(documents.some((d) => d.document_id === partial.document_id)).toBe(false)
+    })
+  })
 }

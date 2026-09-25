@@ -437,6 +437,7 @@ export const FormSidebarWidgets = ({
         availableVersionLocales={
           (initialData?._availableVersionLocales as string[] | undefined) ?? []
         }
+        sourceLocale={(initialData?.sourceLocale as string | undefined) ?? defaultLocale}
       />
     )}
   </>

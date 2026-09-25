@@ -66,7 +66,8 @@ independent even when some codes overlap.
 - **[Admin interface translations](./02-admin-translations.md)** — what language
   the Byline admin UI renders in, owned by the `@byline/i18n` package.
 - **[Content locales](./03-content-locales.md)** — what language a *document*
-  publishes in: resolution, fallback, and the editorial advertising control.
+  publishes in: resolution, fallback, and the editorial advertising control
+  that decides which translations public reads deliver.
 - **[Administering content locales](./04-administering-locales.md)** — switching a
   system's default content locale safely.
 

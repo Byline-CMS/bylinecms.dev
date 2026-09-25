@@ -38,6 +38,7 @@ export async function getNewsCategories({
         pageSize: 200,
         locale: lng,
         status: preview ? 'any' : 'published',
+        localeVisibility: preview ? 'editorial' : 'public',
       }),
   })
 }

@@ -135,6 +135,7 @@ import { createRequestContext, type RequestContext } from '@byline/auth'
 import { compileBeforeReadFilters } from '../auth/apply-before-read.js'
 import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
 import { ERR_READ_BUDGET_EXCEEDED } from '../lib/errors.js'
+import { resolveLocaleVisibility } from '../storage/locale-resolution.js'
 import { applyAfterRead } from './document-read.js'
 import { createRichTextDocumentReader, populateRichTextFields } from './richtext-populate.js'
 import { walkFieldTree } from './walk-field-tree.js'
@@ -144,6 +145,7 @@ import type {
   DocumentFilter,
   FieldSet,
   IDbAdapter,
+  LocaleVisibility,
   PopulatedRelationValue,
   PopulateFieldSpec,
   PopulateMap,
@@ -240,6 +242,14 @@ export interface PopulateOptions {
    */
   readMode?: ReadMode
   /**
+   * Locale visibility forwarded to every target batch fetch and rich-text
+   * read. Each target resolves eligibility under its own collection opt-in,
+   * source locale, completeness ledger and checkbox set, so a parent's
+   * checked locale never authorizes a target's. Omitted ⇒ derived from
+   * `readMode` (`'published'` → `'public'`, otherwise `'editorial'`).
+   */
+  localeVisibility?: LocaleVisibility
+  /**
    * Request-scoped recursion guard. Omit to create a fresh context for
    * this top-level call. Threaded through by future read-side hooks to
    * prevent A→B→A infinite loops.
@@ -293,6 +303,7 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
   const operationRequestContext =
     opts.requestContext ??
     createRequestContext({ readMode: opts.readMode ?? 'any', locale: opts.locale })
+  const localeVisibility = opts.localeVisibility ?? resolveLocaleVisibility(opts.readMode ?? 'any')
   const populate = opts.populate
   const requestedDepth = opts.depth ?? (populate !== undefined ? 1 : 0)
   const maxDepth = Math.max(0, Math.min(requestedDepth, ctx.maxDepth))
@@ -419,6 +430,7 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
           fields: selectList,
           readMode: opts.readMode,
           filters: targetFilters,
+          localeVisibility,
         })
       }
 
@@ -509,6 +521,7 @@ export async function populateDocuments(opts: PopulateOptions): Promise<void> {
                 requestContext: opts.requestContext,
                 readContext: ctx,
                 readMode: opts.readMode ?? 'any',
+                localeVisibility,
                 locale: opts.locale,
                 bypassBeforeRead: opts.bypassBeforeRead,
                 richTextPopulate: opts.richTextPopulate,

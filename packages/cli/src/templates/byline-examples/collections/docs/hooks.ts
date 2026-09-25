@@ -78,8 +78,11 @@ export default defineHooks({
       `afterSystemFieldsChange: ${documentId} in '${collectionPath}' changed`,
       changed
     )
-    // Advertised locales affect alternates/sitemaps, not indexed content.
-    if (requested.path) {
+    // Both change the public index: a path change moves the indexed URL, and
+    // an advertised-locale change alters which translations are publicly
+    // delivered (and so indexed). Check `requested` rather than `changed` so an
+    // explicit reconciliation retry re-runs indexing after a failed attempt.
+    if (requested.path || requested.availableLocales) {
       await getSystemBylineClient().collection('docs').indexDocument(documentId)
     }
   },

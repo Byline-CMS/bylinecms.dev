@@ -1,7 +1,7 @@
 ---
 title: "Content locales"
 path: "i18n-content-locales"
-summary: "The language a document is published in: per-document locale resolution and fallback (onMissingLocale), the version-level completeness rule, and the editorial availableLocales control that decides which locales a document advertises in hreflang, sitemaps, and 'Also available in…' menus."
+summary: "The language a document is published in: per-document locale resolution and fallback (onMissingLocale), the version-level completeness rule, and the editorial availableLocales control that decides which translations public reads deliver and advertise."
 ---
 
 # Content locales
@@ -22,9 +22,9 @@ This section covers two related concerns:
 - **[Resolution & fallback](#resolution-and-fallback)** — what a read returns
   when a document is requested in a locale it has not (yet) been translated into.
 - **[Advertising](#advertising-content-locales-availablelocales)** — the
-  editorial control over which content locales a document *promotes* in
-  `hreflang` / sitemap / the "Also available in…" affordance, and the admin
-  widget that drives it.
+  editorial control over which translations a document *delivers and promotes*
+  publicly, the [public delivery rule](#public-delivery-of-advertised-locales)
+  it drives, and the admin widget that sets it.
 
 ## Resolution and fallback
 
@@ -78,8 +78,11 @@ rule:
 Because availability is recorded status-blind and keyed by version, **status
 composes at read time for free**: a published read resolves the current
 *published* version and checks *its* frozen locale set, so a draft `de`
-translation stays invisible until the draft is published, at which point the
-status flip alone lights `de` up for published reads, with zero extra writes.
+translation stays invisible until the draft is published. Publishing needs no
+extra ledger write: the status flip makes `de` complete for published reads. In a
+collection that advertises locales, public reads deliver it only when `de` is
+also checked (see
+[Public delivery of advertised locales](#public-delivery-of-advertised-locales)).
 
 ## The fallback chain and `onMissingLocale`
 
@@ -88,17 +91,27 @@ available on the document. The chain defaults to `[requested, source]`
 (zero-config installations create documents with the default as their source)
 and always terminates at the document's source locale. Once a document row is
 known, field restoration and projected paths use that source-aware chain. The
-initial `findByPath` lookup cannot know the source yet, so it currently tries the
-requested locale and configured default instead.
+initial `findByPath` lookup resolves the slug before the document is known, so it
+ranks path rows in this order: the requested locale, then the configured default,
+then a row under the matching document's own source locale, so a document whose
+source differs from the current default stays reachable. Only a unique candidate
+at that last rank is accepted; when several documents share the slug under
+different source locales, the lookup returns nothing rather than an arbitrary
+document. Matching a path never grants a translation: content eligibility is
+decided afterwards, when the document is reconstructed.
 
 The behaviour is selected by a `onMissingLocale: 'empty' | 'fallback' | 'omit'`
 read option:
 
 | Value | Detail read | List read |
 |---|---|---|
-| **`'empty'`** | restore the *requested* locale exactly: localized fields empty where untranslated. **This is the admin edit view** (empty fields are the signal to use "Copy to Locale"). | render each row in the requested locale exactly. |
+| **`'empty'`** | restore the *requested* locale exactly. Under editorial visibility the stored values are returned, including a partial translation, with fields empty where untranslated. **This is the admin edit view** (empty fields are the signal to use "Copy to Locale"). Under public visibility a withheld or incomplete translation returns empty localized fields instead. | render each row in the requested locale exactly, under the same visibility rule. |
 | **`'fallback'`** | resolve the effective locale via the chain and restore **all** fields in that one locale. Never 404s on a missing translation. | include every matching document; render each in *its own* effective locale. |
-| **`'omit'`** | return `null` (→ caller 404) when the requested locale isn't available. | include only documents available in the requested locale (a cheap indexed check, so pagination / `total` stay correct). |
+| **`'omit'`** | return `null` (→ caller 404) when the requested locale isn't available to the read. | include only documents available in the requested locale (a cheap indexed check, so pagination / `total` stay correct). |
+
+"Available" in `'fallback'` and `'omit'` means complete on the selected version,
+and, for public reads in a collection that advertises locales, also checked. See
+[Public delivery of advertised locales](#public-delivery-of-advertised-locales).
 
 Defaults differ by caller, deliberately: the **adapter** treats an omitted value
 as `'empty'` (the safe exact-match default for internal/direct reads);
@@ -125,11 +138,13 @@ intermediate hops (`de → fr → source`, or regional variants
 
 ## Advertising content locales (`availableLocales`)
 
-Resolution decides what is *renderable*. **Advertising** is the separate,
-editorial decision of what is *promoted*: which content-locale URLs appear in
-`hreflang`, the sitemap, and the per-page "Also available in…" menu. A document
-can be *renderable* in `de` via fallback yet not *promoted* as a German page
-(placeholder copy, mid-edit, legal review).
+Completeness decides what a version *can* render. **Advertising** is the
+separate, editorial decision of which translations are *released*: in a
+collection that advertises locales, public reads deliver a translation only
+while its checkbox is set, and the same checked-and-complete set drives
+`hreflang`, the sitemap, and the per-page "Also available in…" menu. An editor
+holds a complete translation back (placeholder copy, mid-edit, legal review) by
+leaving it unchecked.
 
 This is the `availableLocales` system attribute, opted into per collection with
 `advertiseLocales: true` on its `CollectionDefinition` (valid only when the
@@ -152,8 +167,126 @@ advertised = availableLocales (editorial)  ∩  _availableVersionLocales (ledger
 
 This handles both failure modes: *complete-but-not-blessed* (editorial off ⇒
 out) and *blessed-but-no-longer-complete* (ledger drops it ⇒ out). The host
-computes this intersection (`advertisedLocalesFor` in
-`apps/webapp/src/lib/alternates.ts`).
+computes this intersection for discovery (`advertisedLocalesFor` in
+`apps/webapp/src/lib/alternates.ts`); the read pipeline applies the same rule to
+delivery, described next.
+
+## Public delivery of advertised locales
+
+In a collection with `advertiseLocales: true`, the checkbox set is not only a
+discovery hint: it decides which translations public reads deliver. Every read
+chooses a **locale visibility**:
+
+| `localeVisibility` | Typical callers | `'fallback'` and `'omit'` select | Exact (`'empty'`) reads return |
+|---|---|---|---|
+| `'public'` | Anonymous visitors and published delivery | The source; any other locale only when it is **checked and complete** on the selected version. | The requested locale when it is eligible; otherwise empty localized fields. |
+| `'editorial'` | Authorized editors, preview, the admin edit view | The source; any other locale that is **complete** on the selected version, checked or not. | The requested locale's stored values, **including a partial translation**. |
+
+A locale-agnostic version (no localized content) is deliverable in every locale
+under both. Collections without `advertiseLocales` have no checkbox, so both
+visibilities deliver any complete locale.
+
+Visibility is independent of `status`. `@byline/client` only *derives a default*
+from `status` when you don't pass one: omitted or `'published'` reads default to
+`'public'`, and `'any'` reads default to `'editorial'`. You can combine them
+explicitly — `status: 'published', localeVisibility:
+'editorial'` reviews unchecked translations of the published version:
+
+```ts
+const client = getViewerBylineClient()
+const doc = await client.collection('news').findByPath('launch', {
+  locale: 'es',
+  status: preview ? 'any' : 'published',
+  localeVisibility: preview ? 'editorial' : 'public',
+})
+```
+
+`'editorial'` requires an authenticated actor; an anonymous read that asks for
+it fails with `ERR_UNAUTHENTICATED`. The adapter's own default, for internal
+reads that call it directly, is `'editorial'`.
+
+An unchecked translation behaves exactly like a missing one under `'public'`:
+
+- **`'fallback'`** selects the next eligible locale in the chain, ending at the
+  source. A Spanish request for a document whose complete Spanish is unchecked
+  returns the source content.
+- **`'omit'`** leaves the document out, as it would an untranslated one.
+- **`'empty'`** returns the document with its localized fields empty and its
+  non-localized fields intact, rather than the stored translation.
+
+Two public-read rules apply to **every** collection, whether or not it
+advertises locales:
+
+- Public `'empty'` also withholds an **incomplete** additional translation.
+  Previously an exact public read could return a partial translation's stored
+  values.
+- Public reads cannot request `locale: 'all'`; the client rejects it with
+  `ERR_VALIDATION`. Multi-locale reads are editorial.
+
+The same rule applies across the read surface: populated relation targets use
+their own collection's checkboxes; `where` filters, sorts, and text queries
+evaluate each document in the locale it is shown in; and public search indexes
+and returns only publicly deliverable locales (see
+[Result locale and query language](../06-search/03-search-api.md#result-locale-and-query-language)).
+`_bypassBeforeRead` skips only `beforeRead` row scoping, not locale visibility.
+
+### What a check or uncheck changes
+
+A checkbox change is immediate and non-versioned (see
+[below](#saving-advertised-locales-is-immediate-and-non-versioned)), so its
+effect depends on the version public reads select:
+
+- Checking a translation that is complete in the **published** version delivers
+  it publicly as soon as the save commits.
+- Checking a translation that is complete only in a **newer draft** delivers
+  nothing yet; it becomes public when that draft is published.
+- Unchecking a published translation withdraws it on the next fresh read. The
+  source is always delivered, so unchecking the source row stops advertising
+  it but does not withdraw it.
+
+Withdrawal has the same limits as unpublish: cached responses stay until their
+invalidation or expiry, and rich-text relationship snapshots saved into other
+documents keep their copied values until those documents are refreshed or
+re-saved. See [Caching](../05-reading-and-delivery/06-caching.md) and
+[Rich Text](../04-collections/07-rich-text.md).
+
+### Editorial policy for localized content
+
+Byline enforces which translations public reads deliver; your editorial policy
+decides when that should change. Byline separates content languages from
+interface languages, so you can release each translation when it is ready. That
+flexibility benefits from an explicit editorial policy: who approves a
+translation, what approval means, and when a released language should be
+withdrawn.
+
+A checked language grants continuing permission to deliver its complete
+published content. Routine revisions can follow the draft and preview workflow
+while the existing publication remains available. Unchecking a language is a
+separate withdrawal decision. The source language is delivered whatever its
+checkbox says, so withdrawing a document entirely is an unpublish, not an
+uncheck.
+
+Choose relationship behaviour deliberately too. Saved rich-text snapshots
+preserve previously copied content; read-time population follows the target's
+current permitted state (see [Rich Text](../04-collections/07-rich-text.md#relations-embed-and-populate)).
+Decide which behaviour each field needs and who is responsible for reviewing
+stale snapshots. Byline does not currently report or repair stale snapshots;
+tooling for that is possible future work.
+
+These editorial practices complement Byline's visibility rules and the
+documented [cache limits](../05-reading-and-delivery/06-caching.md). They do not
+replace them.
+
+### Preview
+
+Byline's preview mode reads the latest saved version with `'editorial'`
+visibility, so an editor can review an unchecked translation at its public URL.
+The admin Preview button keeps the content locale selected in the editor even
+when it is unchecked; preview shows saved content only, never unsaved form
+edits. A preview response is private and bypasses the shared application cache.
+Preview does not add an unchecked translation to public discovery: the reference
+application suppresses `hreflang` alternates and the language menu on preview
+responses rather than advertise a draft's completeness.
 
 ## The widget: a "ready" reconciliation grid
 
@@ -173,8 +306,10 @@ rather than reacting to a passive boot/save warning:
 The reconciliation is expressed purely through the checkbox's **intent colour**
 (no per-row text):
 
-- **green / enabled** when the locale is complete in the ledger (the editor can
-  toggle it on to advertise);
+- **green / enabled** when the locale is complete in the *saved* version's
+  ledger (the editor can toggle it on). The saved version may be an unpublished
+  draft, so green means "can be checked", not "is complete in the published
+  version";
 - **neutral / disabled** when the locale is not yet complete (nothing to
   advertise);
 - **amber / enabled** for the ⚠ case (advertised but no longer complete), so the
@@ -185,8 +320,10 @@ the completeness rule above, which inspects every localized field for a saved
 value in that locale at write time and records the result on the version. The
 widget never re-derives it in the browser; it reads `_availableVersionLocales`
 off the edit payload and lights the row green when the locale is present. The
-policy is **opt-in**: nothing is advertised until the editor checks a green
-locale.
+policy is **opt-in**: no translation is publicly delivered or advertised until
+the editor checks it. The source-locale row carries a note that the source stays
+available while published whether or not it is checked, and the list carries a
+short explanation of the public delivery rule.
 
 > For the widget to render the ledger column, the admin edit response preserves
 > `_availableVersionLocales` across its Zod parse (which would otherwise strip the
@@ -216,19 +353,19 @@ without another write or audit row.
 
 The admin form keeps a single **Save** button but partitions *why* it is dirty
 into four states: `none`, `content` (versioned), `direct-write` (immediate
-system-field write), and `both` (each through its own path). When a save involves
-a `direct-write`, the editor first confirms a modal that spells out the immediate,
-non-workflow nature of the change (tailored by whether a published version is
-live). The path widget rides the exact same machinery for the exact same reason
-(it is also document-level and sticky).
+system-field write), and `both`. When a save involves a `direct-write`, the
+editor first confirms a modal that spells out the immediate, non-workflow nature
+of the change and its effect on public delivery. The path widget rides the exact
+same machinery for the exact same reason (it is also document-level and sticky).
 
-For `both`, the direct system-field request runs first (so a path conflict is
-found before minting a content version), then the versioned content request runs.
-They are not one transaction. In particular, a post-commit system-field hook
-failure can stop the content request even though the path/locale write and audit
-already committed; retrying the admin save opts into no-op reconciliation before
-continuing. Because these writes are immediate rather than gated, accountability
-for them is the job of the document-level
+Every save is one request. For `both`, the server writes the path or locale
+change first and then the new content version, inside one guarded transaction:
+both commit or neither does, so a failed content write leaves the checkbox set
+unchanged. After the commit, `afterSystemFieldsChange` and `afterUpdate` run
+outside the transaction. A post-commit hook failure is reported to the editor
+after the writes have committed; retrying the save opts into no-op
+reconciliation. Because these writes are immediate rather than gated,
+accountability for them is the job of the document-level
 [audit log](../07-auth-and-security/02-auditability.md) rather than the version
 history.
 
@@ -249,12 +386,15 @@ and tags:
 | `_availableVersionLocales` | the structural completeness ledger for the resolved version (derived, read-only, sorted). |
 | `_localeAgnostic` | `true` for a document with no localized content ("renders everywhere"); a per-document affordance should render no menu. |
 | `sourceLocale` | the document's content anchor (see [Administering content locales](./04-administering-locales.md)). |
-| (the effective locale) | which content locale the document actually resolved to, driven by `onMissingLocale`. |
+| `resolvedLocale` | the locale the fields were selected in: the first eligible chain entry under `'fallback'`, the requested locale for an eligible exact read, or `null` for a withheld public exact read, a `locale: 'all'` read, or a locale-agnostic version. It says which locale was selected, not that every field is linguistically in it. Populated targets and tree nodes carry their own. |
 
 Because `@byline/client` defaults to `status: 'published'` and the ledger
 resolves against the current *published* version, `_availableVersionLocales` on a
-normal read is the **published-available** set, exactly what a public consumer
-should advertise. These fields unify three host consumers (`hreflang`,
+normal read is the **published-complete** set. Public reads expose it unchanged,
+including complete locales that are unchecked: the checkbox controls delivery of
+translated values, not secrecy about translation activity. A preview or
+`status: 'any'` read reports the latest version's ledger, which can describe a
+draft, so do not use it as public discovery metadata. These fields unify three host consumers (`hreflang`,
 `sitemap.xml`, and the "Also available in…" menu) on **one** source, so they
 cannot drift.
 
@@ -262,7 +402,10 @@ cannot drift.
 
 | Concern | Location |
 |---|---|
-| Locale chain builder + effective-locale resolution | `packages/db-postgres/src/modules/storage/storage-queries.ts` |
+| Locale eligibility, `resolvedLocale`, visibility defaults (`resolveReadLocale`, `resolveLocaleVisibility`) | `packages/core/src/storage/locale-resolution.ts` |
+| Public/editorial read assertions (`assertLocaleVisibility`) | `packages/core/src/auth/assert-locale-visibility.ts` |
+| Locale chain builder, gate, and effective-locale SQL | `packages/db-postgres/src/modules/storage/storage-queries.ts`, `packages/db-mysql/src/modules/storage/storage-queries.ts` |
+| Shared adapter conformance | `packages/db-conformance/src/suites/locale-visibility.ts`, `locale-query-semantics.ts` |
 | Completeness ledger write + `availableLocales` write | `packages/db-postgres/src/modules/storage/storage-commands.ts` |
 | Non-versioned system-field commands (`updateDocumentPath`, `setDocumentAvailableLocales`) | `packages/db-postgres/src/modules/storage/storage-commands.ts` |
 | `byline_document_version_locales` + `byline_document_available_locales` tables | `packages/db-postgres/src/database/schema/index.ts` |
@@ -274,7 +417,7 @@ cannot drift.
 | Read-surface shaping (`_availableVersionLocales`, `_localeAgnostic`, `sourceLocale`) | `packages/client/src/response.ts` + `packages/client/src/types.ts` |
 | Available-locales widget + "ready" reconciliation | `packages/admin/src/forms/available-locales-widget.tsx` + `available-locales-reconcile.ts` |
 | Edit-payload preservation of `_availableVersionLocales` | `packages/host-tanstack-start/src/server-fns/collections/get.ts` |
-| Host advertised-set resolver | `apps/webapp/src/lib/alternates.ts` |
+| Host advertised-set resolver + preview discovery suppression | `apps/webapp/src/lib/alternates.ts` |
 | Re-import that establishes the advertised set | `apps/webapp/byline/scripts/import-docs.ts` |
 | Ledger backfill for pre-existing versions | `apps/webapp/byline/scripts/backfill-version-locales.ts` |
 

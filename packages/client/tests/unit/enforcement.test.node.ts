@@ -24,7 +24,7 @@ import {
   createSuperAdminContext,
 } from '@byline/auth'
 import type { CollectionDefinition, IDbAdapter } from '@byline/core'
-import { createReadContext } from '@byline/core'
+import { createReadContext, defineSingleton, ErrorCodes } from '@byline/core'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createBylineClient } from '../../src/index.js'
@@ -767,6 +767,266 @@ describe('CollectionHandle enforcement', () => {
       })
       const result = await client.collection('posts').find()
       expect(result.docs).toEqual([])
+    })
+  })
+
+  describe('locale visibility', () => {
+    type Client = ReturnType<typeof createBylineClient>
+    type ReadOptions = {
+      status?: 'published' | 'any'
+      localeVisibility?: 'public' | 'editorial'
+      locale?: string
+      _bypassBeforeRead?: true
+    }
+
+    // Every read method that accepts `status` also accepts `localeVisibility`.
+    const reads: Array<[string, (client: Client, options: ReadOptions) => Promise<unknown>]> = [
+      ['find', (client, options) => client.collection('posts').find(options)],
+      ['findOne', (client, options) => client.collection('posts').findOne(options)],
+      ['findById', (client, options) => client.collection('posts').findById('doc-1', options)],
+      ['findByPath', (client, options) => client.collection('posts').findByPath('doc-1', options)],
+      ['subtree', (client, options) => client.collection('posts').getSubtree(options)],
+      ['ancestors', (client, options) => client.collection('posts').getAncestors('doc-1', options)],
+      [
+        'tree parent',
+        (client, options) => client.collection('posts').getTreeParent('doc-1', options),
+      ],
+    ]
+
+    function clientFor(requestContext: ReturnType<typeof createRequestContext>): Client {
+      return createBylineClient({ db: mockDb(), collections: [postsCollection], requestContext })
+    }
+
+    const anonymous = () => createRequestContext({ actor: null, readMode: 'published' })
+
+    it.each(reads)('rejects an anonymous editorial read on %s', async (_name, read) => {
+      await expect(
+        read(clientFor(anonymous()), { localeVisibility: 'editorial' })
+      ).rejects.toMatchObject({ code: AuthErrorCodes.UNAUTHENTICATED })
+    })
+
+    it.each(reads)(
+      'rejects an anonymous editorial read on %s even with _bypassBeforeRead',
+      async (_name, read) => {
+        await expect(
+          read(clientFor(anonymous()), { localeVisibility: 'editorial', _bypassBeforeRead: true })
+        ).rejects.toMatchObject({ code: AuthErrorCodes.UNAUTHENTICATED })
+      }
+    )
+
+    it.each(reads)('rejects a public locale all read on %s', async (_name, read) => {
+      for (const ctx of [anonymous(), createSuperAdminContext({ id: 'admin' })]) {
+        await expect(read(clientFor(ctx), { locale: 'all' })).rejects.toMatchObject({
+          code: ErrorCodes.VALIDATION,
+        })
+      }
+    })
+
+    it.each(reads)(
+      'rejects a public locale all read on %s even with _bypassBeforeRead',
+      async (_name, read) => {
+        await expect(
+          read(clientFor(createSuperAdminContext({ id: 'admin' })), {
+            locale: 'all',
+            _bypassBeforeRead: true,
+          })
+        ).rejects.toMatchObject({ code: ErrorCodes.VALIDATION })
+      }
+    )
+
+    it.each(reads)('permits an anonymous public read of one locale on %s', async (_name, read) => {
+      await expect(read(clientFor(anonymous()), { locale: 'es' })).resolves.not.toThrow()
+    })
+
+    it.each(reads)(
+      'permits an authorized editorial read of the published version on %s',
+      async (_name, read) => {
+        const actor = new AdminAuth({ id: 'reviewer', abilities: ['collections.posts.read'] })
+        const client = clientFor(createRequestContext({ actor }))
+        await expect(
+          read(client, { status: 'published', localeVisibility: 'editorial', locale: 'es' })
+        ).resolves.not.toThrow()
+      }
+    )
+
+    it.each(reads)(
+      'status any defaults to editorial, so locale all is permitted on %s',
+      async (_name, read) => {
+        const client = clientFor(createSuperAdminContext({ id: 'admin' }))
+        await expect(read(client, { status: 'any', locale: 'all' })).resolves.not.toThrow()
+      }
+    )
+
+    it('an explicit public visibility overrides the status any default', async () => {
+      const client = clientFor(createSuperAdminContext({ id: 'admin' }))
+      await expect(
+        client
+          .collection('posts')
+          .find({ status: 'any', localeVisibility: 'public', locale: 'all' })
+      ).rejects.toMatchObject({ code: ErrorCodes.VALIDATION })
+    })
+
+    it('denies an editorial read to an actor without the collection read ability', async () => {
+      const actor = new AdminAuth({ id: 'nobody', abilities: ['collections.other.read'] })
+      await expect(
+        clientFor(createRequestContext({ actor }))
+          .collection('posts')
+          .find({ localeVisibility: 'editorial' })
+      ).rejects.toMatchObject({ code: AuthErrorCodes.FORBIDDEN })
+    })
+
+    it('editing reads are editorial and pass authorization with locale all', async () => {
+      // This unit fixture does not implement the editable read snapshot, so the
+      // read fails after authorization. Reaching the adapter proves that neither
+      // the visibility check nor the collection read check rejected it.
+      const client = clientFor(createSuperAdminContext({ id: 'admin' }))
+      const outcome = await client
+        .collection('posts')
+        .findForEdit({ locale: 'all' })
+        .then(
+          () => 'resolved',
+          (err: Error) => err.message
+        )
+      expect(outcome).toMatch(/Unexpected adapter operation in unit fixture|resolved/)
+    })
+  })
+
+  describe('locale visibility uses the effective locale (CP2-F2)', () => {
+    type Client = ReturnType<typeof createBylineClient>
+    const reads: Array<[string, (client: Client) => Promise<unknown>]> = [
+      ['find', (client) => client.collection('posts').find()],
+      ['findOne', (client) => client.collection('posts').findOne()],
+      ['findById', (client) => client.collection('posts').findById('doc-1')],
+      ['findByPath', (client) => client.collection('posts').findByPath('doc-1')],
+      ['subtree', (client) => client.collection('posts').getSubtree()],
+      ['ancestors', (client) => client.collection('posts').getAncestors('doc-1')],
+      ['tree parent', (client) => client.collection('posts').getTreeParent('doc-1')],
+    ]
+
+    it.each(reads)(
+      'rejects a public read on %s whose omitted locale inherits defaultLocale all, before adapter work',
+      async (_name, read) => {
+        for (const requestContext of [
+          createRequestContext({ actor: null, readMode: 'published' }),
+          createSuperAdminContext({ id: 'admin' }),
+        ]) {
+          const db = mockDb()
+          const client = createBylineClient({
+            db,
+            collections: [postsCollection],
+            requestContext,
+            defaultLocale: 'all',
+          })
+          await expect(read(client)).rejects.toMatchObject({ code: ErrorCodes.VALIDATION })
+          const documents = db.queries.documents
+          for (const query of [
+            documents.findDocuments,
+            documents.getDocumentById,
+            documents.getDocumentByPath,
+            documents.getTreeSubtree,
+            documents.getTreeAncestors,
+            documents.getTreeParent,
+          ]) {
+            expect(query).not.toHaveBeenCalled()
+          }
+        }
+      }
+    )
+
+    it('still permits an editorial read that inherits defaultLocale all', async () => {
+      const client = createBylineClient({
+        db: mockDb(),
+        collections: [postsCollection],
+        requestContext: createSuperAdminContext({ id: 'admin' }),
+        defaultLocale: 'all',
+      })
+      await expect(client.collection('posts').find({ status: 'any' })).resolves.toMatchObject({
+        docs: [],
+      })
+    })
+  })
+
+  describe('singleton get locale visibility (CP2-F1)', () => {
+    const settings = defineSingleton({
+      path: 'settings',
+      label: 'Settings',
+      fields: [{ name: 'title', type: 'text', localized: true }],
+    })
+
+    function singletonClient(
+      requestContext: ReturnType<typeof createRequestContext>,
+      mappedDocumentId: string | null,
+      defaultLocale?: string
+    ) {
+      const db = mockDb()
+      const getMappedDocumentId = vi.fn().mockResolvedValue(mappedDocumentId)
+      ;(db.queries as Record<string, unknown>).singletons = { getMappedDocumentId }
+      const client = createBylineClient({
+        db,
+        collections: [settings],
+        requestContext,
+        ...(defaultLocale != null ? { defaultLocale } : {}),
+      })
+      return { singleton: client.singleton('settings'), getMappedDocumentId, db }
+    }
+
+    const anonymous = () => createRequestContext({ actor: null, readMode: 'published' })
+    const slots: Array<[string, string | null]> = [
+      ['an unmaterialized slot', null],
+      ['a mapped slot', 'doc-1'],
+    ]
+
+    it.each(slots)(
+      'rejects an anonymous editorial get on %s before the slot lookup',
+      async (_name, mapped) => {
+        const { singleton, getMappedDocumentId, db } = singletonClient(anonymous(), mapped)
+        await expect(singleton.get({ localeVisibility: 'editorial' })).rejects.toMatchObject({
+          code: AuthErrorCodes.UNAUTHENTICATED,
+        })
+        expect(getMappedDocumentId).not.toHaveBeenCalled()
+        expect(db.queries.documents.getDocumentById).not.toHaveBeenCalled()
+      }
+    )
+
+    it.each(slots)(
+      'rejects a public locale all get on %s before the slot lookup',
+      async (_name, mapped) => {
+        for (const ctx of [anonymous(), createSuperAdminContext({ id: 'admin' })]) {
+          const { singleton, getMappedDocumentId, db } = singletonClient(ctx, mapped)
+          await expect(singleton.get({ locale: 'all' })).rejects.toMatchObject({
+            code: ErrorCodes.VALIDATION,
+          })
+          expect(getMappedDocumentId).not.toHaveBeenCalled()
+          expect(db.queries.documents.getDocumentById).not.toHaveBeenCalled()
+        }
+      }
+    )
+
+    it.each(slots)(
+      'rejects a public get on %s that inherits defaultLocale all',
+      async (_name, mapped) => {
+        const { singleton, getMappedDocumentId } = singletonClient(anonymous(), mapped, 'all')
+        await expect(singleton.get()).rejects.toMatchObject({ code: ErrorCodes.VALIDATION })
+        expect(getMappedDocumentId).not.toHaveBeenCalled()
+      }
+    )
+
+    it.each(slots)('permits an authorized published editorial get on %s', async (_name, mapped) => {
+      const actor = new AdminAuth({ id: 'reviewer', abilities: ['singletons.settings.read'] })
+      const { singleton, getMappedDocumentId } = singletonClient(
+        createRequestContext({ actor }),
+        mapped
+      )
+      await expect(
+        singleton.get({ status: 'published', localeVisibility: 'editorial', locale: 'es' })
+      ).resolves.toBeNull()
+      expect(getMappedDocumentId).toHaveBeenCalledTimes(1)
+    })
+
+    it.each(slots)('permits an anonymous public get of one locale on %s', async (_name, mapped) => {
+      const { singleton, getMappedDocumentId } = singletonClient(anonymous(), mapped)
+      await expect(singleton.get({ locale: 'es' })).resolves.toBeNull()
+      expect(getMappedDocumentId).toHaveBeenCalledTimes(1)
     })
   })
 })

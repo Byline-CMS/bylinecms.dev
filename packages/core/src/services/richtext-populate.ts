@@ -41,10 +41,17 @@ import { bindReadContextAuthority, compileBeforeReadFilters } from '../auth/appl
 import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
 import { resolveReadContextRoot } from '../auth/read-context-scope.js'
 import { ERR_READ_BUDGET_EXCEEDED, ERR_VALIDATION } from '../lib/errors.js'
+import { resolveLocaleVisibility } from '../storage/locale-resolution.js'
 import { applyAfterRead } from './document-read.js'
 import { walkFieldTree } from './walk-field-tree.js'
 import type { CollectionDefinition } from '../@types/collection-types.js'
-import type { DocumentFilter, IDbAdapter, ReadContext, ReadMode } from '../@types/index.js'
+import type {
+  DocumentFilter,
+  IDbAdapter,
+  LocaleVisibility,
+  ReadContext,
+  ReadMode,
+} from '../@types/index.js'
 
 /**
  * One rich-text leaf yielded by `collectRichTextLeaves`. The walker hands
@@ -156,6 +163,12 @@ export function createRichTextDocumentReader(options: {
   requestContext: RequestContext
   readContext: ReadContext
   readMode: ReadMode
+  /**
+   * Locale visibility for the batch fetch. Omitted ⇒ derived from `readMode`.
+   * Part of the materialization cache key, so a result read under one
+   * visibility is never reused for a read under another.
+   */
+  localeVisibility?: LocaleVisibility
   locale?: string
   bypassBeforeRead?: true
   /** Private cache domain explicitly shared with the originating client read. */
@@ -173,6 +186,7 @@ export function createRichTextDocumentReader(options: {
     bypassBeforeRead,
     richTextPopulate,
   } = options
+  const localeVisibility = options.localeVisibility ?? resolveLocaleVisibility(readMode)
   const securityDomain = options.securityDomain ?? {}
   const state = getRichTextReaderState(readContext)
 
@@ -226,6 +240,7 @@ export function createRichTextDocumentReader(options: {
         requestContext.requestId,
         locale,
         readMode,
+        localeVisibility,
         projection
       )
       if (state.cache.has(key)) {
@@ -242,6 +257,7 @@ export function createRichTextDocumentReader(options: {
         document_ids: idsToFetch,
         fields,
         readMode,
+        localeVisibility,
         locale,
         filters: filters && filters.length > 0 ? filters : undefined,
       })) as Array<Record<string, any>>
@@ -258,6 +274,7 @@ export function createRichTextDocumentReader(options: {
           requestContext.requestId,
           locale,
           readMode,
+          localeVisibility,
           projection
         )
         // Earlier items in this batch may recursively populate a later target.
@@ -354,9 +371,10 @@ function richTextMaterializationKey(
   requestId: string,
   locale: string | undefined,
   readMode: ReadMode,
+  localeVisibility: LocaleVisibility,
   projection: string
 ): string {
-  return `${collectionId}:${documentId}:${requestId}:${locale ?? 'all'}:${readMode}:${projection}`
+  return `${collectionId}:${documentId}:${requestId}:${locale ?? 'all'}:${readMode}:${localeVisibility}:${projection}`
 }
 
 // ---------------------------------------------------------------------------

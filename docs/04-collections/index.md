@@ -408,13 +408,15 @@ preview: {
 }
 ```
 
+**What's on `ctx`:** `locale` is the content locale the editor has selected in the edit view. Keep it even when that translation is unchecked in the [advertised locales](../08-internationalization/03-content-locales.md#public-delivery-of-advertised-locales): preview is how an editor reviews a withheld translation, and preview reads use editorial locale visibility. Build the prefix from your public routes' rule — the examples here assume an unprefixed `'en'` default — never from the admin interface language, advertised links, or canonical metadata. The reference application's builders call the same `buildLocalizedPath` helper its public routes use (`apps/webapp/src/lib/localized-path.ts`).
+
 Returned URLs may be relative (`/news/foo`) for same-origin hosts or absolute
 (`https://example.com/news/foo`) when navigation must target another origin.
 An absolute URL does not transfer Byline's host-only admin and preview cookies;
 cross-origin draft preview therefore requires a separate authentication and
 preview-state handoff.
 
-**Default behaviour.** When `preview` is omitted, the preview link defaults to `/${collectionPath}/${doc.path}` (fine for collections whose public URL mirrors the collection path).
+**Default behaviour.** When `preview` is omitted, the preview link uses the collection's `buildDocumentPath` hook when it returns a path, and otherwise `/${collectionPath}/${doc.path}`. Neither fallback adds a locale prefix, so a collection with translated public routes should declare `preview.url`.
 
 **Why no `preview.populate` hint.** Prototyped and removed. The edit-view loader already issues a depth-1 populate to render relation tiles, so any selective override would have to coexist with the picker projection (additive? overriding? both?): extra surface area for a case no current collection needs. Revisit if a real use case emerges (deeper relation traversal, or a field outside the picker projection that the URL builder needs).
 

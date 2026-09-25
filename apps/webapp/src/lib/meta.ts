@@ -24,7 +24,9 @@
 import type { StoredFileValue } from '@byline/core'
 
 import { getPublicConfig } from '@/config'
-import { i18nConfig } from '@/i18n/i18n-config'
+
+// Re-exported for existing callers; the rule itself lives in a leaf module.
+export { buildLocalizedPath } from '@/lib/localized-path'
 
 /**
  * Cache-busting version for the static social images in `public/`. Bump this
@@ -177,34 +179,6 @@ export function getMeta(options: MetaOptions = {}): MetaHead {
       ...alternateLinks,
     ],
   }
-}
-
-/**
- * Build a locale-prefixed URL path from one or more segments.
- *
- * Mirrors the convention used elsewhere in the app (`LangLink`,
- * `useLanguageSwitcher`, `byline/collections/pages/admin.tsx`): the default
- * locale renders without a prefix, all others get `/<lng>` prepended.
- *
- * @example
- *   buildLocalizedPath('en', 'about', 'team')   // -> '/about/team'
- *   buildLocalizedPath('es', 'about', 'team')   // -> '/es/about/team'
- *   buildLocalizedPath(undefined, 'contact')    // -> '/contact'
- */
-export function buildLocalizedPath(
-  lng: string | undefined,
-  ...segments: Array<string | null | undefined>
-): string {
-  const prefix = lng != null && lng !== i18nConfig.defaultLocale ? `/${lng}` : ''
-  const path = segments
-    .filter((s): s is string => s != null && s.length > 0)
-    .map((s) => s.replace(/^\/+|\/+$/g, ''))
-    .filter((s) => s.length > 0)
-    .join('/')
-  // No segments — return `/` (default locale) or `/<lng>` (no trailing
-  // slash) so home-page canonicals stay clean.
-  if (path.length === 0) return prefix.length > 0 ? prefix : '/'
-  return `${prefix}/${path}`
 }
 
 /**

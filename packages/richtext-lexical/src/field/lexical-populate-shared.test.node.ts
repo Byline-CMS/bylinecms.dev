@@ -32,3 +32,28 @@ describe('runLexicalPopulate secure reader', () => {
     )
   })
 })
+
+describe('runLexicalPopulate failed refresh', () => {
+  it('rejects without applying, so a stale snapshot is never returned as a live resolution', async () => {
+    const node = { type: 'x', document: { title: 'Stale' } }
+    const apply = vi.fn()
+    const applyMissing = vi.fn()
+    const visitor: LexicalNodeVisitor = {
+      match: (candidate) =>
+        candidate.type === 'x'
+          ? { node: candidate, collectionPath: 'pages', documentId: 'doc-1', apply, applyMissing }
+          : null,
+    }
+
+    await expect(
+      runLexicalPopulate({
+        readContext: createReadContext(),
+        readDocuments: vi.fn().mockRejectedValue(new Error('database unavailable')),
+        visitors: [visitor],
+        values: [{ root: { type: 'root', children: [node] } }],
+      })
+    ).rejects.toThrow('database unavailable')
+    expect(apply).not.toHaveBeenCalled()
+    expect(applyMissing).not.toHaveBeenCalled()
+  })
+})

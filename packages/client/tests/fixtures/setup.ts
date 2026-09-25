@@ -11,6 +11,7 @@ import {
   type CollectionDefinition,
   defineServerConfig,
   type IStorageProvider,
+  type RichTextEmbedFn,
   type RichTextPopulateFn,
   type SearchProvider,
   type ServerHooksConfig,
@@ -46,6 +47,13 @@ export async function setupMultiCollectionTestClient(
      * true. Used by the richtext-populate integration test.
      */
     richTextPopulate?: RichTextPopulateFn
+    /**
+     * Optional save-time richtext embed adapter, registered on the server
+     * config as `fields.richText.embed` so the document lifecycle copies
+     * target data into fields with `embedRelationsOnSave`. Used by the
+     * locale-visibility integration test.
+     */
+    richTextEmbed?: RichTextEmbedFn
     /** Optional storage provider used by field-upload integration tests. */
     storage?: IStorageProvider
     /** Optional server-only hook registry attached during config registration. */
@@ -78,6 +86,9 @@ export async function setupMultiCollectionTestClient(
     collections: definitions,
     storage: options.storage,
     hooks: options.hooks,
+    ...(options.richTextEmbed != null
+      ? { fields: { richText: { embed: options.richTextEmbed } } }
+      : {}),
   })
 
   const requestContext =

@@ -221,7 +221,11 @@ The public search index is not a preview index. It need not discover unpublished
 
 Keep the existing non-versioned `updateDocumentSystemFields` transaction, audit event, optimistic-concurrency behavior, and post-commit reconciliation mechanism. Changing a checkbox mints no content version and resets no workflow status. The public rule consults the current document-level set together with the selected version's frozen completeness ledger.
 
-For a combined content/checkbox save, the existing system-field write happens before the content write, in separate transactions. Checking Spanish may therefore expose the **already published** Spanish content immediately, even if accompanying content edits later fail to save. If Spanish exists only in the draft, it remains withheld from public delivery until a complete version is published. Explain both cases in the confirmation copy and tests. Do not stage the checkbox until publication or silently reorder the save workflow in this issue.
+For a combined content/checkbox save, the admin sends one request, and the server writes the checkbox change and then the new content version inside one guarded transaction: both commit, or neither does. Once the save commits, checking Spanish exposes the **already published** Spanish content immediately, while the accompanying content edits enter the version workflow. If Spanish exists only in the draft, it remains withheld from public delivery until a complete version is published. A failed save applies neither change. That is distinct from `ERR_DOCUMENT_HOOK_COMMITTED`, which reports that a post-commit hook failed after both writes had committed. Explain these cases in the confirmation copy and tests. Do not stage the checkbox until publication or reorder the save workflow in this issue.
+
+:::note[Superseded premise, corrected 2026-09-25]
+The review draft of this section assumed the system-field write and the content write ran in separate transactions, so that a checked translation could stay exposed after a failed content save. Implementation found the combined save has been one request and one guarded transaction since commit `d78548a5`. That premise is superseded; the paragraph above states the actual behaviour.
+:::
 
 ### Cache parity with unpublish
 

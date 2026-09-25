@@ -26,8 +26,11 @@
 import { type BylineLogger, type CollectionDefinition, defineServerConfig } from '@byline/core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { lexicalToMarkdown } from '../../markdown/lexical-to-markdown'
+import { resolveLinkHref } from './link-href'
 import { linkVisitor } from './populate'
 import type { LexicalNodeLike } from '../../lexical-populate-shared'
+import type { LinkAttributes } from './types'
 
 // ---------------------------------------------------------------------------
 // Test harness — logger + config registration
@@ -246,9 +249,9 @@ describe('linkVisitor', () => {
       expect(node.attributes?.document?.path).toBe('/pages/about')
     })
 
-    it('leaves path untouched when target.path is empty and no hook is defined', () => {
+    it('marks the link unresolved when target.path is empty and no hook is defined', () => {
       // Generic fallback bails when target.path is empty rather than
-      // emitting `/pages/undefined`.
+      // emitting `/pages/undefined`; the old copied path is not reused.
       registerCollection({ path: 'pages' })
       const node = makeInternalLinkNode({
         document: { title: 'Old', path: '/previous' },
@@ -256,7 +259,9 @@ describe('linkVisitor', () => {
       const pending = linkVisitor.match(node)
       pending?.apply({ ...targetFixture, path: '' })
 
-      expect(node.attributes?.document?.path).toBe('/previous')
+      expect(node.attributes?.document?.path).toBeUndefined()
+      expect(node.attributes?.document?._resolved).toBe(false)
+      expect(resolveLinkHref(node.attributes as LinkAttributes)).toBeNull()
     })
   })
 
@@ -265,7 +270,7 @@ describe('linkVisitor', () => {
   // -------------------------------------------------------------------------
 
   describe('apply (branch A — hook threw)', () => {
-    it('logs at info and leaves document.path untouched', () => {
+    it('logs at info, removes the old path and marks the link unresolved', () => {
       registerCollection({
         path: 'pages',
         useAsTitle: 'title',
@@ -279,8 +284,10 @@ describe('linkVisitor', () => {
       const pending = linkVisitor.match(node)
       pending?.apply(targetFixture)
 
-      // Path preserved (branch A's whole point).
-      expect(node.attributes?.document?.path).toBe('/previous')
+      // The old copied path is never reused: no current path was produced.
+      expect(node.attributes?.document?.path).toBeUndefined()
+      expect(node.attributes?.document?._resolved).toBe(false)
+      expect(resolveLinkHref(node.attributes as LinkAttributes)).toBeNull()
       // Title still refreshes — only the path resolution failed.
       expect(node.attributes?.document?.title).toBe('About Us')
       expect(logger.info).toHaveBeenCalledWith(
@@ -306,6 +313,37 @@ describe('linkVisitor', () => {
 
       // No path written — neither hook output nor generic fallback fired.
       expect(node.attributes?.document?.path).toBeUndefined()
+      expect(node.attributes?.document?._resolved).toBe(false)
+    })
+
+    it('does not reactivate a previously unresolved link with its old path', () => {
+      registerCollection({
+        path: 'pages',
+        buildDocumentPath: () => {
+          throw new Error('boom')
+        },
+      })
+      const node = makeInternalLinkNode({
+        document: { title: 'Old', path: '/stale-path', _resolved: false },
+      })
+      linkVisitor.match(node)?.apply(targetFixture)
+
+      expect(node.attributes?.document?._resolved).toBe(false)
+      expect(node.attributes?.document?.path).toBeUndefined()
+      expect(resolveLinkHref(node.attributes as LinkAttributes)).toBeNull()
+      const markdown = lexicalToMarkdown({
+        root: {
+          type: 'root',
+          children: [
+            {
+              type: 'paragraph',
+              children: [{ ...node, children: [{ type: 'text', text: 'authored text' }] }],
+            },
+          ],
+        },
+      }).markdown
+      expect(markdown).not.toContain('/stale-path')
+      expect(markdown).toContain('authored text')
     })
   })
 
@@ -347,5 +385,52 @@ describe('linkVisitor', () => {
 
       expect(node.attributes?.document).toEqual({ _resolved: false })
     })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// apply() — derived values are replaced, never merged
+// ---------------------------------------------------------------------------
+
+describe('linkVisitor replaces derived values instead of merging them', () => {
+  beforeEach(() => {
+    installLogger(makeLogger())
+    clearConfig()
+    registerCollection({ path: 'pages' })
+  })
+
+  afterEach(() => {
+    clearConfig()
+  })
+
+  it('removes a stale title when the current target result supplies none', () => {
+    // A withheld or redacted title arrives as an absent field; the copy
+    // saved by an earlier refresh must not survive.
+    const node = makeInternalLinkNode({ document: { title: 'Withheld ES', path: '/pages/about' } })
+    linkVisitor.match(node)?.apply({ ...targetFixture, fields: { area: 'root' } })
+
+    expect(node.attributes?.document).not.toHaveProperty('title')
+    expect(node.attributes?.document?.path).toBe('/pages/about')
+  })
+
+  it('replaces a stale title with the current one', () => {
+    const node = makeInternalLinkNode({ document: { title: 'Withheld ES' } })
+    linkVisitor.match(node)?.apply({ ...targetFixture, fields: { title: 'About EN' } })
+
+    expect(node.attributes?.document?.title).toBe('About EN')
+  })
+
+  it('keeps reference identity, authored children and unrelated envelope keys', () => {
+    const node: LexicalNodeLike = {
+      ...makeInternalLinkNode({ document: { title: 'Old', note: 'kept' } }),
+      children: [{ type: 'text', text: 'authored link text' } as LexicalNodeLike],
+    }
+    linkVisitor.match(node)?.apply({ ...targetFixture, fields: {} })
+
+    expect(node.attributes?.targetDocumentId).toBe('doc-1')
+    expect(node.attributes?.targetCollectionPath).toBe('pages')
+    expect(node.attributes?.linkType).toBe('internal')
+    expect(node.attributes?.document?.note).toBe('kept')
+    expect(node.children).toEqual([{ type: 'text', text: 'authored link text' }])
   })
 })

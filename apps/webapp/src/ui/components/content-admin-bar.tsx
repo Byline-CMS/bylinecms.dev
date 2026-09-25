@@ -162,8 +162,8 @@ export function ContentAdminBar({ user, admin, preview = false }: ContentAdminBa
           }}
           title={
             preview
-              ? 'Drafts are visible — click to return to the published view'
-              : 'Click to surface in-progress drafts on the public site'
+              ? 'Showing saved drafts and translations withheld from the public site — click to return to the public view'
+              : 'Click to show saved drafts and withheld translations'
           }
         >
           {preview ? (

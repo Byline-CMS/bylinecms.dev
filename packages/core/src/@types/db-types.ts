@@ -49,6 +49,29 @@ export type ReadMode = 'any' | 'published'
 export type MissingLocalePolicy = 'empty' | 'fallback' | 'omit'
 
 /**
+ * Whether a read's language selection honours the editor's advertised-locale
+ * checkboxes (the value of the `localeVisibility` read option).
+ *
+ *   - `'public'`    — in a collection with `advertiseLocales: true`, an
+ *                     additional translation is eligible only when it is both
+ *                     complete on the selected version and checked in the
+ *                     document's `availableLocales`. An unchecked translation
+ *                     behaves exactly like a missing one under every
+ *                     `onMissingLocale` policy. The source locale is always
+ *                     eligible. Collections without `advertiseLocales` are
+ *                     gated by completeness alone.
+ *   - `'editorial'` — completeness alone decides; checkboxes are ignored, so an
+ *                     authorized reviewer can see a withheld translation. Also
+ *                     the visibility of exact editing reads.
+ *
+ * Independent of `ReadMode`: version selection chooses *which version*, locale
+ * visibility chooses *which of its languages* may be delivered. `@byline/client`
+ * defaults it from `status` — `'published'` (or omitted) → `'public'`,
+ * `'any'` → `'editorial'` — and requires an actor for `'editorial'`.
+ */
+export type LocaleVisibility = 'public' | 'editorial'
+
+/**
  * Request-scoped context shared across every read and populate walk in one
  * logical request. Threaded through populate, `afterRead` hooks, and any
  * nested reads the hook itself performs — the visited set and read budget
@@ -1119,6 +1142,15 @@ export interface IDocumentQueries {
     /** See `MissingLocalePolicy`. `'omit'` returns `null` when the document
      *  is not available in the requested locale. Omitted ⇒ `'empty'`. */
     onMissingLocale?: MissingLocalePolicy
+    /**
+     * See `LocaleVisibility`. Omitted ⇒ `'editorial'`: direct adapter reads are
+     * trusted primitives and keep their exact editing behaviour. `@byline/client`
+     * always passes the resolved value. Under `'public'`, `'fallback'` skips
+     * ineligible locales, `'omit'` excludes documents whose requested locale is
+     * ineligible, and an exact read of an ineligible locale withholds localized
+     * values. A reconstructed result reports its decision as `resolved_locale`.
+     */
+    localeVisibility?: LocaleVisibility
   }): Promise<any | null>
 
   /**
@@ -1177,6 +1209,8 @@ export interface IDocumentQueries {
     /** See `MissingLocalePolicy`. `'omit'` returns `null` when the document
      *  is not available in the requested locale. Omitted ⇒ `'empty'`. */
     onMissingLocale?: MissingLocalePolicy
+    /** See `getDocumentById.localeVisibility`. */
+    localeVisibility?: LocaleVisibility
   }): Promise<any | null>
 
   getDocumentByVersion(params: {
@@ -1218,6 +1252,9 @@ export interface IDocumentQueries {
     filters?: DocumentFilter[]
     /** See `getDocumentById.requestContext`. */
     requestContext?: RequestContext
+    /** See `getDocumentById.localeVisibility`. Each document resolves under
+     *  its own source locale, completeness ledger and checkbox set. */
+    localeVisibility?: LocaleVisibility
   }): Promise<any[]>
 
   getDocumentHistory(params: {
@@ -1329,6 +1366,9 @@ export interface IDocumentQueries {
      *  in the requested locale (filtered at the SQL layer so pagination stays
      *  correct). Omitted ⇒ `'empty'`. */
     onMissingLocale?: MissingLocalePolicy
+    /** See `getDocumentById.localeVisibility`. Under `'public'` with `'omit'`,
+     *  the checkbox gate is compiled into SQL before count and pagination. */
+    localeVisibility?: LocaleVisibility
   }): Promise<{
     documents: any[]
     total: number
@@ -1407,6 +1447,13 @@ export interface IDocumentQueries {
     readMode?: ReadMode
     locale?: string
     filters?: DocumentFilter[]
+    /**
+     * The read's resolved locale visibility. When supplied, localized
+     * `filters` evaluate each node in the locale hydration shows (fallback
+     * under this visibility). Omitted ⇒ exact requested-locale matching, as
+     * editing reads expect.
+     */
+    localeVisibility?: LocaleVisibility
   }): Promise<Array<{ document_id: string; depth: number }>>
 
   /**
@@ -1440,6 +1487,13 @@ export interface IDocumentQueries {
     readMode?: ReadMode
     locale?: string
     filters?: DocumentFilter[]
+    /**
+     * The read's resolved locale visibility. When supplied, localized
+     * `filters` evaluate each node in the locale hydration shows (fallback
+     * under this visibility). Omitted ⇒ exact requested-locale matching, as
+     * editing reads expect.
+     */
+    localeVisibility?: LocaleVisibility
   }): Promise<{ placed: boolean; parentDocumentId: string | null; parentRedacted?: true }>
 
   /**
@@ -1471,6 +1525,13 @@ export interface IDocumentQueries {
     readMode?: ReadMode
     locale?: string
     filters?: DocumentFilter[]
+    /**
+     * The read's resolved locale visibility. When supplied, localized
+     * `filters` evaluate each node in the locale hydration shows (fallback
+     * under this visibility). Omitted ⇒ exact requested-locale matching, as
+     * editing reads expect.
+     */
+    localeVisibility?: LocaleVisibility
   }): Promise<
     Array<{
       document_id: string

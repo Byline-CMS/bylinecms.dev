@@ -17,6 +17,7 @@ import type {
   DocumentLifecycleContext,
   DocumentPublishSchedule,
   DocumentWritePrecondition,
+  LocaleVisibility,
   PopulateSpec,
   ReadContext,
   ReadMode,
@@ -29,6 +30,7 @@ import type {
 import {
   applyAfterRead,
   assertActorCanPerform,
+  assertLocaleVisibility,
   buildSearchDocument,
   cancelDocumentScheduledPublish,
   changeDocumentStatus,
@@ -49,6 +51,7 @@ import {
   populateRichTextFields,
   removeFromTree as removeFromTreeLifecycle,
   resolveIdentityField,
+  resolveLocaleVisibility,
   restoreDocumentVersion,
   scheduleDocumentPublish,
   unpublishDocument,
@@ -138,7 +141,13 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   async find<F = TFields>(options: FindOptions<F> = {}): Promise<FindResult<F>> {
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
-    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const localeVisibility = resolveLocaleVisibility(options.status, options.localeVisibility)
+    const requestContext = await this.resolveAndAssertRead(
+      readMode,
+      readCtx,
+      localeVisibility,
+      options.locale
+    )
     const {
       where,
       select,
@@ -176,6 +185,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       fields: select as string[] | undefined,
       readMode,
       onMissingLocale: options.onMissingLocale ?? 'fallback',
+      localeVisibility,
     })
 
     await this.populateIfRequested(
@@ -198,7 +208,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       options._bypassBeforeRead,
       select as string[] | undefined,
-      readMaterialization(options.populate, options.depth)
+      readMaterialization(options.populate, options.depth),
+      localeVisibility
     )
 
     return {
@@ -315,6 +326,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       populate: options.populate,
       depth: options.depth,
       status: options.status,
+      localeVisibility: options.localeVisibility,
       onMissingLocale: options.onMissingLocale,
       _readContext: options._readContext,
       _bypassBeforeRead: options._bypassBeforeRead,
@@ -332,25 +344,30 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * Asserts the collection `read` ability first (same gate as the other
    * reads), and defaults `status` to `'published'`, so a public viewer only
    * sees published content — which is also all the index holds, since
-   * indexing is published-only.
+   * indexing writes only publicly deliverable locales of the published
+   * version.
    *
-   * **Row-level authorization** — "rank in the provider, authorise in core":
-   * when the collection configures a `beforeRead` hook, the provider's
-   * candidate hits are re-resolved through the normal read path (the same
-   * predicate merge + SQL compile every other read uses) and hits whose
-   * document doesn't survive the scoping are dropped. Collections without a
-   * hook skip the second query entirely. `hydrate: true` batch-reads the
-   * hits into shaped `ClientDocument`s in the same query (authorisation
-   * comes free) and attaches them as `hit.document`. Two consequences to be
-   * aware of:
+   * **Authorization after ranking** — "rank in the provider, authorise in
+   * core": the provider's candidate hits are re-resolved through the normal
+   * read path (the same predicate merge + SQL compile every other read uses)
+   * whenever the search is public (`status: 'published'`, the default) or
+   * the collection configures a `beforeRead` hook. A public search re-checks
+   * every hit's locale against the advertised-locale policy even without a
+   * hook, so a stale index slice for an unchecked translation is dropped;
+   * one batched read per page performs the check. `hydrate: true` reads the
+   * hits into shaped `ClientDocument`s in their own locale (no source
+   * substitution) and attaches them as `hit.document`. Consequences:
    *
-   *   - under row scoping, `total` is the authorized hit count for this page
-   *     and facets are omitted rather than leaking provider-wide aggregates.
+   *   - for every public search, and under row scoping, `total` is the
+   *     surviving hit count for this page and facets are omitted rather than
+   *     leaking provider-wide aggregates;
+   *   - only an editorial search (`status: 'any'`) with no `beforeRead` hook
+   *     passes the provider `total` and facets through unchanged;
    *   - a page of hits can come back shorter than `limit` when candidates
    *     are dropped; paginate on `offset`, not on received length.
    *
    * `_bypassBeforeRead: true` is the same system-operation escape hatch the
-   * read methods take.
+   * read methods take; it skips `beforeRead` scoping, never the locale check.
    *
    * Throws `ERR_VALIDATION` when no provider is registered.
    */
@@ -384,10 +401,12 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       offset: options.offset,
     })
 
-    // Row-level authorization (+ optional hydration) — the shared finishing
-    // pipeline the zone entry point uses too. Collections without a
-    // beforeRead predicate and no hydrate request pass through untouched.
-    const hits = await finalizeSearchHits({
+    // Row-level authorization, exact-locale eligibility (+ optional
+    // hydration) — the shared finishing pipeline the zone entry point uses
+    // too. Public searches always re-check every hit and always follow the
+    // restricted-result convention; only an editorial search without a
+    // beforeRead predicate or hydration passes hits through untouched.
+    const { hits, eligibilityRestricted } = await finalizeSearchHits({
       client: this.client,
       requestContext,
       hits: results.hits,
@@ -395,9 +414,10 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       status: options.status,
       hydrate: options.hydrate,
       bypassBeforeRead: options._bypassBeforeRead,
+      localeVisibility: resolveLocaleVisibility(readMode),
       readContext: readCtx,
     })
-    return aggregateRestricted
+    return aggregateRestricted || eligibilityRestricted
       ? { hits, total: hits.length }
       : { hits, total: results.total, facets: results.facets }
   }
@@ -425,9 +445,13 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
 
     const populate = this.buildSearchFacetPopulateMap()
     for (const locale of this.client.contentLocales) {
+      // Public delivery, pinned explicitly: the system client indexing here
+      // is authenticated, but only publicly eligible locale slices (source,
+      // or checked and complete) may enter the index.
       const view = await this.findById(documentId, {
         locale,
         status: 'published',
+        localeVisibility: 'public',
         onMissingLocale: 'omit',
         populate,
         _bypassBeforeRead: true,
@@ -548,7 +572,13 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   ): Promise<ClientDocument<F> | null> {
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
-    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const localeVisibility = resolveLocaleVisibility(options.status, options.localeVisibility)
+    const requestContext = await this.resolveAndAssertRead(
+      readMode,
+      readCtx,
+      localeVisibility,
+      options.locale
+    )
     const { locale = this.client.defaultLocale } = options
 
     const filters = await this.resolveBeforeReadFilters(
@@ -567,6 +597,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       filters,
       lenient: options.lenient,
       onMissingLocale: options.onMissingLocale ?? 'fallback',
+      localeVisibility,
     })
 
     if (raw == null) return null
@@ -597,7 +628,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       options._bypassBeforeRead,
       options.select as string[] | undefined,
-      readMaterialization(options.populate, options.depth)
+      readMaterialization(options.populate, options.depth),
+      localeVisibility
     )
 
     return this.shapeWithPopulated<F>(raw as Record<string, any>)
@@ -709,7 +741,13 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   ): Promise<ClientDocument<F> | null> {
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
-    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const localeVisibility = resolveLocaleVisibility(options.status, options.localeVisibility)
+    const requestContext = await this.resolveAndAssertRead(
+      readMode,
+      readCtx,
+      localeVisibility,
+      options.locale
+    )
     const { locale = this.client.defaultLocale } = options
 
     const filters = await this.resolveBeforeReadFilters(
@@ -727,6 +765,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       filters,
       onMissingLocale: options.onMissingLocale ?? 'fallback',
+      localeVisibility,
     })
 
     if (raw == null) return null
@@ -755,7 +794,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       options._bypassBeforeRead,
       options.select as string[] | undefined,
-      readMaterialization(options.populate, options.depth)
+      readMaterialization(options.populate, options.depth),
+      localeVisibility
     )
 
     return this.shapeWithPopulated<F>(raw as Record<string, any>)
@@ -1198,7 +1238,13 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     this.assertTreeCollection()
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
-    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const localeVisibility = resolveLocaleVisibility(options.status, options.localeVisibility)
+    const requestContext = await this.resolveAndAssertRead(
+      readMode,
+      readCtx,
+      localeVisibility,
+      options.locale
+    )
     const locale = options.locale ?? this.client.defaultLocale
     const filters = await this.resolveBeforeReadFilters(
       requestContext,
@@ -1214,6 +1260,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       locale,
       filters,
+      localeVisibility,
     })
     if (structure.length === 0) return []
 
@@ -1226,7 +1273,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       filters,
       readCtx,
       requestContext,
-      options._bypassBeforeRead
+      options._bypassBeforeRead,
+      localeVisibility
     )
 
     // Assemble the nested forest. Rows arrive pre-order, so a parent is always
@@ -1393,7 +1441,13 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     this.assertTreeCollection()
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
-    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const localeVisibility = resolveLocaleVisibility(options.status, options.localeVisibility)
+    const requestContext = await this.resolveAndAssertRead(
+      readMode,
+      readCtx,
+      localeVisibility,
+      options.locale
+    )
     const locale = options.locale ?? this.client.defaultLocale
     const filters = await this.resolveBeforeReadFilters(
       requestContext,
@@ -1407,6 +1461,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       locale,
       filters,
+      localeVisibility,
     })
     if (ancestors.length === 0) return []
 
@@ -1420,7 +1475,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       filters,
       readCtx,
       requestContext,
-      options._bypassBeforeRead
+      options._bypassBeforeRead,
+      localeVisibility
     )
     // A hydration-time miss truncates the edge rather than compacting past a
     // newly-hidden ancestor.
@@ -1451,7 +1507,13 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     this.assertTreeCollection()
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
-    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const localeVisibility = resolveLocaleVisibility(options.status, options.localeVisibility)
+    const requestContext = await this.resolveAndAssertRead(
+      readMode,
+      readCtx,
+      localeVisibility,
+      options.locale
+    )
     const filters = await this.resolveBeforeReadFilters(
       requestContext,
       readCtx,
@@ -1462,6 +1524,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       locale: options.locale ?? this.client.defaultLocale,
       filters,
+      localeVisibility,
     })
     return {
       placed: result.placed,
@@ -1556,12 +1619,31 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * Returns the resolved context so callers can thread `readMode` and
    * other per-request state into the adapter without re-resolving.
    */
+  /**
+   * Resolve the request context for a read and authorize it: the collection
+   * read ability (`assertActorCanPerform`) and the read's locale visibility
+   * (`assertLocaleVisibility`). Visibility defaults from `readMode`, so the
+   * editing, history and version reads (`readMode: 'any'`) are editorial.
+   *
+   * The visibility check validates the *effective* locale, the value every
+   * read method sends to storage (`locale ?? client.defaultLocale`), so a
+   * client configured with `defaultLocale: 'all'` cannot turn an omitted
+   * locale into a public all-locale read.
+   */
   private async resolveAndAssertRead(
     readMode: ReadMode,
-    readContext: ReadContext
+    readContext: ReadContext,
+    localeVisibility: LocaleVisibility = resolveLocaleVisibility(readMode),
+    locale?: string
   ): Promise<RequestContext> {
     const requestContext = await resolveReadRequestContext(this.client, readContext, readMode)
     assertActorCanPerform(requestContext, this.definition, 'read')
+    assertLocaleVisibility(
+      requestContext,
+      this.definition.path,
+      localeVisibility,
+      locale ?? this.client.defaultLocale
+    )
     return requestContext
   }
 
@@ -1598,7 +1680,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     filters: DocumentFilter[] | undefined,
     readContext: ReadContext,
     requestContext: RequestContext,
-    bypassBeforeRead: true | undefined
+    bypassBeforeRead: true | undefined,
+    localeVisibility: LocaleVisibility = resolveLocaleVisibility(readMode)
   ): Promise<Map<string, ClientDocument<F>>> {
     const shapedById = new Map<string, ClientDocument<F>>()
     if (documentIds.length === 0) return shapedById
@@ -1610,6 +1693,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       fields: select,
       filters,
+      localeVisibility,
     })
 
     await this.finishReadDocuments(
@@ -1620,7 +1704,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       bypassBeforeRead,
       select,
-      'tree'
+      'tree',
+      localeVisibility
     )
 
     for (const raw of rawDocs) {
@@ -1648,6 +1733,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     options: {
       populate?: PopulateSpec
       depth?: number
+      localeVisibility?: LocaleVisibility
       _readContext?: ReadContext
       _bypassBeforeRead?: true
     }
@@ -1662,6 +1748,9 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       depth: options.depth,
       locale,
       readMode,
+      // Equals the entry point's resolved visibility: an explicit option wins,
+      // otherwise the default follows the same status that selected `readMode`.
+      localeVisibility: options.localeVisibility ?? resolveLocaleVisibility(readMode),
       readContext: options._readContext,
       requestContext,
       securityDomain: getReadSecurityDomain(this.client),
@@ -1685,7 +1774,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     requestContext: RequestContext,
     locale: string,
     readMode: ReadMode,
-    bypassBeforeRead: true | undefined
+    bypassBeforeRead: true | undefined,
+    localeVisibility: LocaleVisibility
   ): Promise<void> {
     const populate = this.client.richTextPopulate
     if (!populate || rawDocs.length === 0) return
@@ -1703,6 +1793,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
         requestContext,
         readContext,
         readMode,
+        localeVisibility,
         locale,
         bypassBeforeRead,
         richTextPopulate: populate,
@@ -1720,7 +1811,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     readMode: ReadMode,
     bypassBeforeRead: true | undefined,
     projection: string[] | undefined,
-    materialization: string
+    materialization: string,
+    localeVisibility: LocaleVisibility = resolveLocaleVisibility(readMode)
   ): Promise<void> {
     // Rich-text targets must be authorised and refreshed before user hooks see
     // the document, regardless of which read entry point materialised it.
@@ -1730,7 +1822,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       requestContext,
       locale,
       readMode,
-      bypassBeforeRead
+      bypassBeforeRead,
+      localeVisibility
     )
     for (const doc of rawDocs) {
       await applyAfterRead({

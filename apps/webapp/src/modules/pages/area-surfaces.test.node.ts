@@ -84,6 +84,7 @@ describe('area-derived navigation', () => {
       select: ['area'],
       locale: defaultContentLocale,
       status: 'published',
+      localeVisibility: 'public',
     })
     expect(mocks.cache).toHaveBeenCalledWith(
       expect.objectContaining({

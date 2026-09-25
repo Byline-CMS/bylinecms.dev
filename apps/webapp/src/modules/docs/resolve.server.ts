@@ -63,11 +63,17 @@ export async function resolveDocTreeBySplat<F = Record<string, any>>(
     splat: string
     locale: string
     status: 'published' | 'any'
+    /**
+     * Which translations the reads may show. Preview passes `'editorial'` so an
+     * authorized viewer sees saved translations that are not yet advertised;
+     * omitted, the client derives it from `status`.
+     */
+    localeVisibility?: 'public' | 'editorial'
     enforceSpine: boolean
     populate?: Record<string, '*'>
   }
 ): Promise<DocTreeResolution<F> | null> {
-  const { splat, locale, status, enforceSpine, populate } = options
+  const { splat, locale, status, localeVisibility, enforceSpine, populate } = options
 
   const requested = splat
     .split('/')
@@ -76,10 +82,10 @@ export async function resolveDocTreeBySplat<F = Record<string, any>>(
   const leaf = requested.at(-1)
   if (leaf == null) return null
 
-  const doc = await handle.findByPath<F>(leaf, { populate, locale, status })
+  const doc = await handle.findByPath<F>(leaf, { populate, locale, status, localeVisibility })
   if (doc == null) return null
 
-  const ancestors = await handle.getAncestors(doc.id, { status, locale })
+  const ancestors = await handle.getAncestors(doc.id, { status, localeVisibility, locale })
 
   // Reachability: the topmost *resolved* node must be a root (or the document
   // must be unplaced). A non-null parent above the resolved chain means an
@@ -88,6 +94,7 @@ export async function resolveDocTreeBySplat<F = Record<string, any>>(
     const topId = ancestors.at(0)?.id ?? doc.id
     const { placed, parentDocumentId, parentVisibility } = await handle.getTreeParent(topId, {
       status,
+      localeVisibility,
       locale,
     })
     if (parentVisibility === 'redacted' || (placed && parentDocumentId != null)) return null

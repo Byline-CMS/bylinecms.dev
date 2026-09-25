@@ -62,6 +62,7 @@ export async function getDocsNav({ lng }: DocsNavInput): Promise<DocsNavResult> 
         select: ['title', 'summary'],
         locale: lng,
         status: preview ? 'any' : 'published',
+        localeVisibility: preview ? 'editorial' : 'public',
       })
       return { nodes: forest.map((node) => toNavNode(node, [])) }
     },

@@ -14,7 +14,7 @@ Companions:
 
 Byline keeps immutable content history alongside audited mutable workflow and document controls. Read this when you are evaluating that boundary, deciding where a new attribute belongs, or determining what a historical version can reproduce.
 
-This records the architectural rationale reviewed on 2026-09-25. The public language gate agreed for issue #102 is planned behavior, identified separately below; this document does not claim that gate or the future capabilities are already implemented.
+This records the architectural rationale reviewed on 2026-09-25 and updated when the public language policy from issue #102 shipped. The re-anchoring, historical replay, and coordinated release sections below remain open design questions; this document does not claim those capabilities are implemented.
 
 ## What belongs to a version
 
@@ -42,7 +42,7 @@ Byline therefore restores content into a new version while retaining current doc
 
 Versioning every control would support a different workflow, in which routing and language decisions are staged with content. It would also require explicit rules for withdrawing a language across versions, restoring old controls, and separating urgent routing changes from unfinished drafts. That is a possible product design, but it is not automatically more consistent than the current one.
 
-The accepted direction for [issue #102](https://github.com/Byline-CMS/bylinecms.dev/issues/102) treats a checked language as continuing permission to deliver that document in the language when the selected published version supports it. It is not approval of one particular translated revision. Later content changes remain subject to the version publication workflow. You can find the settled contract and its source-language exception in the repository at `specs/2026-09-25-advertised-locale-visibility-spec.md`.
+Since [issue #102](https://github.com/Byline-CMS/bylinecms.dev/issues/102), a checked language is continuing permission to deliver that document in the language publicly, whenever the selected published version is complete in it. It is not approval of one particular translated revision: later content changes still go through the version publication workflow, and a translation that exists only in a draft stays withheld until that draft is published. The source language is always deliverable, whether or not its checkbox is set. [Content locales](../08-internationalization/03-content-locales.md#public-delivery-of-advertised-locales) describes the full read policy. Because a check grants continuing permission, deciding who approves a translation and when a released language is withdrawn is an editorial responsibility; [Editorial policy for localized content](../08-internationalization/03-content-locales.md#editorial-policy-for-localized-content) sets out what that policy should cover.
 
 ## Why source locale survives a default change
 
@@ -57,7 +57,7 @@ For example, after changing the default from English to French:
 | Completeness reference for new versions | That version's English field paths | That version's French field paths |
 | Stored source-path locale | Remains English | French |
 
-An existing document can still serve French when the applicable read policy permits its French translation. Keeping English as its source does not force all reads to English. Likewise, retaining the source does not preserve every old installation rule: request preferences, search locale selection, and current application configuration can change. The source preserves the content anchor, not a snapshot of the former site configuration.
+An existing document can still serve French when the read policy permits its French translation — for public reads in a collection that advertises locales, that means French is checked and complete in the selected published version. Keeping English as its source does not force all reads to English. Likewise, retaining the source does not preserve every old installation rule: request preferences, search locale selection, and current application configuration can change. The source preserves the content anchor, not a snapshot of the former site configuration.
 
 This separation is the reason ordinary default changes should not require re-anchoring old content. Re-anchoring is an optional maintenance operation that deliberately changes a document's fallback floor and completeness reference. The administration guide covers its command and the current path-lookup and search qualifications.
 
@@ -65,11 +65,11 @@ This separation is the reason ordinary default changes should not require re-anc
 
 Public delivery combines a selected version, its completeness ledger, current document controls, caller permissions, and application configuration. Live relationship population adds the current permitted state of related documents. An immutable version is therefore not a self-contained record of everything needed to reproduce a response.
 
-Every read surface must apply compatible rules. Reconstruction, filters, sorts, search, and population cannot independently decide which language is visible. The #102 plan centralizes the policy in core and requires equivalent adapter query behavior. A shared resolver helps, but SQL predicates, search results, and caches still need conformance tests; they do not become correct merely by sharing a type or helper.
+Every read surface must apply compatible rules. Reconstruction, filters, sorts, search, and population cannot independently decide which language is visible. Byline centralizes the language decision in core (`packages/core/src/storage/locale-resolution.ts`), and both database adapters evaluate filters, sorts, and text queries in the locale the reconstruction shows. A shared resolver helps, but SQL predicates, search results, and caches still need conformance tests; they do not become correct merely by sharing a type or helper. The shared adapter suites `locale-visibility` and `locale-query-semantics` in `packages/db-conformance` run against both engines.
 
-Some work identified during #102 corrects existing inconsistencies: projection-dependent completeness, queries using a different locale from returned content, and rich-text refresh retaining stale copied fields. Moving the checkbox set into versions would not itself fix those problems.
+Some work done for #102 corrected existing inconsistencies: projection-dependent completeness, queries using a different locale from returned content, and rich-text refresh retaining stale copied fields. Moving the checkbox set into versions would not itself have fixed those problems.
 
-The editing interface also combines operations with different timing. Content saves create versions; document-control changes take effect independently. The current combined save writes system fields before content in separate requests. Under the planned #102 contract, enabling a complete translation on the published version can expose it even if the subsequent content save fails. A translation present only in a draft remains unpublished. Confirmation copy must explain the immediate effect rather than imply that all changes wait for publication.
+The editing interface also combines operations with different timing. Content saves create versions; document-control changes take effect without one. When an editor saves content and language changes together, Byline's admin interface sends one request, and the server writes the language change and the new content version in one guarded transaction: both commit, or neither does. Once the save commits, checking a translation that is complete in the published version delivers it publicly at once, while the edited content waits for publication. A translation present only in the new draft stays withheld until that draft is published. The save confirmation says this rather than implying that every change waits for publication.
 
 ## What history can and cannot establish
 
@@ -96,7 +96,7 @@ Code review identified this regression candidate:
 
 Tracing the read code predicts a concrete public consequence: a request in the new source locale, French, resolves to the French fallback floor and renders the older published version's partial French content with missing fields. An English request can still resolve to the complete English content, so checking only the old source URL can miss the problem. Historical version reads need the same examination. This scenario has not been reproduced at runtime; it is a code-traced concern, not a claim that ordinary default-locale changes cause it.
 
-The planned #102 rule accepts `L == D.sourceLocale` without an additional completeness check. That source exception relies on the source being a valid fallback for the selected published version. Re-anchoring can break that assumption; #102 does not cause this existing problem and its checkbox gate does not guard against it.
+The #102 read policy accepts `L == D.sourceLocale` without an additional completeness check. That source exception relies on the source being a valid fallback for the selected published version. Re-anchoring can break that assumption; #102 does not cause this existing problem and its checkbox gate does not guard against it.
 
 An interim guard to evaluate is refusing re-anchoring when the currently selected published version is incomplete in the proposed source, even if the latest draft is complete. Check that condition within the guarded maintenance transaction, before changing the source or path. A regression should cover both refusal without mutation and a successful change when the latest and published versions support the target, preserving the locale-agnostic exception. This would protect current public delivery without settling historical source interpretation. The operation is Postgres-only maintenance, outside the shared adapter contract; the guard is proposed follow-up work, not implemented behavior.
 
@@ -119,6 +119,8 @@ The following are the implementation points used for this review. Storage comman
 | Concern | Repository reference |
 |---|---|
 | Initial locale enforcement | `packages/core/src/services/document-lifecycle/create.ts` |
+| Public and editorial locale eligibility | `packages/core/src/storage/locale-resolution.ts` |
+| Combined content and control save | `packages/core/src/services/document-lifecycle/update.ts` |
 | Control writes, audit, and reconciliation | `packages/core/src/services/document-lifecycle/system-fields.ts` |
 | Status mutation and publication archival | `packages/core/src/services/document-lifecycle/status-transition.ts` |
 | Restore through new-version persistence | `packages/core/src/services/document-lifecycle/restore.ts` |
@@ -126,4 +128,4 @@ The following are the implementation points used for this review. Storage comman
 | Ledger computation and re-anchor mechanics | `packages/db-postgres/src/modules/storage/storage-commands.ts` |
 | Re-anchor revision guard and audit | `packages/db-postgres/src/index.ts` |
 
-Existing verification includes core lifecycle tests, shared adapter restore conformance, and Postgres locale-fallback and path-reanchor integration suites. The re-anchor scenarios above require explicit regression coverage; this documentation review did not execute those scenarios. Future read-contract changes must be checked in both adapters, with authorization and response shaping tested at the client boundary.
+Existing verification includes core lifecycle tests, shared adapter restore and locale-visibility conformance, and Postgres locale-fallback and path-reanchor integration suites. The re-anchor scenarios above require explicit regression coverage; this documentation review did not execute those scenarios. Future read-contract changes must be checked in both adapters, with authorization and response shaping tested at the client boundary.

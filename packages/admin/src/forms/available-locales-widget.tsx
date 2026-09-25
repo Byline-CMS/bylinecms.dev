@@ -11,7 +11,7 @@
 import { useCallback, useMemo } from 'react'
 
 import { useTranslation } from '@byline/i18n/react'
-import { Checkbox, Label } from '@byline/ui/react'
+import { Checkbox, HelpText, Label } from '@byline/ui/react'
 import cx from 'clsx'
 
 import { reconcileLocaleState } from './available-locales-reconcile'
@@ -36,6 +36,12 @@ export interface AvailableLocalesWidgetProps {
    * surface supplies it (Slice 6) — in which case every row renders neutral.
    */
   availableVersionLocales: readonly string[]
+  /**
+   * The document's source language. Its row explains that the source stays
+   * available while published whether or not it is checked; the checkbox only
+   * controls whether it is advertised.
+   */
+  sourceLocale?: string
 }
 
 /**
@@ -54,6 +60,7 @@ export const AvailableLocalesWidget = ({
   disabled: mutationsBlocked = false,
   contentLocales,
   availableVersionLocales,
+  sourceLocale,
 }: AvailableLocalesWidgetProps) => {
   const { t } = useTranslation('byline-admin')
   const { setSystemAvailableLocales } = useFormContext()
@@ -107,10 +114,17 @@ export const AvailableLocalesWidget = ({
               checked={checked}
               disabled={mutationsBlocked || disabled}
               onCheckedChange={(value) => toggle(code, value === true)}
+              helpText={
+                code === sourceLocale ? t('availableLocalesWidget.sourceRowHint') : undefined
+              }
             />
           )
         })}
       </div>
+      <HelpText
+        className="byline-form-available-locales-hint"
+        text={t('availableLocalesWidget.hint')}
+      />
       <span
         id="available-locales-description"
         className={cx('byline-form-available-locales-sr-only', styles['sr-only'])}

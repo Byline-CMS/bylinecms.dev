@@ -125,6 +125,14 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
    * richtext embed walker on internal-link nodes) and adds the request-
    * locale prefix on top. Returns `null` to hide the preview affordance.
    *
+   * `locale` is the content locale selected in the editor. Keep it even
+   * when that translation is not advertised: preview is how an editor
+   * reviews an unchecked translation. The locale prefix is your public
+   * routes' rule, which this scaffold cannot know. This default assumes
+   * the content default locale is served without a prefix and every other
+   * locale under `/<locale>`; change it to match your routes. Never derive
+   * the prefix from the admin interface language.
+   *
    * `doc.path` is the top-level slug (derived from `useAsPath`), not a
    * field. Direct relations are auto-populated by the edit view (depth
    * 1, picker projection) and appear under `doc.fields.<name>?.document`.
@@ -133,7 +141,7 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
     url: (doc, { locale }) => {
       const path = Pages.buildDocumentPath?.(doc, { collectionPath: Pages.path }) ?? null
       if (path == null) return null
-      const prefix = locale && locale !== i18n.admin.defaultLocale ? `/${locale}` : ''
+      const prefix = locale && locale !== i18n.content.defaultLocale ? `/${locale}` : ''
       return `${prefix}${path}`
     },
   },

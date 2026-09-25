@@ -73,8 +73,9 @@ const sameLocaleSet = (a: string[], b: string[]): boolean => {
  * Why the form is dirty, partitioned by write semantics — drives the single
  * Save button. `content` mints a new version (normal workflow). `direct-write`
  * is an immediate, non-versioned write of the document-grain system fields
- * (path / advertised locales) that does NOT reset workflow status. `both` does
- * each through its own write path. See docs/08-internationalization/index.md.
+ * (path / advertised locales) that does NOT reset workflow status. `both`
+ * saves the two together: one request, one guarded transaction, so both commit
+ * or neither does. See docs/08-internationalization/03-content-locales.md.
  */
 export type DirtyReason = 'none' | 'content' | 'direct-write' | 'both'
 
