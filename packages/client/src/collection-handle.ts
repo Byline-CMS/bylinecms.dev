@@ -17,6 +17,7 @@ import type {
   DocumentLifecycleContext,
   DocumentPublishSchedule,
   DocumentWritePrecondition,
+  LocaleVisibility,
   PopulateSpec,
   ReadContext,
   ReadMode,
@@ -29,6 +30,7 @@ import type {
 import {
   applyAfterRead,
   assertActorCanPerform,
+  assertLocaleVisibility,
   buildSearchDocument,
   cancelDocumentScheduledPublish,
   changeDocumentStatus,
@@ -49,6 +51,7 @@ import {
   populateRichTextFields,
   removeFromTree as removeFromTreeLifecycle,
   resolveIdentityField,
+  resolveLocaleVisibility,
   restoreDocumentVersion,
   scheduleDocumentPublish,
   unpublishDocument,
@@ -138,7 +141,12 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   async find<F = TFields>(options: FindOptions<F> = {}): Promise<FindResult<F>> {
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
-    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const requestContext = await this.resolveAndAssertRead(
+      readMode,
+      readCtx,
+      resolveLocaleVisibility(options.status, options.localeVisibility),
+      options.locale
+    )
     const {
       where,
       select,
@@ -315,6 +323,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       populate: options.populate,
       depth: options.depth,
       status: options.status,
+      localeVisibility: options.localeVisibility,
       onMissingLocale: options.onMissingLocale,
       _readContext: options._readContext,
       _bypassBeforeRead: options._bypassBeforeRead,
@@ -548,7 +557,12 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   ): Promise<ClientDocument<F> | null> {
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
-    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const requestContext = await this.resolveAndAssertRead(
+      readMode,
+      readCtx,
+      resolveLocaleVisibility(options.status, options.localeVisibility),
+      options.locale
+    )
     const { locale = this.client.defaultLocale } = options
 
     const filters = await this.resolveBeforeReadFilters(
@@ -709,7 +723,12 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   ): Promise<ClientDocument<F> | null> {
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
-    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const requestContext = await this.resolveAndAssertRead(
+      readMode,
+      readCtx,
+      resolveLocaleVisibility(options.status, options.localeVisibility),
+      options.locale
+    )
     const { locale = this.client.defaultLocale } = options
 
     const filters = await this.resolveBeforeReadFilters(
@@ -1198,7 +1217,12 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     this.assertTreeCollection()
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
-    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const requestContext = await this.resolveAndAssertRead(
+      readMode,
+      readCtx,
+      resolveLocaleVisibility(options.status, options.localeVisibility),
+      options.locale
+    )
     const locale = options.locale ?? this.client.defaultLocale
     const filters = await this.resolveBeforeReadFilters(
       requestContext,
@@ -1393,7 +1417,12 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     this.assertTreeCollection()
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
-    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const requestContext = await this.resolveAndAssertRead(
+      readMode,
+      readCtx,
+      resolveLocaleVisibility(options.status, options.localeVisibility),
+      options.locale
+    )
     const locale = options.locale ?? this.client.defaultLocale
     const filters = await this.resolveBeforeReadFilters(
       requestContext,
@@ -1451,7 +1480,12 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     this.assertTreeCollection()
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
-    const requestContext = await this.resolveAndAssertRead(readMode, readCtx)
+    const requestContext = await this.resolveAndAssertRead(
+      readMode,
+      readCtx,
+      resolveLocaleVisibility(options.status, options.localeVisibility),
+      options.locale
+    )
     const filters = await this.resolveBeforeReadFilters(
       requestContext,
       readCtx,
@@ -1556,12 +1590,31 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * Returns the resolved context so callers can thread `readMode` and
    * other per-request state into the adapter without re-resolving.
    */
+  /**
+   * Resolve the request context for a read and authorize it: the collection
+   * read ability (`assertActorCanPerform`) and the read's locale visibility
+   * (`assertLocaleVisibility`). Visibility defaults from `readMode`, so the
+   * editing, history and version reads (`readMode: 'any'`) are editorial.
+   *
+   * The visibility check validates the *effective* locale, the value every
+   * read method sends to storage (`locale ?? client.defaultLocale`), so a
+   * client configured with `defaultLocale: 'all'` cannot turn an omitted
+   * locale into a public all-locale read.
+   */
   private async resolveAndAssertRead(
     readMode: ReadMode,
-    readContext: ReadContext
+    readContext: ReadContext,
+    localeVisibility: LocaleVisibility = resolveLocaleVisibility(readMode),
+    locale?: string
   ): Promise<RequestContext> {
     const requestContext = await resolveReadRequestContext(this.client, readContext, readMode)
     assertActorCanPerform(requestContext, this.definition, 'read')
+    assertLocaleVisibility(
+      requestContext,
+      this.definition.path,
+      localeVisibility,
+      locale ?? this.client.defaultLocale
+    )
     return requestContext
   }
 

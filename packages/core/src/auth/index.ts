@@ -12,6 +12,7 @@ export {
   compileBeforeReadFilters,
 } from './apply-before-read.js'
 export { assertActorCanPerform } from './assert-actor-can-perform.js'
+export { assertLocaleVisibility } from './assert-locale-visibility.js'
 export {
   type ActorAbilitySnapshot,
   filterReadableCollections,

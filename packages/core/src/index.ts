@@ -16,6 +16,7 @@ export {
   type ActorAbilitySnapshot,
   applyBeforeRead,
   assertActorCanPerform,
+  assertLocaleVisibility,
   bindReadContextAuthority,
   COLLECTION_ABILITY_VERBS,
   type CollectionAbilityResource,

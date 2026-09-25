@@ -23,6 +23,7 @@ import type {
 } from '@byline/core'
 import {
   assertActorCanPerform,
+  assertLocaleVisibility,
   cancelDocumentScheduledPublish,
   changeDocumentStatus,
   confirmDocumentScheduledPublish,
@@ -30,6 +31,7 @@ import {
   createReadContext,
   ERR_NOT_FOUND,
   getDocumentScheduledPublish,
+  resolveLocaleVisibility,
   resolveSingletonDocumentId,
   restoreSingletonVersion,
   scheduleDocumentPublish,
@@ -92,7 +94,16 @@ export class SingletonHandle<TFields extends Record<string, any> = Record<string
     options: GetSingletonOptions<TFields> = {}
   ): Promise<SingletonDocument<TFields> | null> {
     const readContext = options._readContext ?? createReadContext()
-    await this.authorizeRead(options.status ?? 'published', readContext)
+    const requestContext = await this.authorizeRead(options.status ?? 'published', readContext)
+    // Validate locale visibility before the slot lookup, so an invalid request
+    // is rejected whether or not the slot is materialized, and before any
+    // adapter work. The delegated `findById` repeats the same check.
+    assertLocaleVisibility(
+      requestContext,
+      this.definition.path,
+      resolveLocaleVisibility(options.status, options.localeVisibility),
+      options.locale ?? this.client.defaultLocale
+    )
     const documentId = await this.resolveMappedDocumentId()
     if (documentId == null) return null
 

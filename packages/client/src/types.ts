@@ -13,6 +13,7 @@ import type {
   DocumentPublishSchedule,
   IDbAdapter,
   IStorageProvider,
+  LocaleVisibility,
   MissingLocalePolicy,
   PopulateSpec,
   PredicateValue,
@@ -214,9 +215,18 @@ interface PopulateControls extends ReadContextControls {
  * Distinct from `where.status`, which is an *exact-match filter* on the
  * selected version's status column ("show me all drafts"). `status` is
  * the *source view* selector.
+ *
+ * `localeVisibility` chooses which of the selected version's languages may be
+ * delivered. `'public'` honours the editor's advertised-locale checkboxes (an
+ * unchecked translation behaves like a missing one); `'editorial'` ignores them
+ * so an authorized reviewer can see a withheld translation. It defaults from
+ * `status`: omitted or `'published'` → `'public'`, `'any'` → `'editorial'`.
+ * `'editorial'` requires an authenticated actor, and a `'public'` read cannot
+ * request `locale: 'all'`. See `LocaleVisibility` in `@byline/core`.
  */
 interface StatusControls {
   status?: ReadMode
+  localeVisibility?: LocaleVisibility
 }
 
 /**
@@ -871,6 +881,15 @@ export interface EditableTreeNode<F = Record<string, any>> {
   depth: number
   children: EditableTreeNode<F>[]
 }
-export type FindByIdForEditOptions<F = Record<string, any>> = Omit<FindByIdOptions<F>, 'status'>
-export type FindForEditOptions<F = Record<string, any>> = Omit<FindOptions<F>, 'status'>
-export type GetSubtreeForEditOptions<F = Record<string, any>> = Omit<GetSubtreeOptions<F>, 'status'>
+export type FindByIdForEditOptions<F = Record<string, any>> = Omit<
+  FindByIdOptions<F>,
+  'status' | 'localeVisibility'
+>
+export type FindForEditOptions<F = Record<string, any>> = Omit<
+  FindOptions<F>,
+  'status' | 'localeVisibility'
+>
+export type GetSubtreeForEditOptions<F = Record<string, any>> = Omit<
+  GetSubtreeOptions<F>,
+  'status' | 'localeVisibility'
+>

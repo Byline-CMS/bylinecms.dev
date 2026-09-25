@@ -49,6 +49,29 @@ export type ReadMode = 'any' | 'published'
 export type MissingLocalePolicy = 'empty' | 'fallback' | 'omit'
 
 /**
+ * Whether a read's language selection honours the editor's advertised-locale
+ * checkboxes (the value of the `localeVisibility` read option).
+ *
+ *   - `'public'`    — in a collection with `advertiseLocales: true`, an
+ *                     additional translation is eligible only when it is both
+ *                     complete on the selected version and checked in the
+ *                     document's `availableLocales`. An unchecked translation
+ *                     behaves exactly like a missing one under every
+ *                     `onMissingLocale` policy. The source locale is always
+ *                     eligible. Collections without `advertiseLocales` are
+ *                     gated by completeness alone.
+ *   - `'editorial'` — completeness alone decides; checkboxes are ignored, so an
+ *                     authorized reviewer can see a withheld translation. Also
+ *                     the visibility of exact editing reads.
+ *
+ * Independent of `ReadMode`: version selection chooses *which version*, locale
+ * visibility chooses *which of its languages* may be delivered. `@byline/client`
+ * defaults it from `status` — `'published'` (or omitted) → `'public'`,
+ * `'any'` → `'editorial'` — and requires an actor for `'editorial'`.
+ */
+export type LocaleVisibility = 'public' | 'editorial'
+
+/**
  * Request-scoped context shared across every read and populate walk in one
  * logical request. Threaded through populate, `afterRead` hooks, and any
  * nested reads the hook itself performs — the visited set and read budget
