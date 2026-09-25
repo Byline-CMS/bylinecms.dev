@@ -34,9 +34,11 @@
  */
 
 import type { CollectionDefinition } from '@byline/core'
+import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { setupTestDB, teardownTestDB } from '../../../lib/test-helper.js'
+import { createCommandBuilders } from '../storage-commands.js'
 import { createQueryBuilders } from '../storage-queries.js'
 
 const timestamp = Date.now()
@@ -238,6 +240,146 @@ describe('fallback locale selection under a changed default (mysql, live databas
   afterAll(async () => {
     // `teardownTestDB()` is called once, at the very end of this file.
     await testDb.commandBuilders.collections.delete(collectionId)
+  })
+
+  it('path lookup finds a document whose source differs from the current default', async () => {
+    const created = await testDb.commandBuilders.documents.createDocumentVersion({
+      collectionId,
+      collectionVersion: 1,
+      collectionConfig: ProjectedLocaleCollectionConfig,
+      action: 'create',
+      documentData: { title: { en: 'Path EN', es: 'Path ES' } },
+      path: `path-src-${timestamp}`,
+      locale: 'all',
+      status: 'published',
+    })
+    const id = created.document.document_id
+    const frQueries = createQueryBuilders(
+      testDb.db,
+      [ProjectedLocaleCollectionConfig],
+      'fr',
+      testDb.dbManager
+    )
+
+    for (const locale of ['fr', 'es', 'en']) {
+      const byPath = await frQueries.documents.getDocumentByPath({
+        collection_id: collectionId,
+        path: `path-src-${timestamp}`,
+        locale,
+        reconstruct: true,
+        onMissingLocale: 'fallback',
+      })
+      expect(byPath?.document_id, `path lookup in ${locale}`).toBe(id)
+      const byId = (await frQueries.documents.getDocumentById({
+        collection_id: collectionId,
+        document_id: id,
+        locale,
+        onMissingLocale: 'fallback',
+      })) as { fields: Record<string, any>; resolved_locale: string | null } | null
+      const { documents } = await frQueries.documents.findDocuments({
+        collection_id: collectionId,
+        locale,
+        onMissingLocale: 'fallback',
+        pageSize: 200,
+      })
+      const listed = documents.find((d) => d.document_id === id)
+      expect(byPath?.fields.title).toBe(byId?.fields.title)
+      expect(listed?.fields.title).toBe(byId?.fields.title)
+      expect(byPath?.resolved_locale).toBe(byId?.resolved_locale)
+      expect(listed?.resolved_locale).toBe(byId?.resolved_locale)
+    }
+  })
+
+  it('path lookup never returns an arbitrary document when slugs collide', async () => {
+    const slug = `shared-${timestamp}`
+    const frCommands = createCommandBuilders(testDb.dbManager, 'fr')
+    const make = async (
+      commands: typeof testDb.commandBuilders,
+      title: Record<string, string>
+    ): Promise<string> =>
+      (
+        await commands.documents.createDocumentVersion({
+          collectionId,
+          collectionVersion: 1,
+          collectionConfig: ProjectedLocaleCollectionConfig,
+          action: 'create',
+          documentData: { title },
+          path: slug,
+          locale: 'all',
+          status: 'published',
+        })
+      ).document.document_id
+    const a = await make(testDb.commandBuilders, { en: 'A EN' })
+    const b = await make(frCommands, { fr: 'B FR' })
+    const lookup = (defaultLocale: string, locale: string, path = slug) =>
+      createQueryBuilders(
+        testDb.db,
+        [ProjectedLocaleCollectionConfig],
+        defaultLocale,
+        testDb.dbManager
+      )
+        .documents.getDocumentByPath({
+          collection_id: collectionId,
+          path,
+          locale,
+          reconstruct: true,
+          onMissingLocale: 'fallback',
+        })
+        .then((doc) => doc?.document_id ?? null)
+
+    expect(await lookup('fr', 'en')).toBe(a)
+    expect(await lookup('en', 'fr')).toBe(b)
+    expect(await lookup('fr', 'es')).toBe(b)
+    expect(await lookup('en', 'es')).toBe(a)
+    expect(await lookup('de', 'es')).toBeNull()
+
+    const solo = `solo-${timestamp}`
+    const c = (
+      await testDb.commandBuilders.documents.createDocumentVersion({
+        collectionId,
+        collectionVersion: 1,
+        collectionConfig: ProjectedLocaleCollectionConfig,
+        action: 'create',
+        documentData: { title: { en: 'C EN' } },
+        path: solo,
+        locale: 'all',
+        status: 'published',
+      })
+    ).document.document_id
+    expect(await lookup('de', 'es', solo)).toBe(c)
+  })
+
+  it('a translated path row cannot bypass content eligibility', async () => {
+    // German is incomplete (title only; the summary is untranslated).
+    const created = await testDb.commandBuilders.documents.createDocumentVersion({
+      collectionId,
+      collectionVersion: 1,
+      collectionConfig: ProjectedLocaleCollectionConfig,
+      action: 'create',
+      documentData: {
+        title: { en: 'Slug EN', de: 'Slug DE' },
+        summary: { en: { root: { type: 'root', children: [{ type: 'text', text: 'S' }] } } },
+      },
+      path: `slug-src-${timestamp}`,
+      locale: 'all',
+      status: 'published',
+    })
+    const id = created.document.document_id
+    await testDb.db.execute(sql`
+      INSERT INTO byline_document_paths (document_id, collection_id, locale, path)
+      VALUES (${id}, ${collectionId}, 'de', ${`slug-de-${timestamp}`})
+    `)
+    const byPath = await testDb.queryBuilders.documents.getDocumentByPath({
+      collection_id: collectionId,
+      path: `slug-de-${timestamp}`,
+      locale: 'de',
+      reconstruct: true,
+      onMissingLocale: 'fallback',
+      localeVisibility: 'public',
+    })
+    expect(byPath?.document_id).toBe(id)
+    expect(byPath?.fields.title, 'the incomplete translation is not delivered').toBe('Slug EN')
+    expect(byPath?.resolved_locale).toBe('en')
   })
 
   it('a projected list falls back to the document source, not the changed default', async () => {

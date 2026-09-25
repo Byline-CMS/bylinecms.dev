@@ -120,6 +120,9 @@ export async function applyRichTextEmbed(
       requestContext,
       readContext,
       readMode: 'published',
+      // Snapshots copied into a saved parent are public delivery: an editor's
+      // authenticated session must not capture a withheld translation.
+      localeVisibility: 'public',
       locale: ctx.defaultLocale,
       richTextPopulate,
     }),

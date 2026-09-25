@@ -24,6 +24,7 @@ import { fieldTypesSuite } from './suites/field-types.js'
 import { findDocumentsSortSuite } from './suites/find-documents-sort.js'
 import { guardedSavesSuite } from './suites/guarded-saves.js'
 import { localeFallbackSuite } from './suites/locale-fallback.js'
+import { localeVisibilitySuite } from './suites/locale-visibility.js'
 import { publishSchedulesSuite } from './suites/publish-schedules.js'
 import { restoreSuite } from './suites/restore.js'
 import { scheduledStructuralRevisionsSuite } from './suites/scheduled-structural-revisions.js'
@@ -210,6 +211,7 @@ export function runAdapterConformanceSuite(hooks: ConformanceHooks): void {
   systemFieldsDirectWriteSuite(hooks)
   restoreSuite(hooks)
   localeFallbackSuite(hooks)
+  localeVisibilitySuite(hooks)
   auditSuite(hooks)
   countersSuite(hooks)
   singletonMappingSuite(hooks)

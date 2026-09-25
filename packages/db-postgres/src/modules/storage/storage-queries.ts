@@ -17,6 +17,7 @@ import type {
   FlattenedStore,
   ICollectionQueries,
   IDocumentQueries,
+  LocaleVisibility,
   MissingLocalePolicy,
   ReadMode,
   RelationFilter,
@@ -28,13 +29,14 @@ import type {
 // logger. A future refactor could inject the logger at construction time by
 // either deferring adapter construction or accepting a lazy logger parameter.
 import {
+  deriveVersionLocaleLedger,
   ERR_DATABASE,
   ERR_NOT_FOUND,
   extractFlattenedFieldValue,
   getLogger,
   orderByContentLocale,
   resolveIdentityField,
-  resolveLocaleFromLedger,
+  resolveReadLocale,
   resolveStoreTypes,
   restoreFieldSetData,
 } from '@byline/core'
@@ -102,12 +104,15 @@ interface OuterScope {
   path: SQL
 }
 
-/** True when `a` contains every member of `b`. */
-function isSuperset<T>(a: Set<T>, b: Set<T>): boolean {
-  for (const item of b) {
-    if (!a.has(item)) return false
-  }
-  return true
+/**
+ * Per-version inputs to a read's language decision: the resolved locale
+ * visibility, the version's completeness ledger, and the document's saved
+ * editorial checkbox set. See `resolveReadLocale` in `@byline/core`.
+ */
+interface VersionLocaleContext {
+  visibility?: LocaleVisibility
+  ledger?: VersionLocaleLedger
+  availableLocales?: readonly string[]
 }
 
 /**
@@ -289,24 +294,56 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
-   * Build the `onMissingLocale: 'omit'` availability gate — an EXISTS against
-   * the version-locale ledger (`byline_document_version_locales`) that keeps
-   * only documents available in the requested locale. The `'all'` sentinel row
-   * covers locale-agnostic documents (no localized content). Returns `null`
-   * when the gate does not apply — a non-`'omit'` policy (`'empty'` /
-   * `'fallback'` / unset), or the admin sentinel `'all'` read — so callers can
-   * conditionally push it into a WHERE.
+   * Build the `onMissingLocale: 'omit'` availability gate: keeps only
+   * documents whose selected version may be delivered in the requested
+   * locale, as an EXISTS-based predicate so counting and pagination stay
+   * correct. It mirrors `resolveReadLocale` in `@byline/core`:
+   *
+   *   - the document's source locale is always admitted, with or without a
+   *     ledger row (no checkbox needed);
+   *   - a locale-agnostic version (the ledger's `'all'` sentinel) is admitted;
+   *   - any other locale must be complete in the version's ledger, and under
+   *     `'public'` visibility in a collection with `advertiseLocales` it must
+   *     also be checked in `byline_document_available_locales`.
+   *
+   * Returns `null` when the gate does not apply (a non-`'omit'` policy, or the
+   * admin sentinel `'all'`), so callers can conditionally push it into a WHERE.
    */
   private localeAvailabilityExists(
     versionId: SQL,
     locale: string,
-    onMissingLocale: MissingLocalePolicy | undefined
+    onMissingLocale: MissingLocalePolicy | undefined,
+    gate: {
+      documentId: SQL
+      sourceLocale: SQL
+      visibility?: LocaleVisibility
+      advertiseLocales: boolean
+    }
   ): SQL | null {
     if (onMissingLocale !== 'omit' || locale === 'all') return null
-    return sql`EXISTS (
-      SELECT 1 FROM byline_document_version_locales dvl
-      WHERE dvl.document_version_id = ${versionId}
-        AND (dvl.locale = ${locale} OR dvl.locale = 'all')
+    const checked =
+      gate.visibility === 'public' && gate.advertiseLocales
+        ? sql`AND EXISTS (
+            SELECT 1 FROM byline_document_available_locales dal
+            WHERE dal.document_id = ${gate.documentId}
+              AND dal.locale = ${locale}
+          )`
+        : sql``
+    return sql`(
+      COALESCE(${gate.sourceLocale}, ${this.defaultContentLocale}) = ${locale}
+      OR EXISTS (
+        SELECT 1 FROM byline_document_version_locales dvl
+        WHERE dvl.document_version_id = ${versionId}
+          AND dvl.locale = 'all'
+      )
+      OR (
+        EXISTS (
+          SELECT 1 FROM byline_document_version_locales dvl
+          WHERE dvl.document_version_id = ${versionId}
+            AND dvl.locale = ${locale}
+        )
+        ${checked}
+      )
     )`
   }
 
@@ -528,67 +565,47 @@ export class DocumentQueries implements IDocumentQueries {
     path: string,
     requestedLocale?: string
   ): SQL {
-    const chain = this.buildLocaleChain(requestedLocale)
-    const chainSql = sql.join(
-      chain.map((l) => sql`${l}`),
-      sql`, `
-    )
+    // Identity resolution for a slug, which is unique per (collection, locale):
+    //
+    //   rank 0: the path row under the requested locale;
+    //   rank 1: the path row under the installation default (the previous
+    //           winner, so it is never displaced);
+    //   rank 2: a row under *that document's* own source locale, so a document
+    //           whose source differs from the current default stays reachable.
+    //
+    // Ranks 0 and 1 hold at most one row each (the unique constraint). Rank 2
+    // can hold several documents that share the slug under different sources;
+    // only a unique candidate is accepted, so an ambiguous lookup resolves to
+    // nothing (fail closed) instead of an arbitrary document. Content
+    // eligibility is decided afterwards, on reconstruction, so matching a path
+    // never grants a translation.
+    const requested = requestedLocale ?? this.defaultContentLocale
+    const def = this.defaultContentLocale
+    const rank = sql`CASE
+      WHEN ${documentPaths.locale} = ${requested} THEN 0
+      WHEN ${documentPaths.locale} = ${def} THEN 1
+      ELSE 2
+    END`
     return sql`(
-      SELECT ${documentPaths.document_id} FROM ${documentPaths}
-      WHERE ${documentPaths.collection_id} = ${collection_id}
-        AND ${documentPaths.path} = ${path}
-        AND ${documentPaths.alive} = true
-        AND ${documentPaths.locale} = ANY(ARRAY[${chainSql}]::text[])
-      ORDER BY array_position(ARRAY[${chainSql}]::text[], ${documentPaths.locale})
+      SELECT candidate.document_id FROM (
+        SELECT ${documentPaths.document_id} AS document_id,
+          ${rank} AS path_rank,
+          COUNT(*) OVER (PARTITION BY ${rank}) AS rank_peers
+        FROM ${documentPaths}
+        INNER JOIN ${documents} ON ${documents.id} = ${documentPaths.document_id}
+        WHERE ${documentPaths.collection_id} = ${collection_id}
+          AND ${documentPaths.path} = ${path}
+          AND ${documentPaths.alive} = true
+          AND (
+            ${documentPaths.locale} = ${requested}
+            OR ${documentPaths.locale} = ${def}
+            OR ${documentPaths.locale} = COALESCE(${documents.source_locale}, ${def})
+          )
+      ) candidate
+      WHERE candidate.rank_peers = 1
+      ORDER BY candidate.path_rank
       LIMIT 1
     )`
-  }
-
-  /**
-   * Resolve the single effective content locale a version should be restored
-   * in, walking the fallback chain (`[requested, default]`) and returning the
-   * first locale the version is *available* in.
-   *
-   * Phase-1 availability rule — **path-coverage against the default locale**:
-   * the default (terminal) locale defines the canonical set of localized field
-   * paths; a candidate locale `L` is available iff it covers every one of them.
-   * This needs only the rows already in hand (no schema walk) and is correct
-   * because Byline shares document structure across locales (meta rows are
-   * `'all'`) — only leaf values vary per locale.
-   *
-   * Edge cases: an empty canonical set (the version has no localized content)
-   * means any requested locale is trivially available, so the requested locale
-   * is returned and the (non-localized, `'all'`) values render identically. The
-   * chain always terminates at the default locale, guaranteeing a return value.
-   */
-  private resolveEffectiveLocale(flattenedData: FlattenedFieldValue[], chain: string[]): string {
-    // biome-ignore lint/style/noNonNullAssertion: chain is non-empty by construction
-    const defaultLocale = chain[chain.length - 1]!
-
-    // Localized field paths present, grouped by locale. Skip `'all'` rows
-    // (non-localized values + meta) — they don't participate in coverage.
-    const pathsByLocale = new Map<string, Set<string>>()
-    for (const row of flattenedData) {
-      if (row.locale === 'all' || row.field_type === 'meta') continue
-      let set = pathsByLocale.get(row.locale)
-      if (set == null) {
-        set = new Set<string>()
-        pathsByLocale.set(row.locale, set)
-      }
-      set.add(row.field_path.join('.'))
-    }
-
-    const canonical = pathsByLocale.get(defaultLocale) ?? new Set<string>()
-
-    for (const candidate of chain) {
-      if (candidate === defaultLocale) break // terminal — return default below
-      // No canonical localized content → any locale is trivially available.
-      if (canonical.size === 0) return candidate
-      const covered = pathsByLocale.get(candidate)
-      if (covered != null && isSuperset(covered, canonical)) return candidate
-    }
-
-    return defaultLocale
   }
 
   /**
@@ -612,8 +629,13 @@ export class DocumentQueries implements IDocumentQueries {
     lenient = false,
     onMissingLocale?: MissingLocalePolicy,
     sourceLocale?: string | null,
-    ledger?: VersionLocaleLedger
-  ): { fields: any; warnings: string[] } {
+    localeContext?: VersionLocaleContext
+  ): {
+    fields: any
+    warnings: string[]
+    resolvedLocale: string | null
+    localeAgnostic: boolean
+  } {
     const flattenedData: FlattenedFieldValue[] = unifiedFieldValues.map((row) =>
       extractFlattenedFieldValue(row)
     )
@@ -630,28 +652,43 @@ export class DocumentQueries implements IDocumentQueries {
       }
     }
 
-    // Concrete locale: with `onMissingLocale: 'fallback'`, restore the whole
-    // document in a single effective locale chosen from the fallback chain
-    // (never mixing locales across fields). The choice comes from the
-    // version's completeness ledger, which covers every store table, so a
-    // projected read that loaded only some stores decides exactly as a full
-    // read would. A version with no ledger rows (written before the ledger
-    // and not yet backfilled) falls back to deriving coverage from the loaded
-    // rows. Otherwise restore the requested locale exactly — empty where
-    // untranslated, the raw per-locale view the admin editor needs
-    // (`'empty'`/`'omit'`/unset). `'all'` keeps the per-locale map shape
-    // (admin multi-locale read).
+    // One language decision per version, made from the whole version before
+    // any field projection (`resolveReadLocale` in `@byline/core`). The
+    // completeness ledger covers every store table, so a projected read decides
+    // exactly as a full read would; a version with no ledger rows (written
+    // before the ledger and not yet backfilled) derives one from the loaded
+    // rows. Omitted visibility is `'editorial'`: direct adapter reads are
+    // trusted primitives. Under `'public'`, an exact read of an ineligible
+    // locale withholds every localized value (only `'all'` rows and structural
+    // meta rows are restored). `'all'` keeps the per-locale map shape.
+    // The selected version's ledger, derived from the loaded rows only when
+    // the version has no ledger rows. Also the source of `localeAgnostic`,
+    // which every reconstructed result reports, multi-locale reads included.
+    const floor = sourceLocale ?? this.defaultContentLocale
+    const ledger = localeContext?.ledger ?? deriveVersionLocaleLedger(flattenedData, floor)
     let resolveLocale: string | undefined
-    if (locale === 'all') {
-      resolveLocale = undefined
-    } else if (onMissingLocale === 'fallback') {
-      const chain = this.buildLocaleChain(locale, sourceLocale)
-      resolveLocale =
-        resolveLocaleFromLedger(chain, ledger) ?? this.resolveEffectiveLocale(flattenedData, chain)
-    } else {
-      resolveLocale = locale
+    let resolvedLocale: string | null = null
+    let rows = flattenedData
+    if (locale !== 'all') {
+      const decision = resolveReadLocale({
+        locale,
+        chain: this.buildLocaleChain(locale, sourceLocale),
+        onMissingLocale,
+        eligibility: {
+          visibility: localeContext?.visibility ?? 'editorial',
+          sourceLocale: floor,
+          ledger,
+          advertiseLocales: definition.advertiseLocales === true,
+          availableLocales: localeContext?.availableLocales ?? [],
+        },
+      })
+      resolveLocale = decision.restoreLocale
+      resolvedLocale = decision.resolvedLocale
+      if (decision.withholdLocalized) {
+        rows = flattenedData.filter((row) => row.locale === 'all' || row.field_type === 'meta')
+      }
     }
-    const { data, warnings } = restoreFieldSetData(definition.fields, flattenedData, resolveLocale)
+    const { data, warnings } = restoreFieldSetData(definition.fields, rows, resolveLocale)
 
     if (!lenient && warnings.length > 0) {
       throw ERR_DATABASE({
@@ -660,7 +697,7 @@ export class DocumentQueries implements IDocumentQueries {
       }).log(getLogger())
     }
 
-    return { fields: data, warnings }
+    return { fields: data, warnings, resolvedLocale, localeAgnostic: ledger.localeAgnostic }
   }
 
   /**
@@ -769,6 +806,7 @@ export class DocumentQueries implements IDocumentQueries {
     filters,
     lenient = false,
     onMissingLocale,
+    localeVisibility,
   }: {
     collection_id: string
     document_id: string
@@ -778,6 +816,7 @@ export class DocumentQueries implements IDocumentQueries {
     filters?: DocumentFilter[]
     lenient?: boolean
     onMissingLocale?: MissingLocalePolicy
+    localeVisibility?: LocaleVisibility
   }) {
     const view = this.pickCurrentView(readMode)
     // 1. Get current version (or current published version, per readMode)
@@ -798,7 +837,14 @@ export class DocumentQueries implements IDocumentQueries {
     }
     // `onMissingLocale: 'omit'` — resolve to null when the document is not
     // available in the requested locale (no version-locale ledger row).
-    const strictGate = this.localeAvailabilityExists(sql`${view.id}`, locale, onMissingLocale)
+    const strictGate = this.localeAvailabilityExists(sql`${view.id}`, locale, onMissingLocale, {
+      documentId: sql`${view.document_id}`,
+      sourceLocale: sql`${view.source_locale}`,
+      visibility: localeVisibility,
+      advertiseLocales:
+        onMissingLocale === 'omit' &&
+        (await this.getDefinitionForCollection(collection_id)).advertiseLocales === true,
+    })
     if (strictGate) {
       baseConditions.push(strictGate)
     }
@@ -833,7 +879,10 @@ export class DocumentQueries implements IDocumentQueries {
         .where(eq(metaStore.document_version_id, document.id))
 
       const availability = (await this.getAvailableLocalesByVersion([document.id])).get(document.id)
-      const { fields, warnings } = this.reconstructFromUnifiedRows(
+      const advertised = (await this.getAdvertisedLocalesByDocument([document.document_id])).get(
+        document.document_id
+      )
+      const { fields, warnings, resolvedLocale, localeAgnostic } = this.reconstructFromUnifiedRows(
         unifiedFieldValues,
         definition,
         locale,
@@ -841,10 +890,7 @@ export class DocumentQueries implements IDocumentQueries {
         lenient,
         onMissingLocale,
         document.source_locale,
-        availability
-      )
-      const advertised = (await this.getAdvertisedLocalesByDocument([document.document_id])).get(
-        document.document_id
+        { visibility: localeVisibility, ledger: availability, availableLocales: advertised }
       )
 
       return {
@@ -858,9 +904,10 @@ export class DocumentQueries implements IDocumentQueries {
         updated_at: document.updated_at,
         created_by: document.created_by ?? null,
         fields,
+        resolved_locale: resolvedLocale,
         availableLocales: advertised ?? [],
         _availableVersionLocales: availability?.availableLocales ?? [],
-        _localeAgnostic: availability?.localeAgnostic ?? false,
+        _localeAgnostic: localeAgnostic,
         ...(lenient && warnings.length > 0 ? { restoreWarnings: warnings } : {}),
       }
     }
@@ -888,6 +935,7 @@ export class DocumentQueries implements IDocumentQueries {
     readMode,
     filters,
     onMissingLocale,
+    localeVisibility,
   }: {
     collection_id: string
     path: string
@@ -896,6 +944,7 @@ export class DocumentQueries implements IDocumentQueries {
     readMode?: ReadMode
     filters?: DocumentFilter[]
     onMissingLocale?: MissingLocalePolicy
+    localeVisibility?: LocaleVisibility
   }) {
     const view = this.pickCurrentView(readMode)
     // 1. Get current version (or current published version, per readMode)
@@ -921,7 +970,14 @@ export class DocumentQueries implements IDocumentQueries {
     }
     // `onMissingLocale: 'omit'` — resolve to null when the document is not
     // available in the requested locale (no version-locale ledger row).
-    const strictGate = this.localeAvailabilityExists(sql`${view.id}`, locale, onMissingLocale)
+    const strictGate = this.localeAvailabilityExists(sql`${view.id}`, locale, onMissingLocale, {
+      documentId: sql`${view.document_id}`,
+      sourceLocale: sql`${view.source_locale}`,
+      visibility: localeVisibility,
+      advertiseLocales:
+        onMissingLocale === 'omit' &&
+        (await this.getDefinitionForCollection(collection_id)).advertiseLocales === true,
+    })
     if (strictGate) {
       baseConditions.push(strictGate)
     }
@@ -956,7 +1012,10 @@ export class DocumentQueries implements IDocumentQueries {
         .where(eq(metaStore.document_version_id, document.id))
 
       const availability = (await this.getAvailableLocalesByVersion([document.id])).get(document.id)
-      const { fields } = this.reconstructFromUnifiedRows(
+      const advertised = (await this.getAdvertisedLocalesByDocument([document.document_id])).get(
+        document.document_id
+      )
+      const { fields, resolvedLocale, localeAgnostic } = this.reconstructFromUnifiedRows(
         unifiedFieldValues,
         definition,
         locale,
@@ -964,10 +1023,7 @@ export class DocumentQueries implements IDocumentQueries {
         false,
         onMissingLocale,
         document.source_locale,
-        availability
-      )
-      const advertised = (await this.getAdvertisedLocalesByDocument([document.document_id])).get(
-        document.document_id
+        { visibility: localeVisibility, ledger: availability, availableLocales: advertised }
       )
 
       return {
@@ -981,9 +1037,10 @@ export class DocumentQueries implements IDocumentQueries {
         updated_at: document.updated_at,
         created_by: document.created_by ?? null,
         fields,
+        resolved_locale: resolvedLocale,
         availableLocales: advertised ?? [],
         _availableVersionLocales: availability?.availableLocales ?? [],
-        _localeAgnostic: availability?.localeAgnostic ?? false,
+        _localeAgnostic: localeAgnostic,
       }
     }
     // Non-reconstructed: return raw flattened values
@@ -1058,14 +1115,16 @@ export class DocumentQueries implements IDocumentQueries {
       .from(metaStore)
       .where(eq(metaStore.document_version_id, document.id))
 
-    const { fields } = this.reconstructFromUnifiedRows(
+    const ledger = (await this.getAvailableLocalesByVersion([document.id])).get(document.id)
+    const { fields, resolvedLocale, localeAgnostic } = this.reconstructFromUnifiedRows(
       unifiedFieldValues,
       definition,
       locale,
       metaRows as MetaRow[],
       false,
       undefined,
-      document.source_locale
+      document.source_locale,
+      { ledger }
     )
 
     const documentWithFields = {
@@ -1077,6 +1136,8 @@ export class DocumentQueries implements IDocumentQueries {
       created_at: document.created_at,
       updated_at: document.updated_at,
       fields,
+      resolved_locale: resolvedLocale,
+      _localeAgnostic: localeAgnostic,
     }
 
     return documentWithFields
@@ -1124,6 +1185,7 @@ export class DocumentQueries implements IDocumentQueries {
     fields,
     readMode,
     filters,
+    localeVisibility,
   }: {
     collection_id: string
     document_ids: string[]
@@ -1131,6 +1193,7 @@ export class DocumentQueries implements IDocumentQueries {
     fields?: string[]
     readMode?: ReadMode
     filters?: DocumentFilter[]
+    localeVisibility?: LocaleVisibility
   }): Promise<any[]> {
     if (document_ids.length === 0) return []
 
@@ -1173,6 +1236,7 @@ export class DocumentQueries implements IDocumentQueries {
       locale,
       fields,
       onMissingLocale: 'fallback',
+      localeVisibility,
     })
   }
 
@@ -1725,26 +1789,34 @@ export class DocumentQueries implements IDocumentQueries {
     locale = 'all',
     fields: requestedFields,
     onMissingLocale,
+    localeVisibility,
     ledgers,
+    advertised,
   }: {
     documents: Document[]
     locale?: string
     fields?: string[]
     onMissingLocale?: MissingLocalePolicy
+    localeVisibility?: LocaleVisibility
     /**
      * Completeness ledgers keyed by version id, when the caller has already
-     * fetched them. Under `'fallback'` they are fetched here (one batched
-     * query) if omitted, so the effective locale never depends on which store
-     * tables a projection loaded.
+     * fetched them. For a concrete locale they are fetched here (one batched
+     * query) if omitted, so the language decision and `resolved_locale` never
+     * depend on which store tables a projection loaded.
      */
     ledgers?: Map<string, VersionLocaleLedger>
+    /** Editorial checkbox sets keyed by document id, when already fetched. */
+    advertised?: Map<string, string[]>
   }): Promise<any[]> {
     if (documents.length === 0) return []
     const versionIds = documents.map((v) => v.id)
-    const versionLedgers =
-      ledgers ??
-      (onMissingLocale === 'fallback' && locale !== 'all'
-        ? await this.getAvailableLocalesByVersion(versionIds)
+    const concrete = locale !== 'all'
+    const versionLedgers = ledgers ?? (await this.getAvailableLocalesByVersion(versionIds))
+    // The checkbox set only matters to a public decision.
+    const documentAdvertised =
+      advertised ??
+      (concrete && localeVisibility === 'public'
+        ? await this.getAdvertisedLocalesByDocument(documents.map((d) => d.document_id))
         : undefined)
 
     // Resolve definition once for the batch (safe — early return above guarantees length > 0)
@@ -1812,7 +1884,7 @@ export class DocumentQueries implements IDocumentQueries {
     for (const doc of documents) {
       const versionFieldValues = fieldValuesByVersion.get(doc.id) || []
       const docMetaRows = (metaByVersion.get(doc.id) ?? []) as MetaRow[]
-      const { fields } = this.reconstructFromUnifiedRows(
+      const { fields, resolvedLocale, localeAgnostic } = this.reconstructFromUnifiedRows(
         versionFieldValues,
         definition,
         locale,
@@ -1820,7 +1892,11 @@ export class DocumentQueries implements IDocumentQueries {
         false,
         onMissingLocale,
         doc.source_locale,
-        versionLedgers?.get(doc.id)
+        {
+          visibility: localeVisibility,
+          ledger: versionLedgers?.get(doc.id),
+          availableLocales: documentAdvertised?.get(doc.document_id),
+        }
       )
 
       // When specific fields were requested, trim the reconstructed object
@@ -1842,6 +1918,8 @@ export class DocumentQueries implements IDocumentQueries {
         updated_at: doc.updated_at,
         created_by: doc.created_by ?? null,
         fields: trimmedFields,
+        resolved_locale: resolvedLocale,
+        _localeAgnostic: localeAgnostic,
       }
 
       result.push(documentWithFields)
@@ -1962,6 +2040,7 @@ export class DocumentQueries implements IDocumentQueries {
     fields: requestedFields,
     readMode,
     onMissingLocale,
+    localeVisibility,
   }: {
     collection_id: string
     filters?: DocumentFilter[]
@@ -1977,6 +2056,7 @@ export class DocumentQueries implements IDocumentQueries {
     fields?: string[]
     readMode?: ReadMode
     onMissingLocale?: MissingLocalePolicy
+    localeVisibility?: LocaleVisibility
   }): Promise<{ documents: any[]; total: number }> {
     const offset = (page - 1) * pageSize
     const sourceTable =
@@ -1993,7 +2073,14 @@ export class DocumentQueries implements IDocumentQueries {
 
     // `onMissingLocale: 'omit'` — exclude documents not available in the
     // requested locale (filtered at the SQL layer so pagination stays correct).
-    const strictGate = this.localeAvailabilityExists(sql`d.id`, locale, onMissingLocale)
+    const strictGate = this.localeAvailabilityExists(sql`d.id`, locale, onMissingLocale, {
+      documentId: sql`d.document_id`,
+      sourceLocale: sql`d.source_locale`,
+      visibility: localeVisibility,
+      advertiseLocales:
+        onMissingLocale === 'omit' &&
+        (await this.getDefinitionForCollection(collection_id)).advertiseLocales === true,
+    })
     if (strictGate) {
       conditions.push(strictGate)
     }
@@ -2149,22 +2236,22 @@ export class DocumentQueries implements IDocumentQueries {
     // `'fallback'` and is attached per row below so list consumers can render
     // language affordances / hreflang without a follow-up fetch.
     const availability = await this.getAvailableLocalesByVersion(currentDocuments.map((d) => d.id))
+    const advertised = await this.getAdvertisedLocalesByDocument(
+      currentDocuments.map((d) => d.document_id)
+    )
     const documents = await this.reconstructDocuments({
       documents: currentDocuments,
       locale,
       fields: requestedFields,
       onMissingLocale,
+      localeVisibility,
       ledgers: availability,
+      advertised,
     })
-
-    const advertised = await this.getAdvertisedLocalesByDocument(
-      documents.map((d) => d.document_id)
-    )
     for (const doc of documents) {
       const a = availability.get(doc.document_version_id)
       doc.availableLocales = advertised.get(doc.document_id) ?? []
       doc._availableVersionLocales = a?.availableLocales ?? []
-      doc._localeAgnostic = a?.localeAgnostic ?? false
     }
 
     return { documents, total }

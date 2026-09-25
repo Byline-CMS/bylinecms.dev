@@ -9,55 +9,60 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  isLocaleEligible,
+  deriveVersionLocaleLedger,
   type LocaleEligibility,
-  resolveEligibleLocale,
-  resolveLocaleFromLedger,
   resolveLocaleVisibility,
+  resolveReadLocale,
 } from './locale-resolution.js'
+import type { FlattenedFieldValue } from './storage-row-types.js'
 
-describe('resolveLocaleFromLedger', () => {
-  it('returns the requested locale when the ledger records it as complete', () => {
-    expect(
-      resolveLocaleFromLedger(['de', 'en'], {
-        availableLocales: ['en', 'de'],
-        localeAgnostic: false,
-      })
-    ).toBe('de')
+// The eligibility rule and the fallback walk are private to the module; these
+// helpers observe them through `resolveReadLocale`, the only adapter-facing
+// entry point. A locale is eligible exactly when a fallback read toward the
+// source selects it, and the walk's result is the locale that read restores.
+function isLocaleEligible(locale: string, eligibility: LocaleEligibility): boolean {
+  const chain = locale === eligibility.sourceLocale ? [locale] : [locale, eligibility.sourceLocale]
+  return (
+    resolveReadLocale({ locale, chain, onMissingLocale: 'fallback', eligibility }).restoreLocale ===
+    locale
+  )
+}
+
+function resolveEligibleLocale(chain: string[], eligibility: LocaleEligibility): string {
+  const decision = resolveReadLocale({
+    locale: chain[0] as string,
+    chain,
+    onMissingLocale: 'fallback',
+    eligibility,
+  })
+  return decision.restoreLocale as string
+}
+
+describe('deriveVersionLocaleLedger', () => {
+  const row = (locale: string, path: string, field_type = 'text') =>
+    ({ locale, field_path: path.split('.'), field_type }) as unknown as FlattenedFieldValue
+
+  it('records the locales that cover every source-locale localized path', () => {
+    const ledger = deriveVersionLocaleLedger(
+      [
+        row('en', 'title'),
+        row('en', 'body'),
+        row('de', 'title'),
+        row('de', 'body'),
+        row('fr', 'title'),
+        row('all', 'sku'),
+        row('all', 'content.0', 'meta'),
+      ],
+      'en'
+    )
+    expect(ledger).toEqual({ availableLocales: ['en', 'de'], localeAgnostic: false })
   })
 
-  it('falls back to the floor when the requested locale is not complete', () => {
-    expect(
-      resolveLocaleFromLedger(['de', 'en'], { availableLocales: ['en'], localeAgnostic: false })
-    ).toBe('en')
-  })
-
-  it('returns the floor even when the ledger does not list it', () => {
-    // The floor is terminal: fallback never 404s on a missing translation.
-    expect(
-      resolveLocaleFromLedger(['de', 'fr'], { availableLocales: ['en'], localeAgnostic: false })
-    ).toBe('fr')
-  })
-
-  it('returns the requested locale for a locale-agnostic version', () => {
-    expect(
-      resolveLocaleFromLedger(['de', 'en'], { availableLocales: [], localeAgnostic: true })
-    ).toBe('de')
-  })
-
-  it('resolves a single-entry chain to that entry', () => {
-    expect(
-      resolveLocaleFromLedger(['en'], { availableLocales: ['en'], localeAgnostic: false })
-    ).toBe('en')
-  })
-
-  it('walks an intermediate candidate before the floor', () => {
-    const ledger = { availableLocales: ['es', 'en'], localeAgnostic: false }
-    expect(resolveLocaleFromLedger(['es-MX', 'es', 'en'], ledger)).toBe('es')
-  })
-
-  it('returns undefined without a ledger so the caller can derive from rows', () => {
-    expect(resolveLocaleFromLedger(['de', 'en'], undefined)).toBeUndefined()
+  it('marks a version with no localized rows as locale-agnostic', () => {
+    expect(deriveVersionLocaleLedger([row('all', 'sku')], 'en')).toEqual({
+      availableLocales: [],
+      localeAgnostic: true,
+    })
   })
 })
 
@@ -153,5 +158,163 @@ describe('resolveLocaleVisibility', () => {
   it('an explicit value wins over the status default', () => {
     expect(resolveLocaleVisibility('published', 'editorial')).toBe('editorial')
     expect(resolveLocaleVisibility('any', 'public')).toBe('public')
+  })
+})
+
+describe('resolveReadLocale — the seven resolvedLocale result types', () => {
+  const eligibility = (overrides: Partial<LocaleEligibility> = {}): LocaleEligibility => ({
+    visibility: 'public',
+    sourceLocale: 'en',
+    // Spanish complete but unchecked; German partial (not in the ledger).
+    ledger: { availableLocales: ['en', 'es'], localeAgnostic: false },
+    advertiseLocales: true,
+    availableLocales: [],
+    ...overrides,
+  })
+  const chain = (locale: string) => (locale === 'en' ? ['en'] : [locale, 'en'])
+
+  it('R1: fallback reports the selected permitted locale, including the source', () => {
+    expect(
+      resolveReadLocale({
+        locale: 'es',
+        chain: chain('es'),
+        onMissingLocale: 'fallback',
+        eligibility: eligibility({ availableLocales: ['es'] }),
+      })
+    ).toEqual({ restoreLocale: 'es', resolvedLocale: 'es', withholdLocalized: false })
+    expect(
+      resolveReadLocale({
+        locale: 'es',
+        chain: chain('es'),
+        onMissingLocale: 'fallback',
+        eligibility: eligibility(),
+      })
+    ).toEqual({ restoreLocale: 'en', resolvedLocale: 'en', withholdLocalized: false })
+    expect(
+      resolveReadLocale({
+        locale: 'es',
+        chain: chain('es'),
+        onMissingLocale: 'fallback',
+        eligibility: eligibility({ visibility: 'editorial' }),
+      })
+    ).toEqual({ restoreLocale: 'es', resolvedLocale: 'es', withholdLocalized: false })
+  })
+
+  it('R2: omit reports the requested locale', () => {
+    expect(
+      resolveReadLocale({
+        locale: 'es',
+        chain: chain('es'),
+        onMissingLocale: 'omit',
+        eligibility: eligibility({ availableLocales: ['es'] }),
+      })
+    ).toEqual({ restoreLocale: 'es', resolvedLocale: 'es', withholdLocalized: false })
+  })
+
+  it('R3: public empty with an eligible locale reports it, with no fallback', () => {
+    expect(
+      resolveReadLocale({
+        locale: 'es',
+        chain: chain('es'),
+        onMissingLocale: 'empty',
+        eligibility: eligibility({ availableLocales: ['es'] }),
+      })
+    ).toEqual({ restoreLocale: 'es', resolvedLocale: 'es', withholdLocalized: false })
+  })
+
+  it('R4: public empty with an unavailable translation withholds values and reports null', () => {
+    // Complete but unchecked.
+    expect(
+      resolveReadLocale({
+        locale: 'es',
+        chain: chain('es'),
+        onMissingLocale: 'empty',
+        eligibility: eligibility(),
+      })
+    ).toEqual({ restoreLocale: 'es', resolvedLocale: null, withholdLocalized: true })
+    // Checked but incomplete.
+    expect(
+      resolveReadLocale({
+        locale: 'de',
+        chain: chain('de'),
+        onMissingLocale: 'empty',
+        eligibility: eligibility({ availableLocales: ['de'] }),
+      })
+    ).toEqual({ restoreLocale: 'de', resolvedLocale: null, withholdLocalized: true })
+    // An omitted policy is exact, like empty.
+    expect(
+      resolveReadLocale({
+        locale: 'es',
+        chain: chain('es'),
+        onMissingLocale: undefined,
+        eligibility: eligibility(),
+      }).withholdLocalized
+    ).toBe(true)
+  })
+
+  it('R4: public empty still serves the source even when its checkbox is off', () => {
+    expect(
+      resolveReadLocale({
+        locale: 'en',
+        chain: chain('en'),
+        onMissingLocale: 'empty',
+        eligibility: eligibility(),
+      })
+    ).toEqual({ restoreLocale: 'en', resolvedLocale: 'en', withholdLocalized: false })
+  })
+
+  it('R5: editorial empty reports the requested locale even when partial', () => {
+    expect(
+      resolveReadLocale({
+        locale: 'de',
+        chain: chain('de'),
+        onMissingLocale: 'empty',
+        eligibility: eligibility({ visibility: 'editorial' }),
+      })
+    ).toEqual({ restoreLocale: 'de', resolvedLocale: 'de', withholdLocalized: false })
+  })
+
+  it('R6: a multi-locale read reports null and restores locale maps', () => {
+    expect(
+      resolveReadLocale({
+        locale: 'all',
+        chain: ['all'],
+        onMissingLocale: 'empty',
+        eligibility: eligibility({ visibility: 'editorial' }),
+      })
+    ).toEqual({ restoreLocale: undefined, resolvedLocale: null, withholdLocalized: false })
+  })
+
+  it('R7: a locale-agnostic version reports null under every policy', () => {
+    const agnostic = eligibility({ ledger: { availableLocales: [], localeAgnostic: true } })
+    for (const onMissingLocale of ['fallback', 'omit', 'empty', undefined] as const) {
+      expect(
+        resolveReadLocale({
+          locale: 'es',
+          chain: chain('es'),
+          onMissingLocale,
+          eligibility: agnostic,
+        })
+      ).toEqual({ restoreLocale: 'es', resolvedLocale: null, withholdLocalized: false })
+    }
+  })
+
+  it('a non-advertised collection withholds an incomplete translation publicly', () => {
+    expect(
+      resolveReadLocale({
+        locale: 'de',
+        chain: chain('de'),
+        onMissingLocale: 'empty',
+        eligibility: eligibility({ advertiseLocales: false }),
+      }).withholdLocalized
+    ).toBe(true)
+    expect(
+      resolveReadLocale({
+        locale: 'es',
+        chain: chain('es'),
+        onMissingLocale: 'empty',
+        eligibility: eligibility({ advertiseLocales: false }),
+      })
+    ).toEqual({ restoreLocale: 'es', resolvedLocale: 'es', withholdLocalized: false })
   })
 })

@@ -141,10 +141,11 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   async find<F = TFields>(options: FindOptions<F> = {}): Promise<FindResult<F>> {
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
+    const localeVisibility = resolveLocaleVisibility(options.status, options.localeVisibility)
     const requestContext = await this.resolveAndAssertRead(
       readMode,
       readCtx,
-      resolveLocaleVisibility(options.status, options.localeVisibility),
+      localeVisibility,
       options.locale
     )
     const {
@@ -184,6 +185,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       fields: select as string[] | undefined,
       readMode,
       onMissingLocale: options.onMissingLocale ?? 'fallback',
+      localeVisibility,
     })
 
     await this.populateIfRequested(
@@ -206,7 +208,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       options._bypassBeforeRead,
       select as string[] | undefined,
-      readMaterialization(options.populate, options.depth)
+      readMaterialization(options.populate, options.depth),
+      localeVisibility
     )
 
     return {
@@ -557,10 +560,11 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   ): Promise<ClientDocument<F> | null> {
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
+    const localeVisibility = resolveLocaleVisibility(options.status, options.localeVisibility)
     const requestContext = await this.resolveAndAssertRead(
       readMode,
       readCtx,
-      resolveLocaleVisibility(options.status, options.localeVisibility),
+      localeVisibility,
       options.locale
     )
     const { locale = this.client.defaultLocale } = options
@@ -581,6 +585,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       filters,
       lenient: options.lenient,
       onMissingLocale: options.onMissingLocale ?? 'fallback',
+      localeVisibility,
     })
 
     if (raw == null) return null
@@ -611,7 +616,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       options._bypassBeforeRead,
       options.select as string[] | undefined,
-      readMaterialization(options.populate, options.depth)
+      readMaterialization(options.populate, options.depth),
+      localeVisibility
     )
 
     return this.shapeWithPopulated<F>(raw as Record<string, any>)
@@ -723,10 +729,11 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
   ): Promise<ClientDocument<F> | null> {
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
+    const localeVisibility = resolveLocaleVisibility(options.status, options.localeVisibility)
     const requestContext = await this.resolveAndAssertRead(
       readMode,
       readCtx,
-      resolveLocaleVisibility(options.status, options.localeVisibility),
+      localeVisibility,
       options.locale
     )
     const { locale = this.client.defaultLocale } = options
@@ -746,6 +753,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       filters,
       onMissingLocale: options.onMissingLocale ?? 'fallback',
+      localeVisibility,
     })
 
     if (raw == null) return null
@@ -774,7 +782,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       options._bypassBeforeRead,
       options.select as string[] | undefined,
-      readMaterialization(options.populate, options.depth)
+      readMaterialization(options.populate, options.depth),
+      localeVisibility
     )
 
     return this.shapeWithPopulated<F>(raw as Record<string, any>)
@@ -1217,10 +1226,11 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     this.assertTreeCollection()
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
+    const localeVisibility = resolveLocaleVisibility(options.status, options.localeVisibility)
     const requestContext = await this.resolveAndAssertRead(
       readMode,
       readCtx,
-      resolveLocaleVisibility(options.status, options.localeVisibility),
+      localeVisibility,
       options.locale
     )
     const locale = options.locale ?? this.client.defaultLocale
@@ -1250,7 +1260,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       filters,
       readCtx,
       requestContext,
-      options._bypassBeforeRead
+      options._bypassBeforeRead,
+      localeVisibility
     )
 
     // Assemble the nested forest. Rows arrive pre-order, so a parent is always
@@ -1417,10 +1428,11 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     this.assertTreeCollection()
     const readMode = resolveReadMode(options.status)
     const readCtx = options._readContext ?? createReadContext()
+    const localeVisibility = resolveLocaleVisibility(options.status, options.localeVisibility)
     const requestContext = await this.resolveAndAssertRead(
       readMode,
       readCtx,
-      resolveLocaleVisibility(options.status, options.localeVisibility),
+      localeVisibility,
       options.locale
     )
     const locale = options.locale ?? this.client.defaultLocale
@@ -1449,7 +1461,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       filters,
       readCtx,
       requestContext,
-      options._bypassBeforeRead
+      options._bypassBeforeRead,
+      localeVisibility
     )
     // A hydration-time miss truncates the edge rather than compacting past a
     // newly-hidden ancestor.
@@ -1651,7 +1664,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     filters: DocumentFilter[] | undefined,
     readContext: ReadContext,
     requestContext: RequestContext,
-    bypassBeforeRead: true | undefined
+    bypassBeforeRead: true | undefined,
+    localeVisibility: LocaleVisibility = resolveLocaleVisibility(readMode)
   ): Promise<Map<string, ClientDocument<F>>> {
     const shapedById = new Map<string, ClientDocument<F>>()
     if (documentIds.length === 0) return shapedById
@@ -1663,6 +1677,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       fields: select,
       filters,
+      localeVisibility,
     })
 
     await this.finishReadDocuments(
@@ -1673,7 +1688,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       readMode,
       bypassBeforeRead,
       select,
-      'tree'
+      'tree',
+      localeVisibility
     )
 
     for (const raw of rawDocs) {
@@ -1701,6 +1717,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     options: {
       populate?: PopulateSpec
       depth?: number
+      localeVisibility?: LocaleVisibility
       _readContext?: ReadContext
       _bypassBeforeRead?: true
     }
@@ -1715,6 +1732,9 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       depth: options.depth,
       locale,
       readMode,
+      // Equals the entry point's resolved visibility: an explicit option wins,
+      // otherwise the default follows the same status that selected `readMode`.
+      localeVisibility: options.localeVisibility ?? resolveLocaleVisibility(readMode),
       readContext: options._readContext,
       requestContext,
       securityDomain: getReadSecurityDomain(this.client),
@@ -1738,7 +1758,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     requestContext: RequestContext,
     locale: string,
     readMode: ReadMode,
-    bypassBeforeRead: true | undefined
+    bypassBeforeRead: true | undefined,
+    localeVisibility: LocaleVisibility
   ): Promise<void> {
     const populate = this.client.richTextPopulate
     if (!populate || rawDocs.length === 0) return
@@ -1756,6 +1777,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
         requestContext,
         readContext,
         readMode,
+        localeVisibility,
         locale,
         bypassBeforeRead,
         richTextPopulate: populate,
@@ -1773,7 +1795,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     readMode: ReadMode,
     bypassBeforeRead: true | undefined,
     projection: string[] | undefined,
-    materialization: string
+    materialization: string,
+    localeVisibility: LocaleVisibility = resolveLocaleVisibility(readMode)
   ): Promise<void> {
     // Rich-text targets must be authorised and refreshed before user hooks see
     // the document, regardless of which read entry point materialised it.
@@ -1783,7 +1806,8 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       requestContext,
       locale,
       readMode,
-      bypassBeforeRead
+      bypassBeforeRead,
+      localeVisibility
     )
     for (const doc of rawDocs) {
       await applyAfterRead({

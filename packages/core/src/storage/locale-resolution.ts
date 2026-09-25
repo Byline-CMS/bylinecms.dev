@@ -6,7 +6,8 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { LocaleVisibility, ReadMode } from '../@types/index.js'
+import type { LocaleVisibility, MissingLocalePolicy, ReadMode } from '../@types/index.js'
+import type { FlattenedFieldValue } from './storage-row-types.js'
 
 // ------------------------------------------------------------------------------
 // Effective content-locale resolution from the version completeness ledger
@@ -23,33 +24,41 @@ export interface VersionLocaleLedger {
 }
 
 /**
- * Pick the single effective content locale a version is restored in under
- * `onMissingLocale: 'fallback'`, walking `chain` (`[requested, …, floor]`) and
- * returning the first entry the version's completeness ledger records.
- *
- * The ledger is computed at write time from every persisted store row, so the
- * decision is independent of which store tables a projected read happened to
- * load. A locale-agnostic version renders identically everywhere, so the
- * requested locale is returned. The floor (the document's source locale) is
- * the terminal entry and is returned when no earlier candidate qualifies.
- *
- * Returns `undefined` when `ledger` is absent — a version written before the
- * ledger existed and not yet backfilled — so the caller can fall back to
- * deriving completeness from the rows it loaded.
+ * Derive a completeness ledger from loaded store rows, using the same rule the
+ * write path records: a locale is complete when it covers every localized field
+ * path the source locale has; a version with no localized rows is
+ * locale-agnostic. Used only for versions written before the ledger existed and
+ * not yet backfilled. It can only see the rows a read loaded, so a projected
+ * read of such a version may still misjudge completeness.
  */
-export function resolveLocaleFromLedger(
-  chain: readonly string[],
-  ledger: VersionLocaleLedger | undefined
-): string | undefined {
-  if (ledger == null) return undefined
-  const floor = chain[chain.length - 1]
-  if (floor == null) return undefined
-  if (ledger.localeAgnostic) return chain[0]
-  for (const candidate of chain) {
-    if (candidate === floor) break
-    if (ledger.availableLocales.includes(candidate)) return candidate
+export function deriveVersionLocaleLedger(
+  rows: readonly FlattenedFieldValue[],
+  sourceLocale: string
+): VersionLocaleLedger {
+  const pathsByLocale = new Map<string, Set<string>>()
+  for (const row of rows) {
+    if (row.locale === 'all' || row.field_type === 'meta') continue
+    let paths = pathsByLocale.get(row.locale)
+    if (paths == null) {
+      paths = new Set<string>()
+      pathsByLocale.set(row.locale, paths)
+    }
+    paths.add(row.field_path.join('.'))
   }
-  return floor
+  if (pathsByLocale.size === 0) return { availableLocales: [], localeAgnostic: true }
+  const canonical = pathsByLocale.get(sourceLocale) ?? new Set<string>()
+  const availableLocales: string[] = []
+  for (const [locale, paths] of pathsByLocale) {
+    let covers = true
+    for (const path of canonical) {
+      if (!paths.has(path)) {
+        covers = false
+        break
+      }
+    }
+    if (covers) availableLocales.push(locale)
+  }
+  return { availableLocales, localeAgnostic: false }
 }
 
 // ------------------------------------------------------------------------------
@@ -80,7 +89,7 @@ export interface LocaleEligibility {
  *     must also be checked in the document's editorial set. An empty set
  *     authorizes no additional translation.
  */
-export function isLocaleEligible(locale: string, eligibility: LocaleEligibility): boolean {
+function isLocaleEligible(locale: string, eligibility: LocaleEligibility): boolean {
   const { visibility, sourceLocale, ledger, advertiseLocales, availableLocales } = eligibility
   if (ledger.localeAgnostic) return true
   if (locale === sourceLocale) return true
@@ -95,10 +104,7 @@ export function isLocaleEligible(locale: string, eligibility: LocaleEligibility)
  * locale can never be selected. The floor is terminal and returned when no
  * earlier candidate qualifies.
  */
-export function resolveEligibleLocale(
-  chain: readonly string[],
-  eligibility: LocaleEligibility
-): string {
+function resolveEligibleLocale(chain: readonly string[], eligibility: LocaleEligibility): string {
   for (const candidate of chain) {
     if (isLocaleEligible(candidate, eligibility)) return candidate
   }
@@ -118,4 +124,51 @@ export function resolveLocaleVisibility(
 ): LocaleVisibility {
   if (explicit != null) return explicit
   return status === 'any' ? 'editorial' : 'public'
+}
+
+/** The outcome of one read's language decision for one document version. */
+export interface ReadLocaleDecision {
+  /** The locale to restore fields in; `undefined` for a multi-locale (`'all'`) read. */
+  restoreLocale: string | undefined
+  /** The `resolvedLocale` read metadata: the locale the fields were selected in, or `null`. */
+  resolvedLocale: string | null
+  /** `true` when localized values must be withheld and only non-localized values returned. */
+  withholdLocalized: boolean
+}
+
+/**
+ * Decide, for one document version, which locale a read restores, what it
+ * reports as `resolvedLocale`, and whether localized values must be withheld.
+ * Shared by every storage adapter so the language decision is identical across
+ * engines and is made from the whole version, before any field projection.
+ *
+ *   - `locale: 'all'` restores locale maps and reports `null`.
+ *   - A locale-agnostic version restores the requested locale and reports `null`.
+ *   - `'fallback'` restores and reports the first eligible chain entry.
+ *   - `'omit'`, `'empty'` and an omitted policy are exact: an eligible locale is
+ *     restored and reported. Under `'public'` visibility an ineligible locale
+ *     withholds localized values and reports `null`; under `'editorial'` the
+ *     exact locale is restored even when partial.
+ */
+export function resolveReadLocale(params: {
+  locale: string
+  chain: readonly string[]
+  onMissingLocale: MissingLocalePolicy | undefined
+  eligibility: LocaleEligibility
+}): ReadLocaleDecision {
+  const { locale, chain, onMissingLocale, eligibility } = params
+  if (locale === 'all') {
+    return { restoreLocale: undefined, resolvedLocale: null, withholdLocalized: false }
+  }
+  if (eligibility.ledger.localeAgnostic) {
+    return { restoreLocale: locale, resolvedLocale: null, withholdLocalized: false }
+  }
+  if (onMissingLocale === 'fallback') {
+    const selected = resolveEligibleLocale(chain, eligibility)
+    return { restoreLocale: selected, resolvedLocale: selected, withholdLocalized: false }
+  }
+  if (eligibility.visibility === 'public' && !isLocaleEligible(locale, eligibility)) {
+    return { restoreLocale: locale, resolvedLocale: null, withholdLocalized: true }
+  }
+  return { restoreLocale: locale, resolvedLocale: locale, withholdLocalized: false }
 }

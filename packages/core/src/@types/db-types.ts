@@ -1142,6 +1142,15 @@ export interface IDocumentQueries {
     /** See `MissingLocalePolicy`. `'omit'` returns `null` when the document
      *  is not available in the requested locale. Omitted ⇒ `'empty'`. */
     onMissingLocale?: MissingLocalePolicy
+    /**
+     * See `LocaleVisibility`. Omitted ⇒ `'editorial'`: direct adapter reads are
+     * trusted primitives and keep their exact editing behaviour. `@byline/client`
+     * always passes the resolved value. Under `'public'`, `'fallback'` skips
+     * ineligible locales, `'omit'` excludes documents whose requested locale is
+     * ineligible, and an exact read of an ineligible locale withholds localized
+     * values. A reconstructed result reports its decision as `resolved_locale`.
+     */
+    localeVisibility?: LocaleVisibility
   }): Promise<any | null>
 
   /**
@@ -1200,6 +1209,8 @@ export interface IDocumentQueries {
     /** See `MissingLocalePolicy`. `'omit'` returns `null` when the document
      *  is not available in the requested locale. Omitted ⇒ `'empty'`. */
     onMissingLocale?: MissingLocalePolicy
+    /** See `getDocumentById.localeVisibility`. */
+    localeVisibility?: LocaleVisibility
   }): Promise<any | null>
 
   getDocumentByVersion(params: {
@@ -1241,6 +1252,9 @@ export interface IDocumentQueries {
     filters?: DocumentFilter[]
     /** See `getDocumentById.requestContext`. */
     requestContext?: RequestContext
+    /** See `getDocumentById.localeVisibility`. Each document resolves under
+     *  its own source locale, completeness ledger and checkbox set. */
+    localeVisibility?: LocaleVisibility
   }): Promise<any[]>
 
   getDocumentHistory(params: {
@@ -1352,6 +1366,9 @@ export interface IDocumentQueries {
      *  in the requested locale (filtered at the SQL layer so pagination stays
      *  correct). Omitted ⇒ `'empty'`. */
     onMissingLocale?: MissingLocalePolicy
+    /** See `getDocumentById.localeVisibility`. Under `'public'` with `'omit'`,
+     *  the checkbox gate is compiled into SQL before count and pagination. */
+    localeVisibility?: LocaleVisibility
   }): Promise<{
     documents: any[]
     total: number

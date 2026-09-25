@@ -740,6 +740,21 @@ export interface ClientDocument<F = Record<string, any>> {
    * `docs/08-internationalization/index.md`.
    */
   sourceLocale?: string
+  /**
+   * The content locale this read selected for this document's fields, decided
+   * from the whole selected version before any field projection.
+   *
+   *   - `'fallback'`: the first eligible locale in the chain, which may be the
+   *     source rather than the requested locale.
+   *   - `'omit'`, or an eligible exact read: the requested locale.
+   *   - `null`: a public exact read that withheld an unavailable translation,
+   *     a multi-locale (`locale: 'all'`) read, or a locale-agnostic version.
+   *
+   * It describes which locale was selected, not whether every field is
+   * linguistically in that language, and not whether the translation is
+   * publicly released. Each populated target and tree node carries its own.
+   */
+  resolvedLocale?: string | null
   /** When this version was created. */
   createdAt: Date
   /** When this version was last updated. */

@@ -21,11 +21,9 @@ export {
   type StoreType,
 } from './field-store-map.js'
 export {
-  isLocaleEligible,
-  type LocaleEligibility,
-  resolveEligibleLocale,
-  resolveLocaleFromLedger,
+  deriveVersionLocaleLedger,
   resolveLocaleVisibility,
+  resolveReadLocale,
   type VersionLocaleLedger,
 } from './locale-resolution.js'
 export { flattenFieldSetData } from './storage-flatten.js'
