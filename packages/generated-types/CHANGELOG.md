@@ -1,5 +1,9 @@
 # @byline/generated-types
 
+## 6.7.0
+
+No changes in this release.
+
 ## 6.6.0
 
 ### Minor Changes

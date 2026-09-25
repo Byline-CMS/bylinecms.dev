@@ -1,5 +1,12 @@
 # @byline/storage-s3
 
+## 6.7.0
+
+### Patch Changes
+
+- Updated dependencies [0760276]
+  - @byline/core@6.7.0
+
 ## 6.6.0
 
 ### Minor Changes

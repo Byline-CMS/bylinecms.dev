@@ -1,5 +1,13 @@
 # @byline/search-mysql
 
+## 6.7.0
+
+### Patch Changes
+
+- Updated dependencies [0760276]
+  - @byline/core@6.7.0
+  - @byline/search-analysis@6.7.0
+
 ## 6.6.0
 
 ### Minor Changes

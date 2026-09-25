@@ -1,5 +1,11 @@
 # @byline/analytics-postgres
 
+## 6.7.0
+
+### Patch Changes
+
+- @byline/analytics@6.7.0
+
 ## 6.6.0
 
 ### Minor Changes
