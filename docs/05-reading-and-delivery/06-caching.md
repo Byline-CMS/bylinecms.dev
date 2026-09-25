@@ -129,8 +129,8 @@ End-to-end, what happens when an admin enables preview and reloads a page:
 1. Admin clicks "preview" in the admin shell → a server function sets the `byline_preview` cookie (`httpOnly`, 1-day max-age).
 2. Browser issues subsequent GETs with `Cookie: byline_access_token=…; byline_refresh_token=…; byline_preview=1`.
 3. `publicCacheMiddleware` at the origin sees the **session cookies** → emits `Cache-Control: private, no-store`. The CDN does not serve a cached anonymous version and does not store the editor's draft view.
-4. `isPreviewActive()` returns `true` at origin (both the preview cookie and a valid admin session resolve), so the public server function passes `status: 'any'` to the viewer client and (if L1 is wired) bypasses the in-memory cache.
-5. Editor sees their draft.
+4. `isPreviewActive()` returns `true` at origin (both the preview cookie and a valid admin session resolve), so the public server function passes `status: 'any'` and `localeVisibility: 'editorial'` to the viewer client and (if L1 is wired) bypasses the in-memory cache.
+5. Editor sees their saved draft, including translations that public reads withhold because they are unchecked. A preview read never fills the L1 entry public readers use, so turning preview off or signing out cannot serve an editorial object from the cache.
 
 After sign-out the session cookies are cleared and `publicCacheMiddleware` returns to emitting the public cache header, even if `byline_preview` is still present in the browser. The preview cookie has no effect without a session: `isPreviewActive()` returns `false`, the server returns published content, and that content is correctly cacheable for that (now-anonymous) browser.
 
@@ -282,7 +282,11 @@ populated by the lifecycle from `byline_document_paths`.)
 
 The reference app's direct-write policy is more precise and app-owned. Docs, News, and Pages each declare their complete cache invalidation and search reconciliation behavior in their own server-only `hooks.ts`. This deliberately repeats a small amount of orchestration so a developer can understand one collection's create, update, system-field, status, unpublish, delete, and tree behavior without following a shared factory.
 
-Within those hooks, a path change starts old + current detail-tag, list, sitemap, and search reconciliation together; an advertised-locale-only change clears detail/alternate, list data where present, and sitemap data but does not reindex search. A no-op path reconciliation uses the coarse collection tag, because an earlier failed hook may have completed only part of its work. Tree changes likewise use a coarse docs-collection sweep.
+Within those hooks, a path change starts old + current detail-tag, list, sitemap, and search reconciliation together. An advertised-locale change changes which translations public reads deliver, so it clears the same local surfaces as `afterUnpublish` — the document's details in every locale (including cached misses and Markdown exports), list and navigation data where present, and the sitemap — and reindexes search. A no-op locale reconciliation retry clears them again. A no-op path reconciliation uses the coarse collection tag, because an earlier failed hook may have completed only part of its work. Tree changes likewise use a coarse docs-collection sweep.
+
+:::warning[Unchecking a translation withdraws it like unpublish, not faster]
+Local invalidation parity with unpublish is the whole guarantee. After an editor unchecks a translation, a fresh origin read no longer delivers it, but other pages that embed or list the document keep their own entries until they expire, cluster fan-out is best-effort, a cache fill already in flight can repopulate an entry, and CDN responses remain until their TTL (60 seconds plus stale-while-revalidate with the reference headers) unless you purge them. Rich-text snapshots saved into other documents are stored content, not cache entries, and clearing caches does not repair them.
+:::
 
 All these hooks run after commit. If invalidation throws, the write and audit
 remain committed. Hook arrays are sequential and fail-fast, so do not put

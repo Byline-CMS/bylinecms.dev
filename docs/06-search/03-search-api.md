@@ -87,7 +87,7 @@ The collection and zone entry points share these options:
 `locale` is the **result content locale**: it selects one exact locale slice from the index. It is not the host interface language, and it does not promise that Byline understands or translates the language in which the visitor typed the query.
 
 :::warning[`locale` must resolve to a content locale]
-The index stores one row per published [content locale](../08-internationalization/03-content-locales.md), and search applies no read-style locale fallback. When a frontend's interface languages differ from its content locales, the host must map URL or interface context to a content-locale preference before calling `search()`. A common policy passes configured content locales through and maps an interface-only locale to the installation's current default content locale. Passing the interface locale verbatim can filter on rows that never exist and return zero hits. The client default used when `locale` is omitted must likewise be a content locale.
+The index stores one row per publicly deliverable [content locale](../08-internationalization/03-content-locales.md) — the source, plus each translation that is complete in the published version and, in a collection that advertises locales, checked — and search applies no read-style locale fallback. When a frontend's interface languages differ from its content locales, the host must map URL or interface context to a content-locale preference before calling `search()`. A common policy passes configured content locales through and maps an interface-only locale to the installation's current default content locale. Passing the interface locale verbatim can filter on rows that never exist and return zero hits. The client default used when `locale` is omitted must likewise be a content locale.
 :::
 
 The current provider contract couples two jobs to this one value:
@@ -200,7 +200,7 @@ const summary = result.hits[0]?.document?.fields.summary
 
 Byline batch-reads each collection's candidate ids through its ordinary read path. If the runtime has registered an admin `itemView`, its columns define the projection; otherwise hydration reads the full field set.
 
-Hydration:
+Hydration reads each hit's own locale slice exactly (`onMissingLocale: 'omit'`) with the search's locale visibility, so a hit is never hydrated with substituted source-locale content. Hydration:
 
 - applies `beforeRead`;
 - runs `afterRead`;
@@ -214,14 +214,16 @@ The provider owns retrieval and ranking. Core owns authority.
 
 When a collection has a `beforeRead` predicate, Byline re-resolves the provider candidate ids through the normal strict read pipeline. Unauthorized ids are removed before results leave the client.
 
-This has visible pagination semantics:
+Every **public** search (the default, `status: 'published'`) also re-checks each hit's locale against the current read policy, even without a `beforeRead` hook and even with `_bypassBeforeRead`. An index slice can be stale for a moment — for example, between an editor unchecking a translation and the reindex that follows — and a hit whose locale is no longer publicly deliverable is removed. One batched read per collection per page performs the check.
 
-- `total` becomes the number of authorized hits surviving the current provider page;
+This has visible pagination semantics, for every public search and for any search restricted by `beforeRead`:
+
+- `total` becomes the number of hits surviving the current provider page, so it is at most the page size;
 - provider facets are omitted to avoid leaking aggregate counts;
 - a page can contain fewer hits than `limit`; and
 - callers should advance using the requested provider `offset`, not the number of hits received.
 
-Without collection or row restrictions, provider `total` passes through unchanged. Hydration may still drop a stale result independently.
+Only an editorial search (`status: 'any'`) with no collection or row restriction passes the provider `total` and facets through unchanged. A search results page that shows "N results" from a public search therefore shows the number of hits on that page, not a corpus-wide count.
 
 Exact corpus-wide authorized totals require pushing a supported predicate into the provider. The current built-in SQL providers do not implement that query path.
 

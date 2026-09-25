@@ -72,7 +72,7 @@ import {
   getPublicBylineClient, // anonymous, published-only; preview can never apply (feeds, sitemaps, CDN-cacheable)
   getSystemBylineClient, // explicit super-admin context; background/maintenance work, no request needed
   getViewerBylineClient, // public reads that honour an admin's preview-mode session
-  isPreviewActive, // cookie + admin session probe: `status: preview ? 'any' : 'published'`
+  isPreviewActive, // cookie + admin session probe: `status: preview ? 'any' : 'published'`, `localeVisibility: preview ? 'editorial' : 'public'`
 } from '@byline/client/server'
 ```
 
@@ -294,7 +294,20 @@ await client.collection('news').find({
 
 The mode threads through populate, so a published-mode read of `news` populating `category` reads both from `current_published_documents`.
 
-→ [Status awareness](#status-awareness)
+`status` also sets the default **locale visibility**, which you can override. By default a published read is public: in a collection that advertises locales, its fallback and omit resolution use only the source and checked, complete translations, and an exact read withholds anything else. An `'any'` read defaults to editorial: fallback and omit use any complete translation, and an exact (`'empty'`) read returns stored partial values. Pass `localeVisibility` to choose it explicitly:
+
+```ts
+// Review unchecked translations of the published version (requires an authenticated actor)
+await client.collection('news').findByPath('launch', {
+  locale: 'es',
+  status: 'published',
+  localeVisibility: 'editorial',
+})
+```
+
+Each read result carries `resolvedLocale`, the locale its fields were selected in.
+
+→ [Status awareness](#status-awareness) · [Public delivery of advertised locales](../08-internationalization/03-content-locales.md#public-delivery-of-advertised-locales)
 
 ### 9. Create / update / delete
 
@@ -359,7 +372,7 @@ const { hits } = await client.collection('docs').search({ query: 'installation' 
 const results = await client.search({ zone: 'site', query: 'launch', hydrate: true })
 ```
 
-Both assert the collection `read` ability (zone search excludes collections the actor can't read), honour `beforeRead` row scoping by re-resolving candidate ids through the normal read path, and default to `status: 'published'`. `hydrate: true` batch-reads hits into shaped documents (projected to `admin.itemView` columns when registered) and drops stale index entries. When authorization removes collections or rows, `total` is conservatively the authorized hit count on the returned page and facets are omitted rather than leaking provider-wide aggregates.
+Both assert the collection `read` ability (zone search excludes collections the actor can't read), honour `beforeRead` row scoping by re-resolving candidate ids through the normal read path, and default to `status: 'published'`. A public search also re-checks each hit's locale against the advertised-locale policy. `hydrate: true` batch-reads hits into shaped documents in the hit's own locale (projected to `admin.itemView` columns when registered) and drops stale index entries. For every public search, and whenever authorization removes collections or rows, `total` is the surviving hit count on the returned page and facets are omitted rather than leaking provider-wide aggregates.
 
 → [Search API](../06-search/03-search-api.md) for collection and zone queries, matching, highlights, hydration, and authorization.
 
@@ -516,6 +529,8 @@ where: { category: { parent: { path: 'news' } } }  // 2-hop, doc-column at depth
 
 The compiler emits `EXISTS` subqueries against the typed `store_*` tables for field filters, and depth-scoped nested `EXISTS` joins through `store_relation` for relation sub-wheres. All filter predicates respect the read mode: published-mode reads use `current_published_documents` even at the inner side of a relation join. Caller filters use this ordinary parser; `beforeRead` predicates use a separate strict pass, and the resulting adapter filters are appended with implicit AND.
 
+A localized field filter matches the value the read returns. Each document is compared in the locale its reconstruction shows under the read's `onMissingLocale` and locale visibility: under `'fallback'`, a document whose Spanish is withheld is filtered on its source values, not its stored Spanish; a public exact read filters a withheld translation as empty. The same rule applies to the list text `query`, to each relation hop (every target resolves under its own collection's checkboxes), and to document-tree structural reads that pass a visibility. [Content locales](../08-internationalization/03-content-locales.md#public-delivery-of-advertised-locales) defines the visibility rule.
+
 Document-level reserved keys (`status`, `path`) inside a nested sub-clause are document metadata, not field filters: same precedence as the top level, with no field-shadow exception (a target collection that declares a `path` or `status` field will not see those clauses resolve as field filters; rename the field, e.g. to `slug`). `status` resolves to `document_versions.status` on the relation hop's target row; `path` resolves through a `byline_document_paths` subquery against the hop's `document_id` (locale-resolved through the request's fallback chain, ending at that document's source locale). In strict `beforeRead` predicates, top-level `status` supports `$eq` / `$ne` / `$in` / `$nin`, while `path` additionally supports `$contains`; these compile as document-column filters on every read shape. `query` (text search) is not supported inside a nested caller sub-clause and is silently dropped with a debug log; strict security predicates reject it.
 
 ### Sorting
@@ -527,7 +542,7 @@ sort: ['-publishedAt', 'title'] // multi-key
 sort: { publishedAt: 'desc' }   // object form (used in the news example)
 ```
 
-Field sort compiles to `LEFT JOIN LATERAL` against the appropriate store; document-level columns (`status`, `created_at`, `updated_at`) use direct outer-scope comparisons. Sorting by `path` is intentionally not supported (`path` lives in `byline_document_paths` and is locale-resolved per request); reintroduce via the `pathProjection` subquery if a real consumer surfaces.
+Field sort compiles to `LEFT JOIN LATERAL` against the appropriate store, reading each document's localized sort value in the locale it is shown in (a withheld value sorts as missing); document-level columns (`status`, `created_at`, `updated_at`) use direct outer-scope comparisons. Sorting by `path` is intentionally not supported (`path` lives in `byline_document_paths` and is locale-resolved per request); reintroduce via the `pathProjection` subquery if a real consumer surfaces.
 
 ### Selective field loading
 
@@ -581,6 +596,15 @@ status: 'any'                   // admin / system code paths
 
 In `'published'` mode every ordinary read (including relation and richtext target population and `findByPath` resolution) hits `current_published_documents`. A document with a newer unpublished draft over a previously-published version keeps returning the published content; the new draft becomes visible only once it's itself published.
 
+`status` is paired with `localeVisibility`, which decides which of the selected version's translations a read may deliver:
+
+```ts
+localeVisibility: 'public'      // default for 'published': fallback/omit use source + checked, complete translations; exact reads withhold the rest
+localeVisibility: 'editorial'   // default for 'any': fallback/omit use any complete translation; exact reads return stored partials; requires an actor
+```
+
+The two are independent, so `status: 'published', localeVisibility: 'editorial'` is a valid review read of the published version. Public reads reject `locale: 'all'`, and a public `onMissingLocale: 'empty'` read returns empty localized fields rather than a withheld or incomplete translation. `_bypassBeforeRead` does not bypass locale visibility. See [Public delivery of advertised locales](../08-internationalization/03-content-locales.md#public-delivery-of-advertised-locales) for the complete policy.
+
 `status` selects the **source view**, not an exact-status filter. `where.status` is a literal column filter and composes orthogonally:
 
 ```ts
@@ -592,7 +616,7 @@ Editorial metadata reads are intentionally stricter: `count` / `countByStatus`, 
 
 ### Preview mode (admin draft viewing on the public host)
 
-Editorial workflows usually want one extra capability: an admin should be able to navigate the public host pages and see their **own in-progress drafts** rendered exactly as the published version would be, without changing routes, without rebuilding markup, and without leaking drafts to ordinary visitors. `@byline/client/server` ships a "viewer client" that layers preview-aware behaviour over the SDK without changing it, implemented against the `HostRequestBridge` seam a host adapter registers at boot.
+Editorial workflows usually want one extra capability: an admin should be able to navigate the public host pages and see their **own in-progress drafts and withheld translations** rendered exactly as the published version would be, without changing routes, without rebuilding markup, and without leaking drafts to ordinary visitors. `@byline/client/server` ships a "viewer client" that layers preview-aware behaviour over the SDK without changing it, implemented against the `HostRequestBridge` seam a host adapter registers at boot.
 
 **The plumbing splits into two layers**: a transport layer (cookie + viewer client + server fns) that decides what each request sees, and a UX layer (admin shell affordances) that lets editors flip the cookie and discover the resulting state.
 
@@ -633,7 +657,9 @@ there.
 
 **Limits and notes:**
 
-- Preview is per-server-fn opt-in. A fn that does not pass `status: 'any'` always serves published content, even with the cookie set. This is deliberate: opt-in keeps the trust boundary visible in code.
+- Preview is per-server-fn opt-in. A fn that does not pass `status: 'any'` always serves published content, even with the cookie set. This is deliberate: opt-in keeps the trust boundary visible in code. Pass `localeVisibility: preview ? 'editorial' : 'public'` beside it so the host's language choice is explicit; the reference application does this on every preview-aware read, including navigation and tree reads.
+- The admin Preview link passes the content locale selected in the editor to `preview.url(doc, { locale })`, even when that translation is unchecked. Build the locale prefix from your public routing rule, not from the admin interface language. Preview shows saved content only; unsaved form edits are not previewed and are not saved by the Preview link.
+- Preview can read a draft whose completeness differs from the published version. Do not build public discovery metadata (`hreflang`, sitemaps, language menus) from a preview read; the reference application suppresses alternates on preview responses.
 - The double resolution cost (cookie check + JWT verify) only happens in active preview sessions: the no-cookie path is a single cookie read.
 - Preview elevates `readMode` for the request, but it does **not** bypass `beforeRead` hooks. A multi-tenant or owner-only-drafts hook will still scope the rows the admin can see: preview just changes which version of those rows is returned.
 - The cookie has a 24-hour `maxAge`: preview is meant to be a short-lived editorial mode, not a permanent state. Re-enabling is a one-click action.

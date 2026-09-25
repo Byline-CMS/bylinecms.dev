@@ -344,25 +344,30 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * Asserts the collection `read` ability first (same gate as the other
    * reads), and defaults `status` to `'published'`, so a public viewer only
    * sees published content — which is also all the index holds, since
-   * indexing is published-only.
+   * indexing writes only publicly deliverable locales of the published
+   * version.
    *
-   * **Row-level authorization** — "rank in the provider, authorise in core":
-   * when the collection configures a `beforeRead` hook, the provider's
-   * candidate hits are re-resolved through the normal read path (the same
-   * predicate merge + SQL compile every other read uses) and hits whose
-   * document doesn't survive the scoping are dropped. Collections without a
-   * hook skip the second query entirely. `hydrate: true` batch-reads the
-   * hits into shaped `ClientDocument`s in the same query (authorisation
-   * comes free) and attaches them as `hit.document`. Two consequences to be
-   * aware of:
+   * **Authorization after ranking** — "rank in the provider, authorise in
+   * core": the provider's candidate hits are re-resolved through the normal
+   * read path (the same predicate merge + SQL compile every other read uses)
+   * whenever the search is public (`status: 'published'`, the default) or
+   * the collection configures a `beforeRead` hook. A public search re-checks
+   * every hit's locale against the advertised-locale policy even without a
+   * hook, so a stale index slice for an unchecked translation is dropped;
+   * one batched read per page performs the check. `hydrate: true` reads the
+   * hits into shaped `ClientDocument`s in their own locale (no source
+   * substitution) and attaches them as `hit.document`. Consequences:
    *
-   *   - under row scoping, `total` is the authorized hit count for this page
-   *     and facets are omitted rather than leaking provider-wide aggregates.
+   *   - for every public search, and under row scoping, `total` is the
+   *     surviving hit count for this page and facets are omitted rather than
+   *     leaking provider-wide aggregates;
+   *   - only an editorial search (`status: 'any'`) with no `beforeRead` hook
+   *     passes the provider `total` and facets through unchanged;
    *   - a page of hits can come back shorter than `limit` when candidates
    *     are dropped; paginate on `offset`, not on received length.
    *
    * `_bypassBeforeRead: true` is the same system-operation escape hatch the
-   * read methods take.
+   * read methods take; it skips `beforeRead` scoping, never the locale check.
    *
    * Throws `ERR_VALIDATION` when no provider is registered.
    */

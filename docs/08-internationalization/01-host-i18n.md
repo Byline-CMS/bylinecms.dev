@@ -258,9 +258,16 @@ baseline. `x-default` also points to the source, deliberately even when the
 source is not in the advertised language set; it does not implicitly add a
 language-specific hreflang entry. No hreflang links are emitted for an empty set.
 
-This is an editorial URL policy, not a delivery gate or a factual content-language
-label. A complete but unchecked translation can still be served directly and
-point to the source canonical. Search engines may ignore that preference. Making
-unchecked translations unavailable requires a separate upstream read-policy
-change; deriving article `lang` and Markdown `locale` from the language actually
-served is also separate work.
+This URL policy sits on top of the delivery gate in the read pipeline: a public
+read never serves an unchecked translation, so a request for one returns the
+source content, pointing to the source canonical (see
+[Public delivery of advertised locales](./03-content-locales.md#public-delivery-of-advertised-locales)).
+The read result's `resolvedLocale` reports the locale actually selected; deriving
+article `lang` and Markdown `locale` from it is separate host work.
+
+Preview responses can read a draft, whose completeness ledger does not describe
+the published version. The reference application therefore passes preview
+detail results through `withoutPreviewDiscovery` (`src/lib/alternates.ts`),
+which clears the ledger: preview pages render no `hreflang` alternates and no
+available-language menu, and their canonical points to the source URL. Public
+responses are unaffected.

@@ -355,6 +355,7 @@ interface FindOptions<F> {
   populate?: PopulateSpec
   depth?: number
   status?: 'published' | 'any'
+  localeVisibility?: 'public' | 'editorial'
   onMissingLocale?: 'fallback' | 'empty' | 'omit'
 }
 ```
@@ -370,9 +371,12 @@ interface FindOptions<F> {
 | `populate` | None | Relation population specification. |
 | `depth` | `1` when populate is set, otherwise `0` | Maximum relation traversal depth, clamped by the internal read context. |
 | `status` | `published` | Source view. `where.status` remains a separate exact-status filter. |
-| `onMissingLocale` | `fallback` | Missing-localized-content behavior. |
+| `localeVisibility` | `public` for `published`, `editorial` for `any` (defaults only; set it explicitly to combine freely) | Which of the selected version's translations may be delivered. Under `public`, `fallback` and `omit` use the source and, in a collection with `advertiseLocales`, only checked complete translations, and an exact read withholds any other locale. Under `editorial`, `fallback` and `omit` use any complete translation, an exact read returns stored values including partial translations, and the call requires an authenticated actor (`ERR_UNAUTHENTICATED` otherwise). |
+| `onMissingLocale` | `fallback` | Missing-localized-content behavior. Under `public` visibility, `empty` withholds an unchecked or incomplete translation's values rather than returning them. |
 
-Every read option type also carries trusted `_bypassBeforeRead?: true`; hook re-entry shapes carry `_readContext`. Public application code must not use either escape hatch.
+A `public` read rejects `locale: 'all'` with `ERR_VALIDATION`. Every returned `ClientDocument` carries `resolvedLocale: string \| null`, the locale its fields were selected in; `null` marks a withheld public exact read, a `locale: 'all'` read, or a locale-agnostic version. [Content locales](../08-internationalization/03-content-locales.md#public-delivery-of-advertised-locales) describes the policy.
+
+Every read option type also carries trusted `_bypassBeforeRead?: true`; hook re-entry shapes carry `_readContext`. Public application code must not use either escape hatch. `_bypassBeforeRead` skips `beforeRead` row scoping only; it does not bypass locale visibility.
 
 ### `findOne(options?)`
 
@@ -384,6 +388,7 @@ handle.findOne<F>(options?: {
   populate?: PopulateSpec
   depth?: number
   status?: 'published' | 'any'
+  localeVisibility?: 'public' | 'editorial'
   onMissingLocale?: 'fallback' | 'empty' | 'omit'
 }): Promise<ClientDocument<F> | null>
 ```
@@ -399,6 +404,7 @@ handle.findById<F>(documentId: string, options?: {
   populate?: PopulateSpec
   depth?: number
   status?: 'published' | 'any'
+  localeVisibility?: 'public' | 'editorial'
   onMissingLocale?: 'fallback' | 'empty' | 'omit'
   lenient?: boolean
 }): Promise<ClientDocument<F> | null>
@@ -415,6 +421,7 @@ handle.findByPath<F>(path: string, options?: {
   populate?: PopulateSpec
   depth?: number
   status?: 'published' | 'any'
+  localeVisibility?: 'public' | 'editorial'
   onMissingLocale?: 'fallback' | 'empty' | 'omit'
 }): Promise<ClientDocument<F> | null>
 ```
@@ -697,7 +704,7 @@ handle.search(options: {
 }): Promise<ClientSearchResults>
 ```
 
-The collection path is implied by the handle. `hydrate: true` attaches a shaped `ClientDocument` to each authorized hit.
+The collection path is implied by the handle. `hydrate: true` attaches a shaped `ClientDocument` to each authorized hit, read in the hit's own locale. Locale visibility follows `status`: a `published` search re-checks each hit's locale against the advertised-locale policy, and its `total` is the number of surviving hits on the returned page, with provider facets omitted.
 
 ### Zone search
 
@@ -730,7 +737,7 @@ handle.reindex(): Promise<{
 }>
 ```
 
-`indexDocument()` mirrors published content for every configured locale and removes stale projections when the document is no longer publishable. It no-ops when the collection or provider is not configured for search. `removeFromIndex()` removes every locale projection for the document. `reindex()` requires the collection's reindex ability and rebuilds the complete collection projection.
+`indexDocument()` mirrors published content for every publicly deliverable locale — the source, plus complete translations that are checked when the collection advertises locales — and removes stale projections for any other locale. It no-ops when the collection or provider is not configured for search. `removeFromIndex()` removes every locale projection for the document. `reindex()` requires the collection's reindex ability and rebuilds the complete collection projection.
 
 These methods have different trust boundaries. `indexDocument()` requires published-read ability but bypasses `beforeRead` row predicates so lifecycle synchronization can see every published document. `removeFromIndex()` delegates directly to the provider without resolving a request context or checking an ability; reserve it for trusted lifecycle and maintenance code. `reindex()` requires the reindex ability, and its internal document reads also require published-read ability while bypassing `beforeRead`.
 

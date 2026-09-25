@@ -153,6 +153,9 @@ export class BylineClient<
    * across every collection indexed into the named zone. Collections the
    * actor cannot `read` are excluded; `beforeRead` row scoping applies per
    * collection; `hydrate: true` attaches a shaped `ClientDocument` per hit.
+   * A public search (the default `status: 'published'`) also re-checks each
+   * hit's locale against the advertised-locale policy, and reports a
+   * page-local `total` with no facets, as `CollectionHandle.search()` does.
    * For homogeneous, single-collection search use
    * `client.collection(path).search()`.
    */

@@ -129,6 +129,13 @@ export const DocsAdmin: CollectionAdminConfig = defineAdmin(Docs, {
    * Direct relations are auto-populated by the edit view (depth 1, picker
    * projection) and appear under `doc.fields.<name>?.document`.
    *
+   * `locale` is the content locale selected in the editor. Keep it even when
+   * that translation is not advertised: preview is how an editor reviews an
+   * unchecked translation. The locale prefix must follow your public routes'
+   * rule, which this scaffold cannot know; the example assumes the default
+   * locale (`'en'`) is unprefixed. Never derive it from the admin interface
+   * language.
+   *
    * @example
    * preview: {
    *   url: (doc, { locale }) => {

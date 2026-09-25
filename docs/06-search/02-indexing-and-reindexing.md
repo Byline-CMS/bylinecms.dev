@@ -21,6 +21,7 @@ Byline treats the search index as a published-content projection, not as content
 ```ts
 {
   status: 'published',
+  localeVisibility: 'public',
   onMissingLocale: 'omit',
   _bypassBeforeRead: true,
 }
@@ -28,12 +29,12 @@ Byline treats the search index as a published-content projection, not as content
 
 For every locale, it performs one of two provider operations:
 
-- `upsert(SearchDocument)` when a published locale view exists;
-- `remove({ collectionPath, documentId, locale })` when it does not.
+- `upsert(SearchDocument)` when the locale is publicly deliverable;
+- `remove({ collectionPath, documentId, locale })` when it is not.
 
-Each locale slice therefore contains genuine published translations only. Byline does not copy a document's source-locale fallback text into every missing locale: doing so would create duplicate projections and run source-language text through the wrong language analyzer. The consequence is deliberate but visible: a document that an ordinary read can render through `source_locale` may still be absent from search in the requested content locale.
+A locale is publicly deliverable when it is the document's source, or when the published version is complete in it and — in a collection with `advertiseLocales: true` — its checkbox is set (see [Public delivery of advertised locales](../08-internationalization/03-content-locales.md#public-delivery-of-advertised-locales)). The pinned `localeVisibility: 'public'` keeps an authenticated or system caller from widening the index. Each locale slice therefore contains genuine, publicly released translations only. Byline does not copy a document's source-locale fallback text into every missing locale: doing so would create duplicate projections and run source-language text through the wrong language analyzer. The consequence is deliberate but visible: a document that an ordinary read can render through `source_locale` may still be absent from search in the requested content locale.
 
-The same idempotent path handles a first publish, an edit over an existing publication, an unpublish, a newer draft over an older published version, and a translation becoming available or unavailable. Draft-only content does not enter the built-in index.
+The same idempotent path handles a first publish, an edit over an existing publication, an unpublish, a newer draft over an older published version, a translation becoming available or unavailable, and a translation being checked or unchecked. Draft-only content and unchecked translations do not enter the built-in index.
 
 Index maintenance bypasses `beforeRead` because the shared index must contain every published candidate. Actor-specific row visibility is applied after ranking when a reader searches.
 
@@ -68,11 +69,11 @@ Register this module through the server-only hook registry so its `@byline/clien
 | `afterUpdate` | Reconcile every published locale |
 | `afterStatusChange` | Reconcile publish, archive, or other status changes |
 | `afterUnpublish` | Remove locale rows that no longer have a published view |
-| `afterSystemFieldsChange` with a path request | Refresh hit paths, including reconciliation retries |
+| `afterSystemFieldsChange` with a path or advertised-locale request | Refresh hit paths and add or remove checked translations, including no-op reconciliation retries |
 | `afterDelete` | Remove every locale for the document |
 | `afterTreeChange` | No search write unless the provider projection includes tree-derived data |
 
-An advertised-locale-only system change does not alter indexed content in the reference application. A path change does, because lightweight search hits carry `path`.
+A path change alters indexed content because lightweight search hits carry `path`; an advertised-locale change alters which translations are deliverable. The reference hooks test `requested.path || requested.availableLocales` rather than `changed`, so a no-op reconciliation retry after a failed attempt still reindexes. A combined content and checkbox save runs both `afterSystemFieldsChange` and `afterUpdate`, so the document is reindexed twice; indexing is idempotent. Until the reindex completes, public search still drops hits whose locale is no longer deliverable (see [Authorization after ranking](./03-search-api.md#authorization-after-ranking)).
 
 :::warning[Use the system client in lifecycle hooks]
 Do not call `getAdminBylineClient()` from a collection lifecycle hook. That client resolves a request-scoped admin session and fails when imports, seeds, migrations, tests, or other background work run without an HTTP request. `getSystemBylineClient()` is the correct authority for published-index maintenance.

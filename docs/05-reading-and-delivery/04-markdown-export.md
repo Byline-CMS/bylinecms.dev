@@ -27,7 +27,9 @@ Three properties define the whole design:
    editor's markdown source toggle (which needs bidirectional, lossless
    transformers; see [Dialects](#dialects) below).
 2. **Published-only, preview-blind.** Every read goes through the *public*
-   client with `status: 'published'`. Drafts never leak; editor preview never
+   client with `status: 'published'` and therefore public locale visibility.
+   Drafts and unchecked translations never leak (a Markdown request for an
+   unchecked translation returns the source content); editor preview never
    applies to an anonymous, cacheable agent surface (the same contract as the
    sitemap; see the viewer-client header in `@byline/host-tanstack-start`).
 3. **The output is a contract surface.** Agents build on the shape, so the
