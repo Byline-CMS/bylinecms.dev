@@ -1306,6 +1306,102 @@ describe('Document lifecycle service', () => {
       )
     })
 
+    it('writes a combined locale and content save in one transaction, locale first', async () => {
+      const afterSystemFieldsChange = vi.fn()
+      const afterUpdate = vi.fn()
+      const {
+        db,
+        getDocumentById,
+        getDocumentSystemFieldsForUpdate,
+        createDocumentVersion,
+        withTransaction,
+      } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'previous',
+        fields: { title: 'Old' },
+      })
+      getDocumentSystemFieldsForUpdate.mockResolvedValue({
+        path: 'doc',
+        source_locale: 'en',
+        availableLocales: ['en'],
+      })
+      const order: string[] = []
+      let outerSettled = false
+      vi.mocked(db.commands.documents.setDocumentAvailableLocales).mockImplementation(async () => {
+        // Watch the outer guarded unit that is running this write.
+        const outer = withTransaction.mock.results[0]?.value as Promise<unknown> | undefined
+        if (outer == null) throw new Error('locale write ran outside a guarded unit')
+        void outer.finally(() => {
+          outerSettled = true
+        })
+        order.push(`locales:${db.revisions.isInTransaction()}`)
+      })
+      createDocumentVersion.mockImplementation(async () => {
+        // Version persistence may open a nested unit; it must still be inside
+        // the outer guarded unit that wrote the locales.
+        order.push(`version:${db.revisions.isInTransaction()}:outerOpen=${!outerSettled}`)
+        return { document: { id: 'ver-1', document_id: 'doc-1' }, fieldCount: 1 }
+      })
+      const definition = { ...minimalCollection, hooks: { afterSystemFieldsChange, afterUpdate } }
+
+      await updateDocumentWithPatches(buildCtx(db, definition), {
+        expectedRevision: 1,
+        documentId: 'doc-1',
+        patches: [{ kind: 'field.set', path: 'title', value: 'New' }],
+        availableLocales: ['en', 'fr'],
+      })
+
+      // Both writes run inside the same guarded unit of work, so the locale
+      // change and the new content version commit or roll back together.
+      expect(order).toEqual(['locales:true', 'version:true:outerOpen=true'])
+      expect(afterSystemFieldsChange).toHaveBeenCalledOnce()
+      expect(afterUpdate).toHaveBeenCalledOnce()
+    })
+
+    it('fails a combined save as a whole when the content version write fails', async () => {
+      const afterSystemFieldsChange = vi.fn()
+      const afterUpdate = vi.fn()
+      const {
+        db,
+        getDocumentById,
+        getDocumentSystemFieldsForUpdate,
+        createDocumentVersion,
+        auditAppend,
+      } = createMockDb()
+      getDocumentById.mockResolvedValue({
+        document_version_id: 'previous',
+        fields: { title: 'Old' },
+      })
+      getDocumentSystemFieldsForUpdate.mockResolvedValue({
+        path: 'doc',
+        source_locale: 'en',
+        availableLocales: ['en'],
+      })
+      createDocumentVersion.mockRejectedValue(new Error('version write failed'))
+      const auditInTransaction: boolean[] = []
+      auditAppend.mockImplementation(async () => {
+        auditInTransaction.push(db.revisions.isInTransaction())
+        return { id: 'audit-1' }
+      })
+      const definition = { ...minimalCollection, hooks: { afterSystemFieldsChange, afterUpdate } }
+
+      await expect(
+        updateDocumentWithPatches(buildCtx(db, definition), {
+          expectedRevision: 1,
+          documentId: 'doc-1',
+          patches: [{ kind: 'field.set', path: 'title', value: 'New' }],
+          availableLocales: ['en', 'fr'],
+        })
+      ).rejects.toThrow('version write failed')
+
+      // The locale write and its audit row ran inside the failed unit of work,
+      // which the adapter rolls back; no committed-change hook reports it.
+      expect(db.commands.documents.setDocumentAvailableLocales).toHaveBeenCalledOnce()
+      expect(auditInTransaction.every(Boolean)).toBe(true)
+      expect(afterSystemFieldsChange).not.toHaveBeenCalled()
+      expect(afterUpdate).not.toHaveBeenCalled()
+    })
+
     it('classifies a post-patch afterUpdate failure without replaying the version write', async () => {
       const afterUpdate = vi
         .fn()

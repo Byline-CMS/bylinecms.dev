@@ -26,6 +26,7 @@ import { getViewerBylineClient, isPreviewActive } from '@byline/client/server'
 import { buildPagePath } from '~/collections/pages/path'
 import { defaultContentLocale } from '~/public'
 
+import { withoutPreviewDiscovery } from '@/lib/alternates'
 import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
 import type { PageDetailsFields, PageDetailsInput, PageDetailsResult } from './details'
 
@@ -45,6 +46,7 @@ export async function getPagePath(path: string): Promise<string | null> {
           select: ['area'],
           locale: defaultContentLocale,
           status: preview ? 'any' : 'published',
+          localeVisibility: preview ? 'editorial' : 'public',
         })
       return doc == null ? null : buildPagePath(doc)
     },
@@ -59,15 +61,19 @@ export async function getPageDetails({ path, lng }: PageDetailsInput): Promise<P
     cacheKey: cacheKeys.details('pages', path, lng),
     tags: [tags.collection('pages'), tags.details('pages', path)],
     preview,
-    fn: () =>
-      client.collection('pages').findByPath<PageDetailsFields>(path, {
-        // A block's relation is only resolved if it is named here: an
-        // unnamed one arrives as a bare envelope and the block renders as
-        // nothing. Keep in step with the block set on this collection's
-        // `content` field.
-        populate: { featureImage: '*', photo: '*', video: '*', videoMobile: '*' },
-        locale: lng,
-        status: preview ? 'any' : 'published',
-      }),
+    fn: async () =>
+      withoutPreviewDiscovery(
+        await client.collection('pages').findByPath<PageDetailsFields>(path, {
+          // A block's relation is only resolved if it is named here: an
+          // unnamed one arrives as a bare envelope and the block renders as
+          // nothing. Keep in step with the block set on this collection's
+          // `content` field.
+          populate: { featureImage: '*', photo: '*', video: '*', videoMobile: '*' },
+          locale: lng,
+          status: preview ? 'any' : 'published',
+          localeVisibility: preview ? 'editorial' : 'public',
+        }),
+        preview
+      ),
   })
 }

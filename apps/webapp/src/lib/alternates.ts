@@ -63,6 +63,23 @@ export function advertisedLocalesFor(doc: {
   return editorial.filter((code) => complete.has(code))
 }
 
+/**
+ * Preview reads select the latest saved version under editorial visibility, so
+ * their completeness ledger can describe a draft. Public discovery (hreflang
+ * alternates and the available-language menu) must not present draft
+ * completeness as published availability, so preview results carry no
+ * advertised set: alternates are suppressed and canonical falls back to the
+ * source URL. Public reads pass through unchanged. Preview responses are
+ * private and bypass the shared cache, so the cleared ledger never reaches a
+ * public reader.
+ */
+export function withoutPreviewDiscovery<
+  T extends { _availableVersionLocales?: string[] | null } | null,
+>(doc: T, preview: boolean): T {
+  if (!preview || doc == null) return doc
+  return { ...doc, _availableVersionLocales: [] }
+}
+
 export interface AlternateOptions {
   /** Checked AND complete locales, from `advertisedLocalesFor`. */
   advertisedLocales?: readonly string[] | null
@@ -77,9 +94,9 @@ export interface AlternateOptions {
  * URL; every other request defers to the source document. The source remains
  * canonical-eligible even when no locales are advertised.
  *
- * This does not gate reads or describe the language actually served. A complete
- * but unchecked translation can still render until upstream delivery gating is
- * implemented; canonical is a preference, not an access or indexing barrier.
+ * This does not describe the language actually served: public reads already
+ * withhold unchecked translations (the source is served in their place), and
+ * canonical is a preference, not an access or indexing barrier.
  */
 export function resolveAlternates(
   { advertisedLocales, pathLocale, sourceLocale }: AlternateOptions,

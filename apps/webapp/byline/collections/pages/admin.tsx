@@ -10,8 +10,8 @@ import { DateTimeFormatter } from '@byline/admin/react'
 import { type CollectionAdminConfig, type ColumnDefinition, defineAdmin } from '@byline/core'
 
 import { SummaryLength } from '~/components/summary-length.js'
-import { i18n } from '~/i18n'
 
+import { buildLocalizedPath } from '@/lib/localized-path'
 import { aiTextFieldAdmin } from '../../fields/ai-text.js'
 import { aiTextAreaFieldAdmin } from '../../fields/ai-textarea.js'
 import { Pages } from './schema.js'
@@ -131,13 +131,18 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
   },
 
   /**
-   * Preview URL builder for live preview links. Adds the request-locale
+   * Preview URL builder for live preview links. Adds the content-locale
    * prefix on top of `Pages.buildDocumentPath` (the schema-side hook the
    * richtext embed walker also reads — same path composition on both
    * sides). When `preview.url` is omitted, the framework falls back to
    * `buildDocumentPath` automatically; we keep the explicit `url(...)`
    * here only because the prefix is request-scoped (the schema hook is
    * locale-agnostic by contract).
+   *
+   * `locale` is the content locale selected in the editor, and it is kept
+   * even when that translation is not advertised: preview is how an editor
+   * reviews an unchecked translation. The prefix follows the public routing
+   * rule (`buildLocalizedPath`), not the admin interface language.
    *
    * `doc.path` is the top-level slug (derived from `useAsPath`), not a
    * field. Direct relations are auto-populated by the edit view (depth
@@ -147,8 +152,7 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
     url: (doc, { locale }) => {
       const path = Pages.buildDocumentPath?.(doc, { collectionPath: Pages.path }) ?? null
       if (path == null) return null
-      const prefix = locale && locale !== i18n.admin.defaultLocale ? `/${locale}` : ''
-      return `${prefix}${path}`
+      return buildLocalizedPath(locale, path)
     },
   },
 

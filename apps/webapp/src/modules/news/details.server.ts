@@ -19,6 +19,7 @@
 
 import { getViewerBylineClient, isPreviewActive } from '@byline/client/server'
 
+import { withoutPreviewDiscovery } from '@/lib/alternates'
 import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
 import type { NewsDetailsFields, NewsDetailsInput, NewsDetailsResult } from './details'
 
@@ -30,11 +31,15 @@ export async function getNewsDetails({ path, lng }: NewsDetailsInput): Promise<N
     cacheKey: cacheKeys.details('news', path, lng),
     tags: [tags.collection('news'), tags.details('news', path)],
     preview,
-    fn: () =>
-      client.collection('news').findByPath<NewsDetailsFields>(path, {
-        populate: { category: '*', featureImage: '*' },
-        locale: lng,
-        status: preview ? 'any' : 'published',
-      }),
+    fn: async () =>
+      withoutPreviewDiscovery(
+        await client.collection('news').findByPath<NewsDetailsFields>(path, {
+          populate: { category: '*', featureImage: '*' },
+          locale: lng,
+          status: preview ? 'any' : 'published',
+          localeVisibility: preview ? 'editorial' : 'public',
+        }),
+        preview
+      ),
   })
 }

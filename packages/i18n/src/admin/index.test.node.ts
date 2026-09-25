@@ -79,6 +79,32 @@ describe('bundled locale data', () => {
     }
   })
 
+  it('translates the preview and advertised-locale delivery copy in every bundle', () => {
+    const keys = [
+      'chrome.preview.onTitle',
+      'chrome.preview.offTitle',
+      'collections.preview.title',
+      'availableLocalesWidget.srDescription',
+      'availableLocalesWidget.hint',
+      'availableLocalesWidget.sourceRowHint',
+      'forms.systemFieldsConfirm.bulletLocales',
+      'forms.systemFieldsConfirm.localesContentNote',
+    ] as const
+    const nonEnglishBundles = { fr, es, de, it: itBundle, 'zh-CN': zhCN, ko, th } as const
+
+    // The indicator describes withheld translations, not only drafts.
+    expect(en['chrome.preview.onTitle']).toContain('withheld')
+    // Preview shows saved content; unsaved form edits are not previewed.
+    expect(en['collections.preview.title']).toContain('Unsaved changes are not included')
+    for (const key of keys) {
+      expect(en[key].trim(), `${key} must be non-empty in en`).not.toBe('')
+      for (const [locale, bundle] of Object.entries(nonEnglishBundles)) {
+        expect(bundle[key].trim(), `${key} must be non-empty in ${locale}`).not.toBe('')
+        expect(bundle[key], `${key} must be translated in ${locale}`).not.toBe(en[key])
+      }
+    }
+  })
+
   it('parameterizes restore presentation by the workflow default status in every locale', () => {
     const bundles = { en, fr, es, de, it: itBundle, 'zh-CN': zhCN, ko, th } as const
     const statusKeys = [

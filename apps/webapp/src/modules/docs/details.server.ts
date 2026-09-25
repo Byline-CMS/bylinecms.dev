@@ -24,6 +24,7 @@
 
 import { getViewerBylineClient, isPreviewActive } from '@byline/client/server'
 
+import { withoutPreviewDiscovery } from '@/lib/alternates'
 import { cacheKeys, tags, withCache } from '@/lib/cache/with-cache'
 import { resolveDocTreeBySplat } from './resolve.server'
 import type { DocDetailsFields, DocSplatInput, DocSplatResult } from './details'
@@ -47,17 +48,22 @@ export async function getDocBySplat({ splat, lng }: DocSplatInput): Promise<DocS
     cacheKey: cacheKeys.details('docs', leaf, lng),
     tags: [tags.collection('docs'), tags.details('docs', leaf)],
     preview,
-    fn: () =>
-      resolveDocTreeBySplat<DocDetailsFields>(client.collection('docs'), {
+    fn: async () => {
+      const resolution = await resolveDocTreeBySplat<DocDetailsFields>(client.collection('docs'), {
         splat,
         locale: lng,
         status: preview ? 'any' : 'published',
+        localeVisibility: preview ? 'editorial' : 'public',
         enforceSpine: !preview,
         // A block's relation is only resolved if it is named here: an
         // unnamed one arrives as a bare envelope and the block renders as
         // nothing. Keep in step with the block set on this collection's
         // `content` field.
         populate: { featureImage: '*', photo: '*', video: '*', videoMobile: '*' },
-      }),
+      })
+      return resolution == null
+        ? null
+        : { ...resolution, doc: withoutPreviewDiscovery(resolution.doc, preview) }
+    },
   })
 }

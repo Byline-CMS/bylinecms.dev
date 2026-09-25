@@ -46,6 +46,7 @@ export async function getNewsList(data: ResolvedNewsListInput): Promise<NewsList
         pageSize: data.pageSize,
         locale: data.lng,
         status: preview ? 'any' : 'published',
+        localeVisibility: preview ? 'editorial' : 'public',
       }),
   })
 }

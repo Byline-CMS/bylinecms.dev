@@ -54,7 +54,11 @@ export const UnsavedChangesModal = ({ onClose }: { onClose: () => void }) => {
  * Confirms an immediate, non-versioned write of the document-grain system
  * fields (path / advertised locales) — which does NOT reset workflow status.
  * When content is also dirty, the copy reassures that content edits still
- * follow the normal revision + publish workflow. See docs/08-internationalization/index.md.
+ * follow the normal revision + publish workflow, and, for a locale change,
+ * explains that locale and content changes commit together (one guarded
+ * transaction, so a failed save applies neither), that an already-published
+ * checked translation becomes public once saved, and that a draft-only
+ * translation stays withheld until it is published. See docs/08-internationalization/index.md.
  */
 export const SystemFieldsConfirmModal = ({
   contentDirty,
@@ -90,6 +94,13 @@ export const SystemFieldsConfirmModal = ({
           {contentDirty && (
             <p className={cx('byline-form-system-fields-content-note', 'm-0 mt-2')}>
               {t('forms.systemFieldsConfirm.contentNote')}
+            </p>
+          )}
+          {/* Locale and content changes commit together. Say what the locale
+              change does to public delivery once the save succeeds. */}
+          {contentDirty && availableLocalesDirty && (
+            <p className={cx('byline-form-system-fields-locales-note', 'm-0 mt-2')}>
+              {t('forms.systemFieldsConfirm.localesContentNote')}
             </p>
           )}
           <p

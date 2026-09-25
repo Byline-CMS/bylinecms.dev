@@ -84,6 +84,10 @@ export function PreviewToggle({ compact }: PreviewToggleProps) {
   if (preview == null) return null
 
   const label = preview ? t('chrome.preview.on') : t('chrome.preview.off')
+  // What the public site shows in each state: preview adds saved drafts and
+  // complete translations that public delivery withholds because they are
+  // unchecked. Incomplete translations still fall back in preview.
+  const description = preview ? t('chrome.preview.onTitle') : t('chrome.preview.offTitle')
   const icon = preview ? (
     <EyeOpenIcon width="20px" height="20px" />
   ) : (
@@ -102,12 +106,10 @@ export function PreviewToggle({ compact }: PreviewToggleProps) {
         }
         // Native title for the expanded state; in compact mode the styled
         // Tooltip below takes over so the two don't fire at once.
-        title={
-          compact ? undefined : preview ? t('chrome.preview.onTitle') : t('chrome.preview.offTitle')
-        }
+        title={compact ? undefined : description}
       >
         {compact ? (
-          <Tooltip text={label} side="right" delay={0}>
+          <Tooltip text={`${label} · ${description}`} side="right" delay={0}>
             {iconSpan}
           </Tooltip>
         ) : (

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { i18nConfig } from '@/i18n/i18n-config'
-import { advertisedLocalesFor, resolveAlternates } from '@/lib/alternates'
+import { advertisedLocalesFor, resolveAlternates, withoutPreviewDiscovery } from '@/lib/alternates'
 import { generateLlmsTxt } from '@/lib/llms'
 import { getMeta } from '@/lib/meta'
 import { generateSitemap, getStaticSitemap } from '@/lib/sitemap'
@@ -164,5 +164,43 @@ describe('editorial canonical policy', () => {
     const xml = generateSitemap(await getStaticSitemap(), 'https://example.com')
     expect(xml).toContain('<loc>https://example.com/docs</loc>')
     expect(xml).not.toContain('<loc>https://example.com/de/docs</loc>')
+  })
+})
+
+describe('preview discovery', () => {
+  // A preview read of the latest draft: Spanish is checked, and complete only
+  // in the draft. The published version has no complete Spanish.
+  const draft = {
+    id: 'doc-1',
+    availableLocales: ['en', 'es'],
+    _availableVersionLocales: ['en', 'es'],
+    fields: { title: 'Borrador' },
+  }
+
+  it('advertises nothing from a preview read, so draft completeness is never public', () => {
+    const previewed = withoutPreviewDiscovery(draft, true)
+    expect(advertisedLocalesFor(previewed)).toEqual([])
+
+    const { canonical, alternates, xDefaultPath } = resolveAlternates(
+      { advertisedLocales: advertisedLocalesFor(previewed), pathLocale: 'es', sourceLocale: 'en' },
+      'news',
+      'launch'
+    )
+    expect(alternates).toEqual([])
+    expect(canonical).toBe('/news/launch')
+    expect(xDefaultPath).toBe('/news/launch')
+  })
+
+  it('keeps the served content and does not mutate the read result', () => {
+    const previewed = withoutPreviewDiscovery(draft, true)
+    expect(previewed.fields).toBe(draft.fields)
+    expect(previewed.availableLocales).toEqual(['en', 'es'])
+    expect(draft._availableVersionLocales).toEqual(['en', 'es'])
+  })
+
+  it('passes public reads and missing documents through unchanged', () => {
+    expect(withoutPreviewDiscovery(draft, false)).toBe(draft)
+    expect(advertisedLocalesFor(withoutPreviewDiscovery(draft, false))).toEqual(['en', 'es'])
+    expect(withoutPreviewDiscovery(null, true)).toBeNull()
   })
 })
