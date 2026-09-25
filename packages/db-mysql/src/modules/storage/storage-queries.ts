@@ -39,6 +39,7 @@ import type {
   ReadMode,
   RelationFilter,
   UnifiedFieldValue,
+  VersionLocaleLedger,
 } from '@byline/core'
 import {
   ERR_DATABASE,
@@ -47,6 +48,7 @@ import {
   getLogger,
   orderByContentLocale,
   resolveIdentityField,
+  resolveLocaleFromLedger,
   resolveStoreTypes,
   restoreFieldSetData,
 } from '@byline/core'
@@ -597,7 +599,8 @@ export class DocumentQueries implements IDocumentQueries {
     metaRows?: MetaRow[],
     lenient = false,
     onMissingLocale?: MissingLocalePolicy,
-    sourceLocale?: string | null
+    sourceLocale?: string | null,
+    ledger?: VersionLocaleLedger
   ): { fields: any; warnings: string[] } {
     const flattenedData: FlattenedFieldValue[] = unifiedFieldValues.map((row) =>
       extractFlattenedFieldValue(row)
@@ -615,12 +618,21 @@ export class DocumentQueries implements IDocumentQueries {
       }
     }
 
-    const resolveLocale =
-      locale === 'all'
-        ? undefined
-        : onMissingLocale === 'fallback'
-          ? this.resolveEffectiveLocale(flattenedData, this.buildLocaleChain(locale, sourceLocale))
-          : locale
+    // Under `'fallback'` the effective locale comes from the version's
+    // completeness ledger, which covers every store table, so a projected read
+    // decides exactly as a full read would. A version with no ledger rows
+    // (written before the ledger and not yet backfilled) falls back to deriving
+    // coverage from the loaded rows. See the pg adapter for the full rationale.
+    let resolveLocale: string | undefined
+    if (locale === 'all') {
+      resolveLocale = undefined
+    } else if (onMissingLocale === 'fallback') {
+      const chain = this.buildLocaleChain(locale, sourceLocale)
+      resolveLocale =
+        resolveLocaleFromLedger(chain, ledger) ?? this.resolveEffectiveLocale(flattenedData, chain)
+    } else {
+      resolveLocale = locale
+    }
     const { data, warnings } = restoreFieldSetData(definition.fields, flattenedData, resolveLocale)
 
     if (!lenient && warnings.length > 0) {
@@ -797,6 +809,7 @@ export class DocumentQueries implements IDocumentQueries {
         .from(metaStore)
         .where(eq(metaStore.document_version_id, document.id))
 
+      const availability = (await this.getAvailableLocalesByVersion([document.id])).get(document.id)
       const { fields, warnings } = this.reconstructFromUnifiedRows(
         unifiedFieldValues,
         definition,
@@ -804,10 +817,9 @@ export class DocumentQueries implements IDocumentQueries {
         metaRows as MetaRow[],
         lenient,
         onMissingLocale,
-        document.source_locale
+        document.source_locale,
+        availability
       )
-
-      const availability = (await this.getAvailableLocalesByVersion([document.id])).get(document.id)
       const advertised = (await this.getAdvertisedLocalesByDocument([document.document_id])).get(
         document.document_id
       )
@@ -915,6 +927,7 @@ export class DocumentQueries implements IDocumentQueries {
         .from(metaStore)
         .where(eq(metaStore.document_version_id, document.id))
 
+      const availability = (await this.getAvailableLocalesByVersion([document.id])).get(document.id)
       const { fields } = this.reconstructFromUnifiedRows(
         unifiedFieldValues,
         definition,
@@ -922,10 +935,9 @@ export class DocumentQueries implements IDocumentQueries {
         metaRows as MetaRow[],
         false,
         onMissingLocale,
-        document.source_locale
+        document.source_locale,
+        availability
       )
-
-      const availability = (await this.getAvailableLocalesByVersion([document.id])).get(document.id)
       const advertised = (await this.getAdvertisedLocalesByDocument([document.document_id])).get(
         document.document_id
       )
@@ -1766,14 +1778,27 @@ export class DocumentQueries implements IDocumentQueries {
     locale = 'all',
     fields: requestedFields,
     onMissingLocale,
+    ledgers,
   }: {
     documents: Document[]
     locale?: string
     fields?: string[]
     onMissingLocale?: MissingLocalePolicy
+    /**
+     * Completeness ledgers keyed by version id, when the caller has already
+     * fetched them. Under `'fallback'` they are fetched here (one batched
+     * query) if omitted, so the effective locale never depends on which store
+     * tables a projection loaded.
+     */
+    ledgers?: Map<string, VersionLocaleLedger>
   }): Promise<any[]> {
     if (docs.length === 0) return []
     const versionIds = docs.map((v) => v.id)
+    const versionLedgers =
+      ledgers ??
+      (onMissingLocale === 'fallback' && locale !== 'all'
+        ? await this.getAvailableLocalesByVersion(versionIds)
+        : undefined)
 
     // Resolve definition once for the batch (safe — early return above guarantees length > 0)
     const firstDoc = docs[0]!
@@ -1847,7 +1872,8 @@ export class DocumentQueries implements IDocumentQueries {
         docMetaRows,
         false,
         onMissingLocale,
-        doc.source_locale
+        doc.source_locale,
+        versionLedgers?.get(doc.id)
       )
 
       // When specific fields were requested, trim the reconstructed object
@@ -2195,19 +2221,19 @@ export class DocumentQueries implements IDocumentQueries {
       source_locale: (row.source_locale as string | null) ?? null,
     }))
 
+    // The version-locale availability for the whole page (one batched
+    // indexed query). It selects each row's effective locale under
+    // `'fallback'` and is attached per row below so list consumers can render
+    // language affordances / hreflang without a follow-up fetch.
+    const availability = await this.getAvailableLocalesByVersion(currentDocuments.map((d) => d.id))
     const documents = await this.reconstructDocuments({
       documents: currentDocuments,
       locale,
       fields: requestedFields,
       onMissingLocale,
+      ledgers: availability,
     })
 
-    // Attach the version-locale availability metadata per row (one batched
-    // indexed query for the whole page) so list consumers can render
-    // language affordances / hreflang without a follow-up fetch.
-    const availability = await this.getAvailableLocalesByVersion(
-      documents.map((d) => d.document_version_id)
-    )
     const advertised = await this.getAdvertisedLocalesByDocument(
       documents.map((d) => d.document_id)
     )

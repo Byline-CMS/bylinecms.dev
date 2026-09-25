@@ -20,6 +20,7 @@ export {
   fieldTypeToStoreType,
   type StoreType,
 } from './field-store-map.js'
+export { resolveLocaleFromLedger, type VersionLocaleLedger } from './locale-resolution.js'
 export { flattenFieldSetData } from './storage-flatten.js'
 export {
   extractFlattenedFieldValue,

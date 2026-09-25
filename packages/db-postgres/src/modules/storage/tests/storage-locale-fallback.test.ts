@@ -47,6 +47,9 @@ const LocaleCollectionConfig: CollectionDefinition = {
   fields: [
     { name: 'title', type: 'text', localized: true, optional: true },
     { name: 'body', type: 'textArea', localized: true, optional: true },
+    // A localized field in a different store (JSON) from title/body (text), so
+    // a title-only projection cannot see whether it is translated.
+    { name: 'summary', type: 'richText', localized: true, optional: true },
     { name: 'sku', type: 'text', optional: true },
   ],
 }
@@ -402,6 +405,34 @@ describe('content-locale resolution — source_locale internals (Postgres)', () 
       pageSize: 200,
     })
     expect(documents.find((d) => d.document_id === id)?.fields.title).toBe('Hello')
+  })
+
+  it('a projected list under a changed default falls back to the document source, not the default', async () => {
+    // Source 'en' (authored under the en default). French is translated in the
+    // text store but not in the JSON-store summary, so French is incomplete.
+    const richText = (text: string) => ({
+      root: { type: 'root', children: [{ type: 'text', text }] },
+    })
+    const id = await createDoc({
+      title: { en: 'Projected EN', fr: 'Projected FR' },
+      body: { en: 'Body EN', fr: 'Body FR' },
+      summary: { en: richText('Summary EN') },
+      sku: 'PJ1',
+    })
+
+    // The installation default is now 'fr', which differs from the source.
+    const frQueries = createQueryBuilders(db, [LocaleCollectionConfig], 'fr', dbManager)
+    const { documents } = await frQueries.documents.findDocuments({
+      collection_id: testCollection.id,
+      locale: 'fr',
+      onMissingLocale: 'fallback',
+      fields: ['title'],
+      pageSize: 200,
+    })
+
+    // The chain is [fr, en]: French is incomplete in the ledger, so the read
+    // resolves to the source 'en', even though only the text store was loaded.
+    expect(documents.find((d) => d.document_id === id)?.fields.title).toBe('Projected EN')
   })
 
   // --- re-anchor (Slice 5) -------------------------------------------------
