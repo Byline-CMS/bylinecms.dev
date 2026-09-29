@@ -1,5 +1,14 @@
 # @byline/db-mysql
 
+## 6.7.1
+
+### Patch Changes
+
+- fixed **`@byline/client`** public searches returning a page-local `total` and dropping provider facets, a 6.7.0 regression that broke search pagination and facet counts
+- Updated dependencies
+  - @byline/admin@6.7.1
+  - @byline/core@6.7.1
+
 ## 6.7.0
 
 ### Minor Changes
