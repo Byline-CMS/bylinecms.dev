@@ -358,11 +358,13 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
    * hits into shaped `ClientDocument`s in their own locale (no source
    * substitution) and attaches them as `hit.document`. Consequences:
    *
-   *   - for every public search, and under row scoping, `total` is the
-   *     surviving hit count for this page and facets are omitted rather than
-   *     leaking provider-wide aggregates;
-   *   - only an editorial search (`status: 'any'`) with no `beforeRead` hook
-   *     passes the provider `total` and facets through unchanged;
+   *   - under `beforeRead` row scoping, `total` is the surviving hit count
+   *     for this page and facets are omitted rather than leaking
+   *     provider-wide aggregates of rows this actor can't see;
+   *   - otherwise — including every unscoped public search — the provider
+   *     `total` and facets pass through unchanged (public locale eligibility
+   *     is actor-independent and applied at indexing, so a hit the re-check
+   *     drops is a stale index entry, logged at warn level);
    *   - a page of hits can come back shorter than `limit` when candidates
    *     are dropped; paginate on `offset`, not on received length.
    *
@@ -403,10 +405,12 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
 
     // Row-level authorization, exact-locale eligibility (+ optional
     // hydration) — the shared finishing pipeline the zone entry point uses
-    // too. Public searches always re-check every hit and always follow the
-    // restricted-result convention; only an editorial search without a
-    // beforeRead predicate or hydration passes hits through untouched.
-    const { hits, eligibilityRestricted } = await finalizeSearchHits({
+    // too. Public searches re-check every hit; an editorial search without a
+    // beforeRead predicate or hydration passes hits through untouched. Only
+    // actor-specific restriction (beforeRead) replaces the provider
+    // aggregate — public locale eligibility is actor-independent and already
+    // applied at indexing, so provider total and facets pass through.
+    const hits = await finalizeSearchHits({
       client: this.client,
       requestContext,
       hits: results.hits,
@@ -417,7 +421,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       localeVisibility: resolveLocaleVisibility(readMode),
       readContext: readCtx,
     })
-    return aggregateRestricted || eligibilityRestricted
+    return aggregateRestricted
       ? { hits, total: hits.length }
       : { hits, total: results.total, facets: results.facets }
   }

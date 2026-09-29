@@ -11,9 +11,11 @@
  * slices (the source, or a checked and complete translation) and never a
  * fallback copy under a translated locale. At query time every public hit is
  * re-checked for exact-locale eligibility, so an index entry that outlived a
- * withdrawn checkbox is dropped whole (title and highlights with it), and the
- * restricted-result convention applies: `total` is the retained-hit count and
- * provider facets are omitted.
+ * withdrawn checkbox is dropped whole (title and highlights with it). Public
+ * eligibility is actor-independent and applied at indexing, so the provider's
+ * `total` and facets pass through; only actor-specific restriction
+ * (`beforeRead`, unreadable zone members) follows the restricted-result
+ * convention.
  */
 
 import { createSuperAdminContext } from '@byline/auth'
@@ -237,9 +239,9 @@ describe('query-time eligibility drops stale hits (S2, S3)', () => {
     it('drops the whole hit from collection search, without hydration or a hook', async () => {
       const results = await articles().search({ query: 'vinedo', locale: 'es' })
       expect(ids(results.hits)).not.toContain(stale)
-      // Restricted-result convention: retained-hit total, no provider facets.
-      expect(results.total).toBe(results.hits.length)
-      expect(results.facets).toBeUndefined()
+      // No actor-specific restriction: the provider total passes through
+      // (it still counts the stale slice until reindexing catches up).
+      expect(results.total).toBe(1)
     })
 
     it('drops it from hydrated search too, never substituting the source', async () => {
@@ -259,8 +261,7 @@ describe('query-time eligibility drops stale hits (S2, S3)', () => {
     it('drops it from zone search', async () => {
       const results = await client.search({ query: 'vinedo', zone, locale: 'es' })
       expect(ids(results.hits)).not.toContain(stale)
-      expect(results.total).toBe(results.hits.length)
-      expect(results.facets).toBeUndefined()
+      expect(results.total).toBe(1)
     })
 
     it('a provider page made only of stale hits comes back short, not refilled', async () => {
@@ -271,7 +272,7 @@ describe('query-time eligibility drops stale hits (S2, S3)', () => {
         offset: 0,
       })
       expect(results.hits).toEqual([])
-      expect(results.total).toBe(0)
+      expect(results.total).toBe(1)
     })
 
     it('reindexing restores index consistency', async () => {
@@ -283,11 +284,13 @@ describe('query-time eligibility drops stale hits (S2, S3)', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Public aggregates follow the restricted convention whenever the policy
-// applies (F1): a page-only check cannot certify provider totals or facets.
+// Public aggregates pass through. Locale eligibility is the same for every
+// reader and is applied when the index is built, so the provider's total and
+// facets already are the public aggregate (6.7.0 regression: they were
+// replaced by a page-local count with no facets for every public search).
 // ---------------------------------------------------------------------------
 
-describe('public aggregates are restricted whenever the eligibility policy applies', () => {
+describe('public search passes the provider aggregate through', () => {
   let eligibleId: string
   let stubClient: BylineClient
   let next: SearchResults
@@ -318,7 +321,13 @@ describe('public aggregates are restricted whenever the eligibility policy appli
     path: null,
     score: 1,
   })
-  const facets = { topic: [{ value: 'stale-bucket', count: 2 }] }
+  const facets = {
+    topic: [
+      { value: 'vineyards', count: 17 },
+      { value: 'hotels', count: 4 },
+    ],
+    format: [{ value: 'report', count: 12 }],
+  }
 
   it.each([
     [
@@ -327,13 +336,13 @@ describe('public aggregates are restricted whenever the eligibility policy appli
     ],
     ['zone', () => stubClient.search({ query: 'stub', zone, locale: 'en' })],
   ] as const)(
-    '%s search: an empty offset page does not expose a stale match counted elsewhere',
+    '%s search: a facet-only probe (empty page) returns the provider total and facets',
     async (_name, run) => {
-      next = { hits: [], total: 1, facets }
+      next = { hits: [], total: 271, facets }
       const results = await run()
       expect(results.hits).toEqual([])
-      expect(results.total).toBe(0)
-      expect(results.facets).toBeUndefined()
+      expect(results.total).toBe(271)
+      expect(results.facets).toEqual(facets)
     }
   )
 
@@ -344,13 +353,13 @@ describe('public aggregates are restricted whenever the eligibility policy appli
     ],
     ['zone', () => stubClient.search({ query: 'stub', zone, locale: 'en' })],
   ] as const)(
-    '%s search: an all-eligible page does not pass through the provider aggregate',
+    '%s search: an eligible page passes through the provider total and facets',
     async (_name, run) => {
-      next = { hits: [eligibleHit()], total: 2, facets }
+      next = { hits: [eligibleHit()], total: 25, facets }
       const results = await run()
       expect(results.hits.map((h) => h.documentId)).toEqual([eligibleId])
-      expect(results.total).toBe(1)
-      expect(results.facets).toBeUndefined()
+      expect(results.total).toBe(25)
+      expect(results.facets).toEqual(facets)
     }
   )
 
@@ -362,4 +371,26 @@ describe('public aggregates are restricted whenever the eligibility policy appli
     expect(results.total).toBe(2)
     expect(results.facets).toEqual(facets)
   })
+  it.each([
+    ['collection', (c: BylineClient) => c.collection(Articles.path).search({ query: 'stub' })],
+    ['zone', (c: BylineClient) => c.search({ query: 'stub', zone })],
+  ] as const)(
+    '%s search: an actor-specific beforeRead restriction keeps the restricted convention',
+    async (_name, run) => {
+      // Row scoping is per reader, so the provider aggregate would count rows
+      // this reader can't see: retained-hit total, no provider facets.
+      const scopedClient = createBylineClient({
+        db: ctx.db,
+        collections: [{ ...Articles, hooks: { beforeRead: () => ({ title: 'Stub Hotel' }) } }],
+        requestContext: createSuperAdminContext({ id: 'locale-search-stub-scoped' }),
+        search: stubClient.searchProvider as SearchProvider,
+        contentLocales: ['en', 'es'],
+      })
+      next = { hits: [eligibleHit()], total: 25, facets }
+      const results = await run(scopedClient)
+      expect(results.hits.map((h) => h.documentId)).toEqual([eligibleId])
+      expect(results.total).toBe(1)
+      expect(results.facets).toBeUndefined()
+    }
+  )
 })

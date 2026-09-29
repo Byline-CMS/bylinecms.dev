@@ -18,6 +18,15 @@
  * into shaped `ClientDocument`s in the same query. Under `'public'` locale
  * visibility every hit is also re-checked for exact-locale eligibility, so a
  * stale index entry for a withheld translation is dropped whole.
+ *
+ * Aggregates: the provider's `total` and facets pass through unless an
+ * *actor-specific* restriction applies (a `beforeRead` predicate, or zone
+ * members the actor cannot read) — then the restricted-result convention
+ * (retained-hit `total`, no facets) prevents leaking counts of rows this
+ * reader can't see. Public locale eligibility is actor-independent and is
+ * the same rule indexing applies, so the provider aggregate already is the
+ * public aggregate; a stale entry the re-check drops is an index-maintenance
+ * lag, logged at warn level, not a reason to degrade the response.
  */
 
 import type { RequestContext } from '@byline/auth'
@@ -87,22 +96,6 @@ export interface FinalizeSearchHitsParams {
   readContext?: ReadContext
 }
 
-/** Finished hits, plus whether a post-ranking eligibility policy applied. */
-export interface FinalizedSearchHits {
-  hits: HydratedSearchHit[]
-  /**
-   * `true` whenever the public exact-locale eligibility policy applies — that
-   * is, for every `'public'` search, including an empty page. The provider's
-   * `total` and facets count its whole index, which can hold slices the
-   * policy would reject on other pages, so a page-only check cannot certify
-   * them. The caller follows the restricted-result convention (retained-hit
-   * `total`, no provider facets), exactly as for `beforeRead` row scoping,
-   * which also restricts on the presence of the policy, not on an observed
-   * removal.
-   */
-  eligibilityRestricted: boolean
-}
-
 /**
  * Authorise (and optionally hydrate) provider hits, per collection:
  *
@@ -132,7 +125,7 @@ export interface FinalizedSearchHits {
  */
 export async function finalizeSearchHits(
   params: FinalizeSearchHitsParams
-): Promise<FinalizedSearchHits> {
+): Promise<HydratedSearchHit[]> {
   const {
     client,
     requestContext,
@@ -143,8 +136,7 @@ export async function finalizeSearchHits(
     bypassBeforeRead,
     localeVisibility,
   } = params
-  const eligibilityRestricted = localeVisibility === 'public'
-  if (hits.length === 0) return { hits, eligibilityRestricted }
+  if (hits.length === 0) return hits
   const readCtx = params.readContext ?? createReadContext()
 
   // Group hit ids by collection, preserving overall ranking order for the
@@ -205,6 +197,13 @@ export async function finalizeSearchHits(
         collectionPath,
         new Map(result.docs.map((d) => [d.id, d as ClientDocument]))
       )
+      await warnOnStaleHits(
+        params,
+        readCtx,
+        collectionPath,
+        group,
+        new Set(result.docs.map((d) => d.id))
+      )
       continue
     }
 
@@ -223,7 +222,9 @@ export async function finalizeSearchHits(
         _readContext: readCtx,
         ...(bypassBeforeRead ? { _bypassBeforeRead: true as const } : {}),
       })
-      allowedByCollection.set(collectionPath, new Set(result.docs.map((d) => d.id)))
+      const allowed = new Set(result.docs.map((d) => d.id))
+      allowedByCollection.set(collectionPath, allowed)
+      await warnOnStaleHits(params, readCtx, collectionPath, group, allowed)
       continue
     }
 
@@ -274,7 +275,40 @@ export async function finalizeSearchHits(
       finished.push(hit)
     }
   }
-  return { hits: finished, eligibilityRestricted }
+  return finished
+}
+
+/**
+ * Warn about hits the re-check dropped for a reason other than `beforeRead`
+ * scoping — a stale index entry (deleted document, withdrawn translation,
+ * unpublished version) that index maintenance hasn't caught up with yet.
+ * Drops under an active `beforeRead` predicate are expected and not logged.
+ */
+async function warnOnStaleHits(
+  params: FinalizeSearchHitsParams,
+  readCtx: ReadContext,
+  collectionPath: string,
+  group: SearchHit[],
+  resolved: Set<string>
+): Promise<void> {
+  const dropped = group.filter((h) => !resolved.has(h.documentId))
+  if (dropped.length === 0) return
+  const { client, requestContext, bypassBeforeRead } = params
+  if (!bypassBeforeRead) {
+    const definition = client.collections.find((c) => c.path === collectionPath)
+    const filters =
+      definition == null
+        ? null
+        : await resolveReadSecurityFilters(client, definition, requestContext, readCtx)
+    if (filters != null) return
+  }
+  client.logger.warn(
+    {
+      collectionPath,
+      dropped: dropped.map((h) => ({ documentId: h.documentId, locale: h.locale })),
+    },
+    'search: dropped index entries that no longer resolve for this read; reindex the affected documents'
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -370,7 +404,7 @@ export async function zoneSearch(
 
   // Constrain to readable member collections, then authorise / hydrate.
   const scoped = results.hits.filter((h) => readable.has(h.collectionPath))
-  const { hits, eligibilityRestricted } = await finalizeSearchHits({
+  const hits = await finalizeSearchHits({
     client,
     requestContext,
     hits: scoped,
@@ -382,7 +416,7 @@ export async function zoneSearch(
     readContext: readCtx,
   })
 
-  return aggregateRestricted || eligibilityRestricted
+  return aggregateRestricted
     ? { hits, total: hits.length }
     : { hits, total: results.total, facets: results.facets }
 }
