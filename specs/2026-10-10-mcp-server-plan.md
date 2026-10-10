@@ -16,6 +16,7 @@ Companions:
 - [Scheduled publication](../docs/11-scheduling/02-scheduled-publication.md) defines reviewed-version scheduling and retained authorization.
 - [Auditability](../docs/07-auth-and-security/02-auditability.md) describes version and document audit records.
 - [Search API](../docs/06-search/03-search-api.md) describes ranked search, authorization after ranking, and index limits.
+- [Passkey implementation plan](./2026-09-10-passkeys-phase-1-plan.md#shared-authentication-decisions) records the shared account-security revocation policy and separates native proof from delegated consent.
 
 Date: 2026-10-10. Status: reviewed plan, ready for phase 1; implementation contracts remain subject to its compatibility proofs. Repository baseline: `44ff4d56`.
 
@@ -158,6 +159,34 @@ Keep the real persisted user ID as the acting identity. Add authenticated connec
 
 Existing scheduled-publication semantics need explicit disclosure: revoking an account or connection does not automatically cancel a schedule whose authorization was previously captured. Preserve that lifecycle policy and provide schedule inspection/cancellation; do not imply OAuth revocation retracts an already authorized publication.
 
+## Shared authentication decisions
+
+The [shared policy in the passkey plan](./2026-09-10-passkeys-phase-1-plan.md#revocation-policy) defines which account events invalidate native and delegated access. MCP implements the delegated side independently: password change/reset, passkey removal, account disablement/deletion, and an explicit account-wide security reset invalidate existing grants and access/refresh authority. Ordinary browser logout leaves completed grants intact; enrollment and rename also preserve them. Revoking one connection leaves native sessions and credentials intact. Account re-enablement must not reactivate old grants. Previously authorized publication schedules retain their existing separate cancellation policy.
+
+### Delegated revocation enforcement
+
+Persist the account-security generation at grant authorization and compare it with current account state during bearer validation and refresh, as well as authorization-code exchange. Native `session_version` is the existing candidate; phase 1 must confirm its event semantics or specify an equivalent persisted generation without changing login-scoped logout. Treat a mismatch as revoked authority requiring fresh authentication and consent. Never update an old grant to the current generation during refresh. Account availability and connection revocation are additional checks, not alternatives to generation validation.
+
+`resolveActor()` supplies enabled-account identity and current abilities; it does not prove that an OAuth grant remains valid after a security event. Likewise, a valid issuer signature and unexpired token do not override Byline's current grant and account-security state. Enforce the local gate on every request across instances, including with an external authorization server, and fail closed when the authoritative state cannot be checked. A provider that could otherwise refresh an obsolete token must not restore its Byline authority.
+
+Bind code/grant issuance to the account generation and recheck it under the appropriate account transaction/lock boundary. A concurrent reset or credential removal must either precede and reject issuance, or follow it and invalidate the resulting authority. Use persisted checks for correctness; asynchronous revocation notifications and cleanup are operational supplements. Normal browser-session expiry or logout must not invalidate a completed connection merely because its grant records the originating login for audit.
+
+### Fresh consent and account binding
+
+Require fresh authentication when establishing a connection or expanding its grant, including adding collections or publication management. In the native flow, use password proof or an enrolled passkey when available; MCP may ship with password proof before passkeys. An external provider integration must prove equivalent freshness and account binding. Neither an existing browser session nor an ordinary token refresh counts as fresh proof.
+
+Reuse the [passkey plan's private proof-verification boundary](./2026-09-10-passkeys-phase-1-plan.md#fresh-authentication-and-consent-identity) if implemented, while issuing a distinct, single-use OAuth-consent authorization with a maximum five-minute lifetime. Bind it to the account, current login, account generation, OAuth client, authorization request, resource, and exact requested scopes/collection restrictions. Keep normal OAuth redirect and PKCE validation in addition to this binding. Passkey enrollment/removal grants cannot be exchanged for OAuth consent, and OAuth consent cannot authorize credential management. No generic user-ID-only login/token issuance path is introduced.
+
+Display the account, client, and requested access during consent. At completion, recheck the bound login, generation, current abilities, and requested grant before atomically consuming consent authorization. If the browser has changed accounts or the login was revoked, reject the pending attempt and require a new one. Do not silently substitute the newly signed-in account. Pending consent/code authority must not survive its bound security invalidation, even though completed connections are independent of ordinary browser logout.
+
+Content grants exclude `admin.users.managePasskeys`, password-management abilities, and credential-management tools. The scoped actor retains `isSuperAdmin: false` regardless of the sign-in method. Passkeys strengthen identity proof; they do not authorize additional content operations or neutralize prompt injection.
+
+### Separate delivery
+
+MCP owns OAuth provider selection, consent, delegated-grant persistence, token validation, and the enforcement/tests above. The passkey plan owns native WebAuthn ceremonies, credential management, and native session lifecycle changes. Do not require MCP packages or OAuth persistence in the passkey implementation, or make MCP wait for passkey support. Share narrow proof/account-security boundaries when available; keep grants, migrations, endpoints, and phase gates owned by their respective feature.
+
+Before both features exist, test generation invalidation and proof-purpose separation with fixtures or test doubles. When the second feature integrates, add combined tests for credential removal invalidating a live connection, account-switching during consent, and ordinary logout preserving a completed connection. Neither standalone implementation requires the other one's end-to-end acceptance to ship.
+
 ## Proposed tool contract
 
 Use a small collection-parameterized surface. Tool names below are draft names, subject to the contract review in phase 1.
@@ -295,7 +324,7 @@ Respect source-locale creation requirements, explicit translation updates, and a
 | Phase | Deliverable | Completion checkpoint |
 |---|---|---|
 | 1. Contract, registration, and host proof | Select one available desktop client as the pilot gate. Prove the authorization-server and CIMD/pre-registration strategy, pin SDK/protocol/runtime support, and settle shared operations, descriptors, tool contracts, and scoped configuration. Mount a stateless development endpoint using authenticated test fixtures. | Inspector and the selected client exercise discovery and bounded reads under the selected protocol revision. A registration proof identifies an embedded implementation or external provider; no production write endpoint is enabled. |
-| 2. Identity and create retry protection | Implement the selected OAuth integration, draft-only default consent, grant revocation, fresh scoped `AdminAuth`, audit provenance, and create-only key persistence in the create transaction. | Tests prove permission restriction, current-account enforcement, one document per create key across instances, and recovery after a lost creation response. No general mutation receipt store is required. |
+| 2. Identity and create retry protection | Implement the selected OAuth integration, fresh purpose-bound consent, draft-only default access, account-generation and connection revocation, fresh scoped `AdminAuth`, audit provenance, and create-only key persistence in the create transaction. | Tests prove consent account binding, shared revocation policy, permission restriction, one document per create key across instances, and recovery after a lost creation response. Password-based proof can satisfy the native pilot; passkey implementation and a general mutation receipt store are not prerequisites. |
 | 3. Byline authoring, publication, and retraction | Implement discovery, separate published/editable reads, guarded top-level field merge, non-public transitions, publication, and unpublish for one real collection. Add content-data labeling, tool annotations, and document-based injection scenarios. | The selected desktop client completes the pilot, including omitted-field preservation, conflicts, read-back recovery, prompt-injection handling, and a draft-only grant. Record the second client's behavior or availability limitation without blocking this milestone. |
 | 3a. Search after the core pilot | Add `search_documents` over the existing search service with capability reporting and snippet-based injection coverage. | Authorized published search, restricted totals, locale checks, pagination, and unavailable-provider behavior pass. Search does not gate the phase 3 author, review, publish, and retract flow. |
 | 4. Rich text and media | Implement the supported rich-text input adapter and a tested upload flow; expand locale and relation coverage. | An editor creates and revises an article with an image, previews saved content, and publishes without losing unrelated structured content. |
@@ -315,6 +344,9 @@ The minimum acceptance cases are:
 - A connected editor discovers only permitted collections and cannot gain additional authority through tool inputs, resources, population, or cached results.
 - Initial consent requests draft-only access. That connection cannot publish, retract, schedule, cancel a publication schedule, or create public content through a workflow with `defaultStatus === 'published'`, even when its owner is a super-admin. Publication-management access requires explicit grant expansion.
 - A scoped actor carries the real user ID, only the permitted abilities, and `isSuperAdmin: false`; user hooks observe that false value. Permission changes and connection revocation affect subsequent calls on every host instance.
+- Account-generation changes invalidate existing delegated calls, pending codes, and refresh authority across instances; disabled/re-enabled accounts do not regain old grants. Test races between consent/code issuance and a security reset, including external-provider tokens. Passkey removal can be represented by the same committed generation change until native passkeys ship.
+- Ordinary browser logout invalidates unfinished consent but preserves completed connections; enrollment and rename also preserve them. Revoking one connection leaves native sessions intact, and security recovery does not falsely report cancellation of a publication schedule.
+- New or expanded consent requires fresh proof bound to the displayed account, login, client, request, resource, and exact grant. Test account switching, expiry, concurrent consumption, revoked login, and attempts to substitute passkey-management proof. Content grants never expose credential-management abilities, even for a super-admin owner.
 - Draft creation, top-level merge, review transitions, publication, and unpublish invoke normal hooks, validations, versions, and audit records. Non-public transitions cannot be used to bypass publication-management policy.
 - A concurrent change to content or document metadata rejects an obsolete edit/publication; the client receives an actionable conflict without an automatic rebase.
 - A repeated create key cannot create another document after timeout, restart, deletion, or post-commit hook failure. Concurrent identical keys resolve to one document; mismatched input fails. Record the tested retention/tombstone behavior.
@@ -337,6 +369,7 @@ During implementation, run package-filtered checks while iterating. Before relea
 
 - Select the pilot desktop client and confirm available connector/authentication capabilities. Record the second client's status separately.
 - Prove CIMD or pre-registration with a maintained authorization-server candidate and the pilot client; select embedded versus external hosting from that evidence. Reserve DCR for a demonstrated compatibility need. Confirm Byline sign-in integration and revocation storage ownership before phase 2.
+- Confirm how the selected authorization server consumes the shared account-security generation and fresh-proof boundary, including code issuance, token refresh, account switching during consent, and password-only operation before passkeys ship. Preserve the [shared revocation policy](./2026-09-10-passkeys-phase-1-plan.md#revocation-policy); choose implementation mechanics without reopening the agreed event semantics.
 - Pin the protocol and SDK versions and their stateless compatibility behavior. Stateless transport is the chosen architecture; session affinity is not an unresolved option.
 - Choose the shared operation module/package and minimal host mounting API without adding unnecessary transport packages.
 - Specify the create-only key extension, canonical input digest, minimal creation receipt, retention/tombstone policy, and recovery. The phase 2 schema must retain the key when a document is deleted: do not cascade-delete it with the document, or preserve a durable tombstone before removing the mapping. Keep generic mutation receipt storage deferred.
