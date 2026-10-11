@@ -14,7 +14,7 @@
  */
 
 import type { CollectionAdminConfig, PreviewDocument } from '@byline/core'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 function doc(path: string, fields: Record<string, unknown> = {}): PreviewDocument {
   return { id: 'doc-1', path, status: 'draft', fields }
@@ -36,6 +36,13 @@ function previewUrl(admin: CollectionAdminConfig, d: PreviewDocument, locale?: s
 }
 
 describe('reference preview URL builders', () => {
+  // The first import transforms the whole admin module graph, which can take
+  // well over the default test timeout on a loaded CI runner. Warm it once
+  // here; later imports reuse the transform cache even after resetModules.
+  beforeAll(async () => {
+    await loadAdmins()
+  }, 60_000)
+
   afterEach(() => {
     vi.doUnmock('@/i18n/i18n-config')
     vi.resetModules()
