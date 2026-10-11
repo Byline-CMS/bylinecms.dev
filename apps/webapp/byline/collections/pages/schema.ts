@@ -94,18 +94,6 @@ export const Pages = defineCollection({
       displayField: 'title',
       optional: true,
     },
-    // hasMany relation demo — an ordered list of Media references rendered as
-    // drag-reorderable summary tiles in the editor. See docs/04-collections/03-relationships.md.
-    {
-      name: 'gallery',
-      label: 'Gallery',
-      type: 'relation',
-      targetCollection: 'media',
-      displayField: 'title',
-      hasMany: true,
-      optional: true,
-      helpText: 'An ordered list of media items. Drag to reorder; ✕ to remove.',
-    },
     {
       name: 'area',
       label: 'Area',
@@ -132,49 +120,6 @@ export const Pages = defineCollection({
         VideoBlock,
         VideoEmbedBlock,
       ],
-    },
-    // ── Search-engine and social metadata ──────────────────────────────
-    // Optional throughout: a page is publishable without any of it, and the
-    // renderer falls back to `title` / `summary` when a field is empty.
-    {
-      name: 'seoTitle',
-      label: 'SEO Title',
-      type: 'text',
-      localized: true,
-      optional: true,
-      helpText: 'Overrides the page title in search results. Aim for under 60 characters.',
-    },
-    {
-      name: 'seoDescription',
-      label: 'SEO Description',
-      type: 'textArea',
-      localized: true,
-      optional: true,
-      helpText: 'Overrides the summary in search results. Aim for 120–160 characters.',
-    },
-    {
-      name: 'noIndex',
-      label: 'Hide from search engines',
-      type: 'checkbox',
-      optional: true,
-      helpText: 'Emits a noindex directive. The page stays reachable by direct link.',
-    },
-    {
-      name: 'socialTitle',
-      label: 'Social Title',
-      type: 'text',
-      localized: true,
-      optional: true,
-      helpText: 'Title used when the page is shared. Falls back to the SEO title.',
-    },
-    {
-      name: 'socialImage',
-      label: 'Social Image',
-      type: 'relation',
-      targetCollection: 'media',
-      displayField: 'title',
-      optional: true,
-      helpText: 'Image used when the page is shared. Falls back to the feature image.',
     },
     publishedOnField,
   ],
