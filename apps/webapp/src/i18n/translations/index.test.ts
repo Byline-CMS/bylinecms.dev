@@ -39,7 +39,8 @@ describe('translations', () => {
 
   test('get translations with date interpolation', async () => {
     const { t } = await createTranslator('en', 'test')
-    const output = t('publishedOn', { published: 1705024329653 })
+    // Local noon, so the formatted date is Jan 12 in any host timezone.
+    const output = t('publishedOn', { published: new Date(2024, 0, 12, 12).getTime() })
     // console.log(output)
     expect(output).toEqual('Published on Jan 12, 2024')
   })
