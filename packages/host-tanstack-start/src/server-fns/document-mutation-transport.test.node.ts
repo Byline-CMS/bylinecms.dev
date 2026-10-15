@@ -27,12 +27,19 @@ const startRequire = createRequire(require.resolve('@tanstack/react-start/packag
 const serverPackage = startRequire.resolve('@tanstack/start-server-core/package.json')
 const esm = join(dirname(serverPackage), 'src')
 const serverRequire = createRequire(serverPackage)
-let handler: (input: { request: Request; context: object; serverFnId: string }) => Promise<Response>
+// Start finalizes a completed serialization in its request pipeline: the handler
+// returns a deferred value whose createResponse(event) builds the Response.
+type DeferredResponse = { createResponse(event: { request: Request; requestUrl: URL }): Response }
+let handler: (input: {
+  request: Request
+  context: object
+  serverFnId: string
+}) => Promise<Response | DeferredResponse>
 let seroval: {
   toJSONAsync(value: unknown): Promise<unknown>
   fromCrossJSON(value: unknown, options: object): unknown
 }
-let runWithStartContext: (context: object, fn: () => Promise<Response>) => Promise<Response>
+let runWithStartContext: <T>(context: object, fn: () => Promise<T>) => Promise<T>
 let action: (input: { data: unknown }) => Promise<unknown>
 
 beforeAll(async () => {
@@ -66,7 +73,7 @@ async function roundTrip(data: unknown, operation: (data: unknown) => Promise<un
     headers: { 'content-type': 'application/json', 'x-tsr-serverFn': 'true' },
     body: JSON.stringify(await seroval.toJSONAsync({ data })),
   })
-  const response = await runWithStartContext(
+  const result = await runWithStartContext(
     {
       request,
       startOptions: {},
@@ -79,6 +86,10 @@ async function roundTrip(data: unknown, operation: (data: unknown) => Promise<un
     },
     () => handler({ request, context: {}, serverFnId: 'document-mutation' })
   )
+  const response =
+    result instanceof Response
+      ? result
+      : result.createResponse({ request, requestUrl: new URL(request.url) })
   const wire = await response.text()
   const decoded = seroval.fromCrossJSON(JSON.parse(wire), {})
   if (typeof decoded !== 'object' || decoded === null) throw new Error('Expected wire envelope')

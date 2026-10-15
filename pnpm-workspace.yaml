@@ -20,3 +20,9 @@ allowBuilds:
 allowedDeprecatedVersions:
   abab: "2"
   domexception: "4"
+# keyv 6 removed get(key, { raw: true }), which cache-manager@7 and cacheable@2
+# still call. Remove this hold once both declare keyv ^6 — the tripwire is
+# apps/webapp/src/lib/cache/keyv-compat.test.node.ts.
+updateConfig:
+  ignoreDependencies:
+    - keyv

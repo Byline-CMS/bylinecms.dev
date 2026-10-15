@@ -64,24 +64,24 @@
   "dependencies": {
     "@byline/admin": "workspace:*",
     "@byline/core": "workspace:*",
-    "drizzle-orm": "^0.45.2",
-    "mysql2": "^3.24.4",
-    "uuid": "^14.0.2"
+    "drizzle-orm": "^0.45.4",
+    "mysql2": "^3.24.6",
+    "uuid": "^14.0.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.14",
+    "@biomejs/biome": "2.5.15",
     "@byline/auth": "workspace:*",
     "@byline/client": "workspace:*",
     "@byline/db-conformance": "workspace:*",
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.5",
     "chokidar": "^5.0.0",
     "chokidar-cli": "^3.0.0",
-    "dotenv": "^18.0.1",
-    "drizzle-kit": "^0.31.10",
+    "dotenv": "^18.0.8",
+    "drizzle-kit": "^0.31.11",
     "npm-run-all": "^4.1.5",
-    "tsc-alias": "^1.9.5",
+    "tsc-alias": "^1.9.7",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.4"
   },
   "publishConfig": {
     "access": "public",
