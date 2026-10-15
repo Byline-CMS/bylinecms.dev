@@ -1,394 +1,189 @@
 ---
-title: "MCP server — draft implementation plan"
+title: "MCP server — implementation plan"
 path: "mcp-server-plan"
-summary: "A phased plan for authenticated content discovery, drafting, and publication from MCP clients, with social-channel orchestration remaining in the client."
+summary: "Implement delegated MCP content operations in reviewable stages, with explicit package ownership, transaction guarantees, compatibility proofs, and acceptance gates."
 ---
 
-# MCP server — draft implementation plan
+# MCP server — implementation plan
 
 Companions:
 
-- [MCP Server](../docs/05-reading-and-delivery/05-mcp-server.md) describes the earlier planned transport and its scope.
-- [Transports](../docs/05-reading-and-delivery/03-transports.md) establishes shared operation contracts and separate protocol bindings.
-- [Client SDK](../docs/05-reading-and-delivery/01-client-sdk.md) describes the existing document operations and revision preconditions.
-- [Authentication & Authorization](../docs/07-auth-and-security/01-authn-authz.md) describes actors, abilities, and service enforcement.
-- [Markdown Export](../docs/05-reading-and-delivery/04-markdown-export.md) defines the existing agent-readable representation.
+- [MCP server specification](./2026-10-10-mcp-server-spec.md) defines product scope, security policy, tool behavior, and acceptance requirements.
+- [Passkey specification](./2026-09-10-passkeys-phase-1-spec.md) defines optional native passkey behavior.
+- [Passkey implementation plan](./2026-09-10-passkeys-phase-1-plan.md#shared-authentication-decisions) records the shared revocation policy and native authentication work.
+- [Client SDK](../docs/05-reading-and-delivery/01-client-sdk.md) describes current document operations and revision preconditions.
+- [Transactions](../docs/03-architecture/03-transactions.md) explains lifecycle transaction ownership and adapter boundaries.
+- [Authentication and authorization](../docs/07-auth-and-security/01-authn-authz.md) describes actors, sessions, and ability enforcement.
 - [Scheduled publication](../docs/11-scheduling/02-scheduled-publication.md) defines reviewed-version scheduling and retained authorization.
-- [Auditability](../docs/07-auth-and-security/02-auditability.md) describes version and document audit records.
-- [Search API](../docs/06-search/03-search-api.md) describes ranked search, authorization after ranking, and index limits.
-- [Passkey implementation plan](./2026-09-10-passkeys-phase-1-plan.md#shared-authentication-decisions) records the shared account-security revocation policy and separates native proof from delegated consent.
-
-Date: 2026-10-10. Status: reviewed plan, ready for phase 1; implementation contracts remain subject to its compatibility proofs. Repository baseline: `44ff4d56`.
-
-This plan describes how you could connect ChatGPT Desktop, Claude Desktop, and other Model Context Protocol (MCP) clients to a Byline installation to discover, draft, revise, and publish content. It preserves Byline's existing document lifecycle and assigns orchestration across Byline and social services to the client application.
-
-The package names, tools, and contracts proposed below are not shipped APIs. This planning change introduces no runtime implementation.
-
-## Product scope
-
-Byline supplies an authenticated MCP server over its own content operations. New authoring connections receive draft-only grants by default. An editor can explicitly grant publication management, including retraction, from within the conversation. Installations may restrict a connection to drafting and retain publication in Byline's admin user interface.
-
-Social-channel orchestration remains outside Byline. The chat client can call Byline alongside independent social and research tools, collect their results, and explain partial failures to the user. Byline reports the outcome of its own operation only.
-
-```text
-                         Editor
-                            |
-                            v
-                  ChatGPT / Claude client
-                  plans and coordinates calls
-                            |
-          +-----------------+------------------+
-          |                 |                  |
-          v                 v                  v
-     Research tools    Social MCP tools    Byline MCP
-                            |                  |
-                            v                  v
-                      Social platforms   Byline lifecycle
-                                               |
-                                               v
-                                      Draft / review / publish
-```
-
-Byline is not a multi-channel publishing tool in this plan. Channel adapters, social credentials, campaign records, cross-platform scheduling, publication jobs, and coordinated retries across destinations are excluded. There is no cross-service transaction or promise of simultaneous publication. If social posts need a live Byline URL, the client should complete and verify Byline publication before posting those links.
-
-## Existing foundations and changes to the earlier proposal
-
-The earlier MCP document remains historical architectural context and now carries a supersession note. This draft governs the proposed implementation; the older service-account-first and HTTP-first sequencing does not.
-
-| Concern | Current foundation | Proposed work |
-|---|---|---|
-| Relationships | Single and ordered `hasMany` relations, population, and relation filters exist. | Expose bounded, authorized reads; remove `hasMany` as an outstanding prerequisite. |
-| Document writes | The SDK delegates to lifecycle services, which enforce abilities, create versions, run hooks, and write audit records. | Bind operations to those services; do not call storage directly. |
-| Concurrent editing | Editable reads expose a document revision, and writes require `expectedRevision`. | Carry the observation through MCP and return conflicts without automatic rebasing. |
-| Scheduling | The SDK can schedule, inspect, confirm, and cancel publication of reviewed content. | Add tools over these operations after immediate publication is working. |
-| Authentication | Admin sessions and actor abilities exist. | Add delegated OAuth grants and bearer-token request resolution. |
-| Remote retries | Revisions protect existing documents against repeated state changes after a successful mutation. | Deduplicate creates only; recover other uncertain outcomes through authorized read-back without automatic rebasing. |
-| Agent-readable content | Markdown export exists and is deliberately one-way and potentially lossy. | Reuse it for reading; define a separate supported rich-text authoring contract. |
-| External transport | The stable HTTP family and MCP remain planned. | Allow MCP to be the first consumer of shared operation contracts. |
-
-The [Relationships](../docs/04-collections/03-relationships.md) and [Core Document Storage](../docs/03-architecture/01-document-storage.md) documents describe relation cardinality, immutable content versions, and document revisions. A version identifies saved content; a revision also changes for editorial mutations outside the version stream, such as path or publication changes.
-
-## Transport and package boundaries
-
-Start with a co-located, stateless Streamable HTTP endpoint, normally `/mcp`, served over HTTPS. The MCP server embeds the in-process SDK and uses the installation's existing configuration and storage adapter. Authenticate each request independently. Persist grants and create-idempotency records in shared storage; do not keep application correctness or connection authority in process-local protocol sessions. Successive requests may reach different host instances without session affinity.
-
-The MCP `2026-07-28` transport revision removes protocol-level sessions. Earlier Streamable HTTP revisions supported sessions; select stateless operation when supporting those revisions too. Phase 1 must pin the SDK and protocol compatibility matrix against the chosen pilot client, including any legacy initialization behavior. Do not assume that a current specification implies every desktop client implements it. See the [versioned Streamable HTTP specification](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http).
-
-```text
-  ChatGPT / Claude / other MCP client
-                 |
-                 | HTTPS + bearer token
-                 v
-  +-------------------------------------------------------+
-  | Byline host                                           |
-  |                                                       |
-  | /mcp --> @byline/mcp                                   |
-  |             |                                         |
-  |             +--> token resolver --> RequestContext    |
-  |             |                                         |
-  |             v                                         |
-  |       Shared operation contracts                      |
-  |       validation / invocation / results / errors       |
-  |             ^                   |                     |
-  |             |                   v                     |
-  |   Future HTTP binding     @byline/client               |
-  |                                 |                     |
-  |                                 v                     |
-  |                     Core lifecycle and read services  |
-  |                     authorization / hooks / audit     |
-  +---------------------------------+---------------------+
-                                    |
-                                    v
-                            Configured DB adapter
-```
+- [Testing](../docs/13-testing.md) describes test discovery and database safety.
 
-The shared operation contract should define the operation name, validated input, output, errors, and invocation. HTTP method/path mappings and MCP tool metadata belong to their respective bindings. Required-ability metadata supports discovery, but services remain responsible for enforcing authorization on every invocation.
+Date: 2026-10-16. Status: proposed code plan; implementation has not started. Repository baseline inspected: `409ed322`. The 2026-10-10 filename pairs this document with the original specification. No dependency, migration, runtime API, or client compatibility claim is established by this planning change.
 
-Use `packages/mcp` for protocol registration, tool definitions, result envelopes, and transport integration. Keep shared operation definitions in a server-only module outside that package. Before implementation, choose a core subpath or a small dedicated package according to actual dependency needs; do not create an otherwise empty HTTP package solely to contain MCP dependencies.
+Use this plan to implement the [MCP specification](./2026-10-10-mcp-server-spec.md) one checkpoint at a time. A connection grant is persisted permission for a client to act for a Byline user; every request must intersect that grant with the user's current abilities and installation policy. The plan translates that contract into code ownership, database work, and verification, while leaving product and security policy in the specification.
 
-This changes the HTTP-first sequence in the transport proposal, while retaining its shared-contract principle. A complete REST API, standalone API server, and stdio client are not prerequisites. Do not migrate existing admin server functions merely to make every caller adopt the new manifest in the first release.
-
-The host integration must:
+## Start here
 
-- Load the server-safe collection registry and server configuration without importing React/admin presentation configuration.
-- Construct a client with the verified request's actor and context. Do not reuse a cookie-bound admin client or a privileged system client for remote requests.
-- Preserve operation-scoped read context through population and hooks, and keep authenticated results isolated between callers.
-- Bound request size, query size, population depth, response size, and execution time. Validate supported origins and protocol headers through the chosen transport implementation.
-- Use the MCP SDK for protocol behavior and verify its compatibility with Byline's declared Node runtime before selecting a version.
+1. Read the specification and the shared authentication decisions in the passkey plan. Inspect the current branch, working tree, manifests, and relevant implementation before editing; the baseline above will age.
+2. Establish which feature is being implemented first. This document prepares that decision and does not begin either implementation. If implementation is requested later, start with Stage 1 and record its evidence before selecting dependencies or enabling writes.
+3. Preserve the specification's phase boundaries. Stages 1–2 implement phase 1; stages 3–5 implement phase 2; stages 6–7 implement phase 3. Stage 8 is phase 3a, Stage 9 is phase 4, Stage 10 is phase 5, and Stage 11 is phase 6.
+4. Keep changes independently reviewable. Record changed files, checks, observed client versions, and outstanding failures at each checkpoint. Commit only when requested, using the repository's conventional messages.
+5. Use package-filtered checks during development. Use only `_test` databases for integration tests and preserve serial execution. Do not introduce Playwright or manually edit generated routes or collection types.
 
-## Authentication and provenance
+## Implementation order with passkeys
 
-The primary connection model is delegated user access. A user signs in to Byline, grants a client access, and returns to the conversation. Service-account credentials remain a possible later integration mode; they are not the default identity for a human editor.
+Neither feature requires the other to ship. MCP can use password-based fresh proof; passkeys can use fixtures for delegated revocation without OAuth packages or tables. The second implementation owns combined tests for passkey removal invalidating a live connection, account switching during consent, and logout preserving a completed connection.
 
-```text
-  Editor in client
-         |
-         | Connect Byline
-         v
-  OAuth discovery --> Byline sign-in and consent
-                              |
-                              | authorization code + PKCE
-                              v
-                       Client obtains access token
-                              |
-                              v
-  /mcp --> verify token and connection grant
-                              |
-                              v
-        current user abilities intersect granted access
-                    intersect installation policy
-                              |
-                              v
-                  RequestContext with scoped actor
-                              |
-                              v
-                    Service authorization checks
-```
+| Decision factor | MCP first | Passkeys first |
+| --- | --- | --- |
+| First usable outcome | A selected client discovers, drafts, reviews, publishes, and retracts Byline content. | Existing administrators enroll passkeys and use them for sign-in and fresh proof. |
+| Initial uncertainty | Authorization-server selection, registration, SDK/runtime compatibility, client connectivity, and enforced confirmation require a working proof. | The maintained SimpleWebAuthn dependency pair must meet the runtime policy; authenticators require real-device acceptance. |
+| Main code changes | New transport and operation packages, delegated authority, two-adapter persistence, consent, and content lifecycle extensions. | Native provider, credential and ceremony storage on both adapters, account UI, host endpoints, and auth maintenance. |
+| Shared work established first | A narrow password-proof boundary and use of account generation for delegated revocation. Later passkeys add another proof method. | Native fresh-proof verification and credential-removal generation changes. Later MCP supplies its own consent purpose and grant store. |
+| Work the other feature does not remove | Passkeys do not solve OAuth registration, restricted grants, content retries, or prompt injection. | MCP does not implement WebAuthn, credential recovery, native session issuance changes, or device testing. |
+| Independent release boundary | Stages 1–7 establish the core pilot. Search, rich-text input/media, and scheduling have separate later acceptance. | The passkey plan's six stages establish its Phase 1 scope, including auth maintenance and device checks. |
 
-Implement authorization-code flow with PKCE, protected-resource and authorization-server metadata, token audience checks, expiry, revocation, and a tested client-registration strategy. Choose a maintained authorization-server implementation or provider integration rather than introducing bespoke OAuth protocol code. The existing `SessionProvider` is an admin session contract, not a complete OAuth authorization server; add a bearer-token context resolver without requiring existing session providers to implement unrelated OAuth responsibilities.
+The sequencing choice remains open. If reducing technical uncertainty is the immediate priority, the bounded Stage 1 MCP proof is useful before committing to either full implementation. It yields evidence for that choice without requiring production grant tables or write tools. If account sign-in is the immediate product priority, passkeys can proceed independently. Do not estimate relative delivery time from stage counts: the OAuth proof and real-device checks are unresolved work, not measured durations.
 
-Resolve authorization-server selection and client registration in phase 1, before implementing grants. The MCP `2026-07-28` [client-registration rules](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration) recommend Client ID Metadata Documents (CIMD), permit pre-registration, and retain deprecated dynamic client registration (DCR) for backward compatibility. Existing pre-registered client information takes priority; otherwise use advertised CIMD support, with DCR only as a tested compatibility fallback. Prefer CIMD for new connections.
+## Proposed code ownership
 
-Phase 1 must produce a compatibility proof for a pinned embedded candidate such as `oidc-provider`, or select an external authorization server. Check actual CIMD support, metadata-fetch protections, PKCE, resource audiences, redirect validation, revocation, and supported Node versions. CIMD does not itself require external hosting or rule out an embedded library. Do not infer support from a library's general OIDC or DCR support, and do not leave a custom CIMD implementation as an implicit phase 2 task.
+Paths marked **new** are proposed implementation locations, not existing APIs. Stage 1 validates these boundaries against the selected libraries. Any resulting adjustment must preserve the dependency direction and be recorded here.
 
-Scopes should express understandable grants such as reading, drafting, and publication management, with explicit collection restrictions. Default consent and initial scope challenges must request no publication-management authority; expanding access requires explicit consent. Resolve grants into concrete Byline abilities and construct a fresh `AdminAuth` with the persisted owner's ID, the intersected ability set, and `isSuperAdmin: false`. Compute that set by filtering allowed registered collection abilities through the owner's current `hasAbility()` result, the connection grant, and installation policy. This handles a super-admin owner without relying on their explicit ability set being exhaustive. Hooks checking `actor.isSuperAdmin` intentionally see `false`.
+| Area | Existing foundation | Proposed change |
+| --- | --- | --- |
+| Shared operation contracts | `packages/client/src/client.ts`, `collection-handle.ts`, and `types.ts` | **New:** `packages/operations/src/{contracts,descriptors,policy,errors,operations}/` in server-only `@byline/operations`. It depends on client/core/auth, carries no MCP or HTTP dependency, and defines validated invocation and results. |
+| MCP protocol and authorization-server integration | No current MCP package | **New:** `packages/mcp/src/{server,transport,tools,results,auth}/` in server-only `@byline/mcp`. It binds shared operations and the selected maintained authorization implementation. |
+| Native proof and account security | `packages/admin/src/modules/auth/jwt-session-provider.ts`, `password.ts`, `resolve-actor.ts`, and `packages/admin/src/store.ts` | **New:** private fresh-proof verification and `modules/delegated-access/` service/repository contracts. Reuse passkey work if present; keep OAuth library types out of native session contracts. |
+| Request identity and provenance | `packages/auth/src/context.ts`, `actor.ts`; core lifecycle `audit.ts` | Add optional authenticated delegation provenance and propagate it through content version/audit writes. Keep the persisted owner ID and scoped `AdminAuth`. |
+| Persistence | Both adapters' `src/modules/admin/admin-store.ts`, `src/database/schema/index.ts`, migrations and `sql/` | Implement delegated repositories scoped to account transactions. Add core-owned create-key storage on the content adapter transaction. |
+| Content mutation services | Core `services/document-lifecycle/{create,persistence,update,revision-guard,status}.ts` | Add create deduplication, canonical top-level merge, transaction-time effect restrictions, and `scheduleCancelled` in unpublish receipts. |
+| Host and reference app | `apps/webapp/src/server.ts`, `start.ts`, `byline/server.config.ts`; host integration and auth server functions | Add an opt-in request handler and browser consent/connection-management endpoints. Mount protocol routes before locale/Markdown redirects. |
+| Editor conversion and upload | `packages/richtext-lexical/src/server.ts`; core `services/field-upload.ts` | Add a supported server authoring adapter and scoped upload flow in Stage 9. |
+| Verification | `packages/db-conformance/src/suites/`, client integration tests, host node tests | Add shared storage/security conformance, lifecycle integration cases, protocol tests, and actual client acceptance records. |
 
-Connection revocation, account disablement, and changed user abilities must affect subsequent ordinary tool calls. Filter the advertised tools by grant, but also enforce the grant on invocation. In particular, `changeStatus` is broader than a draft-review grant: a connection permitted to submit drafts for review must not thereby acquire unpublish, schedule cancellation, or transitions that retract published content. Enforce those operation-specific restrictions in the shared operation contract, alongside the lifecycle's ability checks.
+A dedicated operations package avoids a dependency cycle: operation invocation uses `@byline/client`, which already depends on core. Core retains pure validation and lifecycle services; it must not import client or MCP. Do not create an HTTP package, migrate existing admin server functions to the operation manifest, or add server libraries to the public configuration facade.
 
-Keep the real persisted user ID as the acting identity. Add authenticated connection/client identifiers to audit provenance without confusing internal audit with public author attribution. Client-reported model names may be recorded as unverified metadata, but must not establish identity or authority. Tokens and credentials must never enter tool arguments, document fields, or audit payloads.
+## Migration and release workflow
 
-Existing scheduled-publication semantics need explicit disclosure: revoking an account or connection does not automatically cancel a schedule whose authorization was previously captured. Preserve that lifecycle policy and provide schedule inspection/cancellation; do not imply OAuth revocation retracts an already authorized publication.
+This workflow applies to every schema change in this plan, including Stage 3 delegated-access storage, Stage 4 durable provenance, and Stage 5 create-key storage. Each owning stage updates both adapters' Drizzle schemas, generates incremental development migrations, and tests its persistence changes. Keep a release change inventory covering all three areas.
 
-## Shared authentication decisions
+At release preparation, a human manually squashes the development Drizzle migrations into one migration file and matching journal per adapter for fresh CLI installations. After that squash, `pnpm --filter @byline/cli sync:baselines` copies the baselines into the release CLI. Do not perform the squash automatically or copy incremental development migrations into the CLI.
 
-The [shared policy in the passkey plan](./2026-09-10-passkeys-phase-1-plan.md#revocation-policy) defines which account events invalidate native and delegated access. MCP implements the delegated side independently: password change/reset, passkey removal, account disablement/deletion, and an explicit account-wide security reset invalidate existing grants and access/refresh authority. Ordinary browser logout leaves completed grants intact; enrollment and rename also preserve them. Revoking one connection leaves native sessions and credentials intact. Account re-enablement must not reactivate old grants. Previously authorized publication schedules retain their existing separate cancellation policy.
+Existing installations use one clean SQL upgrade script per adapter for the release, in `packages/db-postgres/sql/` and `packages/db-mysql/sql/`. Consolidate the release's schema changes into those scripts rather than shipping one native script per development increment. Preserve already released scripts unchanged; the clean upgrade scripts are new entries in the existing numbered history. Stage 11 verifies both upgrades from the supported prior schema and fresh installations from the squashed baselines.
 
-### Delegated revocation enforcement
+## Stage 1 — Compatibility and configuration proof
 
-Persist the account-security generation at grant authorization and compare it with current account state during bearer validation and refresh, as well as authorization-code exchange. Native `session_version` is the existing candidate; phase 1 must confirm its event semantics or specify an equivalent persisted generation without changing login-scoped logout. Treat a mismatch as revoked authority requiring fresh authentication and consent. Never update an old grant to the current generation during refresh. Account availability and connection revocation are additional checks, not alternatives to generation validation.
+- [ ] Inspect published registry metadata and official documentation for exact MCP SDK and authorization-server candidates. Record versions, maintenance status, transitive runtime requirements, and published `engines`; verify against Node >=20.9.0 as well as CI's Node 22. An incompatible maintained dependency needs a separate runtime proposal. The specification's dated external references are inputs to this investigation, not fresh compatibility evidence.
+- [ ] Select one available desktop client and record application version, account/workspace configuration, reachable development URL, protocol revision, registration mode, and confirmation policy. Record the second client's availability separately. Use Inspector as a protocol check, not a substitute for the desktop flow.
+- [ ] Exercise a maintained embedded candidate such as `oidc-provider`, or an external provider, with authorization code plus PKCE, protected-resource discovery, resource/audience validation, exact redirect checks, expiry and revocation. Prove pre-registration or CIMD and its metadata-fetch protections; test DCR only when required for the pilot. Do not fill a library gap with unplanned custom OAuth protocol code.
+- [ ] Prove integration with Byline account identity, fresh proof, generation checks at code exchange/refresh, and per-request local revocation. An external provider must map a verified identity to a persisted Byline account and cannot substitute email matching or a live browser session for the required proof. Record which authority owns codes/tokens and which local store owns grants/consent.
+- [ ] Demonstrate stateless Streamable HTTP with the selected protocol matrix, including legacy initialization when applicable. Serve fixture content and route successive authenticated requests to two host instances. The desktop client authenticates through this stage's OAuth proof; direct fixture bearer credentials are for Inspector and automated tests only, not an assumed desktop-client capability. Keep this development proof limited to discovery and bounded reads; test credentials and fixture identity resolvers must not be accepted in the production configuration.
+- [ ] Finalize the package ownership above and a server configuration contract covering resource URL, issuer/provider integration, allowed collections, enabled operations, origin/host policy, limits, and host-resolved links. Select a real pilot collection with a declared non-public default and satisfiable required creation fields. Record whether rich-text creation is deferred or has a supported initial representation.
 
-`resolveActor()` supplies enabled-account identity and current abilities; it does not prove that an OAuth grant remains valid after a security event. Likewise, a valid issuer signature and unexpired token do not override Byline's current grant and account-security state. Enforce the local gate on every request across instances, including with an external authorization server, and fail closed when the authoritative state cannot be checked. A provider that could otherwise refresh an obsolete token must not restore its Byline authority.
+**Checkpoint:** attach an evidence table to this stage with exact dependency/client/protocol versions, registration and consent results, runtime checks, two-instance observations, and remaining failures. An unsupported combination is a failed proof. Resolve it before Stage 3 schema work; do not claim support for a second client based on the first.
 
-Bind code/grant issuance to the account generation and recheck it under the appropriate account transaction/lock boundary. A concurrent reset or credential removal must either precede and reject issuance, or follow it and invalidate the resulting authority. Use persisted checks for correctness; asynchronous revocation notifications and cleanup are operational supplements. Normal browser-session expiry or logout must not invalidate a completed connection merely because its grant records the originating login for audit.
+## Stage 2 — Package skeletons, descriptors, and read-only transport
 
-### Fresh consent and account binding
+- [ ] Create `packages/operations` and `packages/mcp` with workspace manifests, exports, build/typecheck scripts, and node-mode Vitest discovery matching repository conventions. Add browser import rejection for server entry points. Wire package entry points into the existing public-export and dependency checks; keep the SDK and authorization-server libraries in MCP.
+- [ ] Define an operation contract with a stable name, input validator, output validator, error mapping, grant requirements, and invocation using a verified request context. Keep tool descriptions/annotations in MCP. Never accept an actor, connection owner, system client, or bypass flag from tool input.
+- [ ] Implement allowlisted collection descriptors from server-safe definitions. Include writable/readable field shapes, required/default behavior, relation cardinality, locales, workflow, capabilities, and schema identity. Reuse `packages/core/src/storage/collection-fingerprint.ts` where appropriate and version any descriptor-specific shape. Validate invocations against the live schema even when a client has an older descriptor.
+- [ ] Implement `list_collections`, `describe_collection`, `query_documents`, and `get_document` through the scoped SDK. Require editorial authority for draft queries and later editable reads; ordinary reading remains published-only. Preserve operation read context, row/locale scoping, hooks, and authorization through populated relations. Restrict relation traversal to the connection's permitted collections.
+- [ ] Add a request handler in the host integration and wire it explicitly from `apps/webapp/src/server.ts` before locale and Markdown negotiation. Register metadata/protocol paths deliberately and test their original URLs. Browser consent POSTs need CSRF and expected-login checks; `start.ts` currently limits its CSRF middleware to server functions, so a raw handler must provide its own applicable protections.
+- [ ] Centralize validated limits for request bytes, body-read time, execution deadline, query length/complexity, page size, population depth, and encoded response size. Record numeric defaults after the proof. Reject excessive work before deserialization/service invocation where possible; propagate cancellation where supported. A timeout after a commit is an uncertain result, not evidence of rollback.
+- [ ] Map errors into protocol versus operation failures. Preserve field paths, revision conflicts, and committed-hook details while redacting credentials, SQL, stack traces, and private configuration. Label document-derived output as untrusted source data with collection/document/version provenance. Use `no-store` for authenticated responses and isolate request contexts and caches.
 
-Require fresh authentication when establishing a connection or expanding its grant, including adding collections or publication management. In the native flow, use password proof or an enrolled passkey when available; MCP may ship with password proof before passkeys. An external provider integration must prove equivalent freshness and account binding. Neither an existing browser session nor an ordinary token refresh counts as fresh proof.
+**Checkpoint:** unit and host tests prove descriptor redaction, schema enforcement, unsupported input rejection, bounded reads, population restrictions, public-bundle isolation, malformed headers/origins, body limits, and caller isolation. Inspector can discover/read fixture content with test authentication. The pilot client performs those reads through the Stage 1 OAuth proof, wired to this development endpoint; it does not use a static fixture token. Production delegated authentication remains gated on Stages 3–4, and writes remain disabled until their stages pass.
 
-Reuse the [passkey plan's private proof-verification boundary](./2026-09-10-passkeys-phase-1-plan.md#fresh-authentication-and-consent-identity) if implemented, while issuing a distinct, single-use OAuth-consent authorization with a maximum five-minute lifetime. Bind it to the account, current login, account generation, OAuth client, authorization request, resource, and exact requested scopes/collection restrictions. Keep normal OAuth redirect and PKCE validation in addition to this binding. Passkey enrollment/removal grants cannot be exchanged for OAuth consent, and OAuth consent cannot authorize credential management. No generic user-ID-only login/token issuance path is introduced.
+## Stage 3 — Delegated storage and account-security boundary
 
-Display the account, client, and requested access during consent. At completion, recheck the bound login, generation, current abilities, and requested grant before atomically consuming consent authorization. If the browser has changed accounts or the login was revoked, reject the pending attempt and require a new one. Do not silently substitute the newly signed-in account. Pending consent/code authority must not survive its bound security invalidation, even though completed connections are independent of ordinary browser logout.
+- [ ] Add optional delegated-access repository contracts in `packages/admin/src/modules/delegated-access/` and expose them through transaction-scoped `AdminStore` capability wiring. Missing capability must fail MCP boot explicitly while password-only configurations continue working. Do not require existing `SessionProvider` implementations to implement OAuth.
+- [ ] Persist a connection ID, owner ID, verified issuer/client/resource identity, exact approved scopes and collection restrictions, account generation, grant revision, creation/update times, and revocation state. Persist short-lived consent authorization with hashed bearer identifier, purpose, authorization-request binding, acting account/login/generation, exact requested grant, expiry, and consumption state. Provider-owned code/token records follow the selected provider's documented durable storage contract.
+- [ ] Verify existing `session_version` changes in both adapters for password change/reset and disablement, and that logout stays login-scoped. Read generation and account availability from authoritative state. Grant creation and consent consumption must use the same account-lock transaction boundary as security mutations; a mismatch requires reconnect, never an update of an old grant to the current generation.
+- [ ] Extend `withSessionLock`/scoped repository wiring to make consent consumption and local grant issuance atomic. For a provider with separate persistence, document the handoff: code/token authority is usable only against a committed local grant of the matching generation/revision. Test both commit orders and failures; do not imply an atomic transaction spans independent stores.
+- [ ] Define grant expansion as an explicitly consented change with a new grant revision or replacement grant. Bind pending consent/codes to that revision; connection revocation must also prevent pending work from restoring it. Old tokens must not silently acquire expanded authority.
+- [ ] Implement PostgreSQL and MySQL repositories and migrations, including exact identifier comparison, uniqueness, conditional single-use consumption, expiry, indexes, and bounded cleanup scans. Use shared conformance with separate connections for races and rollback. No correctness rule may depend on process-local caches or cleanup timing.
+- [ ] Apply the [migration and release workflow](#migration-and-release-workflow) to delegated-access storage on both adapters. Generate and test incremental Drizzle migrations now; record these changes for the release's clean upgrade SQL and human-performed CLI baseline squash in Stage 11. The same workflow applies to provenance and create-key storage in the following stages.
 
-Content grants exclude `admin.users.managePasskeys`, password-management abilities, and credential-management tools. The scoped actor retains `isSuperAdmin: false` regardless of the sign-in method. Passkeys strengthen identity proof; they do not authorize additional content operations or neutralize prompt injection.
+**Checkpoint:** both adapters prove single consumption, grant/revocation persistence across restart, security-reset versus issuance races, disable/re-enable behavior, deletion, and rollback. Password-only native session conformance still passes. Use generation-change fixtures for passkey removal if passkeys are absent.
 
-### Separate delivery
+## Stage 4 — Fresh consent, token resolution, and provenance
 
-MCP owns OAuth provider selection, consent, delegated-grant persistence, token validation, and the enforcement/tests above. The passkey plan owns native WebAuthn ceremonies, credential management, and native session lifecycle changes. Do not require MCP packages or OAuth persistence in the passkey implementation, or make MCP wait for passkey support. Share narrow proof/account-security boundaries when available; keep grants, migrations, endpoints, and phase gates owned by their respective feature.
+- [ ] Add a private native password-proof verifier using `password.ts` and the provider's existing verification/revalidation pattern. Reuse the passkey plan's verifier if it exists. Apply the full password admission limiter and trusted-network handling with server-resolved identity. Verify outside the account lock, recheck password/generation/login under lock, and issue only a purpose-bound consent authorization; do not issue or replace a login.
+- [ ] Implement the selected authorization-server integration in `packages/mcp/src/auth/`. Validate issuer, audience/resource, expiry, token type and client/grant binding. At code exchange, refresh, and every MCP request, check current account generation, availability, connection revocation and current grant. Fail closed if local authority cannot be checked, even for an otherwise valid external token. Keep tokens out of URLs, tool inputs and logs.
+- [ ] Compute a fresh `AdminAuth` with the real owner ID and `isSuperAdmin: false`. Enumerate allowed registered collection abilities and filter each through the owner's current `hasAbility()`, grant, and installation policy. Do not copy a super-admin flag or assume a super-admin's explicit ability set is exhaustive. Exclude all user/credential administration and maintenance abilities.
+- [ ] Add consent UI and endpoints showing the bound account, client, resource, collections, and requested effects. Default to read/draft access without publication management. Establishment and every expansion require fresh proof; the consent authorization expires within five minutes and is single-use. Recheck the expected login, generation, abilities, and exact authorization request at completion. Account switching invalidates the attempt.
+- [ ] Add authenticated connection list/revoke controls in the account surface, with server-side ownership and expected-login enforcement. Revocation affects only that connection; disclose separately that previously authorized publication schedules remain active. Translate new consent/connection controls into the eight existing admin locales and test keyboard/focus behavior.
+- [ ] Add optional trusted delegation provenance to `RequestContext` and propagate connection/client identifiers into content audit/version provenance at the existing transaction boundaries. Versioned content currently records `createdBy`; explicitly add a durable association for create/update outcomes as well as status/schedule audit records. Keep public author attribution unchanged and model names unverified. Store no bearer material or document content in authentication telemetry. Update both adapters' Drizzle schemas and generate/test the provenance migrations under the [shared migration workflow](#migration-and-release-workflow); include the durable associations in the release change inventory.
+- [ ] Register bounded leased cleanup for expired/consumed consent and provider records through the scheduler integration, with error/health reporting. Preserve revocation authority and create-key tombstones. Cleanup outages must not extend authority. Coordinate task ownership with passkey maintenance if it already exists; MCP does not inherit its native-login cleanup deliverable.
 
-Before both features exist, test generation invalidation and proof-purpose separation with fixtures or test doubles. When the second feature integrates, add combined tests for credential removal invalidating a live connection, account-switching during consent, and ordinary logout preserving a completed connection. Neither standalone implementation requires the other one's end-to-end acceptance to ship.
+**Checkpoint:** test wrong resource/issuer/client, expired/replayed codes, refresh after generation change, stale external tokens, revoked connections, permission removal, super-admin restriction, login switching, concurrent consent, proof-purpose substitution, redaction, and transaction rollback. Prove ordinary logout invalidates unfinished consent but leaves completed connections usable. Verify scoped actors and provenance in real lifecycle hooks. Repeat the pilot connect/discover/read flow against the completed delegated authentication, replacing the Stage 1 fixture integration.
 
-## Proposed tool contract
+## Stage 5 — Create-only retry protection
 
-Use a small collection-parameterized surface. Tool names below are draft names, subject to the contract review in phase 1.
+- [ ] Define a core-owned optional create-deduplication capability in `packages/core/src/@types/db-types.ts` and a validated SDK create option in `packages/client/src/types.ts`/`collection-handle.ts`. The shared operation supplies a trusted installation/owner/connection/collection namespace. Keep OAuth types out of core and reject unsupported adapters before hooks or writes.
+- [ ] Specify canonical JSON digest encoding, bounded create-key bytes, digest version, and which request inputs participate, including locale, fields, and schema identity. Canonicalize object key order while preserving array order and canonical decimal strings. Compute the digest before mutable hooks; a retry of the same request must remain identifiable after hooks or a schema change.
+- [ ] Add unique namespace/key storage on each content adapter with input digest, document/version IDs, initial revision/status, and minimal creation receipt. The mapping must survive document deletion; do not cascade-delete it. Proposed retention is to retain the minimal mapping/tombstone for the lifetime of its namespace. If receipt compaction is introduced, a recognized compacted key fails as previously used rather than becoming a new create. Define quotas before enabling writes so retention cannot grow without an admission policy. Generate and test the create-key table/index migrations on both adapters under the [shared migration workflow](#migration-and-release-workflow), and add them to the release change inventory.
+- [ ] Extend `create.ts` and `persistInitialDocumentVersion()` in `persistence.ts`: check known keys after current authorization but before preparation where possible, then arbitrate uniqueness and insert the mapping with the initial document/version in the lifecycle-owned transaction. A concurrent loser rolls back its tentative creation and reads the winner's receipt; mismatched digests fail. Do not wrap public `CollectionHandle.create()` in an outer transaction.
+- [ ] Recheck current grant/collection/document access before returning a stored receipt. A deleted document yields an explicit previously-created/deleted outcome without recreation. Do not make replay depend on the current document still matching its initial status or schema; distinguish the historical creation receipt from current read-back.
+- [ ] Preserve post-commit hook failure details. A replay must not repeat the successful mutation or promise that external hooks completed; if hook outcome is unknown, report it as unknown. Concurrent first attempts may execute preparation hooks more than once. Document one logical document per key, not exactly-once hook execution.
 
-| Tool | Behavior and service boundary |
-|---|---|
-| `list_collections` | Return only collections exposed by installation policy and the connection's permissions. |
-| `describe_collection` | Return an allowlisted descriptor with supported input schemas, fields, relations, locales, workflow states, and capabilities. |
-| `query_documents` | Delegate to SDK reads with bounded filters, sorting, pagination, and population; default to published content. |
-| `search_documents` | Follow the core pilot in phase 3a: wrap `CollectionHandle.search()` for bounded full-text queries when a search provider is configured, preserving authorization after ranking. |
-| `get_document` | Read the published document representation under the connection's normal read authority. |
-| `get_document_for_edit` | Return an authorized editable observation through `findByIdForEdit()`, including version and revision; expose to authoring/publication-management grants. |
-| `create_draft` | Validate collection input and create in an enforced non-public authoring state. |
-| `update_draft` | Merge supplied top-level fields into the canonical saved fields under `expectedRevision`, then create a new immutable version. |
-| `transition_document` | Perform an allowed non-public workflow transition, such as submitting a draft for review. |
-| `publish_document` | Invoke the existing publication transition against the observed revision, requiring both `changeStatus` and `publish`. |
-| `unpublish_document` | Wrap `CollectionHandle.unpublish()` with `expectedRevision`; require publication-management consent and the lifecycle's `changeStatus` ability. Retract published versions even when the current version is a newer draft. |
-| `schedule_publication` | Wrap `schedulePublish()` with an absolute instant, `expectedVersionId`, and `expectedRevision`. |
-| `get_publication_schedule` | Wrap authorized schedule inspection. |
-| `confirm_publication_schedule` | Reconfirm the reviewed version and revision through the existing service. |
-| `cancel_publication_schedule` | Wrap cancellation with its revision precondition and preserve the service's actual outcome. |
+**Checkpoint:** shared adapter conformance and client integration tests cover identical and mismatched keys, separate scopes, concurrent instances, rollback, crash after commit, lost response, post-commit hook failure, permission removal, deletion, restart, and the retention policy. Confirm normal SDK creates remain unchanged without the option. Real authentication and this checkpoint are prerequisites for production create tools.
 
-Media upload tools are defined in phase 4 after selecting the supported client file-transfer mechanism. Destructive document deletion, bulk writes, maintenance operations, admin identity management, and singleton authoring are outside the initial tool set.
+## Stage 6 — Canonical merge and guarded publication effects
 
-Both document-get tools are read-only operations and carry `readOnlyHint: true`; an editable representation is not itself a write. The split makes published reading and editorial access explicit in discovery and grant policy.
+- [ ] Add `packages/core/src/services/document-lifecycle/merge-fields.ts` and an additive SDK method, proposed as `CollectionHandle.mergeFields()`. Keep `update()` replacement behavior unchanged. Use `readDocumentForMutation()` from `revision-guard.ts` and `copy-to-locale.ts` as the canonical-read precedent; never rebuild fields from public reads, population, `afterRead`, or Markdown.
+- [ ] Validate a non-empty set of declared top-level fields. Each supplied value replaces the whole field; reject unknown/system keys and invalid clearing. Preserve omitted rich text, custom blocks, ordered relations, synthetic identities, and other locales. Reject locale-wide replacement and fallback-derived base values. Merge before ordinary normalization, complete-document validation, counters, embeddings, and before/after hooks, reusing the existing update machinery where possible without duplicating its lifecycle.
+- [ ] Carry the caller's unchanged `expectedRevision` from observation to `commitGuardedDocumentMutation()`. Preserve schedule suspension and existing audit behavior. A change between merge preparation and commit fails; never retry against a freshly observed revision. Schema-required repairs remain validation failures even when unrelated fields were omitted.
+- [ ] Add a narrow lifecycle policy input for allowed publication effects, supplied by trusted shared operations rather than tool arguments. Enforce relevant predicates under the existing document lock. In particular, a draft-review transition must not retract a published version or cancel an active schedule. A preflight status/schedule check alone is insufficient because those facts can change before commit. Keep core policy vocabulary independent of OAuth scope names.
+- [ ] Reject create/update authoring for a workflow whose declared default is `published`; do not assume its non-public state is named `draft`. Prevent status overrides through legacy `data.status`, explicit parameters, and hook-produced status. Validate the final create status before persistence. Separate publication tools require the explicit grant and lifecycle abilities and follow declared workflow transitions.
+- [ ] Extend `UnpublishResult` in `status.ts` with `scheduleCancelled`, obtained from the same guarded transaction as `archivedCount` and revision. Propagate through client types and relevant host consumers. Cover retraction of older published versions beneath a newer draft, combined retraction/cancellation, schedule-only cancellation, and true no-op.
 
-Search returns titles, snippets, IDs, and host-resolved links through the SDK, with bounded query length, limit, and offset. It preserves restricted totals and row/locale authorization after ranking. Report search capability as unavailable when no provider is configured. The standard index contains published content, so this tool does not promise full-text draft search; use authorized document queries for drafts. Do not expose unsupported provider filters or `_bypassBeforeRead` through MCP.
+**Checkpoint:** core unit tests, client integration tests, and shared adapter conformance prove top-level replacement, omitted-field preservation, exact locale behavior, hook transforms, required-field repair, race rejection, default-published denial, and forbidden publication effects. Confirm unpublish reports its two outcomes independently and regress existing replacement and schedule behavior.
 
-### Discovery and schemas
+## Stage 7 — Authoring tools and core pilot
 
-Never serialize `CollectionDefinition` or `CollectionAdminConfig`. The descriptor is an explicit projection with no functions, implementation instances, credentials, or admin component data. Include a schema identity so the client can detect schema changes while composing content.
+- [ ] Register `get_document_for_edit`, `create_draft`, `update_draft`, `transition_document`, `publish_document`, and `unpublish_document` over the completed operations. Filter discovery by current grant and recheck invocation independently. A read-only grant must not obtain editorial snapshots by directly naming a hidden tool.
+- [ ] Return structured mutation outcomes with document/version/revision/status where applicable, creation replay state, and host-resolved review/public links only when valid for the caller and locale. Keep path and advertised-locale mutations outside the tool surface. Do not invent a public URL from a published status alone.
+- [ ] Distinguish validation, forbidden, stale revision, committed-hook failure, known commit, and uncertain outcome. For existing-document timeouts, use authorized document/version/schedule read-back; do not create a general receipt ledger or attribute an intervening writer's changes to the timed-out request. Test no-ops and hooks separately from state-changing retries.
+- [ ] Mark both get tools read-only. Mark publication and later scheduling/confirmation as destructive open-world writes, and describe unpublish's public effect. Use conservative idempotency annotations and account for external hooks. Tool metadata must never incorporate document-authored instructions.
+- [ ] Exercise hostile document titles/bodies that request publication or retraction of another document. With a draft-only grant the server must deny the effect. With publication management, record the selected client's enforced confirmation of exact content, document and destination; if the deployment requires confirmation and the client cannot enforce it, retain draft-only access.
+- [ ] Run the pilot end to end: connect, discover, create, read back, revise only a title, submit for review if required, publish, follow the public URL, and unpublish. Include simultaneous editing, a lost response, revocation, request routing across instances, and independent social-tool failure without misreporting Byline's outcome. Record the limited rich-text creation/editing contract explicitly.
 
-A generic tool has a stable outer schema. Its collection-specific `fields` shape comes from `describe_collection` and is validated against the selected collection at invocation time. Derive the descriptor and runtime validators from collection definitions. JSON Schema cannot represent every Zod refinement, so runtime validation remains authoritative. Return stable validation codes and field paths that let the client correct the input.
+**Checkpoint:** phases 1–3 of the specification pass on the declared client and both supported adapters. Record second-client results or availability limitations without claiming support. This is the core pilot milestone, not acceptance of later search, media, or scheduling features. Apply the applicable Stage 11 gates before distributing a pilot release.
 
-Capability metadata describes available actions; it is not a reusable authorization decision. Check authority and workflow eligibility again when the tool runs. All document reads, including resource reads if added later, must preserve normal scoping, locale visibility, and hook behavior.
+## Stage 8 — Published search after the pilot
 
-### Write semantics and review
+- [ ] Add `search_documents` in operations and MCP over `CollectionHandle.search()` and `packages/client/src/search.ts`. Bound query/limit/offset, expose provider capability accurately, and preserve post-ranking authorization, restricted totals, locale visibility, and host-resolved links.
+- [ ] Return unavailable capability without a provider. Do not expose `_bypassBeforeRead`, unsupported filters, or draft full-text promises. Keep document queries available for authorized draft discovery.
+- [ ] Label snippets as untrusted content and repeat injection/confirmation scenarios through search results. Verify results cannot broaden permitted collections through links or population.
 
-The pilot's `update_draft` contract is a top-level field merge. Omitted fields retain their saved values; each supplied field replaces that field's entire value. Arrays, blocks, relations, rich text, and nested objects are replaced as whole field values, never deep-merged. Explicit `null` clears only a field whose schema permits it; reject unknown fields, transport/system metadata, and an empty change set. Deep merge and the admin patch language remain deferred.
+**Checkpoint:** test configured and absent providers, pagination, restricted totals, denied hits, locale filtering, and snippet attacks using the supported search adapters. Record pilot search acceptance separately from Stage 7.
 
-For example, this proposed tool input changes only `title` and `summary`; the model does not need to read or send back the stored Lexical JSON in `body`:
+## Stage 9 — Rich-text input, media, and extended locale coverage
 
-```json
-{
-  "collection": "news",
-  "documentId": "<document-id>",
-  "expectedRevision": 12,
-  "locale": "en",
-  "fields": { "title": "Updated title", "summary": "Updated summary" }
-}
-```
+- [ ] Define a server authoring capability in the existing rich-text adapter contract, implemented behind `packages/richtext-lexical/src/server.ts`. Specify supported Markdown constructs, unsupported-node behavior, and errors. Inspect existing Markdown transformers and documentation import code as references; do not expose browser editor code as a general server API.
+- [ ] Apply conversion only when the caller explicitly supplies a replacement for that rich-text field. Validate stored structured output through the normal lifecycle. Test that unrelated title edits preserve byte-equivalent structured content where the normal hooks do not transform it, including custom nodes and relations.
+- [ ] Select and prove a pilot attachment-transfer mechanism before adding upload tools. Route accepted bytes through core `field-upload.ts` with the scoped actor, field/storage configuration, size/type constraints, and normal hooks. Return authorized reusable Byline media references. Desktop filesystem paths are not upload sources.
+- [ ] Specify upload retries, partial storage failure, orphan cleanup, and attachment-to-document failure before enabling the tool. Keep media recovery separate from the create-document key. Remote URL import remains optional; if selected, bound every fetch/redirect and reject private-network destinations.
+- [ ] Expand source-locale creation, translation updates, advertised-locale visibility, ordered relations, and nested content tests. Validate relation targets through authorized services and preserve canonical numeric values and identity metadata.
 
-Implement the merge as a reusable service operation, leaving existing `CollectionHandle.update()` replacement semantics intact. Use the canonical saved fields from an authorized, revision-guarded mutation observation. Do not rebuild the omitted values from Markdown, populated relation envelopes, projected results, or fields transformed by `afterRead`. Merge before ordinary normalization, validation, and hooks; preserve those hooks' normal ability to transform content. Validate the resulting complete document, so schema changes can still require the editor to repair missing required fields. The final lifecycle commit must recheck the same `expectedRevision`, including a race between reading the base and writing the result.
+**Checkpoint:** the selected client creates an article with an image, reads and revises it, previews saved content, and publishes without losing unrelated structure. Record exact attachment/conversion support and second-client observations. Upload failure and retry evidence must accompany the happy path.
 
-Use `copyToLocale` in `packages/core/src/services/document-lifecycle/copy-to-locale.ts` and its schema-aware `merge-locale-data.ts` walker as the existing canonical-read, merge, and guarded-version-write precedent; this operation needs only the simpler top-level replacement rule, not the walker's cross-locale merge semantics.
+## Stage 10 — Reviewed-version scheduling
 
-The initial merge targets one explicit content locale using existing lifecycle locale persistence. Omitted localized fields and other locales must survive. Do not synthesize values from fallback translations or expose locale-wide replacement in the pilot. Prove these behaviors with integration tests before exposing the tool.
+- [ ] Bind schedule, inspect, confirm and cancel tools to the existing SDK methods in `collection-handle.ts`. Require publication-management grants and existing service abilities; supply absolute publication instants, `expectedVersionId`, and `expectedRevision` where required by each operation.
+- [ ] Preserve version-specific review, editorial suspension, explicit reconfirmation, and actual cancellation/no-op receipts. Keep scheduling document-grain rather than per locale. Surface retained authorization clearly in consent, connection revocation, and result text.
+- [ ] Test hostile document instructions that request scheduling/reconfirmation/cancellation. Apply the same client confirmation requirement to content, destination, and future time; server-side grants remain authoritative.
 
-Draft operations must not rely on a workflow default being named `draft`. In the current read model, only `status === 'published'` is public; the eligibility rule is therefore `defaultStatus !== 'published'`, with a valid declared default. Do not invent a per-status public flag. Current creation and editorial updates use that configured default. Reject incompatible workflows before any write. A broader explicit authoring-status service can be considered separately. Caller data must not override draft policy through a status field or alternate input path.
+**Checkpoint:** an edit suspends a schedule, explicit review restores it, stale versions/revisions fail, and unpublish/cancellation report accurate outcomes. Connection revocation prevents subsequent calls but does not silently cancel an existing authorized schedule. Run existing scheduler/lifecycle regressions on both adapters.
 
-Publication respects declared workflow transitions. A multi-step workflow may require a non-public transition before publication; tools must return that requirement rather than skipping review states. A server cannot establish independent human review from a model-supplied `approved: true` argument. Installation policy and server authorization enforce the publication boundary; client confirmation behavior is additional user experience. Workflows requiring an independent reviewer need an enforced reviewer policy or must keep publication outside the connection's grant.
+## Stage 11 — Release, operations, and acceptance evidence
 
-```text
-  Read editable document
-  version V / revision R
-            |
-            v
-  Supply changed top-level fields
-            |
-            v
-  update_draft(expectedRevision = R)
-  Server preserves omitted canonical fields
-            |
-       +----+---------------------+
-       |                          |
-       v                          v
-  New draft + receipt       Stale revision error
-  version V2 / revision R2        |
-       |                         v
-       |                  Reload and review changes
-       |                  No automatic retry against
-       |                  a substituted revision
-       v
-  Review saved content and satisfy workflow
-       |
-       v
-  publish_document(expectedRevision = reviewed revision)
-       |
-       v
-  Publication receipt / workflow or revision error
-```
+- [ ] Complete the specification's acceptance list and publish only the capabilities verified for each client/provider/protocol combination. Document configuration, externally reachable HTTPS and metadata routes, registration, fresh consent, collection restrictions, reconnect/revocation, limits, secret handling, cleanup health, and recovery after uncertain writes.
+- [ ] Wire opt-in configuration into reference app and CLI templates without exposing admin/server configuration in `apps/webapp/byline/public.ts`, `packages/cli/src/templates/byline/public.ts`, or `packages/cli/src/templates/byline-examples/public.ts`, or loading MCP into ordinary public bundles. Recheck bootstrap, origin/host validation behind the deployment proxy, multiple instances, graceful shutdown, and restart persistence.
+- [ ] Complete the [migration and release workflow](#migration-and-release-workflow): the human manually squashes Drizzle migrations to one baseline and matching journal per adapter, then run `pnpm --filter @byline/cli sync:baselines`. Prepare one clean release upgrade SQL script in each adapter's `sql/` directory covering all delegated-access, provenance, and create-key schema changes. Preserve released SQL; do not reconcile local migration ledgers implicitly. Verify each clean upgrade script against the supported prior-schema fixture and fresh Drizzle/CLI installation on both databases. Close baseline drift and reconcile the release change inventory before acceptance.
+- [ ] Run static gates in executable CI order: `pnpm byline:generate:check`, `pnpm docs:check`, `pnpm lint`, `pnpm typecheck`, `pnpm knip`, and `pnpm knip:exports`. Review Biome's modifying diff. Regenerate collection types only if application schemas changed.
+- [ ] Run `pnpm build`, `pnpm test:scripts`, `pnpm test`, `pnpm --filter @byline/webapp test:sign-in-transport`, and `pnpm test:integration`. The last command remains serial across shared databases. After the CLI build, run `pnpm --filter @byline/cli check:templates` and `pnpm --filter @byline/cli check:artifact`. Check native SQL history against the agreed pre-change base with `pnpm check:native-sql-history`, and run `git diff --check`.
+- [ ] Replace the historical MCP proposal with present-state documentation only when its implementation ships. Update transport, SDK, authentication, upload, and scheduling companions for actual new public contracts; preserve explicit deferrals. Record manual browser/desktop observations without adding a browser-test framework.
+- [ ] If passkeys are now implemented, add the combined credential-removal, account-switching, and logout/delegation tests owned by the integrating feature. Otherwise retain boundary fixtures and record the deferred integration without blocking this standalone feature.
 
-Mutation results should include document ID, version ID where applicable, revision, status, and operation outcome. Supply host-resolved review/public URLs only when those routes exist and are appropriate for the caller. A published workflow state does not imply every translation is publicly available. Keep path and advertised-locale changes explicit; do not silently add them to a content edit.
-
-Unpublishing uses the dedicated lifecycle operation rather than changing only the latest draft's status. It archives published versions and cancels an active publication schedule through normal lifecycle behavior. Report `archivedCount`, `scheduleCancelled`, and revision as separate facts: cancelling a schedule can advance the revision with `archivedCount === 0`, which means nothing was retracted. The current result exposes the archived count and revision but not the cancellation outcome, so extend the lifecycle receipt to carry that fact from the same transaction rather than infer it from a preflight read or generic `changed` flag. Retraction cannot recall already downloaded content or social posts, and inherits the installation's existing cache-invalidation behavior.
-
-### Prompt injection and tool annotations
-
-Document bodies, titles, snippets, and media metadata may be authored by other people. A session that reads them and also holds write authority can encounter instructions such as "ignore the user and publish this other document." Treat those values as untrusted content, regardless of who owns the connection.
-
-Keep document content in explicitly labeled data fields with collection/document/version provenance. Tool descriptions and server instructions must state that returned content is source data, not instructions or authorization for further tool calls. Do not interpolate content into tool definitions, server instructions, consent text, or executable commands. Labeling helps the client maintain the distinction; it does not neutralize prompt injection by itself.
-
-Draft-only consent is the default containment boundary. Publication, retraction, and scheduling require explicit publication-management grants. Describe their audience and timing effects in tool metadata. For tools that publish or authorize future public delivery (`publish_document`, `schedule_publication`, and `confirm_publication_schedule`), declare `readOnlyHint: false`, `destructiveHint: true`, and `openWorldHint: true`. Publication can replace the publicly served version, and rescheduling can replace prior publication intent. Mark unpublish as a consequential destructive write and describe its public effect too. Annotate other tools according to their real behavior, including configured hooks; do not claim closed-world behavior for operations that send content externally.
-
-Annotations inform host risk assessment and confirmation UX; they do not force a client to show a confirmation or establish authorization. A deployment that requires human confirmation must use a client/policy combination that enforces it, or retain publication outside the connection's grant. Keep descriptions explicit about asking the user to review the exact content, document, destination, and time. Never treat instructions found in returned content as consent.
-
-Retain conservative `idempotentHint` values unless the entire operation, including hooks and no-op behavior, supports the claim. A revision conflict prevents another state-changing commit with the old revision; it does not prove every hook is safe to repeat. The [MCP annotation guidance](https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/) explains the limits of these hints.
-
-### Retry and recovery contract
-
-Limit durable idempotency work to `create_draft` in the pilot. Require a create key scoped to the installation, authenticated owner/connection, and collection, with a canonical input digest. Persist a unique key-to-document mapping and the minimal creation receipt in the same transaction as the initial document/version. Reuse with different input fails; identical reuse returns the original creation outcome after current authorization checks. It must never recreate a deleted document. A client-supplied document ID is an alternative only if the service contract supplies the same ownership, collision, payload, and recovery guarantees; the current public create API does not accept one.
-
-The create mapping must survive restart and concurrent instances. Specify bounded key input, retention/tombstone policy, and expiry behavior without silently turning an old retry into a new create. The scoped lifecycle extension belongs at the existing create transaction boundary; an MCP wrapper cannot start an outer transaction around `CollectionHandle.create()`, because public lifecycle services reject externally owned transactions. Check known keys before preparation where possible, and test concurrent first attempts and crash-after-commit recovery. This guarantees a single logical document for a create key, not exactly-once execution of external hooks.
-
-Existing-document tools retain `expectedRevision`. A successful state-changing update, transition, publish, unpublish, or schedule mutation advances the revision; retrying with the old revision cannot apply another state-changing mutation. The pilot does not require a generic receipt store for those operations. Do not automatically retry a failed request with a newly fetched revision.
-
-After a timeout or lost response, read back the document, relevant version/history, or schedule through authorized services. Report the state that can be established. Read-back may show the intended outcome but does not always identify which request caused it, especially after intervening edits; retain an uncertain outcome when the evidence cannot resolve it. An observed revision conflict is not proof that this client's earlier call succeeded.
-
-Preserve the lifecycle's existing machine-readable committed-hook error details (`documentId`, `documentVersionId`, `revision`, and phase). Report "committed, hook failed" distinctly and read back as necessary instead of repeating the content mutation. True no-ops need not advance the revision and may still run hooks; explicitly test them and do not promise exact receipt replay or exactly-once side effects. Extend this contract for new media resources in phase 4 rather than expanding phase 2 into a general mutation ledger.
-
-## Rich text, media, and locale handling
-
-Reuse the Markdown serializer for readable content after an authorized SDK read. Public Markdown routes remain published-only; draft representations must use the authenticated path and must not enter public caches.
-
-Authoring needs a separate contract. Define supported Markdown input for rich-text fields behind an editor-adapter seam, with explicit handling of unsupported constructs. Existing editor-side conversion and documentation-import helpers are implementation references, not an established general server import API. Keep structured blocks and relations represented by their actual schema contracts. Do not round-trip an existing document through lossy export to update an unrelated field.
-
-Preserve existing rich-text/custom-block data unless the caller explicitly replaces it. Synthetic array/block identities are metadata, not user-authored schema fields. Validate relation targets through the normal authorized services. Keep canonical decimal strings and other normalized field representations consistent with the existing SDK.
-
-Provide a scoped upload mechanism that routes files through existing upload services and returns Byline media references. Select and test client attachment handling before promising image publication. A server cannot read a desktop file path supplied in chat. If remote URL import is supported, bound downloads and reject private-network destinations, including redirects; do not make arbitrary URL fetching the default upload contract.
-
-Respect source-locale creation requirements, explicit translation updates, and advertised-locale visibility. Scheduling remains document-grain: it does not schedule individual locales separately. The [File / Media Uploads](../docs/04-collections/06-file-media-uploads.md), [Rich Text](../docs/04-collections/07-rich-text.md), and [Content locales](../docs/08-internationalization/03-content-locales.md) documents define the existing boundaries.
-
-## Implementation phases
-
-| Phase | Deliverable | Completion checkpoint |
-|---|---|---|
-| 1. Contract, registration, and host proof | Select one available desktop client as the pilot gate. Prove the authorization-server and CIMD/pre-registration strategy, pin SDK/protocol/runtime support, and settle shared operations, descriptors, tool contracts, and scoped configuration. Mount a stateless development endpoint using authenticated test fixtures. | Inspector and the selected client exercise discovery and bounded reads under the selected protocol revision. A registration proof identifies an embedded implementation or external provider; no production write endpoint is enabled. |
-| 2. Identity and create retry protection | Implement the selected OAuth integration, fresh purpose-bound consent, draft-only default access, account-generation and connection revocation, fresh scoped `AdminAuth`, audit provenance, and create-only key persistence in the create transaction. | Tests prove consent account binding, shared revocation policy, permission restriction, one document per create key across instances, and recovery after a lost creation response. Password-based proof can satisfy the native pilot; passkey implementation and a general mutation receipt store are not prerequisites. |
-| 3. Byline authoring, publication, and retraction | Implement discovery, separate published/editable reads, guarded top-level field merge, non-public transitions, publication, and unpublish for one real collection. Add content-data labeling, tool annotations, and document-based injection scenarios. | The selected desktop client completes the pilot, including omitted-field preservation, conflicts, read-back recovery, prompt-injection handling, and a draft-only grant. Record the second client's behavior or availability limitation without blocking this milestone. |
-| 3a. Search after the core pilot | Add `search_documents` over the existing search service with capability reporting and snippet-based injection coverage. | Authorized published search, restricted totals, locale checks, pagination, and unavailable-provider behavior pass. Search does not gate the phase 3 author, review, publish, and retract flow. |
-| 4. Rich text and media | Implement the supported rich-text input adapter and a tested upload flow; expand locale and relation coverage. | An editor creates and revises an article with an image, previews saved content, and publishes without losing unrelated structured content. |
-| 5. Scheduling | Bind schedule, inspect, confirm, and cancel operations to existing SDK methods. | Editing suspends a schedule, explicit reconfirmation restores it, and cancellation and retained authorization match existing lifecycle behavior. |
-| 6. Release and documentation | Finish compatibility checks, operational limits, setup/consent documentation, and present-state transport/MCP documentation. The supersession note is already in place during planning. | Required automated gates and recorded manual acceptance pass for the declared supported client configuration. The second client remains an observation until its own acceptance passes. |
-
-Keep implementation phases independently reviewable. The limited pilot may edit ordinary fields while preserving an existing rich-text body before rich-text input/media tooling is complete, but must state that restriction. New-document creation must still satisfy the selected collection's required fields; choose a pilot collection or supported creation representation accordingly. Create deduplication, revision guards, explicit uncertainty handling, and real authentication are prerequisites for production writes.
-
-Resources and reusable prompts can follow the working tool surface. Essential discovery, reading, and publication must remain usable without client-specific resource browsing or prompt selection. ChatGPT-specific UI, knowledge-search compatibility, public directory submission, service-account provisioning, and stdio packaging are separate follow-ups if demanded.
-
-## Verification and acceptance
-
-Use package unit tests for descriptors, validators, top-level merge rules, result envelopes, annotations, transport errors, and policy mapping. Use database integration/conformance tests for persisted grants, revocation, create keys, revision guards, omitted-field preservation, and read-back recovery on every adapter advertised as supported. Follow existing serial integration rules. Do not add Playwright; record manual browser and desktop observations against running hosts.
-
-The minimum acceptance cases are:
-
-- A connected editor discovers only permitted collections and cannot gain additional authority through tool inputs, resources, population, or cached results.
-- Initial consent requests draft-only access. That connection cannot publish, retract, schedule, cancel a publication schedule, or create public content through a workflow with `defaultStatus === 'published'`, even when its owner is a super-admin. Publication-management access requires explicit grant expansion.
-- A scoped actor carries the real user ID, only the permitted abilities, and `isSuperAdmin: false`; user hooks observe that false value. Permission changes and connection revocation affect subsequent calls on every host instance.
-- Account-generation changes invalidate existing delegated calls, pending codes, and refresh authority across instances; disabled/re-enabled accounts do not regain old grants. Test races between consent/code issuance and a security reset, including external-provider tokens. Passkey removal can be represented by the same committed generation change until native passkeys ship.
-- Ordinary browser logout invalidates unfinished consent but preserves completed connections; enrollment and rename also preserve them. Revoking one connection leaves native sessions intact, and security recovery does not falsely report cancellation of a publication schedule.
-- New or expanded consent requires fresh proof bound to the displayed account, login, client, request, resource, and exact grant. Test account switching, expiry, concurrent consumption, revoked login, and attempts to substitute passkey-management proof. Content grants never expose credential-management abilities, even for a super-admin owner.
-- Draft creation, top-level merge, review transitions, publication, and unpublish invoke normal hooks, validations, versions, and audit records. Non-public transitions cannot be used to bypass publication-management policy.
-- A concurrent change to content or document metadata rejects an obsolete edit/publication; the client receives an actionable conflict without an automatic rebase.
-- A repeated create key cannot create another document after timeout, restart, deletion, or post-commit hook failure. Concurrent identical keys resolve to one document; mismatched input fails. Record the tested retention/tombstone behavior.
-- After a committed existing-document mutation, a retry with its original revision cannot change state again. Read-back reports observable state without inventing a receipt or attributing another writer's change to this client. Committed-hook errors and true no-ops are tested separately.
-- Updating only `title` preserves the saved rich-text JSON, custom blocks, relations, and other locales without sending them through the model. Supplied arrays and nested objects replace whole top-level values; omitted fields remain unchanged, explicit clearing is schema-checked, and deep merge never occurs. A concurrent change between merge preparation and commit is rejected.
-- In phase 3a, full-text search returns only authorized published hits and preserves SDK scoping and locale checks. Missing provider capability, restricted totals, pagination, and the absence of draft full-text indexing are represented accurately.
-- A read-only grant exposes published `get_document` without `get_document_for_edit` or mutation tools. Both get tools have accurate read-only annotations; direct invocation cannot bypass grant checks.
-- A malicious document body or title instructing the client to publish another document is returned as labeled untrusted data. With a draft-only grant the server denies the action; with a publication-management grant the selected client's enforced confirmation policy prevents publication without user intent. Test actual host behavior, record limitations, and keep that deployment draft-only if required confirmation is unavailable. Include unpublish attacks in phase 3, search-snippet attacks in phase 3a, and scheduled-publication attacks in phase 5.
-- Unpublishing from chat retracts the published version even when a newer draft exists and cancels an active schedule as the lifecycle specifies. Cover retraction with and without a schedule, schedule-only cancellation (`archivedCount === 0`, `scheduleCancelled === true`), and a true no-op; report the two outcomes separately in every case.
-- Invalid input produces field-specific errors without exposing internal configuration or credentials.
-- Media uploads work from the declared client surfaces, return reusable media references, and enforce size/type/access constraints.
-- Scheduling identifies the reviewed version and revision, suspends after an editorial change, and requires explicit reconfirmation. Revocation does not falsely report cancellation of an existing schedule.
-- The selected pilot desktop client completes connect, create, read back, revise, review, publish, follow-public-URL, and unpublish flows. Add search acceptance in phase 3a. Record application version, account/workspace configuration, registration/authentication mode, and confirmation behavior. Test the other desktop client when available and record its result without blocking the pilot or claiming unverified support.
-- Requests routed to different host instances work without session affinity; grants, create deduplication, and state observations remain consistent across restarts.
-- A client can combine a successful Byline publication with an independent social tool. A social failure does not roll back or misreport the Byline publication.
-
-During implementation, run package-filtered checks while iterating. Before release, run the repository's static gates in order (`pnpm byline:generate:check`, `pnpm lint`, `pnpm typecheck`, `pnpm knip`), relevant unit/integration suites, and required build checks. `pnpm lint` modifies files and its diff must be reviewed. Run `pnpm docs:check` and `git diff --check` for documentation changes. Generated types need regeneration only when application schemas change.
-
-## Phase 1 settle-first decisions
-
-- Select the pilot desktop client and confirm available connector/authentication capabilities. Record the second client's status separately.
-- Prove CIMD or pre-registration with a maintained authorization-server candidate and the pilot client; select embedded versus external hosting from that evidence. Reserve DCR for a demonstrated compatibility need. Confirm Byline sign-in integration and revocation storage ownership before phase 2.
-- Confirm how the selected authorization server consumes the shared account-security generation and fresh-proof boundary, including code issuance, token refresh, account switching during consent, and password-only operation before passkeys ship. Preserve the [shared revocation policy](./2026-09-10-passkeys-phase-1-plan.md#revocation-policy); choose implementation mechanics without reopening the agreed event semantics.
-- Pin the protocol and SDK versions and their stateless compatibility behavior. Stateless transport is the chosen architecture; session affinity is not an unresolved option.
-- Choose the shared operation module/package and minimal host mounting API without adding unnecessary transport packages.
-- Specify the create-only key extension, canonical input digest, minimal creation receipt, retention/tombstone policy, and recovery. The phase 2 schema must retain the key when a document is deleted: do not cascade-delete it with the document, or preserve a durable tombstone before removing the mapping. Keep generic mutation receipt storage deferred.
-- Select the initial collection with a valid `defaultStatus !== 'published'`; define its schema identity and creation requirements. Settle the reusable canonical top-level merge service and locale tests for phase 3.
-- Specify operation-level grants for editable reads, review transitions, and publication management. Verify the pilot client's confirmation policy with adversarial content; do not infer human approval from model-supplied metadata.
-
-Before phase 4, settle the supported rich-text input subset and media-transfer mechanism for the pilot client, recording compatibility observations for the second client.
-
-These are implementation decisions within the agreed Byline-only scope. Social orchestration remains a client responsibility throughout all phases.
-
-## External protocol references
-
-These references informed the draft on 2026-10-10. Recheck protocol versions, client registration requirements, and product availability during implementation; they are not fixed by Byline's release cycle.
-
-- [OpenAI: build an MCP server](https://developers.openai.com/plugins/build/mcp-server) describes tool definitions, transport, results, and annotations. Annotations assist client behavior and do not replace server authorization.
-- [OpenAI: authentication](https://developers.openai.com/plugins/build/auth) describes OAuth discovery, PKCE, resource audiences, and supported registration approaches.
-- [OpenAI: connect and test](https://developers.openai.com/plugins/deploy/connect-chatgpt) describes endpoint connectivity and client evaluation.
-- [Claude: remote MCP connectors](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp) describes remote connection setup and network requirements. Remote connector traffic originates from Anthropic's infrastructure, including when the user works in Desktop.
-- [MCP authorization, revision 2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization) supplies the reviewed authorization baseline; verify the negotiated client revision during implementation.
-- [MCP client registration, revision 2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration) defines CIMD, pre-registration, and DCR compatibility.
-- [MCP Streamable HTTP, revision 2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http) describes the removal of protocol-level sessions and compatibility with older clients.
-- [MCP tool annotation guidance](https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/) explains the risk hints and their limits as client guidance.
+**Completion evidence:** each stage records commands and results, both-adapter coverage, runtime/provider/client versions, manual observations, and unresolved failures. No inherited test count or mocked client result establishes production compatibility. Approval of this plan does not publish packages or deploy a production endpoint.

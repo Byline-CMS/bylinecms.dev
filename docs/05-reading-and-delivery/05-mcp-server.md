@@ -1,7 +1,7 @@
 ---
 title: "MCP Server"
 path: "mcp"
-summary: "Historical MCP transport proposal, superseded by the October 2026 draft implementation plan for delegated authoring and publication."
+summary: "Historical MCP transport proposal, superseded by the October 2026 specification for delegated authoring and publication."
 ---
 
 # MCP Server
@@ -15,15 +15,17 @@ Companions:
 - [Content Management in the Time of AI](../02-why-byline/02-content-in-the-time-of-ai.md) — the "why": structured versioning, workflow, and provenance matter *more* when an LLM is the author. MCP is where that thesis meets a keyboard.
 
 :::note[Superseded proposal]
-The [MCP server draft implementation plan](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/specs/2026-10-10-mcp-server-plan.md)
-in `specs/2026-10-10-mcp-server-plan.md` supersedes this proposal as of
+The [MCP server specification](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/specs/2026-10-10-mcp-server-spec.md)
+in `specs/2026-10-10-mcp-server-spec.md` supersedes this proposal as of
 2026-10-10. It specifies delegated OAuth access, stateless Streamable HTTP,
 top-level field-merge updates, create-only idempotency, and prompt-injection
 defenses. It also removes the HTTP-first and outstanding `hasMany` prerequisites.
 The sections below preserve the earlier rationale; their service-account-first
 authentication and sequencing are historical, not current implementation guidance.
 Social-channel orchestration remains the client's responsibility. Neither this
-proposal nor the draft plan describes a shipped MCP server.
+proposal nor the specification describes a shipped MCP server. The companion
+[implementation plan](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/specs/2026-10-10-mcp-server-plan.md)
+sequences the code changes and verification checkpoints.
 :::
 
 ## Overview
