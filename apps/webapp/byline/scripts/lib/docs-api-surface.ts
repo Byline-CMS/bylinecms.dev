@@ -72,6 +72,8 @@ const serverConfigKeys = completeKeys<ServerConfig>()([
   'uploads',
   'sessionProvider',
   'passwordSignIn',
+  'passkeys',
+  'passkeyRequests',
   'adminStore',
   'fields',
   'search',

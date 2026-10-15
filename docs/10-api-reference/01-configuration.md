@@ -191,6 +191,8 @@ interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
   uploads?: { filenameSlugifier?: FilenameSlugifierFn }
   sessionProvider?: SessionProvider
   passwordSignIn?: PasswordSignInProtection
+  passkeys?: PasskeyConfig
+  passkeyRequests?: PasskeyRequestProtection
   adminStore?: TAdminStore
   fields?: {
     richText?: {
@@ -215,6 +217,8 @@ interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
 | `uploads.filenameSlugifier` | `slugifyFilename` | Server-only transformation for the human-readable base name of every uploaded file before hooks and provider key composition. |
 | `sessionProvider` | Optional in the type | Authentication session implementation. Admin sign-in, refresh, verification, and revocation require one. |
 | `passwordSignIn` | Required for host password sign-in | Shared admission limiter and trusted client-IP resolver. See [Password sign-in protection](../07-auth-and-security/01-authn-authz.md#password-sign-in-protection) for configuration and middleware requirements. |
+| `passkeys` | Disabled when omitted | Explicit relying-party identity and exact allowed origins. The session provider must advertise and implement passkey support. See [Passkey configuration](#passkey-configuration). |
+| `passkeyRequests` | Required when passkeys are enabled | Shared admission limiter and trusted client-IP resolver for passkey POST requests. Password proof additionally uses `passwordSignIn`. |
 | `adminStore` | Optional | Adapter-built admin repositories surfaced on `BylineCore.adminStore`. Required by the built-in admin user, role, permission, and JWT session facilities. |
 | `fields.richText.embed` | Conditional | Write-time rich-text relation embedder. Required when a rich-text field effectively enables `embedRelationsOnSave`. |
 | `fields.richText.populate` | Conditional | Read-time rich-text relation refresher. Required when a rich-text field effectively enables `populateRelationsOnRead`. |
@@ -225,6 +229,38 @@ interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
 | `recurringTasks` | `[]` | Definitions created with `defineRecurringTask()`. Registration does not start a timer. When this list is non-empty, `db` must implement the optional scheduler capability; `initBylineCore()` validates and snapshots the definitions for the scheduler runner. |
 
 The host owns execution lifetime. A long-running server may call `startBylineScheduler(core)` from `@byline/core/scheduler`; an externally orchestrated installation may call `runDueTasks(core)` instead. Importing server configuration from a seed, migration, or maintenance script therefore never acquires a lease or keeps that process alive. Scheduled publication remains optional convenience: ordinary `CollectionHandle.changeStatus()` publication neither requires nor consults a schedule row.
+
+### Passkey configuration
+
+A relying party identifies the site for which you register and verify passkeys. Configure its identity explicitly; the server does not derive it from request headers.
+
+```ts
+interface PasskeyConfig {
+  rpId: string
+  rpName: string
+  origins: readonly string[]
+  allowInsecureLocalhost?: boolean
+}
+
+interface PasskeyRequestProtection {
+  resolveClientIp: ClientIpResolver
+  limiter: PasskeyRequestLimiter
+}
+
+interface PasskeyRequestLimiter {
+  readonly requiredCleanupTask?: string
+  acquire(): Promise<(() => void) | null>
+  consume(input: { ip: string }): Promise<SignInAdmission>
+}
+```
+
+Supply a canonical lowercase DNS name for `rpId`, a nonempty display name for `rpName`, and exact canonical HTTPS origins without trailing slashes. Origins must belong to the relying-party domain. Wildcards and related-origin expansion are unsupported. For local development only, `allowInsecureLocalhost: true` permits an explicit `http://localhost` origin, including its port.
+
+Pass the same trust settings to `JwtSessionProvider({ passkeys, ... })` and `initBylineCore({ passkeys, ... })`. Core rejects an incomplete or unsupported provider and missing request protection. Omitting passkey configuration preserves password-only operation. The reference application and CLI templates read `BYLINE_PASSKEY_RP_ID`, `BYLINE_PASSKEY_RP_NAME`, and comma-separated `BYLINE_PASSKEY_ORIGINS`; the localhost exception additionally requires `BYLINE_PASSKEY_ALLOW_HTTP_LOCALHOST=true`.
+
+Create the native limiter with `createPasskeyRequestLimiter(adminStore.signInRateLimits, signingSecret)` from `@byline/admin/auth`. Assign it and your trusted client-IP resolver to `passkeyRequests`. Register the limiter's `cleanupTask` and run the scheduler. The native password and passkey limiters share the same counter-cleanup task name: register that task once when you use both. Core rejects a missing required cleanup task. Password proof also requires the full `passwordSignIn` protection and resolves the acting account's email on the server.
+
+The TanStack host's existing `passwordSignInMiddleware` bounds both password and passkey endpoints before RPC deserialization. Keep it after CSRF protection and retain `sessionRequestMiddleware` for authenticated operations. Passkey requests accept JSON envelopes up to 64 KiB; password proof retains the 16 KiB password-envelope limit. See [Password sign-in protection](../07-auth-and-security/01-authn-authz.md#password-sign-in-protection) for trusted-IP and host middleware configuration.
 
 ### `ServerHooksConfig`
 

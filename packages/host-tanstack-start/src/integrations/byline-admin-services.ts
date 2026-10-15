@@ -36,6 +36,7 @@ import {
 import { adminSignIn } from '../server-fns/auth/index.js'
 import { getCollectionDocumentVersion as serverGetCollectionDocumentVersion } from '../server-fns/collections/get.js'
 import { setAdminLocaleFn } from '../server-fns/i18n/index.js'
+import { passkeyAdminServices } from './passkey-admin-services.js'
 import { acceptSession, coordinateAuthAction, notifySessionAction } from './session-coordination.js'
 
 /**
@@ -69,6 +70,8 @@ export const bylineAdminServices: BylineAdminServices = {
     notifySessionAction()
     return result
   },
+
+  passkeys: passkeyAdminServices,
 
   // Account self-service
   updateAccount,

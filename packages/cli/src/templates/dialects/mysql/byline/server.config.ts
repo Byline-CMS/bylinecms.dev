@@ -14,7 +14,7 @@
  */
 
 import { type AdminStore, registerAdminAbilities } from '@byline/admin'
-import { createPasswordSignInLimiter, JwtSessionProvider } from '@byline/admin/auth'
+import { createPasswordSignInLimiter, createPasskeyRequestLimiter, JwtSessionProvider } from '@byline/admin/auth'
 import { getRequestIP } from '@tanstack/react-start/server'
 import { createClientIpResolver } from '@byline/host-tanstack-start/integrations/client-ip'
 import { getAdminBylineClient } from '@byline/client/server'
@@ -71,7 +71,29 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
 
   const signInLimiter = createPasswordSignInLimiter(adminStore.signInRateLimits, signingSecret)
 
+  // Passkeys remain disabled until explicit site trust is configured. Never infer
+  // relying-party identity or origins from request headers.
+  const passkeys = [process.env.BYLINE_PASSKEY_RP_ID, process.env.BYLINE_PASSKEY_RP_NAME,
+    process.env.BYLINE_PASSKEY_ORIGINS, process.env.BYLINE_PASSKEY_ALLOW_HTTP_LOCALHOST]
+    .some((value) => value !== undefined) ? {
+      rpId: process.env.BYLINE_PASSKEY_RP_ID ?? '',
+      rpName: process.env.BYLINE_PASSKEY_RP_NAME ?? '',
+      origins: process.env.BYLINE_PASSKEY_ORIGINS?.split(',').map((origin) => origin.trim()) ?? [],
+      allowInsecureLocalhost: process.env.BYLINE_PASSKEY_ALLOW_HTTP_LOCALHOST === 'true',
+    } : undefined
+  const resolveClientIp = createClientIpResolver({
+    // Opt in only when the proxy overwrites this header and direct access is blocked.
+    trustedProxyHeader: process.env.BYLINE_TRUSTED_CLIENT_IP_HEADER || undefined,
+    resolvePeerIp: () => getRequestIP() ??
+      (process.env.NODE_ENV === 'development' ? '127.0.0.1' : null),
+      })
+  const passkeyRequests = passkeys ? {
+    limiter: createPasskeyRequestLimiter(adminStore.signInRateLimits, signingSecret),
+    resolveClientIp,
+  } : undefined
+
   const sessionProvider = new JwtSessionProvider({
+    passkeys,
     store: adminStore,
     signingSecret,
   })
@@ -90,15 +112,12 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       baseUrl: '/uploads',
     }),
     sessionProvider,
+    passkeys,
+    passkeyRequests,
     recurringTasks: [signInLimiter.cleanupTask],
     passwordSignIn: {
       limiter: signInLimiter,
-      resolveClientIp: createClientIpResolver({
-        // Opt in only when the proxy overwrites this header and direct access is blocked.
-        trustedProxyHeader: process.env.BYLINE_TRUSTED_CLIENT_IP_HEADER || undefined,
-        resolvePeerIp: () => getRequestIP() ??
-          (process.env.NODE_ENV === 'development' ? '127.0.0.1' : null),
-      }),
+      resolveClientIp,
     },
     fields: {
       richText: {

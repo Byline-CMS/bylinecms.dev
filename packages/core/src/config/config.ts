@@ -107,6 +107,15 @@ export function resolveServerConfig<TAdminStore = unknown>(
 ): ResolvedServerConfig<TAdminStore> {
   validateCollections(config.collections)
   const passkeys = resolvePasskeyConfig(config.passkeys, config.sessionProvider)
+  if (
+    passkeys &&
+    (typeof config.passkeyRequests?.resolveClientIp !== 'function' ||
+      typeof config.passkeyRequests.limiter?.acquire !== 'function' ||
+      typeof config.passkeyRequests.limiter?.consume !== 'function')
+  )
+    throw new Error(
+      'Passkeys require passkeyRequests with trusted client IP resolution and admission'
+    )
   const resolved = { ...config, passkeys, routes: resolveRoutes(config.routes) }
   preparedHookAttachments.set(resolved, prepareHookAttachment(resolved))
   return resolved

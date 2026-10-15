@@ -32,6 +32,7 @@ import { useTranslation } from '@byline/i18n/react'
 import { CloseIcon, Drawer, EditIcon, IconButton } from '@byline/ui/react'
 import cx from 'clsx'
 
+import { PasskeyManager } from '../../auth/components/passkey-manager.js'
 import { ChangeAccountPassword } from './change-password.js'
 import styles from './container.module.css'
 import { Preferences } from './preferences.js'
@@ -191,6 +192,11 @@ export function AccountSelfContainer({ account }: AccountSelfContainerProps) {
           >
             <p className={cx('byline-account-line', styles.line)}>{t('account.password.intro')}</p>
           </ContainerSection>
+
+          <PasskeyManager
+            targetUserId={currentAccount.id}
+            targetIsSuperAdmin={currentAccount.is_super_admin}
+          />
 
           <ContainerSection title={t('account.sections.appearance')}>
             <ThemeSwitch />

@@ -15,6 +15,7 @@ import { useRouter } from '@tanstack/react-router'
 import { UserRoles } from '@byline/admin/admin-users/components/roles'
 import { SetPassword } from '@byline/admin/admin-users/components/set-password'
 import { UpdateUser } from '@byline/admin/admin-users/components/update'
+import { PasskeyManager } from '@byline/admin/auth/components/passkey-manager'
 import { LocalDateTime } from '@byline/admin/react'
 import { useTranslation } from '@byline/i18n/react'
 import {
@@ -302,6 +303,11 @@ export function AccountContainer({ user, allRoles, initialUserRoles }: AccountCo
               {t('adminUsers.detail.password.setButton')}
             </Button>
           </ContainerSection>
+
+          <PasskeyManager
+            targetUserId={currentUser.id}
+            targetIsSuperAdmin={currentUser.is_super_admin}
+          />
 
           <ContainerSection title={t('adminUsers.detail.sections.delete')}>
             <p className={cx('byline-admin-user-line-spaced', styles.lineSpaced)}>

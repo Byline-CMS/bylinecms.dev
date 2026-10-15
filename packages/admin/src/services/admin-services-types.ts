@@ -26,6 +26,15 @@
  */
 
 import type {
+  PasskeyAuthenticationOptions,
+  PasskeyCeremony,
+  PasskeyCredentialSummary,
+  PasskeyManagementAction,
+  PasskeyManagementGrant,
+  PasskeyRegistrationOptions,
+} from '@byline/auth'
+
+import type {
   AccountResponse,
   ChangeAccountPasswordRequest,
   UpdateAccountRequest,
@@ -58,6 +67,56 @@ export interface SignInInput {
  * supply whatever envelope it produces without forcing a public type.
  */
 export type SignInResult = unknown
+
+/** Captured before any prompt; the host checks it again before submission. */
+export interface PasskeyPageBinding {
+  expectedSessionId: string | null
+  assertCurrent(): void
+}
+interface PasskeyBoundInput {
+  expectedSessionId: string
+}
+export interface PasskeyAdminServices {
+  capability(): Promise<{ enabled: boolean }>
+  captureLogin(signIn?: boolean): PasskeyPageBinding
+  managementContext(
+    binding: PasskeyPageBinding
+  ): Promise<{ id: string; isSuperAdmin: boolean; canManagePasskeys: boolean }>
+  signInOptions: AdminServiceCall<
+    Record<string, never>,
+    PasskeyCeremony<PasskeyAuthenticationOptions>
+  >
+  signIn(
+    args: { data: { ceremonyId: string; response: unknown } },
+    binding: PasskeyPageBinding
+  ): Promise<unknown>
+  passwordProof: AdminServiceCall<
+    PasskeyBoundInput & { password: string; action: PasskeyManagementAction },
+    PasskeyManagementGrant
+  >
+  proofOptions: AdminServiceCall<
+    PasskeyBoundInput & { action: PasskeyManagementAction },
+    PasskeyCeremony<PasskeyAuthenticationOptions>
+  >
+  proof: AdminServiceCall<
+    PasskeyBoundInput & { ceremonyId: string; response: unknown },
+    PasskeyManagementGrant
+  >
+  enrollmentOptions: AdminServiceCall<
+    PasskeyBoundInput & { grantId: string },
+    PasskeyCeremony<PasskeyRegistrationOptions>
+  >
+  enrollment: AdminServiceCall<
+    PasskeyBoundInput & { ceremonyId: string; response: unknown; name: string },
+    PasskeyCredentialSummary
+  >
+  list: AdminServiceCall<PasskeyBoundInput & { targetUserId?: string }, PasskeyCredentialSummary[]>
+  rename: AdminServiceCall<
+    PasskeyBoundInput & { credentialRecordId: string; name: string },
+    PasskeyCredentialSummary
+  >
+  remove: AdminServiceCall<PasskeyBoundInput & { grantId: string }, { signedOut: boolean }>
+}
 
 // --- Account self-service -------------------------------------------------
 
@@ -155,6 +214,7 @@ export interface WhoHasAbilityInput {
 export interface BylineAdminServices {
   // Auth
   adminSignIn: AdminServiceCall<SignInInput, SignInResult>
+  passkeys?: PasskeyAdminServices
 
   // Account self-service
   updateAccount: AdminServiceCall<UpdateAccountInput, AccountResponse>

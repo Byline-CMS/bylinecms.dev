@@ -168,7 +168,12 @@
       "import": "./dist/modules/auth/components/sign-in-form.js",
       "require": "./dist/modules/auth/components/sign-in-form.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./auth/components/passkey-manager": {
+      "types": "./dist/modules/auth/components/passkey-manager.d.ts",
+      "import": "./dist/modules/auth/components/passkey-manager.js",
+      "require": "./dist/modules/auth/components/passkey-manager.js"
+    }
   },
   "files": [
     "dist/",
@@ -194,6 +199,7 @@
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.14",
     "@lezer/highlight": "^1.2.5",
+    "@simplewebauthn/browser": "^14.0.0",
     "@simplewebauthn/server": "^14.0.3",
     "@tanstack/react-form-start": "^1.33.5",
     "clsx": "^2.1.1",
@@ -349,7 +355,12 @@
         "import": "./dist/modules/auth/components/sign-in-form.js",
         "require": "./dist/modules/auth/components/sign-in-form.js"
       },
-      "./package.json": "./package.json"
+      "./package.json": "./package.json",
+      "./auth/components/passkey-manager": {
+        "types": "./dist/modules/auth/components/passkey-manager.d.ts",
+        "import": "./dist/modules/auth/components/passkey-manager.js",
+        "require": "./dist/modules/auth/components/passkey-manager.js"
+      }
     },
     "main": "dist/index.js",
     "index": "dist/index.js",

@@ -30,78 +30,92 @@ import { sessionRequestKind } from './session-request-kind.js'
 
 const outcomeHeader = 'x-byline-auth-boundary'
 /** The boundary owns the retry signal; handler errors cannot turn into retryable outcomes. */
-export const adminSessionMiddleware = createMiddleware({ type: 'function' })
-  .client(async ({ next }) => {
-    if (typeof window === 'undefined')
-      return next({ sendContext: { bylineExpectedSessionId: null as string | null } })
-    const snapshot = sessionSnapshot()
-    requireUnchanged(snapshot)
-    return next({
-      sendContext: { bylineExpectedSessionId: snapshot.sessionId },
-      fetch: async (input, init) => {
-        // Re-serialize reusable BodyInit values (including FormData/Blob) on retry.
-        // Never clone/tee a Request: an unread branch can buffer an entire upload.
-        const reusable = !(input instanceof Request) && !(init?.body instanceof ReadableStream)
-        let response = await fetch(input, init)
-        if (response.headers.get(outcomeHeader) === 'changed') {
-          flagSessionChanged()
-          throw ERR_SESSION_CHANGED({ message: 'session changed' })
-        }
-        if (response.headers.get(outcomeHeader) === 'renew') {
-          requireUnchanged(snapshot)
-          await renewSingleFlight(() =>
-            coordinateAuthAction(async () => {
-              const result = await renewAdminSession({
-                data: { expectedSessionId: snapshot.sessionId ?? undefined },
-              }).catch((error) => {
-                if (error?.code === 'ERR_SESSION_CHANGED') flagSessionChanged()
-                throw error
+function createAdminSessionMiddleware(coordinateCookies: boolean) {
+  return createMiddleware({ type: 'function' })
+    .client(async ({ next }) => {
+      if (typeof window === 'undefined')
+        return next({ sendContext: { bylineExpectedSessionId: null as string | null } })
+      const snapshot = sessionSnapshot()
+      requireUnchanged(snapshot)
+      return next({
+        sendContext: { bylineExpectedSessionId: snapshot.sessionId },
+        fetch: async (input, init) => {
+          // Re-serialize reusable BodyInit values (including FormData/Blob) on retry.
+          // Never clone/tee a Request: an unread branch can buffer an entire upload.
+          const reusable = !(input instanceof Request) && !(init?.body instanceof ReadableStream)
+          // Queue each cookie-mutating fetch separately. Renewal uses the same queue,
+          // so holding it across the complete middleware would deadlock on expiry.
+          const send = () =>
+            coordinateCookies
+              ? coordinateAuthAction(async () => {
+                  requireUnchanged(snapshot)
+                  return fetch(input, init)
+                })
+              : fetch(input, init)
+          let response = await send()
+          if (response.headers.get(outcomeHeader) === 'changed') {
+            flagSessionChanged()
+            throw ERR_SESSION_CHANGED({ message: 'session changed' })
+          }
+          if (response.headers.get(outcomeHeader) === 'renew') {
+            requireUnchanged(snapshot)
+            await renewSingleFlight(() =>
+              coordinateAuthAction(async () => {
+                const result = await renewAdminSession({
+                  data: { expectedSessionId: snapshot.sessionId ?? undefined },
+                }).catch((error) => {
+                  if (error?.code === 'ERR_SESSION_CHANGED') flagSessionChanged()
+                  throw error
+                })
+                if (snapshot.sessionId && result.sessionId !== snapshot.sessionId) {
+                  flagSessionChanged()
+                  throw ERR_SESSION_CHANGED({ message: 'session changed during renewal' })
+                }
+                observeSession(result.sessionId)
               })
-              if (snapshot.sessionId && result.sessionId !== snapshot.sessionId) {
-                flagSessionChanged()
-                throw ERR_SESSION_CHANGED({ message: 'session changed during renewal' })
-              }
-              observeSession(result.sessionId)
-            })
-          )
+            )
+            requireUnchanged(snapshot)
+            if (!reusable)
+              throw ERR_ACCESS_EXPIRED({ message: 'Session renewed. Please retry the operation.' })
+            response = await send()
+            if (response.headers.get(outcomeHeader) === 'changed') flagSessionChanged()
+          }
           requireUnchanged(snapshot)
-          if (!reusable)
-            throw ERR_ACCESS_EXPIRED({ message: 'Session renewed. Please retry the operation.' })
-          response = await fetch(input, init)
-          if (response.headers.get(outcomeHeader) === 'changed') flagSessionChanged()
-        }
-        requireUnchanged(snapshot)
-        return response
-      },
+          return response
+        },
+      })
     })
-  })
-  .server(async ({ next, context, method }) => {
-    const kind = sessionRequestKind(getRequest())
-    if (!kind) throw new Error('sessionRequestMiddleware is not configured')
-    let auth: Awaited<ReturnType<typeof getAdminRequestContext>>
-    try {
-      auth = await getAdminRequestContext()
-    } catch (error) {
-      if (error instanceof AuthError && error.code === 'ERR_ACCESS_EXPIRED')
-        setResponseHeader(outcomeHeader, 'renew')
-      throw error
-    }
-    const expected = context.bylineExpectedSessionId
-    if ((kind === 'serverFn' || method !== 'GET') && (!expected || expected !== auth.sessionId)) {
-      setResponseHeader(outcomeHeader, 'changed')
-      throw ERR_SESSION_CHANGED({ message: 'session changed before operation' })
-    }
-    if (!auth.sessionId) throw ERR_UNAUTHENTICATED({ message: 'provider omitted login identity' })
-    // Strip the reserved signal after any handler outcome, including exceptions.
-    try {
-      const result = await next()
-      const response = (result as { result?: unknown }).result
-      if (response instanceof Response) response.headers.delete(outcomeHeader)
-      return result
-    } catch (error) {
-      if (error instanceof Response) error.headers.delete(outcomeHeader)
-      throw error
-    } finally {
-      setResponseHeader(outcomeHeader, 'handled')
-    }
-  })
+    .server(async ({ next, context, method }) => {
+      const kind = sessionRequestKind(getRequest())
+      if (!kind) throw new Error('sessionRequestMiddleware is not configured')
+      let auth: Awaited<ReturnType<typeof getAdminRequestContext>>
+      try {
+        auth = await getAdminRequestContext()
+      } catch (error) {
+        if (error instanceof AuthError && error.code === 'ERR_ACCESS_EXPIRED')
+          setResponseHeader(outcomeHeader, 'renew')
+        throw error
+      }
+      const expected = context.bylineExpectedSessionId
+      if ((kind === 'serverFn' || method !== 'GET') && (!expected || expected !== auth.sessionId)) {
+        setResponseHeader(outcomeHeader, 'changed')
+        throw ERR_SESSION_CHANGED({ message: 'session changed before operation' })
+      }
+      if (!auth.sessionId) throw ERR_UNAUTHENTICATED({ message: 'provider omitted login identity' })
+      // Strip the reserved signal after any handler outcome, including exceptions.
+      try {
+        const result = await next()
+        const response = (result as { result?: unknown }).result
+        if (response instanceof Response) response.headers.delete(outcomeHeader)
+        return result
+      } catch (error) {
+        if (error instanceof Response) error.headers.delete(outcomeHeader)
+        throw error
+      } finally {
+        setResponseHeader(outcomeHeader, 'handled')
+      }
+    })
+}
+
+export const adminSessionMiddleware = createAdminSessionMiddleware(false)
+export const adminSessionMutationMiddleware = createAdminSessionMiddleware(true)

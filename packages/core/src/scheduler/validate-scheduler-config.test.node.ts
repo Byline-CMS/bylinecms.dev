@@ -73,3 +73,25 @@ describe('validateSchedulerConfig', () => {
     ).toThrow(/interval/i)
   })
 })
+
+it('requires passkey counter cleanup and accepts one shared task for both limiters', () => {
+  const protection = {
+    resolveClientIp: () => '192.0.2.1',
+    limiter: {
+      requiredCleanupTask: task.name,
+      acquire: async () => () => {},
+      consume: async () => ({ allowed: true, retryAfterSeconds: 0 }),
+    },
+  }
+  expect(() =>
+    validateSchedulerConfig({ passkeyRequests: protection, adapter: { scheduler: store } })
+  ).toThrow('Passkeys requires recurring task')
+  expect(() =>
+    validateSchedulerConfig({
+      passwordSignIn: protection,
+      passkeyRequests: protection,
+      tasks: [task],
+      adapter: { scheduler: store },
+    })
+  ).not.toThrow()
+})

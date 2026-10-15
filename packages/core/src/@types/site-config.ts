@@ -6,7 +6,11 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { PasswordSignInProtection, SessionProvider } from '@byline/auth'
+import type {
+  PasskeyRequestProtection,
+  PasswordSignInProtection,
+  SessionProvider,
+} from '@byline/auth'
 
 import type { RecurringTaskDefinition } from '../scheduler/types.js'
 import type { SlugifierFn } from '../utils/slugify.js'
@@ -374,6 +378,8 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
   sessionProvider?: SessionProvider
   /** Explicit WebAuthn trust configuration; never inferred from request headers. */
   passkeys?: PasskeyConfig
+  /** Shared WebAuthn network admission and independent process capacity; required when enabled. */
+  passkeyRequests?: PasskeyRequestProtection
   /** Required by the host password sign-in endpoint; shared limiter and trusted IP resolver. */
   passwordSignIn?: PasswordSignInProtection
   /**

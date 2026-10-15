@@ -184,6 +184,7 @@ export const initBylineCore = async <TAdminStore = unknown>(
     tasks: configuredTasks,
     adapter: composed.db,
     passwordSignIn: resolvedConfig.passwordSignIn,
+    passkeyRequests: resolvedConfig.passkeyRequests,
   })
 
   // Freeze a snapshot of the validated task set: a new array of new, frozen

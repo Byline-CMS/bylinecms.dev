@@ -14,7 +14,9 @@ let changed = false
 let renewal: Promise<void> | undefined
 const listeners = new Set<() => void>()
 export const sessionChangedError = () =>
-  new Error('Session changed. Acknowledge the active account before continuing.')
+  Object.assign(new Error('Session changed. Acknowledge the active account before continuing.'), {
+    code: 'ERR_SESSION_CHANGED',
+  })
 export function expectedSession() {
   if (typeof window === 'undefined') return null
   if (!expected) expected = window.sessionStorage.getItem(storageKey)

@@ -26,6 +26,7 @@ export {
   type JwtSessionProviderConfig,
   type NativeSessionEvent,
 } from './jwt-session-provider.js'
+export { createPasskeyRequestLimiter } from './passkey-rate-limiter.js'
 export {
   assertPasskeyAttempt,
   assertPasskeyBytes,

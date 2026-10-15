@@ -119,3 +119,76 @@ describe('coordinated business resend', () => {
     expect(mocks.renew).toHaveBeenCalledOnce()
   })
 })
+
+describe('cookie mutation queue', () => {
+  const mutation = () =>
+    middleware.adminSessionMutationMiddleware.options.client?.({
+      next: (options: any) =>
+        options.fetch('http://localhost/remove', { method: 'POST', body: '{}' }),
+    } as any)
+  it('releases the auth queue before renewal, then queues the single safe resend', async () => {
+    const order: string[] = []
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: async (_name: string, work: () => Promise<unknown>) => {
+          order.push('lock')
+          try {
+            return await work()
+          } finally {
+            order.push('unlock')
+          }
+        },
+      },
+    })
+    const fetch = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        order.push('expired')
+        return boundary('renew')
+      })
+      .mockImplementation(async () => {
+        order.push('handled')
+        return boundary('handled')
+      })
+    vi.stubGlobal('fetch', fetch)
+    mocks.renew.mockImplementation(async () => {
+      order.push('renew')
+      return { sessionId: 'A' }
+    })
+    await mutation()
+    expect(order).toEqual([
+      'lock',
+      'expired',
+      'unlock',
+      'lock',
+      'renew',
+      'unlock',
+      'lock',
+      'handled',
+      'unlock',
+    ])
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+  it('rechecks identity after waiting for a competing auth action', async () => {
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    const competing = coordination.coordinateAuthAction(async () => {
+      coordination.acceptSession('B')
+    })
+    const result = mutation()
+    await competing
+    await expect(result).rejects.toThrow('Session changed')
+    expect(fetch).not.toHaveBeenCalled()
+  })
+  it('does not replay a failed mutation after its handler started', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response('failed', { status: 500, headers: { 'x-byline-auth-boundary': 'handled' } })
+      )
+    vi.stubGlobal('fetch', fetch)
+    await mutation()
+    expect(fetch).toHaveBeenCalledOnce()
+    expect(mocks.renew).not.toHaveBeenCalled()
+  })
+})

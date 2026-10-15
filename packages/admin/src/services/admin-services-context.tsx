@@ -16,6 +16,8 @@ export type {
   ChangeAccountPasswordInput,
   CreateAdminRoleInput,
   CreateAdminUserInput,
+  PasskeyAdminServices,
+  PasskeyPageBinding,
   SetAdminUserPasswordInput,
   SetRoleAbilitiesInput,
   SetUserRolesInput,

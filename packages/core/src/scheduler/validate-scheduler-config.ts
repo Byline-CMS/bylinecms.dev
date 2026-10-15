@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import type { PasswordSignInProtection } from '@byline/auth'
+import type { PasskeyRequestProtection, PasswordSignInProtection } from '@byline/auth'
 
 import { validateRecurringTasks } from './validate-tasks.js'
 import type { ISchedulerStore, RecurringTaskDefinition } from './types.js'
@@ -18,16 +18,22 @@ import type { ISchedulerStore, RecurringTaskDefinition } from './types.js'
  */
 export function validateSchedulerConfig(params: {
   passwordSignIn?: PasswordSignInProtection
+  passkeyRequests?: PasskeyRequestProtection
   tasks?: readonly RecurringTaskDefinition[]
   adapter: { scheduler?: ISchedulerStore }
 }): void {
   const tasks = params.tasks ?? []
-  const cleanup = params.passwordSignIn?.limiter.requiredCleanupTask
-  if (cleanup && !tasks.some((task) => task.name === cleanup)) {
-    throw new Error(
-      `Password sign-in requires recurring task "${cleanup}". Register the limiter's cleanupTask ` +
-        'in recurringTasks and start the host scheduler (or invoke runDueTasks externally).'
-    )
+  for (const [name, protection] of [
+    ['Password sign-in', params.passwordSignIn],
+    ['Passkeys', params.passkeyRequests],
+  ] as const) {
+    const cleanup = protection?.limiter.requiredCleanupTask
+    if (cleanup && !tasks.some((task) => task.name === cleanup)) {
+      throw new Error(
+        `${name} requires recurring task "${cleanup}". Register the limiter's cleanupTask ` +
+          'in recurringTasks and start the host scheduler (or invoke runDueTasks externally).'
+      )
+    }
   }
   if (tasks.length === 0) return
 

@@ -23,7 +23,7 @@
  * `.byline-sign-in-home-link`.
  */
 
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 
 import { getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
@@ -32,6 +32,7 @@ import cx from 'clsx'
 
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'
 import { normalizeRootRelativeRedirect, resolveSignInFormRedirect } from '../safe-redirect.js'
+import { passkeyErrorKey, signInWithPasskey } from './passkey-browser.js'
 import styles from './sign-in-form.module.css'
 
 export interface SignInFormProps {
@@ -46,12 +47,46 @@ export interface SignInFormProps {
 }
 
 export function SignInForm({ redirectTo, homeUrl }: SignInFormProps) {
-  const { adminSignIn } = useBylineAdminServices()
+  const { adminSignIn, passkeys } = useBylineAdminServices()
   const { t } = useTranslation('byline-admin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const mounted = useRef(false)
+  const [passkeysEnabled, setPasskeysEnabled] = useState(false)
+  useEffect(() => {
+    let active = true
+    mounted.current = true
+    void passkeys
+      ?.capability()
+      .then(({ enabled }) => {
+        if (active) setPasskeysEnabled(enabled)
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+      mounted.current = false
+    }
+  }, [passkeys])
+
+  async function handlePasskey() {
+    if (!passkeys || pending) return
+    setPending(true)
+    setError(null)
+    try {
+      await signInWithPasskey(passkeys, () => mounted.current)
+    } catch (error) {
+      if (mounted.current) {
+        setError(t(passkeyErrorKey(error)))
+        setPending(false)
+      }
+      return
+    }
+    const destination = resolveSignInFormRedirect(redirectTo, getAdminConfig().routes.admin)
+    window.location.assign(normalizeRootRelativeRedirect(destination) ?? '/')
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -93,6 +128,17 @@ export function SignInForm({ redirectTo, homeUrl }: SignInFormProps) {
         )}
       </Card.Header>
       <Card.Content>
+        {passkeysEnabled && (
+          <Button
+            type="button"
+            disabled={pending}
+            onClick={handlePasskey}
+            className="byline-passkey-sign-in-button"
+          >
+            {t('passkeys.signIn')}
+          </Button>
+        )}
+
         <form
           method="post"
           onSubmit={handleSubmit}

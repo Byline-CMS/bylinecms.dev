@@ -150,7 +150,7 @@ export const adminSignIn = createServerFn({ method: 'POST' })
  *   - No admin store is configured (headless tooling paths).
  *   - The stored value already matches the cookie.
  */
-async function reconcileLocaleAfterSignIn(adminUserId: string): Promise<void> {
+export async function reconcileLocaleAfterSignIn(adminUserId: string): Promise<void> {
   const cookieLocale = readAdminLocaleCookie()
   if (cookieLocale == null) return
 

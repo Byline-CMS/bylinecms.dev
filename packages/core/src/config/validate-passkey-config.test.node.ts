@@ -164,3 +164,33 @@ describe('optional passkey configuration', () => {
     ).toThrow('Invalid passkey')
   })
 })
+
+describe('passkey host protection configuration', () => {
+  const server = {
+    collections: [],
+    db: testAdapter({}),
+    i18n: {
+      admin: { defaultLocale: 'en', locales: [] },
+      content: { defaultLocale: 'en', locales: [] },
+    },
+    sessionProvider: enabled,
+    passkeys: config,
+  }
+  it('fails closed at boot without trusted IP and admission methods', () => {
+    expect(() => resolveServerConfig(server)).toThrow('passkeyRequests')
+    expect(() =>
+      resolveServerConfig({
+        ...server,
+        passkeyRequests: { resolveClientIp: () => null, limiter: {} } as any,
+      })
+    ).toThrow('passkeyRequests')
+  })
+  it('accepts explicit protection without invoking it', () => {
+    expect(
+      resolveServerConfig({
+        ...server,
+        passkeyRequests: { resolveClientIp: unused, limiter: { acquire: unused, consume: unused } },
+      }).passkeys
+    ).toEqual(config)
+  })
+})

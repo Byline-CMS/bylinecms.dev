@@ -8,7 +8,14 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { checkSignInBody, SIGN_IN_MAX_BODY_BYTES, wasSignInBodyChecked } from './sign-in-body.js'
+import {
+  checkPasskeyBody,
+  checkSignInBody,
+  PASSKEY_MAX_BODY_BYTES,
+  SIGN_IN_MAX_BODY_BYTES,
+  wasPasskeyBodyChecked,
+  wasSignInBodyChecked,
+} from './sign-in-body.js'
 
 function request(body: BodyInit, headers: Record<string, string> = {}) {
   return new Request('https://app.test/_serverFn/login', {
@@ -55,5 +62,28 @@ describe('sign-in body boundary', () => {
       (await checkSignInBody(request('{}', { 'content-type': 'multipart/form-data' })))?.status
     ).toBe(415)
     expect((await checkSignInBody(new Request('https://app.test')))?.status).toBe(405)
+  })
+})
+
+describe('passkey envelope limits', () => {
+  it('allows a bounded attestation envelope but keeps password proof at 16 KiB', async () => {
+    const req = request('x'.repeat(20_000))
+    expect(await checkPasskeyBody(req)).toBeUndefined()
+    expect(wasPasskeyBodyChecked(req)).toBe(true)
+    expect(wasPasskeyBodyChecked(req, true)).toBe(false)
+    expect((await checkPasskeyBody(req, true))?.status).toBe(413)
+  })
+  it('rejects actual oversized chunked envelopes and never grants a body marker', async () => {
+    const req = request(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(PASSKEY_MAX_BODY_BYTES))
+          controller.enqueue(new Uint8Array(1))
+          controller.close()
+        },
+      })
+    )
+    expect((await checkPasskeyBody(req))?.status).toBe(413)
+    expect(wasPasskeyBodyChecked(req)).toBe(false)
   })
 })
