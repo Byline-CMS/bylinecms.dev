@@ -22,7 +22,7 @@ function invalid(reason: string): never {
 /** Pure boot-time validation; deliberately contains no Node or cryptographic imports. */
 export function resolvePasskeyConfig(
   config: PasskeyConfig | undefined,
-  provider: SessionProvider | undefined
+  provider: Pick<SessionProvider, 'capabilities' | 'passkeys'> | undefined
 ): PasskeyConfig | undefined {
   const supported = provider?.capabilities.passkeys
   if (supported !== undefined && typeof supported !== 'boolean') {

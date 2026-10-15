@@ -13,14 +13,18 @@ import {
   assertPasskeyTokenHash,
   type PasskeysRepository,
 } from '@byline/admin/auth'
-import { and, count, eq, gt, isNull } from 'drizzle-orm'
+import { and, count, eq, gt, isNull, sql } from 'drizzle-orm'
 import type { MySql2Database } from 'drizzle-orm/mysql2'
+import { v7 as uuidv7 } from 'uuid'
 
 import {
+  adminLoginSessions,
+  adminRefreshTokens,
   adminUsers,
   adminPasskeyAttempts as attempts,
   adminPasskeyCredentials as credentials,
 } from '../../database/schema/auth.js'
+import { auditLog } from '../../database/schema/index.js'
 import type * as schema from '../../database/schema/index.js'
 
 export function createPasskeysRepository(
@@ -40,6 +44,48 @@ export function createPasskeysRepository(
     requireLock(row.owner)
   }
   return {
+    async invalidateAccountLogins(adminUserId, at) {
+      requireLock(adminUserId)
+      await db
+        .update(adminUsers)
+        .set({ session_version: sql`${adminUsers.session_version} + 1` })
+        .where(eq(adminUsers.id, adminUserId))
+      await db
+        .update(adminLoginSessions)
+        .set({ revoked_at: at })
+        .where(
+          and(
+            eq(adminLoginSessions.admin_user_id, adminUserId),
+            isNull(adminLoginSessions.revoked_at)
+          )
+        )
+      await db
+        .update(adminRefreshTokens)
+        .set({ revoked_at: at })
+        .where(
+          and(
+            eq(adminRefreshTokens.admin_user_id, adminUserId),
+            isNull(adminRefreshTokens.revoked_at)
+          )
+        )
+    },
+    async appendRemovalAudit(input) {
+      if (input.outcome === 'success') {
+        requireLock(input.actorId)
+        requireLock(input.targetId)
+      }
+      await db.insert(auditLog).values({
+        id: uuidv7(),
+        actor_id: input.actorId,
+        actor_realm: 'admin',
+        action: 'admin.passkey.remove',
+        after: {
+          targetUserId: input.targetId,
+          credentialRecordId: input.credentialId,
+          outcome: input.outcome,
+        },
+      })
+    },
     async getUserHandle(adminUserId) {
       const [row] = await db
         .select({ handle: adminUsers.webauthn_user_handle })

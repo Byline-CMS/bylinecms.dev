@@ -27,7 +27,7 @@ import type { CollectionDefinition, IDbAdapter, ISchedulerStore } from '@byline/
 import { runAdapterConformanceSuite } from '@byline/db-conformance'
 import { eq } from 'drizzle-orm'
 
-import { documents } from '../src/database/schema/index.js'
+import { auditLog, documents } from '../src/database/schema/index.js'
 import { assertTestDatabase, migrateTestDatabase, resetTestDatabase } from '../src/lib/test-db.js'
 import { setupTestDB, teardownTestDB } from '../src/lib/test-helper.js'
 import { createAdminStore as createMysqlAdminStore } from '../src/modules/admin/admin-store.js'
@@ -46,6 +46,13 @@ function getConnectionString(): string {
 }
 
 runAdapterConformanceSuite({
+  async readPasskeyAudit(actorId) {
+    const { db } = setupTestDB()
+    return db
+      .select({ actorId: auditLog.actor_id, action: auditLog.action, after: auditLog.after })
+      .from(auditLog)
+      .where(eq(auditLog.actor_id, actorId))
+  },
   async withSourceReadBarrier(writer, read) {
     // Private reconstruction boundary is interposed only in this serial test harness.
     const prototype = DocumentQueries.prototype as unknown as {

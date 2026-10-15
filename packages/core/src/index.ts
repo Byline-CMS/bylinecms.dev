@@ -57,6 +57,7 @@ export {
   validateCollectionGroups,
 } from './config/validate-admin-configs.js'
 export { RESERVED_FIELD_NAMES } from './config/validate-collections.js'
+export { resolvePasskeyConfig } from './config/validate-passkey-config.js'
 export { type BylineCore, getBylineCore, initBylineCore } from './core.js'
 export * from './defaults/default-values.js'
 export {

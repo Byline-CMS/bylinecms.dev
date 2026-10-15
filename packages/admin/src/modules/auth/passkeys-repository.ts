@@ -55,6 +55,15 @@ export type PasskeyClaimInput = { tokenHash: string; now: Date } & (
 )
 
 export interface PasskeysRepository {
+  /** Target lock required; generation and native-login revocation commit together. */
+  invalidateAccountLogins(adminUserId: string, at: Date): Promise<void>
+  /** Success requires both account locks; denial/failure records may be written separately. */
+  appendRemovalAudit(input: {
+    actorId: string
+    targetId: string
+    credentialId: string
+    outcome: 'success' | 'denied' | 'failed'
+  }): Promise<void>
   getUserHandle(adminUserId: string): Promise<string | null>
   /** Requires the owning account lock. Allocates once; never resets on credential removal. */
   ensureUserHandle(adminUserId: string, candidate: string): Promise<string>

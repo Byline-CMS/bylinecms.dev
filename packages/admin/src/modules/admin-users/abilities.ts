@@ -32,6 +32,7 @@ export const ADMIN_USERS_ABILITIES = {
   update: 'admin.users.update',
   delete: 'admin.users.delete',
   changePassword: 'admin.users.changePassword',
+  managePasskeys: 'admin.users.managePasskeys',
 } as const
 
 export type AdminUsersAbilityKey =
@@ -43,6 +44,12 @@ export type AdminUsersAbilityKey =
  * the webapp wires into `initBylineCore()`.
  */
 export function registerAdminUsersAbilities(registry: AbilityRegistry): void {
+  registry.register({
+    key: ADMIN_USERS_ABILITIES.managePasskeys,
+    label: 'Manage admin user passkeys',
+    group: 'admin.users',
+    source: 'admin',
+  })
   registry.register({
     key: ADMIN_USERS_ABILITIES.read,
     label: 'Read admin users',

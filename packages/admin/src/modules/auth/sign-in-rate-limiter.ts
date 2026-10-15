@@ -48,7 +48,7 @@ const DEFAULT_POLICY: SignInRateLimitPolicy = {
 const CLEANUP_TASK_NAME = 'auth.sign-in-counters.cleanup'
 
 /** IPv4 uses one address; IPv6 uses its /64. Mapped IPv4 shares its native IPv4 bucket. */
-function signInNetwork(ip: string): string {
+export function signInNetwork(ip: string): string {
   const version = isIP(ip)
   if (version === 4) return ip
   if (version !== 6 || ip.includes('%')) throw new Error('Invalid client address')

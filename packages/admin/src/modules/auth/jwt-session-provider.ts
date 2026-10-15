@@ -17,6 +17,8 @@ import {
   ERR_INVALID_TOKEN,
   ERR_REVOKED_TOKEN,
   ERR_SESSION_CHANGED,
+  type PasskeyProvider,
+  type PasskeySession,
   type RefreshSessionArgs,
   type RevokeSessionArgs,
   type SessionProvider,
@@ -25,13 +27,16 @@ import {
   type SignInResult,
   type SignInWithPasswordArgs,
 } from '@byline/auth'
+import type { PasskeyConfig } from '@byline/core'
 import { passwordSignInSchema } from '@byline/core/validation'
 import { compactVerify, jwtVerify, SignJWT } from 'jose'
 import { v7 as uuidv7 } from 'uuid'
 
+import { NativePasskeyProvider } from './native-passkey-provider.js'
 import { verifyPassword } from './password.js'
 import { resolveActor, resolveActorFromUser } from './resolve-actor.js'
 import type { AdminStore } from '../../store.js'
+import type { AdminUserWithPasswordRow } from '../admin-users/repository.js'
 
 const DEFAULT_ISSUER = 'byline'
 const DEFAULT_ACCESS_TOKEN_TTL_SECONDS = 15 * 60 // 15 minutes
@@ -43,12 +48,39 @@ const CAPABILITIES: SessionProviderCapabilities = {
   sso: false,
 }
 
-export interface NativeSessionEvent {
-  type: 'refresh_attempted' | 'refresh_completed' | 'refresh_contested'
-}
+export type NativeSessionEvent =
+  | { type: 'refresh_attempted' | 'refresh_completed' | 'refresh_contested' }
+  | {
+      type:
+        | 'passkey_attempted'
+        | 'passkey_completed'
+        | 'passkey_failed'
+        | 'passkey_admission_denied'
+      purpose:
+        | 'sign-in-options'
+        | 'sign-in'
+        | 'password-proof'
+        | 'proof-options'
+        | 'proof'
+        | 'enrollment-options'
+        | 'enrollment'
+        | 'list'
+        | 'rename'
+        | 'remove'
+      reason?:
+        | 'invalid-proof'
+        | 'stale-authority'
+        | 'forbidden'
+        | 'limit'
+        | 'unavailable'
+        | 'capacity'
+        | 'network'
+    }
 
 export interface JwtSessionProviderConfig {
-  /** Best-effort, token-free renewal telemetry. Errors never change authentication outcomes. */
+  /** Optional explicit WebAuthn trust configuration; disabled when absent. */
+  passkeys?: PasskeyConfig
+  /** Best-effort, token-free authentication telemetry. Errors never change authentication outcomes. */
   onEvent?: (event: NativeSessionEvent) => void
   /**
    * Adapter-backed admin repositories. Construct via the DB adapter's
@@ -76,7 +108,8 @@ export interface JwtSessionProviderConfig {
 }
 
 export class JwtSessionProvider implements SessionProvider {
-  public readonly capabilities = CAPABILITIES
+  public readonly capabilities: SessionProviderCapabilities
+  public readonly passkeys?: PasskeyProvider
 
   readonly #onEvent?: (event: NativeSessionEvent) => void
   readonly #store: AdminStore
@@ -102,6 +135,16 @@ export class JwtSessionProvider implements SessionProvider {
     this.#accessTtl = config.accessTokenTtlSeconds ?? DEFAULT_ACCESS_TOKEN_TTL_SECONDS
     this.#refreshTtl = config.refreshTokenTtlSeconds ?? DEFAULT_REFRESH_TOKEN_TTL_SECONDS
     this.#now = config.now ?? (() => new Date())
+    this.capabilities = config.passkeys ? { ...CAPABILITIES, passkeys: true } : CAPABILITIES
+    if (config.passkeys) {
+      this.passkeys = new NativePasskeyProvider(config.passkeys, {
+        store: this.#store,
+        now: this.#now,
+        authenticate: (session, store) => this.#authenticatePasskeySession(session, store),
+        signIn: (snapshot, args, recheck) => this.#completeSignIn(snapshot, args, recheck),
+        emit: (event) => this.#emitEvent(event),
+      })
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -131,45 +174,19 @@ export class JwtSessionProvider implements SessionProvider {
       throw ERR_ACCOUNT_DISABLED({ message: 'account disabled' })
     }
 
-    const previous = await this.#observedLogins(args)
-    const withLocks = <T>(work: (store: AdminStore) => Promise<T>) =>
-      previous.length
-        ? this.#store.withSessionLocks(
-            [row.id, ...previous.map((login) => login.admin_user_id)],
-            work
-          )
-        : this.#store.withSessionLock(row.id, (store) => work(store))
-    return withLocks(async (store) => {
-      const current = await store.adminUsers.getByIdForSignIn(row.id)
-      if (!current?.is_enabled) throw ERR_ACCOUNT_DISABLED({ message: 'account disabled' })
-      // Password verification is deliberately outside the lock. Revalidate
-      // both the credential and generation before issuing under that lock.
-      if (
-        current.password_hash !== row.password_hash ||
-        current.session_version !== row.session_version
-      ) {
+    return this.#completeSignIn(row, args, async (_store, current) => {
+      if (current.password_hash !== row.password_hash) {
         throw ERR_INVALID_CREDENTIALS({ message: 'credentials changed during sign-in' })
       }
-      for (const observed of previous) {
-        const login = await store.loginSessions.findById(observed.id)
-        if (login && login.admin_user_id === observed.admin_user_id) {
-          await store.loginSessions.revoke(login.id, this.#now())
-        }
-      }
-      await store.adminUsers.recordLoginSuccess(row.id, args.ip ?? null)
-      const actor = await resolveActorFromUser(store, current)
-      if (!actor) throw ERR_ACCOUNT_DISABLED({ message: 'account disabled' })
-      const tokens = await this.#issueTokens(store, {
-        adminUserId: row.id,
-        sessionVersion: current.session_version,
-        ip: args.ip ?? null,
-        userAgent: args.userAgent ?? null,
-      })
-      return { ...tokens, actor }
     })
   }
 
   async verifyAccessToken(token: string): Promise<{ actor: AdminAuth; sessionId: string }> {
+    const { actor, sessionId } = await this.#verifyAccessTokenAtStore(token, this.#store)
+    return { actor, sessionId }
+  }
+
+  async #verifyAccessTokenAtStore(token: string, store: AdminStore) {
     let payload: AccessTokenPayload
     try {
       const result = await jwtVerify<AccessTokenPayload>(token, this.#signingKey, {
@@ -196,14 +213,14 @@ export class JwtSessionProvider implements SessionProvider {
       throw ERR_INVALID_TOKEN({ message: 'unexpected token type' })
     }
 
-    const current = await this.#store.adminUsers.getByIdForSignIn(payload.sub)
+    const current = await store.adminUsers.getByIdForSignIn(payload.sub)
     if (!current?.is_enabled) {
       throw ERR_ACCOUNT_DISABLED({ message: 'account disabled or deleted' })
     }
     if (current.session_version !== payload.sv) {
       throw ERR_REVOKED_TOKEN({ message: 'account session generation changed' })
     }
-    const login = await this.#store.loginSessions.findById(payload.sid)
+    const login = await store.loginSessions.findById(payload.sid)
     if (
       !login ||
       login.admin_user_id !== payload.sub ||
@@ -213,9 +230,9 @@ export class JwtSessionProvider implements SessionProvider {
     ) {
       throw ERR_REVOKED_TOKEN({ message: 'login revoked or expired' })
     }
-    const actor = await resolveActorFromUser(this.#store, current)
+    const actor = await resolveActorFromUser(store, current)
     if (!actor) throw ERR_ACCOUNT_DISABLED({ message: 'account disabled or deleted' })
-    return { actor, sessionId: payload.sid }
+    return { actor, sessionId: payload.sid, user: current }
   }
 
   async refreshSession(args: RefreshSessionArgs): Promise<SessionTokens> {
@@ -339,12 +356,67 @@ export class JwtSessionProvider implements SessionProvider {
   // Internals
   // -----------------------------------------------------------------------
 
-  #emit(type: NativeSessionEvent['type']) {
+  #emit(type: 'refresh_attempted' | 'refresh_completed' | 'refresh_contested') {
+    this.#emitEvent({ type })
+  }
+
+  #emitEvent(event: NativeSessionEvent): void {
     try {
-      this.#onEvent?.({ type })
+      void Promise.resolve(this.#onEvent?.(event)).catch(() => {})
     } catch {
       /* Telemetry is not an authentication dependency. */
     }
+  }
+
+  async #authenticatePasskeySession(session: PasskeySession, store = this.#store) {
+    const result = await this.#verifyAccessTokenAtStore(session.accessToken, store)
+    if (result.sessionId !== session.expectedSessionId)
+      throw ERR_SESSION_CHANGED({ message: 'session changed' })
+    return result
+  }
+
+  async #completeSignIn(
+    snapshot: AdminUserWithPasswordRow,
+    args: Pick<
+      SignInWithPasswordArgs,
+      'previousAccessToken' | 'previousRefreshToken' | 'ip' | 'userAgent'
+    >,
+    recheck: (store: AdminStore, current: AdminUserWithPasswordRow) => Promise<void>
+  ): Promise<SignInResult> {
+    const previous = await this.#observedLogins(args)
+    const withLocks = <T>(work: (store: AdminStore) => Promise<T>) =>
+      previous.length
+        ? this.#store.withSessionLocks(
+            [snapshot.id, ...previous.map((login) => login.admin_user_id)],
+            work
+          )
+        : this.#store.withSessionLock(snapshot.id, (store) => work(store))
+    return withLocks(async (store) => {
+      const current = await store.adminUsers.getByIdForSignIn(snapshot.id)
+      if (!current?.is_enabled) throw ERR_ACCOUNT_DISABLED({ message: 'account disabled' })
+      // Proof verification is outside the lock. Revalidate the account generation
+      // and the method-specific credential snapshot before issuing under this lock.
+      if (current.session_version !== snapshot.session_version) {
+        throw ERR_INVALID_CREDENTIALS({ message: 'credentials changed during sign-in' })
+      }
+      await recheck(store, current)
+      for (const observed of previous) {
+        const login = await store.loginSessions.findById(observed.id)
+        if (login && login.admin_user_id === observed.admin_user_id) {
+          await store.loginSessions.revoke(login.id, this.#now())
+        }
+      }
+      await store.adminUsers.recordLoginSuccess(snapshot.id, args.ip ?? null)
+      const actor = await resolveActorFromUser(store, current)
+      if (!actor) throw ERR_ACCOUNT_DISABLED({ message: 'account disabled' })
+      const tokens = await this.#issueTokens(store, {
+        adminUserId: snapshot.id,
+        sessionVersion: current.session_version,
+        ip: args.ip ?? null,
+        userAgent: args.userAgent ?? null,
+      })
+      return { ...tokens, actor }
+    })
   }
 
   async #observedLogins(

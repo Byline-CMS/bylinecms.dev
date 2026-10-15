@@ -5,10 +5,33 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { ClientIpResolver, SignInAdmission } from './password-sign-in.js'
 import type { SignInResult, SignInWithPasswordArgs } from './session-provider.js'
 
+export type PasskeyOperation =
+  | 'sign-in-options'
+  | 'sign-in'
+  | 'password-proof'
+  | 'proof-options'
+  | 'proof'
+  | 'enrollment-options'
+  | 'enrollment'
+  | 'list'
+  | 'rename'
+  | 'remove'
+export type PasskeyAdmissionReason = 'capacity' | 'network' | 'unavailable'
+export interface PasskeyRequestLimiter {
+  readonly requiredCleanupTask?: string
+  acquire(): Promise<(() => void) | null>
+  consume(input: { ip: string }): Promise<SignInAdmission>
+}
+export interface PasskeyRequestProtection {
+  limiter: PasskeyRequestLimiter
+  resolveClientIp: ClientIpResolver
+}
+
 /** JSON wire contracts; no browser globals or server cryptography are imported here. */
-interface PasskeyAuthenticationOptions {
+export interface PasskeyAuthenticationOptions {
   challenge: string
   rpId: string
   timeout?: number
@@ -16,19 +39,23 @@ interface PasskeyAuthenticationOptions {
   allowCredentials?: { id: string; type: 'public-key'; transports?: string[] }[]
 }
 
-interface PasskeyRegistrationOptions {
+export interface PasskeyRegistrationOptions {
   challenge: string
   rp: { id: string; name: string }
   user: { id: string; name: string; displayName: string }
   pubKeyCredParams: { type: 'public-key'; alg: number }[]
   timeout?: number
   attestation: 'none'
-  authenticatorSelection: { residentKey: 'required'; userVerification: 'required' }
+  authenticatorSelection: {
+    residentKey: 'required'
+    requireResidentKey?: true
+    userVerification: 'required'
+  }
   excludeCredentials?: { id: string; type: 'public-key'; transports?: string[] }[]
   extensions?: { credProps: true }
 }
 
-interface PasskeyCeremony<TOptions> {
+export interface PasskeyCeremony<TOptions> {
   /** Unpredictable bearer identifier. Submit in request bodies; never log or put in URLs. */
   ceremonyId: string
   expiresAt: string
@@ -36,23 +63,23 @@ interface PasskeyCeremony<TOptions> {
 }
 
 /** Verified by the provider on every authenticated operation, including completion. */
-interface PasskeySession {
+export interface PasskeySession {
   accessToken: string
   expectedSessionId: string
 }
 
 /** Enrollment is always self-service. Removal may target an authorized recovery account. */
-type PasskeyManagementAction =
+export type PasskeyManagementAction =
   | { purpose: 'enroll' }
   | { purpose: 'remove'; targetUserId: string; credentialRecordId: string }
 
-interface PasskeyManagementGrant {
+export interface PasskeyManagementGrant {
   /** Single-use, purpose-bound bearer authorization; not a login or OAuth consent token. */
   grantId: string
   expiresAt: string
 }
 
-interface PasskeyCredentialSummary {
+export interface PasskeyCredentialSummary {
   /** Internal record identity, never the WebAuthn credential ID or public key. */
   id: string
   name: string
@@ -60,7 +87,7 @@ interface PasskeyCredentialSummary {
   lastUsedAt: string | null
 }
 
-interface PasskeyRequestMetadata {
+export interface PasskeyRequestMetadata {
   ip?: string
   userAgent?: string
 }
@@ -72,6 +99,8 @@ interface PasskeyRequestMetadata {
  * Host endpoints enforce admission, CSRF and the expected-login boundary as well.
  */
 export interface PasskeyProvider {
+  /** Host-only, best-effort telemetry for requests rejected before provider invocation. */
+  recordAdmissionDenied?(purpose: PasskeyOperation, reason: PasskeyAdmissionReason): void
   signInOptions(
     metadata: PasskeyRequestMetadata
   ): Promise<PasskeyCeremony<PasskeyAuthenticationOptions>>

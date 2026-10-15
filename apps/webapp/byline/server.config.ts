@@ -220,7 +220,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   const signInLimiter = createPasswordSignInLimiter(adminStore.signInRateLimits, signingSecret)
 
   const sessionProvider = new JwtSessionProvider({
-    onEvent: (event) => getLogger().info({ event: event.type }, 'Native session renewal'),
+    onEvent: (event) => getLogger().info({ ...event }, 'Native authentication'),
     // Users, roles, permissions, and refresh tokens use the shared admin
     // repository bundle created above.
     store: adminStore,
