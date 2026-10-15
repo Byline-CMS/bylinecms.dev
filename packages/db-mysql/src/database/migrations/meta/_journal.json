@@ -8,6 +8,13 @@
       "when": 1788879988783,
       "tag": "0000_kind_exodus",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1792088695079,
+      "tag": "0001_wide_thor_girl",
+      "breakpoints": true
     }
   ]
 }

@@ -16,6 +16,7 @@ import { createAdminPreferencesRepository } from './admin-preferences-repository
 import { createAdminRolesRepository } from './admin-roles-repository.js'
 import { createAdminUsersRepository } from './admin-users-repository.js'
 import { createLoginSessionsRepository } from './login-sessions-repository.js'
+import { createPasskeysRepository } from './passkeys-repository.js'
 import { createRefreshTokensRepository } from './refresh-tokens-repository.js'
 import { createSignInRateLimitStore } from './sign-in-rate-limit-store.js'
 import type * as schema from '../../database/schema/index.js'
@@ -30,6 +31,13 @@ import type * as schema from '../../database/schema/index.js'
  * Construct once per process, alongside the `mysqlAdapter` call.
  */
 export function createAdminStore(db: MySql2Database<typeof schema>): AdminStore {
+  return createScopedAdminStore(db, null)
+}
+
+function createScopedAdminStore(
+  db: MySql2Database<typeof schema>,
+  lockedAccounts: readonly string[] | null
+): AdminStore {
   return {
     async withSessionLock(adminUserId, work) {
       return db.transaction(async (tx) => {
@@ -38,7 +46,7 @@ export function createAdminStore(db: MySql2Database<typeof schema>): AdminStore 
           .from(adminUsers)
           .where(eq(adminUsers.id, adminUserId))
           .for('update')
-        const scoped = createAdminStore(tx)
+        const scoped = createScopedAdminStore(tx, [adminUserId])
         const user = await scoped.adminUsers.getByIdForSignIn(adminUserId)
         return work(scoped, user)
       })
@@ -52,9 +60,10 @@ export function createAdminStore(db: MySql2Database<typeof schema>): AdminStore 
             .where(eq(adminUsers.id, id))
             .for('update')
         }
-        return work(createAdminStore(tx))
+        return work(createScopedAdminStore(tx, adminUserIds))
       })
     },
+    passkeys: createPasskeysRepository(db, lockedAccounts),
     loginSessions: createLoginSessionsRepository(db),
     signInRateLimits: createSignInRateLimitStore(db),
     adminUsers: createAdminUsersRepository(db),

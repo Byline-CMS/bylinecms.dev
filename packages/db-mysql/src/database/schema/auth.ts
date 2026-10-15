@@ -27,7 +27,9 @@
 
 import { relations, sql } from 'drizzle-orm'
 import {
+  bigint,
   boolean,
+  customType,
   datetime,
   foreignKey,
   index,
@@ -52,10 +54,17 @@ import { createdAt, timestamps, uuidChar } from './common.js'
 // byline_admin_users
 // ---------------------------------------------------------------------------
 
+const passkeyBytes = customType<{ data: string; driverData: Buffer; config: { length: number } }>({
+  dataType: (config) => `varbinary(${config?.length ?? 1366})`,
+  toDriver: (value) => Buffer.from(value, 'ascii'),
+  fromDriver: (value) => value.toString('ascii'),
+})
+
 export const adminUsers = mysqlTable(
   'byline_admin_users',
   {
     id: uuidChar('id').primaryKey(),
+    webauthn_user_handle: passkeyBytes('webauthn_user_handle', { length: 43 }).unique(),
     session_version: int('session_version').notNull().default(0),
     vid: int('vid').notNull().default(1),
     given_name: varchar('given_name', { length: 100 }),
@@ -320,4 +329,58 @@ export const adminSignInRateLimits = mysqlTable(
     expires_at: datetime('expires_at', { fsp: 3 }).notNull(),
   },
   (table) => [index('idx_admin_sign_in_rate_limits_expiry').on(table.expires_at)]
+)
+
+/** Credential identities survive revocation and account deletion as tombstones. */
+export const adminPasskeyCredentials = mysqlTable(
+  'byline_admin_passkey_credentials',
+  {
+    id: uuidChar('id').primaryKey(),
+    admin_user_id: uuidChar('admin_user_id'),
+    credential_id: passkeyBytes('credential_id', { length: 1366 }).notNull().unique(),
+    public_key: text('public_key').notNull(),
+    counter: bigint('counter', { mode: 'number' }).notNull(),
+    transports: json('transports').$type<string[]>().notNull(),
+    backup_eligible: boolean('backup_eligible').notNull(),
+    backed_up: boolean('backed_up').notNull(),
+    name: varchar('name', { length: 80 }).notNull(),
+    created_at: datetime('created_at', { fsp: 6 }).notNull(),
+    last_used_at: datetime('last_used_at', { fsp: 6 }),
+    revoked_at: datetime('revoked_at', { fsp: 6 }),
+  },
+  (table) => [
+    foreignKey({
+      name: 'fk_admin_passkeys_user',
+      columns: [table.admin_user_id],
+      foreignColumns: [adminUsers.id],
+    }).onDelete('set null'),
+    index('idx_admin_passkeys_user').on(table.admin_user_id),
+  ]
+)
+
+/** No FK cascades: short-lived authority is checked against live account/login state. */
+export const adminPasskeyAttempts = mysqlTable(
+  'byline_admin_passkey_attempts',
+  {
+    token_hash: passkeyBytes('token_hash', { length: 64 }).primaryKey(),
+    purpose: varchar('purpose', { length: 24 })
+      .$type<'sign-in' | 'fresh-authentication' | 'enrollment' | 'grant'>()
+      .notNull(),
+    // Compared only by the verifier in application code, never by SQL collation.
+    challenge: varchar('challenge', { length: 43 }),
+    actor_user_id: uuidChar('actor_user_id'),
+    actor_login_id: uuidChar('actor_login_id'),
+    actor_generation: int('actor_generation'),
+    action: varchar('action', { length: 8 }).$type<'enroll' | 'remove'>(),
+    target_user_id: uuidChar('target_user_id'),
+    credential_record_id: uuidChar('credential_record_id'),
+    proof_credential_id: uuidChar('proof_credential_id'),
+    created_at: datetime('created_at', { fsp: 6 }).notNull(),
+    expires_at: datetime('expires_at', { fsp: 6 }).notNull(),
+    consumed_at: datetime('consumed_at', { fsp: 6 }),
+  },
+  (table) => [
+    index('idx_admin_passkey_attempts_expiry').on(table.expires_at),
+    index('idx_admin_passkey_attempts_login').on(table.actor_login_id),
+  ]
 )

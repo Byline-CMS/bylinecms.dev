@@ -26,6 +26,12 @@ export {
   type JwtSessionProviderConfig,
   type NativeSessionEvent,
 } from './jwt-session-provider.js'
+export {
+  assertPasskeyAttempt,
+  assertPasskeyBytes,
+  assertPasskeyClaim,
+  assertPasskeyTokenHash,
+} from './passkey-storage-validation.js'
 export { hashPassword, verifyPassword } from './password.js'
 export { resolveActor } from './resolve-actor.js'
 export {
@@ -36,6 +42,12 @@ export {
   type SignInSecurityEvent,
 } from './sign-in-rate-limiter.js'
 export type { LoginSessionRow, LoginSessionsRepository } from './login-sessions-repository.js'
+export type {
+  PasskeyAttemptRow,
+  PasskeyClaimInput,
+  PasskeyCredentialRow,
+  PasskeysRepository,
+} from './passkeys-repository.js'
 export type {
   IssueRefreshTokenInput,
   RefreshTokenRow,

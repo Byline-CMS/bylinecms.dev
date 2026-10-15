@@ -27,7 +27,9 @@
 
 import { relations } from 'drizzle-orm'
 import {
+  bigint,
   boolean,
+  customType,
   index,
   integer,
   jsonb,
@@ -46,10 +48,15 @@ import { createdAt, timestamps } from './common.js'
 // byline_admin_users
 // ---------------------------------------------------------------------------
 
+const passkeyBytes = customType<{ data: string; driverData: string; config: { length: number } }>({
+  dataType: (config) => `varchar(${config?.length ?? 1366}) COLLATE "C"`,
+})
+
 export const adminUsers = pgTable(
   'byline_admin_users',
   {
     id: uuid('id').primaryKey(),
+    webauthn_user_handle: passkeyBytes('webauthn_user_handle', { length: 43 }).unique(),
     session_version: integer('session_version').notNull().default(0),
     vid: integer('vid').notNull().default(1),
     given_name: varchar('given_name', { length: 100 }),
@@ -281,4 +288,50 @@ export const adminSignInRateLimits = pgTable(
     expires_at: timestamp('expires_at', { withTimezone: true, precision: 3 }).notNull(),
   },
   (table) => [index('idx_admin_sign_in_rate_limits_expiry').on(table.expires_at)]
+)
+
+/** Credential identities survive revocation and account deletion as tombstones. */
+export const adminPasskeyCredentials = pgTable(
+  'byline_admin_passkey_credentials',
+  {
+    id: uuid('id').primaryKey(),
+    admin_user_id: uuid('admin_user_id').references(() => adminUsers.id, { onDelete: 'set null' }),
+    credential_id: passkeyBytes('credential_id', { length: 1366 }).notNull().unique(),
+    public_key: text('public_key').notNull(),
+    counter: bigint('counter', { mode: 'number' }).notNull(),
+    transports: jsonb('transports').$type<string[]>().notNull(),
+    backup_eligible: boolean('backup_eligible').notNull(),
+    backed_up: boolean('backed_up').notNull(),
+    name: varchar('name', { length: 80 }).notNull(),
+    created_at: timestamp('created_at', { withTimezone: true, precision: 6 }).notNull(),
+    last_used_at: timestamp('last_used_at', { withTimezone: true, precision: 6 }),
+    revoked_at: timestamp('revoked_at', { withTimezone: true, precision: 6 }),
+  },
+  (table) => [index('idx_admin_passkeys_user').on(table.admin_user_id)]
+)
+
+/** No FK cascades: short-lived authority is checked against live account/login state. */
+export const adminPasskeyAttempts = pgTable(
+  'byline_admin_passkey_attempts',
+  {
+    token_hash: passkeyBytes('token_hash', { length: 64 }).primaryKey(),
+    purpose: varchar('purpose', { length: 24 })
+      .$type<'sign-in' | 'fresh-authentication' | 'enrollment' | 'grant'>()
+      .notNull(),
+    challenge: varchar('challenge', { length: 43 }),
+    actor_user_id: uuid('actor_user_id'),
+    actor_login_id: uuid('actor_login_id'),
+    actor_generation: integer('actor_generation'),
+    action: varchar('action', { length: 8 }).$type<'enroll' | 'remove'>(),
+    target_user_id: uuid('target_user_id'),
+    credential_record_id: uuid('credential_record_id'),
+    proof_credential_id: uuid('proof_credential_id'),
+    created_at: timestamp('created_at', { withTimezone: true, precision: 6 }).notNull(),
+    expires_at: timestamp('expires_at', { withTimezone: true, precision: 6 }).notNull(),
+    consumed_at: timestamp('consumed_at', { withTimezone: true, precision: 6 }),
+  },
+  (table) => [
+    index('idx_admin_passkey_attempts_expiry').on(table.expires_at),
+    index('idx_admin_passkey_attempts_login').on(table.actor_login_id),
+  ]
 )

@@ -14,6 +14,7 @@ import type {
   AdminUserWithPasswordRow,
 } from './modules/admin-users/repository.js'
 import type { LoginSessionsRepository } from './modules/auth/login-sessions-repository.js'
+import type { PasskeysRepository } from './modules/auth/passkeys-repository.js'
 import type { RefreshTokensRepository } from './modules/auth/refresh-tokens-repository.js'
 import type { SignInRateLimitStore } from './modules/auth/sign-in-rate-limiter.js'
 
@@ -44,6 +45,7 @@ export interface AdminStore {
   ): Promise<T>
   /** Lock distinct account IDs in sorted order in one transaction for account-switch sign-in. */
   withSessionLocks<T>(adminUserIds: string[], work: (store: AdminStore) => Promise<T>): Promise<T>
+  passkeys: PasskeysRepository
   loginSessions: LoginSessionsRepository
   signInRateLimits: SignInRateLimitStore
   adminUsers: AdminUsersRepository

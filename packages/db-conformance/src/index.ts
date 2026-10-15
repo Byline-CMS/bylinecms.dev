@@ -26,6 +26,7 @@ import { guardedSavesSuite } from './suites/guarded-saves.js'
 import { localeFallbackSuite } from './suites/locale-fallback.js'
 import { localeQuerySemanticsSuite } from './suites/locale-query-semantics.js'
 import { localeVisibilitySuite } from './suites/locale-visibility.js'
+import { passkeysPersistenceSuite } from './suites/passkeys-persistence.js'
 import { publishSchedulesSuite } from './suites/publish-schedules.js'
 import { restoreSuite } from './suites/restore.js'
 import { scheduledStructuralRevisionsSuite } from './suites/scheduled-structural-revisions.js'
@@ -150,6 +151,9 @@ export interface ConformanceHooks {
    */
   observePublishScheduleContention?: SchedulerContentionObserver
 
+  /** Physical-connection overlap for passkey consumption and first-handle allocation. */
+  observePasskeyContention?: SingletonContentionObserver
+
   /** Deterministic physical-connection barrier for singleton first-save races. */
   observeSingletonContention?: SingletonContentionObserver
 }
@@ -220,6 +224,7 @@ export function runAdapterConformanceSuite(hooks: ConformanceHooks): void {
   singletonLifecycleSuite(hooks)
   adminStoreSuite(hooks)
   sessionRevocationSuite(hooks)
+  passkeysPersistenceSuite(hooks)
   if (hooks.createSchedulerStore) {
     schedulerSuite(hooks)
   }

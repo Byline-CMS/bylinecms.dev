@@ -971,6 +971,8 @@ export const auditLog = pgTable(
 
 export {
   adminLoginSessions,
+  adminPasskeyAttempts,
+  adminPasskeyCredentials,
   adminPermissions,
   adminPermissionsRelations,
   adminRefreshTokens,

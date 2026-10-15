@@ -138,6 +138,9 @@ function columnByteWidth(columnName: string, sqlType: string): number {
   const args = typeMatch?.[2]
 
   switch (typeName) {
+    case 'binary':
+    case 'varbinary':
+      return Number(args)
     case 'boolean':
     case 'tinyint':
       return 1

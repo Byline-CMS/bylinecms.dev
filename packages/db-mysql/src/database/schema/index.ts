@@ -1204,6 +1204,8 @@ export const recurringTasks = mysqlTable('byline_recurring_tasks', {
 
 export {
   adminLoginSessions,
+  adminPasskeyAttempts,
+  adminPasskeyCredentials,
   adminPermissions,
   adminPermissionsRelations,
   adminRefreshTokens,

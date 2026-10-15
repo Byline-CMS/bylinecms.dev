@@ -72,3 +72,5 @@ The exact candidate pair is selected for integration. Dependency adoption can wa
 ## Release note — minimum Node runtime
 
 The next release containing this change requires Node `>=22.22.2` for all Byline packages and the CLI, including installations using password-only sign-in. Upgrade any deployed runtime below 22.22.2 before updating Byline. This is an intentional compatibility change authorized during passkeys implementation; the release version will be chosen by the maintainer. CI already runs Node 22, and this change does not alter `@types/node` versions or publish packages.
+
+The passkey persistence change also adds a required `passkeys` repository member to `AdminStore`. Both first-party adapters implement it. Third-party `AdminStore` adapters must implement this repository contract when updating, even if their installation has not yet enabled passkeys. The separate `SessionProvider` passkey capability remains optional for password-only/custom authentication providers. Include both compatibility changes in the release-facing changeset/CHANGELOG.
