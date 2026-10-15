@@ -1,5 +1,14 @@
 # @byline/search-postgres
 
+## 6.7.2
+
+### Patch Changes
+
+- updated dependencies across the workspace, including TanStack Start 1.169
+- Updated dependencies
+  - @byline/core@6.7.2
+  - @byline/search-analysis@6.7.2
+
 ## 6.7.1
 
 ### Patch Changes

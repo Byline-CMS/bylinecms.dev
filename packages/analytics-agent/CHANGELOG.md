@@ -1,5 +1,11 @@
 # @byline/analytics-agent
 
+## 6.7.2
+
+### Patch Changes
+
+- updated dependencies across the workspace, including TanStack Start 1.169
+
 ## 6.7.1
 
 ### Patch Changes

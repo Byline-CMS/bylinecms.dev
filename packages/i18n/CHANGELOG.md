@@ -1,5 +1,13 @@
 # @byline/i18n
 
+## 6.7.2
+
+### Patch Changes
+
+- updated dependencies across the workspace, including TanStack Start 1.169
+- Updated dependencies
+  - @byline/ui@6.7.2
+
 ## 6.7.1
 
 ### Patch Changes
