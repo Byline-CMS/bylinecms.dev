@@ -14,7 +14,7 @@
  */
 
 import { type AdminStore, registerAdminAbilities } from '@byline/admin'
-import { createPasswordSignInLimiter, createPasskeyRequestLimiter, JwtSessionProvider } from '@byline/admin/auth'
+import { createAuthMaintenanceTasks, createPasswordSignInLimiter, createPasskeyRequestLimiter, JwtSessionProvider } from '@byline/admin/auth'
 import { getRequestIP } from '@tanstack/react-start/server'
 import { createClientIpResolver } from '@byline/host-tanstack-start/integrations/client-ip'
 import { getAdminBylineClient } from '@byline/client/server'
@@ -114,7 +114,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     sessionProvider,
     passkeys,
     passkeyRequests,
-    recurringTasks: [signInLimiter.cleanupTask],
+    recurringTasks: [...createAuthMaintenanceTasks(adminStore), signInLimiter.cleanupTask],
     passwordSignIn: {
       limiter: signInLimiter,
       resolveClientIp,

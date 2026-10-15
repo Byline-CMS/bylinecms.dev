@@ -7,10 +7,11 @@
  */
 
 import type { RefreshTokenRow, RefreshTokensRepository } from '@byline/admin/auth'
-import { and, eq, isNull, lt } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 
 import { adminRefreshTokens } from '../../database/schema/auth.js'
+import { createAuthMaintenanceRepository } from './auth-maintenance-repository.js'
 import type * as schema from '../../database/schema/index.js'
 
 /**
@@ -105,11 +106,10 @@ export function createRefreshTokensRepository(
     },
 
     async purgeExpired(now = new Date()) {
-      const result = await db
-        .delete(adminRefreshTokens)
-        .where(lt(adminRefreshTokens.expires_at, now))
-        .returning({ id: adminRefreshTokens.id })
-      return result.length
+      // Preserve every member of a native login, including expired predecessors.
+      return createAuthMaintenanceRepository(db, null).purgeLegacyRefreshTokens(
+        new Date(now.getTime() - 30 * 86_400_000)
+      )
     },
 
     async listActiveForUser(adminUserId) {

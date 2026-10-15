@@ -12,6 +12,7 @@ import { afterAll, beforeAll } from 'vitest'
 
 import { adminStoreSuite } from './suites/admin-store.js'
 import { auditSuite } from './suites/audit.js'
+import { authMaintenanceSuite } from './suites/auth-maintenance.js'
 import { countersSuite } from './suites/counters.js'
 import { deleteLocaleSuite } from './suites/delete-locale.js'
 import { documentAvailableLocalesSuite } from './suites/document-available-locales.js'
@@ -232,6 +233,7 @@ export function runAdapterConformanceSuite(hooks: ConformanceHooks): void {
   sessionRevocationSuite(hooks)
   passkeysPersistenceSuite(hooks)
   passkeysNativeSuite(hooks)
+  authMaintenanceSuite(hooks)
   if (hooks.createSchedulerStore) {
     schedulerSuite(hooks)
   }

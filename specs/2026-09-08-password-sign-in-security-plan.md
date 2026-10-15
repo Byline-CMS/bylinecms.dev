@@ -141,7 +141,7 @@ Release prerequisites remain open and are not R2/R3 gates:
 
 Non-blocking follow-ups:
 
-- [ ] Add physical cleanup for expired/revoked `byline_admin_login_sessions` rows. **Now owned by Stage 5 of the [passkeys Phase 1 plan](./2026-09-10-passkeys-phase-1-plan.md); close it there.** Use the existing scheduler pattern: a `RecurringTaskDefinition`, lease, bounded batches, and `workRemaining`. Rows currently accumulate; authorization already rejects revoked/expired state, so cleanup is not required for immediate invalidation. Account for cascading refresh-row deletion and retained audit/replay needs when defining eligibility. Editorial-scale growth does not block this release.
+- [x] Add physical cleanup for expired/revoked `byline_admin_login_sessions` rows. Implemented in Stage 5 of the [passkeys Phase 1 plan](./2026-09-10-passkeys-phase-1-plan.md#stage-5--auth-maintenance), with passing full PostgreSQL and MySQL conformance (468 cases each) on 2026-10-16. Leased recurring tasks retain terminal logins for 30 days, reread eligibility under the account lock, drain at most 100 refresh children per transaction, and return `workRemaining` at the run budget. Live refresh predecessors, credential tombstones and audit records are preserved. Authorization remains independent of cleanup. Release preparation and deployment remain separate from this implementation follow-up.
 - [x] Clarify idempotent logout in the authentication document: credentials identifying no login can return success without a revocation write; successful logout still clears the browser credentials.
 
 No cleanup implementation, commit, push, or release is authorized merely by recording this review.

@@ -66,7 +66,7 @@ export interface RefreshTokensRepository {
   revokeChain(startId: string, at?: Date): Promise<number>
   /** Revoke every non-revoked token for a user. Used on password change / sign-out everywhere. */
   revokeAllForUser(adminUserId: string, at?: Date): Promise<number>
-  /** Remove rows whose `expires_at` is in the past. Housekeeping. */
+  /** Legacy housekeeping: at most 100 null-sid rows expired for 30 days. Native login members are retained. */
   purgeExpired(now?: Date): Promise<number>
   /** All non-revoked tokens for a user. Primarily for tests. */
   listActiveForUser(adminUserId: string): Promise<RefreshTokenRow[]>

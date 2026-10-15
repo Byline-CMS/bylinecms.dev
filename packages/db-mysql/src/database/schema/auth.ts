@@ -236,6 +236,8 @@ export const adminLoginSessions = mysqlTable(
       foreignColumns: [adminUsers.id],
     }).onDelete('cascade'),
     index('idx_admin_login_sessions_user').on(table.admin_user_id),
+    index('idx_admin_login_sessions_expiry').on(table.expires_at),
+    index('idx_admin_login_sessions_revoked').on(table.revoked_at),
   ]
 )
 
@@ -276,6 +278,7 @@ export const adminRefreshTokens = mysqlTable(
       foreignColumns: [adminUsers.id],
     }).onDelete('cascade'),
     index('idx_admin_refresh_tokens_sid').on(table.sid),
+    index('idx_admin_refresh_tokens_legacy_expiry').on(table.sid, table.expires_at),
     index('idx_byline_admin_refresh_tokens_user').on(table.admin_user_id),
     index('idx_byline_admin_refresh_tokens_token_hash').on(table.token_hash),
   ]
@@ -381,6 +384,7 @@ export const adminPasskeyAttempts = mysqlTable(
   },
   (table) => [
     index('idx_admin_passkey_attempts_expiry').on(table.expires_at),
+    index('idx_admin_passkey_attempts_consumed').on(table.consumed_at),
     index('idx_admin_passkey_attempts_login').on(table.actor_login_id),
   ]
 )

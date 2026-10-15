@@ -15,6 +15,7 @@ import { createAdminPermissionsRepository } from './admin-permissions-repository
 import { createAdminPreferencesRepository } from './admin-preferences-repository.js'
 import { createAdminRolesRepository } from './admin-roles-repository.js'
 import { createAdminUsersRepository } from './admin-users-repository.js'
+import { createAuthMaintenanceRepository } from './auth-maintenance-repository.js'
 import { createLoginSessionsRepository } from './login-sessions-repository.js'
 import { createPasskeysRepository } from './passkeys-repository.js'
 import { createRefreshTokensRepository } from './refresh-tokens-repository.js'
@@ -62,6 +63,7 @@ function createScopedAdminStore(
         return work(createScopedAdminStore(tx, adminUserIds))
       })
     },
+    authMaintenance: createAuthMaintenanceRepository(db, lockedAccounts),
     passkeys: createPasskeysRepository(db, lockedAccounts),
     loginSessions: createLoginSessionsRepository(db),
     signInRateLimits: createSignInRateLimitStore(db),

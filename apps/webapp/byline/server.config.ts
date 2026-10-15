@@ -28,6 +28,7 @@ import { getRequestIP } from '@tanstack/react-start/server'
 
 import { type AdminStore, registerAdminAbilities } from '@byline/admin'
 import {
+  createAuthMaintenanceTasks,
   createPasskeyRequestLimiter,
   createPasswordSignInLimiter,
   JwtSessionProvider,
@@ -404,7 +405,11 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     // Application-defined recurring tasks sit beside built-in tasks. The
     // analytics definition performs catch-up rollups and retention maintenance;
     // `src/server.ts` runs the combined validated registry.
-    recurringTasks: [signInLimiter.cleanupTask, defineAnalyticsRollupTask({ analytics })],
+    recurringTasks: [
+      ...createAuthMaintenanceTasks(adminStore),
+      signInLimiter.cleanupTask,
+      defineAnalyticsRollupTask({ analytics }),
+    ],
   })
 
   // Analytics is created before core so its task can be registered above.

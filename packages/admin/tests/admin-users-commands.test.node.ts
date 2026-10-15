@@ -40,6 +40,7 @@ function makeDeps(): { store: AdminStore } {
     withSessionLock: () => {
       throw new Error('Use adapter conformance for session transactions')
     },
+    authMaintenance: undefined as never,
     signInRateLimits: undefined as never,
     adminPreferences: undefined as never,
     adminRoles: undefined as never,

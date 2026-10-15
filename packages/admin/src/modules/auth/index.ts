@@ -21,6 +21,7 @@
  * against `@byline/auth` rather than added here.
  */
 
+export { createAuthMaintenanceTasks } from './auth-maintenance.js'
 export {
   JwtSessionProvider,
   type JwtSessionProviderConfig,
@@ -42,6 +43,7 @@ export {
   type SignInRateLimitStore,
   type SignInSecurityEvent,
 } from './sign-in-rate-limiter.js'
+export type { AuthMaintenanceRepository } from './auth-maintenance-repository.js'
 export type { LoginSessionRow, LoginSessionsRepository } from './login-sessions-repository.js'
 export type {
   PasskeyAttemptRow,

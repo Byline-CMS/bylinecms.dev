@@ -15,6 +15,13 @@
       "when": 1792088694046,
       "tag": "0001_tidy_hitman",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792093371982,
+      "tag": "0002_nasty_satana",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,13 @@
       "when": 1792088695079,
       "tag": "0001_wide_thor_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1792093373103,
+      "tag": "0002_high_sandman",
+      "breakpoints": true
     }
   ]
 }
