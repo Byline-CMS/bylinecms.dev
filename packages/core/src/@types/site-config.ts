@@ -372,6 +372,8 @@ export interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
    * ```
    */
   sessionProvider?: SessionProvider
+  /** Explicit WebAuthn trust configuration; never inferred from request headers. */
+  passkeys?: PasskeyConfig
   /** Required by the host password sign-in endpoint; shared limiter and trusted IP resolver. */
   passwordSignIn?: PasswordSignInProtection
   /**
@@ -499,3 +501,14 @@ export type ResolvedServerConfig<TAdminStore = unknown> = Omit<
   ServerConfig<TAdminStore>,
   'routes'
 > & { routes: RoutesConfig }
+
+/** Server-owned WebAuthn trust configuration. No related-origin expansion is supported. */
+export interface PasskeyConfig {
+  /** Canonical lowercase DNS name, without scheme, port or path. */
+  rpId: string
+  rpName: string
+  /** Exact canonical origins, including a non-default port when needed. */
+  origins: readonly string[]
+  /** Explicit local-development exception, restricted to http://localhost origins. */
+  allowInsecureLocalhost?: boolean
+}

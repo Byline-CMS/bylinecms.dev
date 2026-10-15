@@ -37,6 +37,7 @@ export {
   ERR_UNAUTHENTICATED,
 } from './errors.js'
 export { MAX_PASSWORD_LENGTH, MAX_SIGN_IN_EMAIL_LENGTH } from './password-sign-in.js'
+export type { PasskeyProvider } from './passkeys.js'
 export type {
   ClientIpResolver,
   PasswordSignInLimiter,

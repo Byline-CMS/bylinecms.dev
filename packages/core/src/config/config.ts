@@ -6,6 +6,7 @@ import {
 import { resolveRoutes } from './routes.js'
 import { validateAdminConfigs, validateBlockAdminConfigs } from './validate-admin-configs.js'
 import { validateCollections } from './validate-collections.js'
+import { resolvePasskeyConfig } from './validate-passkey-config.js'
 import type {
   AdminConfig,
   AdminResourceConfig,
@@ -105,7 +106,8 @@ export function resolveServerConfig<TAdminStore = unknown>(
   config: ServerConfig<TAdminStore>
 ): ResolvedServerConfig<TAdminStore> {
   validateCollections(config.collections)
-  const resolved = { ...config, routes: resolveRoutes(config.routes) }
+  const passkeys = resolvePasskeyConfig(config.passkeys, config.sessionProvider)
+  const resolved = { ...config, passkeys, routes: resolveRoutes(config.routes) }
   preparedHookAttachments.set(resolved, prepareHookAttachment(resolved))
   return resolved
 }

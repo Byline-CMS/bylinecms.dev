@@ -24,6 +24,7 @@
  */
 
 import type { AdminAuth } from './actor.js'
+import type { PasskeyProvider } from './passkeys.js'
 
 /**
  * Decoded access-token payload. `JwtSessionProvider` issues this shape;
@@ -106,6 +107,8 @@ export interface RevokeSessionArgs {
  * with SSO" button when appropriate.
  */
 export interface SessionProviderCapabilities {
+  /** Optional native passkey ceremonies and management; absent means unsupported. */
+  passkeys?: boolean
   /** Can callers change their password through this provider? */
   passwordChange: boolean
   /** Does the provider support magic-link sign-in? */
@@ -115,6 +118,9 @@ export interface SessionProviderCapabilities {
 }
 
 export interface SessionProvider {
+  /** Present only when passkey support is configured; boot validates capability consistency. */
+  readonly passkeys?: PasskeyProvider
+
   /** Verify email + password, return fresh tokens and the resolved actor. */
   signInWithPassword(args: SignInWithPasswordArgs): Promise<SignInResult>
 
