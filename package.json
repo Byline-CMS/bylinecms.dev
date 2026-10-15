@@ -37,7 +37,7 @@
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm exec lint-staged",
-    "pre-push": "pnpm knip && pnpm knip:exports"
+    "pre-push": "pnpm byline:generate:check && pnpm knip && pnpm knip:exports"
   },
   "lint-staged": {
     "*.{js,jsx,mjs,cjs,ts,tsx,json,jsonc}": "biome check --write --no-errors-on-unmatched --diagnostic-level=error"

@@ -184,34 +184,14 @@ export const PagesAdmin: CollectionAdminConfig = defineAdmin(Pages, {
           fields: ['title', 'area', 'summary'],
         },
         {
-          name: 'content',
-          label: 'Content',
-          fields: ['content'],
-        },
-        {
           name: 'featureImage',
           label: 'Feature Image',
           fields: ['featureImage'],
         },
         {
-          name: 'gallery',
-          label: 'Gallery',
-          fields: ['gallery'],
-        },
-        {
-          name: 'seo',
-          label: 'SEO',
-          fields: ['seoTitle', 'seoDescription'],
-        },
-        {
-          name: 'social',
-          label: 'Social',
-          fields: ['socialTitle', 'socialImage'],
-        },
-        {
-          name: 'indexing',
-          label: 'Indexing',
-          fields: ['noIndex'],
+          name: 'content',
+          label: 'Content',
+          fields: ['content'],
         },
       ],
     },

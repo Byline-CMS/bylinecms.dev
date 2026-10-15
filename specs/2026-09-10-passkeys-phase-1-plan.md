@@ -11,9 +11,12 @@ Companions:
 - [Approved Phase 1 specification](./2026-09-10-passkeys-phase-1-spec.md) defines scope, recovery, and session policy.
 - [Authentication and authorization](../docs/07-auth-and-security/01-authn-authz.md) documents current configuration and provider contracts.
 - [Password security plan](./2026-09-08-password-sign-in-security-plan.md) records the existing session implementation and cleanup follow-up.
+- [MCP server plan](./2026-10-10-mcp-server-plan.md#shared-authentication-decisions) defines how delegated access consumes the shared account-security policy without depending on passkey implementation.
 - [Testing](../docs/13-testing.md) describes package test environments and database safety.
 
 Date: 2026-09-10. Status: review complete on 2026-09-10 after the release-workflow correction and the telemetry/dependency additions; awaiting Tony's approval to begin Stage 1. No implementation performed. The specification is approved for planning. You can use the stages below to implement and verify the feature without introducing Phase 2 enforcement.
+
+Planning update, 2026-10-10: the shared authentication decisions below coordinate this plan with MCP. They do not authorize runtime implementation or merge the two delivery schedules.
 
 ## Start here in the next session
 
@@ -31,6 +34,43 @@ Date: 2026-09-10. Status: review complete on 2026-09-10 after the release-workfl
 - Current `AdminUsersService` protects self-disable and self-delete, and commands assert operation-specific abilities. It has no general super-admin-target restriction. Add the approved stronger rule specifically to passkey management: only super-admin actors may list or remove another super-admin's credentials. Do not silently change existing password-reset or user-edit permissions. Document this distinction and test the new ability independently of `read`, `update`, and `changePassword`.
 - Consume a ceremony with a conditional database update, accepting exactly one affected row. PostgreSQL can return the claimed record with `RETURNING`. MySQL uses an explicit transaction, checks `affectedRows`, and reads the claimed record through that transaction. Never implement read-then-delete or infer success from an unconditional update.
 - Preserve the two migration streams: incremental Drizzle migrations during development, squashed into one baseline before release for fresh CLI installations; separately numbered plain SQL scripts in each database provider's `sql/` directory upgrade existing sites. The password-security handoff's ledger repairs concerned local development/test databases, not deployed sites. Changing this release model is outside the passkey plan and would require a separate discussion.
+
+## Shared authentication decisions
+
+Passkeys establish the user's identity; OAuth grants authorize a client to act with a limited subset of that user's abilities. The authentication method does not expand those abilities. This section records the shared account-security policy; the [MCP integration section](./2026-10-10-mcp-server-plan.md#shared-authentication-decisions) owns its delegated-access enforcement. OAuth behavior in this table is a requirement for the future MCP implementation, not an existing native-session feature.
+
+### Revocation policy
+
+| Event | Native sessions and passkey management | Delegated MCP access |
+|---|---|---|
+| Ordinary browser logout or login replacement | Revoke the affected login; pending management proof bound to that login becomes invalid. | Leave completed connection grants intact. Invalidate unfinished consent bound to the affected login. |
+| Password change or reset | Preserve the existing account-wide session invalidation; retain enrolled passkeys. | Invalidate existing connection grants and their access/refresh authority; require fresh authentication and consent to reconnect. |
+| Passkey removal, including routine retirement | Preserve this plan's account-generation increment and revoke-all native-session policy for the target account. | Apply the same account-wide invalidation to the target account's delegated access; preserve an acting administrator's unrelated connections. |
+| Account disablement or deletion | Reject sign-in and invalidate sessions and pending management proof. | Reject tool calls, consent completion, code exchange, and refresh. Re-enabling an account must not revive old grants. |
+| Explicit account-wide security reset or “sign out everywhere,” if offered | Revoke all account sessions and pending proof. | Invalidate all account connection grants and access/refresh authority too. This is a policy requirement, not a new UI feature in the passkey scope. |
+| Passkey enrollment or rename | Preserve existing sessions, subject to the specified fresh-proof rules. | Preserve existing connection grants. |
+| Revoke one MCP connection | Leave native sessions and enrolled passkeys intact. | Invalidate only that connection's grant, pending authorization, and access/refresh authority. |
+| Role or ability change | Resolve current abilities through existing authorization checks. | Apply current abilities intersected with the existing grant and installation policy on subsequent calls; authentication does not preserve removed authority. |
+
+Security invalidation must be effective when the account mutation commits, across host instances. Audit events and cleanup jobs must not be the only revocation mechanism. Native account generation already provides a persisted invalidation boundary; MCP must consume that boundary or an equivalent account-security generation when it ships. Ordinary logout must remain login-scoped rather than advancing an account-wide generation merely to disconnect a browser.
+
+None of these events cancels an already-authorized publication schedule. Schedule cancellation remains a separate editorial action under the [scheduled-publication policy](../docs/11-scheduling/02-scheduled-publication.md#authorization). Recovery instructions must distinguish invalidating future access from cancelling pending publications. Password reset also remains insufficient remediation for a compromised passkey unless the credential is removed.
+
+### Fresh authentication and consent identity
+
+Reuse private proof-verification machinery where available, but keep passkey enrollment/removal grants and OAuth-consent authorization separate in purpose, storage contracts, and consumption. An enrollment/removal proof grant cannot authorize a connection, and a consent proof cannot enroll or remove a passkey. Session refresh is not fresh authentication; proof verification must not become a generally callable user-ID-only session issuer.
+
+The MCP implementation requires fresh authentication for establishing a connection or expanding its permissions. Its consent proof must bind the acting account, current login, account-security generation, OAuth client, authorization request, resource, and requested scopes/collection restrictions. A password or an enrolled passkey may supply that proof under the applicable provider policy. Completion rechecks identity and authority; switching accounts in another tab invalidates the old consent attempt rather than granting access as whichever account is now signed in. MCP owns consent endpoints and proof purposes; passkey work owns its native ceremonies and management grants.
+
+The proposed `admin.users.managePasskeys` ability remains an interactive administrative capability. Content-only MCP grants must exclude it and all credential-management operations, including for a super-admin owner. A scoped MCP actor remains `isSuperAdmin: false`; successful passkey authentication does not relax that restriction.
+
+### Separate implementation ownership
+
+Passkey stages implement WebAuthn, native session issuance, purpose-bound fresh proof, account-generation changes, credential management, and their tests. They must remain usable without MCP packages, OAuth tables, or an authorization server. Do not add OAuth migrations, consent screens, connection management, or MCP acceptance gates to this implementation.
+
+MCP phases implement OAuth registration/consent, grants, bearer validation, delegated revocation, and content-tool authorization. They may ship first using password-based fresh proof, then accept native passkey proof when that capability becomes available. An external authorization provider must supply equivalent freshness and account binding; a live Byline browser session alone is insufficient. Native `SessionProvider` implementations are not required to become OAuth servers.
+
+Each implementation tests its own side of the shared boundary with fixtures or a test double when the other feature is absent. Once both are available, the integrating change owns the combined credential-removal, account-switching, and delegated-revocation tests. Neither standalone release requires completion of the other plan. Optional passkeys retain password sign-in in Phase 1 and do not replace the MCP plan's prompt-injection defenses or restricted grants.
 
 ## Proposed implementation defaults
 
@@ -55,6 +95,7 @@ Passkey capacity is separate from the existing Argon2 slot. Password proof addit
 - [ ] First, inspect the published npm registry metadata for candidate `@simplewebauthn/server` and `@simplewebauthn/browser` versions. Start with `pnpm view @simplewebauthn/server version engines --json` and `pnpm view @simplewebauthn/browser version engines --json`, then repeat for each exact candidate version. Record the version, published `engines` field, registry source, and maintained status before selecting or adding dependencies. Byline advertises Node >=20.9.0 and CI uses Node 22; CI's version alone does not establish compatibility with the supported floor. If the selected maintained release requires Node 22 or another higher floor, present a separate runtime compatibility proposal. Missing `engines` metadata is not proof of compatibility; validate the selected pair and relevant dependencies against the supported runtime before pinning.
 - [ ] Extend `packages/auth/src/session-provider.ts` through an optional passkey capability and typed optional passkey operations. Existing custom providers must continue compiling and running without implementing them. Configuration must reject a capability without its required implementation.
 - [ ] Keep cryptographic verification, native issuance, fresh-proof policy, and repository contracts in `packages/admin`; transport and cookies remain in `packages/host-tanstack-start`. Add configuration types and validation in core without importing server cryptography into client-safe configuration.
+- [ ] Preserve the shared authentication decisions above: purpose-bound proof, an observable committed account-generation change, and separate login-scoped logout. Define these native boundaries without adding OAuth contracts or requiring MCP to exist.
 - [ ] Require explicit relying-party ID, display name, and exact allowed origins. Validate HTTPS/local-development rules at boot and disable related-origin expansion. Passkey support remains opt-in; configurations without it retain password behavior.
 
 **Checkpoint:** contract type tests cover a password-only custom provider, configured native support, missing methods, invalid configuration, and server/browser import boundaries. Record the selected dependency/runtime combination before continuing its integration.
@@ -77,10 +118,11 @@ Passkey capacity is separate from the existing Argon2 slot. Password proof addit
 - [ ] Consume an enrollment grant when creating its registration options. Transfer its action/account/login/generation binding and remaining lifetime into the registration ceremony. On completion, recheck the grant's authority, credential limit and account handle under lock before inserting the credential. Keep registration, sign-in, and fresh-authentication purposes distinct.
 - [ ] Add self-service commands whose target comes from the actor, plus privileged list/remove commands requiring `admin.users.managePasskeys`. Recheck the acting login, fresh proof, current authority, and target super-admin status at removal under sorted account locks. Disabled targets remain manageable; disabled or revoked acting accounts do not.
 - [ ] Removal revokes the credential, increments the target account generation, revokes every target login/refresh session, and invalidates its management grants/ceremonies atomically. Reject pending authority derived from old generations even if its row remains. Preserve another acting account's sessions. Renaming never changes credential identity or authentication state.
+- [ ] Verify that committed account-generation changes invalidate a test delegated-grant observation, while logout, enrollment, and rename do not invalidate an unrelated completed grant. Use a test double rather than implementing OAuth persistence here; actual delegated enforcement and reconnect consent belong to the MCP plan.
 - [ ] Persist successful privileged-removal audit entries in the removal transaction. The existing audit table supports null document/collection IDs; provide a transaction-scoped admin audit writer rather than calling the separate `DBManager` pool from inside an `AdminStore` transaction. Store actor, target, internal credential reference, action and outcome; record denials/failures separately without credential material. Audit insertion failure rolls back removal.
 - [ ] Extend the provider's existing `onEvent`/`NativeSessionEvent` telemetry seam with passkey attempt, success, terminal-failure, and admission-denial events. Include the ceremony purpose and bounded reason codes. Wire host/limiter denials into the same configured event sink because admission can reject before provider invocation; avoid counting one outcome twice. Emit success only after the relevant transaction commits. Keep events token-free, including no ceremony/grant identifiers, raw credential IDs, or response payloads. Hook failures must not change authentication outcomes or strand capacity slots; this best-effort telemetry remains distinct from the transactional privileged-removal audit.
 
-**Checkpoint:** run complete adapter conformance, including existing JWT/session groups, on both databases. Add rollback injection and races between verification, removal, password reset, disable/re-enable, and replacement sign-in. Verify permission denial, super-admin targets, disabled-target recovery, and password-only regression behavior. Test telemetry redaction, outcome counts, pre-provider admission denial, no success on rollback, and throwing event hooks.
+**Checkpoint:** run complete adapter conformance, including existing JWT/session groups, on both databases. Add rollback injection and races between verification, removal, password reset, disable/re-enable, and replacement sign-in. Verify permission denial, super-admin targets, disabled-target recovery, and password-only regression behavior. Test telemetry redaction, outcome counts, pre-provider admission denial, no success on rollback, and throwing event hooks. Prove that proof purposes cannot be substituted and account-generation invalidation is committed or rolled back with credential removal; the shared-boundary fixture must not require an MCP runtime.
 
 ## Stage 4 — Host and user interface
 

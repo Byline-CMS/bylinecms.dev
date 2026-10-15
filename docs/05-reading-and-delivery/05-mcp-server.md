@@ -1,7 +1,7 @@
 ---
 title: "MCP Server"
 path: "mcp"
-summary: "Planned Model Context Protocol support: a peer transport binding the operation layer to MCP tools, resources, and prompts, with draft-by-default writes, service-account authentication, and workflow review."
+summary: "Historical MCP transport proposal, superseded by the October 2026 draft implementation plan for delegated authoring and publication."
 ---
 
 # MCP Server
@@ -9,16 +9,21 @@ summary: "Planned Model Context Protocol support: a peer transport binding the o
 Companions:
 - [Transports](./03-transports.md) — MCP is a **peer transport** in that family. It shares the operation layer with the HTTP bindings and differs only in how it surfaces operations (tools/resources/prompts vs HTTP routes). Read that first.
 - [Client SDK](./01-client-sdk.md) — every MCP tool delegates to `CollectionHandle` / `document-lifecycle`. The hard problems (populate, status-aware reads, validation) are solved below the transport line.
-- [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md) — MCP needs a non-interactive **service-account token** actor; `assertActorCanPerform` gates every tool inside the service, not in the tool handler.
-- [Relationships](../04-collections/03-relationships.md) — `populate` + `hasMany` are what make MCP reads rich; relationship completeness gates a satisfying MCP experience, hence the sequencing.
+- [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md) — actors and service authorization underpin the revised delegated-user design.
+- [Relationships](../04-collections/03-relationships.md) — `populate` and `hasMany` now supply the relationship support this earlier proposal awaited.
 - [Markdown Export](./04-markdown-export.md) — the agent-readable representation **already shipped**: `documentToMarkdown`, `.md` routes, `llms.txt`. The MCP content tools should serve these same representations rather than invent a parallel shape.
 - [Content Management in the Time of AI](../02-why-byline/02-content-in-the-time-of-ai.md) — the "why": structured versioning, workflow, and provenance matter *more* when an LLM is the author. MCP is where that thesis meets a keyboard.
 
-:::note[Planned]
-This document describes a planned subsystem. It sets out the intended shape of
-the MCP server so its dependencies (service-account auth, the shared operation
-layer, and relationship completeness) are settled first. Treat it as the design
-the implementation follows rather than a description of shipped code.
+:::note[Superseded proposal]
+The [MCP server draft implementation plan](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/specs/2026-10-10-mcp-server-plan.md)
+in `specs/2026-10-10-mcp-server-plan.md` supersedes this proposal as of
+2026-10-10. It specifies delegated OAuth access, stateless Streamable HTTP,
+top-level field-merge updates, create-only idempotency, and prompt-injection
+defenses. It also removes the HTTP-first and outstanding `hasMany` prerequisites.
+The sections below preserve the earlier rationale; their service-account-first
+authentication and sequencing are historical, not current implementation guidance.
+Social-channel orchestration remains the client's responsibility. Neither this
+proposal nor the draft plan describes a shipped MCP server.
 :::
 
 ## Overview

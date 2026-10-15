@@ -367,13 +367,12 @@ describe('zone (cross-collection) search', () => {
     await ctx.client.collection(articlesPath).delete(articleTwo, { expectedRevision: 2 })
 
     // Public hits are re-checked for exact-locale eligibility even without
-    // hydration, so the stale row is dropped and the restricted-result
-    // convention applies (retained-hit total, no provider facets).
+    // hydration, so the stale row is dropped. Staleness is an index lag, not
+    // an actor-specific restriction, so the provider total passes through.
     const stale = await ctx.client.search({ query: 'zonal', zone })
     expect(stale.hits.some((h) => h.documentId === articleTwo)).toBe(false)
     expect(stale.hits.some((h) => h.documentId === articleOne)).toBe(true)
-    expect(stale.total).toBe(stale.hits.length)
-    expect(stale.facets).toBeUndefined()
+    expect(stale.total).toBeGreaterThan(stale.hits.length)
 
     const hydrated = await ctx.client.search({ query: 'zonal', zone, hydrate: true })
     expect(hydrated.hits.some((h) => h.documentId === articleTwo)).toBe(false) // dropped

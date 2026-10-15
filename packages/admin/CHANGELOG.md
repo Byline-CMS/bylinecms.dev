@@ -1,5 +1,18 @@
 # @byline/admin
 
+## 6.7.1
+
+### Patch Changes
+
+- fixed **`@byline/client`** public searches returning a page-local `total` and dropping provider facets, a 6.7.0 regression that broke search pagination and facet counts
+- Updated dependencies
+  - @byline/analytics@6.7.1
+  - @byline/analytics-agent@6.7.1
+  - @byline/auth@6.7.1
+  - @byline/core@6.7.1
+  - @byline/i18n@6.7.1
+  - @byline/ui@6.7.1
+
 ## 6.7.0
 
 ### Minor Changes

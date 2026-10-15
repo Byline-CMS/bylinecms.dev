@@ -214,16 +214,18 @@ The provider owns retrieval and ranking. Core owns authority.
 
 When a collection has a `beforeRead` predicate, Byline re-resolves the provider candidate ids through the normal strict read pipeline. Unauthorized ids are removed before results leave the client.
 
-Every **public** search (the default, `status: 'published'`) also re-checks each hit's locale against the current read policy, even without a `beforeRead` hook and even with `_bypassBeforeRead`. An index slice can be stale for a moment — for example, between an editor unchecking a translation and the reindex that follows — and a hit whose locale is no longer publicly deliverable is removed. One batched read per collection per page performs the check.
+Every **public** search (the default, `status: 'published'`) also re-checks each hit's locale against the current read policy, even without a `beforeRead` hook and even with `_bypassBeforeRead`. An index slice can be stale for a moment — for example, between an editor unchecking a translation and the reindex that follows — and a hit whose locale is no longer publicly deliverable is removed. One batched read per collection per page performs the check. When the check removes a hit that no `beforeRead` predicate accounts for, the client logs a warning with the collection path, document id, and locale so that you can reindex the document.
 
-This has visible pagination semantics, for every public search and for any search restricted by `beforeRead`:
+The locale check does not change the provider's `total` or facets. Public locale eligibility is the same for every reader, and indexing applies the same rule, so the provider's aggregate already counts only publicly eligible slices. A stale entry can make `total` briefly count a hit that the page no longer shows, until reindexing removes it.
+
+A restriction that depends on the reader is different. When a collection has an active `beforeRead` predicate, or a zone search excludes member collections the actor can't read, the provider's aggregate can count rows this reader is not allowed to see. Those searches follow the restricted-result convention:
 
 - `total` becomes the number of hits surviving the current provider page, so it is at most the page size;
 - provider facets are omitted to avoid leaking aggregate counts;
 - a page can contain fewer hits than `limit`; and
 - callers should advance using the requested provider `offset`, not the number of hits received.
 
-Only an editorial search (`status: 'any'`) with no collection or row restriction passes the provider `total` and facets through unchanged. A search results page that shows "N results" from a public search therefore shows the number of hits on that page, not a corpus-wide count.
+Every other search, public or editorial, passes the provider `total` and facets through unchanged. Byline 6.7.0 applied the restricted-result convention to every public search; 6.7.1 reverses that change.
 
 Exact corpus-wide authorized totals require pushing a supported predicate into the provider. The current built-in SQL providers do not implement that query path.
 
