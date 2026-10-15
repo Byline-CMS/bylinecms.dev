@@ -4,7 +4,7 @@
   "license": "MPL-2.0",
   "version": "0.0.10",
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=22.22.2"
   },
   "description": "Byline CMS adapter conformance suite — a parameterised behavioural test suite any IDbAdapter implementation runs against its own test database",
   "type": "module",

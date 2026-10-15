@@ -5,7 +5,7 @@
 - Use root/package manifests, `turbo.json`, and `.github/workflows/ci.yml` for commands; prose that conflicts with executable config is stale.
 - `CLAUDE.md` is the broad architecture index. Follow its linked present-state docs, but verify command and transport details against manifests.
 - `.github/copilot-instructions.md` describes an older repository shape and is not authoritative.
-- This is a pnpm 11 + Turborepo workspace (`packages/*`, `apps/*`, `benchmarks/storage`), requiring Node >=20.9; CI uses Node 22.
+- This is a pnpm 11 + Turborepo workspace (`packages/*`, `apps/*`, `benchmarks/storage`), requiring Node >=22.22.2; CI uses Node 22.
 
 ## Commands And Gates
 

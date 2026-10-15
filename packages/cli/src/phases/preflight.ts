@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { gte } from 'semver'
+
 import {
   ancestors,
   resolveWorkspaceOwnership,
@@ -16,7 +18,7 @@ export const preflightPhase: Phase = {
   defaultMode: 'auto',
 
   async detect(ctx) {
-    if (!ctx.state.isComplete('preflight')) return 'pending'
+    if (!supportsNodeRuntime() || !ctx.state.isComplete('preflight')) return 'pending'
     const selected = (ctx.cliFlags.pm as PackageManager | undefined) ?? ctx.state.get().answers.pm
     const constraint = workspaceManagerConstraint(ctx.cwd)
     const resolved = selected ?? constraint.manager
@@ -30,9 +32,8 @@ export const preflightPhase: Phase = {
   },
 
   async apply(_plan, ctx) {
-    const major = Number(process.versions.node.split('.')[0])
-    if (major < 20) {
-      ctx.logger.error(`Node 20.9+ required (found ${process.versions.node})`)
+    if (!supportsNodeRuntime()) {
+      ctx.logger.error(`Node 22.22.2+ required (found ${process.versions.node})`)
       return { state: 'blocked' }
     }
 
@@ -53,6 +54,10 @@ export const preflightPhase: Phase = {
 
     return { state: 'done' }
   },
+}
+
+function supportsNodeRuntime(): boolean {
+  return gte(process.versions.node, '22.22.2')
 }
 
 async function resolvePackageManager(ctx: Context): Promise<PackageManager | null> {

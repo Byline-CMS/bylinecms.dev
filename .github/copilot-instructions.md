@@ -111,7 +111,7 @@ All admin API routes live under `apps/webapp/src/routes/admin/api/$collection/`:
 - `$id/history.ts` — `GET` version history.
 
 ## Repo conventions
-- Node engine is `^18.20.2 || >=20.9.0` (see root `package.json`).
+- Node engine is `>=22.22.2` (see root `package.json`).
 - Keep changes minimal and consistent with the existing architecture and conventions.
 - Always verify with `pnpm build` (4 packages must pass) and `pnpm test` after changes.
 - The `_id` field on array/block items is synthetic metadata — never persist it via `flattenFields`,
