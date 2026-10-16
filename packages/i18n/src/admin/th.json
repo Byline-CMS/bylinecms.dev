@@ -137,7 +137,6 @@
   "account.preferences.help": "การตั้งค่าเดียวกันนี้มีอยู่ในเมนูภาษาบนแถบด้านบน",
   "account.preferences.languageLabel": "ภาษาอินเทอร์เฟซ",
   "account.preferences.languageHelp": "ค่าเริ่มต้นของเบราว์เซอร์จะเป็นไปตามการตั้งค่าภาษาของเบราว์เซอร์คุณ",
-  "account.sections.appearance": "รูปลักษณ์",
   "account.appearance.colorTheme": "ธีมสี",
   "account.appearance.light": "สว่าง",
   "account.appearance.dark": "มืด",

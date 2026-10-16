@@ -181,6 +181,12 @@ export function AccountSelfContainer({ account }: AccountSelfContainerProps) {
             <p className={cx('muted', 'byline-account-status-help', styles['status-help'])}>
               {t('account.preferences.help')}
             </p>
+            <div className={cx('byline-account-preferences-theme', styles['preferences-theme'])}>
+              <p className={cx('byline-account-line', styles.line)}>
+                <span className="muted">{t('account.appearance.colorTheme')}</span>
+              </p>
+              <ThemeSwitch />
+            </div>
           </ContainerSection>
         </div>
 
@@ -196,11 +202,8 @@ export function AccountSelfContainer({ account }: AccountSelfContainerProps) {
           <PasskeyManager
             targetUserId={currentAccount.id}
             targetIsSuperAdmin={currentAccount.is_super_admin}
+            section={ContainerSection}
           />
-
-          <ContainerSection title={t('account.sections.appearance')}>
-            <ThemeSwitch />
-          </ContainerSection>
 
           <ContainerSection title={t('account.sections.status')}>
             <p className={cx('byline-account-line', styles.line)}>

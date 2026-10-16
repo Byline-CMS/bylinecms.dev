@@ -8,6 +8,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type React from 'react'
 import { useEffect, useId, useRef, useState } from 'react'
 
 import type { PasskeyCredentialSummary } from '@byline/auth'
@@ -24,12 +25,21 @@ import styles from './passkey-manager.module.css'
 
 type Edit = { kind: 'enroll' } | { kind: 'rename' | 'remove'; credential: PasskeyCredentialSummary }
 
+/** A host page's card component, so the passkey panel matches the cards around it. */
+type PasskeySectionComponent = React.ComponentType<{
+  title: string
+  children: React.ReactNode
+}>
+
 export function PasskeyManager({
   targetUserId,
   targetIsSuperAdmin = false,
+  section: Section,
 }: {
   targetUserId: string
   targetIsSuperAdmin?: boolean
+  /** Renders the panel inside the page's own card; defaults to a standalone card. */
+  section?: PasskeySectionComponent
 }) {
   const { passkeys } = useBylineAdminServices()
   const { t } = useTranslation('byline-admin')
@@ -154,9 +164,8 @@ export function PasskeyManager({
 
   if (!passkeys || !enabled) return null
   if (!allowed) return error ? <Alert intent="danger">{t(error)}</Alert> : null
-  return (
-    <section className={`byline-passkey-manager ${styles.manager}`} aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`}>{t('passkeys.title')}</h2>
+  const body = (
+    <>
       <p>{t(self ? 'passkeys.description' : 'passkeys.recoveryDescription')}</p>
       {!edit && error && <Alert intent="danger">{t(error)}</Alert>}
       {notice && <p role="status">{t(notice)}</p>}
@@ -308,6 +317,18 @@ export function PasskeyManager({
           </Modal.Actions>
         </Modal.Container>
       </Modal>
+    </>
+  )
+  if (Section)
+    return (
+      <Section title={t('passkeys.title')}>
+        <div className="byline-passkey-manager">{body}</div>
+      </Section>
+    )
+  return (
+    <section className={`byline-passkey-manager ${styles.manager}`} aria-labelledby={`${id}-title`}>
+      <h2 id={`${id}-title`}>{t('passkeys.title')}</h2>
+      {body}
     </section>
   )
 }

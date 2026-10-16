@@ -307,6 +307,7 @@ export function AccountContainer({ user, allRoles, initialUserRoles }: AccountCo
           <PasskeyManager
             targetUserId={currentUser.id}
             targetIsSuperAdmin={currentUser.is_super_admin}
+            section={ContainerSection}
           />
 
           <ContainerSection title={t('adminUsers.detail.sections.delete')}>

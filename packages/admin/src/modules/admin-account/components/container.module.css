@@ -13,6 +13,7 @@
  *   .byline-account-status-on
  *   .byline-account-status-off
  *   .byline-account-status-help   — italic helper line on Account Status card
+ *   .byline-account-preferences-theme — colour theme block inside Preferences
  *   .byline-account-drawer        — drawer responsive width override
  *   .byline-account-drawer-body   — drawer content container
  *   .byline-account-drawer-scroll — drawer scrollable inner viewport
@@ -90,6 +91,14 @@
   margin-top: var(--spacing-12);
   margin-bottom: 0;
   font-size: var(--font-size-xs);
+}
+
+.preferences-theme,
+:global(.byline-account-preferences-theme) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+  margin-top: var(--spacing-20);
 }
 
 /*
