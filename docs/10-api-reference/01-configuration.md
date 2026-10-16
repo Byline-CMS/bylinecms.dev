@@ -234,6 +234,8 @@ The host owns execution lifetime. A long-running server may call `startBylineSch
 
 A relying party identifies the site for which you register and verify passkeys. Configure its identity explicitly; the server does not derive it from request headers.
 
+For deployment examples, localhost and HTTPS-tunnel setup, existing-site migrations, and account recovery, follow the [Passkeys guide](../07-auth-and-security/03-passkeys.md).
+
 ```ts
 interface PasskeyConfig {
   rpId: string
@@ -261,6 +263,8 @@ Pass the same trust settings to `JwtSessionProvider({ passkeys, ... })` and `ini
 Create the native limiter with `createPasskeyRequestLimiter(adminStore.signInRateLimits, signingSecret)` from `@byline/admin/auth`. Assign it and your trusted client-IP resolver to `passkeyRequests`. Register the limiter's `cleanupTask` and run the scheduler. The native password and passkey limiters share the same counter-cleanup task name: register that task once when you use both. Core rejects a missing required cleanup task. Password proof also requires the full `passwordSignIn` protection and resolves the acting account's email on the server.
 
 The TanStack host's existing `passwordSignInMiddleware` bounds both password and passkey endpoints before RPC deserialization. Keep it after CSRF protection and retain `sessionRequestMiddleware` for authenticated operations. Passkey requests accept JSON envelopes up to 64 KiB; password proof retains the 16 KiB password-envelope limit. See [Password sign-in protection](../07-auth-and-security/01-authn-authz.md#password-sign-in-protection) for trusted-IP and host middleware configuration.
+
+Native installations also register `createAuthMaintenanceTasks(adminStore)` from `@byline/admin/auth` alongside the shared limiter cleanup task, including when passkeys are disabled. These tasks clean up used or expired verification records, ended native logins, and legacy refresh tokens. They require a running scheduler; configuration imports alone perform no cleanup. Custom `AdminStore` implementations must supply the required `passkeys` and `authMaintenance` repositories. See [Background cleanup](../07-auth-and-security/03-passkeys.md#background-cleanup) for retention and the narrowed `refreshTokens.purgeExpired()` behavior.
 
 ### `ServerHooksConfig`
 

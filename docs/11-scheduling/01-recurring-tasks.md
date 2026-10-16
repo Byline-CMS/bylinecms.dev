@@ -22,6 +22,12 @@ The database adapter must implement the optional scheduler capability. `@byline/
 
 Existing installations must apply the native upgrade script that creates the scheduler's table before starting a ticker — `packages/db-postgres/sql/0007_add-recurring-tasks.sql` or `packages/db-mysql/sql/0002_add-recurring-tasks.sql`. These scripts are source-repository upgrade artifacts rather than npm package exports; obtain them from the Git tag for the target Byline release. The first sweep reconciles task rows and fails loudly against a missing table. Installations created by `@byline/cli` receive the table in the bundled baseline.
 
+## Native authentication maintenance
+
+Native authentication installations register `createAuthMaintenanceTasks(adminStore)` from `@byline/admin/auth`, including sites using only passwords. It contributes `auth.maintenance.attempts`, `auth.maintenance.logins`, and `auth.maintenance.legacy-refresh`. Register these alongside the password/passkey limiter's shared `auth.sign-in-counters.cleanup` task, not in its place.
+
+The reference application and current CLI templates include this registration. Existing application-owned configuration must be updated explicitly, and its host must start the ticker or invoke `runDueTasks(core)`. After deployment, check that these tasks report successful execution. See [Passkeys — background cleanup](../07-auth-and-security/03-passkeys.md#background-cleanup) for retention and [the upgrade steps](../07-auth-and-security/03-passkeys.md#upgrade-an-existing-installation) for the required tables and indexes.
+
 ## Declaring a task
 
 **Edit:** `apps/webapp/byline/server.config.ts`

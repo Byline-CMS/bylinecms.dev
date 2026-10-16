@@ -22,3 +22,5 @@ do, and keeping a faithful record of what actually happened.
 - [Auditability](./02-auditability.md) — the per-version acting-user trail and
   the document-level audit log, plus the history and activity views built on top
   of them.
+- [Passkeys](./03-passkeys.md) — optional administrator sign-in, HTTPS and
+  relying-party configuration, existing-installation upgrades, and lost-credential recovery.

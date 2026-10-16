@@ -26,6 +26,8 @@ Once the application is running, [Configuration](./03-configuration.md) explains
 
 ## Where to go next
 
+Byline 6.8.0 adds optional administrator passkeys. Follow the [passkey upgrade steps](../07-auth-and-security/03-passkeys.md#upgrade-an-existing-installation) when updating an existing installation, including sites that retain password-only sign-in. The same guide covers enabling passkeys and recovering lost credentials.
+
 - **Why it exists** — [Why Byline](../02-why-byline/index.md) sets out the
   motivation and the stance on AI-era content.
 - **Understand the model** — [Architecture](../03-architecture/index.md) is a

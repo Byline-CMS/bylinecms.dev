@@ -193,6 +193,12 @@ will require a separate transport `baseURL` or `apiURL`. An absolute `homeUrl`
 only changes navigation; it does not transfer host-only admin or preview
 cookies to another origin.
 
+## Enable administrator passkeys
+
+Passkeys are optional server configuration. The current reference application and CLI templates read `BYLINE_PASSKEY_RP_ID`, `BYLINE_PASSKEY_RP_NAME`, `BYLINE_PASSKEY_ORIGINS`, and `BYLINE_PASSKEY_ALLOW_HTTP_LOCALHOST` in `byline/server.config.ts`. Keep these settings and their authentication implementations out of admin and public configuration imports.
+
+Follow the [Passkeys guide](../07-auth-and-security/03-passkeys.md) for complete environment examples, HTTPS deployment, recovery, and the migration and scheduler changes required by an existing installation. Setting environment variables alone does not update older application-owned server wiring. Password sign-in remains available after passkeys are enabled.
+
 ## Add a collection
 
 Create the schema first and keep it isomorphic:

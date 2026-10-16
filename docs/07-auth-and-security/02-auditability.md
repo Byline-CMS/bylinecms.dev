@@ -340,6 +340,14 @@ The per-document log is small and bounded, so it fetches a single generous page
 the `byline-admin` bundle (EN/FR): `collections.history.tabs.*` and
 `collections.documentHistory.*`.
 
+## Passkey recovery audit
+
+When an administrator removes another account's passkey, the native provider records `admin.passkey.remove` in `byline_audit_log`. The actor identifies the administrator performing recovery; the `after` payload contains `targetUserId`, `credentialRecordId`, and `outcome` (`success`, `denied`, or `failed`). It contains no public-key material, raw WebAuthn response, or reusable verification authorization.
+
+A successful cross-account removal and its audit insert commit in the same account-lock transaction. If that insert fails, removal rolls back. Denials or failures caught during the removal transaction trigger a separate best-effort audit write; earlier admission or proof failures are not guaranteed an audit row. This is not a complete log of every attempted passkey operation. Self-service removal does not append this privileged-recovery event.
+
+Authentication maintenance retains audit rows and revoked credential records. See [Passkey recovery](./03-passkeys.md#recover-a-lost-or-compromised-passkey) for permissions, session invalidation, and password-reset limits.
+
 ## The system activity area
 
 A top-level admin area at `getAdminRoutePath('activity')` (default

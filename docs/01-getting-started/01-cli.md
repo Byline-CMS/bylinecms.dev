@@ -38,7 +38,7 @@ example `npx @byline/cli@latest init` or `pnpm dlx @byline/cli@latest init`.
 
 ## Requirements
 
-- Node `>=22.22.2`.
+- Node `>=22.22.2`; on Node 24, use 24.15 or later.
 - A TanStack Start application using the Nitro (agnostic) adapter, the
   configuration the CLI is currently tested against.
 - Ideally, an application already under Git. The installer warns and asks for

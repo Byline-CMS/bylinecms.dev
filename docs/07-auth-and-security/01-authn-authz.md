@@ -11,6 +11,7 @@ Companions:
 - [Routing & API](../05-reading-and-delivery/02-routing-and-api.md) — server-fn transport that resolves `RequestContext` and passes it down.
 - [Relationships](../04-collections/03-relationships.md) — `ReadContext` is the seed for the actor-carrying `RequestContext`; populate threads `beforeRead` through to populated target collections.
 - [Client SDK](../05-reading-and-delivery/01-client-sdk.md) — the in-process SDK is where actor threading becomes externally visible.
+- [Passkeys](./03-passkeys.md) — enable optional native passkeys, manage credentials, and recover access.
 
 ## Overview
 
@@ -27,7 +28,7 @@ The subsystem is split across two packages by concern:
 | `@byline/auth`  | Leaf package. Actor primitives (`AdminAuth`, `UserAuth`, `Actor`), the `RequestContext` shape, the `AbilityRegistry`, the `SessionProvider` interface, and the `AuthError` factories. No DB, no transport: types and small classes only. |
 | `@byline/admin` | Concrete admin subsystem. Admin user / role / permission / account modules (each as `commands.ts` + `repository.ts` + `service.ts` + `dto.ts` + `schemas.ts` + `errors.ts` + `abilities.ts`), the built-in `JwtSessionProvider`, password hashing (argon2id), and the `AdminStore` aggregate. |
 
-Postgres-backed repositories ship as the `@byline/db-postgres/admin` subpath, plugged into `AdminStore`.
+PostgreSQL and MySQL repositories ship as `@byline/db-postgres/admin` and `@byline/db-mysql/admin`, plugged into `AdminStore`. The store includes required `passkeys` and `authMaintenance` repositories; custom implementations must implement these contracts even when passkey sign-in is disabled. See [Passkeys — custom storage and session providers](./03-passkeys.md#custom-storage-and-session-providers).
 
 ---
 
@@ -469,11 +470,12 @@ The exported types define the full contract, including token expiry dates:
 
 ```ts
 import type {
-  AdminAuth, RefreshSessionArgs, SessionProviderCapabilities,
+  AdminAuth, PasskeyProvider, RefreshSessionArgs, SessionProviderCapabilities,
   SessionTokens, SignInResult, SignInWithPasswordArgs,
 } from '@byline/auth'
 
 interface SessionProvider {
+  readonly passkeys?: PasskeyProvider
   signInWithPassword(args: SignInWithPasswordArgs): Promise<SignInResult>
   verifyAccessToken(token: string): Promise<{ actor: AdminAuth; sessionId: string }>
   refreshSession(args: RefreshSessionArgs): Promise<SessionTokens>
@@ -487,6 +489,8 @@ interface SessionProvider {
 
 The capability flags are how the admin UI decides which affordances to render: a provider without `passwordChange` hides the password-change form rather than failing the call.
 
+Passkey support is optional: a password-only provider may omit `passkeys` and `capabilities.passkeys`. An enabled provider supplies the complete `PasskeyProvider` and advertises `capabilities.passkeys: true`. Core validates this against explicit relying-party configuration and request protection at startup. The [passkey guide](./03-passkeys.md) covers configuration and recovery; successful native passkey sign-in uses the same session lifecycle as password sign-in.
+
 **Built-in `JwtSessionProvider`** (`packages/admin/src/modules/auth/jwt-session-provider.ts` and friends):
 
 - **15-minute access tokens.** Verification checks the current account session generation (`sv`) and login validity (`sid`) on every request; neither overrides the other. Password changes/resets and disablement invalidate older generations immediately after commit.
@@ -494,12 +498,15 @@ The capability flags are how the admin UI decides which affordances to render: a
 - **Rotation on every refresh.** The old refresh token is invalidated when a new pair is issued.
 - **Replay detection.** Reusing a rotated refresh token revokes its login, immediately rejecting its access tokens and renewal. An uncoordinated legitimate collision receives the same fail-closed outcome and may require fresh sign-in. Login membership removes traversal limits from revocation.
 - **argon2id password hashing** (`packages/admin/src/modules/auth/password.ts`). The full PHC string is stored in `admin_users.password`.
+- **Optional passkey sign-in.** Configured native providers verify WebAuthn credentials and issue the same access and refresh tokens, with the same account and login revocation checks.
 
 `resolveActor(adminUserId)` joins `admin_role_admin_user` → `admin_permissions` → flat ability strings to build the runtime `AdminAuth`.
 
 ### Password changes and account disablement
 
 Native password changes and administrator resets atomically advance `admin_users.session_version` and revoke all refresh sessions. Disablement does the same, including through a general user update. Re-enabling the account does not restore old access or refresh sessions. Edit revisions (`vid`) remain separate from authentication generations.
+
+Password changes and resets retain enrolled passkeys. A compromised passkey must be removed explicitly. Passkey removal also invalidates all native sessions and pending passkey-management authorizations for the target account; adding or renaming a credential does not. See [Passkey recovery](./03-passkeys.md#recover-a-lost-or-compromised-passkey) for self-service and administrator-assisted steps.
 
 The built-in provider checks the JWT `sv` claim against the current account generation. Refresh also checks account enablement and the generation stored on its row. Sign-in and refresh acquire an account row lock before issuance; password verification runs outside that lock and sign-in revalidates the observed credentials and generation inside it. Account mutation and refresh writes commit or roll back together. An operation already authorized with a request-scoped actor is not retroactively cancelled.
 
@@ -519,7 +526,9 @@ A changed login blocks the page behind an acknowledgement screen. The browser re
 
 Logout revokes the login identified by verified access credentials or a known refresh member before returning success. When the presented credentials identify no login, logout succeeds idempotently and clears the browser credentials without asserting that a revocation write occurred. The UI reports an unconfirmed logout as a failure. Successful replacement sign-in atomically revokes observed old logins, including across accounts, while preserving unrelated device logins. Failed revocation rolls back replacement issuance. The native provider's token-free `onEvent` hook reports attempted, completed and contested refreshes; collect a denominator before assessing collision frequency.
 
-Apply the account-generation and login-state migrations together with a stopped-instance upgrade. Legacy credentials lacking `sv` or `sid` require one combined fresh sign-in. Sliding refresh expiry remains; there is no monthly absolute lifetime. The implementation still requires combined R2/R3 review before release.
+Apply the account-generation and login-state migrations together with a stopped-instance upgrade. Legacy credentials lacking `sv` or `sid` require one combined fresh sign-in. Sliding refresh expiry remains; there is no monthly absolute lifetime.
+
+Native authentication maintenance removes ended logins after 30 days while preserving refresh predecessors of live logins. Register `createAuthMaintenanceTasks(adminStore)` and run the scheduler even for password-only sites. The legacy `refreshTokens.purgeExpired()` helper no longer cleans up session-linked tokens. See [Background cleanup](./03-passkeys.md#background-cleanup) for retention and upgrade requirements.
 
 ### Password sign-in protection
 
@@ -673,9 +682,9 @@ Host integrations pass the already-validated destination to `SignInForm` as `red
 
 | Area              | Capability                                                                                  |
 |-------------------|---------------------------------------------------------------------------------------------|
-| `sign-in`         | Password sign-in via `JwtSessionProvider.signInWithPassword`.                               |
-| `account/`        | Self-service profile + password change.                                                     |
-| `users/`          | List / create / edit / enable / disable admin users; assign roles; set password.            |
+| `sign-in`         | Password sign-in and an explicit passkey option when configured.                           |
+| `account/`        | Self-service profile, password change, and passkey enrollment, rename, and removal.        |
+| `users/`          | List / create / edit / enable / disable admin users; assign roles; set password; permission-gated passkey recovery. |
 | `roles/`          | List / create / edit / reorder admin roles; member assignment.                              |
 | `permissions/`    | Read-only inspector: registered abilities, role-ability matrix, who-has-what lookup.        |
 | `collections/`    | Per-collection list / create / edit / history / status. Standard CMS surface.               |
@@ -738,8 +747,10 @@ admin_permissions
   unique (admin_role_id, ability)
 
 admin_refresh_tokens                       -- JwtSessionProvider only
-  id, admin_user_id, token_hash, issued_at, expires_at, revoked_at, replaced_by, ...
+  id, admin_user_id, sid, token_hash, issued_at, expires_at, revoked_at, rotated_to_id, ...
 ```
+
+Native authentication also uses `admin_login_sessions` for stable login identity and revocation, `admin_passkey_credentials` for public keys and credential metadata, and `admin_passkey_attempts` for single-use verification and management authorization. All live table names carry the `byline_` prefix. Each account has one nullable `webauthn_user_handle`, allocated at first enrollment and shared by all its credentials. It is an opaque random identifier, not an email address, and survives removal and re-enrollment. Deleting an account leaves its credential records ownerless and unusable, retaining their reserved credential identities. See [Passkeys](./03-passkeys.md) for upgrade scripts and cleanup behavior.
 
 `admin_users.is_super_admin === true` short-circuits all ability checks at runtime: a super-admin's `AdminAuth` carries every registered ability synthetically. The flag is not a substitute for granting abilities to roles; it is the bootstrap and break-glass mechanism.
 
