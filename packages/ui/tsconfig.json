@@ -17,7 +17,6 @@
     "skipLibCheck": true,
     "strict": true,
     "module": "esnext",
-    "rootDir": ".",
     "declarationDir": "./dist",
     "sourceMap": false,
     "outDir": "./dist",
