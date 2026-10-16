@@ -17,7 +17,7 @@
 :global(.byline-role-detail-card) {
   margin-bottom: 1.5rem;
   border: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
-  border-radius: 0.125rem;
+  border-radius: var(--border-radius-sm);
   background-color: var(--canvas-25);
   padding: 1rem;
 }
