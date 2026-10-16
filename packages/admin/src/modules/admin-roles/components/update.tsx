@@ -188,7 +188,7 @@ export function UpdateRole({ role, onClose, onSuccess }: UpdateRoleProps) {
         <div className={cx('byline-role-update-actions', styles.actions)}>
           <Button
             type="button"
-            intent="secondary"
+            intent="noeffect"
             size="sm"
             onClick={onClose}
             className={cx('byline-role-update-action', styles.action)}

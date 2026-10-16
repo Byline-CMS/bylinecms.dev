@@ -295,7 +295,7 @@ export function UpdateUser({ user, onClose, onSuccess }: UpdateUserProps) {
         <div className={cx('byline-user-update-actions', styles.actions)}>
           <Button
             type="button"
-            intent="secondary"
+            intent="noeffect"
             size="sm"
             onClick={onClose}
             className={cx('byline-user-update-action', styles.action)}

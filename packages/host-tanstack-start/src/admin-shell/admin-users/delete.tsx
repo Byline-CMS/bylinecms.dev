@@ -100,7 +100,7 @@ export function DeleteUser({ user, onClose }: DeleteUserProps) {
       <div className={cx('byline-admin-user-delete-actions', styles.actions)}>
         <Button
           type="button"
-          intent="secondary"
+          intent="noeffect"
           size="sm"
           onClick={onClose}
           disabled={pending}

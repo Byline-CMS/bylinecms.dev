@@ -172,7 +172,7 @@ export function Preferences({ account, onClose, onSuccess }: PreferencesProps) {
         <div className={cx('byline-account-preferences-actions', styles.actions)}>
           <Button
             type="button"
-            intent="secondary"
+            intent="noeffect"
             size="sm"
             onClick={onClose}
             className={cx('byline-account-preferences-action', styles.action)}

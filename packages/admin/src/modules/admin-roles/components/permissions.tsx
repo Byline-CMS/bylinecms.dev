@@ -288,7 +288,7 @@ export function RolePermissions({
           <div className={cx('byline-role-permissions-actions', styles.actions)}>
             <Button
               type="button"
-              intent="secondary"
+              intent="noeffect"
               size="xs"
               onClick={handleCancel}
               disabled={saving}

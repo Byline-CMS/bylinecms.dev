@@ -8,6 +8,9 @@
   padding: 0;
   margin: 1rem 0;
 }
+.empty + .add {
+  margin-top: 0.25rem;
+}
 .row {
   display: flex;
   align-items: center;
@@ -26,4 +29,38 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+/*
+ * Passkey add / rename / remove modal. Below 40rem the dialog fits the
+ * viewport and the actions stack full-width (touch-sized), with the primary
+ * action on top and Cancel last. From 40rem the dialog is capped at 540px and
+ * the small action buttons sit in one right-aligned row, which fits every
+ * bundled locale.
+ */
+.modal {
+  width: calc(100% - 2 * var(--spacing-8));
+  max-width: 540px;
+  margin-bottom: var(--spacing-8);
+}
+.modal-actions {
+  flex-direction: column-reverse;
+  align-items: stretch;
+}
+@media (max-width: 39.99rem) {
+  .modal-actions > * {
+    min-height: 2.5rem;
+  }
+}
+@media (min-width: 40rem) {
+  .modal {
+    width: 100%;
+    margin-bottom: 0;
+  }
+  .modal-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-8);
+  }
 }

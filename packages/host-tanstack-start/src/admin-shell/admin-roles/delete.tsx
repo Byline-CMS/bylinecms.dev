@@ -88,7 +88,7 @@ export function DeleteRole({ role, onClose }: DeleteRoleProps) {
       <div className={cx('byline-role-delete-actions', styles.actions)}>
         <Button
           type="button"
-          intent="secondary"
+          intent="noeffect"
           size="sm"
           onClick={onClose}
           disabled={pending}

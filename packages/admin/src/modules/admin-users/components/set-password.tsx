@@ -160,7 +160,7 @@ export function SetPassword({ user, onClose, onSuccess }: SetPasswordProps) {
         <div className={cx('byline-user-set-password-actions', styles.actions)}>
           <Button
             type="button"
-            intent="secondary"
+            intent="noeffect"
             size="sm"
             onClick={onClose}
             className={cx('byline-user-set-password-action', styles.action)}

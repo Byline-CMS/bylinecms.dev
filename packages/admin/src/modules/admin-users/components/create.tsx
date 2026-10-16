@@ -299,7 +299,7 @@ export function CreateAdminUser({ onClose, onSuccess }: CreateAdminUserProps) {
         <div className={cx('byline-user-create-actions', styles.actions)}>
           <Button
             type="button"
-            intent="secondary"
+            intent="noeffect"
             size="sm"
             onClick={onClose}
             className={cx('byline-user-create-action', styles.action)}

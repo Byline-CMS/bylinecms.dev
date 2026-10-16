@@ -163,7 +163,7 @@ export function PasskeyManager({
       {loading ? (
         <p role="status">{t('common.loading')}</p>
       ) : credentials.length === 0 ? (
-        <p>{t('passkeys.empty')}</p>
+        <p className={styles.empty}>{t('passkeys.empty')}</p>
       ) : (
         <ul className={styles.list}>
           {credentials.map((credential) => (
@@ -181,6 +181,7 @@ export function PasskeyManager({
                 {self && (
                   <Button
                     type="button"
+                    size="sm"
                     variant="text"
                     onClick={() => open({ kind: 'rename', credential })}
                     aria-label={t('passkeys.renameNamed', { name: credential.name })}
@@ -190,6 +191,7 @@ export function PasskeyManager({
                 )}
                 <Button
                   type="button"
+                  size="sm"
                   intent="danger"
                   variant="text"
                   onClick={() => open({ kind: 'remove', credential })}
@@ -203,7 +205,13 @@ export function PasskeyManager({
         </ul>
       )}
       {self && (
-        <Button type="button" disabled={loading} onClick={() => open({ kind: 'enroll' })}>
+        <Button
+          type="button"
+          size="sm"
+          disabled={loading}
+          onClick={() => open({ kind: 'enroll' })}
+          className={styles.add}
+        >
           {t('passkeys.add')}
         </Button>
       )}
@@ -219,7 +227,7 @@ export function PasskeyManager({
               : 'passkeys.add'
         )}
       >
-        <Modal.Container>
+        <Modal.Container className={`byline-passkey-modal ${styles.modal}`}>
           <Modal.Header>
             <h2>
               {t(
@@ -264,13 +272,14 @@ export function PasskeyManager({
             )}
             {pending && <p role="status">{t('passkeys.waiting')}</p>}
           </Modal.Content>
-          <Modal.Actions>
-            <Button type="button" variant="text" disabled={pending} onClick={close}>
+          <Modal.Actions className={`byline-passkey-modal-actions ${styles['modal-actions']}`}>
+            <Button type="button" size="sm" intent="noeffect" disabled={pending} onClick={close}>
               {t('common.actions.cancel')}
             </Button>
             {edit?.kind === 'rename' ? (
               <Button
                 type="button"
+                size="sm"
                 disabled={pending || !name.trim()}
                 onClick={() => void perform(false)}
               >
@@ -280,6 +289,7 @@ export function PasskeyManager({
               <>
                 <Button
                   type="button"
+                  size="sm"
                   disabled={pending || !password || (edit?.kind === 'enroll' && !name.trim())}
                   onClick={() => void perform(true)}
                 >
@@ -287,6 +297,7 @@ export function PasskeyManager({
                 </Button>
                 <Button
                   type="button"
+                  size="sm"
                   disabled={pending || (edit?.kind === 'enroll' && !name.trim())}
                   onClick={() => void perform(false)}
                 >

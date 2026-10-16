@@ -240,7 +240,7 @@ export function UpdateAccount({ account, onClose, onSuccess }: UpdateAccountProp
         <div className={cx('byline-account-update-actions', styles.actions)}>
           <Button
             type="button"
-            intent="secondary"
+            intent="noeffect"
             size="sm"
             onClick={onClose}
             className={cx('byline-account-update-action', styles.action)}

@@ -192,7 +192,7 @@ export function CreateAdminRole({ onClose, onSuccess }: CreateAdminRoleProps) {
         <div className={cx('byline-role-create-actions', styles.actions)}>
           <Button
             type="button"
-            intent="secondary"
+            intent="noeffect"
             size="sm"
             onClick={onClose}
             className={cx('byline-role-create-action', styles.action)}

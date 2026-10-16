@@ -143,7 +143,7 @@ export function UserRoles({ user, allRoles, initialRoleIds, onClose, onSaved }: 
       <div className={cx('byline-user-roles-actions', styles.actions)}>
         <Button
           type="button"
-          intent="secondary"
+          intent="noeffect"
           size="xs"
           onClick={onClose}
           disabled={saving}

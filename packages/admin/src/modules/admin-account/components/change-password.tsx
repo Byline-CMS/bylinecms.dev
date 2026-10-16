@@ -215,7 +215,7 @@ export function ChangeAccountPassword({ account, onClose, onSuccess }: ChangePas
         <div className={cx('byline-account-change-password-actions', styles.actions)}>
           <Button
             type="button"
-            intent="secondary"
+            intent="noeffect"
             size="sm"
             onClick={onClose}
             className={cx('byline-account-change-password-action', styles.action)}
