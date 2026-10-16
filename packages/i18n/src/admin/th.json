@@ -109,6 +109,7 @@
   "auth.signIn.errors.invalidCredentials": "ข้อมูลรับรองไม่ถูกต้อง",
   "auth.signIn.errors.bootstrap": "ไม่สามารถตรวจสอบเซสชันของคุณได้ กรุณาลองอีกครั้ง",
   "auth.signIn.noscript": "จำเป็นต้องใช้ JavaScript เพื่อเข้าสู่ระบบหรือต่ออายุเซสชันผู้ดูแลระบบ",
+  "auth.signIn.alternate": "หรือดำเนินการต่อด้วย",
   "account.intro": "จัดการโปรไฟล์และรหัสผ่านของคุณเอง",
   "account.sections.profile": "โปรไฟล์",
   "account.sections.password": "รหัสผ่าน",

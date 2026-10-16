@@ -109,6 +109,7 @@
   "auth.signIn.errors.invalidCredentials": "Credenciales no válidas.",
   "auth.signIn.errors.bootstrap": "No se pudo comprobar su sesión. Inténtelo de nuevo.",
   "auth.signIn.noscript": "Se requiere JavaScript para iniciar sesión o renovar su sesión de administración.",
+  "auth.signIn.alternate": "O continuar con",
   "account.intro": "Gestiona tu propio perfil y contraseña.",
   "account.sections.profile": "Perfil",
   "account.sections.password": "Contraseña",

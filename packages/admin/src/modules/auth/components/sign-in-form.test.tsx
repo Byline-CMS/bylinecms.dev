@@ -21,7 +21,13 @@ vi.mock('./passkey-browser.js', () => ({
 vi.mock('@byline/ui/react', () => {
   const Box = ({ children }: { children: ReactNode }) => <div>{children}</div>
   return {
-    Card: Object.assign(Box, { Header: Box, Title: Box, Description: Box, Content: Box }),
+    Card: Object.assign(Box, {
+      Header: Box,
+      Title: Box,
+      Description: Box,
+      Content: Box,
+      Footer: Box,
+    }),
     Alert: ({ children }: { children: ReactNode }) => <div role="alert">{children}</div>,
     Button: ({ children, disabled, onClick, type }: any) => (
       <button type={type} disabled={disabled} onClick={onClick}>
@@ -36,6 +42,7 @@ vi.mock('@byline/ui/react', () => {
       ...rest
     }: any) => <input type="password" aria-label={label} {...rest} />,
     LoaderEllipsis: () => null,
+    PasskeyIcon: () => null,
   }
 })
 

@@ -109,6 +109,7 @@
   "auth.signIn.errors.invalidCredentials": "Identifiants invalides.",
   "auth.signIn.errors.bootstrap": "Impossible de vérifier votre session. Veuillez réessayer.",
   "auth.signIn.noscript": "JavaScript est requis pour vous connecter ou renouveler votre session d’administration.",
+  "auth.signIn.alternate": "Ou continuer avec",
   "account.intro": "Gérez votre profil et votre mot de passe.",
   "account.sections.profile": "Profil",
   "account.sections.password": "Mot de passe",

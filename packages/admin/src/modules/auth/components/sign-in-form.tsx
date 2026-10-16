@@ -20,14 +20,23 @@
  * Stable override handles: `.byline-sign-in-card`, `.byline-sign-in-alert`,
  * `.byline-sign-in-form`, `.byline-sign-in-fields`,
  * `.byline-sign-in-actions`, `.byline-sign-in-button`,
- * `.byline-sign-in-home-link`.
+ * `.byline-sign-in-home-link`, `.byline-sign-in-alternate`,
+ * `.byline-sign-in-divider`, `.byline-passkey-sign-in-button`.
  */
 
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 
 import { getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
-import { Alert, Button, Card, Input, InputPassword, LoaderEllipsis } from '@byline/ui/react'
+import {
+  Alert,
+  Button,
+  Card,
+  Input,
+  InputPassword,
+  LoaderEllipsis,
+  PasskeyIcon,
+} from '@byline/ui/react'
 import cx from 'clsx'
 
 import { useBylineAdminServices } from '../../../services/admin-services-context.js'
@@ -128,17 +137,6 @@ export function SignInForm({ redirectTo, homeUrl }: SignInFormProps) {
         )}
       </Card.Header>
       <Card.Content>
-        {passkeysEnabled && (
-          <Button
-            type="button"
-            disabled={pending}
-            onClick={handlePasskey}
-            className="byline-passkey-sign-in-button"
-          >
-            {t('passkeys.signIn')}
-          </Button>
-        )}
-
         <form
           method="post"
           onSubmit={handleSubmit}
@@ -190,6 +188,23 @@ export function SignInForm({ redirectTo, homeUrl }: SignInFormProps) {
           </div>
         </form>
       </Card.Content>
+      {passkeysEnabled && (
+        <Card.Footer className={cx('byline-sign-in-alternate', styles.alternate)}>
+          <div className={cx('byline-sign-in-divider', styles.divider)}>
+            <span>{t('auth.signIn.alternate')}</span>
+          </div>
+          <Button
+            type="button"
+            variant="outlined"
+            disabled={pending}
+            onClick={handlePasskey}
+            className={cx('byline-passkey-sign-in-button', styles['passkey-button'])}
+          >
+            <PasskeyIcon width="20px" height="20px" />
+            <span>{t('passkeys.signIn')}</span>
+          </Button>
+        </Card.Footer>
+      )}
     </Card>
   )
 }

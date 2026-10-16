@@ -109,6 +109,7 @@
   "auth.signIn.errors.invalidCredentials": "Credenziali non valide.",
   "auth.signIn.errors.bootstrap": "Impossibile verificare la sessione. Riprova.",
   "auth.signIn.noscript": "JavaScript è necessario per accedere o rinnovare la sessione di amministrazione.",
+  "auth.signIn.alternate": "Oppure continua con",
   "account.intro": "Gestisci il tuo profilo e la tua password.",
   "account.sections.profile": "Profilo",
   "account.sections.password": "Password",

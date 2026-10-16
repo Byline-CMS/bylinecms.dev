@@ -9,6 +9,9 @@
  *   .byline-sign-in-actions   — action row (optional Home link + submit button)
  *   .byline-sign-in-home-link — left-side "Home" link (rendered when homeUrl is set)
  *   .byline-sign-in-button    — the submit button (min-width)
+ *   .byline-sign-in-alternate — footer holding alternate sign-in methods (passkeys)
+ *   .byline-sign-in-divider   — "Or continue with" rule above the alternate methods
+ *   .byline-passkey-sign-in-button — full-width passkey button
  */
 
 .card,
@@ -59,4 +62,38 @@
   min-width: 5rem;
   /* Always floats right whether or not a Home link is present on the left. */
   margin-left: auto;
+}
+
+.alternate,
+:global(.byline-sign-in-alternate) {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--spacing-16);
+  padding-bottom: var(--spacing-24);
+}
+
+.divider,
+:global(.byline-sign-in-divider) {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-12);
+  color: var(--gray-500);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.divider::before,
+.divider::after,
+:global(.byline-sign-in-divider)::before,
+:global(.byline-sign-in-divider)::after {
+  content: "";
+  flex: 1;
+  border-top: var(--border-width-thin) var(--border-style-solid) var(--border-color, #8885);
+}
+
+.passkey-button,
+:global(.byline-passkey-sign-in-button) {
+  width: 100%;
+  gap: var(--spacing-8);
 }
