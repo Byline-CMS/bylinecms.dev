@@ -1,5 +1,16 @@
 # @byline/analytics-mysql
 
+## 6.8.0
+
+### Minor Changes
+
+- added optional passkey sign-in for admin users, background cleanup of expired authentication records and native passkey upgrade scripts
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/analytics@6.8.0
+
 ## 6.7.2
 
 ### Patch Changes

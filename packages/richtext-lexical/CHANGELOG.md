@@ -1,5 +1,21 @@
 # @byline/richtext-lexical
 
+## 6.8.0
+
+### Minor Changes
+
+- added optional passkey sign-in for admin users, background cleanup of expired authentication records and native passkey upgrade scripts
+
+### Patch Changes
+
+- Updated dependencies [825075f]
+- Updated dependencies
+  - @byline/core@6.8.0
+  - @byline/admin@6.8.0
+  - @byline/i18n@6.8.0
+  - @byline/ui@6.8.0
+  - @byline/client@6.8.0
+
 ## 6.7.2
 
 ### Patch Changes
