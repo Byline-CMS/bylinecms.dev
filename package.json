@@ -20,6 +20,7 @@
     "preview": "turbo run preview",
     "start": "turbo run start",
     "storybook": "turbo run storybook",
+    "build-storybook": "turbo run build-storybook",
     "dev": "turbo run dev",
     "lint": "turbo run lint --continue",
     "knip": "knip --no-config-hints",

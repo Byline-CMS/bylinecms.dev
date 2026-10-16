@@ -3,6 +3,17 @@
   "ui": "stream",
   "concurrency": "25",
   "tasks": {
+    "storybook": {
+      "cache": false,
+      "persistent": true
+    },
+    "build-storybook": {
+      "outputs": ["storybook-static/**"]
+    },
+    "@byline/ui#typecheck": {
+      "outputs": [],
+      "inputs": ["$TURBO_DEFAULT$"]
+    },
     "build": {
       "cache": false,
       "dependsOn": ["^build"],

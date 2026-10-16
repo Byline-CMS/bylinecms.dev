@@ -17,13 +17,13 @@
     "skipLibCheck": true,
     "strict": true,
     "module": "esnext",
-    "rootDir": "./src",
+    "rootDir": ".",
     "declarationDir": "./dist",
     "sourceMap": false,
     "outDir": "./dist",
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["src/**/*", "./src/declarations.d.ts"],
+  "include": ["src/**/*", ".storybook/**/*.ts", ".storybook/**/*.tsx"],
   "exclude": ["dist", "node_modules", "src/**/*.test.tsx"]
 }

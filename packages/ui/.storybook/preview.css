@@ -1,0 +1,11 @@
+body.byline-ui {
+  background: var(--background);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.sbdocs-wrapper,
+.sbdocs-preview {
+  background: var(--background);
+  color: var(--text);
+}
