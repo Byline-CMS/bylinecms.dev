@@ -700,7 +700,7 @@
   "passkeys.added": "Passkey added.",
   "passkeys.renamed": "Passkey renamed.",
   "passkeys.removed": "Passkey removed. All sessions for this account have been revoked.",
-  "passkeys.removeWarning": "Remove “{name}”? This signs this account out on every device and invalidates its connected access. It does not delete the passkey from the device. If this is your account, you must sign in again.",
+  "passkeys.removeWarning": "Remove “{name}”? This signs this account out on every device. It does not delete the passkey from the device. If this is your account, you must sign in again.",
   "passkeys.proofDescription": "Confirm with your current password or one of your own passkeys. A passkey belonging to another account cannot confirm this action.",
   "passkeys.waiting": "Complete the prompt on your device. You can cancel there.",
   "passkeys.usePassword": "Confirm with password",

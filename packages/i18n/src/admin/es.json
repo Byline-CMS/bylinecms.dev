@@ -700,7 +700,7 @@
   "passkeys.added": "Clave de acceso añadida.",
   "passkeys.renamed": "Clave de acceso renombrada.",
   "passkeys.removed": "Clave de acceso eliminada. Se han revocado todas las sesiones de esta cuenta.",
-  "passkeys.removeWarning": "¿Eliminar «{name}»? Se cerrarán todas las sesiones de esta cuenta en todos los dispositivos y se invalidarán sus accesos conectados. La clave no se eliminará del dispositivo. Si es tu cuenta, deberás iniciar sesión de nuevo.",
+  "passkeys.removeWarning": "¿Eliminar «{name}»? Se cerrarán todas las sesiones de esta cuenta en todos los dispositivos. La clave no se eliminará del dispositivo. Si es tu cuenta, deberás iniciar sesión de nuevo.",
   "passkeys.proofDescription": "Confirma con tu contraseña actual o una de tus propias claves de acceso. Una clave de otra cuenta no puede confirmar esta acción.",
   "passkeys.waiting": "Completa la solicitud en tu dispositivo. Puedes cancelarla allí.",
   "passkeys.usePassword": "Confirmar con contraseña",

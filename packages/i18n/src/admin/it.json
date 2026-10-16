@@ -700,7 +700,7 @@
   "passkeys.added": "Passkey aggiunta.",
   "passkeys.renamed": "Passkey rinominata.",
   "passkeys.removed": "Passkey rimossa. Tutte le sessioni di questo account sono state revocate.",
-  "passkeys.removeWarning": "Rimuovere «{name}»? Questo account verrà disconnesso da tutti i dispositivi e i suoi accessi collegati verranno invalidati. La passkey non verrà eliminata dal dispositivo. Se è il tuo account, dovrai accedere di nuovo.",
+  "passkeys.removeWarning": "Rimuovere «{name}»? Questo account verrà disconnesso da tutti i dispositivi. La passkey non verrà eliminata dal dispositivo. Se è il tuo account, dovrai accedere di nuovo.",
   "passkeys.proofDescription": "Conferma con la password attuale o una delle tue passkey. Una passkey di un altro account non può confermare questa azione.",
   "passkeys.waiting": "Completa la richiesta sul dispositivo. Puoi annullarla da lì.",
   "passkeys.usePassword": "Conferma con password",

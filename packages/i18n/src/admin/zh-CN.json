@@ -700,7 +700,7 @@
   "passkeys.added": "通行密钥已添加。",
   "passkeys.renamed": "通行密钥已重命名。",
   "passkeys.removed": "通行密钥已移除。此账户的所有会话均已撤销。",
-  "passkeys.removeWarning": "移除“{name}”？此账户将在所有设备上退出登录，其关联访问权限也将失效。此操作不会从设备中删除通行密钥。如果这是你的账户，你需要重新登录。",
+  "passkeys.removeWarning": "移除“{name}”？此账户将在所有设备上退出登录。此操作不会从设备中删除通行密钥。如果这是你的账户，你需要重新登录。",
   "passkeys.proofDescription": "使用当前密码或你自己的通行密钥确认。其他账户的通行密钥无法确认此操作。",
   "passkeys.waiting": "请在设备上完成验证。你可以在那里取消。",
   "passkeys.usePassword": "使用密码确认",

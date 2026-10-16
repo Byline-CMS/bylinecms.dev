@@ -700,7 +700,7 @@
   "passkeys.added": "Passkey hinzugefügt.",
   "passkeys.renamed": "Passkey umbenannt.",
   "passkeys.removed": "Passkey entfernt. Alle Sitzungen dieses Kontos wurden widerrufen.",
-  "passkeys.removeWarning": "„{name}“ entfernen? Dieses Konto wird auf allen Geräten abgemeldet und seine verbundenen Zugriffe werden ungültig. Der Passkey wird nicht vom Gerät gelöscht. Bei Ihrem eigenen Konto müssen Sie sich erneut anmelden.",
+  "passkeys.removeWarning": "„{name}“ entfernen? Dieses Konto wird auf allen Geräten abgemeldet. Der Passkey wird nicht vom Gerät gelöscht. Bei Ihrem eigenen Konto müssen Sie sich erneut anmelden.",
   "passkeys.proofDescription": "Bestätigen Sie mit Ihrem aktuellen Passwort oder einem Ihrer eigenen Passkeys. Ein Passkey eines anderen Kontos kann diese Aktion nicht bestätigen.",
   "passkeys.waiting": "Folgen Sie der Aufforderung auf Ihrem Gerät. Dort können Sie abbrechen.",
   "passkeys.usePassword": "Mit Passwort bestätigen",

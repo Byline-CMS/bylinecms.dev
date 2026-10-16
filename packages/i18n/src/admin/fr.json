@@ -700,7 +700,7 @@
   "passkeys.added": "Clé d’accès ajoutée.",
   "passkeys.renamed": "Clé d’accès renommée.",
   "passkeys.removed": "Clé d’accès supprimée. Toutes les sessions de ce compte ont été révoquées.",
-  "passkeys.removeWarning": "Supprimer « {name} » ? Ce compte sera déconnecté sur tous les appareils et ses accès connectés seront invalidés. La clé restera sur l’appareil. S’il s’agit de votre compte, vous devrez vous reconnecter.",
+  "passkeys.removeWarning": "Supprimer « {name} » ? Ce compte sera déconnecté sur tous les appareils. La clé restera sur l’appareil. S’il s’agit de votre compte, vous devrez vous reconnecter.",
   "passkeys.proofDescription": "Confirmez avec votre mot de passe actuel ou l’une de vos propres clés d’accès. Une clé d’un autre compte ne peut pas confirmer cette action.",
   "passkeys.waiting": "Suivez les instructions sur votre appareil. Vous pouvez y annuler l’opération.",
   "passkeys.usePassword": "Confirmer avec le mot de passe",
