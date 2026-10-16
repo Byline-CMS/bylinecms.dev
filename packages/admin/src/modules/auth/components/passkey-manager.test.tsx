@@ -26,8 +26,20 @@ vi.mock('@byline/ui/react', () => {
       isOpen ? <div role="dialog">{children}</div> : null,
     { Container: Box, Header: Box, Content: Box, Actions: Box }
   )
+  const Drawer = Object.assign(
+    ({ children, isOpen }: { children: ReactNode; isOpen: boolean }) =>
+      isOpen ? <div role="dialog">{children}</div> : null,
+    { Container: Box, TopActions: Box, Header: Box, Content: Box }
+  )
   return {
     Modal,
+    Drawer,
+    CloseIcon: () => null,
+    IconButton: ({ children, onClick, ...rest }: any) => (
+      <button type="button" onClick={onClick} aria-label={rest['aria-label']}>
+        {children}
+      </button>
+    ),
     Alert: ({ children }: { children: ReactNode }) => <div role="alert">{children}</div>,
     Button: ({ children, onClick, disabled, ...rest }: any) => (
       <button type="button" disabled={disabled} onClick={onClick} aria-label={rest['aria-label']}>

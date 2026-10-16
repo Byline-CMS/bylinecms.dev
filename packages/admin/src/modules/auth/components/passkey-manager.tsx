@@ -14,7 +14,16 @@ import { useEffect, useId, useRef, useState } from 'react'
 import type { PasskeyCredentialSummary } from '@byline/auth'
 import { getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
-import { Alert, Button, Input, InputPassword, Modal } from '@byline/ui/react'
+import {
+  Alert,
+  Button,
+  CloseIcon,
+  Drawer,
+  IconButton,
+  Input,
+  InputPassword,
+  Modal,
+} from '@byline/ui/react'
 
 import {
   type PasskeyPageBinding,
@@ -164,6 +173,77 @@ export function PasskeyManager({
 
   if (!passkeys || !enabled) return null
   if (!allowed) return error ? <Alert intent="danger">{t(error)}</Alert> : null
+  const fields = (
+    <>
+      {error && <Alert intent="danger">{t(error)}</Alert>}
+      {edit?.kind === 'remove' ? (
+        <p>{t('passkeys.removeWarning', { name: edit.credential.name })}</p>
+      ) : (
+        <Input
+          id={`${id}-name`}
+          name="passkey-name"
+          label={t('passkeys.name')}
+          value={name}
+          maxLength={80}
+          disabled={pending}
+          onChange={(event) => setName(event.currentTarget.value)}
+        />
+      )}
+      {edit?.kind !== 'rename' && (
+        <>
+          <p>{t('passkeys.proofDescription')}</p>
+          <InputPassword
+            id={`${id}-password`}
+            name="passkey-password"
+            label={t('common.fields.password')}
+            autoComplete="current-password"
+            value={password}
+            disabled={pending}
+            onChange={(event) => setPassword(event.currentTarget.value)}
+            showPasswordLabel={t('common.actions.showPassword')}
+            hidePasswordLabel={t('common.actions.hidePassword')}
+          />
+        </>
+      )}
+      {pending && <p role="status">{t('passkeys.waiting')}</p>}
+    </>
+  )
+  const actions = (
+    <>
+      <Button type="button" size="sm" intent="noeffect" disabled={pending} onClick={close}>
+        {t('common.actions.cancel')}
+      </Button>
+      {edit?.kind === 'rename' ? (
+        <Button
+          type="button"
+          size="sm"
+          disabled={pending || !name.trim()}
+          onClick={() => void perform(false)}
+        >
+          {t('common.actions.save')}
+        </Button>
+      ) : (
+        <>
+          <Button
+            type="button"
+            size="sm"
+            disabled={pending || !password || (edit?.kind === 'enroll' && !name.trim())}
+            onClick={() => void perform(true)}
+          >
+            {t('passkeys.usePassword')}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={pending || (edit?.kind === 'enroll' && !name.trim())}
+            onClick={() => void perform(false)}
+          >
+            {t('passkeys.usePasskey')}
+          </Button>
+        </>
+      )}
+    </>
+  )
   const body = (
     <>
       <p>{t(self ? 'passkeys.description' : 'passkeys.recoveryDescription')}</p>
@@ -225,98 +305,57 @@ export function PasskeyManager({
         </Button>
       )}
       <Modal
-        isOpen={edit !== null}
+        isOpen={edit?.kind === 'remove'}
         onDismiss={close}
         closeOnOverlayClick={false}
-        ariaLabel={t(
-          edit?.kind === 'remove'
-            ? 'passkeys.remove'
-            : edit?.kind === 'rename'
-              ? 'passkeys.rename'
-              : 'passkeys.add'
-        )}
+        ariaLabel={t('passkeys.remove')}
       >
         <Modal.Container className={`byline-passkey-modal ${styles.modal}`}>
           <Modal.Header>
-            <h2>
-              {t(
-                edit?.kind === 'remove'
-                  ? 'passkeys.remove'
-                  : edit?.kind === 'rename'
-                    ? 'passkeys.rename'
-                    : 'passkeys.add'
-              )}
-            </h2>
+            <h2>{t('passkeys.remove')}</h2>
           </Modal.Header>
-          <Modal.Content>
-            {error && <Alert intent="danger">{t(error)}</Alert>}
-            {edit?.kind === 'remove' ? (
-              <p>{t('passkeys.removeWarning', { name: edit.credential.name })}</p>
-            ) : (
-              <Input
-                id={`${id}-name`}
-                name="passkey-name"
-                label={t('passkeys.name')}
-                value={name}
-                maxLength={80}
-                disabled={pending}
-                onChange={(event) => setName(event.currentTarget.value)}
-              />
-            )}
-            {edit?.kind !== 'rename' && (
-              <>
-                <p>{t('passkeys.proofDescription')}</p>
-                <InputPassword
-                  id={`${id}-password`}
-                  name="passkey-password"
-                  label={t('common.fields.password')}
-                  autoComplete="current-password"
-                  value={password}
-                  disabled={pending}
-                  onChange={(event) => setPassword(event.currentTarget.value)}
-                  showPasswordLabel={t('common.actions.showPassword')}
-                  hidePasswordLabel={t('common.actions.hidePassword')}
-                />
-              </>
-            )}
-            {pending && <p role="status">{t('passkeys.waiting')}</p>}
-          </Modal.Content>
+          <Modal.Content>{fields}</Modal.Content>
           <Modal.Actions className={`byline-passkey-modal-actions ${styles['modal-actions']}`}>
-            <Button type="button" size="sm" intent="noeffect" disabled={pending} onClick={close}>
-              {t('common.actions.cancel')}
-            </Button>
-            {edit?.kind === 'rename' ? (
-              <Button
-                type="button"
-                size="sm"
-                disabled={pending || !name.trim()}
-                onClick={() => void perform(false)}
-              >
-                {t('common.actions.save')}
-              </Button>
-            ) : (
-              <>
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={pending || !password || (edit?.kind === 'enroll' && !name.trim())}
-                  onClick={() => void perform(true)}
-                >
-                  {t('passkeys.usePassword')}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={pending || (edit?.kind === 'enroll' && !name.trim())}
-                  onClick={() => void perform(false)}
-                >
-                  {t('passkeys.usePasskey')}
-                </Button>
-              </>
-            )}
+            {actions}
           </Modal.Actions>
         </Modal.Container>
       </Modal>
+      <Drawer
+        id={`${id}-passkey-drawer`}
+        closeOnOverlayClick={false}
+        width="medium"
+        topOffset="46px"
+        isOpen={edit !== null && edit.kind !== 'remove'}
+        onDismiss={close}
+        className={`byline-passkey-drawer ${styles.drawer}`}
+      >
+        <Drawer.Container
+          aria-hidden={edit === null || edit.kind === 'remove'}
+          className={`byline-passkey-drawer-body ${styles['drawer-body']}`}
+        >
+          <Drawer.TopActions>
+            <button type="button" tabIndex={0} className={styles['drawer-skip']}>
+              no action
+            </button>
+            <IconButton aria-label={t('common.actions.close')} size="sm" onClick={close}>
+              <CloseIcon width="14px" height="14px" svgClassName="white-icon stroke-white" />
+            </IconButton>
+          </Drawer.TopActions>
+          <Drawer.Header>
+            <h2>{t(edit?.kind === 'rename' ? 'passkeys.rename' : 'passkeys.add')}</h2>
+          </Drawer.Header>
+          <Drawer.Content>
+            <div className={`byline-passkey-drawer-form ${styles['drawer-form']}`}>
+              {fields}
+              <div
+                className={`byline-passkey-drawer-actions ${styles['drawer-actions']} ${styles['modal-actions']}`}
+              >
+                {actions}
+              </div>
+            </div>
+          </Drawer.Content>
+        </Drawer.Container>
+      </Drawer>
     </>
   )
   if (Section)
