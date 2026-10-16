@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "5",
-      "when": 1788879988783,
-      "tag": "0000_kind_exodus",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1792088695079,
-      "tag": "0001_wide_thor_girl",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "5",
-      "when": 1792093373103,
-      "tag": "0002_high_sandman",
+      "when": 1792124008486,
+      "tag": "0000_volatile_agent_brand",
       "breakpoints": true
     }
   ]

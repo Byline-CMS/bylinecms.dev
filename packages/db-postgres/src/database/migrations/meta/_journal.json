@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1788880329240,
-      "tag": "0000_lively_talisman",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1792088694046,
-      "tag": "0001_tidy_hitman",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1792093371982,
-      "tag": "0002_nasty_satana",
+      "when": 1792123994697,
+      "tag": "0000_superb_ben_parker",
       "breakpoints": true
     }
   ]

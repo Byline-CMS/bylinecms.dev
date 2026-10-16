@@ -7,6 +7,40 @@ CREATE TABLE `byline_admin_login_sessions` (
 	CONSTRAINT `byline_admin_login_sessions_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
+CREATE TABLE `byline_admin_passkey_attempts` (
+	`token_hash` varbinary(64) NOT NULL,
+	`purpose` varchar(24) NOT NULL,
+	`challenge` varchar(43),
+	`actor_user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin,
+	`actor_login_id` char(36) CHARACTER SET ascii COLLATE ascii_bin,
+	`actor_generation` int,
+	`action` varchar(8),
+	`target_user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin,
+	`credential_record_id` char(36) CHARACTER SET ascii COLLATE ascii_bin,
+	`proof_credential_id` char(36) CHARACTER SET ascii COLLATE ascii_bin,
+	`created_at` datetime(6) NOT NULL,
+	`expires_at` datetime(6) NOT NULL,
+	`consumed_at` datetime(6),
+	CONSTRAINT `byline_admin_passkey_attempts_token_hash` PRIMARY KEY(`token_hash`)
+);
+--> statement-breakpoint
+CREATE TABLE `byline_admin_passkey_credentials` (
+	`id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+	`admin_user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin,
+	`credential_id` varbinary(1366) NOT NULL,
+	`public_key` text NOT NULL,
+	`counter` bigint NOT NULL,
+	`transports` json NOT NULL,
+	`backup_eligible` boolean NOT NULL,
+	`backed_up` boolean NOT NULL,
+	`name` varchar(80) NOT NULL,
+	`created_at` datetime(6) NOT NULL,
+	`last_used_at` datetime(6),
+	`revoked_at` datetime(6),
+	CONSTRAINT `byline_admin_passkey_credentials_id` PRIMARY KEY(`id`),
+	CONSTRAINT `byline_admin_passkey_credentials_credential_id_unique` UNIQUE(`credential_id`)
+);
+--> statement-breakpoint
 CREATE TABLE `byline_admin_permissions` (
 	`id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 	`vid` int NOT NULL DEFAULT 1,
@@ -75,6 +109,7 @@ CREATE TABLE `byline_admin_user_preferences` (
 --> statement-breakpoint
 CREATE TABLE `byline_admin_users` (
 	`id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+	`webauthn_user_handle` varbinary(43),
 	`session_version` int NOT NULL DEFAULT 0,
 	`vid` int NOT NULL DEFAULT 1,
 	`given_name` varchar(100),
@@ -93,6 +128,7 @@ CREATE TABLE `byline_admin_users` (
 	`created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	`updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	CONSTRAINT `byline_admin_users_id` PRIMARY KEY(`id`),
+	CONSTRAINT `byline_admin_users_webauthn_user_handle_unique` UNIQUE(`webauthn_user_handle`),
 	CONSTRAINT `byline_admin_users_username_unique` UNIQUE(`username`),
 	CONSTRAINT `byline_admin_users_email_unique` UNIQUE(`email`)
 );
@@ -397,6 +433,7 @@ CREATE TABLE `byline_store_text` (
 );
 --> statement-breakpoint
 ALTER TABLE `byline_admin_login_sessions` ADD CONSTRAINT `fk_admin_login_sessions_user` FOREIGN KEY (`admin_user_id`) REFERENCES `byline_admin_users`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `byline_admin_passkey_credentials` ADD CONSTRAINT `fk_admin_passkeys_user` FOREIGN KEY (`admin_user_id`) REFERENCES `byline_admin_users`(`id`) ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `byline_admin_permissions` ADD CONSTRAINT `fk_admin_permissions_admin_role_id` FOREIGN KEY (`admin_role_id`) REFERENCES `byline_admin_roles`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `byline_admin_refresh_tokens` ADD CONSTRAINT `fk_admin_refresh_tokens_sid` FOREIGN KEY (`sid`) REFERENCES `byline_admin_login_sessions`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `byline_admin_refresh_tokens` ADD CONSTRAINT `fk_admin_refresh_tokens_admin_user_id` FOREIGN KEY (`admin_user_id`) REFERENCES `byline_admin_users`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -436,8 +473,15 @@ ALTER TABLE `byline_singleton_documents` ADD CONSTRAINT `fk_singleton_documents_
 ALTER TABLE `byline_store_text` ADD CONSTRAINT `fk_store_text_document_version_id` FOREIGN KEY (`document_version_id`) REFERENCES `byline_document_versions`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE `byline_store_text` ADD CONSTRAINT `fk_store_text_collection_id` FOREIGN KEY (`collection_id`) REFERENCES `byline_collections`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX `idx_admin_login_sessions_user` ON `byline_admin_login_sessions` (`admin_user_id`);--> statement-breakpoint
+CREATE INDEX `idx_admin_login_sessions_expiry` ON `byline_admin_login_sessions` (`expires_at`);--> statement-breakpoint
+CREATE INDEX `idx_admin_login_sessions_revoked` ON `byline_admin_login_sessions` (`revoked_at`);--> statement-breakpoint
+CREATE INDEX `idx_admin_passkey_attempts_expiry` ON `byline_admin_passkey_attempts` (`expires_at`);--> statement-breakpoint
+CREATE INDEX `idx_admin_passkey_attempts_consumed` ON `byline_admin_passkey_attempts` (`consumed_at`);--> statement-breakpoint
+CREATE INDEX `idx_admin_passkey_attempts_login` ON `byline_admin_passkey_attempts` (`actor_login_id`);--> statement-breakpoint
+CREATE INDEX `idx_admin_passkeys_user` ON `byline_admin_passkey_credentials` (`admin_user_id`);--> statement-breakpoint
 CREATE INDEX `idx_byline_admin_permissions_role` ON `byline_admin_permissions` (`admin_role_id`);--> statement-breakpoint
 CREATE INDEX `idx_admin_refresh_tokens_sid` ON `byline_admin_refresh_tokens` (`sid`);--> statement-breakpoint
+CREATE INDEX `idx_admin_refresh_tokens_legacy_expiry` ON `byline_admin_refresh_tokens` (`sid`,`expires_at`);--> statement-breakpoint
 CREATE INDEX `idx_byline_admin_refresh_tokens_user` ON `byline_admin_refresh_tokens` (`admin_user_id`);--> statement-breakpoint
 CREATE INDEX `idx_byline_admin_refresh_tokens_token_hash` ON `byline_admin_refresh_tokens` (`token_hash`);--> statement-breakpoint
 CREATE INDEX `idx_byline_admin_role_admin_user_user` ON `byline_admin_role_admin_user` (`admin_user_id`);--> statement-breakpoint

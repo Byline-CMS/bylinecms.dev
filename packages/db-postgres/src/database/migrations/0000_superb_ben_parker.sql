@@ -6,6 +6,38 @@ CREATE TABLE "byline_admin_login_sessions" (
 	"revoked_at" timestamp (6) with time zone
 );
 --> statement-breakpoint
+CREATE TABLE "byline_admin_passkey_attempts" (
+	"token_hash" varchar(64) COLLATE "C" PRIMARY KEY NOT NULL,
+	"purpose" varchar(24) NOT NULL,
+	"challenge" varchar(43),
+	"actor_user_id" uuid,
+	"actor_login_id" uuid,
+	"actor_generation" integer,
+	"action" varchar(8),
+	"target_user_id" uuid,
+	"credential_record_id" uuid,
+	"proof_credential_id" uuid,
+	"created_at" timestamp (6) with time zone NOT NULL,
+	"expires_at" timestamp (6) with time zone NOT NULL,
+	"consumed_at" timestamp (6) with time zone
+);
+--> statement-breakpoint
+CREATE TABLE "byline_admin_passkey_credentials" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"admin_user_id" uuid,
+	"credential_id" varchar(1366) COLLATE "C" NOT NULL,
+	"public_key" text NOT NULL,
+	"counter" bigint NOT NULL,
+	"transports" jsonb NOT NULL,
+	"backup_eligible" boolean NOT NULL,
+	"backed_up" boolean NOT NULL,
+	"name" varchar(80) NOT NULL,
+	"created_at" timestamp (6) with time zone NOT NULL,
+	"last_used_at" timestamp (6) with time zone,
+	"revoked_at" timestamp (6) with time zone,
+	CONSTRAINT "byline_admin_passkey_credentials_credential_id_unique" UNIQUE("credential_id")
+);
+--> statement-breakpoint
 CREATE TABLE "byline_admin_permissions" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"vid" integer DEFAULT 1 NOT NULL,
@@ -70,6 +102,7 @@ CREATE TABLE "byline_admin_user_preferences" (
 --> statement-breakpoint
 CREATE TABLE "byline_admin_users" (
 	"id" uuid PRIMARY KEY NOT NULL,
+	"webauthn_user_handle" varchar(43) COLLATE "C",
 	"session_version" integer DEFAULT 0 NOT NULL,
 	"vid" integer DEFAULT 1 NOT NULL,
 	"given_name" varchar(100),
@@ -87,6 +120,7 @@ CREATE TABLE "byline_admin_users" (
 	"preferred_locale" varchar(16),
 	"created_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp (6) with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "byline_admin_users_webauthn_user_handle_unique" UNIQUE("webauthn_user_handle"),
 	CONSTRAINT "byline_admin_users_username_unique" UNIQUE("username"),
 	CONSTRAINT "byline_admin_users_email_unique" UNIQUE("email")
 );
@@ -374,6 +408,7 @@ CREATE TABLE "byline_store_text" (
 );
 --> statement-breakpoint
 ALTER TABLE "byline_admin_login_sessions" ADD CONSTRAINT "byline_admin_login_sessions_admin_user_id_byline_admin_users_id_fk" FOREIGN KEY ("admin_user_id") REFERENCES "public"."byline_admin_users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "byline_admin_passkey_credentials" ADD CONSTRAINT "byline_admin_passkey_credentials_admin_user_id_byline_admin_users_id_fk" FOREIGN KEY ("admin_user_id") REFERENCES "public"."byline_admin_users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_admin_permissions" ADD CONSTRAINT "byline_admin_permissions_admin_role_id_byline_admin_roles_id_fk" FOREIGN KEY ("admin_role_id") REFERENCES "public"."byline_admin_roles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_admin_refresh_tokens" ADD CONSTRAINT "byline_admin_refresh_tokens_admin_user_id_byline_admin_users_id_fk" FOREIGN KEY ("admin_user_id") REFERENCES "public"."byline_admin_users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_admin_refresh_tokens" ADD CONSTRAINT "byline_admin_refresh_tokens_sid_byline_admin_login_sessions_id_fk" FOREIGN KEY ("sid") REFERENCES "public"."byline_admin_login_sessions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -413,8 +448,15 @@ ALTER TABLE "byline_singleton_documents" ADD CONSTRAINT "fk_singleton_documents_
 ALTER TABLE "byline_store_text" ADD CONSTRAINT "byline_store_text_document_version_id_byline_document_versions_id_fk" FOREIGN KEY ("document_version_id") REFERENCES "public"."byline_document_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "byline_store_text" ADD CONSTRAINT "byline_store_text_collection_id_byline_collections_id_fk" FOREIGN KEY ("collection_id") REFERENCES "public"."byline_collections"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "idx_admin_login_sessions_user" ON "byline_admin_login_sessions" USING btree ("admin_user_id");--> statement-breakpoint
+CREATE INDEX "idx_admin_login_sessions_expiry" ON "byline_admin_login_sessions" USING btree ("expires_at");--> statement-breakpoint
+CREATE INDEX "idx_admin_login_sessions_revoked" ON "byline_admin_login_sessions" USING btree ("revoked_at");--> statement-breakpoint
+CREATE INDEX "idx_admin_passkey_attempts_expiry" ON "byline_admin_passkey_attempts" USING btree ("expires_at");--> statement-breakpoint
+CREATE INDEX "idx_admin_passkey_attempts_consumed" ON "byline_admin_passkey_attempts" USING btree ("consumed_at");--> statement-breakpoint
+CREATE INDEX "idx_admin_passkey_attempts_login" ON "byline_admin_passkey_attempts" USING btree ("actor_login_id");--> statement-breakpoint
+CREATE INDEX "idx_admin_passkeys_user" ON "byline_admin_passkey_credentials" USING btree ("admin_user_id");--> statement-breakpoint
 CREATE INDEX "idx_byline_admin_permissions_role" ON "byline_admin_permissions" USING btree ("admin_role_id");--> statement-breakpoint
 CREATE INDEX "idx_admin_refresh_tokens_sid" ON "byline_admin_refresh_tokens" USING btree ("sid");--> statement-breakpoint
+CREATE INDEX "idx_admin_refresh_tokens_legacy_expiry" ON "byline_admin_refresh_tokens" USING btree ("sid","expires_at");--> statement-breakpoint
 CREATE INDEX "idx_byline_admin_refresh_tokens_user" ON "byline_admin_refresh_tokens" USING btree ("admin_user_id");--> statement-breakpoint
 CREATE INDEX "idx_byline_admin_refresh_tokens_token_hash" ON "byline_admin_refresh_tokens" USING btree ("token_hash");--> statement-breakpoint
 CREATE INDEX "idx_byline_admin_role_admin_user_user" ON "byline_admin_role_admin_user" USING btree ("admin_user_id");--> statement-breakpoint

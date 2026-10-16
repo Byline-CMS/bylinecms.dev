@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "037e9f50-01e1-4acd-8c3e-7fff0ac552b0",
+  "id": "c9f928cb-1a76-4826-af62-97e1b0a57277",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "byline_admin_login_sessions": {
@@ -50,6 +50,20 @@
             "admin_user_id"
           ],
           "isUnique": false
+        },
+        "idx_admin_login_sessions_expiry": {
+          "name": "idx_admin_login_sessions_expiry",
+          "columns": [
+            "expires_at"
+          ],
+          "isUnique": false
+        },
+        "idx_admin_login_sessions_revoked": {
+          "name": "idx_admin_login_sessions_revoked",
+          "columns": [
+            "revoked_at"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -76,6 +90,266 @@
         }
       },
       "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "byline_admin_passkey_attempts": {
+      "name": "byline_admin_passkey_attempts",
+      "columns": {
+        "token_hash": {
+          "name": "token_hash",
+          "type": "varbinary(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "purpose": {
+          "name": "purpose",
+          "type": "varchar(24)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "challenge": {
+          "name": "challenge",
+          "type": "varchar(43)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "actor_user_id": {
+          "name": "actor_user_id",
+          "type": "char(36) CHARACTER SET ascii COLLATE ascii_bin",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "actor_login_id": {
+          "name": "actor_login_id",
+          "type": "char(36) CHARACTER SET ascii COLLATE ascii_bin",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "actor_generation": {
+          "name": "actor_generation",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "action": {
+          "name": "action",
+          "type": "varchar(8)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "target_user_id": {
+          "name": "target_user_id",
+          "type": "char(36) CHARACTER SET ascii COLLATE ascii_bin",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "credential_record_id": {
+          "name": "credential_record_id",
+          "type": "char(36) CHARACTER SET ascii COLLATE ascii_bin",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "proof_credential_id": {
+          "name": "proof_credential_id",
+          "type": "char(36) CHARACTER SET ascii COLLATE ascii_bin",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "consumed_at": {
+          "name": "consumed_at",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_admin_passkey_attempts_expiry": {
+          "name": "idx_admin_passkey_attempts_expiry",
+          "columns": [
+            "expires_at"
+          ],
+          "isUnique": false
+        },
+        "idx_admin_passkey_attempts_consumed": {
+          "name": "idx_admin_passkey_attempts_consumed",
+          "columns": [
+            "consumed_at"
+          ],
+          "isUnique": false
+        },
+        "idx_admin_passkey_attempts_login": {
+          "name": "idx_admin_passkey_attempts_login",
+          "columns": [
+            "actor_login_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "byline_admin_passkey_attempts_token_hash": {
+          "name": "byline_admin_passkey_attempts_token_hash",
+          "columns": [
+            "token_hash"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "byline_admin_passkey_credentials": {
+      "name": "byline_admin_passkey_credentials",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36) CHARACTER SET ascii COLLATE ascii_bin",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "admin_user_id": {
+          "name": "admin_user_id",
+          "type": "char(36) CHARACTER SET ascii COLLATE ascii_bin",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "credential_id": {
+          "name": "credential_id",
+          "type": "varbinary(1366)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "public_key": {
+          "name": "public_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "counter": {
+          "name": "counter",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "transports": {
+          "name": "transports",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "backup_eligible": {
+          "name": "backup_eligible",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "backed_up": {
+          "name": "backed_up",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(80)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "last_used_at": {
+          "name": "last_used_at",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_admin_passkeys_user": {
+          "name": "idx_admin_passkeys_user",
+          "columns": [
+            "admin_user_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "fk_admin_passkeys_user": {
+          "name": "fk_admin_passkeys_user",
+          "tableFrom": "byline_admin_passkey_credentials",
+          "tableTo": "byline_admin_users",
+          "columnsFrom": [
+            "admin_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "byline_admin_passkey_credentials_id": {
+          "name": "byline_admin_passkey_credentials_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "byline_admin_passkey_credentials_credential_id_unique": {
+          "name": "byline_admin_passkey_credentials_credential_id_unique",
+          "columns": [
+            "credential_id"
+          ]
+        }
+      },
       "checkConstraint": {}
     },
     "byline_admin_permissions": {
@@ -281,6 +555,14 @@
           "name": "idx_admin_refresh_tokens_sid",
           "columns": [
             "sid"
+          ],
+          "isUnique": false
+        },
+        "idx_admin_refresh_tokens_legacy_expiry": {
+          "name": "idx_admin_refresh_tokens_legacy_expiry",
+          "columns": [
+            "sid",
+            "expires_at"
           ],
           "isUnique": false
         },
@@ -637,6 +919,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "webauthn_user_handle": {
+          "name": "webauthn_user_handle",
+          "type": "varbinary(43)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "session_version": {
           "name": "session_version",
           "type": "int",
@@ -785,6 +1074,12 @@
         }
       },
       "uniqueConstraints": {
+        "byline_admin_users_webauthn_user_handle_unique": {
+          "name": "byline_admin_users_webauthn_user_handle_unique",
+          "columns": [
+            "webauthn_user_handle"
+          ]
+        },
         "byline_admin_users_username_unique": {
           "name": "byline_admin_users_username_unique",
           "columns": [
