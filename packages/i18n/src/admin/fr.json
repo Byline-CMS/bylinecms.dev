@@ -191,6 +191,8 @@
   "adminUsers.detail.editRolesButton": "Modifier les rôles",
   "adminUsers.detail.password.intro": "Définissez un nouveau mot de passe pour cet utilisateur.",
   "adminUsers.detail.password.setButton": "Définir le mot de passe",
+  "adminUsers.detail.passkeys.ownAccount": "Il s’agit de votre propre compte. Ajoutez et renommez vos clés d’accès sur votre page Compte.",
+  "adminUsers.detail.passkeys.openAccount": "Aller à votre page Compte",
   "adminUsers.detail.delete.intro": "Supprimer définitivement cet utilisateur admin.",
   "adminUsers.detail.delete.button": "Supprimer l'utilisateur admin",
   "adminUsers.detail.rolesSavedToast": "Rôles enregistrés",

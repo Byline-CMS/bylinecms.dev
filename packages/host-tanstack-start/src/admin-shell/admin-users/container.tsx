@@ -29,6 +29,8 @@ import {
 } from '@byline/ui/react'
 import cx from 'clsx'
 
+import { getAdminRoutePath } from '../../routes/admin-path.js'
+import { Link } from '../chrome/loose-router.js'
 import styles from './container.module.css'
 import { DeleteUser } from './delete.js'
 import type { AdminRoleResponse } from '../../server-fns/admin-roles/index.js'
@@ -308,6 +310,17 @@ export function AccountContainer({ user, allRoles, initialUserRoles }: AccountCo
             targetUserId={currentUser.id}
             targetIsSuperAdmin={currentUser.is_super_admin}
             section={ContainerSection}
+            ownAccountNotice={
+              <p className={cx('byline-admin-user-line-spaced', styles.lineSpaced)}>
+                {t('adminUsers.detail.passkeys.ownAccount')}{' '}
+                <Link
+                  to={getAdminRoutePath('account')}
+                  className={cx('byline-admin-user-account-link', styles.accountLink)}
+                >
+                  {t('adminUsers.detail.passkeys.openAccount')}
+                </Link>
+              </p>
+            }
           />
 
           <ContainerSection title={t('adminUsers.detail.sections.delete')}>

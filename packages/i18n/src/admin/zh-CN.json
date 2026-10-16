@@ -191,6 +191,8 @@
   "adminUsers.detail.editRolesButton": "编辑角色",
   "adminUsers.detail.password.intro": "为该用户设置新密码。",
   "adminUsers.detail.password.setButton": "设置密码",
+  "adminUsers.detail.passkeys.ownAccount": "这是你自己的账户。请在“账户”页面添加和重命名你的通行密钥。",
+  "adminUsers.detail.passkeys.openAccount": "前往“账户”页面",
   "adminUsers.detail.delete.intro": "永久删除该管理员用户。",
   "adminUsers.detail.delete.button": "删除管理员用户",
   "adminUsers.detail.rolesSavedToast": "角色已保存",

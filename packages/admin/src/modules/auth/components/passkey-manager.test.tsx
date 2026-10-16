@@ -120,6 +120,19 @@ describe('passkey manager controls', () => {
     expect(container.textContent).toContain('passkeys.rename')
     expect(container.textContent).toContain('Security key')
   })
+  it('keeps the admin view for the signed-in user when an admin screen passes a notice', async () => {
+    await act(async () =>
+      root.render(
+        <PasskeyManager targetUserId="self" ownAccountNotice={<p>own-account-notice</p>} />
+      )
+    )
+    expect(container.textContent).toContain('own-account-notice')
+    expect(container.textContent).toContain('Security key')
+    expect(container.textContent).toContain('passkeys.remove')
+    expect(container.textContent).not.toContain('passkeys.add')
+    expect(container.textContent).not.toContain('passkeys.rename')
+    expect(container.textContent).not.toContain('passkeys.description')
+  })
   it('hides recovery without the ability and protects super-admin targets', async () => {
     await render('other')
     expect(container.innerHTML).toBe('')

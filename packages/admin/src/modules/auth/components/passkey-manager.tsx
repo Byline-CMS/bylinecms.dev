@@ -44,11 +44,18 @@ export function PasskeyManager({
   targetUserId,
   targetIsSuperAdmin = false,
   section: Section,
+  ownAccountNotice,
 }: {
   targetUserId: string
   targetIsSuperAdmin?: boolean
   /** Renders the panel inside the page's own card; defaults to a standalone card. */
   section?: PasskeySectionComponent
+  /**
+   * Admin screens pass this to keep the admin (recovery) view even when the
+   * target is the signed-in user; it replaces the description in that case,
+   * typically pointing the user to their own account page.
+   */
+  ownAccountNotice?: React.ReactNode
 }) {
   const { passkeys } = useBylineAdminServices()
   const { t } = useTranslation('byline-admin')
@@ -173,6 +180,8 @@ export function PasskeyManager({
 
   if (!passkeys || !enabled) return null
   if (!allowed) return error ? <Alert intent="danger">{t(error)}</Alert> : null
+  // Admin screens keep the recovery view for the signed-in user too.
+  const selfService = self && ownAccountNotice === undefined
   const fields = (
     <>
       {error && <Alert intent="danger">{t(error)}</Alert>}
@@ -246,7 +255,11 @@ export function PasskeyManager({
   )
   const body = (
     <>
-      <p>{t(self ? 'passkeys.description' : 'passkeys.recoveryDescription')}</p>
+      {self && ownAccountNotice !== undefined ? (
+        ownAccountNotice
+      ) : (
+        <p>{t(selfService ? 'passkeys.description' : 'passkeys.recoveryDescription')}</p>
+      )}
       {!edit && error && <Alert intent="danger">{t(error)}</Alert>}
       {notice && <p role="status">{t(notice)}</p>}
       {loading ? (
@@ -267,7 +280,7 @@ export function PasskeyManager({
                 </p>
               </div>
               <div className={styles.actions}>
-                {self && (
+                {selfService && (
                   <Button
                     type="button"
                     size="sm"
@@ -293,7 +306,7 @@ export function PasskeyManager({
           ))}
         </ul>
       )}
-      {self && (
+      {selfService && (
         <Button
           type="button"
           size="sm"

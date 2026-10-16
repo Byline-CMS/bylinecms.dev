@@ -18,6 +18,7 @@
  *   .byline-admin-user-drawer-body    — drawer content container
  *   .byline-admin-user-drawer-scroll  — drawer scrollable inner viewport
  *   .byline-admin-user-modal          — modal container sizing
+ *   .byline-admin-user-account-link   — own-account link in the Passkeys card
  *   .byline-admin-user-modal-head     — modal header row
  */
 
@@ -196,4 +197,9 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 1rem;
+}
+
+.accountLink,
+:global(.byline-admin-user-account-link) {
+  text-decoration: underline;
 }

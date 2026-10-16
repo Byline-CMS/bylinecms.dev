@@ -191,6 +191,8 @@
   "adminUsers.detail.editRolesButton": "Editar roles",
   "adminUsers.detail.password.intro": "Establece una nueva contraseña para este usuario.",
   "adminUsers.detail.password.setButton": "Establecer contraseña",
+  "adminUsers.detail.passkeys.ownAccount": "Esta es tu propia cuenta. Añade y renombra tus claves de acceso en tu página Cuenta.",
+  "adminUsers.detail.passkeys.openAccount": "Ir a tu página Cuenta",
   "adminUsers.detail.delete.intro": "Elimina permanentemente este usuario administrador.",
   "adminUsers.detail.delete.button": "Eliminar usuario administrador",
   "adminUsers.detail.rolesSavedToast": "Roles guardados",

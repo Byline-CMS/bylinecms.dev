@@ -191,6 +191,8 @@
   "adminUsers.detail.editRolesButton": "แก้ไขบทบาท",
   "adminUsers.detail.password.intro": "ตั้งรหัสผ่านใหม่สำหรับผู้ใช้รายนี้",
   "adminUsers.detail.password.setButton": "ตั้งรหัสผ่าน",
+  "adminUsers.detail.passkeys.ownAccount": "นี่คือบัญชีของคุณเอง เพิ่มและเปลี่ยนชื่อพาสคีย์ได้ที่หน้าบัญชีของคุณ",
+  "adminUsers.detail.passkeys.openAccount": "ไปที่หน้าบัญชีของคุณ",
   "adminUsers.detail.delete.intro": "ลบผู้ใช้ผู้ดูแลระบบรายนี้อย่างถาวร",
   "adminUsers.detail.delete.button": "ลบผู้ใช้ผู้ดูแลระบบ",
   "adminUsers.detail.rolesSavedToast": "บันทึกบทบาทแล้ว",

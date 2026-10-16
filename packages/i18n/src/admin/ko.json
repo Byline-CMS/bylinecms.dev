@@ -191,6 +191,8 @@
   "adminUsers.detail.editRolesButton": "역할 편집",
   "adminUsers.detail.password.intro": "이 사용자의 새 비밀번호를 설정합니다.",
   "adminUsers.detail.password.setButton": "비밀번호 설정",
+  "adminUsers.detail.passkeys.ownAccount": "본인 계정입니다. 패스키 추가와 이름 변경은 계정 페이지에서 하세요.",
+  "adminUsers.detail.passkeys.openAccount": "계정 페이지로 이동",
   "adminUsers.detail.delete.intro": "이 관리자 사용자를 영구적으로 삭제합니다.",
   "adminUsers.detail.delete.button": "관리자 사용자 삭제",
   "adminUsers.detail.rolesSavedToast": "역할이 저장되었습니다",
