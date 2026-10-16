@@ -267,9 +267,7 @@ export function AccountContainer({ user, allRoles, initialUserRoles }: AccountCo
               </p>
             </div>
           </ContainerSection>
-        </div>
 
-        <div className={cx('byline-admin-user-column', styles.column)}>
           <ContainerSection
             title={t('adminUsers.detail.sections.roles')}
             onEdit={openDrawer('roles')}
@@ -290,7 +288,9 @@ export function AccountContainer({ user, allRoles, initialUserRoles }: AccountCo
               {t('adminUsers.detail.editRolesButton')}
             </Button>
           </ContainerSection>
+        </div>
 
+        <div className={cx('byline-admin-user-column', styles.column)}>
           <ContainerSection
             title={t('adminUsers.detail.sections.password')}
             onEdit={openDrawer('set_password')}
