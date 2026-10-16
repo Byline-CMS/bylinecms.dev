@@ -34,7 +34,7 @@ import {
 } from '../../integrations/session-middleware.js'
 import { wasPasskeyBodyChecked } from '../../integrations/sign-in-body.js'
 import { withPasskeyAdmission } from './passkey-admission.js'
-import { reconcileLocaleAfterSignIn } from './sign-in.js'
+import { reconcileLocaleAfterSignIn } from './reconcile-locale.js'
 
 const session = z.object({ expectedSessionId: z.uuid() })
 const bearer = z.string().regex(/^[A-Za-z0-9_-]{43}$/)

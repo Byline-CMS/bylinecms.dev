@@ -7,6 +7,20 @@ import { createServer } from 'vite'
 const reactRequire = createRequire(import.meta.resolve('@tanstack/react-start'))
 const startRequire = createRequire(reactRequire.resolve('@tanstack/start-server-core/package.json'))
 const { toJSON } = startRequire('seroval')
+function assertClientBoundary(source, label) {
+  // These aliases stand in for server-only cookie/config/store modules. RPC
+  // stubs must not keep them alive through exported, non-server-function helpers.
+  const imports = [...source.matchAll(/(?:from\s*|import\s*)["']([^"']+)["']/g)].map(
+    (match) => match[1]
+  )
+  for (const specifier of imports)
+    assert.doesNotMatch(
+      specifier,
+      /stubs\.ts|locale-cookie|reconcile-locale|byline-core|react-start(?:\/|_)server/,
+      `${label}: server-only import survived the Start client transform: ${specifier}`
+    )
+  assert.doesNotMatch(source, /\breconcileLocaleAfterSignIn\b/, `${label}: server helper survived`)
+}
 const server = await createServer({
   configFile: fileURLToPath(new URL('./vite.config.ts', import.meta.url)),
 })
@@ -22,6 +36,7 @@ try {
   const moduleResponse = await fetch(`${base}/@fs${file}`)
   assert.equal(moduleResponse.status, 200)
   const moduleText = await moduleResponse.text()
+  assertClientBoundary(moduleText, 'password sign-in')
   const id = /createClientRpc\("([^"]+)"/.exec(moduleText)?.[1]
   assert.ok(id, 'Start must compile the real sign-in server function')
   const endpoint = `${base}/_serverFn/${id}`
@@ -42,6 +57,7 @@ try {
   assert.equal((await post('x'.repeat(17_000), 'https://attacker.invalid')).status, 403)
   const passkeyFile = file.replace('sign-in.ts', 'passkeys.ts')
   const compiled = await (await fetch(`${base}/@fs${passkeyFile}`)).text()
+  assertClientBoundary(compiled, 'passkeys')
   const endpoints = Object.fromEntries(
     [...compiled.matchAll(/export const (\w+) = [^;]+?createClientRpc\("([^"]+)"/g)].map(
       (match) => [match[1], `${base}/_serverFn/${match[2]}`]
