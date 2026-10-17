@@ -2,7 +2,7 @@
   "name": "@byline/analytics-agent",
   "private": false,
   "license": "MPL-2.0",
-  "version": "6.8.0",
+  "version": "6.9.0",
   "engines": {
     "node": ">=22.22.2"
   },

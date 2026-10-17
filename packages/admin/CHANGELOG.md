@@ -1,5 +1,21 @@
 # @byline/admin
 
+## 6.9.0
+
+### Minor Changes
+
+- added _unavailableBlocks read warnings for removed block types (content writes now drop them) and copy/download json in the api view; renamed admin config slug to path
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/analytics@6.9.0
+  - @byline/analytics-agent@6.9.0
+  - @byline/auth@6.9.0
+  - @byline/core@6.9.0
+  - @byline/i18n@6.9.0
+  - @byline/ui@6.9.0
+
 ## 6.8.0
 
 ### Minor Changes
