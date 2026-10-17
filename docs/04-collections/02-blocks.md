@@ -176,9 +176,9 @@ array's drags can't leak into the block-level context. Arrays inside plain
 top-level groups and arrays nested inside another array's items keep the
 conservative drag-free default (add/remove still available; grip-less items
 render through `StaticItem`, the non-dnd sibling of `SortableItem`).
-Browser-level coverage: `apps/webapp/e2e/array-in-block.spec.ts` (add →
-fill → save → keyboard drag-reorder → remove, round-tripped through
-reloads against the reference FAQBlock).
+Verify add, fill, save, keyboard drag-reorder, and remove by hand against the
+reference FAQBlock, reloading after each saved change. The former automated
+browser suite has been removed; see [Browser verification](../13-testing.md#browser-verification).
 
 ### What block admin config never touches
 

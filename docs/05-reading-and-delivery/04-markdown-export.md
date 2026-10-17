@@ -156,7 +156,11 @@ state is *two accepted input dialects, one output dialect*: extend
 
 - `packages/richtext-lexical/src/field/markdown/lexical-to-markdown.test.node.ts`
 - `packages/core/src/services/document-to-markdown.test.node.ts`
-- `apps/webapp/e2e/markdown.spec.ts`, `apps/webapp/e2e/llms.spec.ts`
+- `apps/webapp/src/lib/markdown-negotiation.test.ts`
+
+The former browser specifications for `.md` routes and `llms.txt` have been
+removed. Verify route behavior by hand as described in
+[Browser verification](../13-testing.md#browser-verification).
 
 ## Routes and URL surface
 
@@ -165,7 +169,7 @@ the same cache-key dimension as the HTML page (see Caching):
 
 | URL | Route file | Collection |
 |---|---|---|
-| `/[lng/]docs/{path}.md` | `$lng/_frontend/docs/{$path}[.]md.ts` | docs |
+| `/[lng/]docs/{path}.md` | `$lng/_frontend/docs/{$}[.]md.ts` | docs |
 | `/[lng/]news/{path}.md` | `$lng/_frontend/news/{$path}[.]md.ts` | news |
 | `/[lng/]{path}.md` | `$lng/_frontend/{$path}[.]md.ts` | pages (root area) |
 | `/[lng/]about/{path}.md` | `$lng/_frontend/about/{$path}[.]md.ts` | pages |
@@ -178,7 +182,9 @@ Mechanics worth knowing (each cost a spike to learn):
   `params.path === 'foo'`. TanStack Router supports `{prefix{$id}suffix}`
   segments (`router-core` `path.d.ts`) even though the docs site barely
   mentions it; ranking correctly prefers it over the sibling `$path.tsx`
-  HTML route.
+  HTML route. The hierarchical docs route uses the suffixed splat
+  `{$}[.]md.ts` instead: `params._splat` contains the full path after `/docs/`,
+  without the `.md` suffix.
 - **The locale rewrite treats `.md` as content, not asset.**
   `isLocalizablePath` (`src/i18n/locale-rewrite.ts`) special-cases the
   `.md` suffix *before* its asset heuristic, so `/news/foo.md` is prefixed
@@ -227,7 +233,9 @@ description, H2 sections of `- [title](url.md): description` links) with
 links pointing at the **markdown representations**, not the HTML.
 
 Both `llms.txt` and `sitemap.xml` consume the same per-collection
-published-URL enumeration (`apps/webapp/src/lib/published-index.ts`): one
+published-URL enumeration in `apps/webapp/src/modules/docs/published.ts`,
+`apps/webapp/src/modules/news/published.ts`, and
+`apps/webapp/src/modules/pages/published.ts`: one
 scan per collection, one L1 cache entry (the sitemap keys/tags), so the two
 agent-facing surfaces structurally cannot drift. The sitemap maps entries to
 `<url>` + hreflang; `llms.txt` maps them to `.md` links with titles and

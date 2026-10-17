@@ -73,9 +73,9 @@ Service-layer enforcement is the real boundary. UI cues are cosmetic. Every writ
 
 ```ts
 // Collection-scope service — gates `verb` on `collections.<path>.<verb>`.
-import { assertActorCanPerform } from '@byline/core/auth'
+import { assertActorCanPerform } from '@byline/core'
 
-await assertActorCanPerform(requestContext, collectionPath, 'update')
+assertActorCanPerform(requestContext, { kind: 'collection', path: collectionPath }, 'update')
 ```
 
 ```ts
@@ -94,11 +94,14 @@ Seeds, migrations, and one-off scripts need a `RequestContext` to call `@byline/
 **Edit:** `apps/webapp/byline/seeds/<your-seed>.ts` (or any script that imports `byline/server.config.ts`).
 
 ```ts
+import '../server.config.js'
+
 import { createSuperAdminContext } from '@byline/auth'
-import { getBylineClient } from '@byline/core'
+import { createBylineClient } from '@byline/client'
+import { getServerConfig } from '@byline/core'
 
 const context = createSuperAdminContext({ id: 'seed:bootstrap' })
-const client = getBylineClient({ requestContext: context })
+const client = createBylineClient({ config: getServerConfig(), requestContext: context })
 
 await client.collection('pages').create({ title: 'Hello world' })
 ```

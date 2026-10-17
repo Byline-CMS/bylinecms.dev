@@ -739,7 +739,7 @@ If either becomes load-bearing for an external consumer, the fix lives in `parse
 | Postgres schema (columns + views) | `packages/db-postgres/src/database/schema/index.ts` |
 | `byline_singleton_documents` mapping tables | `packages/db-postgres/src/database/schema/index.ts`, `packages/db-mysql/src/database/schema/index.ts` |
 | `collections.create/update` adapter | `packages/db-postgres/src/modules/storage/storage-commands.ts` |
-| Baseline migration | `packages/db-postgres/src/database/migrations/0000_ordinary_rhino.sql` |
+| Baseline migration | `packages/db-postgres/src/database/migrations/0000_superb_ben_parker.sql` |
 | Default `ListView` (table-based) | `packages/host-tanstack-start/src/admin-shell/collections/list.tsx` |
 | `RouterPager` (URL-driven pagination) | `packages/host-tanstack-start/src/admin-shell/chrome/router-pager.tsx` |
 | Reference custom list view | `apps/webapp/byline/collections/media/components/media-list-view.tsx` |

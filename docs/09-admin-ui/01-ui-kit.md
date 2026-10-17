@@ -103,7 +103,7 @@ Byline ships the kit through a small set of subpath exports:
 
 The `/react/` segment is intentional: it leaves room for a future `/vue/` or `/svelte/` namespace if a non-React adapter ever ships, without breaking existing imports. A single barrel (rather than per-area subpaths) dodges the Vite `optimizeDeps` Context-identity trap. See the comment at the top of `packages/ui/src/react.ts`.
 
-Byline-owned admin surfaces (`FormRenderer`, `FieldRenderer`, every per-type field widget, `AdminGroup` / `AdminRow` / `AdminTabs`, `StatusBadge`, `DiffModal`, `BylineFieldServicesProvider`, `LocalDateTime`, `DateTimeFormatter`, `useFormContext`, `useFieldValue`) live in **`@byline/admin/react`**. See [`docs/Collections`](../04-collections/index.md) and [`docs/Fields`](../04-collections/01-fields.md) for the import patterns.
+Byline-owned admin surfaces (`FormRenderer`, `FieldRenderer`, every per-type field widget, `AdminGroup` / `AdminRow` / `AdminTabs`, `StatusBadge`, `DiffModal`, `BylineFieldServicesProvider`, `LocalDateTime`, `DateTimeFormatter`, `useFormContext`, `useFieldValue`) live in **`@byline/admin/react`**. See [Collections](../04-collections/index.md) and [Fields](../04-collections/01-fields.md) for the import patterns.
 
 ## Consumer setup
 

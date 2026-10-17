@@ -9,7 +9,7 @@ summary: "How an application mounts analytics ingest and supplies trusted reques
 Companions:
 - [Analytics](./index.md) — the portable contract and end-to-end flow.
 - [Analytics browser agent and consent](./02-browser-agent-and-consent.md) — choosing the endpoint and loading policy.
-- [Deployment topologies](../03-architecture/05-deployment-topologies.md) — Byline's integrated and future split-host arrangements.
+- [Deployment topologies](../03-architecture/06-deployment-topologies.md) — Byline's integrated and future split-host arrangements.
 - [Routing and API](../05-reading-and-delivery/02-routing-and-api.md) — why document and upload operations still use host transports rather than a stable public HTTP API.
 
 The browser agent needs one anonymous POST endpoint. The application chooses its path and connects it to `analytics.ingest()`. Neither the portable package nor the TanStack host mounts that route automatically.

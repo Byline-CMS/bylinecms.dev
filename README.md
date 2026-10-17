@@ -96,14 +96,17 @@ overview; the table of contents below links straight to every topic reference.
   storage (EAV-per-type), the seven typed `store_*` tables, flatten/reconstruct,
   immutable versioning, and indicative benchmark numbers.
 - **[Core Composition](docs/03-architecture/02-core-composition.md)** —
-  forward-looking roadmap for `createCommand`, module registries, a command tree
-  on `BylineCore`, per-realm request-context builders, and `loadConfig()`.
+  database, storage, session, search, and rich text adapters composed at boot,
+  plus the runtime registry and admin command wrapper.
 - **[Transactions](docs/03-architecture/03-transactions.md)** — the transaction
   model spanning storage writes, hooks, and uploads.
 - **[Path Grammar](docs/03-architecture/04-path-grammar.md)** — how fields are
   addressed across storage, schemas, patches, forms, and upload configuration:
   the two path notations, when each applies, and their limits.
-- **[Deployment Topologies](docs/03-architecture/05-deployment-topologies.md)** —
+- **[Content history and document controls](docs/03-architecture/05-content-history-and-document-controls.md)**
+  — immutable content history, audited mutable controls, source-locale
+  re-anchoring, and the limits of historical replay.
+- **[Deployment Topologies](docs/03-architecture/06-deployment-topologies.md)** —
   the integrated single host available today, and the three split admin / API /
   front-end shapes the architecture is designed to reach.
 
@@ -144,13 +147,14 @@ schema versioning.
 - **[Routing & API](docs/05-reading-and-delivery/02-routing-and-api.md)** — the
   internal TanStack-server-fn transport phase, today's server-fn surface, and
   what triggers a stable HTTP boundary.
-- **[Transports](docs/05-reading-and-delivery/03-transports.md)** — layering
-  framework-agnostic logic under host-specific bindings.
+- **[Transports](docs/05-reading-and-delivery/03-transports.md)** — the planned
+  separation of framework-agnostic operations from host-specific bindings.
 - **[Markdown Export](docs/05-reading-and-delivery/04-markdown-export.md)** —
   one-way Lexical-to-markdown rendering, the `.md` URL surface, and `llms.txt`
   for agent consumers.
-- **[MCP Server](docs/05-reading-and-delivery/05-mcp-server.md)** — exposing
-  Byline content to AI agents over the Model Context Protocol.
+- **[MCP Server](docs/05-reading-and-delivery/05-mcp-server.md)** — the historical
+  transport proposal and links to the current specification for delegated
+  authoring and publication; the server is not yet shipped.
 - **[Caching](docs/05-reading-and-delivery/06-caching.md)** — L1/L2 cache layers,
   the reference `publicCacheMiddleware`, cookie-aware CDN bypass for editors,
   invalidation strategies, and clustering trade-offs.
@@ -189,6 +193,8 @@ schema versioning.
 - **[Auditability](docs/07-auth-and-security/02-auditability.md)** — the
   per-version acting-user trail, the document-level audit log, and the history
   and activity views built on top of them.
+- **[Passkeys](docs/07-auth-and-security/03-passkeys.md)** — optional administrator
+  sign-in, relying-party configuration, upgrades, and credential recovery.
 
 ### 8. [Internationalization](docs/08-internationalization/index.md)
 
@@ -205,13 +211,16 @@ schema versioning.
 
 - **[UI Kit](docs/09-admin-ui/01-ui-kit.md)** — `@byline/ui` as a single
   brand-coherent UI surface: the foundational kit shared with `@infonomic/uikit`,
-  the byline-prefixed cascade-layer system, and the
-  `./react/{admin,fields,forms,services}` subpath exports.
+  the byline-prefixed cascade-layer system, and the `@byline/ui/react` barrel;
+  CMS components live in `@byline/admin/react`.
 - **[Admin-config Registration](docs/09-admin-ui/02-admin-config-registration.md)**
   — why admin configuration is registered from both eager and lazy `_byline`
   routes while remaining code-split from public routes.
 - **[Collection Groups](docs/09-admin-ui/03-collection-groups.md)** — arrange
   dashboard collections into labelled, ordered, permission-aware groups.
+- **[Richtext field capabilities](docs/09-admin-ui/04-richtext-capabilities.md)**
+  — accepted editor structures, visible controls, and handling stored content
+  whose structures are no longer supported.
 
 ### 10. [API Reference](docs/10-api-reference/index.md)
 
@@ -267,7 +276,7 @@ boundary that is deliberately deferred until a second, non-admin client exists.
 <img width="900" alt="Byline CMS deployment scenario 1: integrated all-in-one host with admin, front-end and Client SDK co-located, connected to Postgres" src="docs/03-architecture/images/byline-deployment-1-integrated.svg" />
 
 All four deployment scenarios, current and future, are described in
-[Deployment Topologies](docs/03-architecture/05-deployment-topologies.md),
+[Deployment Topologies](docs/03-architecture/06-deployment-topologies.md),
 with a diagram of each.
 
 
@@ -292,7 +301,7 @@ pnpm dlx @byline/cli@latest init
 ```
 
 `init` prompts for where to mount the admin UI and sign-in page, how to connect
-to PostgreSQL, and whether to include the example collections. It summarises
+to PostgreSQL or MySQL, and whether to include the example collections. It summarises
 those choices, along with a diff of every file it plans to write, before
 installing anything. When it finishes you have a working admin UI, a
 provisioned and migrated database, a seeded super-admin account, and a
@@ -333,8 +342,8 @@ Initialise the database and run migrations, from the repository root:
 
 ```sh
 cp packages/db-postgres/.env.example packages/db-postgres/.env
-pnpm db:init
-pnpm drizzle:migrate
+pnpm --filter @byline/db-postgres db:init
+pnpm --filter @byline/db-postgres drizzle:migrate
 ```
 
 Configure the webapp and seed it:

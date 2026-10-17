@@ -9,7 +9,7 @@ summary: "The load-bearing design decisions behind Byline: universal EAV storage
 Companions:
 - [Configuration](../01-getting-started/03-configuration.md) — where these architectural boundaries appear in an application's files and imports.
 - [Document Storage](./01-document-storage.md) — the complete typed EAV and immutable-versioning model.
-- [Content history and document controls](./06-content-history-and-document-controls.md) explains the rationale, historical guarantees, source-locale boundary, and future design questions.
+- [Content history and document controls](./05-content-history-and-document-controls.md) explains the rationale, historical guarantees, source-locale boundary, and future design questions.
 - [API Reference](../10-api-reference/index.md) — exact configuration, collection, field, and Client SDK contracts built on these decisions.
 
 These are the load-bearing decisions behind Byline. Each is described in depth in
@@ -104,7 +104,7 @@ write APIs. Audit evidence does not by itself guarantee exact replay of historic
 public responses.
 
 The architectural promise is **immutable content history, with audited mutable
-workflow and document controls**. [Content history and document controls](./06-content-history-and-document-controls.md)
+workflow and document controls**. [Content history and document controls](./05-content-history-and-document-controls.md)
 explains the costs, the distinction between default changes and source re-anchoring,
 and the requirements that could justify historical replay or coordinated releases.
 
@@ -145,7 +145,7 @@ export const Pages: CollectionDefinition = {
   // `availableLocales` is likewise a reserved system attribute; opt in here and
   // core renders the available-locales sidebar widget (not layout-addressable).
   advertiseLocales: true,
-  search: { fields: ['title'] },
+  search: { body: ['title'] },
   fields: [
     { name: 'title', label: 'Title', type: 'text', localized: true },
     { name: 'content', label: 'Content', type: 'richText', localized: true },
@@ -258,6 +258,6 @@ honest against three progressively split arrangements (an exposed HTTP API, a
 separate front-end host, and three dedicated hosts), each of which depends on
 the stable HTTP boundary that is deliberately deferred.
 
-See [Deployment Topologies](./05-deployment-topologies.md) for the four shapes,
+See [Deployment Topologies](./06-deployment-topologies.md) for the four shapes,
 what stays constant across them, and why the SDK is never split from the runtime
 it calls.

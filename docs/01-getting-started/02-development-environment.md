@@ -13,7 +13,7 @@ Companions:
 
 By the end of this guide you will have the Byline reference application (`apps/webapp`) running locally against a seeded PostgreSQL database, viewable at `http://localhost:5173/`. It is the quickest way to see a working Byline installation.
 
-**Prerequisites:** Node `>=22.22.2` (24.15 or later on Node 24), pnpm, and Docker (for the bundled PostgreSQL container). If you'd rather add Byline to an existing TanStack Start app than run this repo, use the [CLI](./01-cli.md) instead.
+**Prerequisites:** Node `>=22.22.2` (24.15 or later on Node 24), pnpm 12.11.2 (pinned in the root `package.json`), and Docker (for the bundled PostgreSQL container). If you'd rather add Byline to an existing TanStack Start app than run this repo, use the [CLI](./01-cli.md) instead.
 
 ## 1. Clone and install dependencies
 
@@ -59,7 +59,7 @@ cp packages/db-postgres/.env.example packages/db-postgres/.env
 
 # Again, the default database root password is 'test'
 # (assuming you're using our docker-compose.yml file).
-pnpm db:init
+pnpm --filter @byline/db-postgres db:init
 ```
 
 :::warning[Foot-gun protection]
@@ -69,11 +69,11 @@ reset.
 :::
 
 ```sh
-# You can optionally run pnpm drizzle:generate, although since
+# You can optionally run pnpm --filter @byline/db-postgres drizzle:generate, although since
 # this is a development repo - migrations have already been generated
 # and committed.
-# pnpm drizzle:generate
-pnpm drizzle:migrate
+# pnpm --filter @byline/db-postgres drizzle:generate
+pnpm --filter @byline/db-postgres drizzle:migrate
 ```
 
 ### 2.3. Configure the webapp, and optionally seed documents

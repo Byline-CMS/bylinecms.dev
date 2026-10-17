@@ -10,7 +10,7 @@ Companions:
 - [Content locales](./03-content-locales.md) — what a content locale is, and the resolution / fallback / advertising machinery this administrative task operates on.
 - [Document Paths](../04-collections/05-document-paths.md) — the per-`(document, locale)` path row that a re-anchor moves onto the new default locale.
 - [Internationalization](./index.md) — the three-axis overview.
-- [Content history and document controls](../03-architecture/06-content-history-and-document-controls.md) explains why source locale is stable across default changes and records the open re-anchoring questions.
+- [Content history and document controls](../03-architecture/05-content-history-and-document-controls.md) explains why source locale is stable across default changes and records the open re-anchoring questions.
 
 ## Switching the default content locale
 
@@ -61,7 +61,7 @@ Re-anchor only when you deliberately want to change their durable source. The
 operation checks the latest version's completeness in the target locale; it does
 not establish that every retained version is complete there.
 
-The [source interpretation review](../03-architecture/06-content-history-and-document-controls.md#source-interpretation-after-re-anchoring)
+The [source interpretation review](../03-architecture/05-content-history-and-document-controls.md#source-interpretation-after-re-anchoring)
 records an unresolved case where a complete latest draft permits re-anchoring while
 an older published version remains incomplete in the new source. That concern also
 applies to historical interpretation and requires regression verification. It is

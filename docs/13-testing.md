@@ -8,13 +8,15 @@ summary: "Two suites, two commands: pnpm test (unit, no database) and pnpm test:
 
 Companions:
 - [Development environment and example application](./01-getting-started/02-development-environment.md) — the local database and application setup the integration suite builds on.
-- [Markdown Export](./05-reading-and-delivery/04-markdown-export.md) — the agent-facing routes the agent-surface specs pin the served output of.
+- [Markdown Export](./05-reading-and-delivery/04-markdown-export.md) — the serialization contracts covered by unit tests and the routes that require manual verification.
 
 Two test suites, two commands:
 
 - **`pnpm test`** — unit tests across every package. Pure CPU, no database needed.
-- **`pnpm test:integration`** — DB-backed storage, client, and search-provider
-  tests. Runs against dedicated `byline_test` PostgreSQL and MySQL databases.
+- **`pnpm test:integration`** — database-backed storage, client, search, analytics,
+  and CLI provisioning tests. Adapter and client suites use dedicated
+  `byline_test` PostgreSQL and MySQL databases; CLI tests create their own
+  temporary databases.
 
 CI runs both in the same job against PostgreSQL and MySQL service containers.
 
@@ -25,6 +27,7 @@ CI runs both in the same job against PostgreSQL and MySQL service containers.
 cp packages/db-postgres/.env.example      packages/db-postgres/.env       # dev DB
 cp packages/db-postgres/.env.test.example packages/db-postgres/.env.test  # test DB
 cp packages/client/.env.test.example      packages/client/.env.test       # client integration tests
+cp packages/cli/.env.test.example         packages/cli/.env.test          # CLI provisioning tests
 cp packages/search-postgres/.env.test.example packages/search-postgres/.env.test
 cp packages/analytics-postgres/.env.test.example packages/analytics-postgres/.env.test
 cp packages/db-mysql/.env.example         packages/db-mysql/.env          # MySQL dev DB
@@ -43,7 +46,11 @@ pnpm test              # unit suites — no DB
 pnpm test:integration  # integration suites — requires byline_test
 ```
 
-The integration runner auto-migrates `byline_test` on startup (Drizzle's migrator is idempotent) and truncates every public table between test files. A crashed prior run can't leak state into the next.
+Storage and client integration runners migrate their test database on startup
+and reset its data between files. Search and analytics suites apply their own
+numbered migrations and clean up their fixtures. CLI provisioning tests use
+the admin connection URLs in `packages/cli/.env.test` to create and drop
+temporary `byline_cli_*_test` databases and roles on the local database servers.
 
 ## What runs where
 
@@ -53,11 +60,11 @@ The integration runner auto-migrates `byline_test` on startup (Drizzle's migrato
 | `@byline/auth` | ✅ vitest `--mode=node` | — |
 | `@byline/admin` | ✅ vitest `--mode=node` | — |
 | `@byline/ai` | ✅ vitest `--mode=node` | — |
-| `@byline/cli` | ✅ vitest `--passWithNoTests` | — |
+| `@byline/cli` | ✅ vitest `--passWithNoTests` | ✅ PostgreSQL and MySQL provisioning |
 | `@byline/host-tanstack-start` | ✅ vitest `--mode=node` | — |
 | `@byline/client` | ✅ vitest `--mode=node` (`*.test.node.ts`) | ✅ vitest `--mode=integration` (`*.integration.test.ts`) |
-| `@byline/db-postgres` | ❌ no-op (every test needs a DB) | ✅ vitest `--mode=integration` (`src/**/tests/**/*.test.ts`) |
-| `@byline/db-mysql` | ❌ no-op (every test needs a DB) | ✅ shared storage conformance against MySQL |
+| `@byline/db-postgres` | ✅ vitest `--mode=node` | ✅ adapter tests and shared storage conformance |
+| `@byline/db-mysql` | ✅ vitest `--mode=node` | ✅ shared storage conformance against MySQL |
 | `@byline/search-postgres` | ✅ vitest `--mode=node` | ✅ shared search conformance against PostgreSQL |
 | `@byline/search-mysql` | ✅ vitest `--mode=node` | ✅ shared search conformance against MySQL |
 | `@byline/analytics` | ✅ vitest `--mode=node` | — |
@@ -65,8 +72,8 @@ The integration runner auto-migrates `byline_test` on startup (Drizzle's migrato
 | `@byline/analytics-postgres` | ✅ bundled migration drift tests | ✅ shared analytics conformance against PostgreSQL |
 | `@byline/analytics-mysql` | ✅ bundled migration drift tests | ✅ shared analytics conformance against MySQL |
 
-Only integration-mode suites write to the dedicated test databases. Unit suites
-remain in-memory.
+Only integration-mode suites write to the test databases. Unit suites do not
+require a database server.
 
 `pnpm test` (root) runs `turbo run test`. `pnpm test:integration` (root) runs
 `turbo run test:integration --concurrency=1`. The concurrency flag serialises
@@ -80,8 +87,9 @@ fixtures mid-run.
 | `byline_dev` | `pnpm dev` (webapp, admin UI) | Created once, lives as long as you want, manual seed |
 | `byline_test` | `pnpm test:integration` | Created once, wiped by the test runner between test files |
 
-The local PostgreSQL and MySQL containers each use this logical split. Search
-and storage suites only target their engine's `byline_test` database.
+The local PostgreSQL and MySQL containers each use this logical split. Search,
+analytics, client, and storage suites target their engine's `byline_test` database.
+CLI provisioning uses separate temporary databases as described above.
 
 ## Safety guards
 
@@ -94,21 +102,25 @@ Two layers prevent tests from pointing at the wrong database:
 
 ## Isolation strategy
 
+The PostgreSQL storage and client suites share this isolation strategy:
+
 - **Migrate once per test run** — vitest `globalSetup` migrates before any test file loads. Drizzle's migrator is idempotent so re-runs are cheap.
 - **TRUNCATE between files** — `setupFiles` truncates every table in `public` (except `__drizzle_migrations`) with `RESTART IDENTITY CASCADE` via a `beforeAll` at the top of each test file. Existing per-test track-and-clean code (e.g. the admin tests) stays in place as a belt; TRUNCATE is the braces.
 - **No transaction-per-test** — the storage code opens its own transactions; wrapping tests in one would break the lifecycle paths under test.
 
-Both `@byline/client` and `@byline/db-postgres` use the same vitest config shape (`globalSetup` + `setupFiles` + `fileParallelism: false` + single-fork pool), so the isolation story is identical across packages.
+Both `@byline/client` and `@byline/db-postgres` use the same vitest config shape (`globalSetup`, `setupFiles`, `fileParallelism: false`, `maxWorkers: 1`, and `isolate: false`), so the isolation story is identical across packages.
 
 ## CI
 
 `.github/workflows/ci.yml` runs on every pull request and on direct pushes to `develop` / `main`. Two jobs:
 
-- **lint-and-typecheck** — `pnpm install --frozen-lockfile` → `pnpm byline:generate:check` → `pnpm docs:check` → `pnpm lint` → `pnpm typecheck` → `pnpm knip`.
+- **lint-and-typecheck** — `pnpm install --frozen-lockfile` → `pnpm byline:generate:check` → `pnpm docs:check` → `pnpm lint` → `pnpm typecheck` → `pnpm knip` → `pnpm knip:exports` → `pnpm test:scripts`.
 - **test-suite** — boots PostgreSQL and MySQL service containers with
   `byline_test` pre-created, writes `.env.test` files from the job-level env
-  block, builds the workspace packages, then runs `pnpm test` followed by
-  `pnpm test:integration`.
+  block, and builds the workspace packages. It checks the CLI templates and
+  package artifact, runs `pnpm test`, the sign-in transport check, and
+  `pnpm test:integration`, then repeats storage and analytics conformance with
+  `TZ=Asia/Kathmandu` to verify timezone-independent behavior.
 
 Both jobs skip when the head commit starts with `chore(release):` so version-bump pushes from `pnpm version-packages` don't trigger redundant runs. Tag pushes (`git push --tags`) and `gh release create` aren't listened to at all, so the local-only release flow stays silent.
 
@@ -121,6 +133,8 @@ When branch protection is enabled in repo settings, CI becomes a hard gate with 
 The database-backed packages use vitest, so the invocation is the same shape:
 
 ```sh
+# Run each example independently from the repository root.
+
 # @byline/client
 cd packages/client && pnpm vitest run --mode=integration tests/integration/client-read.integration.test.ts
 
@@ -172,9 +186,9 @@ what you exercised and what you observed. Boot the server with the development
 Postgres up and `byline_dev` migrated and seeded:
 
 ```sh
-cd postgres && ./postgres.sh up -d
-cd apps/webapp && pnpm tsx byline/seed.ts
-cd apps/webapp && pnpm dev
+(cd postgres && ./postgres.sh up -d)
+(cd apps/webapp && pnpm tsx byline/seed.ts)
+pnpm --filter @byline/webapp dev
 ```
 
 Two behaviours are worth knowing before you interact with the admin document
