@@ -1,3 +1,5 @@
+'use client'
+
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -19,8 +21,6 @@ import { AdminDrawerToggle } from './admin-drawer-toggle.js'
 import { Branding } from './branding.js'
 import { Breadcrumbs } from './breadcrumbs/breadcrumbs.js'
 import { useBreadcrumbs } from './breadcrumbs/breadcrumbs-provider.js'
-
-;('use client')
 
 interface AdminAppBarProps {
   user: CurrentAdminUser

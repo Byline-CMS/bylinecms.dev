@@ -1,7 +1,4 @@
-import { DocumentMutationNotice } from '../document-mutation-notice.js'
-import { useDocumentMutationState } from '../document-mutation-state.js'
-
-;('use client')
+'use client'
 
 /**
  * This Source Code is subject to the terms of the Mozilla Public
@@ -32,6 +29,8 @@ import { getAdminRoutePath } from '../../routes/admin-path.js'
 import { cancelCollectionDocumentScheduledPublish } from '../../server-fns/collections/index.js'
 import { Link, useNavigate } from '../chrome/loose-router.js'
 import { RouterPager } from '../chrome/router-pager.js'
+import { DocumentMutationNotice } from '../document-mutation-notice.js'
+import { useDocumentMutationState } from '../document-mutation-state.js'
 import styles from './list.module.css'
 import type { ScheduledPublicationListResponse } from '../../server-fns/collections/index.js'
 
