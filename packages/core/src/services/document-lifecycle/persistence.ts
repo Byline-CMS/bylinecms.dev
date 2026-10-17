@@ -9,10 +9,12 @@
 import { assertDocumentFields } from '../../validation/document-fields.js'
 import { requireAuditCapability } from './audit.js'
 import { actorId } from './internals.js'
+import { mergeWriteLocale } from './merge-write-locale.js'
 import { commitContentVersionWithScheduleSuspension } from './publish-schedule-consistency.js'
 import { normalizeDocumentVersionParentError } from './stale-document.js'
 import { appendTreeRoot } from './tree.js'
 import type { IDocumentCommands } from '../../@types/index.js'
+import type { UnavailableBlock } from '../../storage/storage-restore.js'
 import type { DocumentLifecycleContext } from './context.js'
 
 type AdapterVersionWrite = Parameters<IDocumentCommands['createDocumentVersion']>[0]
@@ -110,11 +112,40 @@ export async function persistInitialDocumentVersion(
  * publication schedule atomically. All operation-specific preparation and
  * hook sequencing remains in the caller.
  */
-export function persistExistingDocumentVersion(
+export async function persistExistingDocumentVersion(
   ctx: DocumentLifecycleContext,
-  write: ExistingDocumentVersionWrite
+  write: ExistingDocumentVersionWrite,
+  previousRead?: { unavailableBlocks?: readonly UnavailableBlock[] } | null
 ): ReturnType<IDocumentCommands['createDocumentVersion']> {
   assertWritableContent(ctx, write)
+  // Single-locale storage writes copy other locales' positional rows forward.
+  // After compaction those rows can resurrect unavailable blocks or attach a
+  // translation to the wrong survivor. Rebuild all locales by item identity.
+  if (
+    previousRead?.unavailableBlocks?.length &&
+    write.previousVersionId &&
+    write.locale &&
+    write.locale !== 'all'
+  ) {
+    const previous = await ctx.db.queries.documents.getDocumentByVersion({
+      document_version_id: write.previousVersionId,
+      document_id: write.documentId,
+      collection_id: ctx.collectionId,
+      locale: 'all',
+    })
+    if (previous?.unavailableBlocks?.length) {
+      write = {
+        ...write,
+        documentData: mergeWriteLocale(
+          ctx.definition.fields,
+          previous.fields,
+          write.documentData,
+          write.locale
+        ),
+        locale: 'all',
+      }
+    }
+  }
   return commitContentVersionWithScheduleSuspension({
     ctx,
     documentId: write.documentId,

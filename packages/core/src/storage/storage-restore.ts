@@ -17,16 +17,34 @@ import type { FlattenedFieldValue, UnifiedFieldValue } from './storage-row-types
 // nested structure.
 // ------------------------------------------------------------------------------
 
+export interface UnavailableBlock {
+  /** Instance path in the compacted document, e.g. sections[0].body. */
+  fieldPath: string
+  /** Position in the stored blocks array before compaction. */
+  storedIndex: number
+  blockType: string
+  id?: string
+}
+
+// Shared across duplicate server module graphs, just like the logger registry.
+const loggedVersionsKey = Symbol.for('byline.unavailable-block-versions')
+const processState = globalThis as typeof globalThis & { [loggedVersionsKey]?: Set<string> }
+processState[loggedVersionsKey] ??= new Set<string>()
+const loggedVersions = processState[loggedVersionsKey]
+
+type UnavailableByArray = Map<any[], Map<number, Omit<UnavailableBlock, 'fieldPath'>>>
+
 export interface RestoreResult {
   data: any
   warnings: string[]
+  unavailableBlocks: UnavailableBlock[]
 }
 
 /**
  * Main entrypoint for restoring a document's field data from flattened form
  * back into the original nested structure.
  *
- * Always returns `{ data, warnings }`. Warnings carry per-row reasons (e.g.
+ * Always returns `{ data, warnings, unavailableBlocks }`. Warnings carry per-row reasons (e.g.
  * "Invalid block index 'undefined'") that are typically the result of a
  * collection schema change leaving orphan rows behind. Callers decide what
  * to do with them — strict reads reject any non-empty `warnings`, lenient
@@ -38,10 +56,12 @@ export interface RestoreResult {
 export const restoreFieldSetData = (
   fields: FieldSet,
   flattenedData: FlattenedFieldValue[],
-  resolveLocale?: string
+  resolveLocale?: string,
+  identity?: { collectionPath: string; documentId: string; versionId: string }
 ): RestoreResult => {
   const result: any = {}
   const warnings: string[] = []
+  const unavailableByArray: UnavailableByArray = new Map()
 
   for (const item of flattenedData) {
     // biome-ignore lint/style/noNonNullAssertion: TODO: put in a proper check here?
@@ -62,6 +82,7 @@ export const restoreFieldSetData = (
         item,
         1,
         warnings,
+        unavailableByArray,
         resolveLocale
       )
     }
@@ -82,7 +103,46 @@ export const restoreFieldSetData = (
     }
   }
 
-  return { data: result, warnings }
+  const unavailableBlocks: UnavailableBlock[] = []
+  // Finish only after all rows (including identity metadata) have been read.
+  // Walk parents before children so nested report paths use compacted indices.
+  const finish = (fields: FieldSet, value: any, prefix = '') => {
+    for (const field of fields) {
+      const path = prefix ? `${prefix}.${field.name}` : field.name
+      const child = value?.[field.name]
+      if (field.type === 'group' && child) finish(field.fields, child, path)
+      if ((field.type === 'blocks' || field.type === 'array') && Array.isArray(child)) {
+        for (const issue of [...(unavailableByArray.get(child)?.values() ?? [])].sort(
+          (a, b) => a.storedIndex - b.storedIndex
+        ))
+          unavailableBlocks.push({ fieldPath: path, ...issue })
+        const compacted = child.filter((item) => item != null)
+        value[field.name] = compacted
+        compacted.forEach((item, index) => {
+          const itemFields =
+            field.type === 'array'
+              ? field.fields
+              : field.blocks.find((block) => block.blockType === item._type)?.fields
+          if (itemFields) finish(itemFields, item, `${path}[${index}]`)
+        })
+      }
+    }
+  }
+  finish(fields, result)
+  if (identity && unavailableBlocks.length > 0) {
+    const key = JSON.stringify([identity.collectionPath, identity.documentId, identity.versionId])
+    if (!loggedVersions.has(key)) {
+      loggedVersions.add(key)
+      getLogger().warn(
+        {
+          ...identity,
+          blockTypes: [...new Set(unavailableBlocks.map((issue) => issue.blockType))],
+        },
+        'Document contains unavailable blocks; saving content will remove them'
+      )
+    }
+  }
+  return { data: result, warnings, unavailableBlocks }
 }
 
 const restoreFieldData = (
@@ -91,14 +151,39 @@ const restoreFieldData = (
   data: FlattenedFieldValue,
   pathIndex: number,
   warnings: string[],
+  unavailableByArray: UnavailableByArray,
   resolveLocale?: string
 ): any => {
   if (field.type === 'group') {
-    return restoreGroupFieldData(field, target, data, pathIndex, warnings, resolveLocale)
+    return restoreGroupFieldData(
+      field,
+      target,
+      data,
+      pathIndex,
+      warnings,
+      unavailableByArray,
+      resolveLocale
+    )
   } else if (field.type === 'array') {
-    return restoreArrayFieldData(field, target, data, pathIndex, warnings, resolveLocale)
+    return restoreArrayFieldData(
+      field,
+      target,
+      data,
+      pathIndex,
+      warnings,
+      unavailableByArray,
+      resolveLocale
+    )
   } else if (field.type === 'blocks') {
-    return restoreBlocksFieldData(field, target, data, pathIndex, warnings, resolveLocale)
+    return restoreBlocksFieldData(
+      field,
+      target,
+      data,
+      pathIndex,
+      warnings,
+      unavailableByArray,
+      resolveLocale
+    )
   } else if (field.type === 'relation' && field.hasMany) {
     return restoreMultiRelationFieldData(target, data, pathIndex, warnings)
   }
@@ -137,6 +222,7 @@ const restoreGroupFieldData = (
   data: FlattenedFieldValue,
   pathIndex: number,
   warnings: string[],
+  unavailableByArray: UnavailableByArray,
   resolveLocale?: string
 ): any => {
   if (pathIndex >= data.field_path.length) {
@@ -160,6 +246,7 @@ const restoreGroupFieldData = (
     data,
     pathIndex + 1,
     warnings,
+    unavailableByArray,
     resolveLocale
   )
   return target
@@ -171,6 +258,7 @@ const restoreArrayFieldData = (
   data: FlattenedFieldValue,
   pathIndex: number,
   warnings: string[],
+  unavailableByArray: UnavailableByArray,
   resolveLocale?: string
 ): any => {
   if (pathIndex >= data.field_path.length) {
@@ -216,6 +304,7 @@ const restoreArrayFieldData = (
     data,
     pathIndex + 2,
     warnings,
+    unavailableByArray,
     resolveLocale
   )
   return target
@@ -227,6 +316,7 @@ const restoreBlocksFieldData = (
   data: FlattenedFieldValue,
   pathIndex: number,
   warnings: string[],
+  unavailableByArray: UnavailableByArray,
   resolveLocale?: string
 ): any => {
   const arrayIndex = Number.parseInt(data.field_path[pathIndex] ?? '', 10)
@@ -247,7 +337,17 @@ const restoreBlocksFieldData = (
 
   const block = field.blocks.find((f) => f.blockType === blockType)
   if (block == null) {
-    // Block type was removed from the schema; silently skip orphaned rows.
+    target = target || []
+    let issues = unavailableByArray.get(target)
+    if (!issues) {
+      issues = new Map()
+      unavailableByArray.set(target, issues)
+    }
+    const issue = issues.get(arrayIndex) ?? { storedIndex: arrayIndex, blockType }
+    if (data.field_type === 'meta' && pathIndex + 2 === data.field_path.length) {
+      issue.id = data.item_id
+    }
+    issues.set(arrayIndex, issue)
     return target
   }
 
@@ -280,6 +380,7 @@ const restoreBlocksFieldData = (
     data,
     pathIndex + 3,
     warnings,
+    unavailableByArray,
     resolveLocale
   )
   return target

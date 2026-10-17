@@ -19,7 +19,12 @@
 
 import type { ReactNode, RefObject } from 'react'
 
-import type { SlugifierFn, StructuralMutationReceipt, WorkflowStatus } from '@byline/core'
+import type {
+  SlugifierFn,
+  StructuralMutationReceipt,
+  UnavailableBlock,
+  WorkflowStatus,
+} from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Alert, Button, ComboButton, LoaderEllipsis } from '@byline/ui/react'
 import cx from 'clsx'
@@ -263,6 +268,7 @@ export interface FormConcurrencyNoticesProps {
   onDiscardRequested: () => void
   scheduling: UseScheduledPublicationReturn
   restoreWarnings?: string[]
+  unavailableBlocks?: UnavailableBlock[]
 }
 
 export const FormConcurrencyNotices = ({
@@ -276,6 +282,7 @@ export const FormConcurrencyNotices = ({
   onDiscardRequested,
   scheduling,
   restoreWarnings,
+  unavailableBlocks,
 }: FormConcurrencyNoticesProps): ReactNode => {
   const { t } = useTranslation('byline-admin')
 
@@ -329,6 +336,17 @@ export const FormConcurrencyNotices = ({
         onCancel={scheduling.cancel}
       />
       {scheduling.modal}
+      {unavailableBlocks && unavailableBlocks.length > 0 && (
+        <Alert
+          className="m-0 mt-4"
+          intent="warning"
+          icon={true}
+          close={false}
+          title={t('forms.unavailableBlocks.title')}
+        >
+          <p>{t('forms.unavailableBlocks.body', { count: unavailableBlocks.length })}</p>
+        </Alert>
+      )}
       {restoreWarnings && restoreWarnings.length > 0 && (
         <Alert
           className="m-0 mt-4"

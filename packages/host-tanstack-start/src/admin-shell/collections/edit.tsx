@@ -9,7 +9,11 @@
 import { useState } from 'react'
 
 import { FormRenderer } from '@byline/admin/react'
-import type { CollectionAdminConfig, MultiCollectionDefinition } from '@byline/core'
+import type {
+  CollectionAdminConfig,
+  MultiCollectionDefinition,
+  UnavailableBlock,
+} from '@byline/core'
 import {
   getDefaultStatus,
   getWorkflow,
@@ -321,6 +325,9 @@ export const EditView = ({
   // orphan row was skipped because the collection schema has moved on
   // since the document was written.
   // biome-ignore lint/suspicious/noExplicitAny: storage shape
+  const unavailableBlocks = (initialData as any)?._unavailableBlocks as
+    | UnavailableBlock[]
+    | undefined
   const restoreWarnings = (initialData as any)?._restoreWarnings as string[] | undefined
 
   const handleUnpublish = async () => {
@@ -854,6 +861,7 @@ export const EditView = ({
           contentLocales={contentLocales}
           publishedVersion={publishedVersion}
           restoreWarnings={restoreWarnings}
+          unavailableBlocks={unavailableBlocks}
           nextStatus={nextStatus}
           workflowStatuses={workflowStatuses}
           onCancel={() => {

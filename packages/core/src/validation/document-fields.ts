@@ -149,14 +149,20 @@ export function validateDocumentFields(
           if (field.validation?.maxLength != null && value.length > field.validation.maxLength)
             add(path, `${label} allows at most ${field.validation.maxLength} items`)
         }
-        value.forEach((item, index) => {
+        for (let index = 0; index < value.length; index++) {
+          const item = value[index]
           const itemPath =
             record(item) && typeof item._id === 'string' && /^[\w-]+$/.test(item._id)
               ? `${path}[id=${item._id}]`
               : `${path}[${index}]`
           if (!record(item)) {
-            add(itemPath, 'Item must be an object')
-            return
+            add(
+              itemPath,
+              field.type === 'blocks'
+                ? 'Block item is missing or must be an object'
+                : 'Item must be an object'
+            )
+            continue
           }
           if (field.type === 'array') visit(field.fields, item, itemPath)
           else {
@@ -164,7 +170,7 @@ export function validateDocumentFields(
             if (!block) add(itemPath, 'Unknown block type')
             else visit(block.fields, item, itemPath)
           }
-        })
+        }
       }
     } else {
       // Both halves are schema-author reachable: `validation.rules` can carry a

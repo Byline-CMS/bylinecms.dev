@@ -287,8 +287,9 @@ export function derivePath(
 }
 
 /**
- * Strip the synthetic `_id` / `_type` meta keys from every block and
- * array-item node in a reconstructed document tree.
+ * Strip the synthetic `_id` identity from every block and
+ * array-item node in a reconstructed document tree. Preserve `_type`, which
+ * selects the schema used to flatten each surviving block.
  *
  * Reconstructed `locale: 'all'` trees carry stable `_id` values for
  * blocks and array items (see CLAUDE.md → "Block/array items carry a
@@ -309,7 +310,6 @@ export function stripMetaIdsInPlace(value: unknown): void {
   if (value != null && typeof value === 'object' && !(value instanceof Date)) {
     const obj = value as Record<string, unknown>
     delete obj._id
-    delete obj._type
     for (const key of Object.keys(obj)) {
       stripMetaIdsInPlace(obj[key])
     }

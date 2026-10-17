@@ -11,7 +11,7 @@
 import { useRouter } from '@tanstack/react-router'
 
 import { FormRenderer } from '@byline/admin/react'
-import type { SingletonAdminConfig, SingletonDefinition } from '@byline/core'
+import type { SingletonAdminConfig, SingletonDefinition, UnavailableBlock } from '@byline/core'
 import {
   getDefaultStatus,
   getWorkflow,
@@ -82,6 +82,7 @@ export function SingletonView({
       ? workflowStatuses[currentIndex + 1]
       : undefined
   const publishedVersion = document?._publishedVersion ?? null
+  const unavailableBlocks = document?._unavailableBlocks as UnavailableBlock[] | undefined
   const restoreWarnings = document?._restoreWarnings as string[] | undefined
   const scheduledPublicationEnabled = document?._scheduledPublicationEnabled === true
   const canSchedulePublication = document?._canSchedulePublication === true
@@ -441,6 +442,7 @@ export function SingletonView({
           contentLocales={document == null ? undefined : contentLocales}
           publishedVersion={document == null ? null : publishedVersion}
           restoreWarnings={restoreWarnings}
+          unavailableBlocks={unavailableBlocks}
           nextStatus={document == null ? undefined : nextStatus}
           workflowStatuses={document == null ? undefined : workflowStatuses}
           onCancel={() => navigate({ to: getAdminRoutePath() })}

@@ -3444,7 +3444,7 @@ describe('Document lifecycle service', () => {
       expect(result.newPath).toBe('hello-world-copy')
     })
 
-    it('strips _id and _type metadata from blocks and array items so the new doc gets fresh identities', async () => {
+    it('strips _id identities but preserves block types when duplicating', async () => {
       const mocks = createMockDb()
       setupSource(mocks, {
         sourceFields: {
@@ -3470,7 +3470,9 @@ describe('Document lifecycle service', () => {
       const call = mocks.createDocumentVersion.mock.calls[0]?.[0]
       const sections = call.documentData.sections as any[]
       expect(sections[0]._id).toBeUndefined()
-      expect(sections[0]._type).toBeUndefined()
+      expect(sections[0]._type).toBe('section')
+      expect(sections[0].blocks[0]._type).toBe('photoBlock')
+      expect(sections[0].blocks[1]._type).toBe('textBlock')
       expect(sections[0].blocks[0]._id).toBeUndefined()
       expect(sections[0].blocks[1]._id).toBeUndefined()
       // Content survives — only meta is stripped.

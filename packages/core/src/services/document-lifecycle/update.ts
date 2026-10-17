@@ -181,15 +181,19 @@ async function replaceFields(
         },
         async (locked) => {
           const systemFields = await writeSystemFieldsInTransaction(ctx, params, locked)
-          const result = await persistExistingDocumentVersion(ctx, {
-            documentId: params.documentId,
-            action: 'update',
-            documentData: data,
-            path: pathForCommand,
-            status: policy === 'preserve' ? preservedStatus(ctx, locked.status) : defaultStatus,
-            locale: requestLocale,
-            previousVersionId,
-          })
+          const result = await persistExistingDocumentVersion(
+            ctx,
+            {
+              documentId: params.documentId,
+              action: 'update',
+              documentData: data,
+              path: pathForCommand,
+              status: policy === 'preserve' ? preservedStatus(ctx, locked.status) : defaultStatus,
+              locale: requestLocale,
+              previousVersionId,
+            },
+            latest
+          )
           if (policy === 'preserve' && locked.status === 'published') {
             await db.commands.documents.archivePublishedVersions({
               document_id: params.documentId,
@@ -348,15 +352,19 @@ export async function updateDocumentWithPatches(
         },
         async (locked) => {
           const systemFields = await writeSystemFieldsInTransaction(ctx, params, locked)
-          const result = await persistExistingDocumentVersion(ctx, {
-            documentId: params.documentId,
-            action: 'update',
-            documentData: nextData,
-            path: pathForCommand,
-            status: defaultStatus,
-            locale: requestLocale,
-            previousVersionId,
-          })
+          const result = await persistExistingDocumentVersion(
+            ctx,
+            {
+              documentId: params.documentId,
+              action: 'update',
+              documentData: nextData,
+              path: pathForCommand,
+              status: defaultStatus,
+              locale: requestLocale,
+              previousVersionId,
+            },
+            latest
+          )
           await selfHealTreePlacement(ctx, params.documentId)
           return { value: { result, systemFields }, changed: true }
         }

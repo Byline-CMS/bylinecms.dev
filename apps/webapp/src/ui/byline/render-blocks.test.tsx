@@ -1,3 +1,4 @@
+import { type FieldSet, flattenFieldSetData, restoreFieldSetData } from '@byline/core'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -6,6 +7,47 @@ import type { PopulatedContentBlock } from '@/lib/content-types'
 
 describe('RenderBlocks', () => {
   afterEach(() => vi.restoreAllMocks())
+
+  it('renders compacted storage content after JSON serialization without visitor notices', () => {
+    const fields: FieldSet = [
+      {
+        name: 'content',
+        type: 'blocks',
+        blocks: [
+          {
+            blockType: 'codeBlock',
+            fields: [
+              { name: 'code', type: 'code' },
+              { name: 'language', type: 'text' },
+            ],
+          },
+          { blockType: 'retired', fields: [{ name: 'text', type: 'text' }] },
+        ],
+      },
+    ]
+    const rows = flattenFieldSetData(
+      fields,
+      {
+        content: [
+          { _type: 'retired', text: 'Unavailable private content' },
+          { _type: 'codeBlock', language: 'plain', code: 'Surviving content' },
+          { _type: 'retired', text: 'Another unavailable block' },
+        ],
+      },
+      'en'
+    )
+    const blocksField = fields[0]!
+    if (blocksField.type !== 'blocks') throw new Error('Expected blocks')
+    blocksField.blocks = blocksField.blocks.filter((block) => block.blockType !== 'retired')
+    const restored = restoreFieldSetData(fields, rows, 'en')
+    expect(restored.warnings).toEqual([])
+    expect(restored.unavailableBlocks).toHaveLength(2)
+    const content = JSON.parse(JSON.stringify(restored.data.content))
+    const markup = renderToStaticMarkup(RenderBlocks({ blocks: content, lng: 'en' }))
+    expect(markup).toContain('Surviving content')
+    expect(markup).not.toContain('Unavailable')
+    expect(markup).not.toContain('retired')
+  })
 
   it('reports and omits an unknown runtime block type', () => {
     const report = vi.spyOn(console, 'error').mockImplementation(() => undefined)

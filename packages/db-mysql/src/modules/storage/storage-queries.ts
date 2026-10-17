@@ -53,6 +53,7 @@ import {
   resolveReadLocale,
   resolveStoreTypes,
   restoreFieldSetData,
+  type UnavailableBlock,
 } from '@byline/core'
 import { and, desc, eq, inArray, isNotNull, isNull, type SQL, sql } from 'drizzle-orm'
 import type { MySql2Database } from 'drizzle-orm/mysql2'
@@ -765,10 +766,12 @@ export class DocumentQueries implements IDocumentQueries {
     lenient = false,
     onMissingLocale?: MissingLocalePolicy,
     sourceLocale?: string | null,
-    localeContext?: VersionLocaleContext
+    localeContext?: VersionLocaleContext,
+    identity?: { documentId: string; versionId: string }
   ): {
     fields: any
     warnings: string[]
+    unavailableBlocks: UnavailableBlock[]
     resolvedLocale: string | null
     localeAgnostic: boolean
   } {
@@ -824,7 +827,12 @@ export class DocumentQueries implements IDocumentQueries {
         rows = flattenedData.filter((row) => row.locale === 'all' || row.field_type === 'meta')
       }
     }
-    const { data, warnings } = restoreFieldSetData(definition.fields, rows, resolveLocale)
+    const { data, warnings, unavailableBlocks } = restoreFieldSetData(
+      definition.fields,
+      rows,
+      resolveLocale,
+      identity ? { collectionPath: definition.path, ...identity } : undefined
+    )
 
     if (!lenient && warnings.length > 0) {
       throw ERR_DATABASE({
@@ -833,7 +841,13 @@ export class DocumentQueries implements IDocumentQueries {
       }).log(getLogger())
     }
 
-    return { fields: data, warnings, resolvedLocale, localeAgnostic: ledger.localeAgnostic }
+    return {
+      fields: data,
+      warnings,
+      unavailableBlocks,
+      resolvedLocale,
+      localeAgnostic: ledger.localeAgnostic,
+    }
   }
 
   /**
@@ -1032,16 +1046,18 @@ export class DocumentQueries implements IDocumentQueries {
       const advertised = (await this.getAdvertisedLocalesByDocument([document.document_id])).get(
         document.document_id
       )
-      const { fields, warnings, resolvedLocale, localeAgnostic } = this.reconstructFromUnifiedRows(
-        unifiedFieldValues,
-        definition,
-        locale,
-        metaRows as MetaRow[],
-        lenient,
-        onMissingLocale,
-        document.source_locale,
-        { visibility: localeVisibility, ledger: availability, availableLocales: advertised }
-      )
+      const { fields, warnings, unavailableBlocks, resolvedLocale, localeAgnostic } =
+        this.reconstructFromUnifiedRows(
+          unifiedFieldValues,
+          definition,
+          locale,
+          metaRows as MetaRow[],
+          lenient,
+          onMissingLocale,
+          document.source_locale,
+          { visibility: localeVisibility, ledger: availability, availableLocales: advertised },
+          { documentId: document.document_id, versionId: document.id }
+        )
 
       return {
         document_version_id: document.id,
@@ -1058,6 +1074,7 @@ export class DocumentQueries implements IDocumentQueries {
         availableLocales: advertised ?? [],
         _availableVersionLocales: availability?.availableLocales ?? [],
         _localeAgnostic: localeAgnostic,
+        ...(unavailableBlocks.length > 0 ? { unavailableBlocks } : {}),
         ...(lenient && warnings.length > 0 ? { restoreWarnings: warnings } : {}),
       }
     }
@@ -1179,16 +1196,18 @@ export class DocumentQueries implements IDocumentQueries {
       const advertised = (await this.getAdvertisedLocalesByDocument([document.document_id])).get(
         document.document_id
       )
-      const { fields, resolvedLocale, localeAgnostic } = this.reconstructFromUnifiedRows(
-        unifiedFieldValues,
-        definition,
-        locale,
-        metaRows as MetaRow[],
-        false,
-        onMissingLocale,
-        document.source_locale,
-        { visibility: localeVisibility, ledger: availability, availableLocales: advertised }
-      )
+      const { fields, unavailableBlocks, resolvedLocale, localeAgnostic } =
+        this.reconstructFromUnifiedRows(
+          unifiedFieldValues,
+          definition,
+          locale,
+          metaRows as MetaRow[],
+          false,
+          onMissingLocale,
+          document.source_locale,
+          { visibility: localeVisibility, ledger: availability, availableLocales: advertised },
+          { documentId: document.document_id, versionId: document.id }
+        )
 
       return {
         document_version_id: document.id,
@@ -1205,6 +1224,7 @@ export class DocumentQueries implements IDocumentQueries {
         availableLocales: advertised ?? [],
         _availableVersionLocales: availability?.availableLocales ?? [],
         _localeAgnostic: localeAgnostic,
+        ...(unavailableBlocks.length > 0 ? { unavailableBlocks } : {}),
       }
     }
     const fieldValues = this.convertUnionRowToFlattenedStores(unifiedFieldValues)
@@ -1279,16 +1299,18 @@ export class DocumentQueries implements IDocumentQueries {
       .where(eq(metaStore.document_version_id, document.id))
 
     const ledger = (await this.getAvailableLocalesByVersion([document.id])).get(document.id)
-    const { fields, resolvedLocale, localeAgnostic } = this.reconstructFromUnifiedRows(
-      unifiedFieldValues,
-      definition,
-      locale,
-      metaRows as MetaRow[],
-      false,
-      undefined,
-      document.source_locale,
-      { ledger }
-    )
+    const { fields, unavailableBlocks, resolvedLocale, localeAgnostic } =
+      this.reconstructFromUnifiedRows(
+        unifiedFieldValues,
+        definition,
+        locale,
+        metaRows as MetaRow[],
+        false,
+        undefined,
+        document.source_locale,
+        { ledger },
+        { documentId: document.document_id, versionId: document.id }
+      )
 
     return {
       document_version_id: document.id,
@@ -1301,6 +1323,7 @@ export class DocumentQueries implements IDocumentQueries {
       fields,
       resolved_locale: resolvedLocale,
       _localeAgnostic: localeAgnostic,
+      ...(unavailableBlocks.length > 0 ? { unavailableBlocks } : {}),
     }
   }
 
@@ -2178,20 +2201,22 @@ export class DocumentQueries implements IDocumentQueries {
     for (const doc of docs) {
       const versionFieldValues = fieldValuesByVersion.get(doc.id) || []
       const docMetaRows = (metaByVersion.get(doc.id) ?? []) as MetaRow[]
-      const { fields, resolvedLocale, localeAgnostic } = this.reconstructFromUnifiedRows(
-        versionFieldValues,
-        definition,
-        locale,
-        docMetaRows,
-        false,
-        onMissingLocale,
-        doc.source_locale,
-        {
-          visibility: localeVisibility,
-          ledger: versionLedgers?.get(doc.id),
-          availableLocales: documentAdvertised?.get(doc.document_id),
-        }
-      )
+      const { fields, unavailableBlocks, resolvedLocale, localeAgnostic } =
+        this.reconstructFromUnifiedRows(
+          versionFieldValues,
+          definition,
+          locale,
+          docMetaRows,
+          false,
+          onMissingLocale,
+          doc.source_locale,
+          {
+            visibility: localeVisibility,
+            ledger: versionLedgers?.get(doc.id),
+            availableLocales: documentAdvertised?.get(doc.document_id),
+          },
+          { documentId: doc.document_id, versionId: doc.id }
+        )
 
       // When specific fields were requested, trim the reconstructed object
       // to only those fields. Store-level filtering avoids querying unused
@@ -2214,6 +2239,7 @@ export class DocumentQueries implements IDocumentQueries {
         fields: trimmedFields,
         resolved_locale: resolvedLocale,
         _localeAgnostic: localeAgnostic,
+        ...(unavailableBlocks.length > 0 ? { unavailableBlocks } : {}),
       }
 
       result.push(documentWithFields)

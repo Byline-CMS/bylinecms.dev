@@ -38,6 +38,7 @@ import { singletonLifecycleSuite } from './suites/singleton-lifecycle.js'
 import { singletonMappingSuite } from './suites/singleton-mapping.js'
 import { systemFieldsDirectWriteSuite } from './suites/system-fields-direct-write.js'
 import { transactionsSuite } from './suites/transactions.js'
+import { unavailableBlocksSuite } from './suites/unavailable-blocks.js'
 import { versioningSuite } from './suites/versioning.js'
 
 export {
@@ -222,6 +223,7 @@ export function runAdapterConformanceSuite(hooks: ConformanceHooks): void {
   documentAvailableLocalesSuite(hooks)
   systemFieldsDirectWriteSuite(hooks)
   restoreSuite(hooks)
+  unavailableBlocksSuite(hooks)
   localeFallbackSuite(hooks)
   localeVisibilitySuite(hooks)
   localeQuerySemanticsSuite(hooks)

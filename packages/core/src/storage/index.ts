@@ -31,6 +31,7 @@ export {
   extractFlattenedFieldValue,
   type RestoreResult,
   restoreFieldSetData,
+  type UnavailableBlock,
 } from './storage-restore.js'
 export { resolveStoreTypes } from './storage-utils.js'
 export { type ColumnDef, storeColumnManifest, storeTableNames } from './store-manifest.js'

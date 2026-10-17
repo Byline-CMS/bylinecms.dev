@@ -476,7 +476,9 @@ describe('content-locale resolution — source_locale internals (Postgres)', () 
       const listed = documents.find((d) => d.document_id === id)
       expect(byPath?.fields.title).toBe(byId?.fields.title)
       expect(listed?.fields.title).toBe(byId?.fields.title)
-      expect(byPath?.resolved_locale).toBe(byId?.resolved_locale)
+      expect(byPath && 'resolved_locale' in byPath ? byPath.resolved_locale : undefined).toBe(
+        byId?.resolved_locale
+      )
       expect(listed?.resolved_locale).toBe(byId?.resolved_locale)
     }
   })
@@ -615,7 +617,7 @@ describe('content-locale resolution — source_locale internals (Postgres)', () 
     })
     expect(byPath?.document_id).toBe(id)
     expect(byPath?.fields.title, 'the incomplete translation is not delivered').toBe('Slug EN')
-    expect(byPath?.resolved_locale).toBe('en')
+    expect(byPath && 'resolved_locale' in byPath ? byPath.resolved_locale : undefined).toBe('en')
   })
 
   // --- re-anchor (Slice 5) -------------------------------------------------

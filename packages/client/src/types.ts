@@ -30,6 +30,7 @@ import type {
   SingletonSavePrecondition,
   SlugifierFn,
   SortSpec,
+  UnavailableBlock,
 } from '@byline/core'
 
 // Re-exported for callers who reach the predicate language through the
@@ -785,6 +786,10 @@ export interface ClientDocument<F = Record<string, any>> {
    * normal reads.
    */
   _restoreWarnings?: string[]
+  /** Blocks omitted under the current schema. Present on strict and lenient reads.
+   * Saving content drops these blocks from the new version; earlier versions retain them.
+   */
+  _unavailableBlocks?: UnavailableBlock[]
   /**
    * The editorial *advertised* locale set — the content locales the editor
    * has deliberately elected to promote for this document. Document-grain and

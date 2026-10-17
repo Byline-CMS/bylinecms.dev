@@ -171,12 +171,16 @@ export async function updateSingleton(
             action: 'create',
             path: crypto.randomUUID(),
           })
-        : await persistExistingDocumentVersion(ctx, {
-            ...write,
-            action: 'update',
-            documentId: mappedDocumentId,
-            previousVersionId,
-          })
+        : await persistExistingDocumentVersion(
+            ctx,
+            {
+              ...write,
+              action: 'update',
+              documentId: mappedDocumentId,
+              previousVersionId,
+            },
+            observed.current
+          )
     const documentId = extractDocumentId(result.document)
     const documentVersionId = extractVersionId(result.document)
     if (!documentId || !documentVersionId)

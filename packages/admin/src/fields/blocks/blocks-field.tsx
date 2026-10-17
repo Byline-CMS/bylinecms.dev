@@ -6,7 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 
 import type {
   BlockAdminConfig,
@@ -25,6 +25,7 @@ import {
   Modal,
   moveItem,
   PlusIcon,
+  WarningIcon,
 } from '@byline/ui/react'
 import cx from 'clsx'
 
@@ -35,6 +36,7 @@ import { useFieldError, useFormContext } from '../../forms/form-context'
 import { useScopedDomId } from '../../forms/form-dom-scope'
 import { hasExistingIdTargets } from '../../forms/nested-path'
 import { moveRepeatingItems, repeatingItemId, repeatingItemPath } from '../../forms/repeating-items'
+import { useUnavailableBlocks } from '../../forms/unavailable-blocks'
 import styles from './blocks-field.module.css'
 
 // ---------------------------------------------------------------------------
@@ -61,6 +63,7 @@ export const BlocksField = ({
   const { appendPatch, getFieldValue, getFieldValues, removePendingUploadsUnder, setFieldStore } =
     useFormContext()
   const { t } = useTranslation('byline-admin')
+  const unavailableBlocks = useUnavailableBlocks(path)
   const fieldError = useFieldError(path)
   const htmlId = useScopedDomId(path)
   const [items, setItems] = useState<{ id: string; data: any }[]>([])
@@ -288,7 +291,28 @@ export const BlocksField = ({
         onDragEnd={handleDragEnd}
         className={cx('byline-field-blocks-stack', styles.stack)}
       >
-        {items.map((item, index) => renderItem(item, index))}
+        {Array.from({ length: items.length + 1 }, (_, index) => (
+          <Fragment key={items[index]?.id ?? 'end'}>
+            {unavailableBlocks.map((issue, removedBefore) =>
+              Math.min(issue.storedIndex - removedBefore, items.length) === index ? (
+                <div
+                  key={`${issue.storedIndex}-${issue.blockType}`}
+                  role="note"
+                  className={cx('byline-field-blocks-unavailable', styles.unavailable)}
+                >
+                  <WarningIcon width="24px" height="24px" />
+                  <div>
+                    <strong>
+                      {t('fields.blocks.unavailableTitle', { blockType: issue.blockType })}
+                    </strong>
+                    <p>{t('fields.blocks.unavailableBody')}</p>
+                  </div>
+                </div>
+              ) : null
+            )}
+            {index < items.length && renderItem(items[index]!, index)}
+          </Fragment>
+        ))}
         <div className={cx('byline-field-blocks-add-row', styles['add-row'])}>
           <IconButton
             onClick={() => {

@@ -10,7 +10,7 @@
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type { AdminResourceConfig, Field, WorkflowStatus } from '@byline/core'
+import type { AdminResourceConfig, Field, UnavailableBlock, WorkflowStatus } from '@byline/core'
 import { getAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import cx from 'clsx'
@@ -33,6 +33,7 @@ import {
   useScheduledPublication,
 } from './scheduled-publication-control'
 import { computeStatusTransitions } from './status-transitions'
+import { UnavailableBlocksProvider } from './unavailable-blocks'
 import { useDocumentReloadRecovery } from './use-document-reload-recovery'
 import { type SystemFieldsSubmitPayload, useFormSubmission } from './use-form-submission'
 import type { DocumentActionsLocaleOption } from './document-actions'
@@ -168,6 +169,7 @@ export interface FormRendererProps {
    * them with the new shape.
    */
   restoreWarnings?: string[]
+  unavailableBlocks?: UnavailableBlock[]
   /**
    * Default content locale used when no `initialLocale` is supplied and as the
    * fallback inside `PathWidget`. Hosts typically pass their app-wide
@@ -225,6 +227,7 @@ const FormContent = ({
   defaultLocale = 'en',
   useNavigationGuard: useNavigationGuardProp,
   restoreWarnings,
+  unavailableBlocks,
   _activeTabBySet,
   _onTabChange,
 }: FormRendererProps & {
@@ -455,6 +458,7 @@ const FormContent = ({
             onDiscardRequested={requestDiscard}
             scheduling={scheduling}
             restoreWarnings={restoreWarnings}
+            unavailableBlocks={unavailableBlocks}
           />
           <FormLayout
             fields={fields}
@@ -516,23 +520,28 @@ export const FormRenderer = (props: FormRendererProps) => {
   const savedTabsRef = useRef<Record<string, string>>({})
 
   return (
-    <FormProvider
-      key={`${initialLocale ?? 'default'}-${initialData?.versionId ?? ''}`}
-      initialData={initialData}
-      documentId={mode === 'edit' && typeof initialData?.id === 'string' ? initialData.id : null}
-      collectionPath={collectionPath ?? null}
+    <UnavailableBlocksProvider
+      issues={props.unavailableBlocks}
+      fields={initialData?.fields ?? initialData ?? {}}
     >
-      {/* Forwarded wholesale. An enumerated prop list here silently dropped
+      <FormProvider
+        key={`${initialLocale ?? 'default'}-${initialData?.versionId ?? ''}`}
+        initialData={initialData}
+        documentId={mode === 'edit' && typeof initialData?.id === 'string' ? initialData.id : null}
+        collectionPath={collectionPath ?? null}
+      >
+        {/* Forwarded wholesale. An enumerated prop list here silently dropped
           every prop added to FormRendererProps but not copied down — which is
           how the scheduled-publication handlers reached FormContent as
           `undefined` and the control never rendered. */}
-      <FormContent
-        {...props}
-        _activeTabBySet={savedTabsRef.current}
-        _onTabChange={(tabSetName, tabName) => {
-          savedTabsRef.current = { ...savedTabsRef.current, [tabSetName]: tabName }
-        }}
-      />
-    </FormProvider>
+        <FormContent
+          {...props}
+          _activeTabBySet={savedTabsRef.current}
+          _onTabChange={(tabSetName, tabName) => {
+            savedTabsRef.current = { ...savedTabsRef.current, [tabSetName]: tabName }
+          }}
+        />
+      </FormProvider>
+    </UnavailableBlocksProvider>
   )
 }

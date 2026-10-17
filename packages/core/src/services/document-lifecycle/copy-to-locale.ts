@@ -152,17 +152,22 @@ export async function copyToLocale(
           if (
             (targetRecord._availableVersionLocales?.includes(params.targetLocale) ||
               targetRecord._localeAgnostic === true) &&
+            !targetRecord.unavailableBlocks?.length &&
             sameDocumentData(merged.data, baseline)
           )
             return { value: previousVersionId, changed: false }
-          const writeResult = await persistExistingDocumentVersion(ctx, {
-            documentId: params.documentId,
-            action: 'copy_to_locale',
-            documentData: merged.data,
-            status: getDefaultStatus(definition),
-            locale: params.targetLocale,
-            previousVersionId,
-          })
+          const writeResult = await persistExistingDocumentVersion(
+            ctx,
+            {
+              documentId: params.documentId,
+              action: 'copy_to_locale',
+              documentData: merged.data,
+              status: getDefaultStatus(definition),
+              locale: params.targetLocale,
+              previousVersionId,
+            },
+            targetRecord
+          )
           return { value: extractVersionId(writeResult.document), changed: true }
         }
       )

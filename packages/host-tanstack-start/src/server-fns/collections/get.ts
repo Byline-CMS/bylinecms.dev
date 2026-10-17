@@ -120,6 +120,8 @@ const getDocumentFn = createServerFn({ method: 'GET' })
       | string[]
       | undefined
 
+    const unavailableBlocks = document._unavailableBlocks
+
     // Same preservation for the available-locales metadata — both are stripped
     // by the Zod parse but the sidebar widget needs them at edit time:
     //   `availableLocales`          — the stored editorial set → initialises the
@@ -155,6 +157,7 @@ const getDocumentFn = createServerFn({ method: 'GET' })
     return {
       ...withEditableRevision(parsed, document),
       _publishedVersion: publishedVersion,
+      ...(unavailableBlocks?.length ? { _unavailableBlocks: unavailableBlocks } : {}),
       ...(restoreWarnings && restoreWarnings.length > 0
         ? { _restoreWarnings: restoreWarnings }
         : {}),

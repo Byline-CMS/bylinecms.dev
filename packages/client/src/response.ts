@@ -39,6 +39,9 @@ export function shapeDocument<F = Record<string, any>>(
   if (Array.isArray(raw.restoreWarnings) && raw.restoreWarnings.length > 0) {
     shaped._restoreWarnings = raw.restoreWarnings as string[]
   }
+  if (Array.isArray(raw.unavailableBlocks) && raw.unavailableBlocks.length > 0) {
+    shaped._unavailableBlocks = raw.unavailableBlocks
+  }
   // The per-document content source locale (storage key `source_locale`).
   if (typeof raw.source_locale === 'string') {
     shaped.sourceLocale = raw.source_locale as string

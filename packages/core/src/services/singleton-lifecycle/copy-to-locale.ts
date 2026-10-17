@@ -119,14 +119,18 @@ export async function copySingletonToLocale(
             locale: params.targetLocale,
             prepareWrite: () => applyRichTextEmbed(ctx, merged.data),
             write: async () => {
-              return persistExistingDocumentVersion(ctx, {
-                documentId: slot.documentId as string,
-                action: 'copy_to_locale',
-                documentData: merged.data,
-                status: getDefaultStatus(definition),
-                locale: params.targetLocale,
-                previousVersionId: slot.currentVersion?.document_version_id,
-              })
+              return persistExistingDocumentVersion(
+                ctx,
+                {
+                  documentId: slot.documentId as string,
+                  action: 'copy_to_locale',
+                  documentData: merged.data,
+                  status: getDefaultStatus(definition),
+                  locale: params.targetLocale,
+                  previousVersionId: slot.currentVersion?.document_version_id,
+                },
+                existingTarget ?? source
+              )
             },
           }
         },

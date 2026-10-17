@@ -10,6 +10,8 @@ import { resolveHooks } from '../../@types/index.js'
 import { assertActorCanPerform } from '../../auth/assert-actor-can-perform.js'
 import { ERR_NOT_FOUND, ERR_VALIDATION } from '../../lib/errors.js'
 import { withLogContext } from '../../lib/logger.js'
+import { flattenFieldSetData } from '../../storage/storage-flatten.js'
+import { restoreFieldSetData } from '../../storage/storage-restore.js'
 import { getDefaultStatus } from '../../workflow/workflow.js'
 import { runCommittedDocumentHook } from './committed-hook.js'
 import { actorId, invokeHook } from './internals.js'
@@ -113,6 +115,33 @@ export async function deleteLocale(
             ctx,
             documentId: params.documentId,
             write: async () => {
+              // The ordinary delete-locale primitive copies raw stored rows.
+              // Reconstruct affected versions so unavailable blocks are omitted too.
+              if (targetRecord.unavailableBlocks?.length) {
+                const previous = await db.queries.documents.getDocumentByVersion({
+                  document_version_id: previousVersionId,
+                  document_id: params.documentId,
+                  collection_id: collectionId,
+                  locale: 'all',
+                })
+                const rows = flattenFieldSetData(definition.fields, previous.fields, 'all').filter(
+                  (row) => row.locale !== params.locale
+                )
+                const { data } = restoreFieldSetData(definition.fields, rows)
+                const saved = await db.commands.documents.createDocumentVersion({
+                  documentId: params.documentId,
+                  collectionId,
+                  collectionVersion: ctx.collectionVersion,
+                  collectionConfig: definition,
+                  action: 'delete_locale',
+                  documentData: data,
+                  locale: 'all',
+                  previousVersionId,
+                  status: getDefaultStatus(definition),
+                  createdBy: actorId(ctx),
+                })
+                return { newVersionId: saved.document.id, previousVersionId }
+              }
               const deleted = await db.commands.documents.deleteDocumentLocale({
                 documentId: params.documentId,
                 locale: params.locale,

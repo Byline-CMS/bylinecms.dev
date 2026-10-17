@@ -136,8 +136,14 @@ function* flattenFieldDataGen(
   else if (field.type === 'blocks') {
     const items = data as ({ _id?: string; _type: string } & Record<string, unknown>)[]
     for (let i = 0; i < items.length; i++) {
-      // biome-ignore lint/style/noNonNullAssertion: i is always in-bounds
-      const { _id, _type, ...item_data } = items[i]!
+      const item = items[i]
+      if (item == null || typeof item !== 'object' || Array.isArray(item)) {
+        throw ERR_DATABASE({
+          message: `${field_path.join('.')}[${i}]: Block item is missing or must be an object`,
+          details: { fieldPath: field_path, index: i },
+        })
+      }
+      const { _id, _type, ...item_data } = item
       const item_path = [...field_path, `${i}`, _type]
 
       const block = field.blocks.find((f) => f.blockType === _type)

@@ -9,11 +9,11 @@ summary: "Agreed design for issue 101: documents holding blocks whose type was r
 Companions:
 
 - [Issue #101](https://github.com/Byline-CMS/bylinecms.dev/issues/101) records the defect, the reproduction, and the decision comment.
-- [Collection versioning](../docs/04-collections/08-collection-versioning.md#removed-block-types) documents the current limitation and must be updated by this work.
+- [Collection versioning](../docs/04-collections/08-collection-versioning.md#removed-block-types) documents the read reports, write policy, and recovery steps.
 
-Status: design agreed with Tony on 2026-10-17; not implemented. This revision replaces the September 16 proposal, which blocked saves until an explicit migration or removal. The defect was confirmed in core at `1f9b32f1` and remains present at `bb3c38fa`.
+Current status (2026-10-17): implemented and reviewed, including the client-directive, locale-preservation, and placeholder-styling follow-ups. Core reconstruction, both database adapters, SDK metadata, editor notices, and the documentation now follow this design. The tests cover both adapters and the editor; a manual browser check confirmed placeholder placement and a successful save followed by clean reload. This revision replaces the September 16 proposal, which blocked saves until an explicit migration or removal. The original defect was confirmed in core at `1f9b32f1` and was still present at `bb3c38fa`.
 
-## Problem
+## Original problem
 
 When a developer removes a block type from a collection's `blocks: [...]` declaration, the rows stored for existing instances of that block remain in the database. Reconstruction skips them without any signal (`packages/core/src/storage/storage-restore.ts:248-251`, commented `// Block type was removed from the schema; silently skip orphaned rows.`). Surviving blocks keep their original array indices, so the result depends on where the removed block sat:
 
@@ -37,7 +37,7 @@ The reasoning: removing a block definition is a deliberate developer change. If 
 
 ### 1. A typed issue, separate from `warnings`
 
-`restoreFieldSetData` currently returns `{ data, warnings }`. Unknown blocks must **not** be reported through `warnings`. Both adapters throw `ERR_DATABASE` when a non-lenient read produces any warning (`packages/db-postgres/src/modules/storage/storage-queries.ts:829`, `packages/db-mysql/src/modules/storage/storage-queries.ts:829`), and public delivery reads are non-lenient. Pushing a warning for a removed block would turn every affected public page into an error, which is the outcome decision 1 forbids. This explains the original silent skip; the fix replaces it with a separate channel rather than a warning.
+`restoreFieldSetData` previously returned `{ data, warnings }`. Unknown blocks must **not** be reported through `warnings`. Both adapters throw `ERR_DATABASE` when a non-lenient read produces any warning (`packages/db-postgres/src/modules/storage/storage-queries.ts:829`, `packages/db-mysql/src/modules/storage/storage-queries.ts:829`), and public delivery reads are non-lenient. Pushing a warning for a removed block would turn every affected public page into an error, which is the outcome decision 1 forbids. This explains the original silent skip; the fix replaces it with a separate channel rather than a warning.
 
 Add a third return value, for example:
 
@@ -77,13 +77,17 @@ This deliberately reverses the guidance in the current collection-versioning doc
 
 - **Banner:** reuse the document-level `restoreWarnings` banner area in `packages/admin/src/forms/form-page-chrome.tsx`. Suggested copy: "This document contains 2 blocks whose type is no longer available. Their content cannot be shown or edited, and saving this document will remove it. If this is not intended, contact your site administrator before saving."
 - **Placeholder card** at each unavailable block's original position in its blocks field, naming the block type: "Unavailable block: `uploadTestBlock`. This block type is no longer declared, so its content cannot be shown. Saving will remove it."
-- **The card is display-only and must not occupy a slot in the form's array.** Field edits inside a block are `field.set` patches with instance paths such as `content[1].text` (`packages/admin/src/forms/form-context.tsx`), and `block.add` / `block.move` carry array indices (`packages/core/src/patches/apply-patches.ts`). The server applies patches to its own reconstruction, which is compacted. If a placeholder occupied an array slot on the client, every later index would be off by one and edits would land on the wrong block. Render cards from `storedIndex` between the real items, outside the form's array state.
+- **The card is display-only and must not occupy a slot in the form's array.** The current editor uses stable-ID paths such as `content[id=...].text` for field patches, and array insert/move patches carry compacted destination indices. Core also accepts numeric instance paths such as `content[1].text` (`packages/core/src/patches/apply-patches.ts`). The server applies patches to its own reconstruction, which is compacted. If a placeholder occupied an array slot on the client, every later index would be off by one and edits would land on the wrong block. Render cards from `storedIndex` between the real items, outside the form's array state.
 - After a successful save the document has no unavailable blocks, so the banner and cards disappear on reload.
 - No confirmation modal. The banner is the notice.
 
 ### 6. Writes
 
-No new write semantics. Every operation that re-saves content — patch and whole-document updates, version restore, duplicate, copy-to-locale, delete-locale, and singleton update — already reconstructs and re-flattens, and will now omit unavailable blocks consistently instead of crashing on a leading hole. Status changes and path edits do not re-flatten content and are unaffected.
+Every operation that re-saves content — patch and whole-document updates, version restore, duplicate, copy-to-locale, delete-locale, and singleton update — omits unavailable blocks consistently. Status changes and path edits do not re-flatten content and are unaffected.
+
+Implementation findings: ordinary single-locale writes copy other locales’ stored rows forward, and delete-locale normally copies stored rows directly. For affected versions, the lifecycle instead reconstructs all locales and writes the surviving content together. Single-locale edits preserve other translations by stable item identity, including when blocks move after compaction. Hand-built items without `_id` fall back to the same compacted index, matching ordinary positional locale writes; an explicit identity remains authoritative. Versions without unavailable blocks retain the existing write path. Duplication must retain `_type` while removing `_id`; otherwise its reconstructed blocks cannot pass validation.
+
+Release note for the next release: mention `_unavailableBlocks` on `ClientDocument`, the read-warn/write-drop policy, and the fix for duplicating documents with blocks.
 
 ## Documentation
 
@@ -157,11 +161,11 @@ JS
 
 ## Implementation references
 
-- `packages/core/src/storage/storage-restore.ts` — `restoreBlocksFieldData` skip and the `{ data, warnings }` contract.
+- `packages/core/src/storage/storage-restore.ts` — `restoreBlocksFieldData` skip and the `{ data, warnings, unavailableBlocks }` contract.
 - `packages/db-postgres/src/modules/storage/storage-queries.ts` and `packages/db-mysql/src/modules/storage/storage-queries.ts` — `reconstructFromUnifiedRows`, the strict-read throw, and `restoreWarnings` propagation.
 - `packages/client/src/types.ts` — `_restoreWarnings` on `ClientDocument`.
-- `packages/core/src/validation/document-fields.ts` — block validation uses `forEach`, which skips holes.
-- `packages/core/src/storage/storage-flatten.ts` — block flattening destructures each item.
+- `packages/core/src/validation/document-fields.ts` — indexed block validation catches holes and non-object entries.
+- `packages/core/src/storage/storage-flatten.ts` — defensive block-item validation before destructuring.
 - `packages/core/src/patches/apply-patches.ts` — block patch addressing.
 - `packages/admin/src/fields/blocks/blocks-field.tsx` — `renderItem` returns `null` for undeclared types.
 - `packages/admin/src/forms/form-page-chrome.tsx` — document-level warning banner.
