@@ -14,10 +14,15 @@ export class SearchAnalyzerMismatchError extends Error {
     readonly expectedFingerprint: string,
     readonly actualFingerprint: string | null
   ) {
+    const actual = actualFingerprint == null ? 'an unversioned analyzer' : `"${actualFingerprint}"`
     super(
-      `Search index for collection "${collectionPath}" uses analyzer fingerprint ` +
-        `"${actualFingerprint ?? '(missing)'}", but "${expectedFingerprint}" is configured. ` +
-        'Clear and rebuild this collection before searching or indexing it.'
+      `Search index for collection "${collectionPath}" uses ${actual}; ` +
+        `this process expects analyzer "${expectedFingerprint}". ` +
+        "First align this process's Node.js/ICU version and analyzer configuration with the serving application. " +
+        'The built-in portable analyzer includes process.versions.icu in its fingerprint. ' +
+        'If an analyzer change is intentional or the index is unversioned, rebuild this collection ' +
+        'from the serving environment with the analyzer that will serve queries. ' +
+        'Do not rebuild a shared index from a mismatched workstation or import process.'
     )
     this.name = 'SearchAnalyzerMismatchError'
   }

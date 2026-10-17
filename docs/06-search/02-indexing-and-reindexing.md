@@ -186,6 +186,16 @@ The index is disposable. When a release changes the initial search schema or ana
 
 Portable providers store one analyzer fingerprint per collection. They compare query and write analyzers with this metadata before using the index.
 
-If they differ, the provider throws `SEARCH_INDEX_REINDEX_REQUIRED` with the affected collection path. Clear and rebuild that collection using the same provider and analyzer that will serve queries.
+If they differ, the provider throws `SEARCH_INDEX_REINDEX_REQUIRED` with the affected collection path and both fingerprints. The code names a compatibility failure; it does not mean that rebuilding from the failing process is always the appropriate recovery.
+
+First compare the failing process with the serving application. The built-in portable analyzer includes the exact ICU version bundled with Node.js, so even a Node.js update within the same major version can cause a mismatch. Run this command in both environments:
+
+```sh
+node -p 'JSON.stringify({ node: process.version, icu: process.versions.icu })'
+```
+
+If a workstation, import script, or CI job differs from the serving environment, align its Node.js/ICU version and analyzer configuration, then retry the original operation. Rebuilding a shared index from the mismatched process would record that process's fingerprint and could prevent the serving application from searching or indexing. Check configured locales and token expanders as well as the runtime; matching ICU alone does not prove that the whole analyzer matches.
+
+For an intentional analyzer change, or an index without a recorded fingerprint, rebuild the collection from the serving environment using the provider and analyzer that will serve queries. Align every process that queries or writes that index with the chosen configuration. The existing `client.collection(path).reindex()` operation clears and rebuilds the collection; a fingerprint mismatch alone does not require dropping search tables.
 
 Sequence deployment and reindexing so users do not search between installing a new analyzer and completing its rebuild. During that interval, rejecting a query is safer than returning incomplete mixed-analyzer results.

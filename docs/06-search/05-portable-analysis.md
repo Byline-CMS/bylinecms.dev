@@ -142,7 +142,7 @@ It emits `<mark>` delimiters in a plain string. Consumers must parse those delim
 Every analyzer exposes `analyzer.fingerprint`. It contains:
 
 - pipeline and normalization versions;
-- Node.js ICU version;
+- exact Node.js ICU version (`process.versions.icu`);
 - locale behavior;
 - default and Han locales;
 - identifier behavior;
@@ -151,4 +151,8 @@ Every analyzer exposes `analyzer.fingerprint`. It contains:
 
 Portable providers store this fingerprint in collection metadata. A query or write with another fingerprint throws `SEARCH_INDEX_REINDEX_REQUIRED`.
 
-Do not mix analyzer versions in one active collection index. Clear and rebuild the collection whenever analysis behavior changes.
+Do not mix analyzer versions in one active collection index. A Node.js update can change the bundled ICU version, so two processes with identical analyzer configuration can still produce different fingerprints. Matching the supported Node major version alone does not establish compatibility.
+
+For an unexpected mismatch from an import script, workstation, or CI job, first match its Node.js/ICU version and analyzer configuration to the serving application. Do not rebuild the shared index from the mismatched process: that would establish its fingerprint and could prevent the serving application from searching or indexing.
+
+An intentional analyzer change, or an unversioned index, requires a rebuild using the environment and analyzer that will serve queries. See [analyzer fingerprint changes](./02-indexing-and-reindexing.md#analyzer-fingerprint-changes) for runtime inspection and rebuild sequencing. Exact fingerprint enforcement remains in place, including ICU patch differences.
