@@ -1,7 +1,9 @@
 # Byline recurring-task scheduler — working design
 
+**Current status — 2026-10-17:** Implemented and merged in `7010b44c`, with MySQL support added in `8bfeae66`. See [recurring tasks](../docs/11-scheduling/01-recurring-tasks.md). This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 Date: 2026-08-22
-Status: working design; not approved for implementation
+Original planning status: working design; not approved for implementation
 Companions:
 
 - `specs/2026-08-22-analytics-spec.md` — recurring rollup, retention, and salt-expiry

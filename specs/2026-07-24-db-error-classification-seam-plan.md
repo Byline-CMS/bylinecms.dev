@@ -1,5 +1,7 @@
 # Database error-classification seam (`classifyError`) Implementation Plan
 
+**Current status — 2026-10-17:** Implemented. Both SQL adapters and their shared error-classification contract are present; MySQL shipped in 4.8.0 (`22965c1e`). See [document storage](../docs/03-architecture/01-document-storage.md). Named deferred adapter follow-ups remain separate work. This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Move the one Postgres-specific error-shape check in shared code (`rethrowPathConflict`) behind an adapter-agnostic, code-based `classifyError` seam on `IDbAdapter`, so `@byline/core` maps database failures to domain errors without knowing driver anatomy — unblocking the db-mysql write path (#42 Task 9).

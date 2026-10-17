@@ -12,7 +12,9 @@ Companions:
 - [Testing](../docs/13-testing.md) describes the repository's verification workflow.
 - [Implementation plan](./2026-09-11-richtext-node-ownership-plan.md) sequences implementation and verification of this specification.
 
-Date: 2026-09-11. Status: approved for planning following user review. Implementation has not started. Target release: 6.0, because the configuration change is a clean break.
+**Current status — 2026-10-17:** Implemented for 6.0, including capability-derived node registration (`229b7aeb`) and editor controls (`d3036c93`). See [richtext capabilities](../docs/09-admin-ui/04-richtext-capabilities.md). The downstream headless-harness limitation remains tracked in [#96](https://github.com/Byline-CMS/bylinecms.dev/issues/96). This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
+Date: 2026-09-11. Original planning status: approved for planning following user review. Implementation has not started. Target release: 6.0, because the configuration change is a clean break.
 
 ## Purpose and scope
 

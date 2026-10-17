@@ -6,6 +6,8 @@ summary: "Sequence the implementation and verification of extension-owned node r
 
 # Richtext extension node ownership — implementation plan
 
+**Current status — 2026-10-17:** Implemented for 6.0, including capability-derived node registration (`229b7aeb`) and editor controls (`d3036c93`). See [richtext capabilities](../docs/09-admin-ui/04-richtext-capabilities.md). The downstream headless-harness limitation remains tracked in [#96](https://github.com/Byline-CMS/bylinecms.dev/issues/96). This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make a Lexical field's resolved editor decide which structures the field accepts, and adapt existing content on editor load instead of failing. `editorConfig.extensions` controls optional features; the resolved editor's registered node types are the authority on what the field accepts, comprising those features, everything they pull in transitively, and mandatory infrastructure such as `CoreNodesExtension`.

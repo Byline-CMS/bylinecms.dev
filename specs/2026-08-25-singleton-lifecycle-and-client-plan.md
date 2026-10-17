@@ -4,6 +4,8 @@
 > red → green → commit cycle with its own tests; do not start a task before its
 > predecessor is committed. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+**Current status — 2026-10-17:** Implemented across both adapters, core, SDK, host, and CLI. The reference application shipped site settings in `a6662aa6` and the CLI example in `0f770dc0`. See [singletons](../docs/04-collections/09-singletons.md). This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 **Goal:** Make a singleton *usable* — readable, saveable, authorized, and reachable through a
 typed client handle — reusing the existing document lifecycle rather than duplicating it.
 

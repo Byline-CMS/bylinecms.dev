@@ -1,8 +1,10 @@
 # MySQL database adapter (`@byline/db-mysql`) — design
 
+**Current status — 2026-10-17:** Implemented. Both SQL adapters and their shared error-classification contract are present; MySQL shipped in 4.8.0 (`22965c1e`). See [document storage](../docs/03-architecture/01-document-storage.md). Named deferred adapter follow-ups remain separate work. This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 Date: 2026-07-24
 Issues: to be created from this spec (see companion plan)
-Status: approved in brainstorming with Tony, 2026-07-24
+Original planning status: approved in brainstorming with Tony, 2026-07-24
 Companions:
 - `specs/2026-07-24-db-mysql-adapter-plan.md` — the phased implementation plan.
 - `specs/2026-07-24-drizzle-free-adapters-analysis.md` — the parallel analysis of what both RDBMS adapters would look like without Drizzle (native DDL + SQL).

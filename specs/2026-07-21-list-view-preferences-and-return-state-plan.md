@@ -1,5 +1,7 @@
 # List-View Preferences and Return-to-List State Implementation Plan
 
+**Current status — 2026-10-17:** Implemented. Per-user list preferences and return-to-list navigation shipped in `a3d2c658`; see [collections](../docs/04-collections/index.md). This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Per-user DB-persisted list-view preferences (`page_size` + default sort) for collection lists (issue #16), and a `from`-param return-to-list mechanism so closing a document lands back on the exact list page/filter the user came from (issue #17).

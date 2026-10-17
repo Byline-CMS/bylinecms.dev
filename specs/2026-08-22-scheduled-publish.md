@@ -1,7 +1,9 @@
 # Scheduled publication — working design
 
+**Current status — 2026-10-17:** Implemented and merged in `c27dd915`; the editor interface followed in `0866c22f`. See [scheduled publication](../docs/11-scheduling/02-scheduled-publication.md). This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 Date: 2026-08-22
-Status: working design; not approved for implementation
+Original planning status: working design; not approved for implementation
 Companions:
 
 - `specs/2026-08-22-scheduler.md` — the shared in-process recurring-task runner.

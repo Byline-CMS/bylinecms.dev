@@ -1,5 +1,7 @@
 # Recurring-task scheduler implementation plan
 
+**Current status — 2026-10-17:** Implemented and merged in `7010b44c`, with MySQL support added in `8bfeae66`. See [recurring tasks](../docs/11-scheduling/01-recurring-tasks.md). This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.

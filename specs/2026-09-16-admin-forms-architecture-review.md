@@ -6,7 +6,7 @@
 
 **Related issue:** [#94 — split FormContent into focused workflows](https://github.com/Byline-CMS/bylinecms.dev/issues/94)
 
-**Status:** The review below records the original findings. The authorized implementation is summarized in [Implementation update](#implementation-update); the code changes are committed locally.
+**Status:** The review below records the original findings. The authorized implementation is summarized in [Implementation update](#implementation-update); the implementation and follow-up fixes through `e9ba29d8` are on `origin/develop` (status reconciled 2026-10-17).
 
 **Revision:** Reconciled with the supplied “Byline editor hot path review” and its follow-up response concerning the same commit. The comparison decisions and additional verification are recorded below; this document is the consolidated handoff.
 

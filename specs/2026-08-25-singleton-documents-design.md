@@ -1,7 +1,9 @@
 # Singleton Documents Design
 
+**Current status — 2026-10-17:** Implemented across both adapters, core, SDK, host, and CLI. The reference application shipped site settings in `a6662aa6` and the CLI example in `0f770dc0`. See [singletons](../docs/04-collections/09-singletons.md). This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 Date: 2026-08-25
-Status: proposed; not implemented
+Original planning status: proposed; not implemented
 
 ## Decision
 

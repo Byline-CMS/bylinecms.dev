@@ -1,5 +1,7 @@
 # Relation picker: create the target in a new tab
 
+**Current status — 2026-10-17:** implemented. The picker and host expose the create-in-new-tab capability and explicit refresh, with component and host tests. Documentation landed in `c77c7c04`; see [relationships](../docs/04-collections/03-relationships.md). Embedded modal creation remains deferred.
+
 A small alternative to embedded relationship creation. The editor opens the target
 collection's ordinary create view in a **new browser tab**, leaving the parent editor and
 the picker mounted and unsaved, then returns and refreshes the picker to find and select

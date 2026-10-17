@@ -1,5 +1,7 @@
 # FormRenderer Contracts Implementation Plan
 
+**Current status — 2026-10-17:** Implemented, including the form capabilities in `7dbae9c9` and tab overflow behavior in `3fe73f0b`. See [singleton documents](../docs/04-collections/09-singletons.md) for the host that consumes these contracts. This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 > **For implementers:** Work the tasks in order. Each task is an independent
 > red → green → commit cycle with its own tests; do not start a task before its
 > predecessor is committed. Steps use checkbox (`- [ ]`) syntax for tracking.

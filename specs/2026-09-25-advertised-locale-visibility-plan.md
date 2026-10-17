@@ -13,7 +13,7 @@ Companions:
 - [Search authorization after ranking](../docs/06-search/03-search-api.md#authorization-after-ranking) defines restricted search totals and pagination.
 - [Testing](../docs/13-testing.md) describes package test modes and manual browser verification.
 
-Date: 2026-09-25. Status: revised plan ready for review against the settled specification. Code baseline: `1ac9287a`. Issue: [#102](https://github.com/Byline-CMS/bylinecms.dev/issues/102). This replaces the earlier four-phase plan, including its superseded cache and snapshot requirements. No runtime code has been changed by this planning task.
+Date: 2026-09-25. Status updated 2026-10-17: implemented. The [test report](./2026-09-25-advertised-locale-visibility-test-report.md) records completion evidence for [#102](https://github.com/Byline-CMS/bylinecms.dev/issues/102). This document preserves the implementation sequence and contract identifiers, replacing the earlier four-phase proposal. Its original code baseline was `1ac9287a`; its instructions are historical, not outstanding implementation work.
 
 ## Scope and sequencing
 
@@ -288,7 +288,7 @@ git diff --check
 
 Update content-locale, SDK/preview, query, search, caching, and admin docs after implementation. Release notes must explicitly state public `empty` suppression of incomplete additional translations on non-advertised collections and rejection of public `locale: 'all'` on every collection. Describe source availability, exposed published completeness metadata, `resolvedLocale`, one preview toggle, both hook sets' locale reconciliation, cache parity, and saved-snapshot limitations. Include all eight admin translations and remove stale comments claiming unchecked translations are intentionally publicly readable.
 
-Update [Content history and document controls](../docs/03-architecture/06-content-history-and-document-controls.md) as part of this phase. Replace its dated descriptions of #102 as planned behavior with verified shipped behavior, including the language policy and combined-save consequence. Preserve the separate status of unresolved re-anchoring, historical replay, and release coordination work. Verify any external specification links resolve to pushed commits before publishing documentation; do not publish links to local-only commits.
+Update [Content history and document controls](../docs/03-architecture/05-content-history-and-document-controls.md) as part of this phase. Replace its dated descriptions of #102 as planned behavior with verified shipped behavior, including the language policy and combined-save consequence. Preserve the separate status of unresolved re-anchoring, historical replay, and release coordination work. Verify any external specification links resolve to pushed commits before publishing documentation; do not publish links to local-only commits.
 
 No schema or content-data migration is expected: verify both existing schemas and leave editorial choices intact. Rebuild the public search index and use existing operational cache-clear procedures at rollout; do not auto-check translations or claim stronger CDN withdrawal. Do not introduce snapshot repair or cache infrastructure as release prerequisites.
 

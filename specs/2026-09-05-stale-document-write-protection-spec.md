@@ -13,9 +13,11 @@ Companions:
 - [Scheduled publication](../docs/11-scheduling/02-scheduled-publication.md) describes publication targets and reconfirmation.
 - [Singleton documents](../docs/04-collections/09-singletons.md) describes the singleton slot and first-save behavior.
 
+**Current status — 2026-10-17:** Implemented in `d78548a5` and included in 5.0.0 (`7cc6cd14`). See [content history and document controls](../docs/03-architecture/05-content-history-and-document-controls.md). Historical checkpoint notes below are not a current release-status ledger. This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 Date: 2026-09-05
 
-Status: approved for implementation planning on 2026-09-05; not implemented. The user authorized a task-based implementation plan after two review rounds. Implementation has not started.
+Original planning status: approved for implementation planning on 2026-09-05; not implemented. The user authorized a task-based implementation plan after two review rounds. Implementation has not started.
 
 Review revision: the first review supported the core proposal and requested clearer error typing, simpler number serialization, an explicit schedule policy, maintenance/upload coverage, and an enforceable rollout procedure. Those decisions are incorporated below.
 

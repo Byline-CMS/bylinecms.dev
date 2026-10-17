@@ -1,7 +1,9 @@
 # Admin Dashboard Collection Groups Design
 
+**Current status — 2026-10-17:** Implemented and merged in `2d36bbed`. See [collection groups](../docs/09-admin-ui/03-collection-groups.md) for the current configuration and behavior. This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 Date: 2026-08-21
-Status: design approved; not implemented
+Original planning status: design approved; not implemented
 
 ## Goal
 

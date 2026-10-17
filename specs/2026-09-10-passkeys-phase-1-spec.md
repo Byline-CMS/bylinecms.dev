@@ -13,7 +13,7 @@ Companions:
 - [Phase 1 implementation plan](./2026-09-10-passkeys-phase-1-plan.md) sequences implementation and verification of this specification.
 - [Testing](../docs/13-testing.md) describes the repository's verification workflow.
 
-Date: 2026-09-10. Status: approved for planning following the user-supplied review. Implementation has not started. The implementation plan resolves the remaining protocol and repository details without changing the Phase 1 policy.
+Date: 2026-09-10. Status updated 2026-10-17: implemented in the 6.8.0 release commit (`afd53046`). See [passkeys](../docs/07-auth-and-security/03-passkeys.md) for current behavior and configuration. The implementation plan records stage evidence and the remaining gap in recorded Stage 6 acceptance evidence; this status does not establish deployment or a completed physical-device matrix.
 
 ## Purpose and scope
 

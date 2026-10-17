@@ -1,5 +1,7 @@
 # Admin Dashboard Collection Groups Implementation Plan
 
+**Current status — 2026-10-17:** Implemented and merged in `2d36bbed`. See [collection groups](../docs/09-admin-ui/03-collection-groups.md) for the current configuration and behavior. This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Let an installation arrange admin dashboard collections into labelled,

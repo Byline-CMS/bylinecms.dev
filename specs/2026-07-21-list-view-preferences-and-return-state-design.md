@@ -1,8 +1,10 @@
 # List-view preferences and return-to-list state — design
 
+**Current status — 2026-10-17:** Implemented. Per-user list preferences and return-to-list navigation shipped in `a3d2c658`; see [collections](../docs/04-collections/index.md). This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 Date: 2026-07-21
 Issues: [#16 Persisted list-view preferences](https://github.com/Byline-CMS/bylinecms.dev/issues/16), [#17 Return-to-list state after editing and closing a document](https://github.com/Byline-CMS/bylinecms.dev/issues/17)
-Status: approved in brainstorming with Tony, 2026-07-21
+Original planning status: approved in brainstorming with Tony, 2026-07-21
 
 ## Purpose
 

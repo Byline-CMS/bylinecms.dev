@@ -1,8 +1,10 @@
 # Database error-classification seam (`classifyError`) — design
 
+**Current status — 2026-10-17:** Implemented. Both SQL adapters and their shared error-classification contract are present; MySQL shipped in 4.8.0 (`22965c1e`). See [document storage](../docs/03-architecture/01-document-storage.md). Named deferred adapter follow-ups remain separate work. This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 Date: 2026-07-24
 Issues: [#45 Error-normalisation seam](https://github.com/Byline-CMS/bylinecms.dev/issues/45) (primary), [#46 ConformanceHooks docs + `text[]` nullCast](https://github.com/Byline-CMS/bylinecms.dev/issues/46) (folded in — trivial, same PR)
-Status: approved in brainstorming with Tony, 2026-07-24
+Original planning status: approved in brainstorming with Tony, 2026-07-24
 Companions:
 - `specs/2026-07-24-db-mysql-adapter-design.md` — the MySQL adapter this seam unblocks (its Task 9 write path depends on this landing first).
 - `specs/2026-07-24-db-mysql-adapter-plan.md` — Phase 2 plan; the db-mysql `classifyError` is implemented there, guided by this spec.

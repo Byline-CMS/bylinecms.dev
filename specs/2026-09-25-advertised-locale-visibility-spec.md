@@ -1,22 +1,23 @@
 ---
 title: "Advertised locale visibility — specification"
 path: "advertised-locale-visibility-spec"
-summary: "Proposed public translation visibility and authorized preview semantics for issue 102."
+summary: "Implemented public translation visibility and authorized preview semantics for issue 102."
 ---
 
 # Advertised locale visibility — specification
 
 Companions:
 
-- [Implementation plan](./2026-09-25-advertised-locale-visibility-plan.md) records the earlier implementation proposal; it will be aligned after specification review.
+- [Implementation plan](./2026-09-25-advertised-locale-visibility-plan.md) records implementation scope and contract identifiers.
+- [Test report](./2026-09-25-advertised-locale-visibility-test-report.md) maps the implemented contracts to tests and browser observations.
 - [Content locales](../docs/08-internationalization/03-content-locales.md) describes the existing completeness ledger and locale controls.
 - [Client SDK](../docs/05-reading-and-delivery/01-client-sdk.md) describes version selection, authorization, and preview.
 - [Caching](../docs/05-reading-and-delivery/06-caching.md) describes the current application and HTTP cache boundaries.
 - [Indexing and reindexing](../docs/06-search/02-indexing-and-reindexing.md) describes public search projections.
 
-Date: 2026-09-25. Status: proposed specification for review before implementation. Grounded in commit `1ac9287a` and [issue #102](https://github.com/Byline-CMS/bylinecms.dev/issues/102). This task changes no runtime behavior. Proposed API names below are design decisions for the implementing agent, not existing exports.
+Date: 2026-09-25. Status updated 2026-10-17: implemented. The [test report](./2026-09-25-advertised-locale-visibility-test-report.md) records the implementation commits, coverage, and browser observations for [issue #102](https://github.com/Byline-CMS/bylinecms.dev/issues/102). The original planning baseline was `1ac9287a`.
 
-This specification incorporates the comparison with the independent implementing agent's analysis and the user's decisions to accept cache parity with unpublish and potentially stale saved rich-text snapshots. It takes precedence over the earlier implementation plan where they differ, including public `empty` reads, resolved-locale metadata, caching, and snapshot requirements. The plan has not been revised during this specification review.
+This specification incorporates the comparison with the independent implementing agent's analysis and the user's decisions to accept cache parity with unpublish and potentially stale saved rich-text snapshots. The revised implementation plan and test report cover public `empty` reads, resolved-locale metadata, caching, and snapshot requirements. Current delivery behavior is documented in the companion developer references.
 
 ## Purpose and intended contract
 

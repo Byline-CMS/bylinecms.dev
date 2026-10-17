@@ -12,7 +12,9 @@ Companions:
 - [Configuration](../docs/10-api-reference/01-configuration.md) documents the admin configuration surface.
 - [Testing](../docs/13-testing.md) describes the repository's verification workflow.
 
-Date: 2026-09-13. Status: approved for planning following review. Implementation has not started. Target release: 6.x. The configuration surface is additive, storage and transports are untouched, and no collection changes behaviour unless it opts in; the single break is a narrowed `FormRenderer` prop type (see Configuration surface). The downstream footprint is a small set of first-party applications, so that is a release-note line rather than a migration.
+**Current status — 2026-10-17:** Implemented in `1082cf56` and `55ea98fa`. See [document paths](../docs/04-collections/05-document-paths.md) for the current `lockPath` contract. This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
+Date: 2026-09-13. Original planning status: approved for planning following review. Implementation has not started. Target release: 6.x. The configuration surface is additive, storage and transports are untouched, and no collection changes behaviour unless it opts in; the single break is a narrowed `FormRenderer` prop type (see Configuration surface). The downstream footprint is a small set of first-party applications, so that is a release-note line rather than a migration.
 
 ## Purpose and scope
 

@@ -6,6 +6,8 @@ summary: "Sequence the configuration member, the two translation keys, the widge
 
 # Path widget lock — implementation plan
 
+**Current status — 2026-10-17:** Implemented in `1082cf56` and `55ea98fa`. See [document paths](../docs/04-collections/05-document-paths.md) for the current `lockPath` contract. This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Give a collection one declared way to say its document paths are managed rather than editorial — `CollectionAdminConfig.lockPath: true` — and render the system path widget read-only, in both create and edit mode, when it does.

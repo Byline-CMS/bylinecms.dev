@@ -1,5 +1,7 @@
 # MySQL Database Adapter (`@byline/db-mysql`) Implementation Plan
 
+**Current status — 2026-10-17:** Implemented. Both SQL adapters and their shared error-classification contract are present; MySQL shipped in 4.8.0 (`22965c1e`). See [document storage](../docs/03-architecture/01-document-storage.md). Named deferred adapter follow-ups remain separate work. This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Extract Byline's dialect-independent storage machinery into `@byline/core` behind a conformance test suite (Phase 1), then build `@byline/db-mysql` — core `IDbAdapter` + admin repositories on MySQL 8.0.14+ — against that proven contract (Phase 2).

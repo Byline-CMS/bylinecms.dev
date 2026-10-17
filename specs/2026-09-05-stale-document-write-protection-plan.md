@@ -13,9 +13,11 @@ Companions:
 - [Document storage](../docs/03-architecture/01-document-storage.md) explains document identity, versions, and metadata.
 - [Testing](../docs/13-testing.md) describes database and browser test setup.
 
+**Current status — 2026-10-17:** Implemented in `d78548a5` and included in 5.0.0 (`7cc6cd14`). See [content history and document controls](../docs/03-architecture/05-content-history-and-document-controls.md). Historical checkpoint notes below are not a current release-status ledger. This document preserves the original design and implementation checklist; unchecked items below are not a current backlog.
+
 Date: 2026-09-05
 
-Status: implementation started with user authorization on 2026-09-05. R0 through R4 passed independent review. Tasks 2–9 are implemented and reviewed; Tasks 10–11 are implemented and awaiting R5 review. R1-1, R2-1, R2-2, T5-1 and R3a-4 are closed. The development Drizzle migration chains were squashed and their local development ledgers were manually reconciled on 2026-09-06. Fresh empty-database tests, rather than that bookkeeping, prove the squashed baselines. This document does not authorize release/deployment.
+Original planning status: implementation started with user authorization on 2026-09-05. R0 through R4 passed independent review. Tasks 2–9 are implemented and reviewed; Tasks 10–11 are implemented and awaiting R5 review. R1-1, R2-1, R2-2, T5-1 and R3a-4 are closed. The development Drizzle migration chains were squashed and their local development ledgers were manually reconciled on 2026-09-06. Fresh empty-database tests, rather than that bookkeeping, prove the squashed baselines. This document does not authorize release/deployment.
 
 Plan review revision: split single-document and scheduler/structural review gates, define a bounded editable-read fallback, require resumable MySQL upgrade stages, and reserve the coverage ledger below. These changes do not mark any implementation task complete.
 
