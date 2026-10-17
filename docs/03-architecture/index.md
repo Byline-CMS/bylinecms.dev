@@ -218,7 +218,7 @@ The cost:
 
 - Two files instead of one (or two declarations in one file).
 - A linking step so the framework knows which admin config belongs to which
-  schema: `defineAdmin(schema, …)`, which sets the admin config's slug from
+  schema: `defineAdmin(schema, …)`, which sets the admin config's path from
   `schema.path` automatically.
 - It is harder to see the whole picture of a single collection at a glance.
 

@@ -296,7 +296,7 @@ export interface FormAdminConfig {
  * Admin UI configuration for a collection.
  * This is the presentation/UI layer — separate from the data schema.
  *
- * Linked to a `CollectionDefinition` by `slug` matching the collection's
+ * Linked to a `CollectionDefinition` by `path` matching the collection's
  * `path`.
  */
 export interface CollectionAdminConfig<T = any> extends FormAdminConfig {
@@ -304,7 +304,7 @@ export interface CollectionAdminConfig<T = any> extends FormAdminConfig {
   singleton?: false
 
   /** Must match the `path` of the corresponding `CollectionDefinition`. */
-  slug: string
+  path: string
 
   /**
    * Dashboard group this collection belongs to. Must name an entry in
@@ -503,7 +503,7 @@ export interface SingletonAdminConfig<T = any> extends FormAdminConfig {
   singleton: true
 
   /** Must match the `path` of the corresponding `SingletonDefinition`. */
-  slug: string
+  path: string
 
   /**
    * Dashboard group this resource belongs to. The registry remains named
@@ -548,16 +548,16 @@ export interface ListActionComponentProps {
 
 /**
  * Type-safe factory for creating a `CollectionAdminConfig` linked to a schema.
- * Sets `slug` from the schema's `path`.
+ * Sets `path` from the schema's `path`.
  */
 export function defineAdmin<T = any>(
   schema: MultiCollectionDefinition,
-  config: Omit<CollectionAdminConfig<T>, 'slug' | 'singleton'>
+  config: Omit<CollectionAdminConfig<T>, 'path' | 'singleton'>
 ): CollectionAdminConfig<T> {
   return {
     ...config,
     singleton: false,
-    slug: schema.path,
+    path: schema.path,
   }
 }
 
@@ -567,12 +567,12 @@ export function defineAdmin<T = any>(
  */
 export function defineSingletonAdmin<T = any>(
   schema: SingletonDefinition,
-  config: Omit<SingletonAdminConfig<T>, 'slug' | 'singleton'>
+  config: Omit<SingletonAdminConfig<T>, 'path' | 'singleton'>
 ): SingletonAdminConfig<T> {
   return {
     ...config,
     singleton: true,
-    slug: schema.path,
+    path: schema.path,
   }
 }
 

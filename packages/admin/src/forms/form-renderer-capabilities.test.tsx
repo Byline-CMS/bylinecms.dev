@@ -131,7 +131,7 @@ describe('FormRenderer capabilities', () => {
   })
 
   it('forwards adminConfig.lockPath to the path widget', () => {
-    render({ ...baseProps, adminConfig: { slug: 'pages', lockPath: true } })
+    render({ ...baseProps, adminConfig: { path: 'pages', lockPath: true } })
 
     const input = container.querySelector<HTMLInputElement>('input[name="__systemPath__"]')
     expect(input?.readOnly).toBe(true)
@@ -139,7 +139,7 @@ describe('FormRenderer capabilities', () => {
   })
 
   it('leaves the path widget editable when no lockPath is declared', () => {
-    render({ ...baseProps, adminConfig: { slug: 'pages' } })
+    render({ ...baseProps, adminConfig: { path: 'pages' } })
 
     const input = container.querySelector<HTMLInputElement>('input[name="__systemPath__"]')
     expect(input?.readOnly).toBe(false)
@@ -156,7 +156,7 @@ describe('FormRenderer capabilities', () => {
       fields: [{ name: 'ref', label: 'Ref', type: 'counter' as const }],
       useAsPath: 'ref',
       initialData: { id: 'doc-1', path: 'about-us', fields: { ref: 448 } },
-      adminConfig: { slug: 'pages' },
+      adminConfig: { path: 'pages' },
     })
 
     const input = container.querySelector<HTMLInputElement>('input[name="__systemPath__"]')
@@ -173,7 +173,7 @@ describe('FormRenderer capabilities', () => {
       mode: 'create' as const,
       useAsPath: undefined,
       initialData: { fields: {} },
-      adminConfig: { slug: 'pages', lockPath: true },
+      adminConfig: { path: 'pages', lockPath: true },
     })
 
     expect(container.querySelector('.byline-form-path')).not.toBeNull()
@@ -188,14 +188,14 @@ describe('FormRenderer capabilities', () => {
       mode: 'create' as const,
       useAsPath: undefined,
       initialData: { fields: {} },
-      adminConfig: { slug: 'pages' },
+      adminConfig: { path: 'pages' },
     })
 
     expect(container.querySelector('.byline-form-path')).toBeNull()
   })
 
   it('lets showPath: false override lockPath', () => {
-    render({ ...baseProps, showPath: false, adminConfig: { slug: 'pages', lockPath: true } })
+    render({ ...baseProps, showPath: false, adminConfig: { path: 'pages', lockPath: true } })
 
     expect(container.querySelector('.byline-form-path')).toBeNull()
   })

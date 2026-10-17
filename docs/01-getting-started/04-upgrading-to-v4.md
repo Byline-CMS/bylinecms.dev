@@ -357,7 +357,7 @@ return definition.labels.plural
 Two related helpers are kind-specific:
 
 - `defineAdmin(schema, config)` now requires `MultiCollectionDefinition`; use `defineSingletonAdmin()` for a singleton.
-- `getCollectionAdminConfig(slug)` returns `null` for a singleton slug; use `getSingletonAdminConfig(slug)` when the caller expects the singleton branch.
+- `getCollectionAdminConfig(path)` returns `null` for a singleton path; use `getSingletonAdminConfig(path)` when the caller expects the singleton branch.
 
 Generated `Register` augmentation now carries separate `collections` and `singletons` registries. Regenerate application types so `BylineClient<TCollections, TSingletons>` receives both path-to-field maps.
 

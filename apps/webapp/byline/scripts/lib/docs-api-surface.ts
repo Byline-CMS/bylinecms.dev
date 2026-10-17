@@ -142,7 +142,7 @@ const singletonDefinitionKeys = completeKeys<SingletonDefinition>()([
 
 const collectionAdminConfigKeys = completeKeys<CollectionAdminConfig>()([
   'singleton',
-  'slug',
+  'path',
   'group',
   'lockPath',
   'columns',
@@ -162,7 +162,7 @@ const collectionAdminConfigKeys = completeKeys<CollectionAdminConfig>()([
 
 const singletonAdminConfigKeys = completeKeys<SingletonAdminConfig>()([
   'singleton',
-  'slug',
+  'path',
   'group',
   'lockPath',
   'preview',

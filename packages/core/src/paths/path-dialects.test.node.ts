@@ -159,7 +159,7 @@ describe('path dialect — upload hook registry keys', () => {
 
 describe('path dialect — admin fields{} override keys', () => {
   const admin = (key: string): CollectionAdminConfig =>
-    ({ slug: 'pages', fields: { [key]: {} } }) as CollectionAdminConfig
+    ({ path: 'pages', fields: { [key]: {} } }) as CollectionAdminConfig
 
   const validate = (key: string) => () => validateAdminConfigs([admin(key)], [fixture()])
 
@@ -314,7 +314,7 @@ describe('path dialects — cross-dialect relationships', () => {
     ).not.toThrow()
     expect(() =>
       validateAdminConfigs(
-        [{ slug: 'pages', fields: { [adminKey]: {} } } as CollectionAdminConfig],
+        [{ path: 'pages', fields: { [adminKey]: {} } } as CollectionAdminConfig],
         [fixture()]
       )
     ).not.toThrow()

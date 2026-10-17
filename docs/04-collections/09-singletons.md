@@ -224,7 +224,7 @@ Schema fingerprints include the resource kind. Changing a registered path from a
 
 ## Admin presentation
 
-`defineSingletonAdmin(schema, config)` returns a `SingletonAdminConfig` with `singleton: true` and `slug` copied from `schema.path`. It supports the shared form-composition surface:
+`defineSingletonAdmin(schema, config)` returns a `SingletonAdminConfig` with `singleton: true` and `path` copied from `schema.path`. It supports the shared form-composition surface:
 
 - `tabSets`, `rows`, `groups`, and `layout` arrange the form;
 - `fields` supplies per-field rendering overrides;

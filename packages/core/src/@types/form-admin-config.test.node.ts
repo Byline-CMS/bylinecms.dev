@@ -23,7 +23,7 @@ describe('FormAdminConfig', () => {
 
   it('is satisfied by a full CollectionAdminConfig', () => {
     const collection: CollectionAdminConfig = {
-      slug: 'pages',
+      path: 'pages',
       layout: { main: [] },
     }
     const asForm: FormAdminConfig = collection

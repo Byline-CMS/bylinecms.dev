@@ -55,7 +55,7 @@ export function groupCollectionsForAdmin<TDefinition extends CollectionDefinitio
 ): CollectionGroupBucket<TDefinition>[] {
   const groupByCollectionPath = new Map<string, string>()
   for (const entry of admin ?? []) {
-    if (entry.group != null) groupByCollectionPath.set(entry.slug, entry.group)
+    if (entry.group != null) groupByCollectionPath.set(entry.path, entry.group)
   }
 
   const membersByGroup = new Map<string, TDefinition[]>()

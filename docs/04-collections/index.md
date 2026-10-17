@@ -299,7 +299,13 @@ A collection lives in two files:
   The schema is **isomorphic**: the same module is *also* pulled into the **client** admin bundle (the admin shell reads field config from it). So the constraint runs both ways: just as a schema must avoid browser-only globals (so the server bootstrap can load it), it must avoid **server-only** modules (so the client can bundle it without dragging Node built-ins or backend code into the browser). Declarative field data and isomorphic-safe field hooks satisfy both directions. Register lifecycle/upload hooks that reach server-only code through the [server-only hook registry](#server-only-hook-registry), outside the schema graph.
 - **Admin** (`collections/<name>/admin.tsx`) — a `CollectionAdminConfig` returned by `defineAdmin`. UI overrides: `columns`, `itemView`, `tabSets` / `rows` / `groups` / `layout`, `preview.url`, `listView`, `listActions`, `fields{}` (per-field admin), `group`. React, CSS modules, and Vite-managed imports are all fine.
 
-The split mirrors Django's `Model` / `ModelAdmin`. The same field names appear on both sides: the schema declares what the field *is*; the admin declares how it *renders*. The two halves are linked by the schema's `path` (`defineAdmin(schema, …)` sets `slug` from `schema.path` automatically). See [Fields](./01-fields.md) for the equivalent split at the field level.
+The split mirrors Django's `Model` / `ModelAdmin`. The same field names appear on both sides: the schema declares what the field *is*; the admin declares how it *renders*. The two halves are linked by the schema's `path` (`defineAdmin(schema, …)` sets `path` from `schema.path` automatically). See [Fields](./01-fields.md) for the equivalent split at the field level.
+
+The admin config identity property was previously named `slug`. Code that reads
+that property or constructs `CollectionAdminConfig` or `SingletonAdminConfig`
+objects directly must use `path`; there is no `slug` alias. Calls to
+`defineAdmin()` and `defineSingletonAdmin()` keep the same arguments because
+the factories derive the identity from the schema.
 
 ### The `CollectionDefinition` surface
 

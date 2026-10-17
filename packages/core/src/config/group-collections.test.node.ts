@@ -40,9 +40,9 @@ const groups = [
 ]
 
 const admin: CollectionAdminConfig[] = [
-  { slug: 'images', group: 'media' },
-  { slug: 'authors', group: 'authorities' },
-  { slug: 'categories', group: 'taxonomy' },
+  { path: 'images', group: 'media' },
+  { path: 'authors', group: 'authorities' },
+  { path: 'categories', group: 'taxonomy' },
 ]
 
 describe('groupCollectionsForAdmin', () => {
@@ -92,7 +92,7 @@ describe('groupCollectionsForAdmin', () => {
     const more = define('videos')
     const result = groupCollectionsForAdmin(
       [more, images],
-      [...admin, { slug: 'videos', group: 'media' }],
+      [...admin, { path: 'videos', group: 'media' }],
       groups
     )
     expect(result[0]?.collections).toEqual([more, images])
@@ -101,7 +101,7 @@ describe('groupCollectionsForAdmin', () => {
   it('groups singleton and multi-collection resources together in declaration order', () => {
     const resourceAdmin: AdminResourceConfig[] = [
       ...admin,
-      { singleton: true, slug: settings.path, group: 'media' },
+      { singleton: true, path: settings.path, group: 'media' },
     ]
     const result = groupCollectionsForAdmin([images, settings], resourceAdmin, groups)
 
@@ -116,7 +116,7 @@ describe('groupCollectionsForAdmin', () => {
   it('treats an undeclared group name as ungrouped rather than throwing', () => {
     // Boot validation rejects this configuration, but the function stays total
     // so a renderer can never crash on a stale or hand-built config object.
-    const result = groupCollectionsForAdmin([pages], [{ slug: 'pages', group: 'ghost' }], groups)
+    const result = groupCollectionsForAdmin([pages], [{ path: 'pages', group: 'ghost' }], groups)
     expect(result).toEqual([{ name: null, label: null, collections: [pages] }])
   })
 

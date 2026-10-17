@@ -159,7 +159,7 @@ export function validateCollectionGroups(
         : `declared groups: ${[...declared].map((name) => `"${name}"`).join(', ')}`
 
     throw new Error(
-      `Admin resource "${admin.slug}": \`group: '${admin.group}'\` does not name a declared collection group (${known}). Add it to \`AdminConfig.collectionGroups\`, or remove the \`group\` property.`
+      `Admin config for path "${admin.path}": \`group: '${admin.group}'\` does not name a declared collection group (${known}). Add it to \`AdminConfig.collectionGroups\`, or remove the \`group\` property.`
     )
   }
 }
@@ -168,7 +168,7 @@ export function validateCollectionGroups(
  * Validate every admin config in a configuration.
  *
  * Enforced rules (per admin config):
- *  1. Slug pairing — `admin.slug` matches exactly one `collection.path`.
+ *  1. Path pairing — `admin.path` matches exactly one `collection.path`.
  *  2. Placement — when `layout` is present, every top-level schema field
  *     name appears exactly once across the union of all `tabSet.tabs[].fields`,
  *     all `row.fields`, all `group.fields`, `layout.main`, and `layout.sidebar`.
@@ -302,34 +302,34 @@ function validateOne(
   admin: AdminResourceConfig,
   collectionsByPath: Map<string, CollectionDefinition>
 ): void {
-  // Rule 1 — slug pairing.
-  const collection = collectionsByPath.get(admin.slug)
+  // Rule 1 — path pairing.
+  const collection = collectionsByPath.get(admin.path)
   if (collection == null) {
     if (admin.singleton === true) {
       throw new Error(
-        `Singleton admin config "${admin.slug}" has no matching singleton definition (no singleton with \`path: '${admin.slug}'\` was registered).`
+        `Singleton admin config "${admin.path}" has no matching singleton definition (no singleton with \`path: '${admin.path}'\` was registered).`
       )
     }
     throw new Error(
-      `Admin config "${admin.slug}" has no matching collection (no collection with \`path: '${admin.slug}'\` was registered).`
+      `Admin config "${admin.path}" has no matching collection (no collection with \`path: '${admin.path}'\` was registered).`
     )
   }
 
   if (admin.singleton === true && !isSingleton(collection)) {
     throw new Error(
-      `Singleton admin config "${admin.slug}" targets a collection definition. Register it with \`defineAdmin\`, or point it at a singleton definition.`
+      `Singleton admin config "${admin.path}" targets a collection definition. Register it with \`defineAdmin\`, or point it at a singleton definition.`
     )
   }
   if (admin.singleton !== true && isSingleton(collection)) {
     throw new Error(
-      `Collection admin config "${admin.slug}" targets a singleton definition. Register it with \`defineSingletonAdmin\`, or point it at a multi-collection definition.`
+      `Collection admin config "${admin.path}" targets a singleton definition. Register it with \`defineSingletonAdmin\`, or point it at a multi-collection definition.`
     )
   }
 
-  const slug = admin.slug
+  const path = admin.path
   const fail = (msg: string): never => {
     const resource = admin.singleton === true ? 'Singleton' : 'Collection'
-    throw new Error(`${resource} "${slug}": ${msg}`)
+    throw new Error(`${resource} "${path}": ${msg}`)
   }
 
   if (admin.singleton === true) {

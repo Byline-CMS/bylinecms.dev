@@ -140,7 +140,7 @@ type AdminResourceConfig<T = any> =
 
 | Property | Default | Description |
 |---|---|---|
-| `admin` | `[]` | `CollectionAdminConfig` and `SingletonAdminConfig` values registered by `defineAdmin()` or `defineSingletonAdmin()`. Each `slug` and `singleton` discriminant must match its definition. |
+| `admin` | `[]` | `CollectionAdminConfig` and `SingletonAdminConfig` values registered by `defineAdmin()` or `defineSingletonAdmin()`. Each `path` and `singleton` discriminant must match its definition. |
 | `collectionGroups` | `[]` | Ordered registry of dashboard resource groups, each `{ name, label }`. Array order is display order. Either admin-config kind joins a group through `group`. Omit for a flat dashboard. |
 | `blockAdmin` | `[]` | Site-wide block presentation configs registered by `defineBlockAdmin()`, keyed by `blockType`. |
 | `slugifier` | `slugify` | Client copy used by the admin path widget for live previews. Register the same pure synchronous function on `ServerConfig.slugifier`. |
@@ -394,8 +394,8 @@ switch (classification.code) {
 | Function | Return | Behavior |
 |---|---|---|
 | `getCollectionDefinition(path)` | `CollectionDefinition \| null` | Reads the current server config, or admin config when no server config exists, and finds either definition kind by path. |
-| `getCollectionAdminConfig(slug)` | `CollectionAdminConfig \| null` | Finds a multi-document admin config by slug. Returns `null` for an absent config and for a singleton config. |
-| `getSingletonAdminConfig(slug)` | `SingletonAdminConfig \| null` | Finds a singleton admin config by slug. Returns `null` for an absent config and for a multi-document config. |
+| `getCollectionAdminConfig(path)` | `CollectionAdminConfig \| null` | Finds a multi-document admin config by path. Returns `null` for an absent config and for a singleton config. |
+| `getSingletonAdminConfig(path)` | `SingletonAdminConfig \| null` | Finds a singleton admin config by path. Returns `null` for an absent config and for a multi-document config. |
 | `orderByContentLocale(codes)` | `string[]` | Returns a sorted copy using configured content-locale order, with unknown codes alphabetized at the end. It never filters codes. |
 
 `getCollectionDefinition(path)` previously returned only the multi-document branch. Code that reads collection-only members must now narrow the union:

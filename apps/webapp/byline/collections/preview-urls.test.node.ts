@@ -31,7 +31,7 @@ async function loadAdmins() {
 
 function previewUrl(admin: CollectionAdminConfig, d: PreviewDocument, locale?: string) {
   const url = admin.preview?.url
-  if (url == null) throw new Error(`${admin.slug ?? 'collection'} has no preview builder`)
+  if (url == null) throw new Error(`${admin.path ?? 'collection'} has no preview builder`)
   return url(d, { locale })
 }
 

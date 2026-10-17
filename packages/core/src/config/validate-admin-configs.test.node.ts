@@ -31,7 +31,7 @@ const collection: CollectionDefinition = {
 }
 
 const baseAdmin: CollectionAdminConfig = {
-  slug: 'news',
+  path: 'news',
   tabSets: [
     {
       name: 'main',
@@ -108,7 +108,7 @@ describe('validateAdminConfigs', () => {
   })
 
   it('rejects a singleton admin config targeting a multi-collection', () => {
-    const admin = { ...defineSingletonAdmin(singleton, {}), slug: collection.path }
+    const admin = { ...defineSingletonAdmin(singleton, {}), path: collection.path }
 
     expect(() => validateAdminConfigs([admin], [collection, singleton])).toThrow(
       /targets a collection definition/
@@ -116,7 +116,7 @@ describe('validateAdminConfigs', () => {
   })
 
   it('rejects a singleton admin config with no matching definition', () => {
-    const admin = { ...defineSingletonAdmin(singleton, {}), slug: 'missing-settings' }
+    const admin = { ...defineSingletonAdmin(singleton, {}), path: 'missing-settings' }
 
     expect(() => validateAdminConfigs([admin], [collection, singleton])).toThrow(
       /no matching singleton definition/
@@ -124,16 +124,16 @@ describe('validateAdminConfigs', () => {
   })
 
   it('rejects a multi-collection admin config targeting a singleton', () => {
-    const admin: CollectionAdminConfig = { slug: singleton.path }
+    const admin: CollectionAdminConfig = { path: singleton.path }
 
     expect(() => validateAdminConfigs([admin], [collection, singleton])).toThrow(
       /targets a singleton definition/
     )
   })
 
-  // Rule 1 — slug pairing.
-  it('rejects an admin config whose slug has no matching collection', () => {
-    const orphan: CollectionAdminConfig = { slug: 'nonexistent', layout: { main: [] } }
+  // Rule 1 — path pairing.
+  it('rejects an admin config whose path has no matching collection', () => {
+    const orphan: CollectionAdminConfig = { path: 'nonexistent', layout: { main: [] } }
     expect(() => validateAdminConfigs([orphan], [collection])).toThrow(/no matching collection/)
   })
 
@@ -231,7 +231,7 @@ describe('validateAdminConfigs', () => {
   // Rule 5 — nesting.
   it('rejects a row whose fields include a non-field primitive', () => {
     const admin: CollectionAdminConfig = {
-      slug: 'news',
+      path: 'news',
       tabSets: [
         {
           name: 'main',
@@ -255,7 +255,7 @@ describe('validateAdminConfigs', () => {
 
   it('rejects a tab set referenced from inside a tab', () => {
     const admin: CollectionAdminConfig = {
-      slug: 'news',
+      path: 'news',
       tabSets: [
         {
           name: 'inner',
@@ -287,7 +287,7 @@ describe('validateAdminConfigs', () => {
 
   it('rejects a group nested inside another group', () => {
     const admin: CollectionAdminConfig = {
-      slug: 'news',
+      path: 'news',
       tabSets: [
         {
           name: 'main',
@@ -355,7 +355,7 @@ describe('validateAdminConfigs', () => {
     ],
   } as CollectionDefinition
   const nestedAdmin = (fields: Record<string, object>): CollectionAdminConfig => ({
-    slug: 'library',
+    path: 'library',
     fields: fields as CollectionAdminConfig['fields'],
   })
 
@@ -489,7 +489,7 @@ describe('validateAdminConfigs', () => {
   // Layout omitted — bookkeeping skipped, primitive declarations still checked.
   it('skips placement bookkeeping when layout is omitted', () => {
     const admin: CollectionAdminConfig = {
-      slug: 'news',
+      path: 'news',
       // No layout — renderer will synthesise a default.
     }
     expect(() => validateAdminConfigs([admin], [collection])).not.toThrow()
@@ -497,7 +497,7 @@ describe('validateAdminConfigs', () => {
 
   it('still rejects a primitive collision when layout is omitted', () => {
     const admin: CollectionAdminConfig = {
-      slug: 'news',
+      path: 'news',
       rows: [
         { name: 'titles', fields: ['text1', 'text2'] },
         // 'title' is also a schema field — collision still caught.
@@ -684,22 +684,22 @@ describe('validateAdminConfigs — collection groups', () => {
 
   it('accepts a valid registry and a valid reference', () => {
     expect(() =>
-      validateAdminConfigs([{ slug: 'news', group: 'media' }], [collection], groups)
+      validateAdminConfigs([{ path: 'news', group: 'media' }], [collection], groups)
     ).not.toThrow()
   })
 
   it('accepts a collection with no group when a registry is declared', () => {
-    expect(() => validateAdminConfigs([{ slug: 'news' }], [collection], groups)).not.toThrow()
+    expect(() => validateAdminConfigs([{ path: 'news' }], [collection], groups)).not.toThrow()
   })
 
   it('is a no-op when no registry and no group references are present', () => {
-    expect(() => validateAdminConfigs([{ slug: 'news' }], [collection])).not.toThrow()
+    expect(() => validateAdminConfigs([{ path: 'news' }], [collection])).not.toThrow()
   })
 
   it('rejects a duplicate group name', () => {
     expect(() =>
       validateAdminConfigs(
-        [{ slug: 'news' }],
+        [{ path: 'news' }],
         [collection],
         [
           { name: 'media', label: 'Media' },
@@ -711,30 +711,30 @@ describe('validateAdminConfigs — collection groups', () => {
 
   it('rejects a blank group name', () => {
     expect(() =>
-      validateAdminConfigs([{ slug: 'news' }], [collection], [{ name: '  ', label: 'Media' }])
+      validateAdminConfigs([{ path: 'news' }], [collection], [{ name: '  ', label: 'Media' }])
     ).toThrow(/blank `name`/)
   })
 
   it('rejects a blank group label', () => {
     expect(() =>
-      validateAdminConfigs([{ slug: 'news' }], [collection], [{ name: 'media', label: '' }])
+      validateAdminConfigs([{ path: 'news' }], [collection], [{ name: 'media', label: '' }])
     ).toThrow(/blank `label`/)
   })
 
   it('rejects a group reference that names no declared group', () => {
     expect(() =>
-      validateAdminConfigs([{ slug: 'news', group: 'medai' }], [collection], groups)
+      validateAdminConfigs([{ path: 'news', group: 'medai' }], [collection], groups)
     ).toThrow(/does not name a declared collection group/)
   })
 
   it('names the declared groups in the unresolved-reference error', () => {
     expect(() =>
-      validateAdminConfigs([{ slug: 'news', group: 'medai' }], [collection], groups)
+      validateAdminConfigs([{ path: 'news', group: 'medai' }], [collection], groups)
     ).toThrow(/"media", "taxonomy"/)
   })
 
   it('rejects a group reference when no registry was declared at all', () => {
-    expect(() => validateAdminConfigs([{ slug: 'news', group: 'media' }], [collection])).toThrow(
+    expect(() => validateAdminConfigs([{ path: 'news', group: 'media' }], [collection])).toThrow(
       /was not declared/
     )
   })

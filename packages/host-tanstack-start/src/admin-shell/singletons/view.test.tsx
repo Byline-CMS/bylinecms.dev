@@ -142,7 +142,7 @@ const singleton = defineSingleton({
 
 const adminConfig = {
   singleton: true as const,
-  slug: singleton.path,
+  path: singleton.path,
   preview: { url: () => '/preview-settings' },
 }
 
@@ -181,7 +181,7 @@ let root: Root
 function view(
   currentDocument: typeof loadedDocument | null,
   locale = 'en',
-  config: typeof adminConfig | { singleton: true; slug: string } = adminConfig
+  config: typeof adminConfig | { singleton: true; path: string } = adminConfig
 ) {
   return (
     <I18nProvider
@@ -208,7 +208,7 @@ function view(
 function render(
   currentDocument: typeof loadedDocument | null,
   locale = 'en',
-  config: typeof adminConfig | { singleton: true; slug: string } = adminConfig
+  config: typeof adminConfig | { singleton: true; path: string } = adminConfig
 ) {
   act(() => root.render(view(currentDocument, locale, config)))
 }
@@ -332,7 +332,7 @@ describe('SingletonView', () => {
   })
 
   it('never derives a singleton preview from its internal stored path', () => {
-    render(loadedDocument, 'en', { singleton: true, slug: singleton.path })
+    render(loadedDocument, 'en', { singleton: true, path: singleton.path })
 
     expect(container.querySelector('.byline-view-menu')).not.toBeNull()
     expect(container.querySelector('.byline-preview-link')).toBeNull()

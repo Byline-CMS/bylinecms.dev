@@ -30,21 +30,24 @@ describe('singleton admin config', () => {
 
     expect(collectionAdmin.singleton).toBe(false)
     expect(singletonAdmin.singleton).toBe(true)
-    expect(singletonAdmin.slug).toBe(settings.path)
+    expect(collectionAdmin.path).toBe(pages.path)
+    expect(singletonAdmin.path).toBe(settings.path)
+    expect(collectionAdmin).not.toHaveProperty('slug')
+    expect(singletonAdmin).not.toHaveProperty('slug')
   })
 
   it('does not let untyped config input override factory-owned identity', () => {
     const collectionAdmin = defineAdmin(pages, {
       singleton: true,
-      slug: 'wrong-collection',
+      path: 'wrong-collection',
     } as never)
     const singletonAdmin = defineSingletonAdmin(settings, {
       singleton: false,
-      slug: 'wrong-singleton',
+      path: 'wrong-singleton',
     } as never)
 
-    expect(collectionAdmin).toMatchObject({ singleton: false, slug: pages.path })
-    expect(singletonAdmin).toMatchObject({ singleton: true, slug: settings.path })
+    expect(collectionAdmin).toMatchObject({ singleton: false, path: pages.path })
+    expect(singletonAdmin).toMatchObject({ singleton: true, path: settings.path })
   })
 
   it('shares the reusable form composition contract', () => {

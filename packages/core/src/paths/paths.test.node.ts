@@ -379,7 +379,7 @@ describe('resolveDeclarationPath — agreement with the admin fields{} validator
   const validatorAccepts = (key: string): boolean => {
     try {
       validateAdminConfigs(
-        [{ slug: 'pages', fields: { [key]: {} } } as CollectionAdminConfig],
+        [{ path: 'pages', fields: { [key]: {} } } as CollectionAdminConfig],
         [collection]
       )
       return true

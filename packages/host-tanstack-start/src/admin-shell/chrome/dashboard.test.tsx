@@ -129,8 +129,8 @@ describe('AdminDashboard document resources', () => {
       routes: { admin: '/internal/cms' },
       collections: [articles, settings],
       admin: [
-        { slug: articles.path, group: 'content' },
-        { singleton: true, slug: settings.path, group: 'content' },
+        { path: articles.path, group: 'content' },
+        { singleton: true, path: settings.path, group: 'content' },
       ],
       collectionGroups: [{ name: 'content', label: 'Content' }],
       i18n: {

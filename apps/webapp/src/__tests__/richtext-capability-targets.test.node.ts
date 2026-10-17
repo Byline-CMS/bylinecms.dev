@@ -15,6 +15,7 @@
  * built on that calls affected documents clean.
  */
 
+import { defineAdmin, defineCollection, defineSingleton, defineSingletonAdmin } from '@byline/core'
 import { describe, expect, it } from 'vitest'
 
 import { collectRichTextTargets } from '../lib/richtext-capability-targets.js'
@@ -24,46 +25,42 @@ const CaptionEditor = () => null
 const AnswerEditor = () => null
 const TitleEditor = () => null
 
-const config = {
-  fields: { richText: { editor: GlobalEditor } },
-  collections: [
+const pages = defineCollection({
+  path: 'pages',
+  labels: { singular: 'Page', plural: 'Pages' },
+  fields: [
+    { name: 'title', type: 'richText', label: 'Title' },
+    { name: 'body', type: 'richText', label: 'Body' },
     {
-      path: 'pages',
-      fields: [
-        { name: 'title', type: 'richText', label: 'Title' },
-        { name: 'body', type: 'richText', label: 'Body' },
+      name: 'content',
+      type: 'blocks',
+      label: 'Content',
+      blocks: [
         {
-          name: 'content',
-          type: 'blocks',
-          label: 'Content',
-          blocks: [
+          blockType: 'photoBlock',
+          fields: [{ name: 'caption', type: 'richText', label: 'Caption' }],
+        },
+        {
+          blockType: 'faqBlock',
+          fields: [
             {
-              blockType: 'photoBlock',
-              fields: [{ name: 'caption', type: 'richText', label: 'Caption' }],
-            },
-            {
-              blockType: 'faqBlock',
-              fields: [
-                {
-                  name: 'faq',
-                  type: 'array',
-                  label: 'FAQ',
-                  fields: [{ name: 'answer', type: 'richText', label: 'Answer' }],
-                },
-              ],
+              name: 'faq',
+              type: 'array',
+              label: 'FAQ',
+              fields: [{ name: 'answer', type: 'richText', label: 'Answer' }],
             },
           ],
         },
       ],
     },
   ],
-  // `slug`, not `path` — this is what `defineAdmin()` actually returns:
-  // `{ ...config, singleton: false, slug: schema.path }`. An earlier version of
-  // this fixture said `path`, which matched a `path`-based lookup in the
-  // implementation, so this suite passed while every collection-level override
-  // was silently ignored and the manifest overstated what those fields accept.
-  // A fixture invented to match the code proves nothing about the code.
-  admin: [{ slug: 'pages', fields: { title: { editor: TitleEditor } } }],
+})
+
+const config = {
+  fields: { richText: { editor: GlobalEditor } },
+  collections: [pages],
+  // Use the factory output so this fixture cannot invent a different identity key.
+  admin: [defineAdmin(pages, { fields: { title: { editor: TitleEditor } } })],
   blockAdmin: [
     { blockType: 'photoBlock', fields: { caption: { editor: CaptionEditor } } },
     { blockType: 'faqBlock', fields: { 'faq.answer': { editor: AnswerEditor } } },
@@ -89,6 +86,22 @@ describe('collectRichTextTargets', () => {
     const target = targetFor('title')
     expect(target.Editor).toBe(TitleEditor)
     expect(target.resolvedFrom).toBe('collection')
+  })
+
+  it('uses the singleton override rather than the global editor', () => {
+    const settings = defineSingleton({
+      path: 'site-settings',
+      label: 'Site settings',
+      fields: [{ name: 'title', type: 'richText', label: 'Title' }],
+    })
+    const targets = collectRichTextTargets({
+      fields: config.fields,
+      collections: [settings],
+      admin: [defineSingletonAdmin(settings, { fields: { title: { editor: TitleEditor } } })],
+    })
+    expect(targets).toHaveLength(1)
+    expect(targets[0]?.Editor).toBe(TitleEditor)
+    expect(targets[0]?.resolvedFrom).toBe('collection')
   })
 
   it('falls back to the global editor when nothing overrides', () => {

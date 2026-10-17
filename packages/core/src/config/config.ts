@@ -70,19 +70,19 @@ export const getCollectionDefinition = (path: string): CollectionDefinition | nu
   return config.collections.find((collection) => collection.path === path) ?? null
 }
 
-const getAdminResourceConfig = (slug: string): AdminResourceConfig | null => {
+const getAdminResourceConfig = (path: string): AdminResourceConfig | null => {
   const adminConfig = getAdminConfigInstance()
   if (adminConfig == null) return null
-  return adminConfig.admin?.find((admin) => admin.slug === slug) ?? null
+  return adminConfig.admin?.find((admin) => admin.path === path) ?? null
 }
 
-export const getCollectionAdminConfig = (slug: string): CollectionAdminConfig | null => {
-  const admin = getAdminResourceConfig(slug)
+export const getCollectionAdminConfig = (path: string): CollectionAdminConfig | null => {
+  const admin = getAdminResourceConfig(path)
   return admin?.singleton === true ? null : admin
 }
 
-export const getSingletonAdminConfig = (slug: string): SingletonAdminConfig | null => {
-  const admin = getAdminResourceConfig(slug)
+export const getSingletonAdminConfig = (path: string): SingletonAdminConfig | null => {
+  const admin = getAdminResourceConfig(path)
   return admin?.singleton === true ? admin : null
 }
 

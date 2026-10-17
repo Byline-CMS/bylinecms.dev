@@ -162,11 +162,11 @@ Deferred relation-target, search-indexing, embedded-tree, and multi-tenant-insta
 ```ts
 function defineAdmin<T = any>(
   schema: MultiCollectionDefinition,
-  config: Omit<CollectionAdminConfig<T>, 'slug' | 'singleton'>
+  config: Omit<CollectionAdminConfig<T>, 'path' | 'singleton'>
 ): CollectionAdminConfig<T>
 ```
 
-Returns the admin config with `slug` set from `schema.path`.
+Returns the admin config with `path` set from `schema.path`.
 
 ```ts
 import { defineAdmin } from '@byline/core'
@@ -187,7 +187,7 @@ export const ArticlesAdmin = defineAdmin(Articles, {
 | Property | Required or default | Description |
 |---|---|---|
 | `singleton` | `false`; stamped by `defineAdmin()` | Admin-resource discriminator. |
-| `slug` | Required; set by `defineAdmin()` | Must equal the corresponding collection `path`. |
+| `path` | Required; set by `defineAdmin()` | Must equal the corresponding collection `path`. |
 | `group` | None | Dashboard group this collection belongs to. Names an entry in `AdminConfig.collectionGroups` — a key, not a heading. Omit to place the collection in the leading ungrouped band. Boot-validated. |
 | `columns` | Synthesized defaults | Columns for the collection's default list view. |
 | `defaultSort` | `createdAt desc` | Initial list sort when the URL has no explicit order. Invalid on `orderable` collections. |
@@ -313,11 +313,11 @@ A custom `listView` owns search, ordering, results, pagination, and header actio
 ```ts
 function defineSingletonAdmin<T = any>(
   schema: SingletonDefinition,
-  config: Omit<SingletonAdminConfig<T>, 'slug' | 'singleton'>
+  config: Omit<SingletonAdminConfig<T>, 'path' | 'singleton'>
 ): SingletonAdminConfig<T>
 ```
 
-The function returns the form config with `singleton: true` and `slug` set from `schema.path`.
+The function returns the form config with `singleton: true` and `path` set from `schema.path`.
 
 ```ts
 import { defineSingletonAdmin } from '@byline/core'
@@ -334,7 +334,7 @@ export const SiteSettingsAdmin = defineSingletonAdmin(SiteSettings, {
 | Property | Required or default | Description |
 |---|---|---|
 | `singleton` | Required `true`; stamped by `defineSingletonAdmin()` | Admin-resource discriminator. |
-| `slug` | Required; stamped by `defineSingletonAdmin()` | Must equal the corresponding singleton definition path. |
+| `path` | Required; stamped by `defineSingletonAdmin()` | Must equal the corresponding singleton definition path. |
 | `group` | None | Dashboard resource group name from `AdminConfig.collectionGroups`. |
 | `tabSets` | `[]` | Named tab bars used by `layout`. |
 | `rows` | `[]` | Named horizontal field rows used by `layout`, tabs, or groups. |

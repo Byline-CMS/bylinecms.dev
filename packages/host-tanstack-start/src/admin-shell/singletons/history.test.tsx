@@ -372,7 +372,7 @@ describe('singleton version history', () => {
       <HistoryView
         collectionDefinition={collectionDefinition}
         adminConfig={{
-          slug: 'articles',
+          path: 'articles',
           columns: [{ fieldName: 'title', label: 'Title' }],
         }}
         data={data as never}
