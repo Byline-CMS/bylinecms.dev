@@ -12,7 +12,7 @@ import { useEffect } from 'react'
 
 import type { SingletonAdminConfig, SingletonPreviewDocument } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
-import { Button, HistoryIcon, IconButton, Label, Select } from '@byline/ui/react'
+import { Button, HistoryIcon, IconButton, Label, Select, Tooltip } from '@byline/ui/react'
 import cx from 'clsx'
 
 import { getAdminRoutePath } from '../../routes/admin-path.js'
@@ -71,66 +71,72 @@ export function SingletonViewMenu({
 
   return (
     <div className={cx('byline-view-menu', collectionStyles.root)}>
-      <Label
-        className={cx('muted byline-view-menu-label', collectionStyles.label)}
-        id="contentLocaleLabel"
-        htmlFor="contentLocale"
-        label={t('collections.viewMenu.contentLocaleLabel')}
-      />
-      <Select<string>
-        name="contentLocale"
-        id="contentLocale"
-        className={cx('byline-view-menu-locale-select', collectionStyles.localeSelect)}
-        size="xs"
-        variant="outlined"
-        value={locale ?? defaultContentLocale}
-        items={[
-          ...(activeView === 'history'
-            ? [{ value: 'all', label: t('collections.viewMenu.localeAll') }]
-            : []),
-          ...contentLocales.map((entry) => ({ value: entry.code, label: entry.label })),
-        ]}
-        onValueChange={handleLocaleChange}
-      />
-      {adminConfig?.preview != null && doc != null && (
-        <SingletonPreviewLink
-          doc={doc}
-          adminConfig={adminConfig}
-          locale={locale}
-          className={cx('byline-view-menu-icon-button', collectionStyles.iconButton)}
+      <div className={cx('byline-view-menu-data', collectionStyles.group)}>
+        <Label
+          className={cx('muted byline-view-menu-label', collectionStyles.label)}
+          id="contentLocaleLabel"
+          htmlFor="contentLocale"
+          label={t('collections.viewMenu.contentLocaleLabel')}
         />
-      )}
-      <IconButton
-        className={cx('byline-view-menu-icon-button', collectionStyles.iconButton)}
-        size="xs"
-        variant={activeView === 'history' ? 'filled' : 'text'}
-        aria-label={t('collections.breadcrumbs.history')}
-        onClick={() =>
-          navigate({
-            to: getAdminRoutePath('singletons', '$singleton', 'history'),
-            params: { singleton },
-            search: locale ? { locale } : {},
-          })
-        }
-      >
-        <HistoryIcon
-          className={cx('byline-view-menu-icon-button-icon', collectionStyles.iconButtonIcon)}
+        <Select<string>
+          name="contentLocale"
+          id="contentLocale"
+          className={cx('byline-view-menu-locale-select', collectionStyles.localeSelect)}
+          size="xs"
+          variant="outlined"
+          value={locale ?? defaultContentLocale}
+          items={[
+            ...(activeView === 'history'
+              ? [{ value: 'all', label: t('collections.viewMenu.localeAll') }]
+              : []),
+            ...contentLocales.map((entry) => ({ value: entry.code, label: entry.label })),
+          ]}
+          onValueChange={handleLocaleChange}
         />
-      </IconButton>
-      <Button
-        size="xs"
-        variant={activeView === 'edit' ? 'filled' : 'outlined'}
-        className={cx('byline-view-menu-button', collectionStyles.button)}
-        onClick={() =>
-          navigate({
-            to: getAdminRoutePath('singletons', '$singleton'),
-            params: { singleton },
-            search: locale ? { locale } : {},
-          })
-        }
-      >
-        {t('common.actions.edit')}
-      </Button>
+      </div>
+      <div className={cx('byline-view-menu-nav', collectionStyles.group)}>
+        {adminConfig?.preview != null && doc != null && (
+          <SingletonPreviewLink
+            doc={doc}
+            adminConfig={adminConfig}
+            locale={locale}
+            className={cx('byline-view-menu-icon-button', collectionStyles.iconButton)}
+          />
+        )}
+        <Tooltip text={t('collections.breadcrumbs.history')} side="bottom" delay={0}>
+          <IconButton
+            className={cx('byline-view-menu-icon-button', collectionStyles.iconButton)}
+            size="xs"
+            variant={activeView === 'history' ? 'filled' : 'text'}
+            aria-label={t('collections.breadcrumbs.history')}
+            onClick={() =>
+              navigate({
+                to: getAdminRoutePath('singletons', '$singleton', 'history'),
+                params: { singleton },
+                search: locale ? { locale } : {},
+              })
+            }
+          >
+            <HistoryIcon
+              className={cx('byline-view-menu-icon-button-icon', collectionStyles.iconButtonIcon)}
+            />
+          </IconButton>
+        </Tooltip>
+        <Button
+          size="xs"
+          variant={activeView === 'edit' ? 'filled' : 'outlined'}
+          className={cx('byline-view-menu-button', collectionStyles.button)}
+          onClick={() =>
+            navigate({
+              to: getAdminRoutePath('singletons', '$singleton'),
+              params: { singleton },
+              search: locale ? { locale } : {},
+            })
+          }
+        >
+          {t('common.actions.edit')}
+        </Button>
+      </div>
     </div>
   )
 }

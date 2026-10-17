@@ -2,19 +2,45 @@
  * ViewMenu — mini-nav bar for document-level views (Edit, History, API).
  *
  * Override handles:
- *   .byline-view-menu        — outer flex row
+ *   .byline-view-menu        — outer row; wraps between its two groups
+ *   .byline-view-menu-data   — locale/depth selects and the data actions that
+ *                              act on them (API view: Copy / Download JSON)
+ *   .byline-view-menu-nav    — preview link and view navigation
  *   .byline-view-menu-label  — locale/depth label (lg-only)
  *   .byline-view-menu-button — primary view buttons (Edit/API)
- *   .byline-view-menu-icon-button — history icon button
+ *   .byline-view-menu-icon-button — preview, history, and data-action icon buttons
  */
 
+/* Groups wrap as units, so a narrow viewport breaks the row between "what
+ * you are looking at" and "where you can go" rather than mid-group. The
+ * wider column gap marks the boundary when both groups share a line. */
 .root,
 :global(.byline-view-menu) {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.5rem 1.25rem;
   margin-top: 0.5rem;
   margin-bottom: 0.5rem;
+}
+
+/* Beside the heading (every host switches to a row at 40rem), keep a wrapped
+ * second line flush with the right edge rather than stranded under the
+ * heading's side of the menu. */
+@media (min-width: 40rem) {
+  .root,
+  :global(.byline-view-menu) {
+    justify-content: flex-end;
+  }
+}
+
+.group,
+:global(.byline-view-menu-data),
+:global(.byline-view-menu-nav) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .label,

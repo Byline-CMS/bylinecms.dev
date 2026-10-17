@@ -6,11 +6,12 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import type { ReactNode } from 'react'
 import { useEffect } from 'react'
 
 import type { CollectionAdminConfig, PreviewDocument } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
-import { Button, HistoryIcon, IconButton, Label, Select } from '@byline/ui/react'
+import { Button, HistoryIcon, IconButton, Label, Select, Tooltip } from '@byline/ui/react'
 import cx from 'clsx'
 
 import { getAdminRoutePath } from '../../routes/admin-path.js'
@@ -51,6 +52,7 @@ export const ViewMenu = ({
   defaultContentLocale,
   adminConfig,
   doc,
+  dataActions,
 }: {
   /** Collection path (e.g. "docs", "news"). */
   collection: string
@@ -78,6 +80,12 @@ export const ViewMenu = ({
    * entirely (e.g. on the create route, where no doc exists yet).
    */
   doc?: PreviewDocument
+  /**
+   * Controls that act on the data selected by the locale and depth controls
+   * (the API view's Copy / Download JSON). Rendered first, in the same group
+   * as those controls, so they wrap together ahead of the view navigation.
+   */
+  dataActions?: ReactNode
 }) => {
   const navigate = useNavigate()
   const { t } = useTranslation('byline-admin')
@@ -141,103 +149,113 @@ export const ViewMenu = ({
 
   return (
     <div className={cx('byline-view-menu', styles.root)}>
-      <Label
-        className={cx('muted byline-view-menu-label', styles.label)}
-        id="contentLocaleLabel"
-        htmlFor="contentLocale"
-        label={t('collections.viewMenu.contentLocaleLabel')}
-      />
-      <Select<string>
-        name="contentLocale"
-        id="contentLocale"
-        className={cx('byline-view-menu-locale-select', styles.localeSelect)}
-        size="xs"
-        variant="outlined"
-        value={locale ?? defaultContentLocale}
-        items={[
-          ...(activeView !== 'edit'
-            ? [{ value: 'all', label: t('collections.viewMenu.localeAll') }]
-            : []),
-          ...contentLocales.map((loc) => ({ value: loc.code, label: loc.label })),
-        ]}
-        onValueChange={handleLocaleChange}
-      />
-      {activeView === 'api' && (
-        <>
-          <Label
-            className={cx('muted byline-view-menu-label', styles.label)}
-            id="populateDepthLabel"
-            htmlFor="populateDepth"
-            label={t('collections.viewMenu.depthLabel')}
-          />
-          <Select<string>
-            name="populateDepth"
-            id="populateDepth"
-            className={cx('byline-view-menu-depth-select', styles.depthSelect)}
-            size="xs"
-            variant="outlined"
-            value={String(depth ?? 0)}
-            items={[
-              { value: '0', label: '0' },
-              { value: '1', label: '1' },
-              { value: '2', label: '2' },
-              { value: '3', label: '3' },
-            ]}
-            onValueChange={handleDepthChange}
-          />
-        </>
-      )}
-      {doc && (
-        <PreviewLink
-          collectionPath={collection}
-          doc={doc}
-          adminConfig={adminConfig}
-          locale={locale}
-          className={cx('byline-view-menu-icon-button', styles.iconButton)}
+      <div className={cx('byline-view-menu-data', styles.group)}>
+        {dataActions}
+        <Label
+          className={cx('muted byline-view-menu-label', styles.label)}
+          id="contentLocaleLabel"
+          htmlFor="contentLocale"
+          label={t('collections.viewMenu.contentLocaleLabel')}
         />
-      )}
-      <IconButton
-        className={cx('byline-view-menu-icon-button', styles.iconButton)}
-        size="xs"
-        variant={activeView === 'history' ? 'filled' : 'text'}
-        onClick={() =>
-          navigate({
-            to: getAdminRoutePath('collections', '$collection', '$id', 'history'),
-            params: { collection, id: documentId },
-            search: locale ? { locale } : {},
-          })
-        }
-      >
-        <HistoryIcon className={cx('byline-view-menu-icon-button-icon', styles.iconButtonIcon)} />
-      </IconButton>
-      <Button
-        size="xs"
-        variant={activeView === 'edit' ? 'filled' : 'outlined'}
-        className={cx('byline-view-menu-button', styles.button)}
-        onClick={() =>
-          navigate({
-            to: getAdminRoutePath('collections', '$collection', '$id'),
-            params: { collection, id: documentId },
-            search: locale ? { locale } : {},
-          })
-        }
-      >
-        {t('common.actions.edit')}
-      </Button>
-      <Button
-        size="xs"
-        variant={activeView === 'api' ? 'filled' : 'outlined'}
-        className={cx('byline-view-menu-button', styles.button)}
-        onClick={() =>
-          navigate({
-            to: getAdminRoutePath('collections', '$collection', '$id', 'api'),
-            params: { collection, id: documentId },
-            search: locale ? { locale } : {},
-          })
-        }
-      >
-        {t('collections.viewMenu.apiButton')}
-      </Button>
+        <Select<string>
+          name="contentLocale"
+          id="contentLocale"
+          className={cx('byline-view-menu-locale-select', styles.localeSelect)}
+          size="xs"
+          variant="outlined"
+          value={locale ?? defaultContentLocale}
+          items={[
+            ...(activeView !== 'edit'
+              ? [{ value: 'all', label: t('collections.viewMenu.localeAll') }]
+              : []),
+            ...contentLocales.map((loc) => ({ value: loc.code, label: loc.label })),
+          ]}
+          onValueChange={handleLocaleChange}
+        />
+        {activeView === 'api' && (
+          <>
+            <Label
+              className={cx('muted byline-view-menu-label', styles.label)}
+              id="populateDepthLabel"
+              htmlFor="populateDepth"
+              label={t('collections.viewMenu.depthLabel')}
+            />
+            <Select<string>
+              name="populateDepth"
+              id="populateDepth"
+              className={cx('byline-view-menu-depth-select', styles.depthSelect)}
+              size="xs"
+              variant="outlined"
+              value={String(depth ?? 0)}
+              items={[
+                { value: '0', label: '0' },
+                { value: '1', label: '1' },
+                { value: '2', label: '2' },
+                { value: '3', label: '3' },
+              ]}
+              onValueChange={handleDepthChange}
+            />
+          </>
+        )}
+      </div>
+      <div className={cx('byline-view-menu-nav', styles.group)}>
+        {doc && (
+          <PreviewLink
+            collectionPath={collection}
+            doc={doc}
+            adminConfig={adminConfig}
+            locale={locale}
+            className={cx('byline-view-menu-icon-button', styles.iconButton)}
+          />
+        )}
+        <Tooltip text={t('collections.breadcrumbs.history')} side="bottom" delay={0}>
+          <IconButton
+            className={cx('byline-view-menu-icon-button', styles.iconButton)}
+            size="xs"
+            variant={activeView === 'history' ? 'filled' : 'text'}
+            aria-label={t('collections.breadcrumbs.history')}
+            onClick={() =>
+              navigate({
+                to: getAdminRoutePath('collections', '$collection', '$id', 'history'),
+                params: { collection, id: documentId },
+                search: locale ? { locale } : {},
+              })
+            }
+          >
+            <HistoryIcon
+              className={cx('byline-view-menu-icon-button-icon', styles.iconButtonIcon)}
+            />
+          </IconButton>
+        </Tooltip>
+        <Button
+          size="xs"
+          variant={activeView === 'edit' ? 'filled' : 'outlined'}
+          className={cx('byline-view-menu-button', styles.button)}
+          onClick={() =>
+            navigate({
+              to: getAdminRoutePath('collections', '$collection', '$id'),
+              params: { collection, id: documentId },
+              search: locale ? { locale } : {},
+            })
+          }
+        >
+          {t('common.actions.edit')}
+        </Button>
+        <Button
+          size="xs"
+          variant={activeView === 'api' ? 'filled' : 'outlined'}
+          className={cx('byline-view-menu-button', styles.button)}
+          onClick={() =>
+            navigate({
+              to: getAdminRoutePath('collections', '$collection', '$id', 'api'),
+              params: { collection, id: documentId },
+              search: locale ? { locale } : {},
+            })
+          }
+        >
+          {t('collections.viewMenu.apiButton')}
+        </Button>
+      </div>
     </div>
   )
 }

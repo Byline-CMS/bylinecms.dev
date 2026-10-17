@@ -33,6 +33,22 @@ create routes.
   controls it shows, and what happens to stored content a field no longer
   supports.
 
+## Document API view
+
+The collection editor's **API** view shows the loaded document as an expandable
+JSON tree. It initially opens the document root and the next level, leaving
+deeper content collapsed. The content-locale and population-depth controls
+reload the document with the selected options.
+
+**Copy JSON** and **Download JSON** sit just before the locale and depth controls, as
+icon buttons with tooltips. They export the complete loaded payload, including
+collapsed branches, as formatted JSON. They reflect the current locale and
+population depth; they do not fetch other locales or additional related documents.
+The downloaded file is named after the collection, document, locale, and any
+population depth above zero, such as `docs-<id>-fr-depth2.json`. If the browser
+refuses clipboard access, use Download JSON. This view inspects a
+document returned by the admin transport; it does not introduce a public HTTP API.
+
 ## Concurrent editing and recovery
 
 The editor loads a coherent current document together with its document-wide

@@ -12,7 +12,7 @@ import { useState } from 'react'
 
 import type { SingletonAdminConfig, SingletonPreviewDocument } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
-import { ExternalLinkIcon, IconButton, useToastManager } from '@byline/ui/react'
+import { ExternalLinkIcon, IconButton, Tooltip, useToastManager } from '@byline/ui/react'
 import cx from 'clsx'
 
 import { enablePreviewModeFn } from '../../server-fns/preview/index.js'
@@ -60,16 +60,17 @@ export function SingletonPreviewLink({
   }
 
   return (
-    <IconButton
-      className={cx('byline-preview-link', className)}
-      size="xs"
-      variant="text"
-      disabled={busy}
-      onClick={handleClick}
-      aria-label={t('collections.preview.openAriaLabel')}
-      title={t('collections.preview.title')}
-    >
-      <ExternalLinkIcon width="20px" height="20px" className="byline-preview-link-icon" />
-    </IconButton>
+    <Tooltip text={t('collections.preview.title')} side="bottom" delay={0}>
+      <IconButton
+        className={cx('byline-preview-link', className)}
+        size="xs"
+        variant="text"
+        disabled={busy}
+        onClick={handleClick}
+        aria-label={t('collections.preview.openAriaLabel')}
+      >
+        <ExternalLinkIcon width="20px" height="20px" className="byline-preview-link-icon" />
+      </IconButton>
+    </Tooltip>
   )
 }
