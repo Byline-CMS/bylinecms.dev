@@ -26,6 +26,8 @@ import type {
   SearchHit,
   SearchMatching,
   SearchProvider,
+  SearchRangeFacetBucket,
+  SearchRangeFacetRequest,
   ServerConfig,
   SingletonSavePrecondition,
   SlugifierFn,
@@ -43,6 +45,8 @@ export type {
   SearchFacetBucket,
   SearchHit,
   SearchProvider,
+  SearchRangeFacetBucket,
+  SearchRangeFacetRequest,
   SearchResults,
   SortDirection,
   SortSpec,
@@ -256,6 +260,8 @@ export interface CollectionSearchOptions extends BeforeReadControls {
   where?: QueryPredicate
   /** Field names to compute facet buckets for (driver-capability gated). */
   facets?: string[]
+  /** Integer range aggregates; requires provider support and declared search filters. */
+  rangeFacets?: SearchRangeFacetRequest[]
   /** Max hits to return. */
   limit?: number
   /** Offset for pagination. */
@@ -295,6 +301,8 @@ export interface ZoneSearchOptions extends BeforeReadControls {
   where?: QueryPredicate
   /** Field names to compute facet buckets for (driver-capability gated). */
   facets?: string[]
+  /** Integer range aggregates over filter fields shared by every zone member. */
+  rangeFacets?: SearchRangeFacetRequest[]
   /** Max hits to return. */
   limit?: number
   /** Offset for pagination. */
@@ -318,6 +326,7 @@ export interface ClientSearchResults {
   hits: HydratedSearchHit[]
   total: number
   facets?: Record<string, SearchFacetBucket[]>
+  rangeFacets?: Record<string, SearchRangeFacetBucket[]>
 }
 
 /** Outcome of a collection `reindex()` — counts for reporting. */

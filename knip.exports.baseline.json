@@ -451,6 +451,8 @@
     "packages/client/src/types.ts|type|SearchFacetBucket",
     "packages/client/src/types.ts|type|SearchHit",
     "packages/client/src/types.ts|type|SearchProvider",
+    "packages/client/src/types.ts|type|SearchRangeFacetBucket",
+    "packages/client/src/types.ts|type|SearchRangeFacetRequest",
     "packages/client/src/types.ts|type|SearchResults",
     "packages/client/src/types.ts|type|SortDirection",
     "packages/client/src/types.ts|type|SortSpec",

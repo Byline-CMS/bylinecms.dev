@@ -193,6 +193,27 @@ export interface SearchMatching {
 /** Maximum UTF-16 length accepted for one full-text query. */
 export const MAX_SEARCH_QUERY_LENGTH = 1_024
 
+/** Maximum `ceil((end - start) / gap)` for one range-facet request. */
+export const MAX_RANGE_FACET_BUCKETS = 200
+
+/** One numeric range-facet request over an integer `search.filters` field. */
+export interface SearchRangeFacetRequest {
+  field: string
+  /** Inclusive lower edge of the first bucket. */
+  start: number
+  /** Exclusive upper edge of the last bucket. */
+  end: number
+  /** Bucket width; must be finite and greater than zero. */
+  gap: number
+}
+
+/** One range bucket: `[start, end)` and its match count. */
+export interface SearchRangeFacetBucket {
+  start: number
+  end: number
+  count: number
+}
+
 /**
  * A search request. Either collection-scoped (`collectionPath`) for
  * homogeneous results, or zone-scoped (`zone`) for heterogeneous
@@ -227,6 +248,8 @@ export interface SearchQuery {
   where?: QueryPredicate
   /** Field names to compute facet buckets for (driver-capability gated). */
   facets?: string[]
+  /** Integer range aggregates; requires `capabilities.rangeFacets: true`. */
+  rangeFacets?: SearchRangeFacetRequest[]
   /** Restrict to a single content locale. */
   locale?: string
   /**
@@ -283,6 +306,12 @@ export interface SearchResults {
    * driver supports them.
    */
   facets?: Record<string, SearchFacetBucket[]>
+  /**
+   * Contiguous ascending buckets keyed by field, including zero counts.
+   * Cover exactly the requested `[start, end)`, truncating the final bucket.
+   * Counts respect the query, where, locale, status, and collection/zone scope.
+   */
+  rangeFacets?: Record<string, SearchRangeFacetBucket[]>
 }
 
 // ---------------------------------------------------------------------------
@@ -300,6 +329,14 @@ export interface SearchResults {
 export interface SearchCapabilities {
   /** Faceted aggregation over indexed fields. */
   facets: boolean
+  /** Integer range aggregation. Omission means false; unsupported requests must fail. */
+  rangeFacets?: boolean
+  /**
+   * Applies `SearchQuery.where`. Omission means false. Advertise-only: the
+   * client still forwards `where` when absent. Providers may support a
+   * documented subset, but must reject unsupported fields or operators.
+   */
+  structuredFilters?: boolean
   /** Fuzzy / typo-tolerant matching (e.g. `pg_trgm`). */
   typoTolerance: boolean
   /** Vector / semantic / hybrid retrieval. */

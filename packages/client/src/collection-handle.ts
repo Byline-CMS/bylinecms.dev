@@ -69,7 +69,12 @@ import {
   readSingletonForEdit,
 } from './read-internals.js'
 import { shapeDocument, shapePopulatedInPlace } from './response.js'
-import { assertSearchFieldScope, assertSearchQueryLength, finalizeSearchHits } from './search.js'
+import {
+  assertSearchFieldScope,
+  assertSearchQueryLength,
+  assertSearchRangeFacets,
+  finalizeSearchHits,
+} from './search.js'
 import type { BylineClient } from './client.js'
 import type {
   AuditLogOptions,
@@ -390,6 +395,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       })
     }
     assertSearchFieldScope(provider, options.fieldScope)
+    assertSearchRangeFacets(provider, options.rangeFacets, [this.definition])
     const results = await provider.search({
       query: options.query,
       fieldScope: options.fieldScope,
@@ -399,6 +405,7 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
       status: readMode,
       where: options.where,
       facets: options.facets,
+      rangeFacets: options.rangeFacets?.length ? options.rangeFacets : undefined,
       limit: options.limit,
       offset: options.offset,
     })
@@ -423,7 +430,12 @@ export class CollectionHandle<TFields extends Record<string, any> = Record<strin
     })
     return aggregateRestricted
       ? { hits, total: hits.length }
-      : { hits, total: results.total, facets: results.facets }
+      : {
+          hits,
+          total: results.total,
+          facets: results.facets,
+          ...(results.rangeFacets === undefined ? {} : { rangeFacets: results.rangeFacets }),
+        }
   }
 
   // -------------------------------------------------------------------------

@@ -76,11 +76,37 @@ The collection and zone entry points share these options:
 | `status` | `'published' \| 'any'` | `'published'` | Provider row status filter |
 | `where` | `QueryPredicate` | none | Accepted by the API; not applied by built-in SQL providers |
 | `facets` | `string[]` | none | Requested facet fields; aggregation is not implemented by built-in SQL providers |
+| `rangeFacets` | `SearchRangeFacetRequest[]` | none | Integer range aggregates; requires `capabilities.rangeFacets: true` |
 | `limit` | `number` | `20` in built-in providers | Maximum provider candidates for the page |
 | `offset` | `number` | `0` | Provider pagination offset |
 | `hydrate` | `boolean` | `false` | Attach a document read through the normal pipeline |
 
 `status: 'any'` relaxes the provider filter, but the standard lifecycle indexes only published views. It does not expose drafts unless a custom indexing path has written them.
+
+### Request a histogram
+
+For a provider that advertises `rangeFacets`, request integer buckets through either search entry point:
+
+```ts
+import type { SearchRangeFacetRequest } from '@byline/core'
+
+// The collection declares an integer publicationYear in search.filters.
+const rangeFacets: SearchRangeFacetRequest[] = [
+  { field: 'publicationYear', start: 2000, end: 2027, gap: 1 },
+]
+const result = await client.collection('publications').search({
+  query: 'forest',
+  rangeFacets,
+  limit: 0,
+})
+const years = result.rangeFacets?.publicationYear
+```
+
+The bounds are inclusive at `start` and exclusive at `end`. The provider returns ascending, contiguous `{ start, end, count }` buckets, including zero counts, and truncates the final bucket to `end`. Counts use the same query, filters, locale, status, and scope as the hits, independently of pagination.
+
+The client requires finite bounds and gap, `gap > 0`, `end > start`, and no more than `MAX_RANGE_FACET_BUCKETS` (200) buckets per field. A field can appear only once and must be an integer declared in `search.filters`; a zone requires that field in every member collection. Invalid requests and non-empty requests to providers without the capability fail with `ERR_VALIDATION`. Omitted or empty requests remain valid. The [provider contract](./04-provider-contract.md#integer-range-facets) describes the full validation and response requirements.
+
+The `structuredFilters` capability separately advertises whether the provider applies `where`. The client forwards `where` unchanged even without this flag for compatibility. If your feature requires filtered search, check `provider.capabilities.structuredFilters === true` before using it. A provider that advertises support must reject unsupported fields or operators instead of ignoring them.
 
 ## Result locale and query language
 
@@ -153,6 +179,7 @@ interface ClientSearchResults {
   }>
   total: number
   facets?: Record<string, Array<{ value: string; count: number }>>
+  rangeFacets?: Record<string, Array<{ start: number; end: number; count: number }>>
 }
 ```
 
@@ -221,17 +248,17 @@ The locale check does not change the provider's `total` or facets. Public locale
 A restriction that depends on the reader is different. When a collection has an active `beforeRead` predicate, or a zone search excludes member collections the actor can't read, the provider's aggregate can count rows this reader is not allowed to see. Those searches follow the restricted-result convention:
 
 - `total` becomes the number of hits surviving the current provider page, so it is at most the page size;
-- provider facets are omitted to avoid leaking aggregate counts;
+- provider `facets` and `rangeFacets` are omitted to avoid leaking aggregate counts;
 - a page can contain fewer hits than `limit`; and
 - callers should advance using the requested provider `offset`, not the number of hits received.
 
-Every other search, public or editorial, passes the provider `total` and facets through unchanged. Byline 6.7.0 applied the restricted-result convention to every public search; 6.7.1 reverses that change.
+Every other search, public or editorial, passes the provider `total`, `facets`, and `rangeFacets` through unchanged. Byline 6.7.0 applied the restricted-result convention to every public search; 6.7.1 reverses that change.
 
 Exact corpus-wide authorized totals require pushing a supported predicate into the provider. The current built-in SQL providers do not implement that query path.
 
 ## Current limits
 
-The public types already carry `where`, `facets`, and facet result buckets because the provider contract reserves those shapes. The PostgreSQL and MySQL providers currently report:
+The public types carry `where`, `facets`, `rangeFacets`, and their result buckets for providers that implement those features. The PostgreSQL and MySQL providers leave `rangeFacets` and `structuredFilters` unset (false) and currently report:
 
 ```ts
 {

@@ -112,6 +112,7 @@ interface SearchQuery {
   collectionPath?: string
   where?: QueryPredicate
   facets?: string[]
+  rangeFacets?: SearchRangeFacetRequest[]
   locale?: string
   status?: 'published' | 'any'
   limit?: number
@@ -126,10 +127,42 @@ interface SearchResults {
   hits: SearchHit[]
   total: number
   facets?: Record<string, SearchFacetBucket[]>
+  rangeFacets?: Record<string, SearchRangeFacetBucket[]>
 }
 ```
 
 `SearchQuery.query` is limited to 1,024 UTF-16 code units. The client and portable analyzer both enforce the limit, so a direct provider implementation should not rely on route-level validation.
+
+### Integer range facets
+
+A range facet counts matches in contiguous numeric intervals. Use it for a histogram over a collection's integer `search.filters` field. `@byline/core` exports the request, bucket, and limit:
+
+```ts
+interface SearchRangeFacetRequest {
+  field: string
+  start: number // inclusive
+  end: number // exclusive
+  gap: number
+}
+
+interface SearchRangeFacetBucket {
+  start: number
+  end: number
+  count: number
+}
+
+const MAX_RANGE_FACET_BUCKETS = 200
+```
+
+The client rejects invalid requests with `ERR_VALIDATION` before calling the provider. A non-empty request requires `capabilities.rangeFacets === true`. Each request must have finite `start`, `end`, and `gap` values, `gap > 0`, `end > start`, and `ceil((end - start) / gap) <= MAX_RANGE_FACET_BUCKETS`. An omitted option or empty array requests no range aggregates.
+
+The integer-only restriction applies to the field type. `start`, `end`, and `gap` are finite numbers and need not be integers. A provider that cannot represent non-integer bounds or gaps must reject the request explicitly rather than round, truncate, or otherwise silently change the requested intervals.
+
+Results are keyed by the logical `field` name, so a request array cannot contain duplicate fields. Each field must be declared in `search.filters` and resolve to a top-level schema field of type `integer`. Float, date, datetime, unknown, and other field types are rejected. For a zone, the field must meet this rule in every member collection, including members the reader cannot access: the provider still queries the whole zone.
+
+Providers return every bucket in ascending order, including zero counts. Buckets cover exactly `[start, end)`; the last bucket ends at the requested `end` even when the interval is not divisible by `gap`. For example, `{ start: 0, end: 25, gap: 10 }` requires `[0, 10)`, `[10, 20)`, and `[20, 25)`. A Solr implementation must use `hardend: true` to preserve this boundary. A provider must reject an unsupported range-facet request rather than ignore it.
+
+Counts respect `query`, `where`, `locale`, `status`, and the collection or zone scope, independently of hit pagination. The client forwards requests and passes returned buckets through without recomputing them. When `beforeRead` row scoping or unreadable zone members restrict aggregates, the client omits both `facets` and `rangeFacets` and returns the retained-hit total.
 
 ## Capabilities
 
@@ -138,6 +171,8 @@ Capabilities are a runtime contract, not a product roadmap:
 ```ts
 interface SearchCapabilities {
   facets: boolean
+  rangeFacets?: boolean
+  structuredFilters?: boolean
   typoTolerance: boolean
   semantic: boolean
   bm25: boolean
@@ -165,6 +200,10 @@ An engine may support both, but one configured provider instance must behave con
 Do not infer BM25 from the existence of a relevance score. Set `bm25: true` only when the provider offers a stable BM25-quality ranking contract. Do not set `facets: true` because facet values are stored; the provider must compute and return buckets.
 
 Set `fullText.fieldScope: true` only when the provider preserves logical `SearchField.name` values for body fields and restricts matching to the requested names. An omitted capability is treated as `false` so existing third-party providers remain source-compatible. A scope is expressed in collection-schema field paths, never in physical engine field names. Unsupported scopes must fail explicitly; silently falling back to the complete body changes the meaning of the query.
+
+`rangeFacets` and `structuredFilters` are also optional; omission means false. Set `rangeFacets: true` only when the provider implements the integer range contract above. The built-in PostgreSQL and MySQL providers leave both capabilities unset.
+
+`structuredFilters: true` promises that the provider applies `SearchQuery.where`. A provider may support a documented subset of fields and predicate operators, but must reject any unsupported field or operator rather than silently ignore part of a predicate. This flag is advertise-only: the client continues forwarding `where` even when the flag is absent, preserving existing callers. Hosts that require filtered search must check the flag themselves. Neither built-in SQL provider currently applies `where`.
 
 ## Provider responsibilities
 

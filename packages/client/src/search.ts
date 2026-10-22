@@ -31,17 +31,20 @@
 
 import type { RequestContext } from '@byline/auth'
 import type {
+  CollectionDefinition,
   LocaleVisibility,
   ReadContext,
   ReadMode,
   SearchHit,
   SearchProvider,
+  SearchRangeFacetRequest,
 } from '@byline/core'
 import {
   assertActorCanPerform,
   createReadContext,
   ERR_VALIDATION,
   getCollectionAdminConfig,
+  MAX_RANGE_FACET_BUCKETS,
   MAX_SEARCH_QUERY_LENGTH,
   resolveLocaleVisibility,
   resolveSearchZones,
@@ -72,6 +75,61 @@ export function assertSearchFieldScope(
     throw ERR_VALIDATION({
       message: 'The registered search provider does not support field-scoped full-text queries.',
     })
+  }
+}
+
+/** Validate range aggregates against every collection in the provider's scope. */
+export function assertSearchRangeFacets(
+  provider: SearchProvider,
+  rangeFacets: SearchRangeFacetRequest[] | undefined,
+  collections: readonly CollectionDefinition[]
+): void {
+  if (rangeFacets == null) return
+  if (!Array.isArray(rangeFacets)) {
+    throw ERR_VALIDATION({ message: 'Search rangeFacets must be an array.' })
+  }
+  if (rangeFacets.length === 0) return
+  if (provider.capabilities.rangeFacets !== true) {
+    throw ERR_VALIDATION({
+      message: 'The registered search provider does not support range facets.',
+    })
+  }
+
+  const fields = new Set<string>()
+  for (const request of rangeFacets) {
+    if (request == null || typeof request.field !== 'string' || request.field.trim() === '') {
+      throw ERR_VALIDATION({ message: 'Search rangeFacets must name a field for each request.' })
+    }
+    const { field, start, end, gap } = request
+    if (![start, end, gap].every(Number.isFinite)) {
+      throw ERR_VALIDATION({
+        message: `Search range facet '${field}' requires finite start, end, and gap values.`,
+      })
+    }
+    if (gap <= 0 || end <= start) {
+      throw ERR_VALIDATION({
+        message: `Search range facet '${field}' requires gap > 0 and end > start.`,
+      })
+    }
+    if (Math.ceil((end - start) / gap) > MAX_RANGE_FACET_BUCKETS) {
+      throw ERR_VALIDATION({
+        message: `Search range facet '${field}' exceeds the maximum of ${MAX_RANGE_FACET_BUCKETS} buckets.`,
+      })
+    }
+    if (fields.has(field)) {
+      throw ERR_VALIDATION({ message: `Search rangeFacets contains duplicate field '${field}'.` })
+    }
+    fields.add(field)
+    for (const collection of collections) {
+      if (
+        !collection.search?.filters?.includes(field) ||
+        collection.fields.find((definition) => definition.name === field)?.type !== 'integer'
+      ) {
+        throw ERR_VALIDATION({
+          message: `Search range facet '${field}' must name an integer field declared in search.filters for collection '${collection.path}'.`,
+        })
+      }
+    }
   }
 }
 
@@ -373,6 +431,7 @@ export async function zoneSearch(
   }
 
   assertSearchFieldScope(provider, options.fieldScope)
+  assertSearchRangeFacets(provider, options.rangeFacets, members)
 
   let aggregateRestricted = readable.size !== members.length
   if (!options._bypassBeforeRead) {
@@ -398,6 +457,7 @@ export async function zoneSearch(
     status: readMode,
     where: options.where,
     facets: options.facets,
+    rangeFacets: options.rangeFacets?.length ? options.rangeFacets : undefined,
     limit: options.limit,
     offset: options.offset,
   })
@@ -418,7 +478,12 @@ export async function zoneSearch(
 
   return aggregateRestricted
     ? { hits, total: hits.length }
-    : { hits, total: results.total, facets: results.facets }
+    : {
+        hits,
+        total: results.total,
+        facets: results.facets,
+        ...(results.rangeFacets === undefined ? {} : { rangeFacets: results.rangeFacets }),
+      }
 }
 
 export function assertSearchQueryLength(query: string): void {
