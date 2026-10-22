@@ -1,5 +1,18 @@
 # @byline/search-postgres
 
+## 6.10.0
+
+### Minor Changes
+
+- added integer range facets (`rangeFacets`) and the advertise-only `structuredFilters` capability to the search contract; updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [824c407]
+- Updated dependencies
+  - @byline/core@6.10.0
+  - @byline/search-analysis@6.10.0
+
 ## 6.9.0
 
 ### Minor Changes

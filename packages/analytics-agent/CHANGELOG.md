@@ -1,5 +1,11 @@
 # @byline/analytics-agent
 
+## 6.10.0
+
+### Minor Changes
+
+- added integer range facets (`rangeFacets`) and the advertise-only `structuredFilters` capability to the search contract; updated dependencies
+
 ## 6.9.0
 
 ### Minor Changes

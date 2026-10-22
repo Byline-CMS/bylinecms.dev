@@ -1,5 +1,27 @@
 # @byline/client
 
+## 6.10.0
+
+### Minor Changes
+
+- 824c407: Add provider-neutral integer range facets with `SearchRangeFacetRequest`,
+  `SearchRangeFacetBucket`, and `MAX_RANGE_FACET_BUCKETS` (200). Collection and zone
+  search validate capability support, bounds, bucket counts, unique fields, and
+  integer filter declarations before forwarding requests. Returned buckets pass
+  through unless row or collection authorization restricts aggregates.
+
+  Add the optional advertise-only `structuredFilters` capability so hosts can
+  detect providers that apply `where`, without changing existing forwarding.
+  The built-in PostgreSQL and MySQL providers leave both new capabilities unset.
+- added integer range facets (`rangeFacets`) and the advertise-only `structuredFilters` capability to the search contract; updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [824c407]
+- Updated dependencies
+  - @byline/core@6.10.0
+  - @byline/auth@6.10.0
+
 ## 6.9.0
 
 ### Minor Changes
