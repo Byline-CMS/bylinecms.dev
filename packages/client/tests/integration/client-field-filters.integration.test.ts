@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { defineCollection, defineWorkflow } from '@byline/core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { createTestArticlesCollection, sampleArticles } from '../fixtures/collections.js'
@@ -120,6 +121,51 @@ describe('field-level filters via find()', () => {
     // Only "Advanced Storage" (views=42, featured=false) matches both
     expect(result.docs.length).toBe(1)
     expect(result.docs[0]?.fields.title).toContain('Storage')
+  })
+
+  // Fixture views: 150, 42, 0. Every operator in one object applies (ANDed).
+  it.each([
+    ['closed range', { $gte: 0, $lte: 42 }, [0, 42]],
+    ['exclusive range', { $gt: 0, $lt: 150 }, [42]],
+    ['mixed range', { $gt: 0, $lte: 150 }, [42, 150]],
+    ['contradictory range', { $gte: 5, $lte: 1 }, []],
+    ['$eq with a range', { $eq: 42, $lt: 100 }, [42]],
+    ['$eq outside the range', { $eq: 150, $lt: 100 }, []],
+    ['downstream date-range shape', { $gt: 0, $gte: 40, $lte: 100 }, [42]],
+  ])('should apply every operator of a %s', async (_label, views, expected) => {
+    const result = await ctx.client
+      .collection(ctx.definition.path)
+      .find({ status: 'any', where: { views } })
+
+    expect(result.docs.map((doc) => doc.fields.views).sort((a, b) => a - b)).toEqual(expected)
+  })
+
+  it('should keep the $and workaround for ranges working', async () => {
+    const result = await ctx.client.collection(ctx.definition.path).find({
+      status: 'any',
+      where: { $and: [{ views: { $gt: 0 } }, { views: { $gte: 40 } }, { views: { $lte: 100 } }] },
+    })
+
+    expect(result.docs.map((doc) => doc.fields.views)).toEqual([42])
+  })
+
+  it.each([
+    [{ views: {} }, 'is empty'],
+    [{ views: { $gte: 10, $bogus: 1 } }, "unknown operator '$bogus'"],
+    [{ $or: { views: 42 } }, '$or must be an array of predicates'],
+  ])('should reject %o instead of dropping it', async (where, message) => {
+    await expect(
+      ctx.client.collection(ctx.definition.path).find({ status: 'any', where: where as never })
+    ).rejects.toThrow(message)
+  })
+
+  it('should apply a top-level status operator object', async () => {
+    const result = await ctx.client
+      .collection(ctx.definition.path)
+      .find({ status: 'any', where: { status: { $in: ['published'] } } })
+
+    expect(result.docs).toHaveLength(1)
+    expect(result.docs[0]?.status).toBe('published')
   })
 
   it('should combine document-level status with field-level filters', async () => {
@@ -318,5 +364,65 @@ describe('findOne with field-level filters', () => {
       .findOne({ status: 'any', where: { views: { $gte: 9999 } } })
 
     expect(doc).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Downstream regression: integer date range with a `$gt: 0` guard
+// ---------------------------------------------------------------------------
+
+describe('multi-operator date range on an integer field', () => {
+  let books: TestContext
+
+  beforeAll(async () => {
+    books = await setupTestClient(
+      defineCollection({
+        path: `test-books-${Date.now()}`,
+        labels: { singular: 'Book', plural: 'Books' },
+        workflow: defineWorkflow({
+          draft: { label: 'Draft', verb: 'Revert to Draft' },
+          published: { label: 'Published', verb: 'Publish' },
+        }),
+        fields: [
+          { name: 'title', type: 'text', label: 'Title' },
+          { name: 'publicationDate', type: 'integer', label: 'Publication date', optional: true },
+        ],
+      })
+    )
+    // `0` stands in for "undated", which the downstream `$gt: 0` excludes.
+    for (const [title, publicationDate] of [
+      ['Undated', 0],
+      ['Late 2019', 20191231],
+      ['Start 2020', 20200101],
+      ['Mid 2020', 20200615],
+      ['End 2020', 20201231],
+      ['Start 2021', 20210101],
+    ] as const) {
+      await books.db.commands.documents.createDocumentVersion({
+        collectionId: books.collectionId,
+        collectionVersion: 1,
+        collectionConfig: books.definition,
+        action: 'create',
+        documentData: { title, publicationDate },
+        status: 'draft',
+        locale: 'en',
+      })
+    }
+  }, 30_000)
+
+  afterAll(async () => {
+    await teardownTestClient(books)
+  })
+
+  it('applies every operator of { $gt: 0, $gte: 20200000, $lte: 20201231 }', async () => {
+    const result = await books.client.collection(books.definition.path).find({
+      status: 'any',
+      where: { publicationDate: { $gt: 0, $gte: 20200000, $lte: 20201231 } },
+    })
+
+    expect(result.docs.map((doc) => doc.fields.publicationDate).sort((a, b) => a - b)).toEqual([
+      20200101, 20200615, 20201231,
+    ])
+    expect(result.meta.total).toBe(3)
   })
 })

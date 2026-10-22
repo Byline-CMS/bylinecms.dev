@@ -271,6 +271,55 @@ describe('cross-collection relation filter (nested where)', () => {
   })
 })
 
+describe('multi-operator objects inside relation filters', () => {
+  it('applies every operator inside a nested sub-where', async () => {
+    // `$contains: 'e'` matches news, features and breaking; `$ne: 'news'`
+    // removes news. Either operator alone would return a different set.
+    const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
+      where: { category: { slug: { $contains: 'e', $ne: 'news' } } },
+    })
+    expect(result.docs.map((d) => d.fields.title).sort()).toEqual(['Breaking Story', 'Features A'])
+  })
+
+  it('applies every operator inside a quantified filter', async () => {
+    const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
+      where: { category: { $some: { slug: { $contains: 'e', $ne: 'features' } } } },
+    })
+    expect(result.docs.map((d) => d.fields.title).sort()).toEqual([
+      'Breaking Story',
+      'News A',
+      'News B',
+    ])
+  })
+
+  // Orphan's draft target does not resolve under published reads, so it is
+  // ignored: `$every` holds vacuously and `$none` finds no match.
+  it('applies every operator inside an $every filter', async () => {
+    const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
+      where: { category: { $every: { slug: { $contains: 'e', $ne: 'news' } } } },
+    })
+    expect(result.docs.map((d) => d.fields.title).sort()).toEqual([
+      'Breaking Story',
+      'Features A',
+      'Orphan',
+    ])
+  })
+
+  it('applies every operator inside a $none filter', async () => {
+    const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
+      where: { category: { $none: { slug: { $contains: 'e', $ne: 'news' } } } },
+    })
+    expect(result.docs.map((d) => d.fields.title).sort()).toEqual(['News A', 'News B', 'Orphan'])
+  })
+
+  it('applies every operator on a target document column', async () => {
+    const result = await ctx.client.collection(ctx.articlesDefinition.path).find({
+      where: { category: { path: { $contains: 'e', $ne: 'news' } } },
+    })
+    expect(result.docs.map((d) => d.fields.title).sort()).toEqual(['Breaking Story', 'Features A'])
+  })
+})
+
 describe('document-level reserved keys inside a nested where', () => {
   it('filters by the target document `path` (`category.path`)', async () => {
     // `useAsPath: 'name'` slugifies "News" → "news" into the target's

@@ -8,8 +8,10 @@
 
 /**
  * Comparison operators usable on a single field-level predicate value. The
- * parser normalises a bare value (`'foo'`) to `{ $eq: 'foo' }`; an operator
- * object is taken as-is and the first declared operator wins.
+ * parser normalises a bare value (`'foo'`) to `{ $eq: 'foo' }`. Every operator
+ * in an operator object applies and the conditions are ANDed, so
+ * `{ $gte: 10, $lte: 20 }` is a closed range. An empty object or an unknown
+ * operator is a validation error.
  */
 export interface FilterOperators {
   $eq?: string | number | boolean | null

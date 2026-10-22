@@ -146,13 +146,13 @@ const total = await client.collection('news').count()
 
 ### 3. Top-level `where` filters
 
-Field-level filters compile to `EXISTS` subqueries against the typed `store_*` tables. Equality is shorthand; operators (`$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`, `$in`, `$contains`, `$startsWith`, `$endsWith`) live under an object.
+Field-level filters compile to `EXISTS` subqueries against the typed `store_*` tables. Equality is shorthand; operators (`$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`, `$in`, `$nin`, `$contains`) live under an object. When one object holds several operators, every operator applies and the conditions are ANDed, so `{ $gte: 10, $lte: 20 }` is a closed range. An empty operator object or an unknown operator throws `ERR_VALIDATION`.
 
 ```ts
 await client.collection('news').find({
   where: {
     title: { $contains: 'launch' },
-    views: { $gte: 100 },
+    views: { $gte: 100, $lt: 1000 },
     publishedAt: { $lte: new Date().toISOString() },
   },
 })

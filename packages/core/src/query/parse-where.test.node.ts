@@ -598,15 +598,14 @@ describe('parseWhere — combinators', () => {
     expect(result.filters).toEqual([])
   })
 
-  it('drops a non-array combinator value (defensive)', async () => {
-    const result = await parseWhere(
-      {
+  it.each(['$and', '$or'])('rejects a non-array %s value', async (key) => {
+    await expect(
+      parseWhere(
         // biome-ignore lint/suspicious/noExplicitAny: deliberately malformed input
-        $or: { title: 'Hello' } as any,
-      },
-      testCollection
-    )
-    expect(result.filters).toEqual([])
+        { [key]: { title: 'Hello' } } as any,
+        testCollection
+      )
+    ).rejects.toThrow(`${key} must be an array of predicates`)
   })
 
   it('nests $or inside $and correctly', async () => {
@@ -1008,5 +1007,175 @@ describe('parseWhere — relation quantifiers', () => {
   it('skips quantifier objects when ctx is not provided', async () => {
     const result = await parseWhere({ tags: { $some: { slug: 'news' } } }, testCollection)
     expect(result.filters).toHaveLength(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Multi-operator objects
+// ---------------------------------------------------------------------------
+
+describe('parseWhere — multi-operator objects', () => {
+  const views = (operator: string, value: unknown) => ({
+    kind: 'field',
+    fieldName: 'views',
+    storeType: 'numeric',
+    valueColumn: 'value_integer',
+    operator,
+    value,
+  })
+
+  it('emits one filter per operator in a closed range', async () => {
+    const result = await parseWhere({ views: { $gte: 10, $lte: 20 } }, testCollection)
+    expect(result.filters).toEqual([views('$gte', 10), views('$lte', 20)])
+  })
+
+  it('keeps every operator of the downstream date-range shape', async () => {
+    const result = await parseWhere(
+      { views: { $gt: 0, $gte: 20200000, $lte: 20201231 } },
+      testCollection
+    )
+    expect(result.filters).toEqual([
+      views('$gt', 0),
+      views('$gte', 20200000),
+      views('$lte', 20201231),
+    ])
+  })
+
+  it('combines $eq with a range operator', async () => {
+    const result = await parseWhere({ views: { $eq: 42, $lt: 100 } }, testCollection)
+    expect(result.filters).toEqual([views('$eq', 42), views('$lt', 100)])
+  })
+
+  it('skips operators whose value is undefined', async () => {
+    const result = await parseWhere({ views: { $gte: undefined, $lte: 20 } }, testCollection)
+    expect(result.filters).toEqual([views('$lte', 20)])
+  })
+
+  it('keeps the $and workaround shape working', async () => {
+    const result = await parseWhere(
+      { $and: [{ views: { $gt: 0 } }, { views: { $gte: 10 } }, { views: { $lte: 20 } }] },
+      testCollection
+    )
+    expect(result.filters).toEqual([views('$gt', 0), views('$gte', 10), views('$lte', 20)])
+  })
+
+  it('emits every operator on a document column', async () => {
+    const result = await parseWhere(
+      { $or: [{ status: { $ne: 'archived', $in: ['draft', 'published'] } }] },
+      testCollection
+    )
+    expect(result.filters).toEqual([
+      {
+        kind: 'or',
+        children: [
+          {
+            kind: 'and',
+            children: [
+              { kind: 'docColumn', column: 'status', operator: '$ne', value: 'archived' },
+              {
+                kind: 'docColumn',
+                column: 'status',
+                operator: '$in',
+                value: ['draft', 'published'],
+              },
+            ],
+          },
+        ],
+      },
+    ])
+  })
+
+  it('compiles a top-level status operator object instead of dropping it', async () => {
+    const scalar = await parseWhere({ status: 'draft' }, testCollection)
+    expect(scalar.status).toBe('draft')
+    expect(scalar.filters).toEqual([])
+
+    const result = await parseWhere({ status: { $in: ['draft', 'published'] } }, testCollection)
+    expect(result.status).toBeUndefined()
+    expect(result.filters).toEqual([
+      { kind: 'docColumn', column: 'status', operator: '$in', value: ['draft', 'published'] },
+    ])
+  })
+
+  it('moves a multi-operator top-level path to document-column filters', async () => {
+    const single = await parseWhere({ path: { $contains: 'docs' } }, testCollection)
+    expect(single.pathFilter).toEqual({ operator: '$contains', value: 'docs' })
+
+    const multi = await parseWhere({ path: { $contains: 'docs', $ne: 'docs/old' } }, testCollection)
+    expect(multi.pathFilter).toBeUndefined()
+    expect(multi.filters).toEqual([
+      { kind: 'docColumn', column: 'path', operator: '$contains', value: 'docs' },
+      { kind: 'docColumn', column: 'path', operator: '$ne', value: 'docs/old' },
+    ])
+  })
+
+  it('emits every operator inside a relation sub-where', async () => {
+    const result = await parseWhere(
+      { category: { slug: { $contains: 'new', $ne: 'news-old' } } },
+      testCollection,
+      ctx
+    )
+    expect(result.filters[0]).toMatchObject({
+      kind: 'relation',
+      fieldName: 'category',
+      nested: [
+        expect.objectContaining({ fieldName: 'slug', operator: '$contains', value: 'new' }),
+        expect.objectContaining({ fieldName: 'slug', operator: '$ne', value: 'news-old' }),
+      ],
+    })
+  })
+
+  it('emits every operator inside a quantified relation filter', async () => {
+    const result = await parseWhere(
+      { tags: { $every: { slug: { $contains: 'a', $ne: 'b' } } } },
+      testCollection,
+      ctx
+    )
+    expect(result.filters[0]).toMatchObject({
+      kind: 'relation',
+      quantifier: 'every',
+      nested: [
+        expect.objectContaining({ operator: '$contains', value: 'a' }),
+        expect.objectContaining({ operator: '$ne', value: 'b' }),
+      ],
+    })
+  })
+
+  it.each([
+    [{ views: {} }, "operator object for 'views' is empty"],
+    [{ views: { $gte: undefined } }, "operator object for 'views' is empty"],
+    [{ views: { $gte: 10, $bogus: 1 } }, "unknown operator '$bogus' for 'views'"],
+    [{ views: { $gte: 10, $bogus: undefined } }, "unknown operator '$bogus' for 'views'"],
+    [{ status: { $wat: 'x' } }, "unknown operator '$wat' for 'status'"],
+    [{ id: {} }, "operator object for 'id' is empty"],
+    [{ views: [1, 2] }, "invalid value for 'views'"],
+    [{ category: {} }, "operator object for 'category' is empty"],
+  ])('rejects %o', async (where, message) => {
+    await expect(parseWhere(where as never, testCollection, ctx)).rejects.toThrow(message)
+  })
+
+  it('accepts multi-operator objects in strict security predicates', async () => {
+    const filters = await parsePredicateFilters(
+      { views: { $gte: 10, $lte: 20 }, status: { $ne: 'archived', $in: ['published'] } },
+      testCollection,
+      ctx,
+      { strict: true }
+    )
+    expect(filters).toEqual([
+      views('$gte', 10),
+      views('$lte', 20),
+      { kind: 'docColumn', column: 'status', operator: '$ne', value: 'archived' },
+      { kind: 'docColumn', column: 'status', operator: '$in', value: ['published'] },
+    ])
+  })
+
+  it.each([
+    [{ views: { $gte: 10, $wat: 1 } }, 'supported operators'],
+    [{ status: { $eq: 'published', $contains: 'pub' } }, "'$contains' is not supported"],
+    [{ status: { $ne: 'archived', $in: 'published' } }, 'requires an array'],
+  ])('validates every operator of strict predicate %o', async (predicate, message) => {
+    await expect(
+      parsePredicateFilters(predicate as never, testCollection, ctx, { strict: true })
+    ).rejects.toThrow(message)
   })
 })

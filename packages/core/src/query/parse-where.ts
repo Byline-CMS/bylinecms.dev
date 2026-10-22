@@ -271,11 +271,20 @@ function validateDocumentColumnPredicate(
   column: 'status' | 'path' | 'id'
 ): void {
   validateSecurityOperator(value, collectionPath, column)
-  const parsed = normaliseToOperator(value as WhereValue)
-  if (parsed == null || !DOCUMENT_COLUMN_OPERATORS[column].has(parsed.operator)) {
+  for (const parsed of normaliseToOperators(value as WhereValue, collectionPath, column)) {
+    validateDocumentColumnOperator(parsed, collectionPath, column)
+  }
+}
+
+function validateDocumentColumnOperator(
+  parsed: NormalisedOperator,
+  collectionPath: string,
+  column: 'status' | 'path' | 'id'
+): void {
+  if (!DOCUMENT_COLUMN_OPERATORS[column].has(parsed.operator)) {
     throw invalidSecurityPredicate(
       collectionPath,
-      `operator '${parsed?.operator ?? 'unknown'}' is not supported for '${column}'`
+      `operator '${parsed.operator}' is not supported for '${column}'`
     )
   }
 
@@ -319,24 +328,29 @@ function validateSecurityOperator(value: unknown, collectionPath: string, fieldN
     throw invalidSecurityPredicate(collectionPath, `invalid predicate for '${fieldName}'`)
   }
   const entries = Object.entries(value)
-  if (entries.length !== 1 || !FILTER_OPERATORS.has(entries[0]?.[0] ?? '')) {
+  if (entries.length === 0 || entries.some(([operator]) => !FILTER_OPERATORS.has(operator))) {
     throw invalidSecurityPredicate(
       collectionPath,
-      `predicate for '${fieldName}' must contain exactly one supported operator`
+      `predicate for '${fieldName}' must contain only supported operators`
     )
   }
-  const [operator, operand] = entries[0] ?? []
-  if ((operator === '$in' || operator === '$nin') && !Array.isArray(operand)) {
-    throw invalidSecurityPredicate(
-      collectionPath,
-      `${operator} for '${fieldName}' requires an array`
-    )
-  }
-  if (operator === '$contains' && typeof operand !== 'string') {
-    throw invalidSecurityPredicate(collectionPath, `$contains for '${fieldName}' requires a string`)
-  }
-  if (operand === undefined) {
-    throw invalidSecurityPredicate(collectionPath, `operator for '${fieldName}' requires a value`)
+  // Every operator in the object applies (ANDed), so every one is checked.
+  for (const [operator, operand] of entries) {
+    if ((operator === '$in' || operator === '$nin') && !Array.isArray(operand)) {
+      throw invalidSecurityPredicate(
+        collectionPath,
+        `${operator} for '${fieldName}' requires an array`
+      )
+    }
+    if (operator === '$contains' && typeof operand !== 'string') {
+      throw invalidSecurityPredicate(
+        collectionPath,
+        `$contains for '${fieldName}' requires a string`
+      )
+    }
+    if (operand === undefined) {
+      throw invalidSecurityPredicate(collectionPath, `operator for '${fieldName}' requires a value`)
+    }
   }
 }
 
@@ -412,11 +426,7 @@ async function parseWhereInternal(
     // belong at the top level of the where clause.
     if (key === '$and' || key === '$or') {
       if (!Array.isArray(rawValue)) {
-        ctx?.logger?.debug(
-          { key, collection: definition.path },
-          'parse-where: dropping combinator — value is not an array of predicates'
-        )
-        continue
+        throw invalidWhere(definition.path, `${key} must be an array of predicates`)
       }
 
       const childFilters: DocumentFilter[][] = []
@@ -484,9 +494,10 @@ async function parseWhereInternal(
     //     text search has no sensible OR-composing form, and a per-target
     //     EXISTS over `store_text` is intentionally deferred.
     if (key === 'status') {
-      if (isNested || inCombinator) {
-        const parsed = normaliseToOperator(rawValue)
-        if (parsed) {
+      // A bare string at the top level keeps the scalar `status` form. An
+      // operator object takes the `DocumentColumnFilter` form at any scope.
+      if (isNested || inCombinator || typeof rawValue !== 'string') {
+        for (const parsed of normaliseToOperators(rawValue, definition.path, key)) {
           result.filters.push({
             kind: 'docColumn',
             column: 'status',
@@ -496,9 +507,7 @@ async function parseWhereInternal(
         }
         continue
       }
-      if (typeof rawValue === 'string') {
-        result.status = rawValue
-      }
+      result.status = rawValue
       continue
     }
 
@@ -524,9 +533,12 @@ async function parseWhereInternal(
     }
 
     if (key === 'path') {
-      if (isNested || inCombinator) {
-        const parsed = normaliseToOperator(rawValue)
-        if (parsed) {
+      const operators = normaliseToOperators(rawValue, definition.path, key)
+      // `pathFilter` holds one operator. Several operators on a top-level
+      // `path` take the `DocumentColumnFilter` form instead, which the
+      // adapter resolves against the top-level scope just as well.
+      if (isNested || inCombinator || operators.length > 1) {
+        for (const parsed of operators) {
           result.filters.push({
             kind: 'docColumn',
             column: 'path',
@@ -536,7 +548,7 @@ async function parseWhereInternal(
         }
         continue
       }
-      const parsed = normaliseToOperator(rawValue)
+      const [parsed] = operators
       if (parsed) {
         result.pathFilter = {
           operator: parsed.operator,
@@ -555,8 +567,7 @@ async function parseWhereInternal(
     // don't `String(...)` it the way status/path do, because the headline
     // use case is `$in` / `$nin` carrying an array of document ids.
     if (key === 'id') {
-      const parsed = normaliseToOperator(rawValue)
-      if (parsed) {
+      for (const parsed of normaliseToOperators(rawValue, definition.path, key)) {
         result.filters.push({
           kind: 'docColumn',
           column: 'id',
@@ -650,17 +661,16 @@ async function parseWhereInternal(
     const storeInfo = fieldTypeToStore[field.type]
     if (!storeInfo) continue // Structure fields can't be filtered directly
 
-    const parsed = normaliseToOperator(rawValue)
-    if (!parsed) continue
-
-    result.filters.push({
-      kind: 'field',
-      fieldName: key,
-      storeType: storeInfo.storeType,
-      valueColumn: storeInfo.valueColumn,
-      operator: parsed.operator,
-      value: parsed.value,
-    } satisfies FieldFilter)
+    for (const parsed of normaliseToOperators(rawValue, definition.path, key)) {
+      result.filters.push({
+        kind: 'field',
+        fieldName: key,
+        storeType: storeInfo.storeType,
+        valueColumn: storeInfo.valueColumn,
+        operator: parsed.operator,
+        value: parsed.value,
+      } satisfies FieldFilter)
+    }
   }
 
   return result
@@ -769,7 +779,7 @@ function isPlainSubWhere(raw: unknown): raw is Record<string, unknown> {
   if (Array.isArray(raw)) return false
   const keys = Object.keys(raw as Record<string, unknown>)
   // An empty object is not a meaningful sub-where; treat as non-match
-  // (ordinary field-filter path will then reject it via normaliseToOperator).
+  // (ordinary field-filter path will then reject it via normaliseToOperators).
   if (keys.length === 0) return false
   for (const k of keys) {
     if (k.startsWith('$') && !COMBINATOR_KEYS.has(k)) return false
@@ -778,10 +788,18 @@ function isPlainSubWhere(raw: unknown): raw is Record<string, unknown> {
 }
 
 /**
- * Normalise a WhereValue (bare value or operator object) into a single
- * operator + value pair.
+ * Normalise a WhereValue (bare value or operator object) into a list of
+ * operator + value pairs. Every operator in an operator object applies, so
+ * `{ $gte: 10, $lte: 20 }` yields two pairs that the caller ANDs together.
+ * Operators whose value is `undefined` are skipped, matching how the parser
+ * skips `undefined` keys. An object with no operators left, or with an
+ * unknown operator, is a validation error rather than a dropped filter.
  */
-function normaliseToOperator(raw: WhereValue): NormalisedOperator | undefined {
+function normaliseToOperators(
+  raw: WhereValue,
+  collectionPath: string,
+  key: string
+): NormalisedOperator[] {
   // Bare value → $eq
   if (
     raw === null ||
@@ -789,20 +807,38 @@ function normaliseToOperator(raw: WhereValue): NormalisedOperator | undefined {
     typeof raw === 'number' ||
     typeof raw === 'boolean'
   ) {
-    return { operator: '$eq', value: raw }
+    return [{ operator: '$eq', value: raw }]
   }
 
-  // Operator object
-  const ops = raw as FilterOperators
-  const operatorEntries = Object.entries(ops) as [string, unknown][]
-  if (operatorEntries.length === 0) return undefined
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    throw invalidWhere(collectionPath, `invalid value for '${key}'`)
+  }
 
-  // Use the first operator found
-  const [op, val] = operatorEntries[0]!
-  return {
+  // Operator object. Names are checked before `undefined` operands are
+  // skipped, so an unknown operator throws even when its value is missing.
+  const entries = Object.entries(raw as FilterOperators) as [string, unknown][]
+  for (const [op] of entries) {
+    if (!FILTER_OPERATORS.has(op)) {
+      throw invalidWhere(collectionPath, `unknown operator '${op}' for '${key}'`)
+    }
+  }
+
+  const operatorEntries = entries.filter(([, val]) => val !== undefined)
+  if (operatorEntries.length === 0) {
+    throw invalidWhere(collectionPath, `operator object for '${key}' is empty`)
+  }
+
+  return operatorEntries.map(([op, val]) => ({
     operator: op as FieldFilterOperator,
     value: val as NormalisedOperator['value'],
-  }
+  }))
+}
+
+function invalidWhere(collectionPath: string, reason: string) {
+  return ERR_VALIDATION({
+    message: `invalid where clause for '${collectionPath}': ${reason}`,
+    details: { collectionPath, reason },
+  })
 }
 
 function stringifyDocumentColumnValue(
