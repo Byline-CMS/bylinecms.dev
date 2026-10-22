@@ -124,12 +124,14 @@ export function lexicalEditor(configure?: ConfigureFn): RichTextEditorComponent 
       baked = configure(seed)
     }
 
+    // biome-ignore lint/correctness/noComponentHookFactories: resolved once per lexicalEditor() call at config time, not per render
     const Configured: RichTextEditorComponent = (props) => (
       <RichTextField {...props} editorConfig={baked} />
     )
     return { default: Configured as React.ComponentType<any> }
   })
 
+  // biome-ignore lint/correctness/noComponentHookFactories: lexicalEditor() runs once at config time and returns this stable component
   const ConfiguredEditor: RichTextEditorComponent = (props) => (
     <Suspense
       fallback={
