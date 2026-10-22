@@ -1,5 +1,11 @@
 # @byline/auth
 
+## 6.10.1
+
+### Patch Changes
+
+- fixed `where` operator objects silently applying only their first operator — every operator now applies (ANDed), and empty or unknown operators throw `ERR_VALIDATION`
+
 ## 6.10.0
 
 ### Minor Changes

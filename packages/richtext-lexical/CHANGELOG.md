@@ -1,5 +1,18 @@
 # @byline/richtext-lexical
 
+## 6.10.1
+
+### Patch Changes
+
+- fixed `where` operator objects silently applying only their first operator — every operator now applies (ANDed), and empty or unknown operators throw `ERR_VALIDATION`
+- Updated dependencies
+- Updated dependencies [789bedf]
+  - @byline/admin@6.10.1
+  - @byline/client@6.10.1
+  - @byline/core@6.10.1
+  - @byline/i18n@6.10.1
+  - @byline/ui@6.10.1
+
 ## 6.10.0
 
 ### Minor Changes

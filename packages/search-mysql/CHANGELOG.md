@@ -1,5 +1,15 @@
 # @byline/search-mysql
 
+## 6.10.1
+
+### Patch Changes
+
+- fixed `where` operator objects silently applying only their first operator — every operator now applies (ANDed), and empty or unknown operators throw `ERR_VALIDATION`
+- Updated dependencies
+- Updated dependencies [789bedf]
+  - @byline/core@6.10.1
+  - @byline/search-analysis@6.10.1
+
 ## 6.10.0
 
 ### Minor Changes
