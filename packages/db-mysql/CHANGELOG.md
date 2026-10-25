@@ -1,5 +1,18 @@
 # @byline/db-mysql
 
+## 6.11.0
+
+### Minor Changes
+
+- enforced the css layer contract across **`@byline/ui`** and the cms, reserving a host `overrides` layer below tailwind utilities and adding **`@byline/ui/css-layers`**
+
+### Patch Changes
+
+- Updated dependencies [4bb2631]
+- Updated dependencies
+  - @byline/admin@6.11.0
+  - @byline/core@6.11.0
+
 ## 6.10.1
 
 ### Patch Changes

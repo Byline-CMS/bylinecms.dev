@@ -1,5 +1,11 @@
 # @byline/analytics-agent
 
+## 6.11.0
+
+### Minor Changes
+
+- enforced the css layer contract across **`@byline/ui`** and the cms, reserving a host `overrides` layer below tailwind utilities and adding **`@byline/ui/css-layers`**
+
 ## 6.10.1
 
 ### Patch Changes
