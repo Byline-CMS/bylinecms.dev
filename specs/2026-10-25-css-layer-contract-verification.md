@@ -19,7 +19,7 @@ the fixed release group and describes the observable compatibility change.
 
 Hosts must layer their ordinary CSS and scope public overrides away from the
 CMS before upgrading. Unlayered host rules now beat layered CMS styles.
-bylinecms.app and modulus-learning.org have not been signed off for this change.
+Existing host applications need their own sign-off for this change.
 See [the migration guide](../docs/09-admin-ui/01-ui-kit.md#upgrading-existing-hosts).
 The example's remaining public component CSS is not a full host-contract audit.
 

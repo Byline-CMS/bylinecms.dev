@@ -147,8 +147,8 @@ above, then compare public and CMS screens, dialogs and editor fields in light
 and dark modes. The helper establishes order; it does not wrap host or third-party
 styles automatically. Installing the packages alone does not complete this
 migration. The example app now scopes its public typography overrides by route
-context; this is not a complete migration of all its public component CSS. Existing sites such as bylinecms.app and modulus-learning.org need
-their own host audit and visual sign-off.
+context; this is not a complete migration of all its public component CSS. Each
+existing host application needs its own audit and visual sign-off.
 
 The source guard covers package CSS, not every style generated at runtime.
 CodeMirror owns its internal layout, syntax highlighting and injected theme
