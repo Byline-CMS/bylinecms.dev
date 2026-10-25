@@ -29,7 +29,9 @@ describe('stacked form layout styles', () => {
     postcss.parse(css).walkAtRules('media', (media) => {
       if (media.params !== '(min-width: 60rem)') return
       media.walkRules((rule) => {
-        rule.walkDecls('grid-template-columns', () => gridSelectors.push(rule.selector))
+        rule.walkDecls('grid-template-columns', () => {
+          gridSelectors.push(rule.selector)
+        })
       })
     })
     expect(gridSelectors.length).toBeGreaterThan(0)
