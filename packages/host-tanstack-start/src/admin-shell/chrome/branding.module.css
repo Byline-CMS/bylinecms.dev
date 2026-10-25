@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * Branding — admin app-bar logo wrapper.
  *
@@ -6,15 +20,17 @@
  *   .byline-admin-branding-logo — logo SVG
  */
 
-.root,
-:global(.byline-admin-branding) {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
+@layer byline-components.cms {
+  .root,
+  :global(.byline-admin-branding) {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
 
-.logo,
-:global(.byline-admin-branding-logo) {
-  width: 24px;
-  height: 24px;
+  .logo,
+  :global(.byline-admin-branding-logo) {
+    width: 24px;
+    height: 24px;
+  }
 }

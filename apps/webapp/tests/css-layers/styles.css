@@ -1,0 +1,29 @@
+@import "@byline/ui/reset.css";
+@import "@byline/ui/styles.css";
+@import "@byline/ui/typography.css";
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "./main.tsx";
+
+@layer components {
+  .host-card {
+    margin: 2rem;
+    padding: 2rem;
+    width: 30rem;
+    max-width: 30rem;
+    background: tan;
+    font-size: 24px;
+    line-height: 32px;
+  }
+}
+@layer overrides {
+  @scope (:root[data-theme-context="public"]) {
+    :scope {
+      --contract-brand: public;
+    }
+    .byline-button {
+      padding: 2rem;
+      background-color: darkgreen;
+    }
+  }
+}

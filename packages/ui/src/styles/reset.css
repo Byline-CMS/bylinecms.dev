@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /*
  * Based on Tailwind reset / preflight
  * Copyright (c) Tailwind Labs, Inc.
@@ -7,31 +21,11 @@
  * area only, or on <html> to apply it everywhere (in which case the host
  * should NOT also import tailwindcss/preflight.css).
  *
- * The preamble below pins the cascade-layer order. Theme sits below
- * components so theme tokens cannot override component styles, and byline
- * layers are interleaved with their Tailwind equivalents by type so each
- * byline layer sits just above its matching Tailwind layer:
- *   base < byline-base < theme < byline-theme < byline-functional
- *   < components < byline-components < utilities < byline-utilities
- *   < byline-typography
- *
- * This ensures byline-base beats Tailwind preflight, byline-components beats
- * Tailwind components, byline-utilities beats Tailwind utilities — each in
- * their own "tier" — rather than every byline layer winning over every
- * Tailwind layer (which would let byline-base win over Tailwind utilities).
- *
- * Hosts using Tailwind don't need to declare layer order themselves.
+ * The preamble reserves the host overrides slot below Tailwind utilities.
+ * Hosts also use @byline/ui/css-layers in the document head and their CSS
+ * build pipeline, so a host or vendor stylesheet cannot establish a partial
+ * order first. See the UI-kit documentation for the integration contract.
 */
-@layer base,
-  byline-base,
-  theme,
-  byline-theme,
-  byline-functional,
-  byline-typography,
-  components,
-  byline-components,
-  utilities,
-  byline-utilities;
 
 @layer byline-base {
   @scope (.byline-ui) {

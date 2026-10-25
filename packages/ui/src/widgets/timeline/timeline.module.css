@@ -6,10 +6,11 @@
   byline-typography,
   components,
   byline-components,
-  utilities,
-  byline-utilities;
-
-@layer byline-components {
+  overrides,
+  byline-utilities,
+  utilities;
+@layer byline-components.primitives, byline-components.cms;
+@layer byline-components.primitives {
   .timeline,
   :global(.byline-timeline) {
     margin-left: var(--spacing-8);

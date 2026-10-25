@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * StatusBadge — workflow-status pill, optionally preceded by a "live" dot.
  *
@@ -7,25 +21,27 @@
  *   .byline-status-badge        — the badge itself
  */
 
-.wrap,
-:global(.byline-status-badge-wrap) {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-4);
-}
+@layer byline-components.cms {
+  .wrap,
+  :global(.byline-status-badge-wrap) {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-4);
+  }
 
-.dot,
-:global(.byline-status-badge-dot) {
-  display: inline-block;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: var(--border-radius-full);
-  background-color: var(--green-500);
-}
+  .dot,
+  :global(.byline-status-badge-dot) {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: var(--border-radius-full);
+    background-color: var(--green-500);
+  }
 
-.badge,
-:global(.byline-status-badge) {
-  padding: 0 0.375rem;
-  font-size: 0.65rem;
-  line-height: 1.5;
+  .badge,
+  :global(.byline-status-badge) {
+    padding: 0 0.375rem;
+    font-size: 0.65rem;
+    line-height: 1.5;
+  }
 }

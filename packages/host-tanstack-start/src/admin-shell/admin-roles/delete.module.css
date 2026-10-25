@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * DeleteRole — modal body for permanent role deletion.
  *
@@ -9,44 +23,46 @@
  *   .byline-role-delete-button    — action buttons (min-width)
  */
 
-.content,
-:global(.byline-role-delete-content) {
-  gap: 0.25rem;
-}
+@layer byline-components.cms {
+  .content,
+  :global(.byline-role-delete-content) {
+    gap: 0.25rem;
+  }
 
-.body,
-:global(.byline-role-delete-body) {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
+  .body,
+  :global(.byline-role-delete-body) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 
-.row,
-:global(.byline-role-delete-row) {
-  margin: 0;
-}
+  .row,
+  :global(.byline-role-delete-row) {
+    margin: 0;
+  }
 
-.warning,
-:global(.byline-role-delete-warning) {
-  margin-top: 0.75rem;
-  color: var(--red-600);
-}
+  .warning,
+  :global(.byline-role-delete-warning) {
+    margin-top: 0.75rem;
+    color: var(--red-600);
+  }
 
-:is([data-theme="dark"], :global(.dark)) .warning,
-:is([data-theme="dark"], :global(.dark)) :global(.byline-role-delete-warning) {
-  color: var(--red-300);
-}
+  :is([data-theme="dark"], :global(.dark)) .warning,
+  :is([data-theme="dark"], :global(.dark)) :global(.byline-role-delete-warning) {
+    color: var(--red-300);
+  }
 
-.actions,
-:global(.byline-role-delete-actions) {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1.5rem;
-}
+  .actions,
+  :global(.byline-role-delete-actions) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+  }
 
-.button,
-:global(.byline-role-delete-button) {
-  min-width: 4rem;
+  .button,
+  :global(.byline-role-delete-button) {
+    min-width: 4rem;
+  }
 }

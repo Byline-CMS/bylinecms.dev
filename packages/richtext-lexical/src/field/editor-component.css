@@ -1,52 +1,68 @@
-.lexicalRichTextEditor {
-  display: flex;
-  isolation: isolate;
-  width: 100%;
-  /* Flex container — keep it from being widened by its content (a wide
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
+@layer byline-components.cms {
+  .lexicalRichTextEditor {
+    display: flex;
+    isolation: isolate;
+    width: 100%;
+    /* Flex container — keep it from being widened by its content (a wide
    * white-space:pre code block) past its allotted column width. */
-  min-width: 0;
-}
-
-.lexicalRichTextEditor--read-only {
-  .editor-shell::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: var(--canvas-50);
-    opacity: 0.5;
-    z-index: 9;
+    min-width: 0;
   }
-}
 
-.lexicalRichTextEditor__wrap {
-  width: 100%;
-  position: relative;
-  /* Flex item of .lexicalRichTextEditor — default min-width:auto would let
+  .lexicalRichTextEditor--read-only {
+    .editor-shell::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--canvas-50);
+      opacity: 0.5;
+      z-index: 9;
+    }
+  }
+
+  .lexicalRichTextEditor__wrap {
+    width: 100%;
+    position: relative;
+    /* Flex item of .lexicalRichTextEditor — default min-width:auto would let
    * the code block's intrinsic width grow this past 100%. */
-  min-width: 0;
-}
-
-.lexicalRichTextEditor.error {
-  .editor-shell::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: var(--red-700);
-    opacity: 1;
-    z-index: -1;
+    min-width: 0;
   }
-}
 
-.dark {
   .lexicalRichTextEditor.error {
     .editor-shell::after {
-      background: var(--red-700-dark);
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--red-700);
+      opacity: 1;
+      z-index: -1;
+    }
+  }
+
+  .dark {
+    .lexicalRichTextEditor.error {
+      .editor-shell::after {
+        background: var(--red-700-dark);
+      }
     }
   }
 }

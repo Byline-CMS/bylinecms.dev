@@ -1,15 +1,31 @@
-.auto-embed-modal-container {
-  min-width: 340px;
-  max-width: 600px;
-}
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
 
-.auto-embed-modal-header {
-  margin-bottom: 1rem;
-}
+@layer byline-components.primitives, byline-components.cms;
 
-@media screen and (min-width: 640px) {
+@layer byline-components.cms {
   .auto-embed-modal-container {
     min-width: 340px;
-    width: 500px;
+    max-width: 600px;
+  }
+
+  .auto-embed-modal-header {
+    margin-bottom: 1rem;
+  }
+
+  @media screen and (min-width: 640px) {
+    .auto-embed-modal-container {
+      min-width: 340px;
+      width: 500px;
+    }
   }
 }

@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * SelectField — dropdown form widget.
  *
@@ -7,12 +21,14 @@
  *                                  field has unsaved local changes
  */
 
-.label,
-:global(.byline-field-select-label) {
-  margin-bottom: 0.25rem;
-}
+@layer byline-components.cms {
+  .label,
+  :global(.byline-field-select-label) {
+    margin-bottom: 0.25rem;
+  }
 
-.dirty,
-:global(.byline-field-select-dirty) {
-  border-color: var(--blue-300);
+  .dirty,
+  :global(.byline-field-select-dirty) {
+    border-color: var(--blue-300);
+  }
 }

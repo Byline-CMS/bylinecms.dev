@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * AdminAppBar — top header in the admin shell.
  *
@@ -9,69 +23,71 @@
  *   .byline-admin-app-bar-user-name — bolded display name
  */
 
-.header,
-:global(.byline-admin-app-bar) {
-  position: fixed;
-  z-index: 50;
-  height: 45px;
-  width: 100%;
-  max-width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 1rem 1rem 0.75rem;
-  background-color: #ffffff;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  font-size: 1.125rem;
-  line-height: 1.75rem;
-  font-weight: 600;
-  border-bottom: var(--border-width-thin) var(--border-style-solid) var(--gray-50);
-}
+@layer byline-components.cms {
+  .header,
+  :global(.byline-admin-app-bar) {
+    position: fixed;
+    z-index: 50;
+    height: 45px;
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1rem 1rem 0.75rem;
+    background-color: #ffffff;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+    font-weight: 600;
+    border-bottom: var(--border-width-thin) var(--border-style-solid) var(--gray-50);
+  }
 
-:is([data-theme="dark"], :global(.dark)) .header,
-:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-app-bar) {
-  background-color: var(--canvas-800);
-  border-bottom-color: var(--canvas-700);
-}
+  :is([data-theme="dark"], :global(.dark)) .header,
+  :is([data-theme="dark"], :global(.dark)) :global(.byline-admin-app-bar) {
+    background-color: var(--canvas-800);
+    border-bottom-color: var(--canvas-700);
+  }
 
-.left,
-:global(.byline-admin-app-bar-left) {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  flex: 1 1 auto;
-  min-width: 0;
-}
+  .left,
+  :global(.byline-admin-app-bar-left) {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
 
-.right,
-:global(.byline-admin-app-bar-right) {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex: 0 0 auto;
-  font-size: 0.875rem;
-  font-weight: 400;
-}
+  .right,
+  :global(.byline-admin-app-bar-right) {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 0 0 auto;
+    font-size: 0.875rem;
+    font-weight: 400;
+  }
 
-.user,
-:global(.byline-admin-app-bar-user) {
-  display: none;
-  color: var(--gray-600);
-}
-
-@media (min-width: 40rem) {
   .user,
   :global(.byline-admin-app-bar-user) {
-    display: inline;
+    display: none;
+    color: var(--gray-600);
   }
-}
 
-:is([data-theme="dark"], :global(.dark)) .user,
-:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-app-bar-user) {
-  color: var(--gray-300);
-}
+  @media (min-width: 40rem) {
+    .user,
+    :global(.byline-admin-app-bar-user) {
+      display: inline;
+    }
+  }
 
-.userName,
-:global(.byline-admin-app-bar-user-name) {
-  font-weight: 600;
+  :is([data-theme="dark"], :global(.dark)) .user,
+  :is([data-theme="dark"], :global(.dark)) :global(.byline-admin-app-bar-user) {
+    color: var(--gray-300);
+  }
+
+  .userName,
+  :global(.byline-admin-app-bar-user-name) {
+    font-weight: 600;
+  }
 }

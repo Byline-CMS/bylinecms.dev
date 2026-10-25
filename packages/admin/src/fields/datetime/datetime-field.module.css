@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * DateTimeField — date/time picker form widget.
  *
@@ -7,7 +21,9 @@
  *                                    field has unsaved local changes
  */
 
-.dirty,
-:global(.byline-field-datetime-dirty) {
-  border-color: var(--blue-300);
+@layer byline-components.cms {
+  .dirty,
+  :global(.byline-field-datetime-dirty) {
+    border-color: var(--blue-300);
+  }
 }

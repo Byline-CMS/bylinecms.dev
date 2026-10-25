@@ -128,6 +128,8 @@ jobs:
       # subpath; @byline/client imports it from its built `dist/`. Building
       # all packages ensures every import path resolves.
       - run: pnpm build:packages
+      # Source guards and emitted CSS order, including the TS helper on Node 22.
+      - run: pnpm --filter @byline/ui test:css-build
 
       # The copied server configs are intentionally outside the CLI's normal
       # tsconfig. Assemble and compile every database/example combination

@@ -1,11 +1,27 @@
-.warning-icon {
-  margin-right: 0.5rem;
-  margin-top: 3px;
-}
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
 
-.warning-icon svg {
-  display: block;
-  width: 25px;
-  height: 25px;
-  fill: #e2cf1e;
+@layer byline-components.primitives, byline-components.cms;
+
+@layer byline-components.cms {
+  .warning-icon {
+    margin-right: 0.5rem;
+    margin-top: 3px;
+  }
+
+  .warning-icon svg {
+    display: block;
+    width: 25px;
+    height: 25px;
+    fill: #e2cf1e;
+  }
 }

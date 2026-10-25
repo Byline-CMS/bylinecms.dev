@@ -6,9 +6,10 @@
   byline-typography,
   components,
   byline-components,
-  utilities,
-  byline-utilities;
-
+  overrides,
+  byline-utilities,
+  utilities;
+@layer byline-components.primitives, byline-components.cms;
 /**
  * Content-adaptation notices.
  *
@@ -21,7 +22,7 @@
  * Declared in `byline-components` so the layer order the admin
  * establishes governs them, rather than Tailwind's preflight.
  */
-@layer byline-components {
+@layer byline-components.cms {
   .byline-richtext-notice {
     border-radius: var(--border-radius-sm, 4px);
     font-size: var(--font-size-sm, 0.8125rem);

@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * Admin menu drawer.
  *
@@ -12,213 +26,215 @@
  * chains stay readable; targeted via :global in this module.
  */
 
-.aside,
-:global(.byline-admin-menu-drawer-aside) {
-  display: flex;
-  flex-direction: column;
-  border-right: var(--border-width-thin) var(--border-style-solid) var(--gray-50);
-  background-color: var(--canvas-25);
-  z-index: 40;
-  transition: all 200ms ease-in-out;
-}
+@layer byline-components.cms {
+  .aside,
+  :global(.byline-admin-menu-drawer-aside) {
+    display: flex;
+    flex-direction: column;
+    border-right: var(--border-width-thin) var(--border-style-solid) var(--gray-50);
+    background-color: var(--canvas-25);
+    z-index: 40;
+    transition: all 200ms ease-in-out;
+  }
 
-:is([data-theme="dark"], :global(.dark)) .aside,
-:is([data-theme="dark"], :global(.dark)) :global(.byline-admin-menu-drawer-aside) {
-  border-right-color: var(--canvas-700);
-  background-color: var(--canvas-800);
-}
+  :is([data-theme="dark"], :global(.dark)) .aside,
+  :is([data-theme="dark"], :global(.dark)) :global(.byline-admin-menu-drawer-aside) {
+    border-right-color: var(--canvas-700);
+    background-color: var(--canvas-800);
+  }
 
-.asideMobile,
-:global(.byline-admin-menu-drawer-aside-mobile) {
-  position: fixed;
-  top: 42px;
-  bottom: 0;
-  left: 0;
-}
+  .asideMobile,
+  :global(.byline-admin-menu-drawer-aside-mobile) {
+    position: fixed;
+    top: 42px;
+    bottom: 0;
+    left: 0;
+  }
 
-.asideMobileOpen,
-:global(.byline-admin-menu-drawer-aside-mobile-open) {
-  width: 210px;
-}
+  .asideMobileOpen,
+  :global(.byline-admin-menu-drawer-aside-mobile-open) {
+    width: 210px;
+  }
 
-.asideMobileClosed,
-:global(.byline-admin-menu-drawer-aside-mobile-closed) {
-  width: 0;
-  overflow: hidden;
-}
+  .asideMobileClosed,
+  :global(.byline-admin-menu-drawer-aside-mobile-closed) {
+    width: 0;
+    overflow: hidden;
+  }
 
-/* Pinned under the fixed app bar (45px) for the whole scroll of the page.
+  /* Pinned under the fixed app bar (45px) for the whole scroll of the page.
    `align-self: flex-start` keeps the sticky box from being stretched to the
    full height of the flex row — a stretched sticky item has no room to move
    and never pins. */
-.asideDesktop,
-:global(.byline-admin-menu-drawer-aside-desktop) {
-  position: sticky;
-  top: 45px;
-  align-self: flex-start;
-  height: calc(100vh - 45px);
-  flex-shrink: 0;
-}
+  .asideDesktop,
+  :global(.byline-admin-menu-drawer-aside-desktop) {
+    position: sticky;
+    top: 45px;
+    align-self: flex-start;
+    height: calc(100vh - 45px);
+    flex-shrink: 0;
+  }
 
-.asideDesktopOpen,
-:global(.byline-admin-menu-drawer-aside-desktop-open) {
-  width: 210px;
-}
+  .asideDesktopOpen,
+  :global(.byline-admin-menu-drawer-aside-desktop-open) {
+    width: 210px;
+  }
 
-.asideDesktopClosed,
-:global(.byline-admin-menu-drawer-aside-desktop-closed) {
-  width: 60px;
-}
+  .asideDesktopClosed,
+  :global(.byline-admin-menu-drawer-aside-desktop-closed) {
+    width: 60px;
+  }
 
-/* The aside owns the viewport-height box; the nav just fills it and scrolls
+  /* The aside owns the viewport-height box; the nav just fills it and scrolls
    internally when the menu is longer than the drawer. */
-.nav,
-:global(.byline-admin-menu-drawer) {
-  flex: 1 1 auto;
-  min-height: 0;
-  margin: 0;
-  overflow-y: auto;
-}
+  .nav,
+  :global(.byline-admin-menu-drawer) {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0;
+    overflow-y: auto;
+  }
 
-.nav ul,
-:global(.byline-admin-menu-drawer) ul {
-  margin: 0.75rem 0.5rem 0.5rem;
-  padding: 0;
-  list-style: none;
-  list-style-position: outside;
-}
+  .nav ul,
+  :global(.byline-admin-menu-drawer) ul {
+    margin: 0.75rem 0.5rem 0.5rem;
+    padding: 0;
+    list-style: none;
+    list-style-position: outside;
+  }
 
-.nav ul :global(li.menu-item),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item) {
-  border-radius: 4px;
-  margin: 0;
-  transition: all 200ms ease;
-}
+  .nav ul :global(li.menu-item),
+  :global(.byline-admin-menu-drawer) ul :global(li.menu-item) {
+    border-radius: 4px;
+    margin: 0;
+    transition: all 200ms ease;
+  }
 
-.nav ul :global(li.menu-item .icon),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item .icon) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-}
+  .nav ul :global(li.menu-item .icon),
+  :global(.byline-admin-menu-drawer) ul :global(li.menu-item .icon) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+  }
 
-/* A real line-height, not 0. Zero leaves every line box with no height, which
+  /* A real line-height, not 0. Zero leaves every line box with no height, which
    a single-line label survives — the flex row centres it anyway — but a label
    long enough to wrap does not: both lines land in the same place and render
    on top of each other. "Scheduled Publications" is the first label in this
    menu long enough to reach that. Non-compact rows have no fixed height, so
    the row simply grows to fit a second line. */
-.nav ul :global(li.menu-item .label),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item .label) {
-  line-height: 1.2;
-}
+  .nav ul :global(li.menu-item .label),
+  :global(.byline-admin-menu-drawer) ul :global(li.menu-item .label) {
+    line-height: 1.2;
+  }
 
-.nav ul :global(li.menu-item.compact .label),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item.compact .label) {
-  display: none;
-}
+  .nav ul :global(li.menu-item.compact .label),
+  :global(.byline-admin-menu-drawer) ul :global(li.menu-item.compact .label) {
+    display: none;
+  }
 
-.nav ul :global(li.menu-item.active),
-.nav ul :global(li.menu-item:hover),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item.active),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item:hover) {
-  background-color: var(--canvas-50);
-}
+  .nav ul :global(li.menu-item.active),
+  .nav ul :global(li.menu-item:hover),
+  :global(.byline-admin-menu-drawer) ul :global(li.menu-item.active),
+  :global(.byline-admin-menu-drawer) ul :global(li.menu-item:hover) {
+    background-color: var(--canvas-50);
+  }
 
-.nav ul :global(li.menu-item) :is(a, button),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item) :is(a, button) {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  width: 100%;
-  padding: 7px;
-  gap: 8px;
-  color: #111111;
-  font-size: 0.9rem;
-  font-weight: normal;
-  text-decoration: none;
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-}
+  .nav ul :global(li.menu-item) :is(a, button),
+  :global(.byline-admin-menu-drawer) ul :global(li.menu-item) :is(a, button) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    padding: 7px;
+    gap: 8px;
+    color: #111111;
+    font-size: 0.9rem;
+    font-weight: normal;
+    text-decoration: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+  }
 
-.nav ul :global(li.menu-item) :is(a, button):disabled,
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item) :is(a, button):disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
+  .nav ul :global(li.menu-item) :is(a, button):disabled,
+  :global(.byline-admin-menu-drawer) ul :global(li.menu-item) :is(a, button):disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
 
-/* Compact items render as a centered square so the hover/active background
+  /* Compact items render as a centered square so the hover/active background
    (applied to the <li>) reads as a square icon button rather than a wide
    rectangle. The <li> is the hover target, so it must carry the square size. */
-.nav ul :global(li.menu-item.compact),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item.compact) {
-  width: 34px;
-  height: 34px;
-  margin-left: auto;
-  margin-right: auto;
-}
+  .nav ul :global(li.menu-item.compact),
+  :global(.byline-admin-menu-drawer) ul :global(li.menu-item.compact) {
+    width: 34px;
+    height: 34px;
+    margin-left: auto;
+    margin-right: auto;
+  }
 
-/* Fill the square and drop the default 7px padding so the icon centers
+  /* Fill the square and drop the default 7px padding so the icon centers
    exactly within the <li> hover area. */
-.nav ul :global(li.menu-item.compact) :is(a, button),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item.compact) :is(a, button) {
-  justify-content: center;
-  padding: 0;
-  height: 100%;
-}
+  .nav ul :global(li.menu-item.compact) :is(a, button),
+  :global(.byline-admin-menu-drawer) ul :global(li.menu-item.compact) :is(a, button) {
+    justify-content: center;
+    padding: 0;
+    height: 100%;
+  }
 
-.nav ul :global(li.menu-item.active) :is(a, button),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-item.active) :is(a, button) {
-  color: #111111;
-  text-decoration: none;
-}
+  .nav ul :global(li.menu-item.active) :is(a, button),
+  :global(.byline-admin-menu-drawer) ul :global(li.menu-item.active) :is(a, button) {
+    color: #111111;
+    text-decoration: none;
+  }
 
-.nav ul :global(li.menu-separator),
-:global(.byline-admin-menu-drawer) ul :global(li.menu-separator) {
-  padding-top: 0.5px;
-  margin: 0.75rem auto;
-  width: 90%;
-  background-color: #dddddd;
-}
+  .nav ul :global(li.menu-separator),
+  :global(.byline-admin-menu-drawer) ul :global(li.menu-separator) {
+    padding-top: 0.5px;
+    margin: 0.75rem auto;
+    width: 90%;
+    background-color: #dddddd;
+  }
 
-:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item) :is(a, button),
-:is([data-theme="dark"], :global(.dark))
-  :global(.byline-admin-menu-drawer)
-  ul
-  :global(li.menu-item)
-  :is(a, button) {
-  color: #dddddd;
-}
+  :is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item) :is(a, button),
+  :is([data-theme="dark"], :global(.dark))
+    :global(.byline-admin-menu-drawer)
+    ul
+    :global(li.menu-item)
+    :is(a, button) {
+    color: #dddddd;
+  }
 
-:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item.active) :is(a, button),
-:is([data-theme="dark"], :global(.dark))
-  :global(.byline-admin-menu-drawer)
-  ul
-  :global(li.menu-item.active)
-  :is(a, button) {
-  color: #ffffff;
-}
+  :is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item.active) :is(a, button),
+  :is([data-theme="dark"], :global(.dark))
+    :global(.byline-admin-menu-drawer)
+    ul
+    :global(li.menu-item.active)
+    :is(a, button) {
+    color: #ffffff;
+  }
 
-:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item.active),
-:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item:hover),
-:is([data-theme="dark"], :global(.dark))
-  :global(.byline-admin-menu-drawer)
-  ul
-  :global(li.menu-item.active),
-:is([data-theme="dark"], :global(.dark))
-  :global(.byline-admin-menu-drawer)
-  ul
-  :global(li.menu-item:hover) {
-  background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h);
-}
+  :is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item.active),
+  :is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-item:hover),
+  :is([data-theme="dark"], :global(.dark))
+    :global(.byline-admin-menu-drawer)
+    ul
+    :global(li.menu-item.active),
+  :is([data-theme="dark"], :global(.dark))
+    :global(.byline-admin-menu-drawer)
+    ul
+    :global(li.menu-item:hover) {
+    background-color: oklch(from var(--canvas-700) calc(l * 0.95) c h);
+  }
 
-:is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-separator),
-:is([data-theme="dark"], :global(.dark))
-  :global(.byline-admin-menu-drawer)
-  ul
-  :global(li.menu-separator) {
-  background-color: #444444;
+  :is([data-theme="dark"], :global(.dark)) .nav ul :global(li.menu-separator),
+  :is([data-theme="dark"], :global(.dark))
+    :global(.byline-admin-menu-drawer)
+    ul
+    :global(li.menu-separator) {
+    background-color: #444444;
+  }
 }

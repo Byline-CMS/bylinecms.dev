@@ -1,4 +1,4 @@
-@layer theme, base, components, utilities;
+@layer base, byline-base, theme, byline-theme, byline-functional, byline-typography, components, byline-components, overrides, byline-utilities, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 /* NOTE: This example webapp front-end is using the same @byline/ui
   kit in both the front end and the back-end admin area - and has

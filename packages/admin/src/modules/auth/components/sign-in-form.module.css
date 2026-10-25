@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * SignInForm — admin sign-in card form.
  *
@@ -14,86 +28,88 @@
  *   .byline-passkey-sign-in-button — full-width passkey button
  */
 
-.card,
-:global(.byline-sign-in-card) {
-  width: 100%;
-}
-
-@media (min-width: 40rem) {
+@layer byline-components.cms {
   .card,
   :global(.byline-sign-in-card) {
-    max-width: 380px;
+    width: 100%;
   }
-}
 
-.alert,
-:global(.byline-sign-in-alert) {
-  margin-top: var(--spacing-12);
-}
+  @media (min-width: 40rem) {
+    .card,
+    :global(.byline-sign-in-card) {
+      max-width: 380px;
+    }
+  }
 
-.form,
-:global(.byline-sign-in-form) {
-  padding-top: var(--spacing-8);
-  margin-bottom: var(--spacing-8);
-}
+  .alert,
+  :global(.byline-sign-in-alert) {
+    margin-top: var(--spacing-12);
+  }
 
-.fields,
-:global(.byline-sign-in-fields) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-16);
-}
+  .form,
+  :global(.byline-sign-in-form) {
+    padding-top: var(--spacing-8);
+    margin-bottom: var(--spacing-8);
+  }
 
-.actions,
-:global(.byline-sign-in-actions) {
-  display: flex;
-  align-items: center;
-  margin-top: var(--spacing-24);
-}
+  .fields,
+  :global(.byline-sign-in-fields) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-16);
+  }
 
-.home-link,
-:global(.byline-sign-in-home-link) {
-  font-size: 0.9rem;
-  text-decoration: underline;
-}
+  .actions,
+  :global(.byline-sign-in-actions) {
+    display: flex;
+    align-items: center;
+    margin-top: var(--spacing-24);
+  }
 
-.button,
-:global(.byline-sign-in-button) {
-  min-width: 5rem;
-  /* Always floats right whether or not a Home link is present on the left. */
-  margin-left: auto;
-}
+  .home-link,
+  :global(.byline-sign-in-home-link) {
+    font-size: 0.9rem;
+    text-decoration: underline;
+  }
 
-.alternate,
-:global(.byline-sign-in-alternate) {
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--spacing-16);
-  padding-bottom: var(--spacing-24);
-}
+  .button,
+  :global(.byline-sign-in-button) {
+    min-width: 5rem;
+    /* Always floats right whether or not a Home link is present on the left. */
+    margin-left: auto;
+  }
 
-.divider,
-:global(.byline-sign-in-divider) {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-12);
-  color: var(--gray-500);
-  font-size: var(--font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
+  .alternate,
+  :global(.byline-sign-in-alternate) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-16);
+    padding-bottom: var(--spacing-24);
+  }
 
-.divider::before,
-.divider::after,
-:global(.byline-sign-in-divider)::before,
-:global(.byline-sign-in-divider)::after {
-  content: "";
-  flex: 1;
-  border-top: var(--border-width-thin) var(--border-style-solid) var(--border-color, #8885);
-}
+  .divider,
+  :global(.byline-sign-in-divider) {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-12);
+    color: var(--gray-500);
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 
-.passkey-button,
-:global(.byline-passkey-sign-in-button) {
-  width: 100%;
-  gap: var(--spacing-8);
+  .divider::before,
+  .divider::after,
+  :global(.byline-sign-in-divider)::before,
+  :global(.byline-sign-in-divider)::after {
+    content: "";
+    flex: 1;
+    border-top: var(--border-width-thin) var(--border-style-solid) var(--border-color, #8885);
+  }
+
+  .passkey-button,
+  :global(.byline-passkey-sign-in-button) {
+    width: 100%;
+    gap: var(--spacing-8);
+  }
 }

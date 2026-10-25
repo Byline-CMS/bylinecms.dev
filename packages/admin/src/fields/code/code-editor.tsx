@@ -98,6 +98,8 @@ const bylineCodeTheme = EditorView.theme({
   },
   '.cm-activeLine': { backgroundColor: 'var(--byline-code-active-line)' },
   '.cm-activeLineGutter': { backgroundColor: 'var(--byline-code-active-line)' },
+  // Runtime exception: CodeMirror injects unlayered selection rules. Keep the
+  // selection token authoritative; see the UI kit CSS contract's runtime limits.
   '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': {
     backgroundColor: 'var(--byline-code-selection) !important',
   },

@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * FormRenderer — primary admin form layout/orchestrator.
  *
@@ -38,384 +52,386 @@
  *   .byline-form-guard-modal-text       — guard modal body paragraph
  */
 
-.form,
-:global(.byline-form) {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-}
+@layer byline-components.cms {
+  .form,
+  :global(.byline-form) {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
 
-.heading-row,
-:global(.byline-form-heading-row) {
-  display: grid;
-  grid-template-columns: 1fr;
-  align-items: start;
-  gap: 0.25rem var(--spacing-16);
-  margin-bottom: var(--spacing-8);
-}
-
-@media (min-width: 40rem) {
   .heading-row,
   :global(.byline-form-heading-row) {
-    grid-template-columns: 1fr auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 0.25rem var(--spacing-16);
+    margin-bottom: var(--spacing-8);
   }
-}
 
-.heading,
-:global(.byline-form-heading) {
-  margin-bottom: 0;
-  font-size: 1.75rem;
-}
-
-.status-bar,
-:global(.byline-form-status-bar) {
-  position: sticky;
-  top: 45px;
-  z-index: 20;
-  display: grid;
-  grid-template-columns: 1fr;
-  align-items: start;
-  gap: 0.25rem var(--spacing-16);
-  padding: var(--spacing-8);
-  margin-bottom: 0.25rem;
-  border: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
-  border-radius: var(--border-radius-sm);
-  background-color: var(--canvas-25);
-}
-
-@media (min-width: 40rem) {
-  .status-bar,
-  :global(.byline-form-status-bar) {
-    grid-template-columns: 1fr auto;
+  @media (min-width: 40rem) {
+    .heading-row,
+    :global(.byline-form-heading-row) {
+      grid-template-columns: 1fr auto;
+    }
   }
-}
 
-@media (min-width: 66rem) {
-  .status-bar,
-  :global(.byline-form-status-bar) {
+  .heading,
+  :global(.byline-form-heading) {
     margin-bottom: 0;
+    font-size: 1.75rem;
   }
-}
 
-.status,
-:global(.byline-form-status) {
-  display: flex;
-  height: 100%;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.status-details,
-:global(.byline-form-status-details) {
-  min-width: 0;
-}
-
-.status-meta,
-:global(.byline-form-status-meta) {
-  display: flex;
-  flex-direction: column;
-  font-size: 0.8rem;
-  line-height: 1.25;
-}
-
-@media (min-width: 48rem) {
-  .status-meta,
-  :global(.byline-form-status-meta) {
+  .status-bar,
+  :global(.byline-form-status-bar) {
+    position: sticky;
+    top: 45px;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 0.25rem var(--spacing-16);
+    padding: var(--spacing-8);
     margin-bottom: 0.25rem;
-    line-height: 0.75rem;
+    border: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+    border-radius: var(--border-radius-sm);
+    background-color: var(--canvas-25);
   }
-}
 
-@media (min-width: 66rem) {
+  @media (min-width: 40rem) {
+    .status-bar,
+    :global(.byline-form-status-bar) {
+      grid-template-columns: 1fr auto;
+    }
+  }
+
+  @media (min-width: 66rem) {
+    .status-bar,
+    :global(.byline-form-status-bar) {
+      margin-bottom: 0;
+    }
+  }
+
+  .status,
+  :global(.byline-form-status) {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .status-details,
+  :global(.byline-form-status-details) {
+    min-width: 0;
+  }
+
   .status-meta,
   :global(.byline-form-status-meta) {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    /* Wrapping rather than truncating. Every cell here sets `min-width: 0` so
+    display: flex;
+    flex-direction: column;
+    font-size: 0.8rem;
+    line-height: 1.25;
+  }
+
+  @media (min-width: 48rem) {
+    .status-meta,
+    :global(.byline-form-status-meta) {
+      margin-bottom: 0.25rem;
+      line-height: 0.75rem;
+    }
+  }
+
+  @media (min-width: 66rem) {
+    .status-meta,
+    :global(.byline-form-status-meta) {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      /* Wrapping rather than truncating. Every cell here sets `min-width: 0` so
        it can ellipsize, which works while the row holds three short facts and
        fails once a fourth (a scheduled instant with its IANA zone) joins them —
        the row starts shaving every cell at once, down to "Status: D…". Letting
        it wrap keeps each fact whole and costs a line only when one is needed.
        The row gap is explicit because the shared `gap` collapses the line-height
        override above into an unreadably tight second row. */
-    row-gap: 0.35rem;
+      row-gap: 0.35rem;
+    }
   }
-}
 
-@media (min-width: 40rem) {
-  .status-meta,
-  :global(.byline-form-status-meta) {
-    gap: var(--spacing-8);
+  @media (min-width: 40rem) {
+    .status-meta,
+    :global(.byline-form-status-meta) {
+      gap: var(--spacing-8);
+    }
   }
-}
 
-.status-cell,
-:global(.byline-form-status-cell) {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem;
-  min-width: 0;
-}
+  .status-cell,
+  :global(.byline-form-status-cell) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
+  }
 
-.status-muted,
-:global(.byline-form-status-muted) {
-  flex-shrink: 0;
-  color: var(--gray-500);
-}
+  .status-muted,
+  :global(.byline-form-status-muted) {
+    flex-shrink: 0;
+    color: var(--gray-500);
+  }
 
-.status-trunc,
-:global(.byline-form-status-trunc) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+  .status-trunc,
+  :global(.byline-form-status-trunc) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-.status-published,
-:global(.byline-form-status-published) {
-  font-size: 0.8rem;
-  display: inline;
-  line-height: 1rem;
-}
-
-@media (min-width: 48rem) {
   .status-published,
   :global(.byline-form-status-published) {
-    line-height: 0.875rem;
+    font-size: 0.8rem;
+    display: inline;
+    line-height: 1rem;
   }
-}
 
-.status-unpublish,
-:global(.byline-form-status-unpublish) {
-  background: none;
-  border: none;
-  padding: 0;
-  color: inherit;
-  font-size: 0.8rem;
-  text-decoration: underline;
-  cursor: pointer;
-}
+  @media (min-width: 48rem) {
+    .status-published,
+    :global(.byline-form-status-published) {
+      line-height: 0.875rem;
+    }
+  }
 
-.actions,
-:global(.byline-form-actions) {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-8);
-}
+  .status-unpublish,
+  :global(.byline-form-status-unpublish) {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    font-size: 0.8rem;
+    text-decoration: underline;
+    cursor: pointer;
+  }
 
-.actions-button,
-:global(.byline-form-actions-button) {
-  min-width: 70px;
-  min-height: 28px;
-}
+  .actions,
+  :global(.byline-form-actions) {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-8);
+  }
 
-.busy-status,
-:global(.byline-form-busy-status) {
-  position: absolute;
-  overflow: hidden;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  border: 0;
-  margin: -1px;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
+  .actions-button,
+  :global(.byline-form-actions-button) {
+    min-width: 70px;
+    min-height: 28px;
+  }
 
-.save-content,
-:global(.byline-form-save-content) {
-  position: relative;
-  display: inline-block;
-}
+  .busy-status,
+  :global(.byline-form-busy-status) {
+    position: absolute;
+    overflow: hidden;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    border: 0;
+    margin: -1px;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 
-.save-label,
-:global(.byline-form-save-label) {
-  display: inline-block;
-}
+  .save-content,
+  :global(.byline-form-save-content) {
+    position: relative;
+    display: inline-block;
+  }
 
-.save-label-hidden {
-  visibility: hidden;
-}
+  .save-label,
+  :global(.byline-form-save-label) {
+    display: inline-block;
+  }
 
-.save-loader,
-:global(.byline-form-save-loader) {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  display: inline-flex;
-  transform: translate(-50%, -50%);
-}
+  .save-label-hidden {
+    visibility: hidden;
+  }
 
-.actions-status-wrap,
-:global(.byline-form-actions-status-wrap) {
-  position: relative;
-  z-index: 10;
-}
+  .save-loader,
+  :global(.byline-form-save-loader) {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: inline-flex;
+    transform: translate(-50%, -50%);
+  }
 
-.actions-combo-button,
-:global(.byline-form-actions-combo-button) {
-  min-width: 100px;
-  min-height: 28px;
-}
+  .actions-status-wrap,
+  :global(.byline-form-actions-status-wrap) {
+    position: relative;
+    z-index: 10;
+  }
 
-.actions-combo-trigger,
-:global(.byline-form-actions-combo-trigger) {
-  min-height: 28px;
-}
+  .actions-combo-button,
+  :global(.byline-form-actions-combo-button) {
+    min-width: 100px;
+    min-height: 28px;
+  }
 
-/*
+  .actions-combo-trigger,
+  :global(.byline-form-actions-combo-trigger) {
+    min-height: 28px;
+  }
+
+  /*
  * Concurrency alerts (stale document, lock conflict, schedule reconfirmation).
  * Separated from the status bar above and from the form layout below, which
  * otherwise carries its standing top padding on top of the alert's own gap.
  */
-.concurrency,
-:global(.byline-document-concurrency) {
-  margin-top: var(--spacing-16);
-}
+  .concurrency,
+  :global(.byline-document-concurrency) {
+    margin-top: var(--spacing-16);
+  }
 
-.concurrency button,
-:global(.byline-document-concurrency) button {
-  margin-top: var(--spacing-12);
-}
+  .concurrency button,
+  :global(.byline-document-concurrency) button {
+    margin-top: var(--spacing-12);
+  }
 
-.concurrency ~ .layout,
-:global(.byline-document-concurrency) ~ :global(.byline-form-layout) {
-  padding-top: var(--spacing-16);
-}
+  .concurrency ~ .layout,
+  :global(.byline-document-concurrency) ~ :global(.byline-form-layout) {
+    padding-top: var(--spacing-16);
+  }
 
-.layout,
-:global(.byline-form-layout) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-12);
-  padding-top: var(--spacing-32);
-}
-
-@media (min-width: 60rem) {
   .layout,
   :global(.byline-form-layout) {
-    gap: var(--spacing-32);
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 0.4fr;
-    grid-column-gap: 36px;
-    align-items: start;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-12);
+    padding-top: var(--spacing-32);
   }
-}
 
-/* One column at every width. The split layout above becomes a two-column grid
+  @media (min-width: 60rem) {
+    .layout,
+    :global(.byline-form-layout) {
+      gap: var(--spacing-32);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 0.4fr;
+      grid-column-gap: 36px;
+      align-items: start;
+    }
+  }
+
+  /* One column at every width. The split layout above becomes a two-column grid
    at >=60rem; a stacked form must not inherit that, or it reserves an empty
    second track and narrows its only content column. */
-.layout-stacked,
-:global(.byline-form-layout-stacked) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-12);
-  padding-top: var(--spacing-32);
-}
-
-@media (min-width: 60rem) {
   .layout-stacked,
   :global(.byline-form-layout-stacked) {
-    gap: var(--spacing-32);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-12);
+    padding-top: var(--spacing-32);
   }
-}
 
-.content,
-:global(.byline-form-content) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-20);
-  max-width: 100%;
-  /* Grid item default min-width:auto refuses to shrink below its content's
+  @media (min-width: 60rem) {
+    .layout-stacked,
+    :global(.byline-form-layout-stacked) {
+      gap: var(--spacing-32);
+    }
+  }
+
+  .content,
+  :global(.byline-form-content) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-20);
+    max-width: 100%;
+    /* Grid item default min-width:auto refuses to shrink below its content's
    * min-content size — a horizontally-scrolling code block (white-space:pre)
    * has a huge min-content, which would blow this column across the sidebar.
    * min-width:0 lets the column respect its minmax(0,1fr) track instead. */
-  min-width: 0;
-  margin-bottom: 2.75rem;
-}
-
-@media (min-width: 60rem) {
-  .content,
-  :global(.byline-form-content) {
-    margin-bottom: 3.75rem;
+    min-width: 0;
+    margin-bottom: 2.75rem;
   }
-}
 
-.sidebar,
-:global(.byline-form-sidebar) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-20);
-  margin-top: 0;
-  background-color: oklch(from var(--canvas-50) l c h / 0.2);
-  max-width: 100%;
-  margin-bottom: 4rem;
-}
+  @media (min-width: 60rem) {
+    .content,
+    :global(.byline-form-content) {
+      margin-bottom: 3.75rem;
+    }
+  }
 
-@media (min-width: 60rem) {
   .sidebar,
   :global(.byline-form-sidebar) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-20);
+    margin-top: 0;
+    background-color: oklch(from var(--canvas-50) l c h / 0.2);
+    max-width: 100%;
+    margin-bottom: 4rem;
+  }
+
+  @media (min-width: 60rem) {
+    .sidebar,
+    :global(.byline-form-sidebar) {
+      margin-bottom: 0;
+      padding-right: 12px;
+      padding-top: 0.25rem;
+      padding-left: var(--spacing-16);
+      border-left: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+      position: sticky;
+      top: 95px;
+    }
+  }
+
+  .tabset,
+  :global(.byline-form-tabset) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-20);
+  }
+
+  .tabset-tabs,
+  :global(.byline-form-tabset-tabs) {
+    margin-top: -1rem;
     margin-bottom: 0;
-    padding-right: 12px;
-    padding-top: 0.25rem;
-    padding-left: var(--spacing-16);
-    border-left: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
-    position: sticky;
-    top: 95px;
-  }
-}
-
-.tabset,
-:global(.byline-form-tabset) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-20);
-}
-
-.tabset-tabs,
-:global(.byline-form-tabset-tabs) {
-  margin-top: -1rem;
-  margin-bottom: 0;
-}
-
-.tabset-fields,
-:global(.byline-form-tabset-fields) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-20);
-}
-
-.guard-modal-head,
-:global(.byline-form-guard-modal-head) {
-  padding-top: 1rem;
-  margin-bottom: var(--spacing-8);
-}
-
-.guard-modal-title,
-:global(.byline-form-guard-modal-title) {
-  margin: 0 0 var(--spacing-8) 0;
-  font-size: var(--font-size-2xl);
-}
-
-.guard-modal-text,
-:global(.byline-form-guard-modal-text) {
-  font-size: var(--font-size-sm);
-}
-
-/* ─── Dark theme variants ───────────────────────────────────── */
-
-:is([data-theme="dark"], :global(.dark)) {
-  .status-bar,
-  :global(.byline-form-status-bar) {
-    background-color: var(--canvas-800);
-    border: var(--border-width-thin) var(--border-style-solid) var(--gray-700);
   }
 
-  .sidebar,
-  :global(.byline-form-sidebar) {
-    border-left-color: var(--gray-800);
-    background-color: var(--canvas-900);
+  .tabset-fields,
+  :global(.byline-form-tabset-fields) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-20);
+  }
+
+  .guard-modal-head,
+  :global(.byline-form-guard-modal-head) {
+    padding-top: 1rem;
+    margin-bottom: var(--spacing-8);
+  }
+
+  .guard-modal-title,
+  :global(.byline-form-guard-modal-title) {
+    margin: 0 0 var(--spacing-8) 0;
+    font-size: var(--font-size-2xl);
+  }
+
+  .guard-modal-text,
+  :global(.byline-form-guard-modal-text) {
+    font-size: var(--font-size-sm);
+  }
+
+  /* ─── Dark theme variants ───────────────────────────────────── */
+
+  :is([data-theme="dark"], :global(.dark)) {
+    .status-bar,
+    :global(.byline-form-status-bar) {
+      background-color: var(--canvas-800);
+      border: var(--border-width-thin) var(--border-style-solid) var(--gray-700);
+    }
+
+    .sidebar,
+    :global(.byline-form-sidebar) {
+      border-left-color: var(--gray-800);
+      background-color: var(--canvas-900);
+    }
   }
 }

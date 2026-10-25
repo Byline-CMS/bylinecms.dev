@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * Shared version-history presentation for collection documents and singletons.
  *
@@ -20,242 +34,244 @@
  *   .byline-coll-history-audit      — the muted strip line itself
  */
 
-.head,
-:global(.byline-coll-history-head) {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  margin-bottom: 0.5rem;
-}
-
-@media (min-width: 40rem) {
+@layer byline-components.cms {
   .head,
   :global(.byline-coll-history-head) {
-    flex-direction: row;
-    justify-content: space-between;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    margin-bottom: 0.5rem;
   }
-}
 
-.title,
-:global(.byline-coll-history-title) {
-  margin-bottom: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
+  @media (min-width: 40rem) {
+    .head,
+    :global(.byline-coll-history-head) {
+      flex-direction: row;
+      justify-content: space-between;
+    }
+  }
 
-.stats,
-:global(.byline-coll-history-stats) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: auto;
-  margin-bottom: -4px;
-  height: 28px;
-  min-width: 28px;
-  padding: 5px 6px;
-  white-space: nowrap;
-  font-size: 0.875rem;
-  line-height: 0;
-  background-color: var(--gray-25);
-  border: var(--border-width-thin) var(--border-style-solid) var(--gray-200);
-  border-radius: 0.375rem;
-}
+  .title,
+  :global(.byline-coll-history-title) {
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
 
-:is([data-theme="dark"], :global(.dark)) .stats,
-:is([data-theme="dark"], :global(.dark)) :global(.byline-coll-history-stats) {
-  background-color: var(--canvas-700);
-}
+  .stats,
+  :global(.byline-coll-history-stats) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: auto;
+    margin-bottom: -4px;
+    height: 28px;
+    min-width: 28px;
+    padding: 5px 6px;
+    white-space: nowrap;
+    font-size: 0.875rem;
+    line-height: 0;
+    background-color: var(--gray-25);
+    border: var(--border-width-thin) var(--border-style-solid) var(--gray-200);
+    border-radius: 0.375rem;
+  }
 
-/* Sub-view tab bar (Content versions / Document history — docs/AUDIT.md W3). */
-.tabs,
-:global(.byline-coll-history-tabs) {
-  margin-top: 0.25rem;
-}
+  :is([data-theme="dark"], :global(.dark)) .stats,
+  :is([data-theme="dark"], :global(.dark)) :global(.byline-coll-history-stats) {
+    background-color: var(--canvas-700);
+  }
 
-.options,
-:global(.byline-coll-history-options) {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-  margin-bottom: 0.75rem;
-  align-items: flex-start;
-}
+  /* Sub-view tab bar (Content versions / Document history — docs/AUDIT.md W3). */
+  .tabs,
+  :global(.byline-coll-history-tabs) {
+    margin-top: 0.25rem;
+  }
 
-@media (min-width: 40rem) {
   .options,
   :global(.byline-coll-history-options) {
-    flex-direction: row;
-    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+    align-items: flex-start;
   }
-}
 
-.optionsBottom,
-:global(.byline-coll-history-options-bottom) {
-  margin-top: 0;
-  margin-bottom: 1.25rem;
-}
+  @media (min-width: 40rem) {
+    .options,
+    :global(.byline-coll-history-options) {
+      flex-direction: row;
+      align-items: center;
+    }
+  }
 
-.tableWrap,
-:global(.byline-coll-history-table-wrap) {
-  margin-top: 0.5rem;
-  margin-bottom: 0.75rem;
-}
+  .optionsBottom,
+  :global(.byline-coll-history-options-bottom) {
+    margin-top: 0;
+    margin-bottom: 1.25rem;
+  }
 
-.cellRight,
-:global(.byline-coll-history-cell-right) {
-  text-align: right;
-}
+  .tableWrap,
+  :global(.byline-coll-history-table-wrap) {
+    margin-top: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
 
-.cellCenter,
-:global(.byline-coll-history-cell-center) {
-  text-align: center;
-}
+  .cellRight,
+  :global(.byline-coll-history-cell-right) {
+    text-align: right;
+  }
 
-.padRow,
-:global(.byline-coll-history-pad-row) {
-  height: 32px;
-  border: 0;
-}
+  .cellCenter,
+  :global(.byline-coll-history-cell-center) {
+    text-align: center;
+  }
 
-.versionCell,
-:global(.byline-coll-history-version-cell) {
-  text-align: left;
-  /* The column is width: 1% (shrink-to-content), so the horizontal padding
+  .padRow,
+  :global(.byline-coll-history-pad-row) {
+    height: 32px;
+    border: 0;
+  }
+
+  .versionCell,
+  :global(.byline-coll-history-version-cell) {
+    text-align: left;
+    /* The column is width: 1% (shrink-to-content), so the horizontal padding
      is what actually sets its width around the 20px stamp. */
-  padding-left: 0.375rem;
-  padding-right: 0.25rem;
-}
+    padding-left: 0.375rem;
+    padding-right: 0.25rem;
+  }
 
-.colVersion,
-:global(.byline-coll-history-col-version) {
-  width: 1%;
-}
+  .colVersion,
+  :global(.byline-coll-history-col-version) {
+    width: 1%;
+  }
 
-.versionButton,
-:global(.byline-coll-history-version-button) {
-  /* Shrink the xs round IconButton (26px) down to a 20px stamp so the
+  .versionButton,
+  :global(.byline-coll-history-version-button) {
+    /* Shrink the xs round IconButton (26px) down to a 20px stamp so the
      content row can sit tighter. */
-  min-height: 20px;
-  min-width: 20px;
-  font-size: 0.6875rem;
-  font-family: var(--font-family-mono);
-  font-variant-numeric: tabular-nums;
-}
+    min-height: 20px;
+    min-width: 20px;
+    font-size: 0.6875rem;
+    font-family: var(--font-family-mono);
+    font-variant-numeric: tabular-nums;
+  }
 
-.titleButton,
-:global(.byline-coll-history-title-button) {
-  text-align: left;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-  background: transparent;
-  border: 0;
-  padding: 0;
-  font: inherit;
-  color: inherit;
-}
+  .titleButton,
+  :global(.byline-coll-history-title-button) {
+    text-align: left;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+  }
 
-.titleButton:hover,
-:global(.byline-coll-history-title-button:hover) {
-  opacity: 0.75;
-}
+  .titleButton:hover,
+  :global(.byline-coll-history-title-button:hover) {
+    opacity: 0.75;
+  }
 
-.colRestore,
-:global(.byline-coll-history-col-restore) {
-  width: 1%;
-  white-space: nowrap;
-  background-color: var(--gray-50);
-}
+  .colRestore,
+  :global(.byline-coll-history-col-restore) {
+    width: 1%;
+    white-space: nowrap;
+    background-color: var(--gray-50);
+  }
 
-:is([data-theme="dark"], :global(.dark)) .colRestore,
-:is([data-theme="dark"], :global(.dark)) :global(.byline-coll-history-col-restore) {
-  background-color: oklch(from var(--canvas-800) calc(l * 1.1) c h);
-}
+  :is([data-theme="dark"], :global(.dark)) .colRestore,
+  :is([data-theme="dark"], :global(.dark)) :global(.byline-coll-history-col-restore) {
+    background-color: oklch(from var(--canvas-800) calc(l * 1.1) c h);
+  }
 
-.restoreCell,
-:global(.byline-coll-history-restore-cell) {
-  white-space: nowrap;
-}
+  .restoreCell,
+  :global(.byline-coll-history-restore-cell) {
+    white-space: nowrap;
+  }
 
-/* Audit strip (docs/AUDIT.md — W1). The content row's bottom
+  /* Audit strip (docs/AUDIT.md — W1). The content row's bottom
    border is suppressed so the strip reads as part of the same entry; the
    strip row carries the row divider instead. Vertical padding is tightened
    against the table default (--spacing-8) to keep the two-row entry compact. */
-.historyRow td,
-:global(.byline-coll-history-row td) {
-  border-bottom: none;
-  padding-top: 0.375rem;
-  padding-bottom: 0.25rem;
-}
+  .historyRow td,
+  :global(.byline-coll-history-row td) {
+    border-bottom: none;
+    padding-top: 0.375rem;
+    padding-bottom: 0.25rem;
+  }
 
-.auditRow td,
-:global(.byline-coll-history-audit-row td) {
-  padding-top: 0;
-  padding-bottom: 0.375rem;
-}
+  .auditRow td,
+  :global(.byline-coll-history-audit-row td) {
+    padding-top: 0;
+    padding-bottom: 0.375rem;
+  }
 
-.auditSpacerCell,
-:global(.byline-coll-history-audit-spacer-cell) {
-  /* empty cell under the version-number column; the strip starts on the
+  .auditSpacerCell,
+  :global(.byline-coll-history-audit-spacer-cell) {
+    /* empty cell under the version-number column; the strip starts on the
      second column */
-}
+  }
 
-.auditCell,
-:global(.byline-coll-history-audit-cell) {
-  /* override handle */
-}
+  .auditCell,
+  :global(.byline-coll-history-audit-cell) {
+    /* override handle */
+  }
 
-.audit,
-:global(.byline-coll-history-audit) {
-  font-size: 0.75rem;
-  color: var(--gray-500);
-  white-space: nowrap;
-}
+  .audit,
+  :global(.byline-coll-history-audit) {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+    white-space: nowrap;
+  }
 
-:is([data-theme="dark"], :global(.dark)) .audit,
-:is([data-theme="dark"], :global(.dark)) :global(.byline-coll-history-audit) {
-  color: var(--gray-400);
-}
+  :is([data-theme="dark"], :global(.dark)) .audit,
+  :is([data-theme="dark"], :global(.dark)) :global(.byline-coll-history-audit) {
+    color: var(--gray-400);
+  }
 
-.restoreButton,
-:global(.byline-coll-history-restore-button) {
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
+  .restoreButton,
+  :global(.byline-coll-history-restore-button) {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
 
-:global(tr:hover) .restoreButton,
-:global(tr:hover .byline-coll-history-restore-button) {
-  opacity: 1;
-}
+  :global(tr:hover) .restoreButton,
+  :global(tr:hover .byline-coll-history-restore-button) {
+    opacity: 1;
+  }
 
-.restoreButton:focus,
-:global(.byline-coll-history-restore-button:focus) {
-  opacity: 1;
-}
+  .restoreButton:focus,
+  :global(.byline-coll-history-restore-button:focus) {
+    opacity: 1;
+  }
 
-.restoreModal,
-:global(.byline-coll-history-restore-modal) {
-  max-width: 32rem;
-}
+  .restoreModal,
+  :global(.byline-coll-history-restore-modal) {
+    max-width: 32rem;
+  }
 
-.restoreModalHead,
-:global(.byline-coll-history-restore-modal-head) {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
+  .restoreModalHead,
+  :global(.byline-coll-history-restore-modal-head) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
 
-.pageSize,
-:global(.byline-coll-history-page-size) {
-  /* fallback */
-}
-
-@media (min-width: 40rem) {
   .pageSize,
   :global(.byline-coll-history-page-size) {
-    margin-left: auto;
+    /* fallback */
+  }
+
+  @media (min-width: 40rem) {
+    .pageSize,
+    :global(.byline-coll-history-page-size) {
+      margin-left: auto;
+    }
   }
 }

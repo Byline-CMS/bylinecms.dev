@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * TextField — single-line text input wrapper.
  *
@@ -6,9 +20,11 @@
  *   .byline-field-text-label-row   — the label + locale-badge row
  */
 
-.label-row,
-:global(.byline-field-text-label-row) {
-  display: flex;
-  align-items: center;
-  margin-bottom: 0.25rem;
+@layer byline-components.cms {
+  .label-row,
+  :global(.byline-field-text-label-row) {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.25rem;
+  }
 }

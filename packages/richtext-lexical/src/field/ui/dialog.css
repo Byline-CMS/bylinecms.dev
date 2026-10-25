@@ -1,17 +1,33 @@
-.DialogActions {
-  display: flex;
-  flex-direction: row;
-  justify-content: right;
-  margin-top: 20px;
-}
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
 
-.DialogButtonsList {
-  display: flex;
-  flex-direction: column;
-  justify-content: right;
-  margin-top: 20px;
-}
+@layer byline-components.primitives, byline-components.cms;
 
-.DialogButtonsList button {
-  margin-bottom: 20px;
+@layer byline-components.cms {
+  .DialogActions {
+    display: flex;
+    flex-direction: row;
+    justify-content: right;
+    margin-top: 20px;
+  }
+
+  .DialogButtonsList {
+    display: flex;
+    flex-direction: column;
+    justify-content: right;
+    margin-top: 20px;
+  }
+
+  .DialogButtonsList button {
+    margin-bottom: 20px;
+  }
 }

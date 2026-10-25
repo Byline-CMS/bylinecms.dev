@@ -4,7 +4,7 @@ path: "uikit"
 summary: "The shared @byline/ui component library: primitives, themed surfaces, design tokens, and the Rslib build pipeline used to ship it to admin and downstream consumers."
 ---
 
-# UI Kit (`@byline/ui`)
+# UI Kit (@byline/ui)
 
 Companions:
 - [Getting Started](../01-getting-started/index.md) — onboarding flow that pulls in `@byline/ui` styles and components.
@@ -35,7 +35,7 @@ A short summary of what `@infonomic/uikit` is opinionated about, paraphrased fro
 - **CSS Modules over utility-first frameworks for the kit itself.** The kit composes styles in CSS Modules so consumers can use Tailwind, vanilla CSS, or any other system *on top of* the kit without fighting a utility-first style budget inside the components. The argument is that atomic CSS belongs in application layout and one-off styling; component libraries should ship semantic, overridable styles.
 - **Wrap best-in-class headless primitives.** Many components (Modal, Tabs, Menu, Tooltip, Select, etc.) are built on [Base UI](https://base-ui.com/), with Day Picker for calendars and a few other carefully chosen primitives elsewhere. The kit's job is to give consumers a *stable contract* (variant, intent, sizing) so a future swap from one headless library to another doesn't break the consumer's API.
 - **Framework-agnostic style system.** The CSS layer machinery is designed to work with React, Vue, Solid, Svelte, Astro, or plain HTML. Byline currently consumes only the React entry point, but the kit's structure leaves room for a Vue or Svelte adapter without restructuring the styles.
-- **Style overrides without `!important`.** Cascade layers (`@layer`) are used so any consumer-side CSS (outside any layer) automatically wins specificity over the kit's component styles. This is the single most load-bearing decision in the kit's design.
+- **Style overrides without `!important`.** Named cascade layers let host restyles override kit defaults while directly applied Tailwind utilities retain final precedence for ordinary declarations.
 - **Variant *and* intent as separate axes.** Variant is shape (`outlined`, `filled`, `gradient`, `underlined`); intent is semantic (`primary`, `secondary`, `noeffect`, `info`, `success`, `warning`, `danger`). Most components accept both. Intent-based design tokens (`--fill-primary-strong`, `--text-on-danger-weak`, etc.) follow an `element-intent-emphasis-state` taxonomy.
 - **A `.not-dark` escape hatch.** Components can opt out of the inherited light/dark mode without rewriting the theme.
 
@@ -43,18 +43,134 @@ For the full rationale and design-system architecture, see the upstream [README]
 
 ## CSS cascade layers (byline-prefixed)
 
-The kit's stylesheets declare a strict layer order at the top of the cascade:
+A direct Tailwind utility wins an ordinary declaration on the same element and
+property. This is a cascade-order contract, rather than selector specificity.
+Inherited values do not override a declaration on a child. Conflicting utility
+classes follow Tailwind's generated order, not their order in `className`.
+`@apply` has the precedence of the layer where it is written; `@utility` is
+emitted into Tailwind's utilities layer. Inline styles, important declarations,
+animations and transitions are outside this ordinary-declaration guarantee.
+Important declarations reverse layer priority, so `!important` is not an
+appropriate general repair for incorrect layer placement.
+
+Every stylesheet in the UI, admin, host, Lexical, AI and i18n packages reserves this complete order, from low to high precedence:
 
 ```css
-@layer byline-base,
-  byline-functional,
-  byline-utilities,
-  byline-theme,
-  byline-typography,
-  byline-components;
+@layer base, byline-base, theme, byline-theme, byline-functional,
+  byline-typography, components, byline-components, overrides,
+  byline-utilities, utilities;
+@layer byline-components.primitives, byline-components.cms;
 ```
 
-Each component CSS Module wraps its rules in `@layer byline-components { ... }`. Anything a consumer writes outside any `@layer` automatically wins specificity, so overrides are CSS-clean: no `!important`, no specificity ladders.
+Site components and CSS modules belong in `components`. Host rules that restyle
+kit components belong in `overrides`, above `byline-components`. Brand tokens
+also belong in `overrides`, scoped to the area they theme. Avoid ordinary
+unlayered rules: they outrank every named layer, including utilities. Exceptions
+such as reduced-motion preferences need a stated reason and a source-test
+allowlist. CSS Modules change class names; they do not create a cascade layer.
+
+### Host integration
+
+Use the independent `@byline/ui/css-layers` entry. It imports neither React nor
+the component graph at runtime. Its PostCSS helper needs PostCSS 8 (already used
+by Vite); install `postcss` as a development dependency if your host does not
+already expose it. Merge the plugin into existing PostCSS configuration.
+
+```ts
+import { bylineLayerOrder } from '@byline/ui/css-layers'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  css: { postcss: { plugins: [bylineLayerOrder()] } },
+})
+```
+
+Also render the shared statement early in the document head:
+
+```tsx
+import { BYLINE_LAYER_ORDER } from '@byline/ui/css-layers'
+
+<head>
+  <style>{BYLINE_LAYER_ORDER}</style>
+  <HeadContent />
+</head>
+```
+
+Keep both declarations. The head statement covers injected development CSS.
+React can hoist production stylesheet links above that style, so the PostCSS
+plugin puts the statement in every possible first stylesheet, before the bundler
+hashes it. Repeating the same order is harmless; declaring a missing slot after
+other layers have appeared cannot reposition it. Check the first appearance of
+layer names in production output: minifiers may fold statements into layer
+blocks without changing their order.
+
+### Public themes and CMS isolation
+
+Set a host-owned theme-context attribute on the document root during rendering,
+including SSR. Derive it from the route boundary rather than waiting for an
+effect. Apply public overrides only to that context so the CMS and its body
+portals retain the standard kit theme. For example:
+
+```css
+@layer overrides {
+  @scope (:root[data-theme-context="public"]) {
+    :scope { --theme-base: oklch(0.55 0.084 144.28); }
+    :scope.dark { --prose-body: var(--gray-100); }
+    .byline-button { border-radius: 0; }
+  }
+}
+```
+
+Use `:scope` to select the root inside `@scope`; use `:scope.dark` for a dark
+class on that same root. Defining tokens on a descendant wrapper is insufficient
+when Tailwind's colour aliases resolve those tokens on the root before inheritance.
+The context names are a host convention; Byline does not require this exact name.
+
+The primitive sublayer holds kit components; the later CMS sublayer holds admin,
+host, Lexical, AI and i18n component styles. This preserves CMS precedence over
+primitives while allowing host overrides and direct utilities to win. Do not put
+ordinary rules directly in `byline-components`: direct parent-layer rules outrank
+both sublayers.
+
+### Upgrading existing hosts
+
+CMS layering changes observable behavior. Previously, unlayered CMS rules could
+beat host utility classes. Those utilities now win on the same element and
+property. Conversely, any remaining unlayered host rule now beats layered CMS
+styles, regardless of specificity. A global `button` or `a` rule can therefore
+change CMS controls after an upgrade.
+
+Before upgrading, audit all host stylesheets, including CSS modules. Put ordinary
+site rules in `components`, kit restyles in `overrides`, and public brand tokens
+and global typography inside the public theme context. Add both integrations
+above, then compare public and CMS screens, dialogs and editor fields in light
+and dark modes. The helper establishes order; it does not wrap host or third-party
+styles automatically. Installing the packages alone does not complete this
+migration. The example app now scopes its public typography overrides by route
+context; this is not a complete migration of all its public component CSS. Existing sites such as bylinecms.app and modulus-learning.org need
+their own host audit and visual sign-off.
+
+The source guard covers package CSS, not every style generated at runtime.
+CodeMirror owns its internal layout, syntax highlighting and injected theme
+styles. Its selection-color `!important` is an explicit exception so the Byline
+selection token beats CodeMirror's selection rules. Use the `--byline-code-*`
+tokens to theme these internals; the ordinary utility guarantee applies to the
+surrounding CMS controls, not CodeMirror-generated elements. Inline positioning
+from overlay and drag libraries is likewise outside the contract.
+
+### Verification
+
+Run `pnpm --filter @byline/ui test` for source and integration checks. After
+building the six styled packages, run `pnpm --filter @byline/ui test:css-build` to check the
+published helper and every emitted package stylesheet. The example provides a manual,
+database-free browser fixture through `pnpm --filter @byline/webapp preview:css-contract`
+at `http://127.0.0.1:5574/tests/css-layers/index.html`. Check both contexts/themes,
+mobile and desktop widths, and toggle utilities to compare defaults. This is a
+manual fixture, not an automated browser test or CI gate.
+Hosts should also check their
+production chunks and verify representative components in a browser: apply
+spacing, width, background and typography utilities, and compare both themes,
+responsive widths and portalled content against a visual baseline.
 
 The layer prefix is `byline-`, not `infonomic-`, even though these files are shared with the companion kit. Every `@layer infonomic-*` declaration is renamed to `@layer byline-*` when a change is ported across. The DOM-level `:global(.infonomic-X)` class hooks (paired with `className="infonomic-X"` in the components) are deliberately *not* renamed: they're a separate surface, intended for consumer-side theme overrides keyed by the companion kit's stable class names.
 
@@ -96,6 +212,7 @@ Byline ships the kit through a small set of subpath exports:
 
 | Specifier | Surface | Source |
 |---|---|---|
+| `@byline/ui/css-layers` | Shared layer statement and PostCSS plugin | Byline-owned |
 | `@byline/ui/react` | Every primitive React component + generic `DraggableSortable` | synced |
 | `@byline/ui/reset.css` | Browser reset stylesheet | synced |
 | `@byline/ui/styles.css` | Core token system + cascade layers | synced |

@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * TreePlacementWidget — sidebar widget for placing a document within its
  * collection's single-parent tree (the `tree: true` primitive).
@@ -10,78 +24,80 @@
  *   .byline-form-tree-error     — inline error
  */
 
-.tree,
-:global(.byline-form-tree) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-8);
-}
+@layer byline-components.cms {
+  .tree,
+  :global(.byline-form-tree) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-8);
+  }
 
-.heading,
-:global(.byline-form-tree-heading) {
-  font-size: 0.875rem;
-  font-weight: 600;
-}
+  .heading,
+  :global(.byline-form-tree-heading) {
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
 
-.current,
-:global(.byline-form-tree-current) {
-  font-size: 0.875rem;
-}
+  .current,
+  :global(.byline-form-tree-current) {
+    font-size: 0.875rem;
+  }
 
-.parentLabel {
-  color: var(--gray-500);
-}
+  .parentLabel {
+    color: var(--gray-500);
+  }
 
-.parentValue {
-  font-weight: 500;
-}
+  .parentValue {
+    font-weight: 500;
+  }
 
-.root {
-  font-style: italic;
-  font-weight: 400;
-  color: var(--gray-500);
-}
+  .root {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--gray-500);
+  }
 
-.actions,
-:global(.byline-form-tree-actions) {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
+  .actions,
+  :global(.byline-form-tree-actions) {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
 
-.link,
-:global(.byline-form-tree-link) {
-  background: none;
-  border: none;
-  padding: 0;
-  color: inherit;
-  font-size: 0.8rem;
-  text-decoration: underline;
-  cursor: pointer;
-}
+  .link,
+  :global(.byline-form-tree-link) {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    font-size: 0.8rem;
+    text-decoration: underline;
+    cursor: pointer;
+  }
 
-.link:disabled,
-:global(.byline-form-tree-link):disabled {
-  opacity: 0.5;
-  cursor: default;
-}
+  .link:disabled,
+  :global(.byline-form-tree-link):disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
 
-.error,
-:global(.byline-form-tree-error) {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--danger-600, #c0392b);
-}
+  .error,
+  :global(.byline-form-tree-error) {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--danger-600, #c0392b);
+  }
 
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }

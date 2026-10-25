@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * ArrayField — homogeneous array of child fields with optional D&D.
  *
@@ -12,67 +26,69 @@
  *   .byline-field-array-group-fields  — vertical stack of fields inside an item
  */
 
-.title,
-:global(.byline-field-array-title) {
-  margin-bottom: 0.25rem;
-  font-size: 1rem;
-  font-weight: var(--font-weight-medium);
-}
+@layer byline-components.cms {
+  .title,
+  :global(.byline-field-array-title) {
+    margin-bottom: 0.25rem;
+    font-size: 1rem;
+    font-weight: var(--font-weight-medium);
+  }
 
-.stack,
-:global(.byline-field-array-stack) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-16);
-}
+  .stack,
+  :global(.byline-field-array-stack) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-16);
+  }
 
-.card,
-:global(.byline-field-array-card) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-16);
-  padding: var(--spacing-16);
-  border: var(--border-width-thin) dashed var(--gray-600);
-  border-radius: var(--border-radius-md);
-}
+  .card,
+  :global(.byline-field-array-card) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-16);
+    padding: var(--spacing-16);
+    border: var(--border-width-thin) dashed var(--gray-600);
+    border-radius: var(--border-radius-md);
+  }
 
-.group-header,
-:global(.byline-field-array-group-header) {
-  font-size: 0.9rem;
-  font-weight: var(--font-weight-medium);
-}
+  .group-header,
+  :global(.byline-field-array-group-header) {
+    font-size: 0.9rem;
+    font-weight: var(--font-weight-medium);
+  }
 
-.group-fields,
-:global(.byline-field-array-group-fields) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-16);
-}
+  .group-fields,
+  :global(.byline-field-array-group-fields) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-16);
+  }
 
-.add-row,
-:global(.byline-field-array-add-row) {
-  display: flex;
-  align-items: center;
-  font-size: 0.9rem;
-  color: var(--muted);
-  gap: var(--spacing-8);
-}
+  .add-row,
+  :global(.byline-field-array-add-row) {
+    display: flex;
+    align-items: center;
+    font-size: 0.9rem;
+    color: var(--muted);
+    gap: var(--spacing-8);
+  }
 
-/* Text-styled companion button for the add row's label — clickable like the
+  /* Text-styled companion button for the add row's label — clickable like the
    icon button. Hovering anywhere on the row brightens the label text. */
-.add-label,
-:global(.byline-field-array-add-label) {
-  appearance: none;
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  transition: color 120ms ease;
-}
+  .add-label,
+  :global(.byline-field-array-add-label) {
+    appearance: none;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    transition: color 120ms ease;
+  }
 
-.add-row:hover .add-label,
-:global(.byline-field-array-add-row):hover :global(.byline-field-array-add-label) {
-  color: var(--text);
+  .add-row:hover .add-label,
+  :global(.byline-field-array-add-row):hover :global(.byline-field-array-add-label) {
+    color: var(--text);
+  }
 }

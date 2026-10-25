@@ -34,7 +34,8 @@
     "test:jsdom": "vitest run --mode=jsdom",
     "test:node": "vitest run --mode=node",
     "typecheck": "tsc --noEmit",
-    "test:sign-in-transport": "node tests/sign-in-start/run.mjs"
+    "test:sign-in-transport": "node tests/sign-in-start/run.mjs",
+    "preview:css-contract": "vite build --config vite.css-layers.config.ts && vite preview --config vite.css-layers.config.ts"
   },
   "dependencies": {
     "@byline/admin": "workspace:*",

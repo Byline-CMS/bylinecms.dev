@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * CreateAdminUser — drawer form for creating a new admin user.
  *
@@ -10,54 +24,56 @@
  *   .byline-user-create-action   — buttons in the actions row
  */
 
-.wrap,
-:global(.byline-user-create-wrap) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-8);
-  padding: var(--spacing-4);
-  margin-top: var(--spacing-4);
-}
+@layer byline-components.cms {
+  .wrap,
+  :global(.byline-user-create-wrap) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-8);
+    padding: var(--spacing-4);
+    margin-top: var(--spacing-4);
+  }
 
-.form,
-:global(.byline-user-create-form) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-16);
-  padding-top: var(--spacing-8);
-}
+  .form,
+  :global(.byline-user-create-form) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-16);
+    padding-top: var(--spacing-8);
+  }
 
-.grid,
-:global(.byline-user-create-grid) {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--spacing-16);
-}
-
-@media (min-width: 40rem) {
   .grid,
   :global(.byline-user-create-grid) {
-    grid-template-columns: 1fr 1fr;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-16);
   }
-}
 
-.flags,
-:global(.byline-user-create-flags) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-8);
-}
+  @media (min-width: 40rem) {
+    .grid,
+    :global(.byline-user-create-grid) {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
 
-.actions,
-:global(.byline-user-create-actions) {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--spacing-8);
-  margin-top: var(--spacing-16);
-}
+  .flags,
+  :global(.byline-user-create-flags) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-8);
+  }
 
-.action,
-:global(.byline-user-create-action) {
-  min-width: 4rem;
+  .actions,
+  :global(.byline-user-create-actions) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--spacing-8);
+    margin-top: var(--spacing-16);
+  }
+
+  .action,
+  :global(.byline-user-create-action) {
+    min-width: 4rem;
+  }
 }

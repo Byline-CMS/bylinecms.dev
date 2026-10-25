@@ -1,3 +1,15 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+@layer byline-components.primitives, byline-components.cms;
 /**
  * AdminLayout — the <main> wrapper used by the authenticated admin
  * shell. Hosts the menu drawer, drawer toggle, and the route content
@@ -5,17 +17,18 @@
  *
  * Override handle: .byline-admin-layout-main
  */
-
-/* `min-height`, not `height`: the document is the scroll container, so with a
+@layer byline-components.cms {
+  /* `min-height`, not `height`: the document is the scroll container, so with a
    fixed 100vh height the flex row ends at the fold and the sticky menu drawer
    inside it has nothing left to stick to — it scrolls away as soon as the
    route content runs past one viewport. Growing with the content gives the
    drawer a containing block tall enough to stay pinned all the way down. */
-.main,
-:global(.byline-admin-layout-main) {
-  display: flex;
-  min-height: 100vh;
-  width: 100%;
-  max-width: 100%;
-  padding-top: 45px;
+  .main,
+  :global(.byline-admin-layout-main) {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+    max-width: 100%;
+    padding-top: 45px;
+  }
 }

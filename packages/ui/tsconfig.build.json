@@ -3,5 +3,5 @@
   "compilerOptions": {
     "rootDir": "./src"
   },
-  "include": ["./src/react.ts", "./src/uikit.ts", "./src/declarations.d.ts"]
+  "include": ["./src/react.ts", "./src/uikit.ts", "./src/declarations.d.ts", "./src/css-layers.ts"]
 }

@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * GroupField — fixed-order group of child fields.
  *
@@ -10,34 +24,36 @@
  *   .byline-field-group-body      — vertical stack of children
  */
 
-.header,
-:global(.byline-field-group-header) {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  margin-bottom: var(--spacing-8);
-}
+@layer byline-components.cms {
+  .header,
+  :global(.byline-field-group-header) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    margin-bottom: var(--spacing-8);
+  }
 
-.title,
-:global(.byline-field-group-title) {
-  font-size: 1rem;
-  font-weight: var(--font-weight-medium);
-}
+  .title,
+  :global(.byline-field-group-title) {
+    font-size: 1rem;
+    font-weight: var(--font-weight-medium);
+  }
 
-.required,
-:global(.byline-field-group-required) {
-  color: var(--red-500);
-}
+  .required,
+  :global(.byline-field-group-required) {
+    color: var(--red-500);
+  }
 
-.help,
-:global(.byline-field-group-help) {
-  color: var(--gray-500);
-  font-size: var(--font-size-xs);
-}
+  .help,
+  :global(.byline-field-group-help) {
+    color: var(--gray-500);
+    font-size: var(--font-size-xs);
+  }
 
-.body,
-:global(.byline-field-group-body) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-8);
+  .body,
+  :global(.byline-field-group-body) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-8);
+  }
 }

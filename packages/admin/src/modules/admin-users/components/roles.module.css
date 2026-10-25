@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * UserRoles — drawer for assigning roles to a user.
  *
@@ -16,104 +30,100 @@
  *   .byline-user-roles-action      — buttons in the actions row
  */
 
-.wrap,
-:global(.byline-user-roles-wrap) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-12);
-  padding: var(--spacing-4);
-  margin-top: var(--spacing-4);
-}
+@layer byline-components.cms {
+  .wrap,
+  :global(.byline-user-roles-wrap) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-12);
+    padding: var(--spacing-4);
+    margin-top: var(--spacing-4);
+  }
 
-.empty,
-:global(.byline-user-roles-empty) {
-  margin: 0;
-  font-style: italic;
-}
+  .empty,
+  :global(.byline-user-roles-empty) {
+    margin: 0;
+    font-style: italic;
+  }
 
-.empty-hint,
-:global(.byline-user-roles-empty-hint) {
-  /* Inherits muted colour from the parent .muted utility. */
-}
+  .empty-hint,
+  :global(.byline-user-roles-empty-hint) {
+    /* Inherits muted colour from the parent .muted utility. */
+  }
 
-.list,
-:global(.byline-user-roles-list) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-4);
-}
+  .list,
+  :global(.byline-user-roles-list) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+  }
 
-.row,
-:global(.byline-user-roles-row) {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-8);
-  padding: var(--spacing-4) 0;
-}
+  .row,
+  :global(.byline-user-roles-row) {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-8);
+    padding: var(--spacing-4) 0;
+  }
 
-.label,
-:global(.byline-user-roles-label) {
-  min-width: 0;
-  flex: 1 1 0;
-  cursor: pointer;
-}
+  .label,
+  :global(.byline-user-roles-label) {
+    min-width: 0;
+    flex: 1 1 0;
+    cursor: pointer;
+  }
 
-.label-head,
-:global(.byline-user-roles-label-head) {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-8);
-}
+  .label-head,
+  :global(.byline-user-roles-label-head) {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-8);
+  }
 
-.name,
-:global(.byline-user-roles-name) {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-}
+  .name,
+  :global(.byline-user-roles-name) {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+  }
 
-.machine,
-:global(.byline-user-roles-machine) {
-  background-color: var(--gray-100);
-  padding: 0.125rem 0.375rem;
-  font-size: var(--font-size-xs);
-  border-radius: var(--border-radius-sm);
-}
-
-.description,
-:global(.byline-user-roles-description) {
-  margin-bottom: 0;
-  font-size: var(--font-size-xs);
-}
-
-.actions,
-:global(.byline-user-roles-actions) {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--spacing-8);
-  margin-top: var(--spacing-16);
-}
-
-.action,
-:global(.byline-user-roles-action) {
-  min-width: 4rem;
-}
-
-/*
- * Checkbox shrink-fit — see admin-roles/permissions.module.css for the
- * rationale; the same override is needed here for the per-user role
- * checkbox list. `!important` is required to win over the uikit
- * Checkbox's `width: 100%` default at equal specificity.
- */
-.checkbox-auto,
-:global(.byline-user-roles-checkbox-auto) {
-  /* biome-ignore lint/complexity/noImportantStyles: see admin-roles/permissions.module.css */
-  width: auto !important;
-}
-
-:is([data-theme="dark"], :global(.dark)) {
   .machine,
   :global(.byline-user-roles-machine) {
-    background-color: var(--canvas-800);
+    background-color: var(--gray-100);
+    padding: 0.125rem 0.375rem;
+    font-size: var(--font-size-xs);
+    border-radius: var(--border-radius-sm);
+  }
+
+  .description,
+  :global(.byline-user-roles-description) {
+    margin-bottom: 0;
+    font-size: var(--font-size-xs);
+  }
+
+  .actions,
+  :global(.byline-user-roles-actions) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--spacing-8);
+    margin-top: var(--spacing-16);
+  }
+
+  .action,
+  :global(.byline-user-roles-action) {
+    min-width: 4rem;
+  }
+
+  /* The CMS sublayer refines the primitive checkbox width; direct utilities still win. */
+  .checkbox-auto,
+  :global(.byline-user-roles-checkbox-auto) {
+    width: auto;
+  }
+
+  :is([data-theme="dark"], :global(.dark)) {
+    .machine,
+    :global(.byline-user-roles-machine) {
+      background-color: var(--canvas-800);
+    }
   }
 }

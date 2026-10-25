@@ -1,11 +1,27 @@
-.tip-icon {
-  margin-right: 0.5rem;
-  margin-top: 3px;
-}
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
 
-.tip-icon svg {
-  display: block;
-  width: 25px;
-  height: 25px;
-  fill: #0fad2f;
+@layer byline-components.primitives, byline-components.cms;
+
+@layer byline-components.cms {
+  .tip-icon {
+    margin-right: 0.5rem;
+    margin-top: 3px;
+  }
+
+  .tip-icon svg {
+    display: block;
+    width: 25px;
+    height: 25px;
+    fill: #0fad2f;
+  }
 }

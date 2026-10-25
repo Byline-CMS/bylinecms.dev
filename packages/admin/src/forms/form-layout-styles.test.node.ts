@@ -9,6 +9,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import postcss from 'postcss'
 import { describe, expect, it } from 'vitest'
 
 // jsdom applies no stylesheet, so the one-column guarantee of the stacked
@@ -24,9 +25,14 @@ describe('stacked form layout styles', () => {
   })
 
   it('does not put the stacked class in the two-column grid rule', () => {
-    const desktop = css.slice(css.indexOf('@media (min-width: 60rem)'))
-    const gridRule = desktop.slice(0, desktop.indexOf('}\n}') + 3)
-    expect(gridRule).toContain('grid-template-columns')
-    expect(gridRule).not.toContain('layout-stacked')
+    const gridSelectors: string[] = []
+    postcss.parse(css).walkAtRules('media', (media) => {
+      if (media.params !== '(min-width: 60rem)') return
+      media.walkRules((rule) => {
+        rule.walkDecls('grid-template-columns', () => gridSelectors.push(rule.selector))
+      })
+    })
+    expect(gridSelectors.length).toBeGreaterThan(0)
+    for (const selector of gridSelectors) expect(selector).not.toContain('layout-stacked')
   })
 })

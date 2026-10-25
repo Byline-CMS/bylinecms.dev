@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * FieldRenderer — main field-type switch wrapper.
  *
@@ -8,15 +22,17 @@
  *   .byline-field-localized-badge  — the absolutely-positioned badge slot
  */
 
-.localized-wrap,
-:global(.byline-field-localized-wrap) {
-  position: relative;
-}
+@layer byline-components.cms {
+  .localized-wrap,
+  :global(.byline-field-localized-wrap) {
+    position: relative;
+  }
 
-.localized-badge,
-:global(.byline-field-localized-badge) {
-  position: absolute;
-  top: 0;
-  right: 0;
-  line-height: 1;
+  .localized-badge,
+  :global(.byline-field-localized-badge) {
+    position: absolute;
+    top: 0;
+    right: 0;
+    line-height: 1;
+  }
 }

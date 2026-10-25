@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -7,27 +21,29 @@
  *
  */
 
-.Placeholder__root {
-  font-size: 15px;
-  color: #999;
-  overflow: hidden;
-  position: absolute;
-  text-overflow: ellipsis;
-  top: 8px;
-  left: 2px;
-  right: 0;
-  user-select: none;
-  white-space: nowrap;
-  display: inline-block;
-  pointer-events: none;
-}
-
-.Placeholder__with_draggable_blocks {
-  left: 22px;
-}
-
-@media (max-width: 1025px) {
-  .ContentEditable__root {
+@layer byline-components.cms {
+  .Placeholder__root {
+    font-size: 15px;
+    color: #999;
+    overflow: hidden;
+    position: absolute;
+    text-overflow: ellipsis;
+    top: 8px;
     left: 2px;
+    right: 0;
+    user-select: none;
+    white-space: nowrap;
+    display: inline-block;
+    pointer-events: none;
+  }
+
+  .Placeholder__with_draggable_blocks {
+    left: 22px;
+  }
+
+  @media (max-width: 1025px) {
+    .ContentEditable__root {
+      left: 2px;
+    }
   }
 }

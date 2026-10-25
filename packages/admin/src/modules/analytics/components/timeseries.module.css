@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * AnalyticsTimeseries — one column per UTC day.
  *
@@ -13,33 +27,34 @@
  * (`byline-dashboard-stat-tile`) so the two surfaces read as one system.
  */
 
-.root {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  border-radius: 0.25rem;
-}
+@layer byline-components.cms {
+  .root {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border-radius: 0.25rem;
+  }
 
-.root:focus-visible {
-  outline: 2px solid var(--primary-500);
-  outline-offset: 4px;
-}
+  .root:focus-visible {
+    outline: 2px solid var(--primary-500);
+    outline-offset: 4px;
+  }
 
-/* Positioning context for the hover card, so the card measures against the
+  /* Positioning context for the hover card, so the card measures against the
    plot rather than the whole block (which also holds the axis and readout). */
-.plot,
-:global(.byline-analytics-plot) {
-  position: relative;
-}
+  .plot,
+  :global(.byline-analytics-plot) {
+    position: relative;
+  }
 
-.chart,
-:global(.byline-analytics-chart) {
-  display: block;
-  width: 100%;
-  height: 11rem;
-}
+  .chart,
+  :global(.byline-analytics-chart) {
+    display: block;
+    width: 100%;
+    height: 11rem;
+  }
 
-/* Hover card ------------------------------------------------------------
+  /* Hover card ------------------------------------------------------------
    An HTML overlay rather than SVG: the plot is drawn with
    preserveAspectRatio="none" and stretched to the container, so SVG text
    inside it would be horizontally distorted (the same reason the axis
@@ -48,28 +63,28 @@
    Surfaces follow the admin's popover recipe (the tokens @byline/ui's
    dropdown uses), so the card inherits both themes from the token layer
    instead of needing its own dark-mode block. */
-.hoverCard,
-:global(.byline-analytics-hovercard) {
-  position: absolute;
-  z-index: 1;
-  display: grid;
-  gap: 0.125rem 0.5rem;
-  padding: 0.4rem 0.55rem;
-  background-color: var(--surface-panel-elevated);
-  border-width: var(--border-width-thin);
-  border-style: var(--border-style-solid);
-  border-color: var(--surface-panel-border);
-  border-radius: var(--border-radius-sm);
-  box-shadow: var(--shadow-sm);
-  font-size: 0.6875rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.35;
-  white-space: nowrap;
-  /* The plot owns pointer tracking; the card must never intercept it or
+  .hoverCard,
+  :global(.byline-analytics-hovercard) {
+    position: absolute;
+    z-index: 1;
+    display: grid;
+    gap: 0.125rem 0.5rem;
+    padding: 0.4rem 0.55rem;
+    background-color: var(--surface-panel-elevated);
+    border-width: var(--border-width-thin);
+    border-style: var(--border-style-solid);
+    border-color: var(--surface-panel-border);
+    border-radius: var(--border-radius-sm);
+    box-shadow: var(--shadow-sm);
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.35;
+    white-space: nowrap;
+    /* The plot owns pointer tracking; the card must never intercept it or
      hovering would flicker as the pointer crossed the card. */
-  pointer-events: none;
+    pointer-events: none;
 
-  /* Resting state is hidden-and-just-below; `.hoverCardVisible` is the shown
+    /* Resting state is hidden-and-just-below; `.hoverCardVisible` is the shown
      state. The card stays mounted either way, because a transition needs a
      previous state to animate from.
 
@@ -89,236 +104,237 @@
      as an instant pop no matter what the duration says. A plain `ease-out`
      spends its time far more evenly (50% progress at ~34% of the time), so
      the motion is actually visible. */
-  opacity: 0;
-  translate: 0 6px;
-  transition:
-    opacity 160ms ease-in,
-    translate 160ms ease-in;
-}
+    opacity: 0;
+    translate: 0 6px;
+    transition:
+      opacity 160ms ease-in,
+      translate 160ms ease-in;
+  }
 
-.hoverCardVisible {
-  opacity: 1;
-  translate: 0 0;
-  transition:
-    opacity 240ms ease-out,
-    translate 240ms ease-out;
-}
+  .hoverCardVisible {
+    opacity: 1;
+    translate: 0 0;
+    transition:
+      opacity 240ms ease-out,
+      translate 240ms ease-out;
+  }
 
-/* Horizontal anchoring. Interior columns centre; columns near an edge pin
+  /* Horizontal anchoring. Interior columns centre; columns near an edge pin
    that edge so the card cannot overhang the plot. */
-.hoverCard.center {
-  transform: translateX(-50%);
-}
+  .hoverCard.center {
+    transform: translateX(-50%);
+  }
 
-.hoverCard.start {
-  transform: translateX(-0.5rem);
-}
+  .hoverCard.start {
+    transform: translateX(-0.5rem);
+  }
 
-.hoverCard.end {
-  transform: translateX(calc(-100% + 0.5rem));
-}
+  .hoverCard.end {
+    transform: translateX(calc(-100% + 0.5rem));
+  }
 
-/* Vertical side. `top` is the hovered bar's own top edge, so the card sits
+  /* Vertical side. `top` is the hovered bar's own top edge, so the card sits
    just clear of the mark it describes. */
-.hoverCard.above {
-  margin-top: -0.5rem;
-}
+  .hoverCard.above {
+    margin-top: -0.5rem;
+  }
 
-.hoverCard.above.center {
-  transform: translate(-50%, -100%);
-}
+  .hoverCard.above.center {
+    transform: translate(-50%, -100%);
+  }
 
-.hoverCard.above.start {
-  transform: translate(-0.5rem, -100%);
-}
+  .hoverCard.above.start {
+    transform: translate(-0.5rem, -100%);
+  }
 
-.hoverCard.above.end {
-  transform: translate(calc(-100% + 0.5rem), -100%);
-}
+  .hoverCard.above.end {
+    transform: translate(calc(-100% + 0.5rem), -100%);
+  }
 
-.hoverCard.below {
-  margin-top: 0.5rem;
-}
+  .hoverCard.below {
+    margin-top: 0.5rem;
+  }
 
-.hoverCardDate {
-  color: var(--text);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
+  .hoverCardDate {
+    color: var(--text);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
 
-.hoverCardRow {
-  display: grid;
-  grid-template-columns: 0.625rem 1fr auto;
-  align-items: center;
-  gap: 0.4rem;
-}
+  .hoverCardRow {
+    display: grid;
+    grid-template-columns: 0.625rem 1fr auto;
+    align-items: center;
+    gap: 0.4rem;
+  }
 
-/* A short stroke, not a filled box: at this density a solid swatch is
+  /* A short stroke, not a filled box: at this density a solid swatch is
    data-weight ink doing a label's job. */
-.keyLine {
-  display: inline-block;
-  width: 0.625rem;
-  height: 2px;
-  border-radius: 1px;
-}
+  .keyLine {
+    display: inline-block;
+    width: 0.625rem;
+    height: 2px;
+    border-radius: 1px;
+  }
 
-.keyViews {
-  background-color: #38bdf8;
-  /* Matches `.columnActive .views`, not the resting fill: the card is only
+  .keyViews {
+    background-color: #38bdf8;
+    /* Matches `.columnActive .views`, not the resting fill: the card is only
      ever on screen while its column is hovered, so the key should look like
      the mark actually looks at that moment. A 2px line also carries far less
      ink than the readout's filled swatch, so the same opacity would read
      fainter here than it does there. */
-  opacity: 0.62;
-}
+    opacity: 0.62;
+  }
 
-.keyVisitors {
-  background-color: #7c3aed;
-}
+  .keyVisitors {
+    background-color: #7c3aed;
+  }
 
-/* The reader already knows the series; they came for the number — so the
+  /* The reader already knows the series; they came for the number — so the
    value carries the emphasis and the metric name recedes.
 
    Muted ink here is the same `--gray-*` pair the axis and readout use, not
    `--text-secondary`: in this theme that token resolves to the amber brand
    secondary, which reads as emphasis rather than recession. */
-.hoverCardLabel {
-  color: var(--gray-500);
-}
+  .hoverCardLabel {
+    color: var(--gray-500);
+  }
 
-.hoverCardValue {
-  color: var(--text);
-  font-weight: 600;
-  text-align: right;
-}
+  .hoverCardValue {
+    color: var(--text);
+    font-weight: 600;
+    text-align: right;
+  }
 
-.gridline {
-  stroke: var(--gray-200);
-  stroke-width: 1;
-}
+  .gridline {
+    stroke: var(--gray-200);
+    stroke-width: 1;
+  }
 
-.column {
-  transition: opacity 120ms ease;
-}
+  .column {
+    transition: opacity 120ms ease;
+  }
 
-.views {
-  fill: #38bdf8;
-  opacity: 0.38;
-  transition: opacity 120ms ease;
-}
+  .views {
+    fill: #38bdf8;
+    opacity: 0.38;
+    transition: opacity 120ms ease;
+  }
 
-.columnActive .views {
-  opacity: 0.62;
-}
+  .columnActive .views {
+    opacity: 0.62;
+  }
 
-.visitors {
-  fill: #7c3aed;
-  opacity: 0.95;
-}
+  .visitors {
+    fill: #7c3aed;
+    opacity: 0.95;
+  }
 
-.hit {
-  fill: transparent;
-  cursor: crosshair;
-}
+  .hit {
+    fill: transparent;
+    cursor: crosshair;
+  }
 
-.axis,
-:global(.byline-analytics-axis) {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.6875rem;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.04em;
-  color: var(--gray-500);
-}
+  .axis,
+  :global(.byline-analytics-axis) {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    color: var(--gray-500);
+  }
 
-.readout,
-:global(.byline-analytics-readout) {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.35rem 0.75rem;
-  margin: 0;
-  min-height: 1.25rem;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--gray-500);
-}
+  .readout,
+  :global(.byline-analytics-readout) {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    margin: 0;
+    min-height: 1.25rem;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--gray-500);
+  }
 
-.readout strong {
-  color: inherit;
-  font-weight: 600;
-}
+  .readout strong {
+    color: inherit;
+    font-weight: 600;
+  }
 
-.swatchViews,
-.swatchVisitors,
-.swatchDownloads {
-  display: inline-block;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 1px;
-  /* Each swatch introduces the pair that follows it, so it needs the gap on
+  .swatchViews,
+  .swatchVisitors,
+  .swatchDownloads {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 1px;
+    /* Each swatch introduces the pair that follows it, so it needs the gap on
      its right closed up without collapsing the row gap. */
-  margin-inline-start: 0.4rem;
-  margin-inline-end: -0.4rem;
-}
-
-.swatchViews {
-  background-color: #38bdf8;
-  opacity: 0.55;
-}
-
-.swatchVisitors {
-  background-color: #7c3aed;
-}
-
-.swatchDownloads {
-  background-color: #10b981;
-}
-
-:is([data-theme="dark"], :global(.dark)) .gridline {
-  stroke: var(--gray-700);
-}
-
-:is([data-theme="dark"], :global(.dark)) .axis,
-:is([data-theme="dark"], :global(.dark)) :global(.byline-analytics-axis),
-:is([data-theme="dark"], :global(.dark)) .readout,
-:is([data-theme="dark"], :global(.dark)) :global(.byline-analytics-readout),
-:is([data-theme="dark"], :global(.dark)) .hoverCardLabel {
-  color: var(--gray-400);
-}
-
-:is([data-theme="dark"], :global(.dark)) .visitors {
-  fill: #a78bfa;
-}
-
-:is([data-theme="dark"], :global(.dark)) .swatchVisitors,
-:is([data-theme="dark"], :global(.dark)) .keyVisitors {
-  background-color: #a78bfa;
-}
-
-:is([data-theme="dark"], :global(.dark)) .swatchDownloads {
-  background-color: #34d399;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .column,
-  .views,
-  .hoverCard,
-  .hoverCardVisible {
-    transition: none;
+    margin-inline-start: 0.4rem;
+    margin-inline-end: -0.4rem;
   }
 
-  /* No transition means the lift would read as a jump rather than motion, so
+  .swatchViews {
+    background-color: #38bdf8;
+    opacity: 0.55;
+  }
+
+  .swatchVisitors {
+    background-color: #7c3aed;
+  }
+
+  .swatchDownloads {
+    background-color: #10b981;
+  }
+
+  :is([data-theme="dark"], :global(.dark)) .gridline {
+    stroke: var(--gray-700);
+  }
+
+  :is([data-theme="dark"], :global(.dark)) .axis,
+  :is([data-theme="dark"], :global(.dark)) :global(.byline-analytics-axis),
+  :is([data-theme="dark"], :global(.dark)) .readout,
+  :is([data-theme="dark"], :global(.dark)) :global(.byline-analytics-readout),
+  :is([data-theme="dark"], :global(.dark)) .hoverCardLabel {
+    color: var(--gray-400);
+  }
+
+  :is([data-theme="dark"], :global(.dark)) .visitors {
+    fill: #a78bfa;
+  }
+
+  :is([data-theme="dark"], :global(.dark)) .swatchVisitors,
+  :is([data-theme="dark"], :global(.dark)) .keyVisitors {
+    background-color: #a78bfa;
+  }
+
+  :is([data-theme="dark"], :global(.dark)) .swatchDownloads {
+    background-color: #34d399;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .column,
+    .views,
+    .hoverCard,
+    .hoverCardVisible {
+      transition: none;
+    }
+
+    /* No transition means the lift would read as a jump rather than motion, so
      the card simply appears in place. */
-  .hoverCard,
-  .hoverCardVisible {
-    translate: none;
+    .hoverCard,
+    .hoverCardVisible {
+      translate: none;
+    }
   }
-}
 
-@media (max-width: 720px) {
-  .chart,
-  :global(.byline-analytics-chart) {
-    height: 9rem;
+  @media (max-width: 720px) {
+    .chart,
+    :global(.byline-analytics-chart) {
+      height: 9rem;
+    }
   }
 }

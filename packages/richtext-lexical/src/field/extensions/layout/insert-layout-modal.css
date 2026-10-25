@@ -1,19 +1,35 @@
-.insert-layout-modal-container {
-  min-width: 340px;
-  max-width: 600px;
-}
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
 
-.insert-layout-modal-select {
-  margin: 2rem 0 0;
-}
+@layer byline-components.primitives, byline-components.cms;
 
-@media screen and (min-width: 640px) {
-  .insert-layout-modal-select {
-    margin: 1rem 0 0.5rem;
-    width: 100%;
+@layer byline-components.cms {
+  .insert-layout-modal-container {
+    min-width: 340px;
+    max-width: 600px;
   }
 
-  .insert-layout-modal-actions {
-    margin: 0;
+  .insert-layout-modal-select {
+    margin: 2rem 0 0;
+  }
+
+  @media screen and (min-width: 640px) {
+    .insert-layout-modal-select {
+      margin: 1rem 0 0.5rem;
+      width: 100%;
+    }
+
+    .insert-layout-modal-actions {
+      margin: 0;
+    }
   }
 }

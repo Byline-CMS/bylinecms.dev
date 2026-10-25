@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * RestoreVersionModal — modal body for the "make current" action on the
  * collection history view.
@@ -10,39 +24,41 @@
  *   .byline-coll-restore-button    — action buttons (min-width)
  */
 
-.content,
-:global(.byline-coll-restore-content) {
-  gap: 0.25rem;
-}
+@layer byline-components.cms {
+  .content,
+  :global(.byline-coll-restore-content) {
+    gap: 0.25rem;
+  }
 
-.body,
-:global(.byline-coll-restore-body) {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
+  .body,
+  :global(.byline-coll-restore-body) {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
 
-.row,
-:global(.byline-coll-restore-row) {
-  margin: 0;
-}
+  .row,
+  :global(.byline-coll-restore-row) {
+    margin: 0;
+  }
 
-.warning,
-:global(.byline-coll-restore-warning) {
-  margin-top: 0.75rem;
-}
+  .warning,
+  :global(.byline-coll-restore-warning) {
+    margin-top: 0.75rem;
+  }
 
-.actions,
-:global(.byline-coll-restore-actions) {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1.5rem;
-  margin-bottom: 1rem;
-}
+  .actions,
+  :global(.byline-coll-restore-actions) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+  }
 
-.button,
-:global(.byline-coll-restore-button) {
-  min-width: 4rem;
+  .button,
+  :global(.byline-coll-restore-button) {
+    min-width: 4rem;
+  }
 }

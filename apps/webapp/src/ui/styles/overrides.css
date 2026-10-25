@@ -1,148 +1,149 @@
-/* Content (richtext-rendered) tables only — scoped to .prose so these
+@layer overrides {
+  @scope (:root[data-theme-context="public"]) {
+    /* Content (richtext-rendered) tables only — scoped to .prose so these
    don't leak into the admin area's tables (e.g. the history view's narrow
    version-number column). The byline Table primitive sets its own
    border-collapse. */
-.prose td h4 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  line-height: 1.1;
-  margin-top: 1.25rem;
-  margin-bottom: 0.65rem;
-}
-
-.prose table {
-  border-collapse: collapse;
-}
-
-.prose table {
-  min-width: 40rem;
-
-  td:first-child {
-    overflow-wrap: normal;
-  }
-
-  td:first-child code {
-    white-space: nowrap;
-    overflow-wrap: normal;
-  }
-
-  td:nth-child(2),
-  th:nth-child(2) {
-    overflow-wrap: normal;
-  }
-}
-
-@layer overrides {
-  :root {
-    --prose-body: var(--gray-900);
-  }
-
-  article,
-  .dynamic-text {
-    font-weight: 350;
-    font-size: 1.25rem;
-    line-height: 1.54;
-  }
-
-  .editor-text,
-  .break-long-words {
-    font-weight: 350;
-  }
-
-  .prose :where(h1):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-    --prose-headings: var(--primary-600);
-  }
-
-  .prose :where(h2, h3, h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-    --prose-headings: var(--gray-900);
-  }
-
-  .prose :where(h2, h3, h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) a {
-    --prose-links: var(--gray-900);
-  }
-
-  .dark,
-  [data-theme="dark"] {
-    --prose-body: var(--gray-100);
-
-    .prose :where(h1):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-      --prose-headings: var(--primary-200);
+    .prose td h4 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      line-height: 1.1;
+      margin-top: 1.25rem;
+      margin-bottom: 0.65rem;
     }
 
-    .prose :where(h2, h3, h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-      --prose-headings: var(--gray-50);
+    .prose table {
+      border-collapse: collapse;
     }
 
-    .prose :where(h2, h3, h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) a {
-      font-weight: 400;
-      --prose-links: var(--gray-50);
+    .prose table {
+      min-width: 40rem;
+
+      td:first-child {
+        overflow-wrap: normal;
+      }
+
+      td:first-child code {
+        white-space: nowrap;
+        overflow-wrap: normal;
+      }
+
+      td:nth-child(2),
+      th:nth-child(2) {
+        overflow-wrap: normal;
+      }
     }
-  }
-
-  .prose :where(h1):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-    font-size: 2.2rem;
-    font-weight: 500;
-    line-height: 1.125;
-    margin-top: 0;
-    margin-bottom: 1rem;
-  }
-
-  .prose :where(h2):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-    font-size: 1.75rem;
-    font-weight: 400;
-    line-height: 1.2;
-    margin-top: 1.5rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .prose :where(h3):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-    font-size: 1.5rem;
-    font-weight: 400;
-    line-height: 1.1;
-    margin-top: 1.25rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .prose :where(h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-    font-size: 1.35rem;
-    font-weight: 400;
-    line-height: 1.1;
-    margin-top: 1.25rem;
-    margin-bottom: 0.65rem;
-  }
-
-  code,
-  kbd,
-  samp,
-  pre {
-    font-size: 0.92em;
-  }
-
-  .prose :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-    font-size: 1em;
-    font-weight: 400;
-    line-height: 1.4;
-    color: var(--accent-950);
-  }
-
-  .dark,
-  [data-theme="dark"] {
-    .prose :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-      color: var(--accent-200);
+    :scope {
+      --prose-body: var(--gray-900);
     }
-  }
 
-  @media (width >= 48rem) {
     article,
     .dynamic-text {
-      font-size: 1.1rem;
+      font-weight: 350;
+      font-size: 1.25rem;
       line-height: 1.54;
     }
 
+    .editor-text,
+    .break-long-words {
+      font-weight: 350;
+    }
+
+    .prose :where(h1):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+      --prose-headings: var(--primary-600);
+    }
+
+    .prose :where(h2, h3, h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+      --prose-headings: var(--gray-900);
+    }
+
+    .prose :where(h2, h3, h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) a {
+      --prose-links: var(--gray-900);
+    }
+
+    :scope.dark,
+    :scope[data-theme="dark"] {
+      --prose-body: var(--gray-100);
+
+      .prose :where(h1):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+        --prose-headings: var(--primary-200);
+      }
+
+      .prose :where(h2, h3, h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+        --prose-headings: var(--gray-50);
+      }
+
+      .prose :where(h2, h3, h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) a {
+        font-weight: 400;
+        --prose-links: var(--gray-50);
+      }
+    }
+
+    .prose :where(h1):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+      font-size: 2.2rem;
+      font-weight: 500;
+      line-height: 1.125;
+      margin-top: 0;
+      margin-bottom: 1rem;
+    }
+
+    .prose :where(h2):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+      font-size: 1.75rem;
+      font-weight: 400;
+      line-height: 1.2;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .prose :where(h3):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+      font-size: 1.5rem;
+      font-weight: 400;
+      line-height: 1.1;
+      margin-top: 1.25rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .prose :where(h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+      font-size: 1.35rem;
+      font-weight: 400;
+      line-height: 1.1;
+      margin-top: 1.25rem;
+      margin-bottom: 0.65rem;
+    }
+
+    code,
+    kbd,
+    samp,
+    pre {
+      font-size: 0.92em;
+    }
+
     .prose :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-      font-size: 1.07em;
-      font-weight: normal;
-      line-height: 1.45;
+      font-size: 1em;
+      font-weight: 400;
+      line-height: 1.4;
+      color: var(--accent-950);
+    }
+
+    :scope.dark,
+    :scope[data-theme="dark"] {
+      .prose :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+        color: var(--accent-200);
+      }
+    }
+
+    @media (width >= 48rem) {
+      article,
+      .dynamic-text {
+        font-size: 1.1rem;
+        line-height: 1.54;
+      }
+
+      .prose :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+        font-size: 1.07em;
+        font-weight: normal;
+        line-height: 1.45;
+      }
     }
   }
 }

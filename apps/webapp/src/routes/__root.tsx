@@ -11,6 +11,7 @@ import type { ReactNode } from 'react'
 import { createRootRoute, HeadContent, Outlet, Scripts, useLocation } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 
+import { BYLINE_LAYER_ORDER } from '@byline/ui/css-layers'
 import { ScrollToTop } from '@byline/ui/react'
 
 import { i18nConfig, isRoutableLocale } from '@/i18n/i18n-config'
@@ -74,10 +75,18 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = useLocation({ select: (loc) => loc.pathname })
   const firstSegment = pathname.split('/')[1] ?? ''
   const lang = isRoutableLocale(firstSegment) ? firstSegment : i18nConfig.defaultLocale
+  const areaSegment = isRoutableLocale(firstSegment) ? pathname.split('/')[2] : firstSegment
+  const themeContext = areaSegment === 'admin' || areaSegment === 'sign-in' ? 'admin' : 'public'
 
   return (
-    <html className="dark byline-ui" lang={lang} suppressHydrationWarning>
+    <html
+      className="dark byline-ui"
+      data-theme-context={themeContext}
+      lang={lang}
+      suppressHydrationWarning
+    >
       <head>
+        <style>{BYLINE_LAYER_ORDER}</style>
         <EarlyThemeDetector />
         <HeadContent />
       </head>

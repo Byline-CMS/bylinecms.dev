@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * RichTextField — Lexical rich text editor field.
  *
@@ -7,31 +21,33 @@
  *   .byline-field-richtext-body   — vertical stack containing editor + error
  */
 
-.wrapper,
-:global(.byline-field-richtext) {
-  display: flex;
-  flex: 1 1 0%;
-  height: 100%;
-  /* Allow shrinking below content min-content so a wide (white-space:pre)
+@layer byline-components.cms {
+  .wrapper,
+  :global(.byline-field-richtext) {
+    display: flex;
+    flex: 1 1 0%;
+    height: 100%;
+    /* Allow shrinking below content min-content so a wide (white-space:pre)
    * code block inside the editor scrolls internally instead of stretching
    * this field — and the form column — across the sidebar. */
-  min-width: 0;
-}
+    min-width: 0;
+  }
 
-.label-row,
-:global(.byline-field-richtext-label) {
-  display: flex;
-  align-items: center;
-  margin-bottom: 0.25rem;
-}
+  .label-row,
+  :global(.byline-field-richtext-label) {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.25rem;
+  }
 
-.body,
-:global(.byline-field-richtext-body) {
-  display: flex;
-  flex: 1 1 0%;
-  flex-direction: column;
-  gap: 0.25rem;
-  /* Same rationale as .wrapper — keep the editor body from growing to the
+  .body,
+  :global(.byline-field-richtext-body) {
+    display: flex;
+    flex: 1 1 0%;
+    flex-direction: column;
+    gap: 0.25rem;
+    /* Same rationale as .wrapper — keep the editor body from growing to the
    * code block's intrinsic width. */
-  min-width: 0;
+    min-width: 0;
+  }
 }

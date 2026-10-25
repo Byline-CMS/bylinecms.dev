@@ -1,3 +1,15 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+@layer byline-components.primitives, byline-components.cms;
 @layer byline-theme {
   /* Autofill styling is scoped — without this, host inputs outside the
      admin area would also pick up the byline autofill colors. */

@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * Row — horizontal flex layout for admin form fields.
  *
@@ -10,23 +24,25 @@
  * without referring to the hashed local name.
  */
 
-.row,
-:global(.byline-admin-row) {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--spacing-16);
-}
-
-.row > *,
-:global(.byline-admin-row) > * {
-  flex: 1;
-  min-width: 0;
-}
-
-@media (min-width: 40rem) {
+@layer byline-components.cms {
   .row,
   :global(.byline-admin-row) {
-    flex-direction: row;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-16);
+  }
+
+  .row > *,
+  :global(.byline-admin-row) > * {
+    flex: 1;
+    min-width: 0;
+  }
+
+  @media (min-width: 40rem) {
+    .row,
+    :global(.byline-admin-row) {
+      flex-direction: row;
+    }
   }
 }

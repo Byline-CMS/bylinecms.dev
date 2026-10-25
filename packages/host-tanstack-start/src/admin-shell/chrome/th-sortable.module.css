@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * TableHeadingCellSortable — clickable column header with a sort indicator.
  *
@@ -10,52 +24,54 @@
  *   .byline-th-icon              — sort icon size hint
  */
 
-.button,
-:global(.byline-th-sortable-button) {
-  display: flex;
-  gap: 0.25rem;
-  padding-left: 2px;
-  padding-right: 6px;
-  font-weight: 700;
-}
+@layer byline-components.cms {
+  .button,
+  :global(.byline-th-sortable-button) {
+    display: flex;
+    gap: 0.25rem;
+    padding-left: 2px;
+    padding-right: 6px;
+    font-weight: 700;
+  }
 
-.button:hover,
-:global(.byline-th-sortable-button:hover) {
-  text-decoration: underline;
-}
+  .button:hover,
+  :global(.byline-th-sortable-button:hover) {
+    text-decoration: underline;
+  }
 
-.alignLeft,
-:global(.byline-th-align-left) {
-  text-align: left;
-}
+  .alignLeft,
+  :global(.byline-th-align-left) {
+    text-align: left;
+  }
 
-.alignCenter,
-:global(.byline-th-align-center) {
-  text-align: center;
-}
+  .alignCenter,
+  :global(.byline-th-align-center) {
+    text-align: center;
+  }
 
-.alignRight,
-:global(.byline-th-align-right) {
-  text-align: right;
-}
+  .alignRight,
+  :global(.byline-th-align-right) {
+    text-align: right;
+  }
 
-.alignRightAuto,
-:global(.byline-th-align-right-auto) {
-  margin-left: auto;
-}
+  .alignRightAuto,
+  :global(.byline-th-align-right-auto) {
+    margin-left: auto;
+  }
 
-.icon,
-:global(.byline-th-icon) {
-  width: 1.5rem;
-  height: 1.5rem;
-}
+  .icon,
+  :global(.byline-th-icon) {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
 
-/* Sort indicator SVGs are rendered with class `byline-sort-icon` (see
+  /* Sort indicator SVGs are rendered with class `byline-sort-icon` (see
    sort-icons.tsx) inside a flex container; without explicit dimensions
    they collapse to zero. Size them here so every consumer of the icons
    picks the rule up automatically. */
-:global(.byline-sort-icon) {
-  flex-shrink: 0;
-  width: 1.25rem;
-  height: 1.25rem;
+  :global(.byline-sort-icon) {
+    flex-shrink: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+  }
 }

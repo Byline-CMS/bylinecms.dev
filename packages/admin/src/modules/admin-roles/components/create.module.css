@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * CreateAdminRole — drawer form for creating a new role.
  *
@@ -8,33 +22,35 @@
  *   .byline-role-create-action   — buttons in the actions row
  */
 
-.wrap,
-:global(.byline-role-create-wrap) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-8);
-  padding: var(--spacing-4);
-  margin-top: var(--spacing-4);
-}
+@layer byline-components.cms {
+  .wrap,
+  :global(.byline-role-create-wrap) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-8);
+    padding: var(--spacing-4);
+    margin-top: var(--spacing-4);
+  }
 
-.form,
-:global(.byline-role-create-form) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-16);
-  padding-top: var(--spacing-8);
-}
+  .form,
+  :global(.byline-role-create-form) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-16);
+    padding-top: var(--spacing-8);
+  }
 
-.actions,
-:global(.byline-role-create-actions) {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--spacing-8);
-  margin-top: var(--spacing-16);
-}
+  .actions,
+  :global(.byline-role-create-actions) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--spacing-8);
+    margin-top: var(--spacing-16);
+  }
 
-.action,
-:global(.byline-role-create-action) {
-  min-width: 4rem;
+  .action,
+  :global(.byline-role-create-action) {
+    min-width: 4rem;
+  }
 }

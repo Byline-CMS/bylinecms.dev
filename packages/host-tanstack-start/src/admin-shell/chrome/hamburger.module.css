@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * Hamburger — icon button that toggles the admin menu drawer.
  *
@@ -7,10 +21,12 @@
  * the bar visuals; this module just hosts the wrapper override surface.
  */
 
-.button,
-:global(.byline-admin-hamburger) {
-  background: transparent;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
+@layer byline-components.cms {
+  .button,
+  :global(.byline-admin-hamburger) {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+  }
 }

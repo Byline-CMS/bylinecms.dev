@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * SourceLocaleBadge — compact neutral pill marking a document's content source
  * locale, shown next to the document title in edit and list views.
@@ -5,13 +19,15 @@
  * Override handle: `.byline-source-locale-badge`
  */
 
-.badge,
-:global(.byline-source-locale-badge) {
-  margin-left: 0.5rem;
-  padding: 0 0.375rem;
-  font-size: 0.65rem;
-  font-weight: var(--font-weight-semibold);
-  line-height: 1.5;
-  letter-spacing: var(--letter-spacing-wide);
-  vertical-align: middle;
+@layer byline-components.cms {
+  .badge,
+  :global(.byline-source-locale-badge) {
+    margin-left: 0.5rem;
+    padding: 0 0.375rem;
+    font-size: 0.65rem;
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.5;
+    letter-spacing: var(--letter-spacing-wide);
+    vertical-align: middle;
+  }
 }

@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * RoleContainer — detail view shell for a single admin role.
  *
@@ -13,120 +27,122 @@
  *   .byline-role-detail-modal-head  — modal title + close
  */
 
-.card,
-:global(.byline-role-detail-card) {
-  margin-bottom: 1.5rem;
-  border: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
-  border-radius: var(--border-radius-sm);
-  background-color: var(--canvas-25);
-  padding: 1rem;
-}
+@layer byline-components.cms {
+  .card,
+  :global(.byline-role-detail-card) {
+    margin-bottom: 1.5rem;
+    border: var(--border-width-thin) var(--border-style-solid) var(--gray-100);
+    border-radius: var(--border-radius-sm);
+    background-color: var(--canvas-25);
+    padding: 1rem;
+  }
 
-:is([data-theme="dark"], :global(.dark)) .card,
-:is([data-theme="dark"], :global(.dark)) :global(.byline-role-detail-card) {
-  border-color: var(--gray-700);
-  background-color: var(--canvas-800);
-}
+  :is([data-theme="dark"], :global(.dark)) .card,
+  :is([data-theme="dark"], :global(.dark)) :global(.byline-role-detail-card) {
+    border-color: var(--gray-700);
+    background-color: var(--canvas-800);
+  }
 
-.head,
-:global(.byline-role-detail-head) {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-}
+  .head,
+  :global(.byline-role-detail-head) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
 
-.actions,
-:global(.byline-role-detail-actions) {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
+  .actions,
+  :global(.byline-role-detail-actions) {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
 
-.title,
-:global(.byline-role-detail-title) {
-  margin: 0;
-}
+  .title,
+  :global(.byline-role-detail-title) {
+    margin: 0;
+  }
 
-.grid,
-:global(.byline-role-detail-grid) {
-  display: grid;
-  gap: 0.25rem;
-}
-
-@media (min-width: 40rem) {
   .grid,
   :global(.byline-role-detail-grid) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: grid;
+    gap: 0.25rem;
   }
-  .gridFull,
-  :global(.byline-role-detail-grid-full) {
-    grid-column: span 2 / span 2;
+
+  @media (min-width: 40rem) {
+    .grid,
+    :global(.byline-role-detail-grid) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .gridFull,
+    :global(.byline-role-detail-grid-full) {
+      grid-column: span 2 / span 2;
+    }
   }
-}
 
-.row,
-:global(.byline-role-detail-row) {
-  margin: 0;
-}
+  .row,
+  :global(.byline-role-detail-row) {
+    margin: 0;
+  }
 
-.meta,
-:global(.byline-role-detail-meta) {
-  display: grid;
-  gap: 0.25rem;
-  margin-top: 0.75rem;
-  font-size: 0.75rem;
-}
-
-@media (min-width: 40rem) {
   .meta,
   :global(.byline-role-detail-meta) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: grid;
+    gap: 0.25rem;
+    margin-top: 0.75rem;
+    font-size: 0.75rem;
   }
-}
 
-.notSet,
-:global(.byline-role-detail-not-set) {
-  font-style: italic;
-}
+  @media (min-width: 40rem) {
+    .meta,
+    :global(.byline-role-detail-meta) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
 
-.drawerContent,
-:global(.byline-role-detail-drawer-content) {
-  max-height: calc(100vh - 160px);
-  overflow-y: auto;
-}
+  .notSet,
+  :global(.byline-role-detail-not-set) {
+    font-style: italic;
+  }
 
-.drawer,
-:global(.byline-role-detail-drawer) {
-  /* width handled via uikit prop */
-}
+  .drawerContent,
+  :global(.byline-role-detail-drawer-content) {
+    max-height: calc(100vh - 160px);
+    overflow-y: auto;
+  }
 
-@media (min-width: 48rem) {
   .drawer,
   :global(.byline-role-detail-drawer) {
-    width: 500px;
+    /* width handled via uikit prop */
   }
-}
 
-.modal,
-:global(.byline-role-detail-modal) {
-  /* default sizing applied via uikit's Modal.Container */
-}
+  @media (min-width: 48rem) {
+    .drawer,
+    :global(.byline-role-detail-drawer) {
+      width: 500px;
+    }
+  }
 
-@media (min-width: 40rem) {
   .modal,
   :global(.byline-role-detail-modal) {
-    margin-bottom: 6rem;
-    max-width: 550px;
+    /* default sizing applied via uikit's Modal.Container */
   }
-}
 
-.modalHead,
-:global(.byline-role-detail-modal-head) {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
+  @media (min-width: 40rem) {
+    .modal,
+    :global(.byline-role-detail-modal) {
+      margin-bottom: 6rem;
+      max-width: 550px;
+    }
+  }
+
+  .modalHead,
+  :global(.byline-role-detail-modal-head) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
 }

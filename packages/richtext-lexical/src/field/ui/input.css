@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -7,26 +21,28 @@
  *
  */
 
-.Input__wrapper {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  margin-bottom: 10px;
-}
-.Input__label {
-  display: flex;
-  flex: 1;
-  color: #666;
-}
-.Input__input {
-  display: flex;
-  flex: 2;
-  border: 1px solid #999;
-  padding-top: 7px;
-  padding-bottom: 7px;
-  padding-left: 10px;
-  padding-right: 10px;
-  font-size: 16px;
-  border-radius: 5px;
-  min-width: 0;
+@layer byline-components.cms {
+  .Input__wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .Input__label {
+    display: flex;
+    flex: 1;
+    color: #666;
+  }
+  .Input__input {
+    display: flex;
+    flex: 2;
+    border: 1px solid #999;
+    padding-top: 7px;
+    padding-bottom: 7px;
+    padding-left: 10px;
+    padding-right: 10px;
+    font-size: 16px;
+    border-radius: 5px;
+    min-width: 0;
+  }
 }

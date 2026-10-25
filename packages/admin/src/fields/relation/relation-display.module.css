@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * RelationDisplay — shared cell renderer for relation picker rows and the
  * relation-summary selected-value tile.
@@ -8,29 +22,31 @@
  *   .byline-relation-cell-right     — cell with align: right
  */
 
-.cell,
-:global(.byline-relation-cell) {
-  min-width: 0;
-  color: var(--gray-700);
-  font-size: var(--font-size-sm);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cell-center,
-:global(.byline-relation-cell-center) {
-  text-align: center;
-}
-
-.cell-right,
-:global(.byline-relation-cell-right) {
-  text-align: right;
-}
-
-:is([data-theme="dark"], :global(.dark)) {
+@layer byline-components.cms {
   .cell,
   :global(.byline-relation-cell) {
-    color: var(--gray-100);
+    min-width: 0;
+    color: var(--gray-700);
+    font-size: var(--font-size-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cell-center,
+  :global(.byline-relation-cell-center) {
+    text-align: center;
+  }
+
+  .cell-right,
+  :global(.byline-relation-cell-right) {
+    text-align: right;
+  }
+
+  :is([data-theme="dark"], :global(.dark)) {
+    .cell,
+    :global(.byline-relation-cell) {
+      color: var(--gray-100);
+    }
   }
 }

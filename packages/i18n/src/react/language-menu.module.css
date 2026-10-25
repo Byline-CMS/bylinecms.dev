@@ -1,3 +1,17 @@
+@layer base,
+  byline-base,
+  theme,
+  byline-theme,
+  byline-functional,
+  byline-typography,
+  components,
+  byline-components,
+  overrides,
+  byline-utilities,
+  utilities;
+
+@layer byline-components.primitives, byline-components.cms;
+
 /**
  * This Source Code is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -19,18 +33,7 @@
  * so these rules land in `byline-components` regardless of import order.
  */
 
-@layer base,
-  byline-base,
-  theme,
-  byline-theme,
-  byline-functional,
-  byline-typography,
-  components,
-  byline-components,
-  utilities,
-  byline-utilities;
-
-@layer byline-components {
+@layer byline-components.cms {
   .trigger {
     display: flex;
     align-items: center;

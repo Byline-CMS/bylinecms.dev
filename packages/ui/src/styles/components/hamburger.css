@@ -1,5 +1,3 @@
-/* No longer used in our actual hamburger React and Astro components
-but left here as a reference. */
 @layer base,
   byline-base,
   theme,
@@ -8,10 +6,16 @@ but left here as a reference. */
   byline-typography,
   components,
   byline-components,
-  utilities,
-  byline-utilities;
+  overrides,
+  byline-utilities,
+  utilities;
 
-@layer byline-components {
+@layer byline-components.primitives, byline-components.cms;
+
+/* No longer used in our actual hamburger React and Astro components
+but left here as a reference. */
+
+@layer byline-components.primitives {
   .component--hamburger {
     display: flex;
     position: relative;

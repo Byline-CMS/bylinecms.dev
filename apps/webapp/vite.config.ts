@@ -4,6 +4,7 @@ import { devtools } from '@tanstack/devtools-vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 
 import { bylineClientHookBoundary } from '@byline/host-tanstack-start/vite'
+import { bylineLayerOrder } from '@byline/ui/css-layers'
 import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
 import { nitro } from 'nitro/vite'
@@ -89,6 +90,7 @@ const ssrExternal = [
 ]
 
 const config = defineConfig({
+  css: { postcss: { plugins: [bylineLayerOrder()] } },
   server: {
     port: 5173,
   },
