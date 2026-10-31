@@ -212,7 +212,7 @@ interface ServerConfig<TAdminStore = unknown> extends BaseConfig {
 |---|---|---|
 | `db` | Required | Database adapter implementing typed storage, transactions, audit operations, collection bootstrap, and tree operations when used. |
 | `hooks` | Optional | Server-only collection and upload hook registry attached after configuration validation. |
-| `storage` | Conditional | Installation-wide upload storage fallback. Required when an upload field has no `upload.storage` override. |
+| `storage` | Conditional | Installation-wide upload storage fallback. Required when an upload field has no `upload.storage` override. Its optional `download` method provides the bound reads that content-identity checks and the stored-file backfill use, and its optional `head` method is a cheap change probe; see [Content identity](../04-collections/06-file-media-uploads.md#content-identity). |
 | `slugifier` | `slugify` | Authoritative document-path slugifier. Must be pure, synchronous, and identical to the client copy when customized. |
 | `uploads.filenameSlugifier` | `slugifyFilename` | Server-only transformation for the human-readable base name of every uploaded file before hooks and provider key composition. |
 | `sessionProvider` | Optional in the type | Authentication session implementation. Admin sign-in, refresh, verification, and revocation require one. |

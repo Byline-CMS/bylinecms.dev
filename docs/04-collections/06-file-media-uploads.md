@@ -1,7 +1,7 @@
 ---
 title: "File / Media Uploads"
 path: "file-media-uploads"
-summary: "The full upload pipeline: field-level validation, storage providers, image variant generation via Sharp, and how the Media collection plus a relation forms a shared library."
+summary: "The full upload pipeline: field-level validation, storage providers, image variant generation via Sharp, stored-file content identity, and how the Media collection plus a relation forms a shared library."
 ---
 
 # File / Media Uploads
@@ -40,7 +40,9 @@ This is unlike the more common "the collection *is* a media library" model. In B
 
 The "is this a media library?" question is a UI concern, not a schema one: the admin shows gallery affordances for collections it knows about by convention, not by a flag in the schema.
 
-Read this document when you are adding an upload field, configuring image variants, routing a field to a specific storage backend, or hooking into the store step to rename files or trigger side effects.
+Every upload also records the file's **content identity**: a SHA-256 `fileHash` of the stored bytes and, when the provider issues one, a `storageValidator` that identifies the stored version. Together they let you detect that the bytes behind a stored file have changed — see [Content identity](#content-identity).
+
+Read this document when you are adding an upload field, configuring image variants, routing a field to a specific storage backend, hooking into the store step to rename files or trigger side effects, or checking whether a stored file has changed.
 
 ---
 
@@ -410,6 +412,47 @@ whatever this function returns.
 
 → [How uploaded files are stored](#how-uploaded-files-are-stored)
 
+### 14. Check whether a stored file has changed
+
+Compare the validator recorded on the file with the provider's current one. Read
+the bytes with `download`, which returns them together with their own validator,
+when you need content you can trust.
+
+**Edit:** your server-side code (an extraction cache, a fixity job).
+
+```ts
+import { isSameStorageValidator } from '@byline/core'
+
+const file = doc.fields.attachment // StoredFileValue
+if (!file.fileHash || !file.storageValidator) throw new Error('No content identity recorded')
+
+const current = await storage.head?.(file.storagePath)
+const unchanged =
+  current != null && isSameStorageValidator(current.validator, file.storageValidator)
+
+// Read only the recorded version; fails with ERR_STORAGE_PRECONDITION otherwise.
+const read = await storage.download?.(file.storagePath, { expect: file.storageValidator })
+```
+
+→ [Content identity](#content-identity)
+
+### 15. Record identity for files uploaded before it existed
+
+Uploads made before content identity shipped have no `fileHash`. Run the
+backfill script once per storage provider; it is idempotent and safe to re-run.
+
+**Edit:** nothing — run `apps/webapp/byline/scripts/backfill-file-identity.ts`.
+
+```sh
+cd apps/webapp
+pnpm tsx byline/scripts/backfill-file-identity.ts --dry-run
+pnpm tsx byline/scripts/backfill-file-identity.ts --collection media   # one collection first
+pnpm tsx byline/scripts/backfill-file-identity.ts                      # everything
+pnpm tsx byline/scripts/backfill-file-identity.ts --verify             # report-only re-hash
+```
+
+→ [Backfill and verification](#backfill-and-verification)
+
 ---
 
 ## Architecture
@@ -569,10 +612,13 @@ The upload round-trip writes **bytes only**, not database rows. With `shouldCrea
 
 ```
 availableStoragePath(options)  →  'media/meeting-agenda-4fa35g.pdf'
-fs.mkdirSync(...) + fs.writeFile(absolutePath, buffer)
+fs.mkdirSync(...)
+fs.writeFile('<path>.<random>.tmp', buffer, { flag: 'wx' })   // a new file beside the target
+fs.stat(temporary)  →  storageValidator                        // local-stat: dev:ino:mtimeNs:size
+fs.rename(temporary, absolutePath)                             // atomic replace
 ```
 
-(see `packages/storage-local/src/local-storage-provider.ts`). S3 is the same shape, different backend. The key is `<location|collection>/<slugified-base>-<suffix>.<ext>`: the filename leads (slugified by the installation's `ServerConfig.uploads.filenameSlugifier`, else the default `slugifyFilename`), and a short 6-char base36 suffix rides before the extension. The provider verifies the candidate key is free (`exists()`) and retries with a fresh suffix on collision (after three straight collisions it falls back to a full-entropy UUID suffix), so the path is collision-safe without a DB allocation step, and downloads arrive with human-readable names.
+(see `packages/storage-local/src/local-storage-provider.ts`). Writing a new file and renaming it into place means a reader never sees a partly written file, and a reader that already has the old file open keeps reading the old one. S3 is the same shape, different backend. The key is `<location|collection>/<slugified-base>-<suffix>.<ext>`: the filename leads (slugified by the installation's `ServerConfig.uploads.filenameSlugifier`, else the default `slugifyFilename`), and a short 6-char base36 suffix rides before the extension. The provider verifies the candidate key is free (`exists()`) and retries with a fresh suffix on collision (after three straight collisions it falls back to a full-entropy UUID suffix), so the path is collision-safe without a DB allocation step, and downloads arrive with human-readable names.
 
 The service then synthesises a `StoredFileValue` in memory:
 
@@ -583,6 +629,8 @@ The service then synthesises a `StoredFileValue` in memory:
   storageProvider: 'local' | 's3',
   storagePath:    'media/photo-4fa35g.jpg',
   storageUrl:     '/uploads/media/photo-4fa35g.jpg',
+  fileHash:       '9f86d081…',                               // SHA-256 of the stored bytes
+  storageValidator: { kind: 'local-stat', value: '…' },      // the stored version
   imageWidth, imageHeight, imageFormat,
   processingStatus: 'complete',
   variants: [{ name, storagePath, storageUrl, width, height, format }, ...],
@@ -652,6 +700,82 @@ A jsonb column rather than a sidecar `byline_store_file_variants` table because 
 
 This is the single source of truth: the upload service does not return a separate top-level variants list. Public clients reading via `@byline/client` see `result.fields.image.variants` and can build a `<picture>` / `srcset` without a second round-trip. When the field is reached via a relation, `populateDocuments` carries the same envelope on the populated relation value.
 
+### Content identity
+
+A stored file carries two identity values. They answer different questions and are never compared with each other.
+
+| Value | What it identifies | Shape |
+|---|---|---|
+| `fileHash` | The **content**: SHA-256 of the original object's bytes. Two files with the same hash have the same bytes. | 64 lower-case hexadecimal characters |
+| `storageValidator` | One **stored version** of the object, as the provider names it. Its only use is equality: "is the object at this path still the version I recorded?" | `{ kind: string; value: string }` |
+
+Byline computes `fileHash` itself, in the same pass that hands the bytes to the provider, so every provider gets it without an extra read. Providers must store the original bytes verbatim, so the hash of the received bytes is also the hash of the stored object. Image variants are separate objects and have no hash. When a value is unknown it is **absent** — never `null` or an empty string — and code that needs identity must treat absence as an error, not as a match. The write-side Zod schema rejects an empty or malformed `fileHash`.
+
+The built-in providers issue these validator kinds:
+
+| Provider | Kind | Value |
+|---|---|---|
+| `@byline/storage-local` | `local-stat` | `<dev>:<ino>:<mtimeNs>:<size>` of the stored file |
+| `@byline/storage-s3` | `s3-version` | The object's `VersionId`, when the bucket is versioned |
+| `@byline/storage-s3` | `s3-etag` | A strong `ETag` without its quotes, when there is no usable version id |
+
+An S3 `VersionId` of `"null"` — what a never-versioned or versioning-suspended bucket reports — is never used, because successive writes to one key keep that id while the bytes change. A weak ETag (`W/"…"`) is never used either. An ETag is not a content digest: multipart uploads and server-side encryption give ETags that are not the MD5 of the object.
+
+#### Reading the bytes: `download` and `head`
+
+`IStorageProvider` has two optional read methods. Both built-in providers implement them; a custom provider may not, so feature-detect them as you do `move` and `exists`.
+
+```ts
+download?(storagePath: string, options?: { expect?: StorageValidator; signal?: AbortSignal })
+  : Promise<{ body: NodeJS.ReadableStream; validator: StorageValidator; size?: number } | null>
+
+head?(storagePath: string): Promise<{ validator: StorageValidator; size?: number } | null>
+```
+
+- **`download` is a bound read.** The validator it returns comes from the same request (S3) or the same open file handle (local), so it describes exactly the bytes in `body` — even if the object is replaced while you read. It never returns bytes without a validator. Without `expect`, it resolves `null` when no object exists and fails with `ERR_STORAGE` (`details.reason: 'validator-unavailable'`) when the object has no usable validator. With `expect`, those two cases fail with `ERR_STORAGE_PRECONDITION` instead (`missing` and `unestablishable`), as the table below shows.
+- **`head` is a change probe, not a provenance source.** The object can change after `head` returns; use `download` when bytes and validator must belong together.
+- **`expect` is fail-closed.** With `expect`, the provider exposes the body only when it has established that the current object carries a token of `expect.kind` equal to `expect.value`. The returned `validator` is always the provider's canonical one and may be of a different kind — an `s3-etag` expectation can match a bucket that has since enabled versioning and return an `s3-version` validator. Otherwise the call fails with `ERR_STORAGE_PRECONDITION` and exposes nothing:
+
+| `details.reason` | Meaning |
+|---|---|
+| `changed` | The object's token of that kind is now different. |
+| `unsupported-kind` | The provider does not issue that kind. Checked before any request. |
+| `unestablishable` | The kind is supported, but the object has no usable token of it — for example an `s3-version` expectation after versioning was suspended. |
+| `missing` | No object exists at the path. |
+
+When a provider lacks one of these capabilities:
+
+| Missing | Effect |
+|---|---|
+| `head` | No cheap change probe. Use `download` with `expect` (it streams only on a match) or re-hash. Uploads, bound reads and the backfill are unaffected. |
+| `download` | No bound reads; backfill and verification refuse to run, so legacy rows stay without identity. New uploads still record `fileHash`. |
+| A validator from `upload` or `move` | Those operations record `fileHash` but no `storageValidator`; detecting a change then needs a re-hash. The backfill does not depend on it — it records the validator `download` returns. |
+
+Each capability stands alone: a provider with only `upload`, `delete` and `getUrl` still gets a `fileHash` on every new upload.
+
+#### Writes, moves and what the guarantee covers
+
+`@byline/storage-local` never modifies a stored file in place: uploads write a new file beside the target and rename it over the path. `move` first renames the source to a private name — which takes exactly the file that is there at that moment — reads its validator, and then renames it onto the destination. Across filesystems (`EXDEV`) it copies to a temporary file beside the destination, renames that into place, and removes only the private copy, so a file uploaded to the source path meanwhile is never deleted. If a move fails before the destination is written, the provider puts the source back, or throws `ERR_STORAGE` naming the path that still holds the content. The local guarantee covers Byline's own writers: a process outside Byline that writes into a stored file in place can change bytes under an open reader.
+
+#### Trust boundary
+
+Byline's admin user interface uploads a file, receives the `StoredFileValue`, and sends it back inside the document on save; the server persists what the client sends, as it already does for `storagePath`. A saved `fileHash` or `storageValidator` is therefore as trustworthy as the editor's write permission on that collection. When you need assurance, re-hash through `download` — the backfill's verify mode does exactly that.
+
+#### Backfill and verification
+
+Files uploaded before content identity shipped have no `fileHash`. `backfillStoredFileIdentity` from the server-only entry `@byline/core/stored-files` fills them, and the reference script `apps/webapp/byline/scripts/backfill-file-identity.ts` wraps it (flags `--verify`, `--collection <path>`, `--dry-run`, `--limit <n>`, `--batch-size <n>`).
+
+- **Fill** (default) selects storage paths with no hash, written by the configured provider (and one collection, with `--collection`). It reads each path once with `download`, hashes it, and records the hash and the bound validator on every row for that path that still has no hash. It never overwrites a recorded hash, so it is idempotent and an interrupted run resumes cleanly. Rows written by another provider are not selected; an installation that has used several providers runs it once with each configured.
+- **Verify** (`--verify`) re-hashes paths that already have a hash and reports each recorded hash as matched or mismatched. It writes nothing.
+- **Legacy-null policy.** A missing object or a read failure leaves the rows without identity and is reported. A provider without `download` makes the run refuse to start.
+- **Historical versions.** Backfill hashes the bytes present now. Where an older version's object was later replaced at the same path, the recorded hash describes the current bytes — which the recorded validator identifies — not the historical ones, which an unversioned store cannot recover.
+
+Storage paths, provider names and recorded digests compare **exactly** (bytes, not collation): `a.pdf` and `a.pdf ` are different paths, and `LOCAL` is not `local`.
+
+#### Persistence
+
+`byline_store_file` stores the hash in `file_hash` and the validator in the pair `storage_validator_kind` (`varchar(32)`) / `storage_validator_value` (`varchar(1024)`), both `NULL` when unknown. Existing installations add the validator columns with the upgrade script `packages/db-postgres/sql/0015_add-stored-file-validator.sql` or `packages/db-mysql/sql/0010_add-stored-file-validator.sql`.
+
 ### Immutable media retention
 
 Byline treats each stored source path and each persisted variant path as part of an immutable
@@ -680,7 +804,7 @@ Persisted `variants` metadata is enough to read the generated objects, but it is
 regeneration recipe. It records names, paths, dimensions, and formats, not every requested bound,
 fit, quality, or processor/version that produced the bytes. Changing `UploadConfig.sizes` does not
 rewrite historical media. [Issue #72](https://github.com/Byline-CMS/bylinecms.dev/issues/72) owns
-the design for recipe persistence, provider-neutral source reads, shared-reference analysis,
+the design for recipe persistence, shared-reference analysis,
 regeneration compatibility, retry/idempotency, and eventual cleanup. Until that design is approved,
 sources and persisted variants have the same indefinite retention behavior.
 
@@ -805,11 +929,12 @@ interface StoredFileValue {
   storageProvider: string
   storagePath: string
   storageUrl?: string
-  fileHash?: string
+  fileHash?: string                     // SHA-256 of the stored bytes; absent when unknown
+  storageValidator?: StorageValidator   // { kind, value } of the stored version; absent when unknown
   imageWidth?: number
   imageHeight?: number
   imageFormat?: string
-  processingStatus: 'pending' | 'complete' | 'error'
+  processingStatus: 'pending' | 'processing' | 'complete' | 'failed'
   thumbnailGenerated?: boolean
   variants?: PersistedVariant[]
 }
@@ -848,10 +973,12 @@ For non-image uploads, `variants` is absent and `imageWidth` / `imageHeight` / `
   the document save is not swept up if the save never happens. On S3 a lifecycle
   rule covers it; the local provider has no equivalent yet.
 - **No reference-safe purge or general regeneration contract.** Soft-deleted sources and variants
-  remain stored because immutable versions and duplicated documents can share their paths.
-  `IStorageProvider` also has no provider-neutral read method, and legacy variant rows do not
-  retain a complete generation recipe. [Issue #72](https://github.com/Byline-CMS/bylinecms.dev/issues/72)
+  remain stored because immutable versions and duplicated documents can share their paths, and
+  legacy variant rows do not retain a complete generation recipe. [Issue #72](https://github.com/Byline-CMS/bylinecms.dev/issues/72)
   tracks the required design.
+- **Variants have no content identity.** `fileHash` and `storageValidator` cover the original
+  object only; generated variants are not hashed.
+- **Content identity is client-supplied on save.** See [Trust boundary](#trust-boundary).
 - **Image constraints are upload-only.** Aspect-ratio, min/max dimensions, and
   required-alt validation are not yet expressible on an image field.
 
@@ -860,7 +987,12 @@ For non-image uploads, `variants` is absent and `imageWidth` / `imageHeight` / `
 | Concern | Location |
 |---|---|
 | Field-level upload service | `packages/core/src/services/field-upload.ts` |
-| Storage provider interface | `packages/core/src/@types/storage-types.ts` |
+| Storage provider interface (incl. `download` / `head`, `StorageValidator`) | `packages/core/src/@types/storage-types.ts` |
+| Content hashing (browser-safe) | `packages/core/src/storage/content-hash.ts` |
+| Stream hashing and backfill (`@byline/core/stored-files`) | `packages/core/src/storage/stored-files-server.ts` |
+| Storage provider conformance suite | `packages/storage-conformance/src/index.ts` |
+| Backfill adapter primitives | `packages/db-postgres/src/modules/storage/stored-files.ts`, `packages/db-mysql/src/modules/storage/stored-files.ts` |
+| Backfill script (reference) | `apps/webapp/byline/scripts/backfill-file-identity.ts` |
 | `BeforeStoreContext` / `AfterStoreContext` types | `packages/core/src/@types/collection-types.ts` |
 | Local storage provider | `packages/storage-local/src/local-storage-provider.ts` |
 | S3 storage provider | `packages/storage-s3/src/` |
