@@ -30,8 +30,10 @@ Rules that apply to every phase:
   pair under `specs/` in the shape of the MCP pair. No implementation starts
   until Tony accepts that phase's spec.
 - **Independently releasable.** Each phase ships on its own and does not
-  depend on a later phase. Phases 1–3 are what the downstream installation
-  consumes first; Phases 4–6 can follow its pilot.
+  depend on a later phase.
+- **Order (Tony, 2026-10-31).** Phase 4 (extraction contracts) next, then
+  Phase 3 (search), Phase 5 (jobs), Phase 6 (embargo), and Phase 2 (MCP)
+  last. The phase numbers are kept so earlier references stay valid.
 - **Two-agent review.** Each phase runs as one coordinated run (`/coordinate`).
   Claude Code implements, and a second agent reviews at the plan's checkpoints.
   Approval names a snapshot. Commits happen only when Tony asks.
@@ -49,12 +51,12 @@ Rules that apply to every phase:
 | Phase | Issues | Status |
 |---|---|---|
 | 0 — Anthropic structured outputs | #104 | **Done** — `9eeac5ec`, issue closed |
-| 1 — Stored-file content identity | #85 (#72 only where hashing touches it) | Implemented and reviewed through checkpoint 3; docs at checkpoint 4; uncommitted on `feat/stored-file-identity-85` |
-| 2 — Native MCP server, read-only phase 1 | #12 | Not started |
-| 3 — Search `where`, facets and locale discovery | #6, #81, #76 | Not started |
-| 4 — Extraction contracts in core | #5 | Not started — after downstream pilot preferred |
-| 5 — Jobs-table pattern on the scheduler | new issue | Not started |
-| 6 — Embargo as an access state (spec only) | new issue | Not started |
+| 1 — Stored-file content identity | #85 (#72 only where hashing touches it) | **Done** — released in v6.12.0, #85 closed; receipts follow in #108 |
+| 4 — Extraction contracts in core | #5 | **In progress** — spec revision 3 and all eight decisions accepted 2026-10-31 |
+| 3 — Search `where`, facets and locale discovery | #6, #81, #76 | Not started — second |
+| 5 — Jobs-table pattern on the scheduler | new issue | Not started — third |
+| 6 — Embargo as an access state (spec only) | new issue | Not started — fourth |
+| 2 — Native MCP server, read-only phase 1 | #12 | Not started — last |
 
 ## Phase 0 — Anthropic structured outputs (#104) — done
 
@@ -166,37 +168,55 @@ Tasks:
 - [ ] 3.2 Core types in `search-types.ts`; `@byline/client` forwarding and
       validation (closes the "search `where` unvalidated" follow-up from
       6.10.1).
+- [ ] 3.2a String-typed filter fields with `$in`, including a large-list
+      form for allow-lists of thousands of keys, and `where` on document id;
+      portable across both built-in providers, each behind a capability.
+      Needed by the durable exclusion level in the extraction spec §8.2.
+- [ ] 3.2b `SearchQuery.returnFields` (declared filter fields only) and
+      `SearchHit.fields`, behind a `returnFields` capability, forwarded
+      unchanged through `@byline/client` hydration.
+- [ ] 3.2c Stale-write prevention on upsert: an optional `expectedVersion`
+      (or provider-native optimistic token) raising a typed stale-write
+      error when superseded, an explicit commit where the provider needs it,
+      and an existence probe, so a host can tell acknowledgement from
+      searchable visibility.
 - [ ] 3.3 `search-postgres` implementation.
 - [ ] 3.4 `search-mysql` implementation.
-- [ ] 3.5 `search-conformance` suites for filters, facets and capabilities,
-      run against both databases. **Checkpoint 2.**
+- [ ] 3.5 `search-conformance` suites for filters (including string `$in`,
+      the large-list form and document id), facets, `returnFields`,
+      stale-write refusal and the existence probe, and capabilities, run
+      against both databases. **Checkpoint 2.**
 - [ ] 3.6 Locale discovery and result-scope separation in at least one
       built-in provider, with the other provider declaring the capability
       honestly. **Checkpoint 3.**
 - [ ] 3.7 Docs, changeset, adoption note. **Checkpoint 4.**
 
-## Phase 4 — Extraction contracts in core (#5)
+## Phase 4 — Extraction contracts in core (#5) — next
 
 Goal: move the provider-neutral extraction contracts the downstream prototype
 keeps in its own extractor package into `@byline/core`, beside
-`search-types.ts`, marked provisional and schema-versioned.
+`search-types.ts`, marked provisional and schema-versioned; ship the generic
+source-verification guarantees around them; and specify the lifecycle
+(saved, derived and projected outcomes, retention versus eligibility,
+promotion fencing, legacy migration) without implementing the store, worker
+or admin surfaces. Spec: `2026-10-31-extraction-contracts-spec.md`; plan:
+`2026-10-31-extraction-contracts-plan.md`.
 
 Tasks:
 
-- [ ] 4.1 Spec and plan: `ExtractionProvider`, `ExtractionInput`,
-      `ExtractionResult`, `ExtractionMetadata`, `RoutingSignals`,
-      `ExtractorCapabilities`, typed `ExtractionProviderError`
-      (`failureScope`, `retryable`), and `ExtractionArtifact` with provisional
-      `pageMap` version 1. Page maps stay provisional and evidence-based: a
-      provider declares how it derived page boundaries, and the contract does
-      not treat a map as authoritative provenance. Document the store and join boundary without
-      implementing it. Reconcile #5. **Checkpoint 1.**
-- [ ] 4.2 Types in core with JSDoc and runtime guards.
-- [ ] 4.3 Provider conformance kit: honest capabilities, typed failures,
-      contiguous `pageMap` coverage. Contiguous coverage is a structural check
-      only; it does not prove the boundaries are correct, and the docs must say
-      so. **Checkpoint 2.**
-- [ ] 4.4 Docs, changeset, adoption note. **Checkpoint 3.**
+- [x] 4.1 Spec and plan, reconciled with the downstream identity and
+      lifecycle policy (revision 8) and the second-pass review; reconcile #5.
+      **Checkpoint 1** — revision 3 accepted by Tony, 2026-10-31.
+- [ ] 4.2 Provider types, typed failures, artifact and page map v1 with
+      structural validators, producer hash, evidence validator and work
+      decision (plan Stage 1, checkpoint 2); verified source read and probe
+      with storage conformance (plan Stage 2, checkpoint 3).
+- [ ] 4.3 Published provider conformance kit with sentinel page-map
+      verification and dishonest-fake self-tests. Structural page-map
+      validity is not provenance; only sentinels are (plan Stage 3,
+      checkpoint 4).
+- [ ] 4.4 Docs, changeset, issue updates, adoption note (plan Stage 4,
+      checkpoint 5).
 
 ## Phase 5 — Jobs-table pattern on the scheduler
 
@@ -240,4 +260,6 @@ Tasks:
 | Date | Work | Commits |
 |---|---|---|
 | 2026-10-31 | Phase 0 fixed and #104 closed; roadmap written; Phase 1 coordinated run started; brief author's corrections folded in (MCP scope, page-map provenance, scheduler token, bytes-validator binding) | `9eeac5ec` |
-| 2026-10-31 | Phase 1 implemented (Stages 1–4): content hash and validator, bound reads, atomic local writes, storage conformance (RustFS in CI), validator columns, Postgres `variants` fix, backfill/verify; checkpoints 1–3 approved | uncommitted |
+| 2026-10-31 | Phase 1 implemented (Stages 1–4): content hash and validator, bound reads, atomic local writes, storage conformance (RustFS in CI), validator columns, Postgres `variants` fix, backfill/verify; checkpoints 1–3 approved | `b858dc15`, `242346ca`, `f9f8374b`, `1271c7fb` |
+| 2026-10-31 | Release squash, `drizzle:rekey` helper, v6.12.0 released; #85 closed, #108 opened. Phase order changed: extraction contracts next, MCP last. Downstream adoption of 6.12.0 completed first | `96e3d1aa`, `00e08b10`, `59be4cae`, `e3075ca9` |
+| 2026-10-31 | Phase 4 spec and plan drafted against the downstream identity and lifecycle policy; three manual review rounds; revision 3 and decisions 1–8 accepted; plan made self-contained for handover. Next: Stage 1 in a new session | uncommitted |
