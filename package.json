@@ -15,6 +15,8 @@
     "docs:check": "pnpm --filter @byline/webapp docs:check",
     "drizzle:generate": "turbo run drizzle:generate",
     "drizzle:migrate": "turbo run drizzle:migrate",
+    "drizzle:rekey": "turbo run drizzle:rekey",
+    "drizzle:rekey:test": "turbo run drizzle:rekey:test",
     "build": "turbo run build",
     "build:packages": "turbo run build --filter=\"./packages/*\"",
     "preview": "turbo run preview",

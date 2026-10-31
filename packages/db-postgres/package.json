@@ -34,6 +34,8 @@
     "db:init": "cd src/database && ./db_init.sh",
     "drizzle:generate": "tsc -p tsconfig.json && drizzle-kit generate --config=drizzle.config.ts",
     "drizzle:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
+    "drizzle:rekey": "node --env-file-if-exists=.env scripts/drizzle-rekey.mjs",
+    "drizzle:rekey:test": "node --env-file-if-exists=.env.test scripts/drizzle-rekey.mjs",
     "drizzle:push": "tsc -p tsconfig.json && drizzle-kit push --config=drizzle.config.ts",
     "drizzle:drop": "drizzle-kit drop --config=drizzle.config.ts",
     "drizzle:seed": "tsx --no-warnings --env-file=.env ./src/database/seeds/index.ts",
