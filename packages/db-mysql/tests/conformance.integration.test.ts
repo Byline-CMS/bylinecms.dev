@@ -38,6 +38,7 @@ import { createSchedulerStore } from '../src/modules/scheduler/scheduler-store.j
 import { classifyError } from '../src/modules/storage/classify-error.js'
 import { DocumentRevisions } from '../src/modules/storage/document-revisions.js'
 import { SingletonCommands, SingletonQueries } from '../src/modules/storage/singletons.js'
+import { StoredFileCommands, StoredFileQueries } from '../src/modules/storage/stored-files.js'
 
 function getConnectionString(): string {
   const connectionString = process.env.BYLINE_DB_MYSQL_CONNECTION_STRING
@@ -90,6 +91,7 @@ runAdapterConformanceSuite({
         counters: counterCommands,
         audit: auditCommands,
         singletons: singletonCommands,
+        storedFiles: new StoredFileCommands(testDb.dbManager),
       },
       queries: {
         // `testDb.queryBuilders.collections` fully implements
@@ -101,6 +103,7 @@ runAdapterConformanceSuite({
         documents: testDb.queryBuilders.documents,
         audit: auditQueries,
         singletons: singletonQueries,
+        storedFiles: new StoredFileQueries(testDb.dbManager),
       },
       withTransaction: (fn) => testDb.txManager.withTransaction(fn),
       withReadSnapshot: createReadSnapshot(testDb.db, collections, 'en'),

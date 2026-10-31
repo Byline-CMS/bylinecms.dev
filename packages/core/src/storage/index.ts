@@ -7,6 +7,7 @@
  */
 
 export { fingerprintCollection } from './collection-fingerprint.js'
+export { CONTENT_HASH_PATTERN, isSameStorageValidator } from './content-hash.js'
 export {
   assertDocumentVersionParent,
   type DocumentVersionParentAssertion,

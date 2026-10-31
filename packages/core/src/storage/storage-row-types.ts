@@ -63,6 +63,8 @@ interface FlattenedFileFieldValue extends BaseFlattenedFieldData {
   storage_path: string
   storage_url?: string
   file_hash?: string
+  storage_validator_kind?: string
+  storage_validator_value?: string
   image_width?: number
   image_height?: number
   image_format?: string
@@ -136,6 +138,8 @@ export interface UnifiedFieldValue {
   storage_path: string | null
   storage_url: string | null
   file_hash: string | null
+  storage_validator_kind: string | null
+  storage_validator_value: string | null
   image_width: number | null
   image_height: number | null
   image_format: string | null

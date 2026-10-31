@@ -65,6 +65,9 @@ export interface FileStore extends BaseStore {
   storage_path: string
   storage_url?: string
   file_hash?: string
+  /** Storage validator, persisted as a pair; both null when unknown. */
+  storage_validator_kind?: string
+  storage_validator_value?: string
   image_width?: number
   image_height?: number
   image_format?: string

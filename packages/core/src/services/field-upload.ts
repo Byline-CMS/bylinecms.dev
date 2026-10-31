@@ -12,6 +12,7 @@ import { isSingleton, resolveUploadHooks } from '../@types/index.js'
 import { assertActorCanPerform } from '../auth/assert-actor-can-perform.js'
 import { ERR_DATABASE, ERR_STORAGE, ERR_VALIDATION } from '../lib/errors.js'
 import { withLogContext } from '../lib/logger.js'
+import { sha256Hex } from '../storage/content-hash.js'
 import { type FilenameSlugifierFn, resolveUploadFilename } from '../utils/slugify-filename.js'
 import {
   createDocument,
@@ -421,6 +422,26 @@ export async function uploadField(
       //    `targetStoragePath`, which providers write verbatim (no UUID
       //    prefix / key derivation) — variants still derive sibling paths
       //    from the resulting `storedFile.storagePath`.
+      // -- Content identity. The upload arrives as an in-memory buffer, so
+      //    hashing it reads no bytes from storage. Providers store bytes
+      //    verbatim, so this is also the hash of the stored original.
+      if (buffer.length !== fileSize) {
+        throw ERR_VALIDATION(
+          {
+            message: `Upload is ${buffer.length} bytes but declared ${fileSize} bytes.`,
+            details: {
+              collectionPath,
+              fieldName,
+              reason: 'size-mismatch',
+              actualSize: buffer.length,
+              declaredSize: fileSize,
+            },
+          },
+          uploadField
+        ).log(logger)
+      }
+      const fileHash = await sha256Hex(buffer)
+
       let storedFile: StoredFileLocation
       try {
         storedFile = await storage.upload(buffer, {
@@ -493,7 +514,8 @@ export async function uploadField(
         storageProvider: storedFile.storageProvider,
         storagePath: storedFile.storagePath,
         storageUrl: storedFile.storageUrl ?? undefined,
-        fileHash: undefined,
+        fileHash,
+        ...(storedFile.storageValidator && { storageValidator: storedFile.storageValidator }),
         imageWidth: imageMeta.width ?? undefined,
         imageHeight: imageMeta.height ?? undefined,
         imageFormat: imageMeta.format ?? undefined,

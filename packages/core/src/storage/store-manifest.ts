@@ -160,6 +160,16 @@ export const storeColumnManifest: ColumnDef[] = [
     sources: { file: 'file_hash' },
   },
   {
+    name: 'storage_validator_kind',
+    nullCast: 'varchar',
+    sources: { file: 'storage_validator_kind' },
+  },
+  {
+    name: 'storage_validator_value',
+    nullCast: 'varchar',
+    sources: { file: 'storage_validator_value' },
+  },
+  {
     name: 'image_width',
     nullCast: 'integer',
     sources: { file: 'image_width' },

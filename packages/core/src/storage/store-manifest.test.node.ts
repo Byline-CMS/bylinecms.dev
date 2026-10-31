@@ -19,7 +19,7 @@ import { storeColumnManifest, storeTableNames } from './store-manifest.js'
  */
 describe('store-manifest', () => {
   it('pins the manifest column count', () => {
-    expect(storeColumnManifest.length).toBe(39)
+    expect(storeColumnManifest.length).toBe(41)
   })
 
   it('pins the manifest column order', () => {
@@ -47,6 +47,8 @@ describe('store-manifest', () => {
       'storage_path',
       'storage_url',
       'file_hash',
+      'storage_validator_kind',
+      'storage_validator_value',
       'image_width',
       'image_height',
       'image_format',
@@ -117,6 +119,8 @@ describe('store-manifest', () => {
       'storage_path',
       'storage_url',
       'file_hash',
+      'storage_validator_kind',
+      'storage_validator_value',
       'image_width',
       'image_height',
       'image_format',

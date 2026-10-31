@@ -326,6 +326,8 @@ const flattenValueFieldData = (
         storage_path: v.storagePath,
         storage_url: v.storageUrl,
         file_hash: v.fileHash,
+        storage_validator_kind: v.storageValidator?.kind,
+        storage_validator_value: v.storageValidator?.value,
         image_width: v.imageWidth,
         image_height: v.imageHeight,
         image_format: v.imageFormat,

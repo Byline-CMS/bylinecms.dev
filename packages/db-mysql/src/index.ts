@@ -24,6 +24,7 @@ import { createReadSnapshot } from './modules/storage/read-snapshot.js'
 import { SingletonCommands, SingletonQueries } from './modules/storage/singletons.js'
 import { createCommandBuilders } from './modules/storage/storage-commands.js'
 import { createQueryBuilders } from './modules/storage/storage-queries.js'
+import { StoredFileCommands, StoredFileQueries } from './modules/storage/stored-files.js'
 
 /**
  * Public return type of `mysqlAdapter`. Extends `IDbAdapter` with concrete
@@ -224,6 +225,7 @@ export const mysqlAdapter = ({
       // see `./modules/audit/audit-commands.js`.
       audit: auditCommands,
       singletons: singletonCommands,
+      storedFiles: new StoredFileCommands(dbManager),
     },
     queries: {
       // `queryBuilders.collections` fully implements `ICollectionQueries`
@@ -236,6 +238,7 @@ export const mysqlAdapter = ({
       // `./modules/audit/audit-queries.js`.
       audit: auditQueries,
       singletons: singletonQueries,
+      storedFiles: new StoredFileQueries(dbManager),
     },
     withTransaction: (fn) => txManager.withTransaction(fn),
     withReadSnapshot: createReadSnapshot(db, collections, defaultContentLocale),

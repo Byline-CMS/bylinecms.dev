@@ -4,6 +4,7 @@ import type { CollectionDefinition } from '@byline/core'
 import type { DbErrorClassification } from '../lib/errors.js'
 import type { ISchedulerStore } from '../scheduler/types.js'
 import type { DocumentRevisionStore } from './document-revision.js'
+import type { StorageValidator } from './storage-types.js'
 
 /**
  * Read mode for document queries.
@@ -272,6 +273,11 @@ export interface IDbAdapter {
     audit: IAuditCommands
     /** Singleton slot → document mapping writes. */
     singletons: ISingletonCommands
+    /**
+     * Stored-file identity maintenance (backfill). Optional: an adapter
+     * without it cannot run `backfillStoredFileIdentity`.
+     */
+    storedFiles?: IStoredFileCommands
   }
   queries: {
     collections: ICollectionQueries
@@ -280,6 +286,8 @@ export interface IDbAdapter {
     audit: IAuditQueries
     /** Singleton slot → document mapping reads. */
     singletons: ISingletonQueries
+    /** Stored-file identity maintenance reads (backfill). Optional. */
+    storedFiles?: IStoredFileQueries
   }
   /**
    * Run `fn` inside a single database transaction so the
@@ -584,6 +592,67 @@ export interface ISingletonQueries {
    * `null` is the normal pre-materialisation state, not an error.
    */
   getMappedDocumentId(collectionId: string): Promise<string | null>
+}
+
+/**
+ * Selection for `IStoredFileQueries.listStoredFilePaths`. `limit` counts
+ * distinct storage paths, never rows or hash groups, so one path's groups are
+ * never split across pages.
+ */
+export interface ListStoredFilePathsParams {
+  /** Only rows written by this provider (`byline_store_file.storage_provider`). */
+  storageProvider: string
+  /** Only rows of this collection, when set. */
+  collectionId?: string
+  /** `'missing'`: rows with no content hash. `'present'`: rows with one. */
+  identity: 'missing' | 'present'
+  /** Keyset cursor: only paths ordered strictly after this one. */
+  afterPath?: string
+  /** Maximum number of distinct paths to return. */
+  limit: number
+}
+
+/** One storage path and, for `identity: 'present'`, every recorded hash on it. */
+export interface StoredFilePathGroup {
+  storagePath: string
+  /**
+   * Distinct recorded hashes on this path with the number of rows carrying
+   * each. Empty for `identity: 'missing'`. More than one entry means older
+   * versions recorded bytes that were later replaced at the same path.
+   */
+  hashes: Array<{ fileHash: string; rowCount: number }>
+}
+
+/**
+ * Maintenance reads over `byline_store_file` for stored-file identity
+ * backfill and verification. Direct storage primitives: they bypass
+ * collection auth and hooks, like every `db.queries.*` call.
+ */
+export interface IStoredFileQueries {
+  /**
+   * Distinct storage paths in ascending byte order. Paths, provider names and
+   * digests compare exactly — bytes, not collation: paths that differ only in
+   * case, accents or trailing spaces are distinct, and `'LOCAL'` is not
+   * `'local'`. Adapters must not apply case folding or space padding.
+   */
+  listStoredFilePaths(params: ListStoredFilePathsParams): Promise<StoredFilePathGroup[]>
+}
+
+/** Maintenance writes over `byline_store_file` for stored-file identity backfill. */
+export interface IStoredFileCommands {
+  /**
+   * Record `fileHash` and `storageValidator` on every row for this provider
+   * and path (and collection, when set) whose `file_hash` is still NULL.
+   * Never overwrites a recorded hash, so repeating it is harmless. Returns the
+   * number of rows updated.
+   */
+  setIdentityForPath(params: {
+    storageProvider: string
+    storagePath: string
+    collectionId?: string
+    fileHash: string
+    storageValidator: StorageValidator
+  }): Promise<number>
 }
 
 /** Locked structural state returned by tree mutation commands. */

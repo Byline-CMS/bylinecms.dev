@@ -162,6 +162,7 @@ export const ErrorCodes = {
   DATABASE: 'ERR_DATABASE',
   LOCK_CONFLICT: 'ERR_LOCK_CONFLICT',
   STORAGE: 'ERR_STORAGE',
+  STORAGE_PRECONDITION: 'ERR_STORAGE_PRECONDITION',
   READ_BUDGET_EXCEEDED: 'ERR_READ_BUDGET_EXCEEDED',
   READ_RECURSION: 'ERR_READ_RECURSION',
   PATH_CONFLICT: 'ERR_PATH_CONFLICT',
@@ -228,6 +229,13 @@ export function getLockConflictDetails(error: unknown): {
   }
 }
 export const ERR_STORAGE = createErrorType(ErrorCodes.STORAGE)
+/**
+ * A storage read precondition (`IStorageProvider.download` `expect`) was not
+ * established. `details.reason` is a `StoragePreconditionReason`: a proven
+ * change (`changed`) is distinct from an expectation that could not be checked
+ * (`unsupported-kind`, `unestablishable`) and from a missing object.
+ */
+export const ERR_STORAGE_PRECONDITION = createErrorType(ErrorCodes.STORAGE_PRECONDITION, 'warn')
 export const ERR_READ_BUDGET_EXCEEDED = createErrorType(ErrorCodes.READ_BUDGET_EXCEEDED)
 export const ERR_READ_RECURSION = createErrorType(ErrorCodes.READ_RECURSION)
 /**

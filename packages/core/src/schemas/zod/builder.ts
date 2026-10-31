@@ -2,6 +2,7 @@ import * as z from 'zod'
 
 import { REQUIRED_WORKFLOW_STATUSES } from '../../@types/index.js'
 import { getCollectionDefinition } from '../../config/config.js'
+import { CONTENT_HASH_PATTERN, STORAGE_VALIDATOR_LIMITS } from '../../storage/content-hash.js'
 import type {
   CodeField,
   CollectionDefinition,
@@ -207,7 +208,15 @@ export const fieldToZodSchema = (field: Field, strict = true): z.ZodType => {
           storageProvider: z.string(),
           storagePath: z.string(),
           storageUrl: z.string().nullable().optional(),
-          fileHash: z.string().nullable().optional(),
+          // Content identity: absent when unknown, never an empty string.
+          fileHash: z.string().regex(CONTENT_HASH_PATTERN).nullable().optional(),
+          storageValidator: z
+            .object({
+              kind: z.string().min(1).max(STORAGE_VALIDATOR_LIMITS.kind),
+              value: z.string().min(1).max(STORAGE_VALIDATOR_LIMITS.value),
+            })
+            .nullable()
+            .optional(),
           imageWidth: z.number().nullable().optional(),
           imageHeight: z.number().nullable().optional(),
           imageFormat: z.string().nullable().optional(),

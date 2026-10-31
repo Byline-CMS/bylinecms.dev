@@ -35,6 +35,7 @@ import {
   type ReAnchorResult,
 } from './modules/storage/storage-commands.js'
 import { createQueryBuilders } from './modules/storage/storage-queries.js'
+import { StoredFileCommands, StoredFileQueries } from './modules/storage/stored-files.js'
 
 export type {
   ReAnchorReport,
@@ -292,11 +293,13 @@ export const pgAdapter = ({
       counters: counterCommands,
       audit: auditCommands,
       singletons: singletonCommands,
+      storedFiles: new StoredFileCommands(dbManager),
     },
     queries: {
       ...queryBuilders,
       audit: auditQueries,
       singletons: singletonQueries,
+      storedFiles: new StoredFileQueries(dbManager),
     },
     withTransaction: (fn) => txManager.withTransaction(fn),
     withReadSnapshot: createReadSnapshot(db, collections, defaultContentLocale),

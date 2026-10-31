@@ -2956,6 +2956,8 @@ export class DocumentQueries implements IDocumentQueries {
             storage_path: row.storage_path,
             storage_url: row.storage_url,
             file_hash: row.file_hash,
+            storage_validator_kind: row.storage_validator_kind,
+            storage_validator_value: row.storage_validator_value,
             image_width: row.image_width,
             image_height: row.image_height,
             image_format: row.image_format,

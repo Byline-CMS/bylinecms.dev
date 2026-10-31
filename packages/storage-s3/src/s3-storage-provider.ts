@@ -13,13 +13,25 @@ import { Readable } from 'node:stream'
 import {
   CopyObjectCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
+  type GetObjectCommandOutput,
   HeadObjectCommand,
   type ObjectCannedACL,
   S3Client,
   type S3ClientConfig,
 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
-import type { IStorageProvider, StoredFileLocation, UploadFileOptions } from '@byline/core'
+import type {
+  IStorageProvider,
+  StorageDownloadOptions,
+  StoragePreconditionReason,
+  StorageValidator,
+  StoredFileLocation,
+  StoredObjectHead,
+  StoredObjectRead,
+  UploadFileOptions,
+} from '@byline/core'
+import { ERR_STORAGE, ERR_STORAGE_PRECONDITION } from '@byline/core'
 import { v4 as uuidv4 } from 'uuid'
 
 // ---------------------------------------------------------------------------
@@ -205,6 +217,90 @@ function toReadable(stream: NodeJS.ReadableStream | Buffer): Readable {
   return stream as Readable
 }
 
+// ---------------------------------------------------------------------------
+// Validators
+// ---------------------------------------------------------------------------
+
+/** Validator kinds issued by this provider. */
+export const S3_VERSION_KIND = 's3-version'
+export const S3_ETAG_KIND = 's3-etag'
+
+/** Response fields a validator can be selected from. */
+interface ValidatorSource {
+  VersionId?: string | undefined
+  ETag?: string | undefined
+}
+
+/** A `VersionId` that identifies one version. `"null"` never does. */
+function usableVersionId(versionId: string | undefined): string | undefined {
+  return versionId && versionId !== 'null' ? versionId : undefined
+}
+
+/**
+ * A strong ETag without its surrounding quotes. A weak ETag (`W/"…"`) is
+ * unusable: weak tags may stay equal across different bytes (RFC 9110
+ * §8.8.1), so they cannot bind an exact-byte read.
+ */
+function strongEtag(etag: string | undefined): string | undefined {
+  if (!etag || etag.startsWith('W/')) return undefined
+  const trimmed = etag.replace(/^"(.*)"$/, '$1')
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+/**
+ * The one validator-selection rule for every S3 response (upload, copy,
+ * GetObject, HeadObject): a usable `VersionId`, else a strong `ETag`, else
+ * none. Weak ETags are never used.
+ *
+ * In a bucket that was never versioned, or whose versioning is suspended, S3
+ * reports the literal version id `"null"`. Successive writes to one key in a
+ * suspended bucket keep that `"null"` id while the bytes change, so it never
+ * identifies a version and falls through to the ETag.
+ */
+export function selectS3Validator(source: ValidatorSource): StorageValidator | undefined {
+  const versionId = usableVersionId(source.VersionId)
+  if (versionId) return { kind: S3_VERSION_KIND, value: versionId }
+  const etag = strongEtag(source.ETag)
+  if (etag) return { kind: S3_ETAG_KIND, value: etag }
+  return undefined
+}
+
+function isNotFound(err: unknown): boolean {
+  const name = (err as { name?: string }).name
+  const status = (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode
+  return name === 'NotFound' || name === 'NoSuchKey' || status === 404
+}
+
+function isPreconditionFailed(err: unknown): boolean {
+  const name = (err as { name?: string }).name
+  const status = (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode
+  return name === 'PreconditionFailed' || status === 412
+}
+
+function preconditionFailed(
+  reason: StoragePreconditionReason,
+  storagePath: string,
+  expect: StorageValidator,
+  actual?: StorageValidator
+) {
+  return ERR_STORAGE_PRECONDITION({
+    message: `Storage precondition failed for '${storagePath}' (${reason}).`,
+    details: { reason, storagePath, expect, ...(actual && { actual }) },
+  })
+}
+
+function validatorUnavailable(storagePath: string) {
+  return ERR_STORAGE({
+    message: `S3 returned no usable validator (version id or ETag) for '${storagePath}'.`,
+    details: { reason: 'validator-unavailable', storagePath },
+  })
+}
+
+function disposeBody(body: unknown): void {
+  const destroyable = body as { destroy?: () => void } | undefined
+  destroyable?.destroy?.()
+}
+
 function resolveMetadata(
   supplier: S3MetadataSupplier | undefined,
   options: UploadFileOptions
@@ -288,12 +384,14 @@ class S3StorageProvider implements IStorageProvider {
       },
     })
 
-    await upload.done()
+    const result = (await upload.done()) as ValidatorSource
+    const storageValidator = selectS3Validator(result)
 
     return {
       storageProvider: this.providerName,
       storagePath: objectKey,
       storageUrl: this.getUrl(objectKey),
+      ...(storageValidator && { storageValidator }),
     }
   }
 
@@ -318,7 +416,7 @@ class S3StorageProvider implements IStorageProvider {
     // re-apply the configured canned ACL when one is set.
     // Note: CopySource must be URL-encoded (keys may contain characters
     // that are significant in the `<bucket>/<key>` source string).
-    await this.client.send(
+    const copied = await this.client.send(
       new CopyObjectCommand({
         Bucket: this.bucket,
         CopySource: encodeURIComponent(`${this.bucket}/${fromPath}`),
@@ -333,10 +431,110 @@ class S3StorageProvider implements IStorageProvider {
       })
     )
 
+    const storageValidator = selectS3Validator({
+      VersionId: copied.VersionId,
+      ETag: copied.CopyObjectResult?.ETag,
+    })
     return {
       storageProvider: this.providerName,
       storagePath: toPath,
       storageUrl: this.getUrl(toPath),
+      ...(storageValidator && { storageValidator }),
+    }
+  }
+
+  async download(
+    storagePath: string,
+    options?: StorageDownloadOptions
+  ): Promise<StoredObjectRead | null> {
+    const expect = options?.expect
+    if (expect && expect.kind !== S3_VERSION_KIND && expect.kind !== S3_ETAG_KIND) {
+      throw preconditionFailed('unsupported-kind', storagePath, expect)
+    }
+
+    let response: GetObjectCommandOutput
+    try {
+      response = await this.client.send(
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: storagePath,
+          // Let S3 refuse a changed object before sending any bytes. The
+          // response ETag is still checked below, so a store that ignores
+          // If-Match fails closed too.
+          ...(expect?.kind === S3_ETAG_KIND && { IfMatch: `"${expect.value}"` }),
+        }),
+        options?.signal ? { abortSignal: options.signal } : undefined
+      )
+    } catch (err: unknown) {
+      if (isNotFound(err)) {
+        if (expect) throw preconditionFailed('missing', storagePath, expect)
+        return null
+      }
+      if (expect && isPreconditionFailed(err)) {
+        throw preconditionFailed('changed', storagePath, expect)
+      }
+      throw err
+    }
+
+    // Validator and body come from the same GetObject response, so they
+    // describe the same object version.
+    const body = response.Body
+    const validator = selectS3Validator(response)
+
+    if (expect) {
+      const token =
+        expect.kind === S3_VERSION_KIND
+          ? usableVersionId(response.VersionId)
+          : strongEtag(response.ETag)
+      if (token === undefined) {
+        disposeBody(body)
+        throw preconditionFailed('unestablishable', storagePath, expect, validator)
+      }
+      if (token !== expect.value) {
+        disposeBody(body)
+        throw preconditionFailed('changed', storagePath, expect, validator)
+      }
+    }
+    if (!validator) {
+      disposeBody(body)
+      throw validatorUnavailable(storagePath)
+    }
+    if (!body) {
+      throw ERR_STORAGE({
+        message: `S3 returned no body for '${storagePath}'.`,
+        details: { reason: 'empty-response', storagePath },
+      })
+    }
+    if (options?.signal?.aborted) {
+      disposeBody(body)
+      options.signal.throwIfAborted()
+    }
+
+    return {
+      body: body as NodeJS.ReadableStream,
+      validator,
+      ...(response.ContentLength !== undefined && { size: response.ContentLength }),
+    }
+  }
+
+  async head(storagePath: string): Promise<StoredObjectHead | null> {
+    let response: { ETag?: string; VersionId?: string; ContentLength?: number }
+    try {
+      response = await this.client.send(
+        new HeadObjectCommand({
+          Bucket: this.bucket,
+          Key: storagePath,
+        })
+      )
+    } catch (err: unknown) {
+      if (isNotFound(err)) return null
+      throw err
+    }
+    const validator = selectS3Validator(response)
+    if (!validator) throw validatorUnavailable(storagePath)
+    return {
+      validator,
+      ...(response.ContentLength !== undefined && { size: response.ContentLength }),
     }
   }
 
@@ -366,11 +564,7 @@ class S3StorageProvider implements IStorageProvider {
       )
       return true
     } catch (err: unknown) {
-      const name = (err as { name?: string }).name
-      const status = (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode
-      if (name === 'NotFound' || name === 'NoSuchKey' || status === 404) {
-        return false
-      }
+      if (isNotFound(err)) return false
       throw err
     }
   }

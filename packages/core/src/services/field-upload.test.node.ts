@@ -783,3 +783,63 @@ describe('uploadField service', () => {
     expect(del).toHaveBeenNthCalledWith(3, 'media/card.webp')
   })
 })
+
+describe('uploadField content identity', () => {
+  it('records the SHA-256 of the uploaded bytes and the provider validator', async () => {
+    const { ctx, upload } = buildCtx()
+    upload.mockResolvedValueOnce({
+      storageProvider: 'local',
+      storagePath: 'media/original.png',
+      storageUrl: '/uploads/media/original.png',
+      storageValidator: { kind: 'local-stat', value: '1:2:3:3' },
+    })
+    const { createHash } = await import('node:crypto')
+    const expected = createHash('sha256').update(Buffer.from('png')).digest('hex')
+
+    const result = await uploadField(ctx, {
+      buffer: Buffer.from('png'),
+      originalFilename: 'hero.png',
+      mimeType: 'image/png',
+      fileSize: 3,
+      shouldCreateDocument: false,
+    })
+
+    expect(result.storedFile.fileHash).toBe(expected)
+    expect(result.storedFile.fileHash).toMatch(/^[0-9a-f]{64}$/)
+    expect(result.storedFile.storageValidator).toEqual({ kind: 'local-stat', value: '1:2:3:3' })
+  })
+
+  it('omits storageValidator when the provider issues none, but still records the hash', async () => {
+    const { ctx } = buildCtx()
+
+    const result = await uploadField(ctx, {
+      buffer: Buffer.from('png'),
+      originalFilename: 'hero.png',
+      mimeType: 'image/png',
+      fileSize: 3,
+      shouldCreateDocument: false,
+    })
+
+    expect(result.storedFile.fileHash).toMatch(/^[0-9a-f]{64}$/)
+    expect('storageValidator' in result.storedFile).toBe(false)
+  })
+
+  it('rejects a buffer whose length differs from the declared size before writing bytes', async () => {
+    const { ctx, upload, storedPaths } = buildCtx()
+
+    await expect(
+      uploadField(ctx, {
+        buffer: Buffer.from('png'),
+        originalFilename: 'hero.png',
+        mimeType: 'image/png',
+        fileSize: 4,
+        shouldCreateDocument: false,
+      })
+    ).rejects.toMatchObject({
+      code: ErrorCodes.VALIDATION,
+      details: expect.objectContaining({ reason: 'size-mismatch', actualSize: 3, declaredSize: 4 }),
+    })
+    expect(upload).not.toHaveBeenCalled()
+    expect(storedPaths.size).toBe(0)
+  })
+})

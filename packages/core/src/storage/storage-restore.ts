@@ -465,7 +465,17 @@ const extractValueFieldData = (data: FlattenedFieldValue): unknown => {
         storageProvider: data.storage_provider,
         storagePath: data.storage_path,
         storageUrl: data.storage_url,
-        fileHash: data.file_hash,
+        // Content identity is omitted, never null or '', when unknown. The
+        // validator is restored only as a complete pair.
+        ...(data.file_hash ? { fileHash: data.file_hash } : {}),
+        ...(data.storage_validator_kind && data.storage_validator_value
+          ? {
+              storageValidator: {
+                kind: data.storage_validator_kind,
+                value: data.storage_validator_value,
+              },
+            }
+          : {}),
         imageWidth: data.image_width,
         imageHeight: data.image_height,
         imageFormat: data.image_format,
@@ -554,6 +564,8 @@ export const extractFlattenedFieldValue = (
         storage_path: unifiedValue.storage_path as string,
         storage_url: orUndefined(unifiedValue.storage_url),
         file_hash: orUndefined(unifiedValue.file_hash),
+        storage_validator_kind: orUndefined(unifiedValue.storage_validator_kind),
+        storage_validator_value: orUndefined(unifiedValue.storage_validator_value),
         image_width: orUndefined(unifiedValue.image_width),
         image_height: orUndefined(unifiedValue.image_height),
         image_format: orUndefined(unifiedValue.image_format),

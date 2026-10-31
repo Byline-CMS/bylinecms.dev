@@ -460,3 +460,81 @@ describe('virtual fields', () => {
     expect(items[0]?.filesGroup.thumbnailPage).toBeUndefined()
   })
 })
+
+describe('stored-file content identity round trip', () => {
+  const FilesCollection = defineCollection({
+    path: 'identity-files',
+    labels: { singular: 'File', plural: 'Files' },
+    fields: [{ name: 'attachment', label: 'Attachment', type: 'file' }],
+  })
+  const baseFile = {
+    fileId: 'file-1',
+    filename: 'report.pdf',
+    originalFilename: 'Report.pdf',
+    mimeType: 'application/pdf',
+    fileSize: 3,
+    storageProvider: 'local',
+    storagePath: 'media/report.pdf',
+    processingStatus: 'complete' as const,
+  }
+  const HASH = 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+
+  it('round-trips fileHash and storageValidator through the flattened row', () => {
+    const flattened = flattenFieldSetData(
+      FilesCollection.fields,
+      {
+        attachment: {
+          ...baseFile,
+          fileHash: HASH,
+          storageValidator: { kind: 'local-stat', value: '1:2:3:3' },
+        },
+      } as any,
+      'all'
+    )
+    const row = flattened[0] as unknown as Record<string, unknown>
+    expect(row.file_hash).toBe(HASH)
+    expect(row.storage_validator_kind).toBe('local-stat')
+    expect(row.storage_validator_value).toBe('1:2:3:3')
+
+    const { data } = restoreFieldSetData(FilesCollection.fields, flattened)
+    expect(data.attachment).toMatchObject({
+      fileHash: HASH,
+      storageValidator: { kind: 'local-stat', value: '1:2:3:3' },
+    })
+  })
+
+  it('omits unknown identity instead of restoring null', () => {
+    const flattened = flattenFieldSetData(
+      FilesCollection.fields,
+      { attachment: baseFile } as any,
+      'all'
+    ).map((row) => ({
+      ...row,
+      file_hash: null,
+      storage_validator_kind: null,
+      storage_validator_value: null,
+    }))
+
+    const { data } = restoreFieldSetData(FilesCollection.fields, flattened as any)
+    const attachment = data.attachment as Record<string, unknown>
+    expect('fileHash' in attachment).toBe(false)
+    expect('storageValidator' in attachment).toBe(false)
+  })
+
+  it('restores a validator only as a complete pair', () => {
+    const flattened = flattenFieldSetData(
+      FilesCollection.fields,
+      { attachment: { ...baseFile, fileHash: HASH } } as any,
+      'all'
+    ).map((row) => ({
+      ...row,
+      storage_validator_kind: 'local-stat',
+      storage_validator_value: null,
+    }))
+
+    const { data } = restoreFieldSetData(FilesCollection.fields, flattened as any)
+    const attachment = data.attachment as Record<string, unknown>
+    expect(attachment.fileHash).toBe(HASH)
+    expect('storageValidator' in attachment).toBe(false)
+  })
+})

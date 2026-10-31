@@ -61,6 +61,11 @@
       "import": "./dist/workflow/index.js",
       "require": "./dist/workflow/index.js"
     },
+    "./stored-files": {
+      "types": "./dist/storage/stored-files-server.d.ts",
+      "import": "./dist/storage/stored-files-server.js",
+      "require": "./dist/storage/stored-files-server.js"
+    },
     "./scheduler": {
       "types": "./dist/scheduler/index.d.ts",
       "import": "./dist/scheduler/index.js",

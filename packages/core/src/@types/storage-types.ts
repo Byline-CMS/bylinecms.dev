@@ -26,7 +26,84 @@ export interface StoredFileLocation {
    * signed S3 URLs generated at read-time).
    */
   storageUrl: string | null
+  /**
+   * Validator of the stored version of the object, when the provider issues
+   * one. Absent when the provider has no usable validator for this write.
+   * See {@link StorageValidator}.
+   */
+  storageValidator?: StorageValidator
 }
+
+/**
+ * An opaque token a storage provider issues for one stored version of an
+ * object — an S3 version id or ETag, or a local file's device, inode,
+ * modification time and size.
+ *
+ * A validator identifies a *stored version*, not content. Its only use is
+ * equality: "is the object at this path still the version I recorded?"
+ * Two validators match only when both `kind` and `value` are equal; a
+ * validator of a different `kind` is unknown, never "changed".
+ *
+ * A validator is never compared with `StoredFileValue.fileHash`. An ETag is
+ * not a content digest: multipart uploads and server-side encryption give
+ * ETags that are not the MD5 of the object.
+ *
+ * `kind` is 1–32 characters; `value` is 1–1024 characters.
+ */
+export interface StorageValidator {
+  kind: string
+  value: string
+}
+
+/** Result of a bound read — see `IStorageProvider.download`. */
+export interface StoredObjectRead {
+  /** The object's bytes, streamed. */
+  body: NodeJS.ReadableStream
+  /**
+   * Validator of exactly the bytes in `body`, taken from the same request or
+   * the same open file handle. This is the provider's canonical validator and
+   * may be of a different kind from a `download` `expect`.
+   */
+  validator: StorageValidator
+  /** Object size in bytes, when the provider reports it. */
+  size?: number
+}
+
+/** Options for `IStorageProvider.download`. */
+export interface StorageDownloadOptions {
+  /**
+   * Fail-closed precondition. The provider exposes the body only when it has
+   * established that the current object carries a token of `expect.kind`
+   * equal to `expect.value`; otherwise it rejects with
+   * `ERR_STORAGE_PRECONDITION` and exposes nothing.
+   */
+  expect?: StorageValidator
+  /** Abort the read. The provider disposes of any open body or handle. */
+  signal?: AbortSignal
+}
+
+/** Result of `IStorageProvider.head`. */
+export interface StoredObjectHead {
+  validator: StorageValidator
+  size?: number
+}
+
+/**
+ * Reasons carried in `details.reason` of an `ERR_STORAGE_PRECONDITION` error.
+ *
+ * - `changed` — the provider established that the current object's token of
+ *   the expected kind differs.
+ * - `unsupported-kind` — the provider does not issue validators of the
+ *   expected kind. Checked before any request.
+ * - `unestablishable` — the kind is supported, but the response lacks a usable
+ *   token of that kind.
+ * - `missing` — no object exists at the path.
+ */
+export type StoragePreconditionReason =
+  | 'changed'
+  | 'unsupported-kind'
+  | 'unestablishable'
+  | 'missing'
 
 /**
  * Options passed to `IStorageProvider.upload()` describing the file being
@@ -101,7 +178,13 @@ export interface IStorageProvider {
 
   /**
    * Store a file. The `stream` may be a Node.js `Readable` or a raw `Buffer`.
-   * Returns the location metadata to be recorded alongside the file entry.
+   * Returns the location metadata to be recorded alongside the file entry,
+   * including the stored version's validator when the provider issues one.
+   *
+   * Providers must store the bytes verbatim: no compression, transcoding or
+   * other transform. Byline's content hash (`StoredFileValue.fileHash`) is
+   * computed over the bytes passed here and relies on them being the bytes
+   * stored. A stream must be consumed to its end before the promise resolves.
    */
   upload(
     stream: NodeJS.ReadableStream | Buffer,
@@ -146,4 +229,40 @@ export interface IStorageProvider {
    * **Optional capability** — see `move`.
    */
   exists?(storagePath: string): Promise<boolean>
+
+  /**
+   * Bound read: stream the object and return the validator of exactly the
+   * bytes streamed, taken from the same request or the same open file
+   * handle. The returned validator is the provider's canonical one and may be
+   * of a different kind from `expect`.
+   *
+   * Without `expect`: resolves `null` when no object exists at the path, and
+   * fails with `ERR_STORAGE` (`details.reason: 'validator-unavailable'`) when
+   * the object has no usable validator. A bound read never returns bytes
+   * without a validator.
+   *
+   * With `expect`: exposes the body only when a token of `expect.kind` equal
+   * to `expect.value` is established; otherwise fails with
+   * `ERR_STORAGE_PRECONDITION` (see {@link StoragePreconditionReason}) and
+   * exposes nothing.
+   *
+   * On every rejection after a response or handle exists, the provider
+   * disposes of it before throwing.
+   *
+   * **Optional capability** — see `move`.
+   */
+  download?(storagePath: string, options?: StorageDownloadOptions): Promise<StoredObjectRead | null>
+
+  /**
+   * Cheap change probe: the current object's validator and size. Resolves
+   * `null` when no object exists; fails with `ERR_STORAGE`
+   * (`validator-unavailable`) for a present object without a usable
+   * validator.
+   *
+   * Not a provenance source — the object can change after `head` returns.
+   * Use `download` when bytes must be paired with their validator.
+   *
+   * **Optional capability** — see `move`.
+   */
+  head?(storagePath: string): Promise<StoredObjectHead | null>
 }

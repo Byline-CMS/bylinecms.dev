@@ -18,6 +18,7 @@ import type {
   SelectField,
 } from './field-types.js'
 import type { RelatedDocumentValue } from './relation-types.js'
+import type { StorageValidator } from './storage-types.js'
 import type { Prettify, ValueUnion } from './type-utils.js'
 
 /**
@@ -205,7 +206,23 @@ export interface StoredFileValue {
   storageProvider: string
   storagePath: string
   storageUrl?: string
+  /**
+   * Content hash of the original object: SHA-256 of the bytes Byline passed
+   * to `IStorageProvider.upload()`, which providers store verbatim, as 64
+   * lower-case hexadecimal characters. Image variants are not covered.
+   *
+   * Recorded once, at upload or backfill time, and describes the bytes
+   * observed then; `storageValidator` is how a consumer detects that the
+   * object has since changed. Absent (never an empty string) when unknown — a
+   * consumer that requires identity must treat absence as an error.
+   */
   fileHash?: string
+  /**
+   * Validator of the stored version that `fileHash` was computed from, when
+   * the provider issued one. Never compared with `fileHash`; see
+   * `StorageValidator`.
+   */
+  storageValidator?: StorageValidator
   imageWidth?: number
   imageHeight?: number
   imageFormat?: string

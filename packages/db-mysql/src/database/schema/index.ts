@@ -845,7 +845,11 @@ export const fileStore = mysqlTable(
     // File metadata
     mime_type: varchar('mime_type', { length: 100 }).notNull(),
     file_size: bigint('file_size', { mode: 'number' }).notNull(), // Size in bytes
-    file_hash: varchar('file_hash', { length: 64 }), // SHA-256 hash for deduplication
+    file_hash: varchar('file_hash', { length: 64 }), // SHA-256 content hash (lower-case hex)
+    // Storage validator of the stored version that file_hash was computed
+    // from (S3 version id / ETag, local stat). Written and read as a pair.
+    storage_validator_kind: varchar('storage_validator_kind', { length: 32 }),
+    storage_validator_value: varchar('storage_validator_value', { length: 1024 }),
 
     // Storage information
     storage_provider: varchar('storage_provider', { length: 50 }).notNull(), // 'local', 's3', 'gcs', etc.

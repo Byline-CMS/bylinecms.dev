@@ -108,11 +108,26 @@ jobs:
           --health-timeout 5s
           --health-retries 20
 
+      # S3-compatible object store for the storage-s3 conformance suite,
+      # including versioned and versioning-suspended buckets. MinIO no longer
+      # publishes public images; RustFS speaks the same S3 API. Pinned so a
+      # server release cannot change validator behaviour under the suite.
+      s3:
+        image: rustfs/rustfs:1.0.4
+        env:
+          RUSTFS_ACCESS_KEY: byline
+          RUSTFS_SECRET_KEY: byline-test-secret
+        ports:
+          - 9100:9000
+
     env:
       BYLINE_CLI_POSTGRES_ADMIN_URL: postgres://byline:byline@127.0.0.1:5432/postgres
       BYLINE_CLI_MYSQL_ADMIN_URL: mysql://root:test@127.0.0.1:3306/mysql
       BYLINE_DB_POSTGRES_CONNECTION_STRING: postgres://byline:byline@127.0.0.1:5432/byline_test
       BYLINE_DB_MYSQL_CONNECTION_STRING: mysql://byline:byline@127.0.0.1:3306/byline_test
+      BYLINE_S3_TEST_ENDPOINT: http://127.0.0.1:9100
+      BYLINE_S3_TEST_ACCESS_KEY: byline
+      BYLINE_S3_TEST_SECRET_KEY: byline-test-secret
 
     steps:
       - uses: actions/checkout@v6
@@ -168,8 +183,19 @@ jobs:
           BYLINE_DB_MYSQL_CONNECTION_STRING=$BYLINE_DB_MYSQL_CONNECTION_STRING
           EOF
 
+      # The storage-s3 unit suite also runs its live conformance against the
+      # s3 service, which has no container health check; wait for it here.
+      - name: Wait for the S3 test server
+        run: |
+          for i in $(seq 1 60); do
+            curl -s -o /dev/null http://127.0.0.1:9100/ && exit 0
+            sleep 1
+          done
+          echo "S3 test server did not start" >&2
+          exit 1
+
       # Unit suites across every package (core/auth/admin/ai/host/client/...).
-      # Pure CPU, no DB
+      # Pure CPU, no DB (storage-s3 additionally uses the s3 service)
       - run: pnpm test
       - run: pnpm --filter @byline/webapp test:sign-in-transport
       # Integration tests now - require byline_test DB

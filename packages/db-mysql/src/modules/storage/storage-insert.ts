@@ -145,6 +145,8 @@ export const prepareFieldInsertBuckets = (
           storage_path: field.storage_path,
           storage_url: field.storage_url,
           file_hash: field.file_hash,
+          storage_validator_kind: field.storage_validator_kind,
+          storage_validator_value: field.storage_validator_value,
           image_width: field.image_width,
           image_height: field.image_height,
           image_format: field.image_format,
