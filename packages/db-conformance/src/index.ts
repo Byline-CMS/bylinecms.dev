@@ -36,6 +36,7 @@ import { schedulerSuite } from './suites/scheduler.js'
 import { sessionRevocationSuite } from './suites/session-revocation.js'
 import { singletonLifecycleSuite } from './suites/singleton-lifecycle.js'
 import { singletonMappingSuite } from './suites/singleton-mapping.js'
+import { storedFileIdentitySuite } from './suites/stored-file-identity.js'
 import { systemFieldsDirectWriteSuite } from './suites/system-fields-direct-write.js'
 import { transactionsSuite } from './suites/transactions.js'
 import { unavailableBlocksSuite } from './suites/unavailable-blocks.js'
@@ -71,6 +72,7 @@ export { restoreSuite } from './suites/restore.js'
 export { schedulerSuite } from './suites/scheduler.js'
 export { singletonLifecycleSuite } from './suites/singleton-lifecycle.js'
 export { singletonMappingSuite } from './suites/singleton-mapping.js'
+export { storedFileIdentitySuite } from './suites/stored-file-identity.js'
 export { systemFieldsDirectWriteSuite } from './suites/system-fields-direct-write.js'
 export { transactionsSuite } from './suites/transactions.js'
 export { versioningSuite } from './suites/versioning.js'
@@ -231,6 +233,7 @@ export function runAdapterConformanceSuite(hooks: ConformanceHooks): void {
   countersSuite(hooks)
   singletonMappingSuite(hooks)
   singletonLifecycleSuite(hooks)
+  storedFileIdentitySuite(hooks)
   adminStoreSuite(hooks)
   sessionRevocationSuite(hooks)
   passkeysPersistenceSuite(hooks)

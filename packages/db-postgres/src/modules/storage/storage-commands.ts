@@ -442,8 +442,8 @@ export class DocumentCommands implements IDocumentCommands {
 
         await tx.execute(sql`
           INSERT INTO byline_store_file
-            (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, file_id, filename, original_filename, mime_type, file_size, file_hash, storage_provider, storage_path, storage_url, image_width, image_height, image_format, processing_status, thumbnail_generated, created_at, updated_at)
-          SELECT gen_random_uuid(), ${newId}::uuid, collection_id, field_path, field_name, locale, parent_path, file_id, filename, original_filename, mime_type, file_size, file_hash, storage_provider, storage_path, storage_url, image_width, image_height, image_format, processing_status, thumbnail_generated, NOW(), NOW()
+            (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, file_id, filename, original_filename, mime_type, file_size, file_hash, storage_provider, storage_path, storage_url, image_width, image_height, image_format, processing_status, thumbnail_generated, variants, created_at, updated_at)
+          SELECT gen_random_uuid(), ${newId}::uuid, collection_id, field_path, field_name, locale, parent_path, file_id, filename, original_filename, mime_type, file_size, file_hash, storage_provider, storage_path, storage_url, image_width, image_height, image_format, processing_status, thumbnail_generated, variants, NOW(), NOW()
           FROM byline_store_file
           WHERE document_version_id = ${prevId}::uuid
             AND locale NOT IN ('all', ${activeLoc})
@@ -702,8 +702,8 @@ export class DocumentCommands implements IDocumentCommands {
     `)
     await tx.execute(sql`
       INSERT INTO byline_store_file
-        (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, file_id, filename, original_filename, mime_type, file_size, file_hash, storage_provider, storage_path, storage_url, image_width, image_height, image_format, processing_status, thumbnail_generated, created_at, updated_at)
-      SELECT gen_random_uuid(), ${to}, collection_id, field_path, field_name, locale, parent_path, file_id, filename, original_filename, mime_type, file_size, file_hash, storage_provider, storage_path, storage_url, image_width, image_height, image_format, processing_status, thumbnail_generated, NOW(), NOW()
+        (id, document_version_id, collection_id, field_path, field_name, locale, parent_path, file_id, filename, original_filename, mime_type, file_size, file_hash, storage_provider, storage_path, storage_url, image_width, image_height, image_format, processing_status, thumbnail_generated, variants, created_at, updated_at)
+      SELECT gen_random_uuid(), ${to}, collection_id, field_path, field_name, locale, parent_path, file_id, filename, original_filename, mime_type, file_size, file_hash, storage_provider, storage_path, storage_url, image_width, image_height, image_format, processing_status, thumbnail_generated, variants, NOW(), NOW()
       FROM byline_store_file WHERE document_version_id = ${from}${localeFilter}
     `)
     await tx.execute(sql`
