@@ -1,5 +1,5 @@
 {
-  "id": "586112ed-a1c4-4b68-ae7d-652a430714e1",
+  "id": "c18c731b-3391-475c-8aa5-effdd6df6b7e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2806,6 +2806,18 @@
         "file_hash": {
           "name": "file_hash",
           "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "storage_validator_kind": {
+          "name": "storage_validator_kind",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "storage_validator_value": {
+          "name": "storage_validator_value",
+          "type": "varchar(1024)",
           "primaryKey": false,
           "notNull": false
         },

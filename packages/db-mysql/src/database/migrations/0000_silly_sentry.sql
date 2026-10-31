@@ -310,6 +310,8 @@ CREATE TABLE `byline_store_file` (
 	`mime_type` varchar(100) NOT NULL,
 	`file_size` bigint NOT NULL,
 	`file_hash` varchar(64),
+	`storage_validator_kind` varchar(32),
+	`storage_validator_value` varchar(1024),
 	`storage_provider` varchar(50) NOT NULL,
 	`storage_path` text NOT NULL,
 	`storage_url` text,

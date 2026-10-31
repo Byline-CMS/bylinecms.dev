@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "5",
-      "when": 1792124008486,
-      "tag": "0000_volatile_agent_brand",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1793424458637,
-      "tag": "0001_add_stored_file_validator",
+      "when": 1793427230273,
+      "tag": "0000_silly_sentry",
       "breakpoints": true
     }
   ]

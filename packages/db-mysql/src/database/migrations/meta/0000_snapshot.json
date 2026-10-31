@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "c9f928cb-1a76-4826-af62-97e1b0a57277",
+  "id": "4a8d5043-8418-4d72-b650-9e1c78c4d1a8",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "byline_admin_login_sessions": {
@@ -2648,6 +2648,20 @@
         "file_hash": {
           "name": "file_hash",
           "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "storage_validator_kind": {
+          "name": "storage_validator_kind",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "storage_validator_value": {
+          "name": "storage_validator_value",
+          "type": "varchar(1024)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
