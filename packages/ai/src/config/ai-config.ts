@@ -20,20 +20,20 @@ import type { Provider } from '../@types'
  * adding or retiring models between releases. Use `pnpm list:models`
  * to discover available models from each provider.
  *
- * Note: Claude Fable models are excluded on purpose — the Anthropic
- * document-generation and patch paths force a tool call via
- * `tool_choice: { type: 'tool' }`, which those models reject.
+ * The Anthropic document-generation and patch paths use structured
+ * outputs (`output_config.format`) rather than a forced tool call, so
+ * every current Claude model works with them.
  */
 export const PROVIDER_MODELS: Record<Provider, string[]> = {
   openai: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'],
   google: ['gemini-3.8-flash', 'gemini-3.5-flash-lite'],
-  anthropic: ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5-20251001'],
+  anthropic: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'],
 }
 
 export const DEFAULT_MODELS: Record<Provider, string> = {
   openai: 'gpt-5.6-terra',
   google: 'gemini-3.8-flash',
-  anthropic: 'claude-sonnet-5',
+  anthropic: 'claude-sonnet-5-5',
 }
 
 export const PROVIDERS: Array<[Provider, string]> = [

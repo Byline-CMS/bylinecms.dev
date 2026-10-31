@@ -9,6 +9,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 
 import { buildPatchSystemPrompt } from '@/prompts'
+import { jsonSchemaFormat, readStructuredOutput } from './structured-output'
 import type { LexicalTextEditsResponse } from '@/utils/lexical-text-edits'
 
 const buildPatchUserPrompt = (
@@ -74,12 +75,13 @@ export async function patchDoc(options: {
 
   const client = new Anthropic({ apiKey: options.apiKey, baseURL })
 
-  const toolName = 'patch_lexical_text_nodes_v1'
-
-  const result = await client.messages.create(
+  // Anthropic-native structured outputs: the response text is constrained to
+  // the edits schema. max_tokens leaves room for the adaptive thinking that
+  // current models run by default.
+  const message = await client.messages.create(
     {
       model: options.model,
-      max_tokens: 4000,
+      max_tokens: 16000,
       system: buildPatchSystemPrompt(),
       messages: [
         {
@@ -87,38 +89,12 @@ export async function patchDoc(options: {
           content: buildPatchUserPrompt(options.prompt, options.textNodes),
         },
       ],
-      tools: [
-        {
-          name: toolName,
-          description: 'Patch Lexical text nodes by returning edits as JSON.',
-          input_schema: anthropicPatchSchema as any,
-        },
-      ],
-      tool_choice: { type: 'tool', name: toolName },
+      output_config: { format: jsonSchemaFormat(anthropicPatchSchema) },
     },
     options.signal ? { signal: options.signal } : undefined
   )
 
-  const toolUse = (result.content ?? []).find(
-    (c: any) => c?.type === 'tool_use' && c?.name === toolName
-  ) as any
-
-  const parsed = toolUse?.input as LexicalTextEditsResponse | undefined
-  if (parsed && typeof parsed === 'object') {
-    return parsed
-  }
-
-  const text = (result.content ?? [])
-    .filter((c: any) => c?.type === 'text')
-    .map((c: any) => c?.text)
-    .filter((t: any) => typeof t === 'string' && t.length > 0)
-    .join('\n')
-
-  throw new Error(
-    text.length > 0
-      ? `Anthropic did not return a tool payload. Text: ${text}`
-      : 'Anthropic did not return a tool payload.'
-  )
+  return readStructuredOutput<LexicalTextEditsResponse>(message)
 }
 
 export type PatchDocStreamingResult = {
@@ -139,12 +115,10 @@ export function patchDocStreaming(options: {
 
   const client = new Anthropic({ apiKey: options.apiKey, baseURL })
 
-  const toolName = 'patch_lexical_text_nodes_v1'
-
   const stream = client.messages.stream(
     {
       model: options.model,
-      max_tokens: 4000,
+      max_tokens: 16000,
       system: buildPatchSystemPrompt(),
       messages: [
         {
@@ -152,59 +126,28 @@ export function patchDocStreaming(options: {
           content: buildPatchUserPrompt(options.prompt, options.textNodes),
         },
       ],
-      tools: [
-        {
-          name: toolName,
-          description: 'Patch Lexical text nodes by returning edits as JSON.',
-          input_schema: anthropicPatchSchema as any,
-        },
-      ],
-      tool_choice: { type: 'tool', name: toolName },
+      output_config: { format: jsonSchemaFormat(anthropicPatchSchema) },
       stream: true,
     },
     options.signal ? { signal: options.signal } : undefined
   )
 
+  // Structured-output JSON arrives as text deltas; thinking deltas carry no
+  // `text` and are not yielded.
   const text = (async function* () {
     for await (const event of stream) {
       if (event.type === 'content_block_delta') {
         const deltaText = (event as any)?.delta?.text
-        const deltaJson =
-          (event as any)?.delta?.partial_json ??
-          (event as any)?.delta?.input_json_delta?.partial_json
-
         if (typeof deltaText === 'string' && deltaText.length > 0) {
           yield deltaText
-        } else if (typeof deltaJson === 'string' && deltaJson.length > 0) {
-          yield deltaJson
         }
       }
     }
   })()
 
   const final = (async () => {
-    const result = await stream.finalMessage()
-
-    const toolUse = (result.content ?? []).find(
-      (c: any) => c?.type === 'tool_use' && c?.name === toolName
-    ) as any
-
-    const parsed = toolUse?.input as LexicalTextEditsResponse | undefined
-    if (parsed && typeof parsed === 'object') {
-      return parsed
-    }
-
-    const text = (result.content ?? [])
-      .filter((c: any) => c?.type === 'text')
-      .map((c: any) => c?.text)
-      .filter((t: any) => typeof t === 'string' && t.length > 0)
-      .join('\n')
-
-    throw new Error(
-      text.length > 0
-        ? `Anthropic did not return a tool payload. Text: ${text}`
-        : 'Anthropic did not return a tool payload.'
-    )
+    const message = await stream.finalMessage()
+    return readStructuredOutput<LexicalTextEditsResponse>(message)
   })()
 
   return { text, final }

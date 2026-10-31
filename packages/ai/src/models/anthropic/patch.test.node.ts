@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { getAiServerConfig as getServerConfig } from '../../config/ai-config'
 import { patchDoc, patchDocStreaming } from './patch'
 
-const MODEL = 'claude-sonnet-5'
+const MODEL = 'claude-sonnet-5-5'
 
 describe('anthropic patch', () => {
   beforeEach(async () => {})
@@ -19,7 +19,7 @@ describe('anthropic patch', () => {
   const runReal = process.env.AI_RUN_REAL_TESTS === 'true'
 
   if (runReal) {
-    it.skip('makes a real Anthropic request (manual run)', async () => {
+    it('makes a real Anthropic request (manual run)', async () => {
       const config = getServerConfig()
       if (!config.ai.anthropic.apiKey) {
         throw new Error('ANTHROPIC_API_KEY is required for real Anthropic tests.')
@@ -37,7 +37,7 @@ describe('anthropic patch', () => {
       expect(typeof result).toBe('object')
     }, 30000)
 
-    it.skip('streams a real Anthropic response (manual run)', async () => {
+    it('streams a real Anthropic response (manual run)', async () => {
       const config = getServerConfig()
       if (!config.ai.anthropic.apiKey) {
         throw new Error('ANTHROPIC_API_KEY is required for real Anthropic tests.')

@@ -36,7 +36,7 @@ describe('google generate', () => {
       expect(typeof result).toBe('object')
     }, 30000)
 
-    it.skip('streams a real Google response (manual run)', async () => {
+    it('streams a real Google response (manual run)', async () => {
       const config = getServerConfig()
       if (!config.ai.google.apiKey) {
         throw new Error('GOOGLE_API_KEY is required for real Google tests.')

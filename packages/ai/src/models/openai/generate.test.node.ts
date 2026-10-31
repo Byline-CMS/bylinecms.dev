@@ -19,7 +19,7 @@ describe('openai generate', () => {
   const runReal = process.env.AI_RUN_REAL_TESTS === 'true'
 
   if (runReal) {
-    it.skip('makes a real OpenAI request (manual run)', async () => {
+    it('makes a real OpenAI request (manual run)', async () => {
       const config = getServerConfig()
       if (!config.ai.openai.apiKey) {
         throw new Error('OPENAI_API_KEY is required for real OpenAI tests.')
@@ -35,7 +35,7 @@ describe('openai generate', () => {
       expect(typeof result).toBe('object')
     }, 30000)
 
-    it.skip('streams a real OpenAI response (manual run)', async () => {
+    it('streams a real OpenAI response (manual run)', async () => {
       const config = getServerConfig()
       if (!config.ai.openai.apiKey) {
         throw new Error('OPENAI_API_KEY is required for real OpenAI tests.')

@@ -16,6 +16,7 @@ import {
   buildGenerateTextUserPrompt,
 } from '@/prompts'
 import { anthropicGenerationSchema } from './schema'
+import { jsonSchemaFormat, readStructuredOutput } from './structured-output'
 import type { GeneratedDoc } from '@/utils/convert-to-lexical'
 
 export type GenerateTextStreamingResult = {
@@ -263,19 +264,13 @@ export async function generateDoc(options: {
 
   const client = new Anthropic({ apiKey: options.apiKey, baseURL })
 
-  // Anthropic-native structured outputs: force a tool call and parse the tool input.
-  const toolName = 'generate_lexical_doc_blocks_v1'
-
-  // Anthropic does not need the draft-07 $schema keyword.
-  const input_schema = {
-    ...(anthropicGenerationSchema as any),
-    $schema: undefined,
-  }
-
-  const result = await client.messages.create(
+  // Anthropic-native structured outputs: the response text is constrained to
+  // the GeneratedDoc (blocks) schema. max_tokens leaves room for the adaptive
+  // thinking that current models run by default.
+  const message = await client.messages.create(
     {
       model: options.model,
-      max_tokens: 4000,
+      max_tokens: 16000,
       system: buildGenerateSystemPrompt(),
       messages: [
         {
@@ -283,39 +278,12 @@ export async function generateDoc(options: {
           content: options.prompt,
         },
       ],
-      tools: [
-        {
-          name: toolName,
-          description: 'Generate a document in the GeneratedDoc (blocks) JSON format.',
-          input_schema,
-        },
-      ],
-      tool_choice: { type: 'tool', name: toolName },
+      output_config: { format: jsonSchemaFormat(anthropicGenerationSchema) },
     },
     options.signal ? { signal: options.signal } : undefined
   )
 
-  // Find the tool call content and return its JSON input.
-  const toolUse = (result.content ?? []).find(
-    (c: any) => c?.type === 'tool_use' && c?.name === toolName
-  ) as any
-
-  const parsed = toolUse?.input as GeneratedDoc | undefined
-  if (parsed && typeof parsed === 'object') {
-    return parsed
-  }
-
-  const text = (result.content ?? [])
-    .filter((c: any) => c?.type === 'text')
-    .map((c: any) => c?.text)
-    .filter((t: any) => typeof t === 'string' && t.length > 0)
-    .join('\n')
-
-  throw new Error(
-    text.length > 0
-      ? `Anthropic did not return a tool payload. Text: ${text}`
-      : 'Anthropic did not return a tool payload.'
-  )
+  return readStructuredOutput<GeneratedDoc>(message)
 }
 
 export type GenerateDocStreamingResult = {
@@ -335,17 +303,10 @@ export function generateDocStreaming(options: {
 
   const client = new Anthropic({ apiKey: options.apiKey, baseURL })
 
-  const toolName = 'generate_lexical_doc_blocks_v1'
-
-  const input_schema = {
-    ...(anthropicGenerationSchema as any),
-    $schema: undefined,
-  }
-
   const stream = client.messages.stream(
     {
       model: options.model,
-      max_tokens: 4000,
+      max_tokens: 16000,
       system: buildGenerateSystemPrompt(),
       messages: [
         {
@@ -353,59 +314,28 @@ export function generateDocStreaming(options: {
           content: options.prompt,
         },
       ],
-      tools: [
-        {
-          name: toolName,
-          description: 'Generate a document in the GeneratedDoc (blocks) JSON format.',
-          input_schema,
-        },
-      ],
-      tool_choice: { type: 'tool', name: toolName },
+      output_config: { format: jsonSchemaFormat(anthropicGenerationSchema) },
       stream: true,
     },
     options.signal ? { signal: options.signal } : undefined
   )
 
+  // Structured-output JSON arrives as text deltas; thinking deltas carry no
+  // `text` and are not yielded.
   const text = (async function* () {
     for await (const event of stream) {
       if (event.type === 'content_block_delta') {
         const deltaText = (event as any)?.delta?.text
-        const deltaJson =
-          (event as any)?.delta?.partial_json ??
-          (event as any)?.delta?.input_json_delta?.partial_json
-
         if (typeof deltaText === 'string' && deltaText.length > 0) {
           yield deltaText
-        } else if (typeof deltaJson === 'string' && deltaJson.length > 0) {
-          yield deltaJson
         }
       }
     }
   })()
 
   const final = (async () => {
-    const result = await stream.finalMessage()
-
-    const toolUse = (result.content ?? []).find(
-      (c: any) => c?.type === 'tool_use' && c?.name === toolName
-    ) as any
-
-    const parsed = toolUse?.input as GeneratedDoc | undefined
-    if (parsed && typeof parsed === 'object') {
-      return parsed
-    }
-
-    const text = (result.content ?? [])
-      .filter((c: any) => c?.type === 'text')
-      .map((c: any) => c?.text)
-      .filter((t: any) => typeof t === 'string' && t.length > 0)
-      .join('\n')
-
-    throw new Error(
-      text.length > 0
-        ? `Anthropic did not return a tool payload. Text: ${text}`
-        : 'Anthropic did not return a tool payload.'
-    )
+    const message = await stream.finalMessage()
+    return readStructuredOutput<GeneratedDoc>(message)
   })()
 
   return { text, final }

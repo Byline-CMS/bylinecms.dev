@@ -19,7 +19,7 @@ describe('google patch', () => {
   const runReal = process.env.AI_RUN_REAL_TESTS === 'true'
 
   if (runReal) {
-    it.skip('makes a real Google request (manual run)', async () => {
+    it('makes a real Google request (manual run)', async () => {
       const config = getServerConfig()
       if (!config.ai.google.apiKey) {
         throw new Error('GOOGLE_API_KEY is required for real Google tests.')
@@ -37,7 +37,7 @@ describe('google patch', () => {
       expect(typeof result).toBe('object')
     }, 30000)
 
-    it.skip('streams a real Google response (manual run)', async () => {
+    it('streams a real Google response (manual run)', async () => {
       const config = getServerConfig()
       if (!config.ai.google.apiKey) {
         throw new Error('GOOGLE_API_KEY is required for real Google tests.')
