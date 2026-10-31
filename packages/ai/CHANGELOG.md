@@ -1,5 +1,29 @@
 # @infonomic/ai
 
+## 6.12.0
+
+### Minor Changes
+
+- recorded stored-file content identity (SHA-256 `fileHash` and storage validators) with bound storage reads and an idempotent backfill, and fixed **`@byline/ai`** structured generation on Claude Opus 5.5 and Sonnet 5.5
+
+### Patch Changes
+
+- 9eeac5e: Fix the Anthropic adapter's document generation and patch paths on Claude
+  Opus 5.5, Sonnet 5.5 and Fable 5.1 (#104). These models reject a forced
+  `tool_choice`, so `generateDoc`, `generateDocStreaming`, `patchDoc` and
+  `patchDocStreaming` now request structured outputs (`output_config.format`)
+  instead of forcing a tool call. A refusal, a response truncated at
+  `max_tokens`, or a response with no JSON object is now an explicit error. The
+  curated Anthropic models are now `claude-opus-5-5`, `claude-sonnet-5-5` and
+  `claude-haiku-5-5`, and the default is `claude-sonnet-5-5`. A site that names
+  an older Claude model in its own configuration keeps working. The live
+  provider tests now run when `AI_RUN_REAL_TESTS=true`.
+- Updated dependencies
+- Updated dependencies [242346c]
+  - @byline/core@6.12.0
+  - @byline/richtext-lexical@6.12.0
+  - @byline/ui@6.12.0
+
 ## 6.11.0
 
 ### Minor Changes

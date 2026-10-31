@@ -1,5 +1,26 @@
 # @byline/host-tanstack-start
 
+## 6.12.0
+
+### Minor Changes
+
+- recorded stored-file content identity (SHA-256 `fileHash` and storage validators) with bound storage reads and an idempotent backfill, and fixed **`@byline/ai`** structured generation on Claude Opus 5.5 and Sonnet 5.5
+
+### Patch Changes
+
+- Updated dependencies [9eeac5e]
+- Updated dependencies
+- Updated dependencies [242346c]
+  - @byline/ai@6.12.0
+  - @byline/admin@6.12.0
+  - @byline/analytics@6.12.0
+  - @byline/analytics-agent@6.12.0
+  - @byline/auth@6.12.0
+  - @byline/client@6.12.0
+  - @byline/core@6.12.0
+  - @byline/i18n@6.12.0
+  - @byline/ui@6.12.0
+
 ## 6.11.0
 
 ### Minor Changes

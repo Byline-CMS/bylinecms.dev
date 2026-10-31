@@ -1,5 +1,18 @@
 # @byline/client
 
+## 6.12.0
+
+### Minor Changes
+
+- recorded stored-file content identity (SHA-256 `fileHash` and storage validators) with bound storage reads and an idempotent backfill, and fixed **`@byline/ai`** structured generation on Claude Opus 5.5 and Sonnet 5.5
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [242346c]
+  - @byline/auth@6.12.0
+  - @byline/core@6.12.0
+
 ## 6.11.0
 
 ### Minor Changes
