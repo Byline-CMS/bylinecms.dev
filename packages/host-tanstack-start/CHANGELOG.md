@@ -1,5 +1,21 @@
 # @byline/host-tanstack-start
 
+## 6.12.1
+
+### Patch Changes
+
+- fixed **`@byline/host-tanstack-start`** analytics navigation events to report the public URL under router rewrites, and updated dependencies including lexical 0.53
+- Updated dependencies
+  - @byline/admin@6.12.1
+  - @byline/ai@6.12.1
+  - @byline/analytics@6.12.1
+  - @byline/analytics-agent@6.12.1
+  - @byline/auth@6.12.1
+  - @byline/client@6.12.1
+  - @byline/core@6.12.1
+  - @byline/i18n@6.12.1
+  - @byline/ui@6.12.1
+
 ## 6.12.0
 
 ### Minor Changes
