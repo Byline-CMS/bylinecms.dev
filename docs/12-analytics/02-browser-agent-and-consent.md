@@ -45,7 +45,7 @@ bounded `data-*` attributes:
 
 The public filename is the application's choice. The script URL may use an asset host, but `data-endpoint` remains relative to the page origin, not the script origin. The package also exposes the same file through its `@byline/analytics-agent/standalone.js` export for build tools that resolve package assets.
 
-Byline's reference webapp commits `public/b.js` so its setup demonstrates this ordinary static-file pattern. A unit test compares that file with `ANALYTICS_AGENT_SOURCE`; upgrading the package fails the test until the checked-in artifact is refreshed.
+Byline's reference webapp commits `public/b.js` so its setup demonstrates this ordinary static-file pattern. A unit test compares that file's content with `ANALYTICS_AGENT_SOURCE`. Packages are released in lock step, so a version bump alone does not fail the test; it fails only when an upgrade changes the agent itself, until the checked-in artifact is copied again.
 
 Static-file response policy belongs to the application's host. In the reference webapp with Vite 8.2.2, a browser-shaped `Sec-Fetch-Dest: script` request receives `200` and `text/javascript` in development and preview. Development adds `Cache-Control: no-cache`; preview adds no `Cache-Control`. Direct Nitro start returns `200` and `text/javascript; charset=utf-8` with validators but no `Cache-Control`. None of these three public-file responses adds `X-Content-Type-Options`; a deployment may add `nosniff` as a general security header at its direct server or proxy.
 

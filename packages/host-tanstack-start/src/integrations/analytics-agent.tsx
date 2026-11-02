@@ -55,7 +55,12 @@ export function AnalyticsAgent({
 }
 
 function AnalyticsNavigationBridge(): null {
-  const href = useRouterState({ select: (state) => state.location.href })
+  // Report the URL the visitor sees. With a router `rewrite` (for example a
+  // hidden default-locale prefix), `href` is the internal path (`/en/blog`),
+  // while `publicHref` is the public one (`/blog`) that a full page load records.
+  const href = useRouterState({
+    select: (state) => state.location.publicHref ?? state.location.href,
+  })
   const previousHref = useRef<string | undefined>(undefined)
 
   useEffect(() => {
