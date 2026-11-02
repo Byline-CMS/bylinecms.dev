@@ -46,9 +46,9 @@
     "*.{js,jsx,mjs,cjs,ts,tsx,json,jsonc}": "biome check --write --no-errors-on-unmatched --diagnostic-level=error"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.2",
+    "@biomejs/biome": "2.6.4",
     "@changesets/cli": "^3.0.3",
-    "knip": "^6.42.1",
+    "knip": "^6.44.1",
     "lint-staged": "^17.6.0",
     "simple-git-hooks": "^2.14.0"
   },

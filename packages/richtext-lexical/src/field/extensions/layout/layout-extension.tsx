@@ -13,7 +13,7 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
  */
 import { ReactExtension } from '@lexical/react/ReactExtension'
 import { $insertNodeToNearestRoot, mergeRegister } from '@lexical/utils'
-import type { ElementNode, LexicalCommand, LexicalNode, NodeKey } from 'lexical'
+import type { LexicalCommand, NodeKey } from 'lexical'
 import {
   $createParagraphNode,
   $getNodeByKey,
@@ -106,7 +106,7 @@ export function LayoutPlugin(): React.JSX.Element {
         UPDATE_LAYOUT_COMMAND,
         ({ template, nodeKey }) => {
           editor.update(() => {
-            const container = $getNodeByKey<LexicalNode>(nodeKey)
+            const container = $getNodeByKey(nodeKey)
 
             if (!$isLayoutContainerNode(container)) {
               return
@@ -122,7 +122,7 @@ export function LayoutPlugin(): React.JSX.Element {
               }
             } else if (itemsCount < prevItemsCount) {
               for (let i = prevItemsCount - 1; i >= itemsCount; i--) {
-                const layoutItem = container.getChildAtIndex<LexicalNode>(i)
+                const layoutItem = container.getChildAtIndex(i)
 
                 if ($isLayoutItemNode(layoutItem)) {
                   layoutItem.remove()
@@ -141,9 +141,9 @@ export function LayoutPlugin(): React.JSX.Element {
       // "Container > Item" it'll unwrap nodes and convert it back
       // to regular content.
       editor.registerNodeTransform(LayoutItemNode, (node) => {
-        const parent = node.getParent<ElementNode>()
+        const parent = node.getParent()
         if (!$isLayoutContainerNode(parent)) {
-          const children = node.getChildren<LexicalNode>()
+          const children = node.getChildren()
           for (const child of children) {
             node.insertBefore(child)
           }
@@ -151,7 +151,7 @@ export function LayoutPlugin(): React.JSX.Element {
         }
       }),
       editor.registerNodeTransform(LayoutContainerNode, (node) => {
-        const children = node.getChildren<LexicalNode>()
+        const children = node.getChildren()
         if (!children.every($isLayoutItemNode)) {
           for (const child of children) {
             node.insertBefore(child)

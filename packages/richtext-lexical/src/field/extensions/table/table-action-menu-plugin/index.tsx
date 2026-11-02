@@ -35,7 +35,6 @@ import {
   TableExtension as LexicalTableExtension,
   TableCellHeaderStates,
   TableCellNode,
-  type TableRowNode,
   type TableSelection,
 } from '@lexical/table'
 import type { ElementNode, LexicalEditor } from 'lexical'
@@ -425,8 +424,10 @@ function TableActionMenu({
 
       const tableColumnIndex = $getTableColumnIndexFromTableCellNode(tableCellNode)
 
-      const tableRows = tableNode.getChildren<TableRowNode>()
-      const maxRowsLength = Math.max(...tableRows.map((row) => row.getChildren().length))
+      const tableRows = tableNode.getChildren()
+      const maxRowsLength = Math.max(
+        ...tableRows.map((row) => ($isTableRowNode(row) ? row.getChildrenSize() : 0))
+      )
 
       if (tableColumnIndex >= maxRowsLength || tableColumnIndex < 0) {
         throw new Error('Expected table cell to be inside of table row.')
