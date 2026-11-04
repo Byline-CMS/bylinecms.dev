@@ -29,6 +29,7 @@ Byline CMS — an open-source, AI-first headless CMS. Currently at a stable v6.x
 | `packages/richtext-lexical` | `@byline/richtext-lexical` | Lexical-based richtext editor adapter |
 | `packages/search-analysis` | `@byline/search-analysis` | Portable multilingual term analysis, backend-neutral query planning, and offset-aware highlighting — NFKC normalization, locale resolution, protected identifiers, ICU word segmentation, language expansion hooks, Han bigrams, analyzer fingerprints, and SQL-safe physical tokens |
 | `packages/search-conformance` | `@byline/search-conformance` | Private backend-neutral behavioral suite for `SearchProvider` adapters — capabilities, lifecycle/scoping, full-text matching, highlighting, portable parser survival, weighting, and analyzer-fingerprint rebuild enforcement |
+| `packages/extraction-conformance` | `@byline/extraction-conformance` | Publishable, provisional Vitest kit for `ExtractionProvider` drivers — capability honesty, typed failures, input forms, version consistency, and sentinel page-map provenance, with generated PDF fixtures |
 | `packages/search-mysql` | `@byline/search-mysql` | Built-in MySQL full-text `SearchProvider` driver — portable parser-safe tokens in weighted `FULLTEXT` indexes plus portable highlighted snippets; owns its own schema; reuses the host mysql2 pool. See "Search & Retrieval" below |
 | `packages/search-postgres` | `@byline/search-postgres` | Built-in Postgres full-text `SearchProvider` driver — weighted `tsvector` index plus portable highlighted snippets; owns its own schema (numbered SQL migrations); reuses the host pg pool. See "Search & Retrieval" below |
 | `packages/ai` | `@byline/ai` | AI subsystem — provider-agnostic execution (OpenAI / Google / Anthropic) for `executeInstruction`, `generateStructured`, and Lexical-node `patch` (streaming + non-streaming). Browser-safe root entry; SDK-backed execution behind `@byline/ai/server`; editor plugins at `@byline/ai/plugins/{text,lexical}`. See `packages/ai/README.md` |
@@ -193,9 +194,7 @@ One-way Lexical → markdown serialization (`lexicalToMarkdown`, `@byline/richte
 A pluggable `SearchProvider` seam in `@byline/core` (registered on
 `ServerConfig.search`, validated at `initBylineCore()` via `validateSearchConfig`)
 with built-in PostgreSQL and MySQL full-text drivers. The section overview is
-[docs/06-search/index.md](docs/06-search/index.md);
-the planned attachment-extraction boundary is
-`docs/06-search/07-attachment-extraction.md`.
+[docs/06-search/index.md](docs/06-search/index.md).
 
 - **Interface & types**: `SearchProvider` (`capabilities` + `upsert` / `remove` /
   `search` / `reindex`), the type-enriched `SearchDocument` (a role-tagged
@@ -244,6 +243,15 @@ the planned attachment-extraction boundary is
   tier (title / path / score / highlights). The docs frontend (drawer-modal search → `/docs/search?q=`
   SSR results route) is the worked example. **Planned**: cross-collection `client.search({ zone })`,
   `hydrate`, structured `where` filtering, facet aggregation, and row-level `beforeRead` auth on search.
+
+### Attachment extraction
+
+Provisional provider contracts and source verification ship; the store, worker, search join, router, admin log, and reference drivers do not, so a host implements them. Concepts and lifecycle: `docs/06-search/07-attachment-extraction.md`. Exact surface: `docs/06-search/10-extraction-provider-contract.md`.
+
+- **Types and pure helpers** (`@byline/core` root, browser-safe): `packages/core/src/@types/extraction-types.ts` and `packages/core/src/extraction/` — `ExtractionProvider`, typed `ExtractionProviderError`, `validatePageMap`, `validateExtractionArtifact`, `buildExtractionProducer`, `isSourceVerificationEvidence`, `decideExtractionWork`, `exclusionState`.
+- **Verified read** (`@byline/core/stored-files`, server only): `packages/core/src/storage/verified-read.ts` — `readVerifiedSource` exposes bytes only after they hash to the saved `fileHash`, with at most two reads; `probeVerifiedSource` compares `head` with the evidence's validator.
+- **Browser guard**: `packages/core/src/extraction/root-graph-guard.test.node.ts` reads built `dist`, so build core before testing it. It allows one Node built-in in the root graph: the dynamic `node:async_hooks` import in `lib/logger.js`.
+- **Conformance**: `packages/extraction-conformance`; storage cases live in `packages/storage-conformance`.
 
 ### Admin interface i18n (`@byline/i18n`)
 

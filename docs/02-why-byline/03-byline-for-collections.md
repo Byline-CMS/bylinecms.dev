@@ -158,9 +158,10 @@ question of who reads the catalogue to agents and tooling. And the
 [attachment-extraction boundary](../06-search/07-attachment-extraction.md)
 would let search index text inside uploaded PDFs and documents rather than
 only their metadata. A production deployment already indexes extracted
-attachment text through this pattern; the reusable boundary does not ship in
-the public packages yet, but it gives the finding-aid problem a practical
-next step without coupling extraction cost to every search-index rebuild.
+attachment text through this pattern. The public packages ship the provisional
+provider contracts and source verification, but not yet a store, worker, or
+search join. Together these give the finding-aid problem a practical next step
+without coupling extraction cost to every search-index rebuild.
 
 ## What a collections layer would add
 

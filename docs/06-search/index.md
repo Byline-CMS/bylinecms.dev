@@ -105,8 +105,9 @@ to upstream once it meets the conformance bar described in
 [Native search engines and backend portability](./08-native-engine-providers.md). Attachment
 extraction is on the same path: the deployment already extracts attachment text, persists the
 artifact, and indexes it like any other body field, without coupling extraction cost to every
-rebuild; Tika, Docling, OCR, and vision models fit behind the
-[planned reusable boundary](./07-attachment-extraction.md). Semantic, vector, and
+rebuild. Byline ships the provisional [extraction contracts and source verification](./07-attachment-extraction.md)
+that Tika, Docling, OCR, and vision-model drivers implement; the store, worker, and search join
+do not ship yet. Semantic, vector, and
 cross-lingual retrieval are under active research and development for a future hybrid
 provider. None of this changes the built-in providers until it ships and declares its
 capabilities.
@@ -119,6 +120,7 @@ capabilities.
 - [Provider contract](./04-provider-contract.md) documents `SearchProvider`, `SearchDocument`, capabilities, and conformance requirements for another adapter.
 - [Portable multilingual analysis](./05-portable-analysis.md) explains logical terms, locale resolution, identifiers, expansion plug-ins, phrase plans, highlighting, and fingerprints.
 - [PostgreSQL and MySQL providers](./06-postgres-and-mysql.md) compares the two physical implementations and their operational behavior.
-- [Attachment extraction](./07-attachment-extraction.md) records the boundary, under development, for Tika, Docling, OCR, and vision-model services.
+- [Attachment extraction](./07-attachment-extraction.md) explains the concepts and lifecycle of extracting text from stored files, including what Byline provides today and what your application implements.
 - [Native search engines and backend portability](./08-native-engine-providers.md) explains how portable and native analysis divide responsibility, which behavior is guaranteed across providers, and what a provider change does and does not do.
 - [Semantic discovery and institutional standards](./09-semantic-discovery-and-institutional-standards.md) describes how Byline can support institutional repositories and collections through explicit capability layers and domain-appropriate standards profiles.
+- [Extraction provider contract](./10-extraction-provider-contract.md) is the reference for the provisional extraction types and helpers, the verified source read, and the provider conformance kit.

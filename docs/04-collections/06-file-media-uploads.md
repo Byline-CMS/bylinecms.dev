@@ -753,6 +753,33 @@ When a provider lacks one of these capabilities:
 
 Each capability stands alone: a provider with only `upload`, `delete` and `getUrl` still gets a `fileHash` on every new upload.
 
+#### Verified reads for derived work
+
+When you derive something from a file, such as extracted text, read it through `readVerifiedSource` from the server-only entry `@byline/core/stored-files`. It wraps `download`: it reads the complete body, hashes it, and exposes the bytes only when the hash equals the saved `fileHash`.
+
+```ts
+import { probeVerifiedSource, readVerifiedSource } from '@byline/core/stored-files'
+
+const read = await readVerifiedSource(storage, file) // file is a StoredFileValue
+if (read.status === 'verified') {
+  try {
+    await useTheBytes(read.body.stream())
+    await saveEvidence(read.evidence)
+  } finally {
+    await read.body.dispose()
+  }
+}
+
+// Later: has the object changed since that read?
+const probe = await probeVerifiedSource(storage, file.storagePath, read.status === 'verified' ? read.evidence : null)
+```
+
+A saved validator that no longer matches leads to one unconditional read, because a changed token does not prove changed content. The hash decides. A different hash is reported as `hash-mismatch`, with what was observed, and no bytes are exposed. The read never writes to storage or changes the saved value.
+
+`probeVerifiedSource` compares `head` with the validator in the read's evidence, not the one saved on the document, so a copied value cannot stand in for verification. A provider without `head` gives `unprobed`, which is reduced assurance rather than `unchanged`: you may reuse earlier work, but only a separate verify run, described under [Backfill and verification](#backfill-and-verification), then detects a same-path replacement.
+
+Every outcome and rule is listed in the [extraction provider contract](../06-search/10-extraction-provider-contract.md#readverifiedsource), and [Attachment extraction for search](../06-search/07-attachment-extraction.md#source-identity) explains how extraction uses them. Both helpers are provisional.
+
 #### Writes, moves and what the guarantee covers
 
 `@byline/storage-local` never modifies a stored file in place: uploads write a new file beside the target and rename it over the path. `move` first renames the source to a private name — which takes exactly the file that is there at that moment — reads its validator, and then renames it onto the destination. Across filesystems (`EXDEV`) it copies to a temporary file beside the destination, renames that into place, and removes only the private copy, so a file uploaded to the source path meanwhile is never deleted. If a move fails before the destination is written, the provider puts the source back, or throws `ERR_STORAGE` naming the path that still holds the content. The local guarantee covers Byline's own writers: a process outside Byline that writes into a stored file in place can change bytes under an open reader.
@@ -990,6 +1017,7 @@ For non-image uploads, `variants` is absent and `imageWidth` / `imageHeight` / `
 | Storage provider interface (incl. `download` / `head`, `StorageValidator`) | `packages/core/src/@types/storage-types.ts` |
 | Content hashing (browser-safe) | `packages/core/src/storage/content-hash.ts` |
 | Stream hashing and backfill (`@byline/core/stored-files`) | `packages/core/src/storage/stored-files-server.ts` |
+| Verified source read and probe (`@byline/core/stored-files`) | `packages/core/src/storage/verified-read.ts` |
 | Storage provider conformance suite | `packages/storage-conformance/src/index.ts` |
 | Backfill adapter primitives | `packages/db-postgres/src/modules/storage/stored-files.ts`, `packages/db-mysql/src/modules/storage/stored-files.ts` |
 | Backfill script (reference) | `apps/webapp/byline/scripts/backfill-file-identity.ts` |

@@ -11,7 +11,7 @@ Companions:
 - [Byline for Collections](../02-why-byline/03-byline-for-collections.md) — why Byline's versioning, workflow, audit trail, and multilingual content model are relevant to institutional collections.
 - [Search provider contract](./04-provider-contract.md) — the capability declarations and conformance boundary through which new retrieval providers integrate.
 - [Portable multilingual search analysis](./05-portable-analysis.md) — the Unicode, locale, identifier, and query-planning foundation that both built-in SQL providers use.
-- [Attachment extraction for search](./07-attachment-extraction.md) — the derived-artifact boundary, under development, for PDF, office-document, OCR, and vision extraction.
+- [Attachment extraction for search](./07-attachment-extraction.md) — the derived-artifact boundary, with provisional contracts shipped, for PDF, office-document, OCR, and vision extraction.
 
 Institutional discovery likely involves more than matching words in a web page. A
 researcher, for example, may know an alternate transliteration but not the catalogue's
@@ -171,7 +171,7 @@ the institutional record remains authoritative, reviewable, and portable.
 | Status | Direction | Evidence required before Byline claims it |
 | --- | --- | --- |
 | Implemented (core) | Multilingual lexical search through PostgreSQL and MySQL | Provider conformance, lifecycle tests, authorization tests, and documented language limits. |
-| Under development | A Solr provider (BM25 ranking, facet aggregation) and the attachment-extraction boundary, proven against a production institutional deployment | Conformance and extraction lifecycle tests before the public packages claim them; structured `where` filtering remains open. |
+| Under development | A Solr provider (BM25 ranking, facet aggregation) and the attachment-extraction store and search join, proven against a production institutional deployment. The extraction provider contracts and source verification ship as provisional | Conformance and extraction lifecycle tests before the public packages claim them; structured `where` filtering remains open. |
 | Next | Portable `where` filtering and facet aggregation in the provider contract; stable concept identifiers, aliases, and authority links | Consistent provider behaviour, non-leaking authorized counts, and real institutional query sets. |
 | Actively researched | Embedding artifacts, hybrid lexical/vector retrieval, cross-lingual evaluation, and selected standards profiles | Rebuild and deletion tests, model/version tracking, profile validation, and human relevance judgments for each claimed language and domain. |
 | Future, where justified | Relationship traversal, richer linked-data projections, cited natural-language answers, and MCP tools | A real partner use case, permission-safe retrieval, measurable improvement over simpler approaches, and an operational maintenance plan. |
