@@ -1,5 +1,11 @@
 # @byline/ui
 
+## 6.13.0
+
+### Minor Changes
+
+- added provisional extraction provider contracts, verified source reads and the new **`@byline/extraction-conformance`** kit
+
 ## 6.12.1
 
 ### Patch Changes

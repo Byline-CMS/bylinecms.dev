@@ -1,5 +1,19 @@
 # @infonomic/ai
 
+## 6.13.0
+
+### Minor Changes
+
+- added provisional extraction provider contracts, verified source reads and the new **`@byline/extraction-conformance`** kit
+
+### Patch Changes
+
+- Updated dependencies [5ae6b48]
+- Updated dependencies
+  - @byline/core@6.13.0
+  - @byline/richtext-lexical@6.13.0
+  - @byline/ui@6.13.0
+
 ## 6.12.1
 
 ### Patch Changes

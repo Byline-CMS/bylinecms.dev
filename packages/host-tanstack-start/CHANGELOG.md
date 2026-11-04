@@ -1,5 +1,25 @@
 # @byline/host-tanstack-start
 
+## 6.13.0
+
+### Minor Changes
+
+- added provisional extraction provider contracts, verified source reads and the new **`@byline/extraction-conformance`** kit
+
+### Patch Changes
+
+- Updated dependencies [5ae6b48]
+- Updated dependencies
+  - @byline/core@6.13.0
+  - @byline/admin@6.13.0
+  - @byline/ai@6.13.0
+  - @byline/analytics@6.13.0
+  - @byline/analytics-agent@6.13.0
+  - @byline/auth@6.13.0
+  - @byline/client@6.13.0
+  - @byline/i18n@6.13.0
+  - @byline/ui@6.13.0
+
 ## 6.12.1
 
 ### Patch Changes

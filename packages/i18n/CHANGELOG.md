@@ -1,5 +1,16 @@
 # @byline/i18n
 
+## 6.13.0
+
+### Minor Changes
+
+- added provisional extraction provider contracts, verified source reads and the new **`@byline/extraction-conformance`** kit
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/ui@6.13.0
+
 ## 6.12.1
 
 ### Patch Changes
