@@ -75,6 +75,12 @@
       "dependsOn": ["^build"],
       "outputs": []
     },
+    "@byline/storage-s3#test": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "env": ["BYLINE_S3_TEST_*"],
+      "cache": false
+    },
     "@byline/client#typecheck": {
       "dependsOn": ["^build", "@byline/host-tanstack-start#build"],
       "outputs": [],

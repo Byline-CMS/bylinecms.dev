@@ -285,7 +285,7 @@ describe('storage-s3 with a mocked client', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Live conformance against an S3-compatible endpoint (MinIO in CI)
+// Live conformance against an S3-compatible endpoint (RustFS in CI)
 // ---------------------------------------------------------------------------
 
 const endpoint = process.env.BYLINE_S3_TEST_ENDPOINT

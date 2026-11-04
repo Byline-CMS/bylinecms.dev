@@ -262,10 +262,15 @@ test`, `pnpm exec biome check .`.
 
 ## Release gates
 
-These are not checkpoints, and Tony decides the release. Before it: green pull
-request CI, including the integration suites, and the real-provider kit result
-from Stage 3. The last completed CI run on `develop` predates v6.12.1, because
-later runs were cancelled or skipped.
+These are not checkpoints, and Tony decides the release. This work merged into
+`develop` without a pull request, so the gate is CI on `develop`. Before release:
+green CI, including the integration suites; the CI log showing the live S3 suite
+passed and not skipped (82 tests at the time of writing); and the real-provider
+kit result from Stage 3.
+
+**Correction (2026-11-04):** the live S3 suite never ran in CI before this date,
+because Turbo's strict environment mode withheld `BYLINE_S3_TEST_*`. The S3 unit
+tests did run. See the correction under Status in the specification.
 
 ## Risks
 

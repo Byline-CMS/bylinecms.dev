@@ -52,7 +52,7 @@ Rules that apply to every phase:
 |---|---|---|
 | 0 — Anthropic structured outputs | #104 | **Done** — `9eeac5ec`, issue closed |
 | 1 — Stored-file content identity | #85 (#72 only where hashing touches it) | **Done** — released in v6.12.0, #85 closed; receipts follow in #108 |
-| 4 — Extraction contracts in core | #5 | **In progress** — spec revision 4 and decisions 1–12 accepted; stages 1–3 approved in run `2026-11-04-extraction-contracts`; documentation in review; uncommitted |
+| 4 — Extraction contracts in core | #5 | **Implemented, not released** — spec revision 4 and decisions 1–12 accepted; all stages approved in run `2026-11-04-extraction-contracts`; merged into `develop` at `3223e697`; release gates in the plan |
 | 3 — Search `where`, facets and locale discovery | #6, #81, #76 | Not started — second |
 | 5 — Jobs-table pattern on the scheduler | new issue | Not started — third |
 | 6 — Embargo as an access state (spec only) | new issue | Not started — fourth |
@@ -261,7 +261,8 @@ Tasks:
 | Date | Work | Commits |
 |---|---|---|
 | 2026-10-31 | Phase 0 fixed and #104 closed; roadmap written; Phase 1 coordinated run started; brief author's corrections folded in (MCP scope, page-map provenance, scheduler token, bytes-validator binding) | `9eeac5ec` |
-| 2026-10-31 | Phase 1 implemented (Stages 1–4): content hash and validator, bound reads, atomic local writes, storage conformance (RustFS in CI), validator columns, Postgres `variants` fix, backfill/verify; checkpoints 1–3 approved | `b858dc15`, `242346ca`, `f9f8374b`, `1271c7fb` |
+| 2026-10-31 | Phase 1 implemented (Stages 1–4): content hash and validator, bound reads, atomic local writes, storage conformance (live against RustFS locally; CI skipped it until the 2026-11-04 correction), validator columns, Postgres `variants` fix, backfill/verify; checkpoints 1–3 approved | `b858dc15`, `242346ca`, `f9f8374b`, `1271c7fb` |
 | 2026-10-31 | Release squash, `drizzle:rekey` helper, v6.12.0 released; #85 closed, #108 opened. Phase order changed: extraction contracts next, MCP last. Downstream adoption of 6.12.0 completed first | `96e3d1aa`, `00e08b10`, `59be4cae`, `e3075ca9` |
 | 2026-10-31 | Phase 4 spec and plan drafted against the downstream identity and lifecycle policy; three manual review rounds; revision 3 and decisions 1–8 accepted; plan made self-contained for handover. Next: Stage 1 in a new session | `9cb74b02` |
-| 2026-11-04 | Readiness review against the downstream plan and open issues found no prerequisite. Decisions 9–12 and spec revision 4 accepted; coordinated run restarted on v6.12.1. Plan Stages 1–3 implemented and approved, with live S3 and real-Tika runs; Stage 4 documentation drafted | uncommitted |
+| 2026-11-04 | Readiness review against the downstream plan and open issues found no prerequisite. Decisions 9–12 and spec revision 4 accepted; coordinated run restarted on v6.12.1. Plan Stages 1–3 implemented and approved, with live S3 and real-Tika runs; Stage 4 documentation drafted | `8c885889`, `acdde3e4`, `8498333c`, `5ae6b481`, `3223e697` |
+| 2026-11-04 | Correction: live S3 conformance had never run in CI. Turbo's strict environment mode withheld `BYLINE_S3_TEST_*`, so all eight CI runs that reached the S3 tests since 2026-10-31 skipped the suite while its unit tests ran. Added a `@byline/storage-s3#test` task that forwards the variables and disables caching | this entry's commit |

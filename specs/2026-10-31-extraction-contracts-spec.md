@@ -19,6 +19,16 @@ to 12 (§14): reuse of verified historical output whose producer was never
 recorded (§5.10), evidence refresh (§6.7), an exact browser-guard exception
 (§3) and the truncated-file expectation (§10.1).
 
+**Correction (2026-11-04):** this document said live `storage-s3` conformance
+ran in CI. It did not. `ci.yml` started RustFS and set `BYLINE_S3_TEST_*`, but
+Turbo's strict environment mode withheld those variables from the `test` task,
+so all eight CI runs that reached the S3 tests, from the suite's first run on
+2026-10-31 to `3223e697`, skipped it. They reported 21 unit tests passed and 1
+skipped. The S3 unit tests did run in CI; the live conformance suite did not.
+Live evidence for this work is the two independent local runs against
+`rustfs/rustfs:1.0.4`, each 82 of 82. A `@byline/storage-s3#test` task in
+`turbo.json` now forwards the variables and disables caching.
+
 Revision 3 was accepted by Tony on 2026-10-31 with all eight §14
 decisions. A completing clarification (same day, no decision reopened)
 adds the deployment identifier to the work decision's producer input, with
@@ -140,7 +150,8 @@ the document records: `missing-hash`, `missing-object` or `hash-mismatch`.
   fallback policy in §6.2 and the evidence record in §6.4. This
   specification generalises it.
 - `@byline/storage-conformance` (private) runs against `storage-local` and
-  `storage-s3` (RustFS in CI). `@byline/search-conformance` is private.
+  `storage-s3` (live against RustFS when `BYLINE_S3_TEST_ENDPOINT` is set;
+  see the correction under Status). `@byline/search-conformance` is private.
 
 ## 4. Responsibilities
 
@@ -1368,7 +1379,8 @@ not reopen decisions 1 to 8.
       `validateExtractionArtifact`, with its regression table, and the §6.7
       evidence refresh rule documented.
 - [ ] Documentation per §13; changeset; downstream adoption note.
-- [ ] Before release: green pull request CI, and the kit run against a real
+- [ ] Before release: green CI on `develop`, with its log showing the live S3
+      suite passed and not skipped, and the kit run against a real
       provider, with the fixtures in §10.1 case 5 validated against it.
 - [ ] Not included: store, join, worker, router, admin log, reference
       drivers (tracked in the follow-up issue).
