@@ -78,7 +78,7 @@
     "@byline/storage-s3#test": {
       "dependsOn": ["^build"],
       "outputs": [],
-      "env": ["BYLINE_S3_TEST_*"],
+      "env": ["BYLINE_S3_TEST_*", "CI"],
       "cache": false
     },
     "@byline/client#typecheck": {

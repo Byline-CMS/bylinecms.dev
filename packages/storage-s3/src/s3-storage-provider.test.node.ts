@@ -300,7 +300,14 @@ const live = endpoint
 
 if (!live) {
   describe('storage-s3 live conformance', () => {
-    it.skip('set BYLINE_S3_TEST_ENDPOINT to run against an S3-compatible server', () => {})
+    if (process.env.CI) {
+      // CI provides an S3 service, so a missing endpoint means lost coverage rather than a choice.
+      it('runs in CI', () => {
+        throw new Error('Live S3 conformance must run in CI: BYLINE_S3_TEST_ENDPOINT is not set')
+      })
+    } else {
+      it.skip('set BYLINE_S3_TEST_ENDPOINT to run against an S3-compatible server', () => {})
+    }
   })
 } else {
   const admin = new S3Client({
