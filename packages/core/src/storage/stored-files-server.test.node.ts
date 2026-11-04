@@ -67,6 +67,14 @@ const opts = (size: number, extra?: Partial<UploadFileOptions>): UploadFileOptio
 })
 
 describe('hashStream', () => {
+  it('rejects when the signal fires as the stream ends', async () => {
+    const controller = new AbortController()
+    const stream = Readable.from([Buffer.from('abc')])
+    stream.on('end', () => controller.abort(new Error('stop')))
+
+    await expect(hashStream(stream, { signal: controller.signal })).rejects.toThrow('stop')
+  })
+
   it('hashes a stream to its end and counts bytes', async () => {
     const bytes = Buffer.from('hello world')
     await expect(

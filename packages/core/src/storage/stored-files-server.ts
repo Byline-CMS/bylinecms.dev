@@ -14,6 +14,7 @@ import { createHash } from 'node:crypto'
 import { Transform } from 'node:stream'
 
 import { ERR_STORAGE, ERR_VALIDATION } from '../lib/errors.js'
+import { consumeStream, destroyStream } from './verified-read.js'
 import type { IDbAdapter } from '../@types/db-types.js'
 import type {
   IStorageProvider,
@@ -23,6 +24,15 @@ import type {
 } from '../@types/storage-types.js'
 import type { BylineLogger } from '../lib/logger.js'
 
+export {
+  probeVerifiedSource,
+  readVerifiedSource,
+  type SourceProbe,
+  VERIFIED_SOURCE_SPOOL_PREFIX,
+  type VerifiedSourceBody,
+  type VerifiedSourceRead,
+} from './verified-read.js'
+
 /** SHA-256 (lower-case hex) and byte count of a stream, read to its end. */
 export async function hashStream(
   stream: NodeJS.ReadableStream,
@@ -30,25 +40,13 @@ export async function hashStream(
 ): Promise<{ fileHash: string; size: number }> {
   const hash = createHash('sha256')
   let size = 0
-  const signal = options?.signal
-  if (signal?.aborted) {
-    // An already-aborted signal never fires 'abort'; release the stream here.
-    // Destroy without an error: nothing listens to this stream yet, so an
-    // error argument would surface as an unhandled 'error' event.
-    destroyStream(stream)
-    signal.throwIfAborted()
-  }
-  const onAbort = () => destroyStream(stream, signal?.reason)
-  signal?.addEventListener('abort', onAbort, { once: true })
-  try {
-    for await (const chunk of stream as AsyncIterable<Buffer | string>) {
-      const bytes = typeof chunk === 'string' ? Buffer.from(chunk) : chunk
-      hash.update(bytes)
-      size += bytes.length
-    }
-  } finally {
-    signal?.removeEventListener('abort', onAbort)
-  }
+  await consumeStream(stream, {
+    ...(options?.signal !== undefined && { signal: options.signal }),
+    onChunk: (chunk) => {
+      hash.update(chunk)
+      size += chunk.length
+    },
+  })
   return { fileHash: hash.digest('hex'), size }
 }
 
@@ -156,11 +154,6 @@ export async function uploadWithContentHash(
 
   input.removeListener('error', onInputError)
   return { location, fileHash: hash.digest('hex') }
-}
-
-function destroyStream(stream: NodeJS.ReadableStream, reason?: unknown): void {
-  const destroyable = stream as NodeJS.ReadableStream & { destroy?: (err?: Error) => void }
-  destroyable.destroy?.(reason instanceof Error ? reason : undefined)
 }
 
 // ---------------------------------------------------------------------------
