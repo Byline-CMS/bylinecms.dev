@@ -1,0 +1,3 @@
+# PDF cross-reference entries end in a required space, and a truncated fixture ends
+# mid-object. These bytes are the test data, so they are not text for diff checks.
+fixtures/*.pdf -diff

@@ -1156,6 +1156,37 @@ importers:
         specifier: ^5.0.5
         version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(happy-dom@21.0.4)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@5.5.0))(sass@1.107.1)(stylus@0.62.0(supports-color@5.5.0))(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/extraction-conformance:
+    dependencies:
+      '@byline/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@biomejs/biome':
+        specifier: 2.6.4
+        version: 2.6.4
+      '@types/node':
+        specifier: ^26.6.6
+        version: 26.6.6
+      chokidar:
+        specifier: ^6.0.0
+        version: 6.0.0
+      chokidar-cli:
+        specifier: ^3.0.0
+        version: 3.0.0
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
+      tsc-alias:
+        specifier: ^1.9.10
+        version: 1.9.10
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.5
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(happy-dom@21.0.4)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@5.5.0))(sass@1.107.1)(stylus@0.62.0(supports-color@5.5.0))(tsx@4.23.15)(yaml@2.9.1))
+
   packages/generated-types:
     devDependencies:
       '@biomejs/biome':
