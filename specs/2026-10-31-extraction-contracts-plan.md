@@ -16,21 +16,17 @@ Companions:
 This section is written so a new session can pick the work up without the
 conversation that produced it.
 
-### State at handover (2026-10-31)
+### State (2026-11-04)
 
-1. Tony accepted the specification (revision 3, plus the same-day
-   clarification adding `deploymentIdentifier` to the producer identity) and
-   all eight §14 decisions. A final manual design review found no
-   remaining blockers. **Next: Stage 1.** No implementation code exists yet.
-2. Branch `feat/extraction-contracts-5`, based on `e3075ca9` (v6.12.0). The
-   only changes are this plan, the specification and the roadmap.
-3. **Review is manual for now.** Tony relays handoffs between this session
-   and the reviewing session. Do not use the `/coordinate` mailbox unless
-   Tony asks. (A handshake revision for run
-   `2026-10-31-extraction-contracts` sits unanswered in the local `.coord/`
-   mailbox; ignore it.) At each checkpoint, stop and give Tony a short
-   handoff: scope (file list), what each spec rule maps to, the checks run
-   with their results, and anything deferred.
+1. Tony accepted specification revision 3 and decisions 1 to 8 on 2026-10-31,
+   and revision 4 with decisions 9 to 12 on 2026-11-04. Stages 1 to 3 are
+   approved at checkpoints 2 to 4. **Next: Stage 4 review, then release gates.**
+2. Branch `feat/extraction-contracts-5`, fast-forwarded to `b05b9640`
+   (v6.12.1). All implementation is uncommitted until Tony asks.
+3. **Review uses the `/coordinate` mailbox**, run
+   `2026-11-04-extraction-contracts`, with Claude Code as implementer and a
+   second agent as reviewer. The handshake there defines the checkpoints and
+   their scopes. Run `2026-10-31-extraction-contracts` is superseded.
 4. The specification is self-contained. It reproduces the downstream
    prototype contract it replaces, so no file outside this repository is
    needed to implement it.
@@ -43,12 +39,17 @@ conversation that produced it.
    repository; call it "a downstream research library".
 3. No database is touched in this phase.
 4. Do not post to GitHub (decision 8) until Tony says so.
+5. Nothing in this phase authorizes a production extraction run, here or
+   downstream. Any such run needs its own administrative decision, scope and
+   approval.
 
 ### Repository facts the stages depend on
 
 - **Root entry is browser-safe.** `packages/core/src/index.ts` and everything
-  it imports must have no `node:` import; hash with WebCrypto `sha256Hex`
-  (`packages/core/src/storage/content-hash.ts`). Server-only code goes in
+  it imports must gain no `node:` import; hash with WebCrypto `sha256Hex`
+  (`packages/core/src/storage/content-hash.ts`). The graph already holds one
+  guarded dynamic `import('node:async_hooks')` in `lib/logger.ts`, the only
+  permitted exception. Server-only code goes in
   `packages/core/src/storage/stored-files-server.ts`, exported as
   `@byline/core/stored-files`. There is no automated guard for this today;
   Stage 1 adds one.
@@ -92,6 +93,10 @@ conversation that produced it.
 | 6 | Accept the prototype deviations as a set | Accepted | 2026-10-31 |
 | 7 | Export lifecycle outcome types as provisional | Accepted | 2026-10-31 |
 | 8 | Rewrite issue #5 and open the store/orchestration follow-up | Accepted; post only on Tony's go-ahead | 2026-10-31 |
+| 9 | Reuse historical output with no recorded producer, under the narrow §5.10 rules | Accepted | 2026-11-04 |
+| 10 | Evidence refresh: keep the output and replace the reference's evidence (§6.7) | Accepted | 2026-11-04 |
+| 11 | Browser guard: allowlist the one dynamic `node:async_hooks` import | Accepted | 2026-11-04 |
+| 12 | Truncated fixture: accept parser recovery; a corrupt fixture must fail typed | Accepted | 2026-11-04 |
 
 ## Stage 1 — Provider contract types and pure validators
 
@@ -123,7 +128,9 @@ Roadmap task 4.2. Spec §5, §7.
       §5.10 version rules and `versionUnchecked`; `deploymentIdentifier` in
       `producerConfigHash`; a named successive-run regression test (no
       engine version, identifier `A` → extract, reuse; `B` → extract once,
-      reuse) plus the resolved-but-unreported and mid-run sequences.
+      reuse) plus the resolved-but-unreported and mid-run sequences. Add the
+      §5.10 historical exception, `producerUnchecked`, and its full regression
+      table from §10.2.
 - [ ] `packages/core/src/extraction/outcomes.ts`: `exclusionState` (§7).
 - [ ] Root barrel exports; `pnpm knip:exports` baseline updated only for
       deliberate public symbols.
@@ -132,9 +139,13 @@ Roadmap task 4.2. Spec §5, §7.
       malformed new fields, every `exclusionState` row (the failed-mark,
       successful-write regression as its own named test), the canonical hash
       and the cross-copy error guard (§10.2, last paragraph).
-- [ ] Browser-safety guard (none exists today): a test that walks the
-      import graph of the built root entry (`dist/index.js`) and fails on any
-      `node:` specifier, so the new modules cannot regress it.
+- [ ] Browser-safety guard (none exists today): a test that walks the static
+      and dynamic import graph of the built root entry (`dist/index.js`). It
+      fails on any `node:` specifier except a dynamic import of
+      `node:async_hooks` in `lib/logger.js`, on an allowlist entry that no
+      longer matches, and when `dist/index.js` is missing. A self-test proves
+      it catches a planted static import, a planted dynamic import, and a static
+      `node:async_hooks` import in `lib/logger.js` itself.
 
 **Checkpoint 2.** Scope: `packages/core/src/@types/extraction-types.ts`,
 `packages/core/src/extraction/**`, barrel changes. Review: fidelity to the
@@ -143,11 +154,14 @@ matching decision 6; validator rules exactly as §5.8; evidence rules as §6.4
 with legacy records still valid; the version rule as §5.10 (no repeated
 work for an unknown version or a result without a version, no copied
 version, deployment identifier hashed and carried on the producer identity
-consistently, both unknown-engine cases for `versionUnchecked`); `exclusionState` never
+consistently, both unknown-engine cases for `versionUnchecked`); the historical
+exception as narrow as §5.10, with a `null` hash rejected unless explicitly
+allowed; `exclusionState` never
 returns `excluded` after a failed eligibility update; no `node:` import in
-the root graph; provisional markers. Checks: `pnpm --filter @byline/core
-typecheck`, `pnpm --filter @byline/core test`, `pnpm exec biome check
-packages/core`.
+the root graph beyond the allowlisted one; provisional markers. Checks: `pnpm --filter @byline/core
+typecheck`, `pnpm --filter @byline/core build`, then `pnpm --filter @byline/core
+test`, so the guard reads fresh output and stale `dist` cannot certify changed
+source, then `pnpm exec biome check packages/core`.
 
 ## Stage 2 — Verified source read
 
@@ -175,7 +189,9 @@ always the read's own; never more than two reads; no body exposed on any
 non-`verified` path; spool files removed on every path; the saved envelope
 never written. Checks: core tests; `pnpm --filter @byline/storage-local
 test`; `pnpm --filter @byline/storage-s3 test` with RustFS (announce in the
-mailbox); `pnpm typecheck`.
+mailbox); `pnpm typecheck`. §6.7 needs no new helper: `readVerifiedSource`
+already returns the evidence a caller persists. Its acceptance case belongs to
+the later store (§10.3), and the documentation in Stage 4 states the rule.
 
 ## Stage 3 — Provider conformance kit
 
@@ -188,7 +204,8 @@ Roadmap task 4.3. Spec §10.1.
       `fixed[0]`. Not added to the CLI dependency manifest (see "Repository
       facts").
 - [ ] `scripts/generate-fixtures.mjs`: writes a three-page PDF with one
-      sentinel per page (`BYLINE-SENTINEL-PAGE-1` …) and a truncated copy,
+      sentinel per page (`BYLINE-SENTINEL-PAGE-1` …), a truncated copy and a
+      corrupt file with no PDF structure to recover,
       using hand-written PDF syntax and no dependencies. Commit the outputs
       under `fixtures/`; a test asserts the committed files match the
       generator's output.
@@ -196,9 +213,17 @@ Roadmap task 4.3. Spec §10.1.
 - [ ] Self-tests: an honest fake (returns canned results for the fixtures,
       with a correct page map) passes; dishonest fakes fail the intended
       case — markdown emitted with `markdown: false`, a page map with a
-      shifted page, an untyped error for the truncated file, an
+      shifted page, an untyped error for the truncated file, a corrupt file
+      that resolves, an
       infrastructure error typed as `file`, an abort that resolves, a
       `resolveVersion` that disagrees with the result's `providerVersion`.
+      A second honest fake that recovers the truncated file also passes.
+- [ ] Run the kit against a real provider through a local link, outside the
+      repository, and report the result at checkpoint 4. Treat the fixture
+      expectations as an experiment: one engine's result does not prove how
+      every engine behaves. If a real engine recovers the corrupt fixture, revise
+      the fixture or the expectation rather than classify that as a provider
+      defect.
 - [ ] `check:artifact` and `publish-packages.sh` dry run include the new
       package (build the CLI first, as before).
 
@@ -226,6 +251,8 @@ Roadmap task 4.4. Spec §13, §15, §16.
       Tony says.
 - [ ] Downstream adoption note (spec §16), with no downstream names in the
       repository.
+- [ ] Document the §5.10 historical exception, `producerUnchecked` and the
+      §6.7 evidence refresh rule, including what a caller implements.
 
 **Checkpoint 5.** Scope: `docs/**`, `CLAUDE.md`, the roadmap, the changeset,
 the README. Review: docs match shipped code; guarantees not yet implemented
@@ -233,7 +260,19 @@ are fenced as not shipped; host policies presented as an example only.
 Checks: `pnpm docs:check`, `git diff --check`, full `pnpm typecheck`, `pnpm
 test`, `pnpm exec biome check .`.
 
+## Release gates
+
+These are not checkpoints, and Tony decides the release. Before it: green pull
+request CI, including the integration suites, and the real-provider kit result
+from Stage 3. The last completed CI run on `develop` predates v6.12.1, because
+later runs were cancelled or skipped.
+
 ## Risks
+
+- **Historical output stays unchecked indefinitely.** Its configuration is
+  never compared, so a configuration change does not reach it. Mitigation:
+  `producerUnchecked` makes the state visible, and a caller replaces it through
+  an approved extraction run.
 
 - **Page map v1 changes after real-corpus evidence.** Mitigation: provisional
   marker, `version` field, and no stable claim until sentinel results exist.

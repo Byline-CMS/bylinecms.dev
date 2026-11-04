@@ -14,16 +14,21 @@ Companions:
 - [Attachment extraction for search](../docs/06-search/07-attachment-extraction.md) — the current planning page, which this phase rewrites.
 - Issue #5 — the tracking issue. Issue #108 (upload receipts) is related but not a prerequisite.
 
-**Status:** revision 3, accepted by Tony on 2026-10-31 with all eight §14
+**Status:** revision 4, accepted by Tony on 2026-11-04. It adds decisions 9
+to 12 (§14): reuse of verified historical output whose producer was never
+recorded (§5.10), evidence refresh (§6.7), an exact browser-guard exception
+(§3) and the truncated-file expectation (§10.1).
+
+Revision 3 was accepted by Tony on 2026-10-31 with all eight §14
 decisions. A completing clarification (same day, no decision reopened)
 adds the deployment identifier to the work decision's producer input, with
 `buildExtractionProducer` keeping it consistent with the hash (§5.7, §6.6). Revision 2
 closed three review findings: failed eligibility updates (§7), the provider
 version before reuse (§5.10) and evidence compatibility (§6.4). Revision 3
 separates a host-configured deployment identifier from the engine version
-(§5.7, §5.10) and limits version-equality conformance to a stable engine. No implementation has
-started; branch `feat/extraction-contracts-5` has no changes beyond `e3075ca9`
-(v6.12.0).
+(§5.7, §5.10) and limits version-equality conformance to a stable engine. The
+implementation is complete and uncommitted on branch `feat/extraction-contracts-5`,
+based on `b05b9640` (v6.12.1). Release is pending.
 
 ## 1. Purpose
 
@@ -117,8 +122,14 @@ the document records: `missing-hash`, `missing-object` or `hash-mismatch`.
   `missing`. `StoredObjectRead.body` is a `NodeJS.ReadableStream`.
 - `@byline/core/stored-files` (server-only) exports `hashStream`,
   `uploadWithContentHash` and `backfillStoredFileIdentity`. The root entry
-  must stay free of `node:` imports; it hashes with WebCrypto
-  (`sha256Hex`).
+  hashes with WebCrypto (`sha256Hex`) and must not gain `node:` imports. Its
+  graph holds exactly one today: `lib/logger.ts` attempts
+  `import('node:async_hooks')` during module initialization and falls back to
+  a no-op store when that fails. The browser guard allowlists that file,
+  specifier and dynamic import form together. Any other `node:` specifier
+  fails, static or dynamic, as does a static import of `node:async_hooks` in
+  that same file, because a static import has no fallback. An allowlist entry
+  that no longer matches also fails (decision 11).
 - The downstream prototype contract (`extractor-types.ts`) defines
   `ExtractionProvider`, `ExtractionInput`, `ExtractionResult`,
   `ExtractionMetadata`, `RoutingSignals`, `ExtractorCapabilities`,
@@ -441,7 +452,7 @@ export interface ExtractionArtifact {
   sourceVerified: boolean           // true exactly when contentHash came from a verified read
   provider: string
   providerVersion: string | null
-  producerConfigHash: string
+  producerConfigHash: string | null // null only for historical imports (§5.10, §9)
   plainText: string
   markdown?: string
   structure?: JsonValue
@@ -456,9 +467,23 @@ export interface ExtractionArtifact {
 The field names follow the downstream library's artifact table so its store
 can import the type unchanged. Document, version, path, access and selection
 are deliberately absent: they belong to references, so one artifact can
-serve every authorised reference to the same bytes and producer.
-`validateExtractionArtifact()` checks the shape, `contentHash` format,
-`sourceVerified === (contentHash !== null)`, and the page map (§5.8).
+serve every authorised reference to the same bytes and producer. Verification
+evidence is absent too: it records one read for one reference, and it can be
+replaced while the artifact stays immutable (§6.7).
+
+```ts
+export function validateExtractionArtifact(
+  artifact: unknown,
+  options?: { allowUnrecordedProducer?: boolean }
+): ValidationResult
+```
+
+`validateExtractionArtifact()` checks the shape, the `contentHash` and
+`producerConfigHash` formats, `sourceVerified === (contentHash !== null)`, and
+the page map (§5.8). A `null` `producerConfigHash` fails unless
+`allowUnrecordedProducer` is `true`. Only code reading or importing historical
+records passes that option. A new extraction always records the real hash from
+its `ExtractionProducerIdentity`, whose `producerConfigHash` is never `null`.
 
 Neither `contentHash` nor the stored file's `fileHash` is a hash of
 extracted text. An output digest is not part of this contract.
@@ -501,7 +526,8 @@ it is what produced the output (see the mid-run case below).
 |---|---|---|
 | Known | Equal | No version reason |
 | Known | Different | `producer-changed` |
-| Known | `null` (recorded before versions were known) | `producer-changed`, once: the new artifact records the resolved version, so the next decision finds them equal |
+| Known | `null` (recorded before versions were known), with a recorded `producerConfigHash` | `producer-changed`, once: the new artifact records the resolved version, so the next decision finds them equal |
+| Known | `null`, with a `null` `producerConfigHash` | No version reason; see "Historical output with no recorded producer" below |
 | `null` | Any | No version reason |
 
 `versionUnchecked` is `true` exactly when the current engine version is
@@ -529,6 +555,37 @@ progress), the artifact records the result's version, which is the engine's
 real version. This is accepted, not an error. The next run resolves the new
 version and finds it equal, so there is no further work. Conformance case 9
 does not test this case; it assumes a stable engine (§10.1).
+
+**Historical output with no recorded producer.** A host can hold verified
+output from before producer identity existed. Its source is proven, but its
+configuration is unknown, and that unknown must stay visible: a current
+configuration hash must not be written onto it. Such an artifact has a `null`
+`producerConfigHash`. Adopting these contracts must not by itself cause
+re-extraction of that output, so this narrow exception applies when, and only
+when, every other reuse condition in §6.6 holds:
+
+| Check | Artifact with a `null` `producerConfigHash` |
+|---|---|
+| `force` | Unchanged: `work` |
+| No `fileHash` on the reference | Unchanged: `identity-problem` |
+| Attempt state `failed` or `identity-problem` | Unchanged: `previous-attempt-unsuccessful` |
+| Source hash, evidence, `sourceVerified` | Unchanged: `source-changed` or `unverified` |
+| Schema version | Unchanged: `schema-changed` |
+| Provider name differs | Unchanged: `producer-changed` |
+| Engine version known on both sides | Unchanged: compared, and a difference is `producer-changed` |
+| Engine version `null` on the artifact | Not compared; no version reason |
+| Configuration hash | Not compared; no configuration reason |
+
+The result is `reuse` with `producerUnchecked: true`, which is reduced assurance
+in the same sense as `versionUnchecked`. A changed deployment identifier or
+configuration is not detected for this output. A caller replaces it by choosing
+to extract again; the new artifact then records its full producer.
+
+This exception means "keep the output this reference already holds". It does
+not make the artifact a cache match. A content-addressed lookup for a fully
+identified producer must not return an artifact with a `null`
+`producerConfigHash`, and another reference with identical bytes must not reuse
+it through this rule.
 
 ## 6. Generic guarantees Byline implements in this release
 
@@ -696,7 +753,7 @@ The validator accepts a record only when every rule holds:
    minor can add members without invalidating stored evidence.
 2. `expectedHash` and `contentHash` match the content-hash pattern and are
    equal. `expectedHash` equals `options.expectedHash` when it is given.
-3. `validator` is an object with string `kind` and `value` within
+3. `validator` is an object with non-empty string `kind` and `value` within
    `STORAGE_VALIDATOR_LIMITS`.
 4. `verifiedAt` is a string that parses as an ISO 8601 date-time.
 5. `size`, when present, is a non-negative safe integer.
@@ -766,13 +823,19 @@ export type ExtractionWorkReason =
 export type ExtractionWorkDecision =
   | { kind: 'identity-problem'; problem: 'missing-hash' }
   | { kind: 'work'; reasons: ExtractionWorkReason[]; versionUnchecked: boolean }
-  | { kind: 'reuse'; evidence: SourceVerificationEvidence; versionUnchecked: boolean }
+  | {
+      kind: 'reuse'
+      evidence: SourceVerificationEvidence
+      versionUnchecked: boolean
+      producerUnchecked: boolean // true only for the §5.10 historical exception
+    }
 
 export function decideExtractionWork(input: {
   force?: boolean
   reference: { fileHash?: string | null }
   /** Built by `buildExtractionProducer` (§5.7); see the consistency rule below. */
   producer: ExtractionProducerIdentity
+  /** The output and evidence this reference currently holds. */
   existing?: {
     state: 'complete' | 'failed' | 'identity-problem'
     artifact?: Pick<ExtractionArtifact, 'contentHash' | 'sourceVerified' | 'provider'
@@ -804,12 +867,40 @@ export function decideExtractionWork(input: {
 - `reuse` requires a `complete` existing state, a `sourceVerified` artifact
   whose `contentHash` equals the reference's `fileHash`, valid evidence for
   that hash (§6.4), the same provider and configuration hash, a version that
-  passes §5.10, and the current schema version. A
+  passes §5.10, and the current schema version. The §5.10 historical exception
+  is the only case where the configuration hash is not compared. A
   legacy artifact (`contentHash: null`) is never reused as verified.
 - A `reuse` decision is followed by `probeVerifiedSource`; `changed` turns it
-  into a read with `knownChanged`.
+  into a read with `knownChanged` (§6.7).
 - Hosts may add their own reasons (for example an inspection-policy
   version) and treat the union as the decision.
+
+### 6.7 Evidence refresh
+
+A storage token can change while the bytes stay the same, for example when an
+operator restores or rewrites an object. A `reuse` decision whose probe returns
+`changed` therefore leads to `readVerifiedSource` with `knownChanged`:
+
+- **`verified`.** The measured hash equals the reference's `fileHash`, so the
+  bytes are unchanged. Output depends only on the bytes and the producer, so
+  the caller keeps the existing output and does not call the provider. It
+  replaces the reference's current evidence with the evidence from this read,
+  which carries the new validator, and disposes of the body.
+- **`identity-problem`, `unavailable`.** These follow §6.1. The existing
+  evidence is not changed.
+
+Evidence is persisted with the reference, or in an attempt record the reference
+points to, and never on the immutable artifact. Each reference holds its own
+evidence, so an artifact shared by two references never carries one reference's
+validator for the other. The write is conditional on the reference's `fileHash`
+still equaling the verified hash, so a late read cannot overwrite evidence for a
+newer file.
+
+If the evidence write fails, the existing output stays selected and the failure
+is reported. The next probe returns `changed` again and repeats one read; it
+does not cause re-extraction. Refreshing evidence does not change
+`producerUnchecked`, because it establishes the source and says nothing about
+the producer.
 
 ## 7. Lifecycle semantics: three independent outcomes
 
@@ -974,16 +1065,32 @@ importer now, or a later Byline store — follows these rules:
 | Row state | Import as |
 |---|---|
 | Identity problem | An attempt carrying the reason. Text is retained for audit. Never selected; the reference stays ineligible until verified |
-| Complete, with valid evidence (§6.4) for the reference's hash | A verified artifact (`contentHash` and validator from the evidence, `sourceVerified: true`); producer fields only as far as recorded |
-| Complete, without valid evidence (including a hash copied from the envelope) | A legacy artifact: `contentHash: null`, `sourceVerified: false`, an idempotent legacy key. It may stay selected so search does not change at cutover; it is never assigned a later-measured hash |
+| Complete, with valid evidence (§6.4) for the reference's hash | A verified artifact (`contentHash` from the evidence, `sourceVerified: true`); the evidence moves to the reference (§6.7); producer fields only as far as recorded, with `producerConfigHash: null` when no configuration was recorded |
+| Complete, without valid evidence (including a hash copied from the envelope) | A legacy artifact: `contentHash: null`, `sourceVerified: false`, `producerConfigHash: null` unless recorded, an idempotent legacy key. It may stay selected so search does not change at cutover; it is never assigned a later-measured hash |
 | Failed | An attempt only; never an artifact or a selection |
 
-Missing producer versions or configuration are not invented. A legacy
+Missing producer versions or configuration are not invented. A placeholder such
+as a hash of a fixed string is not a recorded configuration: compared with a
+real hash, it reads as `producer-changed` and would cause the re-extraction that
+§5.10 prevents. A host that keeps a placeholder in a non-nullable column maps it
+to `null` before calling `decideExtractionWork`.
+
+Two historical rows can share a source hash and provider and still hold
+different text, because their unrecorded settings differed. An importer therefore
+does not deduplicate artifacts with an unrecorded configuration against each
+other. It imports each one under an idempotent key derived from its source row,
+and each reference keeps its own output. A `null` engine version with a recorded
+configuration hash is a different case, and may share an artifact.
+
+A legacy
 selection is replaced once a verified artifact exists for the current hash;
-rollback to a legacy artifact is offered only while none exists. Before
-cutover, a non-forced verification sweep (`decideExtractionWork` returns
-`unverified` for every row without evidence) establishes the verified
-baseline, so the legacy case should be empty for live references.
+rollback to a legacy artifact is offered only while none exists. A non-forced
+verification pass (`decideExtractionWork` returns `unverified` for every row
+without evidence) is how a host establishes a verified baseline, so the legacy
+case should be empty for live references.
+
+Adopting a release does not authorize a production extraction run. Any such run
+needs its own administrative decision, scope and approval.
 
 ## 10. Conformance
 
@@ -1016,9 +1123,15 @@ Cases:
    passes `validatePageMap` with `pageCount: 3`, and each page's sentinel lies
    inside that page's range and no other. This is the only provenance check;
    the structural validator alone is not.
-5. **Typed file failure.** A truncated PDF rejects with
-   `ExtractionProviderError`, `failureScope: 'file'`. A MIME type outside a
-   non-wildcard `formats` list rejects with a `file` failure.
+5. **Typed file failure.** A corrupt fixture with no PDF structure to recover
+   rejects with `ExtractionProviderError`, `failureScope: 'file'`. A truncated PDF
+   either rejects the same way or resolves with a valid result, because a parser
+   that recovers a damaged file has not failed; an untyped or `infrastructure`
+   rejection fails the case. A MIME type outside a non-wildcard `formats` list
+   rejects with a `file` failure. The fixtures are validated against a real
+   engine before the kit is published (§15). One engine's result does not prove
+   how every engine behaves, so the fixtures and this expectation are revised
+   on actual results, and legitimate recovery is not treated as a driver defect.
 6. **Typed infrastructure failure.** When `createUnavailableProvider` is
    given, extraction rejects with `failureScope: 'infrastructure'`, and `ping`
    (if defined) rejects.
@@ -1084,7 +1197,15 @@ extracts on run 1, reuses on run 2 with `versionUnchecked: false`,
 re-extracts once on run 3 after the identifier changes to `B`, and reuses
 on run 4; a second sequence where `resolveVersion` is known but the result
 reports no version, recording the resolved version and reusing on the next
-run; and the mid-run upgrade recording the result's version, then reusing), `producerConfigHash` (key-order independence, hint filtering,
+run; and the mid-run upgrade recording the result's version, then reusing;
+and the §5.10 historical exception: a verified artifact with a `null`
+configuration hash and a `null` version gives reuse with
+`producerUnchecked: true` and no work, whether the current version is known or
+not; every other row of that table still gives its unchanged result, including
+a provider mismatch, two known and different versions, a changed source hash,
+missing evidence, a failed state, a different schema and force; a recorded hash
+never gives `producerUnchecked: true`; and `validateExtractionArtifact` rejects
+a `null` hash without `allowUnrecordedProducer`), `producerConfigHash` (key-order independence, hint filtering,
 rejection of non-JSON values), `validatePageMap` (each rule in §5.8,
 including surrogate splits and separator mismatches) and the error guards
 across a second module copy.
@@ -1097,6 +1218,9 @@ implements the layer. The owning roadmap phase is named.
 | Case | Owner |
 |---|---|
 | Force re-runs an unchanged file; ordinary extraction reuses; a plain reindex never reads, hashes or extracts | Store and orchestration (future) |
+| A changed validator with an identical hash keeps the output, makes no provider call and replaces the reference's evidence once; a failed evidence write repeats one read and never re-extracts | Store and orchestration (future); host now |
+| Historical output with no recorded producer is reused for its own reference and is never returned as a cache match for another | Store (future); host importer now |
+| Two historical rows with the same source hash and provider but different text both survive import; each reference keeps its output; repeating the import changes nothing | Store (future); host importer now |
 | Hash mismatch records evidence, leaves the saved envelope untouched and promotes nothing | Store (future); host now |
 | Provider outage and file failure preserve existing artifacts | Store (future); host now |
 | Identical bytes on two references share an artifact without sharing access | Store (future) |
@@ -1200,11 +1324,31 @@ decision 8 are posted only on his go-ahead.
    one follow-up issue for the artifact store and orchestration.
    *Recommendation:* yes, after acceptance.
 
+Tony took decision 9 and accepted decisions 10 to 12 on 2026-11-04. They do
+not reopen decisions 1 to 8.
+
+9. **Historical output with no recorded producer.** Reuse it for its own
+   reference with `producerUnchecked: true`, under the narrow rules in §5.10,
+   or accept one re-extraction. Tony chose reuse: adopting contracts does not
+   authorize another production run.
+10. **Evidence refresh.** After a changed validator and an identical hash, keep
+    the output and replace the reference's evidence (§6.7), or re-extract.
+    *Recommendation:* keep the output. Identical bytes and producer give no
+    reason to run the provider again.
+11. **Browser guard.** Allowlist the one dynamic `node:async_hooks` import in
+    `lib/logger.ts` (§3), or ignore all dynamic imports. *Recommendation:*
+    allowlist it. A dynamic import is not safe merely because it is dynamic.
+12. **Truncated fixture.** Accept parser recovery of a truncated PDF and require
+    a `file` failure for a corrupt fixture (§10.1), or require a `file` failure
+    for the truncated PDF. *Recommendation:* accept recovery, subject to the
+    real-engine check in §15.
+
 ## 15. Issue #5 acceptance criteria (proposed)
 
 - [ ] Provider contract types, typed failures and guards exported from the
       `@byline/core` root, provisional, with no `node:` import in the root
-      graph.
+      graph beyond the single allowlisted dynamic import (§3), enforced by the
+      browser guard.
 - [ ] `ExtractionArtifact` schema version 1 and page map version 1 types with
       `validateExtractionArtifact` and `validatePageMap`.
 - [ ] `producerConfigHash` with canonical JSON, and `buildExtractionProducer`
@@ -1220,7 +1364,12 @@ decision 8 are posted only on his go-ahead.
       in `decideExtractionWork`, with the successive-run regression test.
 - [ ] `@byline/extraction-conformance` with fixtures and self-tests against
       honest and dishonest fakes.
+- [ ] The §5.10 historical exception in `decideExtractionWork` and
+      `validateExtractionArtifact`, with its regression table, and the §6.7
+      evidence refresh rule documented.
 - [ ] Documentation per §13; changeset; downstream adoption note.
+- [ ] Before release: green pull request CI, and the kit run against a real
+      provider, with the fixtures in §10.1 case 5 validated against it.
 - [ ] Not included: store, join, worker, router, admin log, reference
       drivers (tracked in the follow-up issue).
 
@@ -1235,3 +1384,32 @@ decision 8 are posted only on his go-ahead.
 3. Run `@byline/extraction-conformance` against the Tika driver. If its page
    map fails sentinel verification, emit no page map until it passes.
 4. Keep host policies (§12) in the host.
+5. Pass existing rows to `decideExtractionWork` with their recorded producer
+   values unchanged. Use a `null` `producerConfigHash` only for a row whose
+   configuration was never recorded, including one holding a known placeholder.
+   Adoption must not trigger a production extraction run (§9). A row with an
+   unrecorded configuration that meets every other §6.6 condition gives `reuse`
+   with `producerUnchecked: true`. A row with a recorded configuration is
+   compared as usual.
+6. Reconcile the host plan with §5.10 and §9:
+   - Store `null`, not a placeholder hash, for unrecorded configuration, or map
+     the placeholder to `null` at the decision boundary.
+   - Exclude these artifacts from any content-addressed cache match.
+   - Check any host work reason that requires an artifact for the current
+     producer configuration, because it would otherwise re-extract these rows.
+   - Deduplicate on producer identity only for artifacts with a recorded
+     configuration hash. For those, a unique artifact key treats a `null` engine
+     version as equal, for example with `NULLS NOT DISTINCT` in PostgreSQL, so
+     versionless outputs do not duplicate.
+   - Never deduplicate artifacts with an unrecorded configuration against each
+     other (§9).
+7. Move verification evidence from artifact metadata to the reference, and keep
+   the output on a changed validator with an identical hash (§6.7).
+8. Normalise `metadata.createdAt` to ISO 8601 or omit it. A driver that passes an
+   embedded date through now fails artifact validation.
+9. Make the driver reject a corrupt file with a `file` failure. On Apache Tika
+   3.3.0, `/rmeta` returns HTTP 200 for a corrupt PDF and reports the failure in
+   `X-TIKA:EXCEPTION:container_exception`, so the status code alone does not show
+   it. Pin the engine version too. One unretained run on Tika 4.2.0 showed text
+   under `tk:content` rather than `X-TIKA:content`, so a driver reading the old key
+   returned empty text with no error. Reproduce that before relying on it.

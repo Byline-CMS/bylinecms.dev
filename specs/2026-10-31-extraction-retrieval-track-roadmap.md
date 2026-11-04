@@ -52,7 +52,7 @@ Rules that apply to every phase:
 |---|---|---|
 | 0 — Anthropic structured outputs | #104 | **Done** — `9eeac5ec`, issue closed |
 | 1 — Stored-file content identity | #85 (#72 only where hashing touches it) | **Done** — released in v6.12.0, #85 closed; receipts follow in #108 |
-| 4 — Extraction contracts in core | #5 | **In progress** — spec revision 3 and all eight decisions accepted 2026-10-31 |
+| 4 — Extraction contracts in core | #5 | **In progress** — spec revision 4 and decisions 1–12 accepted; stages 1–3 approved in run `2026-11-04-extraction-contracts`; documentation in review; uncommitted |
 | 3 — Search `where`, facets and locale discovery | #6, #81, #76 | Not started — second |
 | 5 — Jobs-table pattern on the scheduler | new issue | Not started — third |
 | 6 — Embargo as an access state (spec only) | new issue | Not started — fourth |
@@ -64,8 +64,7 @@ Rules that apply to every phase:
       document generate and patch paths; make refusal, truncation and missing
       JSON explicit errors; refresh the curated models; make live tests run. —
       `9eeac5ec`
-- [ ] Release in the next `@byline/ai` patch (changeset
-      `anthropic-structured-outputs.md` is staged in the commit).
+- [x] Released in v6.12.0.
 
 ## Phase 1 — Stored-file content identity (#85)
 
@@ -206,12 +205,14 @@ Tasks:
 
 - [x] 4.1 Spec and plan, reconciled with the downstream identity and
       lifecycle policy (revision 8) and the second-pass review; reconcile #5.
-      **Checkpoint 1** — revision 3 accepted by Tony, 2026-10-31.
-- [ ] 4.2 Provider types, typed failures, artifact and page map v1 with
+      **Checkpoint 1** — revision 3 accepted by Tony, 2026-10-31. Revision 4
+      (historical producer reuse, evidence refresh, guard and fixture rules)
+      accepted 2026-11-04.
+- [x] 4.2 Provider types, typed failures, artifact and page map v1 with
       structural validators, producer hash, evidence validator and work
       decision (plan Stage 1, checkpoint 2); verified source read and probe
       with storage conformance (plan Stage 2, checkpoint 3).
-- [ ] 4.3 Published provider conformance kit with sentinel page-map
+- [x] 4.3 Publishable provider conformance kit, implemented with release pending, with sentinel page-map
       verification and dishonest-fake self-tests. Structural page-map
       validity is not provenance; only sentinels are (plan Stage 3,
       checkpoint 4).
@@ -262,4 +263,5 @@ Tasks:
 | 2026-10-31 | Phase 0 fixed and #104 closed; roadmap written; Phase 1 coordinated run started; brief author's corrections folded in (MCP scope, page-map provenance, scheduler token, bytes-validator binding) | `9eeac5ec` |
 | 2026-10-31 | Phase 1 implemented (Stages 1–4): content hash and validator, bound reads, atomic local writes, storage conformance (RustFS in CI), validator columns, Postgres `variants` fix, backfill/verify; checkpoints 1–3 approved | `b858dc15`, `242346ca`, `f9f8374b`, `1271c7fb` |
 | 2026-10-31 | Release squash, `drizzle:rekey` helper, v6.12.0 released; #85 closed, #108 opened. Phase order changed: extraction contracts next, MCP last. Downstream adoption of 6.12.0 completed first | `96e3d1aa`, `00e08b10`, `59be4cae`, `e3075ca9` |
-| 2026-10-31 | Phase 4 spec and plan drafted against the downstream identity and lifecycle policy; three manual review rounds; revision 3 and decisions 1–8 accepted; plan made self-contained for handover. Next: Stage 1 in a new session | uncommitted |
+| 2026-10-31 | Phase 4 spec and plan drafted against the downstream identity and lifecycle policy; three manual review rounds; revision 3 and decisions 1–8 accepted; plan made self-contained for handover. Next: Stage 1 in a new session | `9cb74b02` |
+| 2026-11-04 | Readiness review against the downstream plan and open issues found no prerequisite. Decisions 9–12 and spec revision 4 accepted; coordinated run restarted on v6.12.1. Plan Stages 1–3 implemented and approved, with live S3 and real-Tika runs; Stage 4 documentation drafted | uncommitted |
