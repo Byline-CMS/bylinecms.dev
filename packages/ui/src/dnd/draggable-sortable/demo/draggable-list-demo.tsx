@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 
-import { Card, GripperVerticalIcon } from '@byline/ui/react'
 import cx from 'clsx'
 
+import { Card } from '../../../components/card/card.js'
+import { GripperVerticalIcon } from '../../../icons/gripper-vertical-icon.js'
 import { DraggableSortable, moveItem, useSortable } from '..'
 import styles from './draggable-list-demo.module.css'
 
