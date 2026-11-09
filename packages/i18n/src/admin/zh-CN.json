@@ -487,6 +487,7 @@
   "forms.actions.uploading": "正在上传…",
   "forms.actions.saving": "正在保存…",
   "forms.actions.revertTo": "还原为 {label}",
+  "forms.storedContentRequiresRepair": "由于已存储的内容不再符合当前字段定义，无法保存这些更改。未保存任何内容。请联系开发者恢复兼容的架构或迁移受影响的内容，然后重试。",
   "forms.uploadFailedFieldError": "上传失败：{message}",
   "forms.unavailableBlocks.title": "不可用的区块",
   "forms.unavailableBlocks.body": "此文档包含 {count} 个类型已不可用的区块。其内容无法显示或编辑，保存文档时将被移除。如果这并非预期行为，请在保存前联系网站管理员。",

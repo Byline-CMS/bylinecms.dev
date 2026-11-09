@@ -13,6 +13,7 @@ import { hasStructuralChanges } from './has-structural-changes.js'
 import { actorId } from './internals.js'
 import { mergeWriteLocale } from './merge-write-locale.js'
 import { commitContentVersionWithScheduleSuspension } from './publish-schedule-consistency.js'
+import { rethrowDocumentReconstructionError } from './reconstruction-error.js'
 import { normalizeDocumentVersionParentError } from './stale-document.js'
 import { appendTreeRoot } from './tree.js'
 import type { IDocumentCommands } from '../../@types/index.js'
@@ -170,12 +171,14 @@ export async function persistExistingDocumentVersion(
       write.documentData
     )
     if (previousRead?.unavailableBlocks?.length || mismatch || structuralChange) {
-      const previous = await ctx.db.queries.documents.getDocumentByVersion({
-        document_version_id: write.previousVersionId,
-        document_id: write.documentId,
-        collection_id: ctx.collectionId,
-        locale: 'all',
-      })
+      const previous = await ctx.db.queries.documents
+        .getDocumentByVersion({
+          document_version_id: write.previousVersionId,
+          document_id: write.documentId,
+          collection_id: ctx.collectionId,
+          locale: 'all',
+        })
+        .catch(rethrowDocumentReconstructionError)
       if (previous && (previous.unavailableBlocks?.length || mismatch || structuralChange)) {
         write = {
           ...write,

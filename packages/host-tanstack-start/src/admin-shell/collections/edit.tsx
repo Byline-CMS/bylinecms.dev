@@ -16,6 +16,7 @@ import type {
 } from '@byline/core'
 import {
   getDefaultStatus,
+  getDocumentRepairRequiredDetails,
   getWorkflow,
   getWorkflowStatuses,
   validateStatusTransition,
@@ -783,7 +784,9 @@ export const EditView = ({
         return
       }
       console.error('Network error:', err)
-      const description = t('collections.edit.updateFailedDescription', { label: singularLower })
+      const description = getDocumentRepairRequiredDetails(err)
+        ? t('forms.storedContentRequiresRepair')
+        : t('collections.edit.updateFailedDescription', { label: singularLower })
       toastManager.add({
         title: t('collections.edit.updateTitle', { label: singular }),
         description,

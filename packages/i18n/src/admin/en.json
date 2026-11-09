@@ -487,6 +487,7 @@
   "forms.actions.uploading": "Uploading…",
   "forms.actions.saving": "Saving…",
   "forms.actions.revertTo": "Revert to {label}",
+  "forms.storedContentRequiresRepair": "These changes could not be saved because stored content no longer matches the current field definitions. Nothing was saved. Ask a developer to restore a compatible schema or migrate the affected content before trying again.",
   "forms.uploadFailedFieldError": "Upload failed: {message}",
   "forms.unavailableBlocks.title": "Unavailable blocks",
   "forms.unavailableBlocks.body": "This document contains {count, plural, one {# block whose type is} other {# blocks whose types are}} no longer available. Their content cannot be shown or edited, and saving this document will remove it. If this is not intended, contact your site administrator before saving.",

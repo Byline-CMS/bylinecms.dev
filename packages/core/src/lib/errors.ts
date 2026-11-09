@@ -193,6 +193,24 @@ export const ERR_DOCUMENT_STALE = (
   options: Omit<BylineErrorOptions, 'details'> & { details: DocumentStaleDetails }
 ): BylineError => new BylineError(ErrorCodes.DOCUMENT_STALE, { logLevel: 'warn', ...options })
 export const ERR_VALIDATION = createErrorType(ErrorCodes.VALIDATION, 'warn')
+
+/** Recognize the safe repair contract in live errors and serialized reports. */
+export function getDocumentRepairRequiredDetails(error: unknown): {
+  reason: 'stored_content_requires_repair'
+} | null {
+  try {
+    if (typeof error !== 'object' || error === null) return null
+    if (
+      Reflect.get(error, 'code') !== ErrorCodes.VALIDATION ||
+      Reflect.get(error, 'details')?.reason !== 'stored_content_requires_repair'
+    )
+      return null
+    return { reason: 'stored_content_requires_repair' }
+  } catch {
+    return null
+  }
+}
+
 export const ERR_INVALID_TRANSITION = createErrorType(ErrorCodes.INVALID_TRANSITION, 'warn')
 export const ERR_PATCH_FAILED = createErrorType(ErrorCodes.PATCH_FAILED)
 export const ERR_DATABASE = createErrorType(ErrorCodes.DATABASE)

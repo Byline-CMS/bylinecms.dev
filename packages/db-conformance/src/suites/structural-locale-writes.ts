@@ -13,8 +13,10 @@ import type {
   MultiCollectionDefinition,
   SingletonDefinition,
 } from '@byline/core'
+import { ERR_DATABASE } from '@byline/core'
 import { defineLogger } from '@byline/core/logger'
 import {
+  createDocument,
   type DocumentLifecycleContext,
   updateDocument,
   updateDocumentWithPatches,
@@ -154,6 +156,79 @@ export function structuralLocaleWritesSuite(hooks: ConformanceHooks) {
       } finally {
         if (previousLogger === undefined) delete globals[loggerKey]
         else globals[loggerKey] = previousLogger
+      }
+    })
+
+    for (const container of ['items', 'content']) {
+      for (const mode of ['whole', 'patch'] as const) {
+        it(`rejects duplicate ${container} IDs on a ${mode} save without changing any locale`, async () => {
+          const id = await seed()
+          const before = await read(id, 'all')
+          const beforeRevision = await revision(id)
+          const data = (await read(id, 'en')).fields
+          data[container][1]._id = data[container][0]._id
+          const attempt =
+            mode === 'whole'
+              ? save(id, data)
+              : updateDocumentWithPatches(context(), {
+                  documentId: id,
+                  expectedRevision: beforeRevision!,
+                  locale: 'en',
+                  patches: [{ kind: 'field.set', path: container, value: data[container] }],
+                })
+          await expect(attempt).rejects.toMatchObject({
+            code: 'ERR_VALIDATION',
+            details: {
+              reason: 'invalid_document_fields',
+              issues: [
+                {
+                  field: container,
+                  kind: 'invalid',
+                  message: expect.stringContaining('unique _id'),
+                },
+              ],
+            },
+          })
+          const after = await read(id, 'all')
+          expect(after.document_version_id).toBe(before.document_version_id)
+          expect(after.fields).toEqual(before.fields)
+          expect(await revision(id)).toBe(beforeRevision)
+        })
+      }
+    }
+
+    it('rejects duplicate IDs on collection creation and singleton materialisation', async () => {
+      const data = {
+        items: [
+          { _id: 'same', caption: 'A' },
+          { _id: 'same', caption: 'B' },
+        ],
+      }
+      const error = { code: 'ERR_VALIDATION', details: { reason: 'invalid_document_fields' } }
+      await expect(createDocument(context(), { locale: 'en', data })).rejects.toMatchObject(error)
+      await expect(
+        updateSingleton(context(true), {
+          expectedState: 'empty',
+          locale: 'en',
+          data,
+        })
+      ).rejects.toMatchObject(error)
+    })
+
+    it('does not relabel an unrelated database failure as content needing repair', async () => {
+      const id = await seed()
+      const beforeRevision = await revision(id)
+      const data = (await read(id, 'en')).fields
+      data.items.reverse()
+      const failure = ERR_DATABASE({ message: 'Connection unavailable' })
+      const mapRead = vi
+        .spyOn(adapter.queries.documents, 'getDocumentByVersion')
+        .mockRejectedValueOnce(failure)
+      try {
+        await expect(save(id, data)).rejects.toBe(failure)
+        expect(await revision(id)).toBe(beforeRevision)
+      } finally {
+        mapRead.mockRestore()
       }
     })
 
@@ -355,6 +430,54 @@ export function structuralLocaleWritesSuite(hooks: ConformanceHooks) {
       expect(all.content.map((item: any) => item.caption)).toEqual(expected)
     })
 
+    for (const mode of ['whole', 'patch'] as const) {
+      it(`explains a damaged collection's ${mode} value-only save failure without changing stored data`, async () => {
+        const id = await seed()
+        const before = await read(id, 'all')
+        const beforeRevision = (await revision(id))!
+        const index = definition.fields.findIndex((field) => field.name === 'group')
+        const original = definition.fields[index]!
+        definition.fields[index] = {
+          name: 'group',
+          type: 'array',
+          optional: true,
+          fields: [caption],
+        }
+        try {
+          const editable = await adapter.queries.documents.getDocumentById({
+            collection_id: collectionId,
+            document_id: id,
+            locale: 'en',
+            reconstruct: true,
+            lenient: true,
+          })
+          expect(editable.restoreWarnings).toEqual(
+            expect.arrayContaining([expect.stringMatching(/Invalid array index/)])
+          )
+          const attempt =
+            mode === 'whole'
+              ? save(id, { ...editable.fields, title: 'Edited title' })
+              : updateDocumentWithPatches(context(), {
+                  documentId: id,
+                  expectedRevision: beforeRevision,
+                  locale: 'en',
+                  patches: [{ kind: 'field.set', path: 'title', value: 'Edited title' }],
+                })
+          await expect(attempt).rejects.toMatchObject({
+            code: 'ERR_VALIDATION',
+            message: expect.stringContaining('Ask a developer'),
+            details: { reason: 'stored_content_requires_repair' },
+          })
+          expect(await revision(id)).toBe(beforeRevision)
+        } finally {
+          definition.fields[index] = original
+        }
+        const after = await read(id, 'all')
+        expect(after.document_version_id).toBe(before.document_version_id)
+        expect(after.fields).toEqual(before.fields)
+      })
+    }
+
     for (const [index, locales] of [['en'], ['en', 'fr', 'de']].entries()) {
       it(`rejects a damaged singleton structural save without changing stored data (${locales.length} locales)`, async () => {
         const damaged = damagedSingletons[index]!
@@ -396,7 +519,11 @@ export function structuralLocaleWritesSuite(hooks: ConformanceHooks) {
               locale: 'en',
               data: { items: [{ caption: 'Replacement' }] },
             })
-          ).rejects.toThrow(/document reconstruction failed/)
+          ).rejects.toMatchObject({
+            code: 'ERR_VALIDATION',
+            message: expect.stringContaining('Ask a developer'),
+            details: { reason: 'stored_content_requires_repair' },
+          })
           expect(
             await adapter.queries.documents.getDocumentRevision({
               collection_id: damagedId,

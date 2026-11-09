@@ -14,6 +14,7 @@ import {
 } from '../../storage/document-revision.js'
 import { requireAuditCapability } from './audit.js'
 import { suspendPublishScheduleForEdit } from './publish-schedule-consistency.js'
+import { rethrowDocumentReconstructionError } from './reconstruction-error.js'
 import type { DocumentRevisionTarget, LockedDocumentRevision } from '../../@types/index.js'
 import type { DocumentLifecycleContext } from './context.js'
 
@@ -36,15 +37,17 @@ export async function readDocumentForMutation(
   assertLifecycleTransactionOwnership(ctx)
   const expectedRevision = parseDocumentRevision(params.expectedRevision)
   return ctx.db.withReadSnapshot(async (queries) => {
-    const source = await queries.documents.getDocumentById({
-      collection_id: ctx.collectionId,
-      document_id: params.documentId,
-      locale: params.locale ?? ctx.defaultLocale,
-      reconstruct: true,
-      readMode: 'any',
-      lenient: params.lenient,
-      requestContext: ctx.requestContext,
-    })
+    const source = await queries.documents
+      .getDocumentById({
+        collection_id: ctx.collectionId,
+        document_id: params.documentId,
+        locale: params.locale ?? ctx.defaultLocale,
+        reconstruct: true,
+        readMode: 'any',
+        lenient: params.lenient,
+        requestContext: ctx.requestContext,
+      })
+      .catch(rethrowDocumentReconstructionError)
     if (source == null)
       throw ERR_NOT_FOUND({
         message: 'document not found',

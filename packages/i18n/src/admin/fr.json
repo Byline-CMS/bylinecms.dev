@@ -487,6 +487,7 @@
   "forms.actions.uploading": "Téléversement…",
   "forms.actions.saving": "Enregistrement…",
   "forms.actions.revertTo": "Revenir à {label}",
+  "forms.storedContentRequiresRepair": "Ces modifications n’ont pas pu être enregistrées, car le contenu stocké ne correspond plus aux définitions actuelles des champs. Rien n’a été enregistré. Demandez à un développeur de rétablir un schéma compatible ou de migrer le contenu concerné avant de réessayer.",
   "forms.uploadFailedFieldError": "Échec du téléversement : {message}",
   "forms.unavailableBlocks.title": "Blocs indisponibles",
   "forms.unavailableBlocks.body": "Ce document contient {count, plural, one {# bloc dont le type n’est plus disponible} other {# blocs dont les types ne sont plus disponibles}}. Leur contenu ne peut être affiché ni modifié et sera supprimé à l’enregistrement. Si ce changement est involontaire, contactez votre administrateur avant d’enregistrer.",

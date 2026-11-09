@@ -948,7 +948,7 @@ export class DocumentQueries implements IDocumentQueries {
     if (!lenient && warnings.length > 0) {
       throw ERR_DATABASE({
         message: `document reconstruction failed with ${warnings.length} warnings`,
-        details: { warnings },
+        details: { reason: 'document_reconstruction_failed', warnings },
       }).log(getLogger())
     }
 

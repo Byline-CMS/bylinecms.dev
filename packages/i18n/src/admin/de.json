@@ -487,6 +487,7 @@
   "forms.actions.uploading": "Wird hochgeladen …",
   "forms.actions.saving": "Wird gespeichert …",
   "forms.actions.revertTo": "Auf {label} zurücksetzen",
+  "forms.storedContentRequiresRepair": "Diese Änderungen konnten nicht gespeichert werden, da die gespeicherten Inhalte nicht mehr den aktuellen Felddefinitionen entsprechen. Es wurde nichts gespeichert. Bitten Sie einen Entwickler, ein kompatibles Schema wiederherzustellen oder die betroffenen Inhalte zu migrieren, bevor Sie es erneut versuchen.",
   "forms.uploadFailedFieldError": "Hochladen fehlgeschlagen: {message}",
   "forms.unavailableBlocks.title": "Nicht verfügbare Blöcke",
   "forms.unavailableBlocks.body": "Dieses Dokument enthält {count, plural, one {# Block, dessen Typ nicht mehr verfügbar ist} other {# Blöcke, deren Typen nicht mehr verfügbar sind}}. Ihr Inhalt kann nicht angezeigt oder bearbeitet werden und wird beim Speichern entfernt. Falls dies nicht beabsichtigt ist, wenden Sie sich vor dem Speichern an die Website-Administration.",

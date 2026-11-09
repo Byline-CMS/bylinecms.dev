@@ -487,6 +487,7 @@
   "forms.actions.uploading": "Subiendo…",
   "forms.actions.saving": "Guardando…",
   "forms.actions.revertTo": "Revertir a {label}",
+  "forms.storedContentRequiresRepair": "No se pudieron guardar estos cambios porque el contenido almacenado ya no coincide con las definiciones actuales de los campos. No se ha guardado nada. Pide a un desarrollador que restaure un esquema compatible o migre el contenido afectado antes de volver a intentarlo.",
   "forms.uploadFailedFieldError": "Error al subir: {message}",
   "forms.unavailableBlocks.title": "Bloques no disponibles",
   "forms.unavailableBlocks.body": "Este documento contiene {count, plural, one {# bloque cuyo tipo ya no está disponible} other {# bloques cuyos tipos ya no están disponibles}}. Su contenido no se puede mostrar ni editar y se eliminará al guardar. Si esto no es intencionado, contacte con el administrador antes de guardar.",

@@ -487,6 +487,7 @@
   "forms.actions.uploading": "Caricamento in corso…",
   "forms.actions.saving": "Salvataggio in corso…",
   "forms.actions.revertTo": "Ripristina a {label}",
+  "forms.storedContentRequiresRepair": "Non è stato possibile salvare queste modifiche perché il contenuto memorizzato non corrisponde più alle definizioni attuali dei campi. Non è stato salvato nulla. Chiedi a uno sviluppatore di ripristinare uno schema compatibile o di migrare il contenuto interessato prima di riprovare.",
   "forms.uploadFailedFieldError": "Caricamento non riuscito: {message}",
   "forms.unavailableBlocks.title": "Blocchi non disponibili",
   "forms.unavailableBlocks.body": "Questo documento contiene {count, plural, one {# blocco il cui tipo non è più disponibile} other {# blocchi i cui tipi non sono più disponibili}}. Il contenuto non può essere visualizzato o modificato e verrà rimosso al salvataggio. Se non è intenzionale, contatta l’amministratore prima di salvare.",

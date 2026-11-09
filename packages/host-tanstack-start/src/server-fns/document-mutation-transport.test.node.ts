@@ -223,6 +223,21 @@ it('transports unavailable-document errors without provider details', async () =
 })
 
 describe('field validation over the installed transport', () => {
+  it('transports a safe repair-required error without reconstruction diagnostics', async () => {
+    const { value, wire } = await roundTrip({}, async () => {
+      throw ERR_VALIDATION({
+        message: 'private reconstruction detail',
+        details: { reason: 'stored_content_requires_repair', warnings: ['private field value'] },
+        cause: new Error('SQL secret'),
+      })
+    })
+    expect(value.error).toEqual({
+      code: 'ERR_VALIDATION',
+      message: expect.stringContaining('Ask a developer'),
+      details: { reason: 'stored_content_requires_repair' },
+    })
+    expect(wire).not.toMatch(/private|SQL secret/)
+  })
   it('retains stable field paths and messages while dropping diagnostics', async () => {
     const issues = [
       { field: 'items[id=item-1].title', message: 'Title is required', kind: 'required' as const },

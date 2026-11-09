@@ -14,6 +14,7 @@ import { FormRenderer } from '@byline/admin/react'
 import type { SingletonAdminConfig, SingletonDefinition, UnavailableBlock } from '@byline/core'
 import {
   getDefaultStatus,
+  getDocumentRepairRequiredDetails,
   getWorkflow,
   getWorkflowStatuses,
   validateStatusTransition,
@@ -161,9 +162,11 @@ export function SingletonView({
         await reload()
         return
       }
-      const description = t('singletons.edit.updateFailedDescription', {
-        label: label.toLowerCase(),
-      })
+      const description = getDocumentRepairRequiredDetails(err)
+        ? t('forms.storedContentRequiresRepair')
+        : t('singletons.edit.updateFailedDescription', {
+            label: label.toLowerCase(),
+          })
       toast(t('singletons.edit.updateTitle', { label }), description, 'danger')
 
       // FormRenderer commits its clean baseline only when this promise

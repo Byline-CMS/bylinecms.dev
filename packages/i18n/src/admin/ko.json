@@ -487,6 +487,7 @@
   "forms.actions.uploading": "업로드 중…",
   "forms.actions.saving": "저장 중…",
   "forms.actions.revertTo": "{label}(으)로 되돌리기",
+  "forms.storedContentRequiresRepair": "저장된 콘텐츠가 현재 필드 정의와 더 이상 일치하지 않아 변경 사항을 저장할 수 없습니다. 아무것도 저장되지 않았습니다. 다시 시도하기 전에 개발자에게 호환되는 스키마를 복원하거나 해당 콘텐츠를 마이그레이션해 달라고 요청하세요.",
   "forms.uploadFailedFieldError": "업로드 실패: {message}",
   "forms.unavailableBlocks.title": "사용할 수 없는 블록",
   "forms.unavailableBlocks.body": "이 문서에는 유형을 더 이상 사용할 수 없는 블록이 {count}개 있습니다. 해당 콘텐츠를 표시하거나 편집할 수 없으며 저장하면 제거됩니다. 의도한 변경이 아니라면 저장하기 전에 사이트 관리자에게 문의하세요.",

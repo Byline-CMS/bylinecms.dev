@@ -89,6 +89,7 @@ export {
   ERR_VALIDATION,
   ErrorCodes,
   type ErrorReport,
+  getDocumentRepairRequiredDetails,
   getLockConflictDetails,
   TREE_HOOK_COMMITTED_MARKER,
   TREE_PLACEMENT_STALE_MARKER,

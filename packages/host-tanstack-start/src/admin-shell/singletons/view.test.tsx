@@ -397,6 +397,28 @@ describe('SingletonView', () => {
     expect(container.textContent).not.toContain('This document has changed since you opened it.')
   })
 
+  it('explains a repair-required save failure and keeps the unsaved editor dirty', async () => {
+    mocks.update.mockRejectedValueOnce({
+      code: 'ERR_VALIDATION',
+      message: 'private server detail',
+      details: { reason: 'stored_content_requires_repair' },
+    })
+    render(loadedDocument)
+    typeIntoTitle('Unsaved change')
+    await submit()
+    expect(mocks.toast).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        description: expect.stringContaining('Ask a developer'),
+        data: expect.objectContaining({ intent: 'danger' }),
+      })
+    )
+    expect(mocks.guardStates.at(-1)).toBe(true)
+    expect(mocks.invalidate).not.toHaveBeenCalled()
+    expect((container.querySelector('input[name="title"]') as HTMLInputElement).value).toBe(
+      'Unsaved change'
+    )
+  })
+
   it('keeps a failed save dirty with the navigation guard active', async () => {
     mocks.update.mockRejectedValueOnce(
       ERR_DOCUMENT_STALE({

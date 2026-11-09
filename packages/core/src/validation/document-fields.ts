@@ -149,6 +149,7 @@ export function validateDocumentFields(
           if (field.validation?.maxLength != null && value.length > field.validation.maxLength)
             add(path, `${label} allows at most ${field.validation.maxLength} items`)
         }
+        const itemIds = new Map<string, number>()
         for (let index = 0; index < value.length; index++) {
           const item = value[index]
           const itemPath =
@@ -163,6 +164,17 @@ export function validateDocumentFields(
                 : 'Item must be an object'
             )
             continue
+          }
+          // Identity is local to this container, across all block types. Missing
+          // IDs retain positional compatibility; explicit IDs must be distinct.
+          if (typeof item._id === 'string') {
+            const firstIndex = itemIds.get(item._id)
+            if (firstIndex !== undefined)
+              add(
+                path,
+                `${label}: items ${firstIndex + 1} and ${index + 1} have the same _id. Give each item a unique _id.`
+              )
+            else itemIds.set(item._id, index)
           }
           if (field.type === 'array') visit(field.fields, item, itemPath)
           else {

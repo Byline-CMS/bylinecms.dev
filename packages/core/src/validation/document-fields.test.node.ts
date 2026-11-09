@@ -29,6 +29,61 @@ const fields: Field[] = [
 const valid = { title: 'Hello', details: { name: 'OK' }, items: [], content: [] }
 
 describe('document field validation', () => {
+  it.each(['items', 'content'])('rejects duplicate IDs in %s at the container path', (name) => {
+    const item = name === 'items' ? { name: 'OK' } : { _type: 'heading', text: 'OK' }
+    const data = {
+      ...valid,
+      [name]: [
+        { ...item, _id: 'same' },
+        { ...item, _id: 'same' },
+      ],
+    }
+    expect(validateDocumentFields(fields, data)).toEqual([
+      {
+        field: name,
+        kind: 'invalid',
+        message: `${name}: items 1 and 2 have the same _id. Give each item a unique _id.`,
+      },
+    ])
+    expect(() => assertDocumentFields(fields, data)).toThrow('Some document fields are invalid.')
+  })
+  it('checks IDs across block types, without including the supplied ID in the message', () => {
+    const schema: Field[] = [
+      {
+        name: 'content',
+        type: 'blocks',
+        blocks: [
+          { blockType: 'a', fields: [] },
+          { blockType: 'b', fields: [] },
+        ],
+      },
+    ]
+    const issues = validateDocumentFields(schema, {
+      content: [
+        { _id: '<private-value>', _type: 'a' },
+        { _id: '<private-value>', _type: 'b' },
+      ],
+    })
+    expect(issues).toHaveLength(1)
+    expect(issues[0]?.field).toBe('content')
+    expect(issues[0]?.message).not.toContain('<private-value>')
+  })
+  it('scopes nested identity checks to each container and allows missing IDs', () => {
+    const schema: Field[] = [
+      { name: 'groups', type: 'array', fields: [{ name: 'children', type: 'array', fields: [] }] },
+    ]
+    const data = {
+      groups: [
+        { _id: 'a', children: [{ _id: 'child' }, {}, {}] },
+        { _id: 'b', children: [{ _id: 'child' }, { _id: 'other' }] },
+      ],
+    }
+    expect(validateDocumentFields(schema, data)).toEqual([])
+    data.groups[1]!.children[1] = { _id: 'child' }
+    expect(validateDocumentFields(schema, data).map((issue) => issue.field)).toEqual([
+      'groups[id=b].children',
+    ])
+  })
   it('validates root, group, array and block requirements with stable item paths', () => {
     const issues = validateDocumentFields(fields, {
       title: '',

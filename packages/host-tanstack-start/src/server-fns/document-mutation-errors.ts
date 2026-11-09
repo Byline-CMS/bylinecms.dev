@@ -2,6 +2,7 @@ import {
   BylineError,
   ErrorCodes,
   getDocumentFieldValidationDetails,
+  getDocumentRepairRequiredDetails,
   getDocumentRevisionValidationDetails,
   getDocumentStaleDetails,
   getLockConflictDetails,
@@ -34,6 +35,14 @@ export function documentMutationError(error: unknown): unknown {
       code: ErrorCodes.VALIDATION,
       message: 'Some document fields are invalid.',
       details: fields,
+    }
+  const repair = getDocumentRepairRequiredDetails(error)
+  if (repair)
+    return {
+      code: ErrorCodes.VALIDATION,
+      message:
+        'These changes could not be saved because stored content no longer matches the current field definitions. Nothing was saved. Ask a developer to restore a compatible schema or migrate the affected content before trying again.',
+      details: repair,
     }
   const lock = getLockConflictDetails(error)
   if (lock)
