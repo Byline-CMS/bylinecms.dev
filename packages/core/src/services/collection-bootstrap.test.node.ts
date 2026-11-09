@@ -118,6 +118,7 @@ function createMockDb(options: {
         getDocumentById: vi.fn(fail),
         getCurrentVersionMetadata: vi.fn(fail),
         getCurrentPath: vi.fn(fail),
+        listVersionFieldLocales: vi.fn(fail),
         getDocumentByPath: vi.fn(fail),
         getDocumentByVersion: vi.fn(fail),
         getDocumentsByVersionIds: vi.fn(fail),

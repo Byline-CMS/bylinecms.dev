@@ -211,6 +211,7 @@ function makeAdapter(overrides: AdapterOverrides = {}) {
         getDocumentById,
         getCurrentVersionMetadata,
         getCurrentPath: vi.fn(async () => 'original-path'),
+        listVersionFieldLocales: vi.fn(async () => []),
         getDocumentByPath: vi.fn(),
         getDocumentByVersion: vi.fn(),
         getDocumentsByVersionIds: vi.fn(),

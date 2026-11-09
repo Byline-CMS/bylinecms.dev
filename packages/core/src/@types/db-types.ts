@@ -3,6 +3,7 @@ import type { CollectionDefinition } from '@byline/core'
 
 import type { DbErrorClassification } from '../lib/errors.js'
 import type { ISchedulerStore } from '../scheduler/types.js'
+import type { VersionFieldLocale } from '../storage/localized-toggle.js'
 import type { DocumentRevisionStore } from './document-revision.js'
 import type { StorageValidator } from './storage-types.js'
 
@@ -255,7 +256,8 @@ export interface FieldSort {
 /** Query-only executor facade, valid only during its snapshot callback. */
 export interface ReadSnapshotQueries {
   collections: ICollectionQueries
-  documents: Omit<IDocumentQueries, 'getDocumentSystemFieldsForUpdate'>
+  /** Save-path queries (`getDocumentSystemFieldsForUpdate`, `listVersionFieldLocales`) are not exposed. */
+  documents: Omit<IDocumentQueries, 'getDocumentSystemFieldsForUpdate' | 'listVersionFieldLocales'>
   audit: IAuditQueries
   singletons: ISingletonQueries
 }
@@ -1263,6 +1265,14 @@ export interface IDocumentQueries {
    * `path` is no longer sufficient for per-localised-URL cache/CDN purges.
    */
   getCurrentPath(params: { collection_id: string; document_id: string }): Promise<string | null>
+
+  /**
+   * List a version's distinct stored `(field_path, locale)` pairs across every
+   * value store table (`store_meta` excluded), shared `'all'` rows included.
+   * Order is unspecified. Used to detect rows written under a previous
+   * `localized` flag before a single-locale save (see `findLocalizationMismatches`).
+   */
+  listVersionFieldLocales(params: { document_version_id: string }): Promise<VersionFieldLocale[]>
 
   getDocumentByPath(params: {
     collection_id: string

@@ -40,9 +40,11 @@ import type {
   ReadMode,
   RelationFilter,
   UnifiedFieldValue,
+  VersionFieldLocale,
   VersionLocaleLedger,
 } from '@byline/core'
 import {
+  conversionLocales,
   deriveVersionLocaleLedger,
   ERR_DATABASE,
   ERR_NOT_FOUND,
@@ -158,6 +160,12 @@ interface VersionLocaleContext {
   visibility?: LocaleVisibility
   ledger?: VersionLocaleLedger
   availableLocales?: readonly string[]
+  /**
+   * The read loaded only some store tables (selective field loading). A
+   * map-shaped read then adds the ledger's locales to the conversion set,
+   * since the loaded rows may not show every locale (spec 4.1, decision 7).
+   */
+  projected?: boolean
 }
 
 /**
@@ -798,8 +806,9 @@ export class DocumentQueries implements IDocumentQueries {
     // before the ledger and not yet backfilled) derives one from the loaded
     // rows. Omitted visibility is `'editorial'`: direct adapter reads are
     // trusted primitives. Under `'public'`, an exact read of an ineligible
-    // locale withholds every localized value (only `'all'` rows and structural
-    // meta rows are restored). `'all'` keeps the per-locale map shape.
+    // locale withholds every value of a currently localized field, judged by
+    // the field's declaration rather than the row's stored locale (see
+    // `withholdLocalized` below). `'all'` keeps the per-locale map shape.
     // The selected version's ledger, derived from the loaded rows only when
     // the version has no ledger rows. Also the source of `localeAgnostic`,
     // which every reconstructed result reports, multi-locale reads included.
@@ -807,7 +816,7 @@ export class DocumentQueries implements IDocumentQueries {
     const ledger = localeContext?.ledger ?? deriveVersionLocaleLedger(flattenedData, floor)
     let resolveLocale: string | undefined
     let resolvedLocale: string | null = null
-    let rows = flattenedData
+    let withholdLocalized = false
     if (locale !== 'all') {
       const decision = resolveReadLocale({
         locale,
@@ -823,15 +832,29 @@ export class DocumentQueries implements IDocumentQueries {
       })
       resolveLocale = decision.restoreLocale
       resolvedLocale = decision.resolvedLocale
-      if (decision.withholdLocalized) {
-        rows = flattenedData.filter((row) => row.locale === 'all' || row.field_type === 'meta')
-      }
+      withholdLocalized = decision.withholdLocalized
     }
+    // Rows written under a previous `localized` flag are converted by
+    // restore (spec 4.1, 4.2): a now-shared field reads its source-locale
+    // row, and a map-shaped read reports a now-localized field's shared row
+    // under every locale in the conversion set. A full read loads every store
+    // table, so its loaded rows give the exact set; a projected read also
+    // takes the ledger's locales (decision 7). Withholding is judged by each
+    // field's current declaration inside restore (4.2a), not by row locale.
+    const loadedLocales = flattenedData.map((row) => row.locale)
     const { data, warnings, unavailableBlocks } = restoreFieldSetData(
       definition.fields,
-      rows,
+      flattenedData,
       resolveLocale,
-      identity ? { collectionPath: definition.path, ...identity } : undefined
+      identity ? { collectionPath: definition.path, ...identity } : undefined,
+      {
+        sourceLocale: floor,
+        conversionLocales: conversionLocales(
+          localeContext?.projected ? [...loadedLocales, ...ledger.availableLocales] : loadedLocales,
+          floor
+        ),
+        withholdLocalized,
+      }
     )
 
     if (!lenient && warnings.length > 0) {
@@ -900,6 +923,33 @@ export class DocumentQueries implements IDocumentQueries {
       created_at: row.created_at ?? new Date(),
       updated_at: row.updated_at ?? new Date(),
     }
+  }
+
+  /**
+   * listVersionFieldLocales — the version's distinct stored
+   * `(field_path, locale)` pairs across the seven value store tables
+   * (`store_meta` excluded), shared `'all'` rows included. Same UNION shape
+   * as `writeVersionLocaleLedger` in `storage-commands.ts`, without the
+   * `::uuid` casts; `db.execute()` returns a `[rows, fields]` tuple. Used
+   * before a single-locale save to detect rows written under a previous
+   * `localized` flag. Reads committed, immutable version rows, so it uses
+   * the pool.
+   */
+  async listVersionFieldLocales({
+    document_version_id,
+  }: {
+    document_version_id: string
+  }): Promise<VersionFieldLocale[]> {
+    const result = (await this.db.execute(sql`
+      SELECT field_path, locale FROM byline_store_text     WHERE document_version_id = ${document_version_id}
+      UNION SELECT field_path, locale FROM byline_store_numeric  WHERE document_version_id = ${document_version_id}
+      UNION SELECT field_path, locale FROM byline_store_boolean  WHERE document_version_id = ${document_version_id}
+      UNION SELECT field_path, locale FROM byline_store_datetime WHERE document_version_id = ${document_version_id}
+      UNION SELECT field_path, locale FROM byline_store_file     WHERE document_version_id = ${document_version_id}
+      UNION SELECT field_path, locale FROM byline_store_relation WHERE document_version_id = ${document_version_id}
+      UNION SELECT field_path, locale FROM byline_store_json     WHERE document_version_id = ${document_version_id}
+    `)) as unknown as [Array<{ field_path: string; locale: string }>, unknown]
+    return result[0].map((row) => ({ field_path: row.field_path, locale: row.locale }))
   }
 
   /**
@@ -2213,6 +2263,7 @@ export class DocumentQueries implements IDocumentQueries {
           {
             visibility: localeVisibility,
             ledger: versionLedgers?.get(doc.id),
+            projected: storeTypes != null,
             availableLocales: documentAdvertised?.get(doc.document_id),
           },
           { documentId: doc.document_id, versionId: doc.id }

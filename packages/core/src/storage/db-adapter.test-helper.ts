@@ -106,6 +106,7 @@ export function testAdapter(overrides: Overrides = {}): IDbAdapter {
         getDocumentById: unused,
         getCurrentVersionMetadata: unused,
         getCurrentPath: unused,
+        listVersionFieldLocales: unused,
         getDocumentByPath: unused,
         getDocumentByVersion: unused,
         getDocumentsByVersionIds: unused,
