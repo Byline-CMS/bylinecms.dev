@@ -15,6 +15,7 @@ import {
 } from '../../storage/document-revision.js'
 import { runCommittedDocumentHook } from '../document-lifecycle/committed-hook.js'
 import { extractDocumentId, extractVersionId } from '../document-lifecycle/internals.js'
+import { versionHasLocalizationMismatch } from '../document-lifecycle/persistence.js'
 import {
   assertLifecycleTransactionOwnership,
   commitGuardedDocumentMutation,
@@ -153,7 +154,10 @@ export async function commitSingletonSave(params: {
       if (
         operation.type === 'copyToLocale' &&
         baseline !== null &&
-        sameDocumentData(prepared.data, baseline)
+        sameDocumentData(prepared.data, baseline) &&
+        // After a `localized` toggle the reconstructed values can already
+        // match while the stored rows still need converting (spec 4.3).
+        !(await versionHasLocalizationMismatch(ctx, slot.currentVersion.document_version_id))
       ) {
         return {
           value: {

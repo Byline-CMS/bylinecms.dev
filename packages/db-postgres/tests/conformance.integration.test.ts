@@ -31,6 +31,7 @@ import { runAdapterConformanceSuite } from '@byline/db-conformance'
 import { eq } from 'drizzle-orm'
 
 import { auditLog, documents } from '../src/database/schema/index.js'
+import { pgAdapter } from '../src/index.js'
 import { assertTestDatabase, migrateTestDatabase, resetTestDatabase } from '../src/lib/test-db.js'
 import { setupTestDB, teardownTestDB } from '../src/lib/test-helper.js'
 import { createAdminStore as createPgAdminStore } from '../src/modules/admin/admin-store.js'
@@ -102,6 +103,17 @@ runAdapterConformanceSuite({
       withReadSnapshot: createReadSnapshot(testDb.db, collections, 'en'),
       revisions: new DocumentRevisions(testDb.dbManager),
     }
+  },
+
+  async createSingleConnectionAdapter(collections: readonly CollectionDefinition[]) {
+    const adapter = pgAdapter({
+      connectionString: getConnectionString(),
+      collections,
+      defaultContentLocale: 'en',
+      max: 1,
+      connectionTimeoutMillis: 1000,
+    })
+    return { adapter, close: () => adapter.pool.end() }
   },
 
   async migrate(): Promise<void> {

@@ -6,6 +6,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
+import { findLocalizationMismatches } from '../../storage/localized-toggle.js'
 import { assertDocumentFields } from '../../validation/document-fields.js'
 import { requireAuditCapability } from './audit.js'
 import { actorId } from './internals.js'
@@ -108,6 +109,32 @@ export async function persistInitialDocumentVersion(
 }
 
 /**
+ * Whether a stored version holds a row written under a field's previous
+ * `localized` flag: a shared row on a now-localized field, or a locale row on
+ * a now-shared field (localized-toggle spec section 4.3). It examines every
+ * stored `(field_path, locale)` pair of the version, not the rows a read
+ * happened to load, so a stale row in a locale outside the save's read chain
+ * still counts.
+ *
+ * Callers run it inside their write transaction. The adapters run the query
+ * (and the merged write's `getDocumentByVersion` map read) on the ambient
+ * transaction's connection, so a save never waits for a second pool
+ * connection. Every caller passes the document's current version as observed
+ * before its write transaction began, so the version is committed either way.
+ *
+ * Internal to the lifecycle services; not part of the public barrel.
+ */
+export async function versionHasLocalizationMismatch(
+  ctx: DocumentLifecycleContext,
+  versionId: string
+): Promise<boolean> {
+  const pairs = await ctx.db.queries.documents.listVersionFieldLocales({
+    document_version_id: versionId,
+  })
+  return findLocalizationMismatches(ctx.definition.fields, pairs).length > 0
+}
+
+/**
  * Persist a new version of an existing logical document and suspend any armed
  * publication schedule atomically. All operation-specific preparation and
  * hook sequencing remains in the caller.
@@ -119,30 +146,36 @@ export async function persistExistingDocumentVersion(
 ): ReturnType<IDocumentCommands['createDocumentVersion']> {
   assertWritableContent(ctx, write)
   // Single-locale storage writes copy other locales' positional rows forward.
-  // After compaction those rows can resurrect unavailable blocks or attach a
-  // translation to the wrong survivor. Rebuild all locales by item identity.
-  if (
-    previousRead?.unavailableBlocks?.length &&
-    write.previousVersionId &&
-    write.locale &&
-    write.locale !== 'all'
-  ) {
-    const previous = await ctx.db.queries.documents.getDocumentByVersion({
-      document_version_id: write.previousVersionId,
-      document_id: write.documentId,
-      collection_id: ctx.collectionId,
-      locale: 'all',
-    })
-    if (previous?.unavailableBlocks?.length) {
-      write = {
-        ...write,
-        documentData: mergeWriteLocale(
-          ctx.definition.fields,
-          previous.fields,
-          write.documentData,
-          write.locale
-        ),
+  // Two kinds of previous version make that unsafe, and both are rebuilt for
+  // all locales by item identity instead, written as one `locale: 'all'` map:
+  //  - after compaction, positional rows can resurrect unavailable blocks or
+  //    attach a translation to the wrong survivor;
+  //  - after a field's `localized` flag changed, copy-forward skips the old
+  //    shared row of a now-localized field (losing its value in every other
+  //    locale) and carries stale locale rows of a now-shared field.
+  // The map read converts toggled rows (spec 4.1/4.2); the merged write
+  // persists that converted shape. No `collection_version` shortcut: a version
+  // stamped with the current collection version can still hold stale rows.
+  if (write.previousVersionId && write.locale && write.locale !== 'all') {
+    const mismatch = await versionHasLocalizationMismatch(ctx, write.previousVersionId)
+    if (previousRead?.unavailableBlocks?.length || mismatch) {
+      const previous = await ctx.db.queries.documents.getDocumentByVersion({
+        document_version_id: write.previousVersionId,
+        document_id: write.documentId,
+        collection_id: ctx.collectionId,
         locale: 'all',
+      })
+      if (previous && (previous.unavailableBlocks?.length || mismatch)) {
+        write = {
+          ...write,
+          documentData: mergeWriteLocale(
+            ctx.definition.fields,
+            previous.fields,
+            write.documentData,
+            write.locale
+          ),
+          locale: 'all',
+        }
       }
     }
   }

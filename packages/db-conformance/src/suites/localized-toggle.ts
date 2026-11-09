@@ -16,9 +16,17 @@ import type {
   LocaleVisibility,
   MissingLocalePolicy,
   MultiCollectionDefinition,
+  SingletonDefinition,
 } from '@byline/core'
 import { defineLogger } from '@byline/core/logger'
-import { type DocumentLifecycleContext, updateDocument } from '@byline/core/services'
+import {
+  copySingletonToLocale,
+  copyToLocale,
+  type DocumentLifecycleContext,
+  updateDocument,
+  updateDocumentWithPatches,
+  updateSingleton,
+} from '@byline/core/services'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { ConformanceHooks } from '../index.js'
@@ -136,6 +144,129 @@ export function localizedToggleSuite(hooks: ConformanceHooks) {
       code14b,
     ])
 
+    // Save-side collections (spec 4.3). Each test or describe owns its
+    // collection, so a toggle never leaks into another case.
+    const titled = (name: string, extra: CollectionDefinition['fields']) =>
+      collection(name, [text('title', true), ...extra])
+    const summary3 = text('summary', false)
+    const caseThree = titled('three', [summary3])
+    const summary4 = text('summary', false)
+    const caseFour = titled('four', [summary4])
+    const summaryPatch = text('summary', false)
+    const casePatch = titled('patch', [summaryPatch])
+    const bodyRich = { name: 'body', type: 'richText' as const, optional: true, localized: false }
+    const caseRichText = titled('rich-text', [bodyRich])
+    const viewsNumber = { name: 'views', type: 'integer' as const, optional: true }
+    const caseNumber = titled('number', [viewsNumber])
+    const title7 = text('title', true)
+    const caseSeven = collection('seven', [title7])
+    const saveItemCaption = text('caption', false)
+    const saveItemLabel = text('label', true)
+    const saveNoteCaption = text('caption', false)
+    const saveNoteLabel = text('label', true)
+    const caseTenSave = collection('ten-save', [
+      { name: 'items', type: 'array', optional: true, fields: [saveItemCaption, saveItemLabel] },
+      {
+        name: 'content',
+        type: 'blocks',
+        optional: true,
+        blocks: [{ blockType: 'note', fields: [saveNoteCaption, saveNoteLabel] }],
+      },
+    ])
+    const liveText15 = text('text', false)
+    const live15 = { blockType: 'live', fields: [liveText15] }
+    const retired15 = { blockType: 'retired', fields: [text('text', false)] }
+    const content15: BlocksField = {
+      name: 'content',
+      type: 'blocks',
+      optional: true,
+      blocks: [live15, retired15],
+    }
+    const caseFifteen = titled('fifteen', [content15])
+    /** An array item's field, a group-nested array item's field and a block item's field. */
+    const structured = (name: string, localized: boolean) => {
+      const itemCaption = text('caption', localized)
+      const metaNote = text('note', localized)
+      const blockCaption = text('caption', localized)
+      return {
+        def: titled(name, [
+          {
+            name: 'items',
+            type: 'array',
+            optional: true,
+            fields: [
+              itemCaption,
+              { name: 'meta', type: 'group', optional: true, fields: [metaNote] },
+            ],
+          },
+          {
+            name: 'content',
+            type: 'blocks',
+            optional: true,
+            blocks: [{ blockType: 'note', fields: [blockCaption] }],
+          },
+        ]),
+        toggle: () => {
+          for (const field of [itemCaption, metaNote, blockCaption]) field.localized = !localized
+        },
+      }
+    }
+    const caseSixteen = structured('sixteen', false)
+    const caseSeventeen = structured('seventeen', true)
+    const caseTwentyFour = structured('twenty-four', false)
+    const summary18 = text('summary', false)
+    const caseEighteen = titled('eighteen', [summary18])
+    const title22 = text('title', true)
+    const caseTwentyTwo = collection('twenty-two', [title22])
+    const note23 = text('note', true)
+    const caseTwentyThree = titled('twenty-three', [note23])
+    const summaryCopy = text('summary', false)
+    const caseCopyToggled = titled('copy-toggled', [summaryCopy])
+    const caseCopyClean = titled('copy-clean', [text('summary', true)])
+    const singleton = (
+      name: string,
+      fields: CollectionDefinition['fields']
+    ): SingletonDefinition => ({
+      path: `localized-toggle-singleton-${name}`,
+      singleton: true,
+      label: name,
+      fields: [text('title', true), ...fields],
+    })
+    const summarySingleton = text('summary', false)
+    const singletonSave = singleton('save', [summarySingleton])
+    const summarySingletonCopy = text('summary', false)
+    const singletonCopyToggled = singleton('copy-toggled', [summarySingletonCopy])
+    const singletonCopyClean = singleton('copy-clean', [text('summary', true)])
+    const summarySoloClean = text('summary', false)
+    const caseSoloClean = titled('solo-clean', [summarySoloClean])
+    const summarySoloToggled = text('summary', false)
+    const caseSoloToggled = titled('solo-toggled', [summarySoloToggled])
+    const summarySoloCopy = text('summary', false)
+    const caseSoloCopy = titled('solo-copy', [summarySoloCopy])
+    const soloSide = [caseSoloClean, caseSoloToggled, caseSoloCopy]
+    const saveSide = [
+      ...soloSide,
+      caseThree,
+      caseFour,
+      casePatch,
+      caseRichText,
+      caseNumber,
+      caseSeven,
+      caseTenSave,
+      caseFifteen,
+      caseSixteen.def,
+      caseSeventeen.def,
+      caseTwentyFour.def,
+      caseEighteen,
+      caseTwentyTwo,
+      caseTwentyThree,
+      caseCopyToggled,
+      caseCopyClean,
+      singletonSave,
+      singletonCopyToggled,
+      singletonCopyClean,
+    ]
+
     const toggled = [
       caseOne,
       caseTwo,
@@ -146,6 +277,7 @@ export function localizedToggleSuite(hooks: ConformanceHooks) {
       caseFourteen,
       caseLedgerProjection,
       ledgerCase,
+      ...saveSide,
     ]
     const ids: Record<string, string> = {}
     const loggerKey = Symbol.for('__byline_logger__')
@@ -206,6 +338,49 @@ export function localizedToggleSuite(hooks: ConformanceHooks) {
       })
       return documents.find((d: any) => d.document_id === doc.id)
     }
+
+    const lifecycle = (def: CollectionDefinition, db = adapter): DocumentLifecycleContext => ({
+      db,
+      definition: def,
+      collectionPath: def.path,
+      collectionId: ids[def.path]!,
+      collectionVersion: 1,
+      defaultLocale: 'en',
+      logger,
+      requestContext: createSuperAdminContext(),
+    })
+    const revisionOf = async (def: CollectionDefinition, documentId: string) =>
+      (await adapter.queries.documents.getDocumentRevision({
+        collection_id: ids[def.path]!,
+        document_id: documentId,
+      }))!
+    /** The current version's id, read leniently so a damaged version still answers. */
+    const currentVersionId = async (def: CollectionDefinition, documentId: string) =>
+      (await byId(def, { id: documentId } as Doc, 'en', { lenient: true }))
+        .document_version_id as string
+    /** The current version's stored `field_path:locale` pairs, sorted. */
+    async function storedPairs(def: CollectionDefinition, documentId: string) {
+      const pairs = await adapter.queries.documents.listVersionFieldLocales({
+        document_version_id: await currentVersionId(def, documentId),
+      })
+      return pairs.map((p) => `${p.field_path}:${p.locale}`).sort()
+    }
+    /** Single-locale lifecycle save of `data`, which replaces that locale's view. */
+    async function save(
+      def: CollectionDefinition,
+      doc: Pick<Doc, 'id'>,
+      locale: string,
+      data: Record<string, any>
+    ) {
+      return updateDocument(lifecycle(def), {
+        documentId: doc.id,
+        expectedRevision: await revisionOf(def, doc.id),
+        locale,
+        data,
+      })
+    }
+    const fieldsOf = async (def: CollectionDefinition, doc: Pick<Doc, 'id'>, locale: string) =>
+      structuredClone((await byId(def, doc as Doc, locale)).fields) as Record<string, any>
 
     /** Every strict read path the spec names for cases 1 and 6, keyed by name. */
     async function readEverywhere(def: CollectionDefinition, doc: Doc, locale: string) {
@@ -518,6 +693,662 @@ export function localizedToggleSuite(hooks: ConformanceHooks) {
       })
       const key = (p: { field_path: string; locale: string }) => `${p.field_path}:${p.locale}`
       expect(pairs.map(key).sort()).toEqual(['alt:all', 'title:en', 'title:fr'])
+    })
+
+    // --- Saving (spec 4.3) -------------------------------------------------
+
+    it('case 3: case 2, then save in en with a new en value: the fr read returns the old shared value, the ledger still lists fr, and the version has no shared row for the field', async () => {
+      const doc = await write(caseThree, {
+        title: { en: 'Title EN', fr: 'Titre FR' },
+        summary: 'Shared',
+      })
+      summary3.localized = true
+
+      await save(caseThree, doc, 'en', {
+        ...(await fieldsOf(caseThree, doc, 'en')),
+        summary: 'New EN',
+      })
+
+      const fr = await byId(caseThree, doc, 'fr')
+      expect(fr.fields.summary).toBe('Shared')
+      expect(fr._availableVersionLocales).toEqual(expect.arrayContaining(['en', 'fr']))
+      expect((await byId(caseThree, doc, 'en')).fields.summary).toBe('New EN')
+      const pairs = await storedPairs(caseThree, doc.id)
+      expect(pairs).not.toContain('summary:all')
+      expect(pairs).toEqual(expect.arrayContaining(['summary:en', 'summary:fr']))
+    })
+
+    it('case 4: case 2, then save in fr (the non-source locale): the en read returns the old shared value. This is the data-loss regression', async () => {
+      const doc = await write(caseFour, {
+        title: { en: 'Title EN', fr: 'Titre FR' },
+        summary: 'Shared',
+      })
+      summary4.localized = true
+
+      await save(caseFour, doc, 'fr', {
+        ...(await fieldsOf(caseFour, doc, 'fr')),
+        summary: 'Résumé FR',
+      })
+
+      expect((await byId(caseFour, doc, 'en')).fields).toEqual({
+        title: 'Title EN',
+        summary: 'Shared',
+      })
+      expect((await byId(caseFour, doc, 'fr')).fields.summary).toBe('Résumé FR')
+      expect(await storedPairs(caseFour, doc.id)).not.toContain('summary:all')
+    })
+
+    it('review focus 1: case 4 through updateDocumentWithPatches: the en read returns the old shared value', async () => {
+      const doc = await write(casePatch, {
+        title: { en: 'Title EN', fr: 'Titre FR' },
+        summary: 'Shared',
+      })
+      summaryPatch.localized = true
+
+      await updateDocumentWithPatches(lifecycle(casePatch), {
+        documentId: doc.id,
+        expectedRevision: await revisionOf(casePatch, doc.id),
+        locale: 'fr',
+        patches: [{ kind: 'field.set', path: 'summary', value: 'Résumé FR' }],
+      })
+
+      expect((await byId(casePatch, doc, 'en')).fields.summary).toBe('Shared')
+      expect((await byId(casePatch, doc, 'fr')).fields.summary).toBe('Résumé FR')
+      expect(await storedPairs(casePatch, doc.id)).not.toContain('summary:all')
+    })
+
+    it('review focus 2: case 4 through updateSingleton: the en read returns the old shared value', async () => {
+      const ctx = lifecycle(singletonSave)
+      const first = await updateSingleton(ctx, {
+        expectedState: 'empty',
+        data: { title: 'Title EN', summary: 'Shared' },
+        locale: 'en',
+      })
+      const second = await updateSingleton(ctx, {
+        expectedRevision: first.revision,
+        data: { title: 'Titre FR', summary: 'Shared' },
+        locale: 'fr',
+      })
+      summarySingleton.localized = true
+
+      const doc = { id: first.documentId }
+      await updateSingleton(ctx, {
+        expectedRevision: second.revision,
+        data: { ...(await fieldsOf(singletonSave, doc, 'fr')), summary: 'Résumé FR' },
+        locale: 'fr',
+      })
+
+      expect((await byId(singletonSave, doc as Doc, 'en')).fields).toEqual({
+        title: 'Title EN',
+        summary: 'Shared',
+      })
+      expect((await byId(singletonSave, doc as Doc, 'fr')).fields.summary).toBe('Résumé FR')
+      expect(await storedPairs(singletonSave, doc.id)).not.toContain('summary:all')
+    })
+
+    it('review focus 3: case 4 for a richText field: the en read returns the old shared value', async () => {
+      const rich = (value: string) => ({
+        root: { type: 'root', children: [{ type: 'text', text: value }] },
+      })
+      const doc = await write(caseRichText, {
+        title: { en: 'Title EN', fr: 'Titre FR' },
+        body: rich('Shared body'),
+      })
+      bodyRich.localized = true
+
+      await save(caseRichText, doc, 'fr', {
+        ...(await fieldsOf(caseRichText, doc, 'fr')),
+        body: rich('Corps FR'),
+      })
+
+      expect((await byId(caseRichText, doc, 'en')).fields.body).toEqual(rich('Shared body'))
+      expect((await byId(caseRichText, doc, 'fr')).fields.body).toEqual(rich('Corps FR'))
+      expect(await storedPairs(caseRichText, doc.id)).not.toContain('body:all')
+    })
+
+    it('review focus 3: a number field saved in fr after a localized-to-shared toggle: the new version has only a shared row for the field', async () => {
+      // Number fields cannot be declared localized (`NonlocalizableField`), so
+      // the shared-to-localized direction does not apply. Seed the numeric
+      // locale rows under an untyped localized flag, then remove it.
+      const seeded = viewsNumber as { localized?: boolean }
+      seeded.localized = true
+      const doc = await write(caseNumber, {
+        title: { en: 'Title EN', fr: 'Titre FR' },
+        views: { en: 1, fr: 2 },
+      })
+      delete seeded.localized
+
+      await save(caseNumber, doc, 'fr', { ...(await fieldsOf(caseNumber, doc, 'fr')), views: 5 })
+
+      const pairs = await storedPairs(caseNumber, doc.id)
+      expect(pairs.filter((pair) => pair.startsWith('views:'))).toEqual(['views:all'])
+      for (const locale of ['en', 'fr']) {
+        expect((await byId(caseNumber, doc, locale)).fields.views).toBe(5)
+      }
+    })
+
+    it('case 7: case 6, then save in fr: the new version has only a shared row for the field, and the next read succeeds', async () => {
+      const doc = await write(caseSeven, {
+        title: { en: 'Title EN', fr: 'Titre FR', de: 'Titel DE' },
+      })
+      title7.localized = false
+
+      await save(caseSeven, doc, 'fr', { title: 'Title saved in fr' })
+
+      expect(await storedPairs(caseSeven, doc.id)).toEqual(['title:all'])
+      for (const locale of ['en', 'fr', 'de']) {
+        const reads = await readEverywhere(caseSeven, doc, locale)
+        for (const [name, read] of Object.entries(reads)) {
+          if (name === 'version') continue // `doc.versionId` is the pre-save version
+          expect({ name, locale, title: read?.fields.title }).toEqual({
+            name,
+            locale,
+            title: 'Title saved in fr',
+          })
+        }
+        await expectNoWarnings(caseSeven, doc, locale)
+      }
+    })
+
+    it('case 10 (save half): a field nested in a blocks item and an array item, for both directions, saved without structural changes', async () => {
+      const doc = await write(caseTenSave, {
+        items: [{ caption: 'Item caption', label: { en: 'Item EN', fr: 'Item FR' } }],
+        content: [
+          { _type: 'note', caption: 'Note caption', label: { en: 'Note EN', fr: 'Note FR' } },
+        ],
+      })
+      saveItemCaption.localized = true
+      saveNoteCaption.localized = true
+      saveItemLabel.localized = false
+      saveNoteLabel.localized = false
+
+      const fr = await fieldsOf(caseTenSave, doc, 'fr')
+      fr.items[0].caption = 'Item caption FR'
+      fr.content[0].caption = 'Note caption FR'
+      await save(caseTenSave, doc, 'fr', fr)
+
+      const map = await byId(caseTenSave, doc, 'all')
+      expect(map.fields.items[0]).toMatchObject({
+        caption: { en: 'Item caption', fr: 'Item caption FR' },
+        label: 'Item EN',
+      })
+      expect(map.fields.content[0]).toMatchObject({
+        _type: 'note',
+        caption: { en: 'Note caption', fr: 'Note caption FR' },
+        label: 'Note EN',
+      })
+      expect(await storedPairs(caseTenSave, doc.id)).toEqual(
+        [
+          'content.0.note.caption:en',
+          'content.0.note.caption:fr',
+          'content.0.note.label:all',
+          'items.0.caption:en',
+          'items.0.caption:fr',
+          'items.0.label:all',
+        ].sort()
+      )
+      for (const locale of ['en', 'fr', 'all']) await expectNoWarnings(caseTenSave, doc, locale)
+    })
+
+    it('case 15: a save of a document with an unavailable block after a non-localized-to-localized toggle: the other locales keep the shared value', async () => {
+      const doc = await write(caseFifteen, {
+        title: { en: 'Title EN', fr: 'Titre FR' },
+        content: [
+          { _type: 'retired', text: 'retired-0' },
+          { _type: 'live', text: 'live-1' },
+          { _type: 'live', text: 'live-2' },
+        ],
+      })
+      content15.blocks = [live15]
+      liveText15.localized = true
+
+      const fr = await fieldsOf(caseFifteen, doc, 'fr')
+      fr.content[0].text = 'live-1 FR'
+      await save(caseFifteen, doc, 'fr', fr)
+
+      const en = await byId(caseFifteen, doc, 'en')
+      expect(en.fields.content.map((item: any) => item.text)).toEqual(['live-1', 'live-2'])
+      expect(en.unavailableBlocks).toBeUndefined()
+      const frRead = await byId(caseFifteen, doc, 'fr')
+      expect(frRead.fields.content.map((item: any) => item.text)).toEqual(['live-1 FR', 'live-2'])
+      expect((await storedPairs(caseFifteen, doc.id)).filter((p) => p.endsWith(':all'))).toEqual([])
+    })
+
+    /**
+     * Two-item documents (items A and B in an array, a group inside each array
+     * item, and a blocks field) for the removal and reorder cases. `setup`
+     * writes one document per name and then toggles the fields; `saveFr`
+     * saves `fr` with the named items in the given order and returns the map
+     * read of the result.
+     */
+    function structuralCases(
+      shape: ReturnType<typeof structured>,
+      seedValue: (letter: string) => unknown
+    ) {
+      const docs: Record<string, Doc> = {}
+      const seed = () => ({
+        title: { en: 'Title EN', fr: 'Titre FR' },
+        items: ['A', 'B'].map((letter) => ({
+          caption: seedValue(letter),
+          meta: { note: seedValue(`${letter}-note`) },
+        })),
+        content: ['A', 'B'].map((letter) => ({ _type: 'note', caption: seedValue(letter) })),
+      })
+      return {
+        docs,
+        async setup(names: string[]) {
+          for (const name of names) docs[name] = await write(shape.def, seed())
+          shape.toggle()
+        },
+        async saveFr(
+          name: string,
+          letters: string[],
+          frValue: (letter: string) => string,
+          keepIds = true
+        ) {
+          const fr = await fieldsOf(shape.def, docs[name]!, 'fr')
+          const pick = (list: any[], indexOf: (letter: string) => number) =>
+            letters.map((letter) => {
+              const item = { ...list[indexOf(letter)] }
+              if (!keepIds) delete item._id
+              return item
+            })
+          const at = (letter: string) => (letter === 'A' ? 0 : 1)
+          fr.items = pick(fr.items, at).map((item, i) => ({
+            ...item,
+            caption: frValue(letters[i]!),
+            meta: { ...item.meta, note: frValue(`${letters[i]}-note`) },
+          }))
+          fr.content = pick(fr.content, at).map((item, i) => ({
+            ...item,
+            caption: frValue(letters[i]!),
+          }))
+          await save(shape.def, docs[name]!, 'fr', fr)
+          return byId(shape.def, docs[name]!, 'all')
+        },
+      }
+    }
+
+    describe('case 16: first save after a non-localized-to-localized toggle of an array item, a group-nested array item and a block item field, saved in the non-source locale', () => {
+      const cases = structuralCases(caseSixteen, (letter) => letter)
+      beforeAll(() => cases.setup(['remove', 'reorder']))
+
+      it('removing the first item leaves the survivor with its own value in every locale and no row at the removed position (review focus 5: items.N.meta.note)', async () => {
+        const map = await cases.saveFr('remove', ['B'], (l) => `${l} FR`)
+        expect(map.fields.items).toHaveLength(1)
+        expect(map.fields.items[0].caption).toEqual({ en: 'B', fr: 'B FR' })
+        expect(map.fields.items[0].meta.note).toEqual({ en: 'B-note', fr: 'B-note FR' })
+        expect(map.fields.content).toHaveLength(1)
+        expect(map.fields.content[0].caption).toEqual({ en: 'B', fr: 'B FR' })
+        const pairs = await storedPairs(caseSixteen.def, cases.docs.remove!.id)
+        expect(pairs.filter((p) => /^(items|content)\.1\./.test(p))).toEqual([])
+        expect(pairs.filter((p) => p.endsWith(':all'))).toEqual([])
+      })
+
+      it('reordering items keeps each item value attached to that item (review focus 5: items.N.meta.note)', async () => {
+        const before = await byId(caseSixteen.def, cases.docs.reorder!, 'all')
+        const map = await cases.saveFr('reorder', ['B', 'A'], (l) => `${l} FR`)
+        expect(map.fields.items.map((item: any) => item._id)).toEqual(
+          [...before.fields.items].reverse().map((item: any) => item._id)
+        )
+        expect(map.fields.items.map((item: any) => item.caption)).toEqual([
+          { en: 'B', fr: 'B FR' },
+          { en: 'A', fr: 'A FR' },
+        ])
+        expect(map.fields.items.map((item: any) => item.meta.note)).toEqual([
+          { en: 'B-note', fr: 'B-note FR' },
+          { en: 'A-note', fr: 'A-note FR' },
+        ])
+        expect(map.fields.content.map((item: any) => item.caption)).toEqual([
+          { en: 'B', fr: 'B FR' },
+          { en: 'A', fr: 'A FR' },
+        ])
+        const pairs = await storedPairs(caseSixteen.def, cases.docs.reorder!.id)
+        expect(pairs.filter((p) => p.endsWith(':all'))).toEqual([])
+      })
+    })
+
+    describe('case 17: the same removal and reorder cases after a localized-to-shared toggle', () => {
+      const cases = structuralCases(caseSeventeen, (letter) => ({
+        en: letter,
+        fr: `${letter}-fr`,
+        de: `${letter}-de`,
+      }))
+      beforeAll(() => cases.setup(['remove', 'reorder']))
+
+      it('removing the first item leaves the survivor with its own value and no row at the removed position', async () => {
+        const map = await cases.saveFr('remove', ['B'], (l) => `${l} saved`)
+        expect(map.fields.items).toHaveLength(1)
+        expect(map.fields.items[0].caption).toBe('B saved')
+        expect(map.fields.items[0].meta.note).toBe('B-note saved')
+        expect(map.fields.content).toHaveLength(1)
+        expect(map.fields.content[0].caption).toBe('B saved')
+        // Only shared rows remain for the now-shared fields: no stale en/de
+        // rows carried forward, and nothing at the removed position.
+        expect(await storedPairs(caseSeventeen.def, cases.docs.remove!.id)).toEqual(
+          [
+            'content.0.note.caption:all',
+            'items.0.caption:all',
+            'items.0.meta.note:all',
+            'title:en',
+            'title:fr',
+          ].sort()
+        )
+      })
+
+      it('reordering items keeps each item value attached to that item', async () => {
+        const map = await cases.saveFr('reorder', ['B', 'A'], (l) => `${l} saved`)
+        expect(map.fields.items.map((item: any) => item.caption)).toEqual(['B saved', 'A saved'])
+        expect(map.fields.items.map((item: any) => item.meta.note)).toEqual([
+          'B-note saved',
+          'A-note saved',
+        ])
+        expect(map.fields.content.map((item: any) => item.caption)).toEqual(['B saved', 'A saved'])
+        const pairs = await storedPairs(caseSeventeen.def, cases.docs.reorder!.id)
+        expect(pairs.filter((p) => /^(items|content)\./.test(p) && !p.endsWith(':all'))).toEqual([])
+      })
+    })
+
+    it('case 18: a save of a document with no mismatch takes the ordinary copy-forward path (no merged write)', async () => {
+      // No toggle: summary stays shared, title stays localized.
+      const doc = await write(caseEighteen, {
+        title: { en: 'Title EN', fr: 'Titre FR' },
+        summary: 'Shared',
+      })
+      const queries = adapter.queries.documents
+      const listSpy = vi.spyOn(queries, 'listVersionFieldLocales')
+      const versionSpy = vi.spyOn(queries, 'getDocumentByVersion')
+      try {
+        await save(caseEighteen, doc, 'fr', {
+          ...(await fieldsOf(caseEighteen, doc, 'fr')),
+          title: 'Titre FR 2',
+        })
+        // The check ran, found nothing, and no merged write's map read followed.
+        expect(listSpy).toHaveBeenCalledWith({ document_version_id: doc.versionId })
+        expect(versionSpy).not.toHaveBeenCalledWith(expect.objectContaining({ locale: 'all' }))
+      } finally {
+        listSpy.mockRestore()
+        versionSpy.mockRestore()
+      }
+      expect((await byId(caseEighteen, doc, 'en')).fields).toEqual({
+        title: 'Title EN',
+        summary: 'Shared',
+      })
+      expect((await byId(caseEighteen, doc, 'fr')).fields.title).toBe('Titre FR 2')
+    })
+
+    it('case 22: a version written before this fix with mixed rows and the current collection_version: a lifecycle save takes the merged-write path and leaves no stale rows', async () => {
+      const doc = await write(caseTwentyTwo, { title: { en: 'Title EN', fr: 'Titre FR' } })
+      title22.localized = false
+      // Reproduce a save made before this fix, after the toggle: a single-locale
+      // write under the current definition and the context's collection version.
+      // Copy-forward carries the stale `en` row next to the new shared row.
+      const ctx = lifecycle(caseTwentyTwo)
+      await adapter.commands.documents.createDocumentVersion({
+        collectionId: ctx.collectionId,
+        collectionVersion: ctx.collectionVersion,
+        collectionConfig: caseTwentyTwo,
+        action: 'update',
+        documentId: doc.id,
+        documentData: { title: 'Shared FR' },
+        locale: 'fr',
+        previousVersionId: doc.versionId,
+        status: 'published',
+      })
+      expect(await storedPairs(caseTwentyTwo, doc.id)).toEqual(['title:all', 'title:en'])
+
+      // Save in a locale other than the stale row's, so ordinary copy-forward
+      // would carry the stale `en` row into the new version.
+      await save(caseTwentyTwo, doc, 'fr', { title: 'Saved FR' })
+
+      expect(await storedPairs(caseTwentyTwo, doc.id)).toEqual(['title:all'])
+      expect((await byId(caseTwentyTwo, doc, 'en')).fields.title).toBe('Saved FR')
+    })
+
+    it('case 23: a now-shared optional field with only a fr row, saved in en through the update lifecycle: the new version has no fr row for the field', async () => {
+      const doc = await write(caseTwentyThree, {
+        title: { en: 'Title EN', fr: 'Titre FR' },
+        note: { fr: 'Note FR' },
+      })
+      note23.localized = false
+
+      const en = await fieldsOf(caseTwentyThree, doc, 'en')
+      expect(en.note).toBeUndefined()
+      await save(caseTwentyThree, doc, 'en', en)
+
+      const pairs = await storedPairs(caseTwentyThree, doc.id)
+      expect(pairs.filter((p) => p.startsWith('note:'))).toEqual([])
+      expect(pairs).toEqual(['title:en', 'title:fr'])
+    })
+
+    describe('case 24: removal and reorder with items submitted without _id', () => {
+      const cases = structuralCases(caseTwentyFour, (letter) => letter)
+      beforeAll(() =>
+        cases.setup([
+          'remove-with-id',
+          'remove-without-id',
+          'reorder-with-id',
+          'reorder-without-id',
+        ])
+      )
+
+      it('with _id, items are matched by identity', async () => {
+        const removed = await cases.saveFr('remove-with-id', ['B'], (l) => `${l} FR`)
+        expect(removed.fields.items.map((item: any) => item.caption)).toEqual([
+          { en: 'B', fr: 'B FR' },
+        ])
+        const reordered = await cases.saveFr('reorder-with-id', ['B', 'A'], (l) => `${l} FR`)
+        expect(reordered.fields.items.map((item: any) => item.caption)).toEqual([
+          { en: 'B', fr: 'B FR' },
+          { en: 'A', fr: 'A FR' },
+        ])
+      })
+
+      it('without _id, items are matched by position, as documented', async () => {
+        // Decision 14: a single-locale payload without item `_id`s is matched by
+        // position, so B's fr value pairs with the value A held at index 0 in
+        // the other locales. This is the documented limitation, not a defect.
+        const removed = await cases.saveFr('remove-without-id', ['B'], (l) => `${l} FR`, false)
+        expect(removed.fields.items.map((item: any) => item.caption)).toEqual([
+          { en: 'A', fr: 'B FR' },
+        ])
+        expect(removed.fields.content.map((item: any) => item.caption)).toEqual([
+          { en: 'A', fr: 'B FR' },
+        ])
+        const reordered = await cases.saveFr(
+          'reorder-without-id',
+          ['B', 'A'],
+          (l) => `${l} FR`,
+          false
+        )
+        expect(reordered.fields.items.map((item: any) => item.caption)).toEqual([
+          { en: 'A', fr: 'B FR' },
+          { en: 'B', fr: 'A FR' },
+        ])
+      })
+    })
+
+    describe('review focus 4: copy-to-locale whose merged values already equal the baseline', () => {
+      const seed = { title: { en: 'Title EN', fr: 'Titre FR' } }
+
+      it('after a shared-to-localized toggle, copyToLocale en to fr with overwrite false writes a new version that converts the field', async () => {
+        const doc = await write(caseCopyToggled, { ...seed, summary: 'Shared' })
+        summaryCopy.localized = true
+
+        const result = await copyToLocale(lifecycle(caseCopyToggled), {
+          documentId: doc.id,
+          expectedRevision: await revisionOf(caseCopyToggled, doc.id),
+          sourceLocale: 'en',
+          targetLocale: 'fr',
+          overwrite: false,
+        })
+
+        expect(result.documentVersionId).not.toBe(doc.versionId)
+        expect((await byId(caseCopyToggled, doc, 'en')).fields).toEqual({
+          title: 'Title EN',
+          summary: 'Shared',
+        })
+        expect((await byId(caseCopyToggled, doc, 'fr')).fields.summary).toBe('Shared')
+        const pairs = await storedPairs(caseCopyToggled, doc.id)
+        expect(pairs).not.toContain('summary:all')
+        expect(pairs).toEqual(expect.arrayContaining(['summary:en', 'summary:fr']))
+      })
+
+      it('on an untoggled document with the same values, copyToLocale returns changed: false and writes no version', async () => {
+        const doc = await write(caseCopyClean, { ...seed, summary: { en: 'Shared', fr: 'Shared' } })
+        const before = await revisionOf(caseCopyClean, doc.id)
+
+        const result = await copyToLocale(lifecycle(caseCopyClean), {
+          documentId: doc.id,
+          expectedRevision: before,
+          sourceLocale: 'en',
+          targetLocale: 'fr',
+          overwrite: false,
+        })
+
+        expect(result.documentVersionId).toBe(doc.versionId)
+        expect(await currentVersionId(caseCopyClean, doc.id)).toBe(doc.versionId)
+      })
+
+      /** Seeds a singleton complete in en and fr whose summary reads 'Shared' in both. */
+      async function seedSingleton(def: SingletonDefinition) {
+        const ctx = lifecycle(def)
+        const first = await updateSingleton(ctx, {
+          expectedState: 'empty',
+          data: { title: 'Title EN', summary: 'Shared' },
+          locale: 'en',
+        })
+        const second = await updateSingleton(ctx, {
+          expectedRevision: first.revision,
+          data: { title: 'Titre FR', summary: 'Shared' },
+          locale: 'fr',
+        })
+        return { ctx, ...second }
+      }
+
+      it('after a shared-to-localized toggle, copySingletonToLocale en to fr with overwrite false writes a new version that converts the field', async () => {
+        const seeded = await seedSingleton(singletonCopyToggled)
+        summarySingletonCopy.localized = true
+
+        const result = await copySingletonToLocale(seeded.ctx, {
+          expectedRevision: seeded.revision,
+          sourceLocale: 'en',
+          targetLocale: 'fr',
+          overwrite: false,
+        })
+
+        const doc = { id: seeded.documentId } as Doc
+        expect(result.documentVersionId).not.toBe(seeded.documentVersionId)
+        expect((await byId(singletonCopyToggled, doc, 'en')).fields).toEqual({
+          title: 'Title EN',
+          summary: 'Shared',
+        })
+        expect((await byId(singletonCopyToggled, doc, 'fr')).fields.summary).toBe('Shared')
+        const pairs = await storedPairs(singletonCopyToggled, doc.id)
+        expect(pairs).not.toContain('summary:all')
+        expect(pairs).toEqual(expect.arrayContaining(['summary:en', 'summary:fr']))
+      })
+
+      it('on an untoggled singleton with the same values, copySingletonToLocale returns changed: false and writes no version', async () => {
+        const seeded = await seedSingleton(singletonCopyClean)
+
+        const result = await copySingletonToLocale(seeded.ctx, {
+          expectedRevision: seeded.revision,
+          sourceLocale: 'en',
+          targetLocale: 'fr',
+          overwrite: false,
+        })
+
+        expect(result.documentVersionId).toBe(seeded.documentVersionId)
+        expect(result.revision).toBe(seeded.revision)
+        expect(await currentVersionId(singletonCopyClean, seeded.documentId)).toBe(
+          seeded.documentVersionId
+        )
+      })
+    })
+
+    describe('save-path reads on an adapter with a single pool connection', () => {
+      // A lifecycle save holds one connection for its write transaction. The
+      // mismatch query and the merged write's map read run inside it, so they
+      // must use that connection: on this adapter, a read that asks the pool
+      // for a second connection never completes. `bounded` turns that wait into
+      // a failure, because some drivers queue the request instead of timing out.
+      let solo: { adapter: IDbAdapter; close(): Promise<void> }
+      const bounded = <T>(work: Promise<T>) =>
+        Promise.race([
+          work,
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () => reject(new Error('the save waited for a second pool connection')),
+              5000
+            )
+          ),
+        ])
+      beforeAll(async () => {
+        solo = await hooks.createSingleConnectionAdapter([...toggled])
+      })
+      afterAll(() => solo?.close())
+
+      const soloSave = async (
+        def: CollectionDefinition,
+        doc: Doc,
+        locale: string,
+        data: Record<string, any>
+      ) =>
+        bounded(
+          updateDocument(lifecycle(def, solo.adapter), {
+            documentId: doc.id,
+            expectedRevision: await revisionOf(def, doc.id),
+            locale,
+            data,
+          })
+        )
+
+      it('an ordinary single-locale save completes with no spare connection', async () => {
+        const doc = await write(caseSoloClean, {
+          title: { en: 'Title EN', fr: 'Titre FR' },
+          summary: 'Shared',
+        })
+        await soloSave(caseSoloClean, doc, 'fr', {
+          ...(await fieldsOf(caseSoloClean, doc, 'fr')),
+          title: 'Titre FR 2',
+        })
+        expect((await byId(caseSoloClean, doc, 'en')).fields.title).toBe('Title EN')
+        expect((await byId(caseSoloClean, doc, 'fr')).fields.title).toBe('Titre FR 2')
+      })
+
+      it('a mismatch repair save (case 4) completes with no spare connection', async () => {
+        const doc = await write(caseSoloToggled, {
+          title: { en: 'Title EN', fr: 'Titre FR' },
+          summary: 'Shared',
+        })
+        summarySoloToggled.localized = true
+        await soloSave(caseSoloToggled, doc, 'fr', {
+          ...(await fieldsOf(caseSoloToggled, doc, 'fr')),
+          summary: 'Résumé FR',
+        })
+        expect((await byId(caseSoloToggled, doc, 'en')).fields.summary).toBe('Shared')
+        expect(await storedPairs(caseSoloToggled, doc.id)).not.toContain('summary:all')
+      })
+
+      it('a copy-to-locale repair (review focus 4) completes with no spare connection', async () => {
+        const doc = await write(caseSoloCopy, {
+          title: { en: 'Title EN', fr: 'Titre FR' },
+          summary: 'Shared',
+        })
+        summarySoloCopy.localized = true
+        const result = await bounded(
+          copyToLocale(lifecycle(caseSoloCopy, solo.adapter), {
+            documentId: doc.id,
+            expectedRevision: await revisionOf(caseSoloCopy, doc.id),
+            sourceLocale: 'en',
+            targetLocale: 'fr',
+            overwrite: false,
+          })
+        )
+        expect(result.documentVersionId).not.toBe(doc.versionId)
+        expect(await storedPairs(caseSoloCopy, doc.id)).not.toContain('summary:all')
+      })
     })
   })
 }

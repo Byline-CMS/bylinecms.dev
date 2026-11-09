@@ -14,7 +14,7 @@ import { getDefaultStatus } from '../../workflow/workflow.js'
 import { runCommittedDocumentHook } from './committed-hook.js'
 import { applyRichTextEmbed, extractVersionId, invokeHook } from './internals.js'
 import { mergeLocaleData } from './merge-locale-data.js'
-import { persistExistingDocumentVersion } from './persistence.js'
+import { persistExistingDocumentVersion, versionHasLocalizationMismatch } from './persistence.js'
 import { commitGuardedDocumentMutation, readDocumentForMutation } from './revision-guard.js'
 import { sameDocumentData } from './same-document-data.js'
 import type { DocumentLifecycleContext } from './context.js'
@@ -153,7 +153,10 @@ export async function copyToLocale(
             (targetRecord._availableVersionLocales?.includes(params.targetLocale) ||
               targetRecord._localeAgnostic === true) &&
             !targetRecord.unavailableBlocks?.length &&
-            sameDocumentData(merged.data, baseline)
+            sameDocumentData(merged.data, baseline) &&
+            // After a `localized` toggle the reconstructed values can already
+            // match while the stored rows still need converting (spec 4.3).
+            !(await versionHasLocalizationMismatch(ctx, previousVersionId))
           )
             return { value: previousVersionId, changed: false }
           const writeResult = await persistExistingDocumentVersion(

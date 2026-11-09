@@ -108,6 +108,19 @@ export interface ConformanceHooks {
    * suite asserts it directly.
    */
   createAdapter(collections: readonly CollectionDefinition[]): Promise<IDbAdapter>
+  /**
+   * Construct the adapter under test, through its production factory, on a
+   * dedicated pool of exactly one connection. An operation that holds a
+   * connection (a lifecycle write transaction) and then asks the pool for a
+   * second one cannot complete on this adapter, so a test that runs it here
+   * proves the operation never needs a spare connection. The suite bounds
+   * each such operation with its own timer, because some drivers queue a
+   * second request indefinitely instead of timing out. `close()` ends the
+   * dedicated pool; the suite calls it in its `afterAll`.
+   */
+  createSingleConnectionAdapter(
+    collections: readonly CollectionDefinition[]
+  ): Promise<{ adapter: IDbAdapter; close(): Promise<void> }>
   /** Bring the test DB to current schema (idempotent). Called once per run. */
   migrate(): Promise<void>
   /** Truncate all Byline tables. Called once per suite, from each suite's `beforeAll`. */

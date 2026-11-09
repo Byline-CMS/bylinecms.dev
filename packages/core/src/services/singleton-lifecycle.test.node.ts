@@ -213,6 +213,7 @@ function createHarness(options: HarnessOptions = {}) {
         getDocumentRevision: vi.fn(async () => revision),
         getDocumentById,
         getDocumentByVersion,
+        listVersionFieldLocales: vi.fn(async () => []),
       },
       singletons: { getMappedDocumentId },
     },

@@ -229,6 +229,25 @@ export class DocumentQueries implements IDocumentQueries {
   }
 
   /**
+   * A `DocumentQueries` bound to the ambient transaction's executor, or `null`
+   * when no transaction is open or this instance is already bound to it.
+   * Queries are otherwise pool-bound; a read that the lifecycle makes inside
+   * its write transaction delegates here so it reuses the connection the
+   * transaction already holds instead of requesting a second one.
+   */
+  private ambientQueries(): DocumentQueries | null {
+    if (!this.transactionDb.isInTransaction()) return null
+    const executor = this.transactionDb.get()
+    if (executor === this.db) return null
+    return new DocumentQueries(
+      executor,
+      this.collections,
+      this.defaultContentLocale,
+      this.transactionDb
+    )
+  }
+
+  /**
    * Lock the logical document row before reading its document-grain system
    * fields. Every audited system-field writer takes this same parent-row lock,
    * so path and advertised-locale snapshots serialize without locking a
@@ -932,15 +951,18 @@ export class DocumentQueries implements IDocumentQueries {
    * as `writeVersionLocaleLedger` in `storage-commands.ts`, without the
    * `::uuid` casts; `db.execute()` returns a `[rows, fields]` tuple. Used
    * before a single-locale save to detect rows written under a previous
-   * `localized` flag. Reads committed, immutable version rows, so it uses
-   * the pool.
+   * `localized` flag. The lifecycle calls it inside its write transaction,
+   * so it runs on the ambient executor (`transactionDb.get()`): the
+   * transaction's own connection when one is open, otherwise the pool.
+   * Taking a second pool connection while the transaction holds one can
+   * exhaust the pool.
    */
   async listVersionFieldLocales({
     document_version_id,
   }: {
     document_version_id: string
   }): Promise<VersionFieldLocale[]> {
-    const result = (await this.db.execute(sql`
+    const result = (await this.transactionDb.get().execute(sql`
       SELECT field_path, locale FROM byline_store_text     WHERE document_version_id = ${document_version_id}
       UNION SELECT field_path, locale FROM byline_store_numeric  WHERE document_version_id = ${document_version_id}
       UNION SELECT field_path, locale FROM byline_store_boolean  WHERE document_version_id = ${document_version_id}
@@ -1308,6 +1330,18 @@ export class DocumentQueries implements IDocumentQueries {
     collection_id?: string
     filters?: DocumentFilter[]
   }): Promise<any | null> {
+    // Inside an ambient transaction, read on its connection rather than the
+    // pool: the lifecycle's merged write calls this from its write
+    // transaction, and a second pool connection may never become free.
+    const ambient = this.ambientQueries()
+    if (ambient)
+      return ambient.getDocumentByVersion({
+        document_version_id,
+        document_id,
+        locale,
+        collection_id,
+        filters,
+      })
     const projectionLocale = locale === 'all' ? undefined : locale
     const filterLocale = projectionLocale ?? this.defaultContentLocale
     const conditions: SQL[] = [eq(documentVersions.id, document_version_id)]

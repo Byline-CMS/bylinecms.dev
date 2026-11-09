@@ -28,6 +28,7 @@ import { runAdapterConformanceSuite } from '@byline/db-conformance'
 import { eq } from 'drizzle-orm'
 
 import { auditLog, documents } from '../src/database/schema/index.js'
+import { mysqlAdapter } from '../src/index.js'
 import { assertTestDatabase, migrateTestDatabase, resetTestDatabase } from '../src/lib/test-db.js'
 import { setupTestDB, teardownTestDB } from '../src/lib/test-helper.js'
 import { createAdminStore as createMysqlAdminStore } from '../src/modules/admin/admin-store.js'
@@ -109,6 +110,16 @@ runAdapterConformanceSuite({
       withReadSnapshot: createReadSnapshot(testDb.db, collections, 'en'),
       revisions: new DocumentRevisions(testDb.dbManager),
     }
+  },
+
+  async createSingleConnectionAdapter(collections: readonly CollectionDefinition[]) {
+    const adapter = mysqlAdapter({
+      connectionString: getConnectionString(),
+      collections,
+      defaultContentLocale: 'en',
+      connectionLimit: 1,
+    })
+    return { adapter, close: () => adapter.pool.end() }
   },
 
   async migrate(): Promise<void> {
