@@ -9,6 +9,7 @@
 import { findLocalizationMismatches } from '../../storage/localized-toggle.js'
 import { assertDocumentFields } from '../../validation/document-fields.js'
 import { requireAuditCapability } from './audit.js'
+import { hasStructuralChanges } from './has-structural-changes.js'
 import { actorId } from './internals.js'
 import { mergeWriteLocale } from './merge-write-locale.js'
 import { commitContentVersionWithScheduleSuspension } from './publish-schedule-consistency.js'
@@ -142,14 +143,19 @@ export async function versionHasLocalizationMismatch(
 export async function persistExistingDocumentVersion(
   ctx: DocumentLifecycleContext,
   write: ExistingDocumentVersionWrite,
-  previousRead?: { unavailableBlocks?: readonly UnavailableBlock[] } | null
+  previousRead?: {
+    fields?: Record<string, any>
+    unavailableBlocks?: readonly UnavailableBlock[]
+  } | null
 ): ReturnType<IDocumentCommands['createDocumentVersion']> {
   assertWritableContent(ctx, write)
   // Single-locale storage writes copy other locales' positional rows forward.
-  // Two kinds of previous version make that unsafe, and both are rebuilt for
+  // Structural edits and incompatible previous rows make that unsafe, so rebuild
   // all locales by item identity instead, written as one `locale: 'all'` map:
   //  - after compaction, positional rows can resurrect unavailable blocks or
   //    attach a translation to the wrong survivor;
+  //  - adding, removing, replacing or moving items changes which identity is
+  //    at a stored position, including inside otherwise unchanged containers;
   //  - after a field's `localized` flag changed, copy-forward skips the old
   //    shared row of a now-localized field (losing its value in every other
   //    locale) and carries stale locale rows of a now-shared field.
@@ -158,14 +164,19 @@ export async function persistExistingDocumentVersion(
   // stamped with the current collection version can still hold stale rows.
   if (write.previousVersionId && write.locale && write.locale !== 'all') {
     const mismatch = await versionHasLocalizationMismatch(ctx, write.previousVersionId)
-    if (previousRead?.unavailableBlocks?.length || mismatch) {
+    const structuralChange = hasStructuralChanges(
+      ctx.definition.fields,
+      previousRead?.fields ?? {},
+      write.documentData
+    )
+    if (previousRead?.unavailableBlocks?.length || mismatch || structuralChange) {
       const previous = await ctx.db.queries.documents.getDocumentByVersion({
         document_version_id: write.previousVersionId,
         document_id: write.documentId,
         collection_id: ctx.collectionId,
         locale: 'all',
       })
-      if (previous && (previous.unavailableBlocks?.length || mismatch)) {
+      if (previous && (previous.unavailableBlocks?.length || mismatch || structuralChange)) {
         write = {
           ...write,
           documentData: mergeWriteLocale(

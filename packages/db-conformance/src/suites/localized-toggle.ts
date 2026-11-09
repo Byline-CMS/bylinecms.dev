@@ -495,11 +495,7 @@ export function localizedToggleSuite(hooks: ConformanceHooks) {
       else globals[loggerKey] = previousLogger
     })
 
-    // Pre-existing bug (not caused by the localized toggle): a single-locale save that
-    // removes an array item carries the other locales' rows forward by position, so the
-    // removed item's fr translation ('A-fr') attaches to the surviving item B.
-    // Issue: pending (to be filed by the maintainer)
-    it.fails('positional copy-forward misattributes translations after an item removal (pre-existing)', async () => {
+    it('preserves other locales when an ordinary single-locale save removes an array item', async () => {
       const saved = await adapter.commands.documents.createDocumentVersion({
         collectionId,
         collectionVersion: 1,

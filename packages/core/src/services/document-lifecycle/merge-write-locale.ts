@@ -8,7 +8,7 @@
 
 import type { FieldSet } from '../../@types/index.js'
 
-/** Preserve other locales by item identity after unavailable blocks were compacted.
+/** Preserve other locales by item identity when structure or localization changes.
  * Incoming structure is authoritative; never carry old positional store rows forward.
  */
 export function mergeWriteLocale(
@@ -26,14 +26,21 @@ export function mergeWriteLocale(
         result[field.name] = mergeWriteLocale(field.fields, old ?? {}, value, locale)
     } else if (field.type === 'array' || field.type === 'blocks') {
       if (!Array.isArray(value)) continue
+      const explicitIds = new Set(value.filter((item) => item._id != null).map((item) => item._id))
       result[field.name] = value.map((item, index) => {
         // Hand-built payloads may omit identity metadata. Match their compacted
-        // position, as ordinary locale writes do; an explicit ID stays authoritative.
-        const prior = Array.isArray(old)
+        // position only when that old item is not explicitly preserved elsewhere
+        // in this container. A new ID-less insertion must not borrow its values.
+        const matched = Array.isArray(old)
           ? item._id != null
             ? old.find((candidate) => candidate._id === item._id)
-            : old[index]
+            : explicitIds.has(old[index]?._id)
+              ? undefined
+              : old[index]
           : undefined
+        // A block type is part of its field namespace. Reusing an ID with a
+        // different type must not import the former block's translations.
+        const prior = field.type === 'blocks' && matched?._type !== item._type ? undefined : matched
         const childFields =
           field.type === 'array'
             ? field.fields

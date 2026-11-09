@@ -38,6 +38,7 @@ import { sessionRevocationSuite } from './suites/session-revocation.js'
 import { singletonLifecycleSuite } from './suites/singleton-lifecycle.js'
 import { singletonMappingSuite } from './suites/singleton-mapping.js'
 import { storedFileIdentitySuite } from './suites/stored-file-identity.js'
+import { structuralLocaleWritesSuite } from './suites/structural-locale-writes.js'
 import { systemFieldsDirectWriteSuite } from './suites/system-fields-direct-write.js'
 import { transactionsSuite } from './suites/transactions.js'
 import { unavailableBlocksSuite } from './suites/unavailable-blocks.js'
@@ -246,6 +247,7 @@ export function runAdapterConformanceSuite(hooks: ConformanceHooks): void {
   localeVisibilitySuite(hooks)
   localeQuerySemanticsSuite(hooks)
   localizedToggleSuite(hooks)
+  structuralLocaleWritesSuite(hooks)
   auditSuite(hooks)
   countersSuite(hooks)
   singletonMappingSuite(hooks)
