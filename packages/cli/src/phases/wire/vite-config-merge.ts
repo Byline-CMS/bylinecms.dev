@@ -16,6 +16,8 @@
  * runtime or production-build failure.
  */
 
+import { createHash } from 'node:crypto'
+
 import {
   type ArrayLiteralExpression,
   type CallExpression,
@@ -25,6 +27,8 @@ import {
   type SourceFile,
   SyntaxKind,
 } from 'ts-morph'
+
+import { KNOWN_MANAGED_VALUES, type ManagedKey } from './vite-config-known-values.js'
 
 /** Statements Byline adds above `defineConfig`, in declaration order. */
 const CANONICAL_STATEMENTS = [
@@ -50,10 +54,11 @@ const BYLINE_PLUGIN_CALL = 'browserAsyncHooksAlias()'
 /**
  * A substring that only appears in Byline's own value for a given key.
  *
- * A key being present is not the same as a key being *ours*. Re-running `init`,
- * or inspecting the canonical config itself, must recognise Byline's settings as
- * already applied rather than reporting them as host-owned conflicts. Byline's
- * values always reference a Byline identifier or scope, so that is the tell.
+ * A marker says a value *contains* Byline configuration. It does not make the
+ * whole value Byline's: a host may add an external, or another Nitro option,
+ * next to Byline's. So a marker never licenses a replacement on its own — it
+ * only decides how a value that cannot be replaced is described: as a
+ * customized copy of Byline's value, or as the host's own setting.
  */
 const KEY_MARKERS: Record<string, string> = {
   environments: 'bylineSsrNoExternal',
@@ -64,18 +69,115 @@ const KEY_MARKERS: Record<string, string> = {
   features: NITRO_FEATURES_HELPER,
 }
 
-function isBylineOwnedValue(key: string, text: string): boolean {
-  const marker = KEY_MARKERS[key]
-  return marker != null && text.includes(marker)
+/**
+ * A structural fingerprint of a value: its syntax tree with comments,
+ * whitespace, quote style and trailing commas removed. Two values with the same
+ * fingerprint are the same configuration however they are formatted, so a
+ * config reformatted by the host's own formatter is never reported as changed.
+ */
+function fingerprintValue(node: Node): string {
+  return createHash('sha256').update(structure(node)).digest('hex').slice(0, 16)
+}
+
+function structure(node: Node): string {
+  if (Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)) {
+    return JSON.stringify(node.getLiteralValue())
+  }
+  if (Node.isArrayLiteralExpression(node)) {
+    return `[${node.getElements().map(structure).join(',')}]`
+  }
+  if (Node.isObjectLiteralExpression(node)) {
+    return `{${node.getProperties().map(structure).join(',')}}`
+  }
+  const children = node.getChildren()
+  if (children.length === 0) return node.getText()
+  return children
+    .filter((child) => child.getKind() !== SyntaxKind.CommaToken || child.getNextSibling())
+    .map(structure)
+    .join(' ')
+}
+
+/** What a host config holds under one of the keys Byline manages. */
+type ManagedValueState =
+  /** Not set: Byline adds its value. */
+  | 'missing'
+  /** Byline's current value, in any formatting. */
+  | 'current'
+  /** A value an earlier Byline release wrote verbatim: safe to replace. */
+  | 'known'
+  /** Byline's value with host changes: left untouched and reported. */
+  | 'customized'
+  /** The host's own value: left untouched and reported. */
+  | 'host'
+
+function classifyManagedValue(
+  key: ManagedKey,
+  property: Node | undefined,
+  canonicalFingerprint: string | undefined
+): ManagedValueState {
+  if (!property) return 'missing'
+  const initializer = Node.isPropertyAssignment(property) ? property.getInitializer() : undefined
+  const text = property.getText()
+  const marker = KEY_MARKERS[baseKey(key)]
+  const marked = marker != null && text.includes(marker)
+  if (!initializer) return marked ? 'customized' : 'host'
+  // Passing the host's own features through the helper is the documented use,
+  // not a customization of Byline's value.
+  if (
+    key === 'nitro.features' &&
+    Node.isCallExpression(initializer) &&
+    initializer.getExpression().getText() === NITRO_FEATURES_HELPER
+  ) {
+    return 'current'
+  }
+  const fingerprint = fingerprintValue(initializer)
+  if (fingerprint === canonicalFingerprint) return 'current'
+  if (KNOWN_MANAGED_VALUES[key].includes(fingerprint)) return 'known'
+  return marked ? 'customized' : 'host'
+}
+
+function baseKey(key: ManagedKey): string {
+  return key.startsWith('nitro.') ? key.slice('nitro.'.length) : key
+}
+
+function managedLabel(key: ManagedKey): string {
+  return key.startsWith('nitro.') ? `nitro \`${baseKey(key)}\`` : `\`${key}\``
+}
+
+function customizedNote(key: ManagedKey): string {
+  return `${managedLabel(key)} differs from every value Byline has shipped; merge Byline's current value into it by hand`
+}
+
+function hostOwnedNote(key: ManagedKey): string {
+  if (key === 'nitro.features') {
+    return `nitro \`features\` is already set; pass your features through \`${NITRO_FEATURES_HELPER}({ ... })\` from ${NITRO_FEATURES_MODULE} so Byline can turn off srvx FastResponse (h3js/srvx#343)`
+  }
+  return `${managedLabel(key)} is already set`
 }
 
 /**
- * Whitespace-insensitive comparison. A value written by an earlier release and
- * then reformatted — by `formatText` here, or by the host's own formatter — is
- * still the same value, and must not be rewritten on every run.
+ * The fingerprint of each managed value in a config, keyed like
+ * {@link KNOWN_MANAGED_VALUES}. Keys the config does not set are absent. Used
+ * to pin the canonical values, so that changing one forces its previous
+ * fingerprint into the known list.
  */
-function sameCode(a: string, b: string): boolean {
-  return a.replace(/\s+/g, ' ').trim() === b.replace(/\s+/g, ' ').trim()
+export function managedValueFingerprints(configSource: string): Map<ManagedKey, string> {
+  const fingerprints = new Map<ManagedKey, string>()
+  const source = newProject().createSourceFile('vite.config.ts', configSource)
+  const configObject = findDefineConfigObject(source)
+  if (!configObject) return fingerprints
+  const record = (key: ManagedKey, property: Node | undefined) => {
+    const initializer =
+      property && Node.isPropertyAssignment(property) ? property.getInitializer() : undefined
+    if (initializer) fingerprints.set(key, fingerprintValue(initializer))
+  }
+  for (const key of CANONICAL_CONFIG_KEYS) record(key, configObject.getProperty(key))
+  const nitroCall = findNitroCall(configObject)
+  const nitroObject = nitroCall ? firstObjectArgument(nitroCall) : undefined
+  if (nitroObject) {
+    for (const key of CANONICAL_NITRO_KEYS) record(`nitro.${key}`, nitroObject.getProperty(key))
+  }
+  return fingerprints
 }
 
 export interface CanonicalPieces {
@@ -85,6 +187,10 @@ export interface CanonicalPieces {
   configProps: Map<string, string>
   /** Source text of each `nitro()` option, keyed by property name. */
   nitroProps: Map<string, string>
+  /** Source text of each managed value, without its key, for in-place updates. */
+  values: Map<ManagedKey, string>
+  /** Structural fingerprint of each managed value. */
+  fingerprints: Map<ManagedKey, string>
 }
 
 export interface MergePlan {
@@ -99,6 +205,8 @@ export interface MergePlan {
 export type MergeAnalysis =
   | { kind: 'canonical' }
   | { kind: 'mergeable'; plan: MergePlan }
+  /** Nothing to apply, but some managed values were customized by the host. */
+  | { kind: 'customized'; notes: string[] }
   | { kind: 'unrecognized'; reason: string }
 
 function newProject(): Project {
@@ -129,11 +237,22 @@ export function extractCanonicalPieces(canonicalSource: string): CanonicalPieces
     throw new Error('canonical vite.config.ts has no recognisable defineConfig({...}) call')
   }
 
+  const values = new Map<ManagedKey, string>()
+  const fingerprints = new Map<ManagedKey, string>()
+  const recordValue = (key: ManagedKey, property: Node) => {
+    const initializer = Node.isPropertyAssignment(property) ? property.getInitializer() : undefined
+    if (!initializer)
+      throw new Error(`canonical vite.config.ts sets ${managedLabel(key)} without a value`)
+    values.set(key, initializer.getText())
+    fingerprints.set(key, fingerprintValue(initializer))
+  }
+
   const configProps = new Map<string, string>()
   for (const key of CANONICAL_CONFIG_KEYS) {
     const property = configObject.getProperty(key)
     if (!property) throw new Error(`canonical vite.config.ts no longer sets \`${key}\``)
     configProps.set(key, property.getText())
+    recordValue(key, property)
   }
 
   const nitroCall = findNitroCall(configObject)
@@ -147,9 +266,10 @@ export function extractCanonicalPieces(canonicalSource: string): CanonicalPieces
     const property = nitroObject.getProperty(key)
     if (!property) throw new Error(`canonical vite.config.ts no longer sets nitro \`${key}\``)
     nitroProps.set(key, property.getText())
+    recordValue(`nitro.${key}`, property)
   }
 
-  return { statements, configProps, nitroProps }
+  return { statements, configProps, nitroProps, values, fingerprints }
 }
 
 /**
@@ -189,28 +309,43 @@ export function analyzeUserConfig(userSource: string, canonical: CanonicalPieces
 
   const changes: string[] = []
   const unplaced: string[] = []
+  const customized: string[] = []
 
   const missingStatements = CANONICAL_STATEMENTS.filter((name) => !declaresName(source, name))
 
-  // Byline only claims keys the host has not already set. A key holding a
-  // host-authored value is reported rather than merged into — we cannot know
-  // whether that value was deliberate. A key already holding Byline's own value
-  // is simply done.
+  // Byline replaces a value only when it is provably one Byline wrote: its
+  // current value, or a value an earlier release shipped verbatim. Anything
+  // else — the host's own setting, or Byline's value with host additions — is
+  // left untouched and reported, because replacing it would silently drop
+  // settings the host's build may need.
+  const sort = (
+    key: ManagedKey,
+    property: Node | undefined,
+    toAdd: string[],
+    toReplace: string[]
+  ) => {
+    switch (classifyManagedValue(key, property, canonical.fingerprints.get(key))) {
+      case 'missing':
+        toAdd.push(baseKey(key))
+        break
+      case 'known':
+        toReplace.push(baseKey(key))
+        break
+      case 'customized':
+        customized.push(customizedNote(key))
+        break
+      case 'host':
+        unplaced.push(hostOwnedNote(key))
+        break
+      case 'current':
+        break
+    }
+  }
+
   const configKeysToAdd: string[] = []
   const configKeysToReplace: string[] = []
   for (const key of CANONICAL_CONFIG_KEYS) {
-    const property = configObject.getProperty(key)
-    const canonicalText = canonical.configProps.get(key)
-    if (!property) {
-      configKeysToAdd.push(key)
-    } else if (!isBylineOwnedValue(key, property.getText())) {
-      unplaced.push(`\`${key}\` is already set`)
-    } else if (canonicalText && !sameCode(property.getText(), canonicalText)) {
-      // The key holds Byline's own value from an earlier release. We own it, so
-      // bring it up to date — otherwise a config merged by a previous version
-      // silently never receives later fixes to these settings.
-      configKeysToReplace.push(key)
-    }
+    sort(key, configObject.getProperty(key), configKeysToAdd, configKeysToReplace)
   }
 
   const pluginsArray = getPluginsArray(configObject)
@@ -227,19 +362,7 @@ export function analyzeUserConfig(userSource: string, canonical: CanonicalPieces
     unplaced.push('`nitro( ... )` is not called with an inline object literal')
   } else {
     for (const key of CANONICAL_NITRO_KEYS) {
-      const property = nitroObject.getProperty(key)
-      const canonicalText = canonical.nitroProps.get(key)
-      if (!property) {
-        nitroKeysToAdd.push(key)
-      } else if (!isBylineOwnedValue(key, property.getText())) {
-        unplaced.push(
-          key === 'features'
-            ? `nitro \`features\` is already set; pass your features through \`${NITRO_FEATURES_HELPER}({ ... })\` from ${NITRO_FEATURES_MODULE} so Byline can turn off srvx FastResponse (h3js/srvx#343)`
-            : `nitro \`${key}\` is already set`
-        )
-      } else if (canonicalText && !sameCode(property.getText(), canonicalText)) {
-        nitroKeysToReplace.push(key)
-      }
+      sort(`nitro.${key}`, nitroObject.getProperty(key), nitroKeysToAdd, nitroKeysToReplace)
     }
   }
 
@@ -253,12 +376,14 @@ export function analyzeUserConfig(userSource: string, canonical: CanonicalPieces
   if (addsPlugin) changes.push('register browserAsyncHooksAlias()')
 
   if (changes.length === 0 && unplaced.length === 0) {
-    return { kind: 'canonical' }
+    return customized.length === 0
+      ? { kind: 'canonical' }
+      : { kind: 'customized', notes: customized }
   }
   if (changes.length === 0) {
     return {
       kind: 'unrecognized',
-      reason: `nothing could be applied automatically (${unplaced.join('; ')})`,
+      reason: `nothing could be applied automatically (${[...unplaced, ...customized].join('; ')})`,
     }
   }
 
@@ -266,7 +391,7 @@ export function analyzeUserConfig(userSource: string, canonical: CanonicalPieces
     kind: 'mergeable',
     plan: {
       changes,
-      unplaced,
+      unplaced: [...unplaced, ...customized],
       apply() {
         // Re-parse so the plan owns a clean tree; analysis must not mutate.
         const applyProject = newProject()
@@ -279,11 +404,21 @@ export function analyzeUserConfig(userSource: string, canonical: CanonicalPieces
 
         insertStatementsBeforeConfig(applySource, canonical, missingStatements)
 
-        for (const key of [...configKeysToReplace, ...configKeysToAdd]) {
+        // A known earlier value is updated in place — its initializer swapped,
+        // the property and the commas around it kept — so the host's layout
+        // and trailing-comma style survive.
+        const replaceValue = (object: ObjectLiteralExpression, key: ManagedKey) => {
+          const property = object.getProperty(baseKey(key))
+          const value = canonical.values.get(key)
+          if (property && value && Node.isPropertyAssignment(property)) {
+            property.setInitializer(value)
+          }
+        }
+
+        for (const key of configKeysToReplace) replaceValue(applyConfig, key as ManagedKey)
+        for (const key of configKeysToAdd) {
           const text = canonical.configProps.get(key)
-          if (!text) continue
-          applyConfig.getProperty(key)?.remove()
-          applyConfig.addProperty(text)
+          if (text) applyConfig.addProperty(text)
         }
 
         const applyPlugins = getPluginsArray(applyConfig)
@@ -292,11 +427,12 @@ export function analyzeUserConfig(userSource: string, canonical: CanonicalPieces
           const applyNitro = findNitroCallInArray(applyPlugins)
           const applyNitroObject = applyNitro ? firstObjectArgument(applyNitro) : undefined
           if (applyNitroObject) {
-            for (const key of [...nitroKeysToReplace, ...nitroKeysToAdd]) {
+            for (const key of nitroKeysToReplace) {
+              replaceValue(applyNitroObject, `nitro.${key}` as ManagedKey)
+            }
+            for (const key of nitroKeysToAdd) {
               const text = canonical.nitroProps.get(key)
-              if (!text) continue
-              applyNitroObject.getProperty(key)?.remove()
-              applyNitroObject.addProperty(text)
+              if (text) applyNitroObject.addProperty(text)
             }
           }
         }

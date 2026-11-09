@@ -3,6 +3,7 @@ import { wireServerUploads } from './server-uploads.js'
 import { wireStartTs } from './start-ts.js'
 import { wireTsconfig } from './tsconfig.js'
 import { wireViteConfig } from './vite-config.js'
+import type { Context } from '../../context.js'
 import type { FileWrite, Phase, PhaseResult, PhaseState } from '../../types.js'
 import type { SubEdit, SubEditResult } from './shared.js'
 
@@ -26,7 +27,15 @@ export const wirePhase: Phase = {
 
   async detect(ctx) {
     const results = await Promise.all(SUB_EDITS.map((sub) => sub.preview(ctx)))
-    if (results.some((result) => result.status === 'blocked')) return 'blocked'
+    const blocked = SUB_EDITS.flatMap((sub, i) =>
+      results[i]?.status === 'blocked' ? [{ key: sub.key, result: results[i] }] : []
+    )
+    if (blocked.length > 0) {
+      // The runner stops on a blocked detect without planning, so this is the
+      // only place the reason and the required configuration can reach the user.
+      for (const { key, result } of blocked) reportBlocked(ctx, key, result)
+      return 'blocked'
+    }
     return results.every((result) => result.status === 'skipped') ? 'done' : 'pending'
   },
 
@@ -62,18 +71,22 @@ export const wirePhase: Phase = {
           }
           break
         case 'blocked':
-          ctx.logger.error(`  ${sub.key}: ${r.message}`)
-          // A blocked sub-edit halts the run, so this note is the user's only
-          // instruction for how to unblock it — always show it when present.
-          if (r.snippet) {
-            ctx.prompter.note(r.snippet, `${sub.key}: required configuration`)
-          }
+          reportBlocked(ctx, sub.key, r)
           break
       }
     }
 
     return { state: aggregateState(results.map((r) => r.result)) }
   },
+}
+
+/**
+ * A blocked sub-edit halts the run, so its message and snippet are the user's
+ * only instruction for how to unblock it — always show both when present.
+ */
+function reportBlocked(ctx: Context, key: string, r: SubEditResult): void {
+  ctx.logger.error(`  ${key}: ${r.message}`)
+  if (r.snippet) ctx.prompter.note(r.snippet, `${key}: required configuration`)
 }
 
 function formatNote(key: string, r: SubEditResult): string {

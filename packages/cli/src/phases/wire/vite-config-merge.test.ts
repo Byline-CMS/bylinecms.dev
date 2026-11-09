@@ -5,7 +5,12 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import { DEP_SPECS } from '../../manifest/deps.js'
-import { analyzeUserConfig, extractCanonicalPieces } from './vite-config-merge.js'
+import { CURRENT_MANAGED_VALUES, KNOWN_MANAGED_VALUES } from './vite-config-known-values.js'
+import {
+  analyzeUserConfig,
+  extractCanonicalPieces,
+  managedValueFingerprints,
+} from './vite-config-merge.js'
 
 const CANONICAL = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), '../../templates/host/vite.config.ts'),
@@ -245,5 +250,139 @@ export default defineConfig(options)
   it('declines a config that does not parse', () => {
     const analysis = analyzeUserConfig('export default defineConfig({ plugins: [ }\n', canonical)
     expect(analysis.kind).toBe('unrecognized')
+  })
+})
+
+/** The source text of a config, or fails the test if it does not parse. */
+function assertParses(text: string): void {
+  // A merge that produced invalid syntax would make this analysis unrecognized.
+  expect(analyzeUserConfig(text, extractCanonicalPieces(CANONICAL)).kind).not.toBe('unrecognized')
+}
+
+/** Adds a host external right after Byline's `'react-dom'` entry in nitro `rolldownConfig`. */
+function withHostExternal(config: string): string {
+  const start = config.indexOf('rolldownConfig')
+  const anchor = "'react-dom',"
+  const at = config.indexOf(anchor, start) + anchor.length
+  expect(at).toBeGreaterThan(anchor.length)
+  return `${config.slice(0, at)} 'host-native-dep',${config.slice(at)}`
+}
+
+/** Byline's nitro `rolldownConfig` as shipped before MySQL externalization (a known value). */
+function withPreMysqlRolldownConfig(config: string): string {
+  const current = '/^@byline\\/(db-postgres|db-mysql|storage-local|storage-s3)/'
+  expect(config).toContain(current)
+  return config.replace(current, '/^@byline\\/(db-postgres|storage-local|storage-s3)/')
+}
+
+function mergedStarter(): string {
+  const first = analyzeUserConfig(STOCK_STARTER, extractCanonicalPieces(CANONICAL))
+  if (first.kind !== 'mergeable') throw new Error('expected mergeable')
+  return first.plan.apply()
+}
+
+describe('managed value ownership', () => {
+  const canonical = extractCanonicalPieces(CANONICAL)
+
+  it('pins the canonical values so a changed one must register its predecessor', () => {
+    // If this fails you changed a managed value in templates/host/vite.config.ts.
+    // Move the key's old fingerprint from CURRENT_MANAGED_VALUES into
+    // KNOWN_MANAGED_VALUES and record the new one, so configs holding the old
+    // value keep being updated automatically.
+    expect(Object.fromEntries(managedValueFingerprints(CANONICAL))).toEqual(CURRENT_MANAGED_VALUES)
+    for (const [key, fingerprint] of Object.entries(CURRENT_MANAGED_VALUES)) {
+      expect(KNOWN_MANAGED_VALUES[key as keyof typeof KNOWN_MANAGED_VALUES]).not.toContain(
+        fingerprint
+      )
+    }
+  })
+
+  it('treats reformatted canonical values as current', () => {
+    // Comments, quote style and trailing commas are formatting, not configuration.
+    const reformatted = CANONICAL.replace(/^\s*\/\/.*$/gm, '')
+      .replaceAll("'react-dom',", '"react-dom",')
+      .replace('storage-s3)/,\n', 'storage-s3)/\n')
+    expect(reformatted).not.toBe(CANONICAL.replace(/^\s*\/\/.*$/gm, ''))
+    expect(analyzeUserConfig(reformatted, canonical).kind).toBe('canonical')
+  })
+
+  it('accepts host features passed through bylineNitroFeatures()', () => {
+    const withFeatures = CANONICAL.replace(
+      'features: bylineNitroFeatures()',
+      'features: bylineNitroFeatures({ websocket: true })'
+    )
+    expect(analyzeUserConfig(withFeatures, canonical).kind).toBe('canonical')
+  })
+
+  it('leaves a customized canonical rolldownConfig intact and explains the conflict', () => {
+    // The canonical file has trailing commas — the shape that used to throw
+    // "A syntax error was inserted" when this value was replaced.
+    const analysis = analyzeUserConfig(withHostExternal(CANONICAL), canonical)
+    expect(analysis.kind).toBe('customized')
+    if (analysis.kind !== 'customized') return
+    expect(analysis.notes.join(' ')).toContain('nitro `rolldownConfig` differs from every value')
+    expect(analysis.notes.join(' ')).toContain('by hand')
+  })
+
+  it('leaves a customized merged rolldownConfig intact', () => {
+    // A config merged by ts-morph has no trailing comma after the last nitro
+    // option; this shape used to "succeed" and silently drop the host external.
+    expect(analyzeUserConfig(withHostExternal(mergedStarter()), canonical).kind).toBe('customized')
+  })
+
+  it('keeps host additions when other settings still need merging', () => {
+    const customized = withHostExternal(CANONICAL).replace(
+      /\n {6}\/\/ Nitro 3 release candidates swap in[\s\S]*?features: bylineNitroFeatures\(\),/,
+      ''
+    )
+    expect(customized).not.toContain('features:')
+    const analysis = analyzeUserConfig(customized, canonical)
+    if (analysis.kind !== 'mergeable') throw new Error('expected mergeable')
+    expect(analysis.plan.changes.join(' ')).toContain('set nitro features')
+    expect(analysis.plan.unplaced.join(' ')).toContain('nitro `rolldownConfig` differs')
+    const merged = analysis.plan.apply()
+    expect(merged).toContain('host-native-dep')
+    expect(merged).toContain('features: bylineNitroFeatures()')
+    assertParses(merged)
+  })
+
+  for (const [shape, config] of [
+    ['canonical (trailing commas)', () => CANONICAL],
+    ['merged (no trailing comma)', mergedStarter],
+  ] as const) {
+    it(`updates a known earlier rolldownConfig in place: ${shape}`, () => {
+      const stale = withPreMysqlRolldownConfig(config())
+      const analysis = analyzeUserConfig(stale, canonical)
+      if (analysis.kind !== 'mergeable') throw new Error(`expected mergeable, got ${analysis.kind}`)
+      expect(analysis.plan.changes).toEqual(['update nitro rolldownConfig'])
+      expect(analysis.plan.unplaced).toEqual([])
+      const updated = analysis.plan.apply()
+      assertParses(updated)
+      expect(updated).toContain('db-mysql|storage-local')
+      expect(analyzeUserConfig(updated, canonical).kind).toBe('canonical')
+    })
+  }
+
+  it('adds a missing nitro option to an object with a trailing comma', () => {
+    const host = STOCK_STARTER.replace(
+      'nitro({ rollupConfig: { external: [/^@sentry\\//] } })',
+      "nitro({\n      preset: 'node',\n    })"
+    )
+    const analysis = analyzeUserConfig(host, canonical)
+    if (analysis.kind !== 'mergeable') throw new Error('expected mergeable')
+    const merged = analysis.plan.apply()
+    assertParses(merged)
+    expect(analyzeUserConfig(merged, canonical).kind).toBe('canonical')
+  })
+
+  it("reports a shorthand managed key as the host's own", () => {
+    const host = STOCK_STARTER.replace(
+      'resolve: { tsconfigPaths: true },',
+      'resolve: { tsconfigPaths: true },\n  ssr,'
+    ).replace('const config', 'const ssr = {}\nconst config')
+    const analysis = analyzeUserConfig(host, canonical)
+    if (analysis.kind !== 'mergeable') throw new Error('expected mergeable')
+    expect(analysis.plan.unplaced.join(' ')).toContain('`ssr` is already set')
+    expect(analysis.plan.apply()).toMatch(/\n {2}ssr,/)
   })
 })

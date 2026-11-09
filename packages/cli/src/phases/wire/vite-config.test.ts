@@ -7,6 +7,8 @@ import { createTestContext } from '../../test-helpers.js'
 import { wirePhase } from './index.js'
 import { wireViteConfig } from './vite-config.js'
 import type { Context } from '../../context.js'
+import type { Prompter } from '../../prompts.js'
+import type { Logger } from '../../ui/logger.js'
 
 const contexts: Context[] = []
 afterEach(() => {
@@ -216,6 +218,131 @@ export default defineConfig(options)
  * Reconstructs the canonical config immediately before `@byline/i18n/react`
  * was pre-bundled — the newest entry in PREDECESSOR_HASHES.
  */
+describe('customized Byline settings', () => {
+  it('leaves a customized canonical config untouched and asks for a manual merge', async () => {
+    const ctx = fixture()
+    const canonical = readFileSync(`${ctx.templatesDir()}/host/vite.config.ts`, 'utf8')
+    const anchor = "'react-dom',"
+    const at = canonical.indexOf(anchor, canonical.indexOf('rolldownConfig')) + anchor.length
+    const customized = `${canonical.slice(0, at)} 'host-native-dep',${canonical.slice(at)}`
+    writeFileSync(ctx.resolve('vite.config.ts'), customized)
+
+    const preview = await wireViteConfig.preview(ctx)
+    expect(preview.status).toBe('manual')
+    expect(preview.message).toContain('nitro `rolldownConfig` differs from every value')
+    expect(preview.snippet).toBe(canonical)
+    expect(preview.writes ?? []).toEqual([])
+
+    expect(await wireViteConfig.apply(ctx, preview.writes)).toMatchObject({ status: 'manual' })
+    expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toBe(customized)
+    expect(readdirSync(ctx.cwd).some((name) => name.startsWith('vite.config.ts.bak-'))).toBe(false)
+  })
+
+  it('applies safe changes but stays manual while customized settings remain', async () => {
+    // A customized rolldownConfig next to a missing `features`: Byline can add
+    // `features`, but the rolldownConfig still needs a hand merge. Applying the
+    // safe part must not report the config as complete.
+    const ctx = fixture()
+    const canonical = readFileSync(`${ctx.templatesDir()}/host/vite.config.ts`, 'utf8')
+    const anchor = "'react-dom',"
+    const at = canonical.indexOf(anchor, canonical.indexOf('rolldownConfig')) + anchor.length
+    const mixed = `${canonical.slice(0, at)} 'host-native-dep',${canonical.slice(at)}`.replace(
+      /\n {6}\/\/ Nitro 3 release candidates swap in[\s\S]*?features: bylineNitroFeatures\(\),/,
+      ''
+    )
+    expect(mixed).not.toContain('features:')
+    writeFileSync(ctx.resolve('vite.config.ts'), mixed)
+
+    const preview = await wireViteConfig.preview(ctx)
+    expect(preview.status).toBe('manual')
+    expect(preview.message).toContain('set nitro features')
+    expect(preview.message).toContain('nitro `rolldownConfig` differs from every value')
+    expect(preview.snippet).toBe(canonical)
+    expect(preview.writes).toHaveLength(2)
+
+    const applied = await wireViteConfig.apply(ctx, preview.writes)
+    expect(applied.status).toBe('manual')
+    expect(applied.message).toContain('backup: vite.config.ts.bak-')
+    expect(applied.message).toContain('nitro `rolldownConfig` differs from every value')
+    expect(applied.message).toContain('byline init --from wire')
+    expect(applied.snippet).toBe(canonical)
+
+    const updated = readFileSync(ctx.resolve('vite.config.ts'), 'utf8')
+    expect(updated).toContain('features: bylineNitroFeatures()')
+    expect(updated).toContain('host-native-dep')
+    expect(readBackup(ctx)).toBe(mixed)
+    // Re-inspecting agrees with what apply reported.
+    expect((await wireViteConfig.preview(ctx)).status).toBe('manual')
+  })
+
+  for (const [label, customized, expected] of [
+    ['partial while a customized setting remains', true, 'partial'],
+    ['done once every setting is merged', false, 'done'],
+  ] as const) {
+    it(`reports ${label} from the wire phase`, async () => {
+      const ctx = fixture()
+      mkdirSync(ctx.resolve('src'), { recursive: true })
+      writeFileSync(
+        ctx.resolve('src/server.ts'),
+        "import '../byline/server.config'\nconst serveUploads = true\n"
+      )
+      // A real Start entry, so the start-ts sub-edit can finish and only the
+      // Vite config decides the phase result.
+      writeFileSync(
+        ctx.resolve('src/start.ts'),
+        "import { createStart } from '@tanstack/react-start'\n" +
+          "import { bylineCodedErrorAdapter } from '@byline/host-tanstack-start/integrations/start-errors'\n" +
+          'export const startInstance = createStart(() => ({ serializationAdapters: [bylineCodedErrorAdapter] }))\n'
+      )
+      writeFileSync(
+        ctx.resolve('tsconfig.json'),
+        '{"compilerOptions":{"paths":{"~/*":["./byline/*"]}}}\n'
+      )
+      const canonical = readFileSync(`${ctx.templatesDir()}/host/vite.config.ts`, 'utf8')
+      const anchor = "'react-dom',"
+      const at = canonical.indexOf(anchor, canonical.indexOf('rolldownConfig')) + anchor.length
+      const base = customized
+        ? `${canonical.slice(0, at)} 'host-native-dep',${canonical.slice(at)}`
+        : canonical
+      writeFileSync(
+        ctx.resolve('vite.config.ts'),
+        base.replace(
+          /\n {6}\/\/ Nitro 3 release candidates swap in[\s\S]*?features: bylineNitroFeatures\(\),/,
+          ''
+        )
+      )
+
+      const plan = await wirePhase.plan(ctx)
+      expect((await wirePhase.apply(plan, ctx)).state).toBe(expected)
+    })
+  }
+
+  it("reports a blocked sub-edit's reason and snippet from detect", async () => {
+    // The runner stops on a blocked detect without planning, so detect itself
+    // must print why, or the user sees only "wire — blocked; cannot proceed".
+    const errors: string[] = []
+    const notes: string[] = []
+    const base = fixture()
+    const logger: Logger = { ...base.logger, error: (message) => errors.push(message) }
+    const prompter: Prompter = {
+      ...base.prompter,
+      note: (message, title) => notes.push(`${title}\n${message}`),
+    }
+    const ctx = createTestContext({}, { logger, prompter })
+    contexts.push(ctx)
+    writeFileSync(
+      ctx.resolve('vite.config.ts'),
+      "import { defineConfig } from 'vite'\nconst options = { plugins: [] }\nexport default defineConfig(options)\n"
+    )
+
+    expect(await wirePhase.detect(ctx)).toBe('blocked')
+    expect(
+      errors.some((line) => line.includes('vite-config:') && line.includes('left untouched'))
+    ).toBe(true)
+    expect(notes.some((note) => note.startsWith('vite-config: required configuration'))).toBe(true)
+  })
+})
+
 /** The canonical config before `bylineNitroFeatures()` disabled srvx FastResponse. */
 function withoutNitroFeatures(canonical: string): string {
   return canonical

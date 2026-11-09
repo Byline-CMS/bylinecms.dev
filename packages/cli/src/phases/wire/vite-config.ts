@@ -119,20 +119,46 @@ function inspect(ctx: Context): SubEditResult {
     return { status: 'skipped', message: `${REL}: already provides Byline's required settings` }
   }
 
-  if (analysis.kind === 'mergeable') {
-    const merged = analysis.plan.apply()
-    const leftover =
-      analysis.plan.unplaced.length > 0
-        ? ` Left for you to merge by hand: ${analysis.plan.unplaced.join('; ')}.`
-        : ''
+  if (analysis.kind === 'customized') {
+    // Every required key is present, but some hold Byline's value with host
+    // changes. Replacing them could drop settings the host's build needs, so
+    // they stay as they are and the user compares them by hand.
     return {
-      status: 'done',
-      message: `${REL}: will ${analysis.plan.changes.join(', ')}. ${backupNote(backupPath)}${leftover}`,
+      status: 'manual',
+      message:
+        `${REL}: left untouched — ${analysis.notes.join('; ')}. Compare with the canonical ` +
+        'config below, then re-run: byline init --from wire',
+      snippet: canonical,
+    }
+  }
+
+  if (analysis.kind === 'mergeable') {
+    let merged: string
+    try {
+      merged = analysis.plan.apply()
+    } catch (error) {
+      return {
+        status: 'blocked',
+        message:
+          `${REL}: left untouched — Byline's settings could not be merged into it ` +
+          `(${firstLine(error)}). Merge the settings below by hand, then re-run: ` +
+          'byline init --from wire',
+        snippet: canonical,
+      }
+    }
+    const { unplaced } = analysis.plan
+    // Safe changes are still written when some settings need a hand merge, but
+    // the result stays manual so the run reports partial rather than complete.
+    return {
+      status: unplaced.length > 0 ? 'manual' : 'done',
+      message:
+        `${REL}: will ${analysis.plan.changes.join(', ')}. ${backupNote(backupPath)}` +
+        (unplaced.length > 0 ? ` ${handMergeNote(unplaced)}` : ''),
       writes: [
         { path: backupPath, contents: userText, mode: 'create' },
         { path, contents: merged, mode: 'patch', before: userText },
       ],
-      ...(analysis.plan.unplaced.length > 0 ? { snippet: canonical } : {}),
+      ...(unplaced.length > 0 ? { snippet: canonical } : {}),
     }
   }
 
@@ -179,10 +205,45 @@ function apply(ctx: Context, plannedWrites: readonly FileWrite[]): SubEditResult
   if (!backup) {
     return { status: 'done', message: `${REL}: created canonical Byline config` }
   }
+  const canonical = readCanonical(ctx)
+  const leftover = canonical ? mergeLeftovers(writes, path, canonical) : []
+  if (leftover.length > 0) {
+    return {
+      status: 'manual',
+      message:
+        `${REL}: updated with the settings Byline could merge ` +
+        `(backup: ${basename(backup.path)}). ${handMergeNote(leftover)}`,
+      snippet: canonical,
+    }
+  }
   return {
     status: 'done',
     message: `${REL}: updated with Byline's required settings (backup: ${basename(backup.path)})`,
   }
+}
+
+/**
+ * What a merge write leaves for the user, recomputed from the text it was
+ * planned against, so apply reports the same unresolved settings the preview
+ * did. A full replacement with the canonical config leaves nothing.
+ */
+function mergeLeftovers(writes: readonly FileWrite[], path: string, canonical: string): string[] {
+  const write = writes.find((candidate) => candidate.path === path)
+  if (!write?.before || write.contents === canonical) return []
+  const analysis = analyzeUserConfig(write.before, extractCanonicalPieces(canonical))
+  return analysis.kind === 'mergeable' ? analysis.plan.unplaced : []
+}
+
+function handMergeNote(unplaced: readonly string[]): string {
+  return (
+    `Left for you to merge by hand: ${unplaced.join('; ')}. Compare with the canonical ` +
+    'config below, then re-run: byline init --from wire'
+  )
+}
+
+function firstLine(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+  return message.split('\n')[0]?.trim() || 'unknown error'
 }
 
 function readCanonical(ctx: Context): string | undefined {
