@@ -2,7 +2,7 @@
   "name": "@byline/analytics-mysql",
   "private": false,
   "license": "MPL-2.0",
-  "version": "6.13.0",
+  "version": "6.13.1",
   "engines": {
     "node": ">=22.22.2"
   },

@@ -1,5 +1,13 @@
 # @byline/analytics-postgres
 
+## 6.13.1
+
+### Patch Changes
+
+- fixed thrown server-function responses reaching the client as 200 under nitro 3 release candidates by disabling srvx fastresponse in **`@byline/host-tanstack-start`** hosts, and pinned nitro 3.0.261029-rc in **`@byline/cli`**
+- Updated dependencies
+  - @byline/analytics@6.13.1
+
 ## 6.13.0
 
 ### Minor Changes
