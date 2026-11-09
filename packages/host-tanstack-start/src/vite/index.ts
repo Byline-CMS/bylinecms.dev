@@ -8,3 +8,4 @@
 
 export { bylineAnalyticsDev } from './analytics-dev.js'
 export { bylineClientHookBoundary } from './client-hook-boundary.js'
+export { bylineNitroFeatures } from './nitro-features.js'

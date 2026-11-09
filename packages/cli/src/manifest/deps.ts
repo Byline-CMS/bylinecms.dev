@@ -194,9 +194,9 @@ export const DEP_SPECS: readonly DepSpec[] = [
   },
   {
     name: 'nitro',
-    version: 'npm:nitro-nightly@latest',
+    version: '3.0.261029-rc',
     group: 'runtime',
-    note: 'Nitro plugin that drives TanStack Start SSR builds (vite.config.ts plugin); matches the spec TanStack Start scaffolds, so this is a no-op for users coming via `npx @tanstack/cli create`',
+    note: 'Nitro plugin that drives TanStack Start SSR builds (vite.config.ts plugin); pinned exactly to the release Byline is tested against, because Nitro release candidates change behaviour between builds. Applies only when the host declares no `nitro`: the deps phase keeps any spec the host already declares, so a host scaffolded by TanStack Start keeps its `nitro-nightly` alias. vite.config.ts disables srvx FastResponse through bylineNitroFeatures() (h3js/srvx#343)',
   },
 
   // ---- Dev ---------------------------------------------------------------

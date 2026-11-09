@@ -35,6 +35,7 @@
     "test:node": "vitest run --mode=node",
     "typecheck": "tsc --noEmit",
     "test:sign-in-transport": "node tests/sign-in-start/run.mjs",
+    "test:built-server-status": "node tests/built-server-status/run.mjs",
     "preview:css-contract": "vite build --config vite.css-layers.config.ts && vite preview --config vite.css-layers.config.ts"
   },
   "dependencies": {
@@ -66,7 +67,7 @@
     "keyv": "^5.6.0",
     "mdast-util-to-string": "^4.0.0",
     "negotiator": "^1.1.0",
-    "nitro": "npm:nitro-nightly@3.0.260522-beta",
+    "nitro": "3.0.261029-rc",
     "pino": "^10.4.0",
     "prism-react-renderer": "^2.4.1",
     "react": "19.3.1",

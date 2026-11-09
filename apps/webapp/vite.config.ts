@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { devtools } from '@tanstack/devtools-vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 
-import { bylineClientHookBoundary } from '@byline/host-tanstack-start/vite'
+import { bylineClientHookBoundary, bylineNitroFeatures } from '@byline/host-tanstack-start/vite'
 import { bylineLayerOrder } from '@byline/ui/css-layers'
 import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
@@ -194,6 +194,12 @@ const config = defineConfig({
     devtools(),
     nitro({
       preset: 'node',
+      // Nitro 3 release candidates swap in srvx's FastResponse on Node, which
+      // turns every Response a server function throws into a 200 (Byline's
+      // sign-in and passkey functions throw 400/429/503). bylineNitroFeatures()
+      // disables it until a fixed srvx reaches Nitro — h3js/srvx#343. Pass any
+      // features of your own as its argument.
+      features: bylineNitroFeatures(),
       // @byline/ui, @byline/admin, and @byline/host-tanstack-start all
       // ship compiled JS that does `import './foo_module.css'`. Nitro
       // externalizes node_modules by default, which would send those

@@ -54,7 +54,7 @@ describe('canonical extraction', () => {
       'ssrExternal',
     ])
     expect([...pieces.configProps.keys()]).toEqual(['environments', 'ssr', 'optimizeDeps'])
-    expect([...pieces.nitroProps.keys()]).toEqual(['noExternals', 'rolldownConfig'])
+    expect([...pieces.nitroProps.keys()]).toEqual(['noExternals', 'rolldownConfig', 'features'])
   })
 
   it('throws rather than silently omitting a renamed piece', () => {
@@ -97,7 +97,9 @@ describe('merging into a host config', () => {
     expect(analysis.plan.unplaced).toEqual([])
     expect(analysis.plan.changes.join('\n')).toContain('browserAsyncHooksShim')
     expect(analysis.plan.changes.join('\n')).toContain('environments, ssr, optimizeDeps')
-    expect(analysis.plan.changes.join('\n')).toContain('nitro noExternals, rolldownConfig')
+    expect(analysis.plan.changes.join('\n')).toContain(
+      'nitro noExternals, rolldownConfig, features'
+    )
   })
 
   it('produces a config carrying every required setting', () => {
@@ -112,7 +114,12 @@ describe('merging into a host config', () => {
     // Production-critical.
     expect(merged).toContain("noExternals: ['@byline/ui'")
     expect(merged).toContain('rolldownConfig')
+    // Status-critical: srvx FastResponse turns thrown Responses into 200s.
+    expect(merged).toContain('features: bylineNitroFeatures()')
     // Imports the inserted code depends on.
+    expect(merged).toMatch(
+      /import \{ bylineNitroFeatures \} from ["']@byline\/host-tanstack-start\/vite["']/
+    )
     expect(merged).toContain('fileURLToPath')
     expect(merged).toContain('Plugin')
     // Registered ahead of the host's own plugins.
@@ -183,6 +190,45 @@ describe('merging into a host config', () => {
 
     expect(analysis.plan.unplaced.join(' ')).toContain('`ssr` is already set')
     expect(analysis.plan.apply()).toContain('left-alone')
+  })
+
+  it('adds bylineNitroFeatures() to a config merged before it existed', () => {
+    const merged = (() => {
+      const first = analyzeUserConfig(STOCK_STARTER, canonical)
+      if (first.kind !== 'mergeable') throw new Error('expected mergeable')
+      return first.plan.apply()
+    })()
+    const predecessor = merged
+      .replace(/^\s*features: bylineNitroFeatures\(\),?\n/m, '')
+      .replace(
+        /^import \{ bylineNitroFeatures \} from ["']@byline\/host-tanstack-start\/vite["'];?\n/m,
+        ''
+      )
+    expect(predecessor).not.toContain('bylineNitroFeatures')
+
+    const analysis = analyzeUserConfig(predecessor, canonical)
+    if (analysis.kind !== 'mergeable') throw new Error('expected mergeable')
+    expect(analysis.plan.changes.join(' ')).toContain('set nitro features')
+    const upgraded = analysis.plan.apply()
+    expect(upgraded).toContain('features: bylineNitroFeatures()')
+    expect(upgraded).toMatch(
+      /import \{ bylineNitroFeatures \} from ["']@byline\/host-tanstack-start\/vite["']/
+    )
+    expect(analyzeUserConfig(upgraded, canonical).kind).toBe('canonical')
+  })
+
+  it("reports the host's own nitro features with the bylineNitroFeatures() remedy", () => {
+    const withFeatures = STOCK_STARTER.replace(
+      'nitro({ rollupConfig',
+      'nitro({ features: { websocket: true }, rollupConfig'
+    )
+    const analysis = analyzeUserConfig(withFeatures, canonical)
+    if (analysis.kind !== 'mergeable') throw new Error('expected mergeable')
+
+    const unplaced = analysis.plan.unplaced.join(' ')
+    expect(unplaced).toContain('nitro `features` is already set')
+    expect(unplaced).toContain('bylineNitroFeatures({ ... })')
+    expect(analysis.plan.apply()).toContain('features: { websocket: true }')
   })
 
   it('declines a config with no inline defineConfig object', () => {

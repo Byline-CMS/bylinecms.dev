@@ -40,8 +40,9 @@ describe('scaffold server hook boundary', () => {
       }
     }
     expect(source('host/vite.config.ts')).toContain(
-      "import { bylineClientHookBoundary } from '@byline/host-tanstack-start/vite'"
+      "import { bylineClientHookBoundary, bylineNitroFeatures } from '@byline/host-tanstack-start/vite'"
     )
     expect(source('host/vite.config.ts')).toContain('bylineClientHookBoundary()')
+    expect(source('host/vite.config.ts')).toContain('features: bylineNitroFeatures()')
   })
 })

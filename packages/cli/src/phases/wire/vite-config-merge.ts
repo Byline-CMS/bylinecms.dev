@@ -38,7 +38,11 @@ const CANONICAL_STATEMENTS = [
 const CANONICAL_CONFIG_KEYS = ['environments', 'ssr', 'optimizeDeps'] as const
 
 /** Keys Byline adds to the `nitro({...})` plugin call. */
-const CANONICAL_NITRO_KEYS = ['noExternals', 'rolldownConfig'] as const
+const CANONICAL_NITRO_KEYS = ['noExternals', 'rolldownConfig', 'features'] as const
+
+/** Where `bylineNitroFeatures`, the canonical `features` value, is imported from. */
+const NITRO_FEATURES_MODULE = '@byline/host-tanstack-start/vite'
+const NITRO_FEATURES_HELPER = 'bylineNitroFeatures'
 
 /** The plugin Byline prepends to the `plugins` array. */
 const BYLINE_PLUGIN_CALL = 'browserAsyncHooksAlias()'
@@ -57,6 +61,7 @@ const KEY_MARKERS: Record<string, string> = {
   optimizeDeps: 'ssrExternal',
   noExternals: '@byline/',
   rolldownConfig: '@byline/',
+  features: NITRO_FEATURES_HELPER,
 }
 
 function isBylineOwnedValue(key: string, text: string): boolean {
@@ -227,7 +232,11 @@ export function analyzeUserConfig(userSource: string, canonical: CanonicalPieces
       if (!property) {
         nitroKeysToAdd.push(key)
       } else if (!isBylineOwnedValue(key, property.getText())) {
-        unplaced.push(`nitro \`${key}\` is already set`)
+        unplaced.push(
+          key === 'features'
+            ? `nitro \`features\` is already set; pass your features through \`${NITRO_FEATURES_HELPER}({ ... })\` from ${NITRO_FEATURES_MODULE} so Byline can turn off srvx FastResponse (h3js/srvx#343)`
+            : `nitro \`${key}\` is already set`
+        )
       } else if (canonicalText && !sameCode(property.getText(), canonicalText)) {
         nitroKeysToReplace.push(key)
       }
@@ -290,6 +299,12 @@ export function analyzeUserConfig(userSource: string, canonical: CanonicalPieces
               applyNitroObject.addProperty(text)
             }
           }
+        }
+
+        // Added after the property edits: inserting an import first would
+        // invalidate the nitro object node those edits hold.
+        if ([...nitroKeysToReplace, ...nitroKeysToAdd].includes('features')) {
+          ensureNamedImport(applySource, NITRO_FEATURES_MODULE, NITRO_FEATURES_HELPER)
         }
 
         applySource.formatText({ indentSize: 2 })

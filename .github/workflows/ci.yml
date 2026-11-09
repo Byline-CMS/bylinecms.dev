@@ -198,6 +198,7 @@ jobs:
       # Pure CPU, no DB (storage-s3 additionally uses the s3 service)
       - run: pnpm test
       - run: pnpm --filter @byline/webapp test:sign-in-transport
+      - run: pnpm --filter @byline/webapp test:built-server-status
       # Integration tests now - require byline_test DB
       - run: pnpm test:integration
 

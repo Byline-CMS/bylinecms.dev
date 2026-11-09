@@ -108,6 +108,20 @@ describe('Vite config safety', () => {
     expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toBe(canonical)
   })
 
+  it('replaces the canonical predecessor from before bylineNitroFeatures()', async () => {
+    const ctx = fixture()
+    const canonical = readFileSync(`${ctx.templatesDir()}/host/vite.config.ts`, 'utf8')
+    const predecessor = withoutNitroFeatures(canonical)
+    expect(predecessor).not.toContain('bylineNitroFeatures')
+    writeFileSync(ctx.resolve('vite.config.ts'), predecessor)
+
+    const preview = await wireViteConfig.preview(ctx)
+    expect(preview.message).toContain('recognized canonical predecessor')
+    expect(await wireViteConfig.apply(ctx, preview.writes)).toMatchObject({ status: 'done' })
+    expect(readBackup(ctx)).toBe(predecessor)
+    expect(readFileSync(ctx.resolve('vite.config.ts'), 'utf8')).toBe(canonical)
+  })
+
   it('replaces the exact canonical predecessor from before MySQL externalization', async () => {
     const ctx = fixture()
     const canonical = readFileSync(`${ctx.templatesDir()}/host/vite.config.ts`, 'utf8')
@@ -202,8 +216,21 @@ export default defineConfig(options)
  * Reconstructs the canonical config immediately before `@byline/i18n/react`
  * was pre-bundled — the newest entry in PREDECESSOR_HASHES.
  */
+/** The canonical config before `bylineNitroFeatures()` disabled srvx FastResponse. */
+function withoutNitroFeatures(canonical: string): string {
+  return canonical
+    .replace(
+      "import { bylineClientHookBoundary, bylineNitroFeatures } from '@byline/host-tanstack-start/vite'",
+      "import { bylineClientHookBoundary } from '@byline/host-tanstack-start/vite'"
+    )
+    .replace(
+      /\n {6}\/\/ Nitro 3 release candidates swap in[\s\S]*?features: bylineNitroFeatures\(\),/,
+      ''
+    )
+}
+
 function withoutI18nPreBundling(canonical: string): string {
-  return canonical.replace(
+  return withoutNitroFeatures(canonical).replace(
     `        // \`@byline/i18n/react\` is pinned for a different reason from the rest:
         // module identity, not interop. The admin layout mounts
         // \`<I18nProvider>\` from \`@byline/host-tanstack-start\`, which is

@@ -34,6 +34,9 @@ function backupNote(backupPath: string): string {
   return `Your existing ${REL} will be backed up to ${basename(backupPath)}.`
 }
 const PREDECESSOR_HASHES = new Set([
+  // Canonical config immediately before bylineNitroFeatures() disabled srvx
+  // FastResponse (h3js/srvx#343).
+  '61779518c370fd09b851a007f237920e7bed860517aee6395e940e87ea3eb07b',
   // Canonical config immediately before @byline/i18n/react was pre-bundled.
   'f4ae4e2238571af4de1b620baea9c2834f26fe022084960ad58e0d2e4d6d9f6b',
   // Canonical config immediately before MySQL became a scaffold option.
