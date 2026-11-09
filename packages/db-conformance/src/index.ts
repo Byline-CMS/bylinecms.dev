@@ -27,6 +27,7 @@ import { guardedSavesSuite } from './suites/guarded-saves.js'
 import { localeFallbackSuite } from './suites/locale-fallback.js'
 import { localeQuerySemanticsSuite } from './suites/locale-query-semantics.js'
 import { localeVisibilitySuite } from './suites/locale-visibility.js'
+import { localizedToggleSuite } from './suites/localized-toggle.js'
 import { passkeysNativeSuite } from './suites/passkeys-native.js'
 import { passkeysPersistenceSuite } from './suites/passkeys-persistence.js'
 import { publishSchedulesSuite } from './suites/publish-schedules.js'
@@ -229,6 +230,7 @@ export function runAdapterConformanceSuite(hooks: ConformanceHooks): void {
   localeFallbackSuite(hooks)
   localeVisibilitySuite(hooks)
   localeQuerySemanticsSuite(hooks)
+  localizedToggleSuite(hooks)
   auditSuite(hooks)
   countersSuite(hooks)
   singletonMappingSuite(hooks)
