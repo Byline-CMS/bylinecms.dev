@@ -36,6 +36,7 @@ export {
 export { flattenFieldSetData } from './storage-flatten.js'
 export {
   extractFlattenedFieldValue,
+  type RestoreOptions,
   type RestoreResult,
   restoreFieldSetData,
   type UnavailableBlock,

@@ -41,6 +41,52 @@ export interface RestoreResult {
 }
 
 /**
+ * Options that let restore read rows written under a previous `localized`
+ * flag (specs/2026-11-09-localized-toggle-spec.md, 4.1, 4.2 and 4.2a).
+ */
+export interface RestoreOptions {
+  /**
+   * The document's source locale (`source_locale ?? defaultContentLocale`).
+   * A now-shared field with no shared row reads this locale's row. When
+   * omitted, `resolveLocale` stands in for it.
+   */
+  sourceLocale?: string
+  /**
+   * Map-shaped reads only: the locales under which a now-localized field's
+   * shared row is reported when the field has no locale row of its own. When
+   * omitted, `[sourceLocale]` is used if a source locale is known, else none.
+   */
+  conversionLocales?: readonly string[]
+  /**
+   * Withhold every value of a currently localized field, including a shared
+   * row stored before the toggle (public reads of an ineligible locale).
+   * Non-localized fields are kept.
+   */
+  withholdLocalized?: boolean
+}
+
+interface RestoreContext {
+  warnings: string[]
+  unavailableByArray: UnavailableByArray
+  resolveLocale?: string
+  options: RestoreOptions
+  /**
+   * Precedence of the row that produced each leaf value so far, keyed by the
+   * leaf's storage path (plus the locale for map-shaped localized values).
+   * A row replaces the current value only when its precedence is at least as
+   * high, so the outcome never depends on row order.
+   */
+  precedence: Map<string, number>
+}
+
+// Leaf precedence. A localized field prefers its locale row to a shared row
+// left over from before the toggle; a non-localized field prefers its shared
+// row to a source-locale row left over from before the toggle. Rows of any
+// other locale on a non-localized field are ignored.
+const CONVERTED_ROW = 1
+const NATIVE_ROW = 2
+
+/**
  * Main entrypoint for restoring a document's field data from flattened form
  * back into the original nested structure.
  *
@@ -50,18 +96,32 @@ export interface RestoreResult {
  * to do with them — strict reads reject any non-empty `warnings`, lenient
  * reads (the admin edit path) surface them to the UI.
  *
+ * Rows written under a field's previous `localized` flag are converted
+ * rather than warned about; see `RestoreOptions`.
+ *
  * @param fields - The field definitions for the collection.
  * @param flattenedData - The flattened field data to restore.
+ * @param resolveLocale - Restore a single locale; omit for a map-shaped read.
+ * @param identity - Used only to log unavailable blocks once per version.
+ * @param options - Conversion inputs for toggled `localized` flags.
  */
 export const restoreFieldSetData = (
   fields: FieldSet,
   flattenedData: FlattenedFieldValue[],
   resolveLocale?: string,
-  identity?: { collectionPath: string; documentId: string; versionId: string }
+  identity?: { collectionPath: string; documentId: string; versionId: string },
+  options: RestoreOptions = {}
 ): RestoreResult => {
   const result: any = {}
   const warnings: string[] = []
   const unavailableByArray: UnavailableByArray = new Map()
+  const ctx: RestoreContext = {
+    warnings,
+    unavailableByArray,
+    resolveLocale,
+    options,
+    precedence: new Map(),
+  }
 
   for (const item of flattenedData) {
     // biome-ignore lint/style/noNonNullAssertion: TODO: put in a proper check here?
@@ -76,15 +136,7 @@ export const restoreFieldSetData = (
     const field = fields.find((f) => f.name === fieldName)
     if (!field) {
     } else {
-      result[fieldName] = restoreFieldData(
-        field,
-        result[fieldName],
-        item,
-        1,
-        warnings,
-        unavailableByArray,
-        resolveLocale
-      )
+      result[fieldName] = restoreFieldData(field, result[fieldName], item, 1, ctx)
     }
   }
 
@@ -150,67 +202,59 @@ const restoreFieldData = (
   target: any,
   data: FlattenedFieldValue,
   pathIndex: number,
-  warnings: string[],
-  unavailableByArray: UnavailableByArray,
-  resolveLocale?: string
+  ctx: RestoreContext
 ): any => {
   if (field.type === 'group') {
-    return restoreGroupFieldData(
-      field,
-      target,
-      data,
-      pathIndex,
-      warnings,
-      unavailableByArray,
-      resolveLocale
-    )
+    return restoreGroupFieldData(field, target, data, pathIndex, ctx)
   } else if (field.type === 'array') {
-    return restoreArrayFieldData(
-      field,
-      target,
-      data,
-      pathIndex,
-      warnings,
-      unavailableByArray,
-      resolveLocale
-    )
+    return restoreArrayFieldData(field, target, data, pathIndex, ctx)
   } else if (field.type === 'blocks') {
-    return restoreBlocksFieldData(
-      field,
-      target,
-      data,
-      pathIndex,
-      warnings,
-      unavailableByArray,
-      resolveLocale
-    )
+    return restoreBlocksFieldData(field, target, data, pathIndex, ctx)
   } else if (field.type === 'relation' && field.hasMany) {
-    return restoreMultiRelationFieldData(target, data, pathIndex, warnings)
+    return restoreMultiRelationFieldData(target, data, pathIndex, ctx.warnings)
+  }
+
+  const { resolveLocale, options, precedence } = ctx
+  const leafKey = data.field_path.join('.')
+  // Accept a row for `key` at `rank` when nothing of higher precedence is
+  // already there; an equal rank keeps the previous last-row-wins behaviour.
+  const accept = (key: string, rank: number): boolean => {
+    if ((precedence.get(key) ?? 0) > rank) return false
+    precedence.set(key, rank)
+    return true
   }
 
   if (field.localized) {
-    if (data.locale === 'all') {
-      warnings.push(
-        `Received non-localized data for localized field at path ${data.field_path.join('.')}`
-      )
-    } else if (resolveLocale) {
-      // When resolving a specific locale, only accept the matching locale row
-      // and set the value directly instead of wrapping in { locale: value }.
+    if (options.withholdLocalized) return target
+    if (resolveLocale) {
+      // Single-locale read: the matching locale row, else a shared row (4.1).
       if (data.locale === resolveLocale) {
-        target = extractValueFieldData(data)
+        if (accept(leafKey, NATIVE_ROW)) target = extractValueFieldData(data)
+      } else if (data.locale === 'all') {
+        if (accept(leafKey, CONVERTED_ROW)) target = extractValueFieldData(data)
+      }
+    } else if (data.locale !== 'all') {
+      if (accept(`${leafKey}\u0000${data.locale}`, NATIVE_ROW)) {
+        target = target || {}
+        target[data.locale] = extractValueFieldData(data)
       }
     } else {
-      target = target || {}
-      target[data.locale] = extractValueFieldData(data)
+      // Map read: the shared value fills each conversion locale that has no
+      // locale row of its own (4.1).
+      const source = options.sourceLocale
+      const locales = options.conversionLocales ?? (source ? [source] : [])
+      for (const locale of locales) {
+        if (accept(`${leafKey}\u0000${locale}`, CONVERTED_ROW)) {
+          target = target || {}
+          target[locale] = extractValueFieldData(data)
+        }
+      }
     }
-  } else {
-    if (data.locale !== 'all') {
-      warnings.push(
-        `Received localized data for non-localized field at path ${data.field_path.join('.')}`
-      )
-    } else {
-      target = extractValueFieldData(data)
-    }
+  } else if (data.locale === 'all') {
+    if (accept(leafKey, NATIVE_ROW)) target = extractValueFieldData(data)
+  } else if (data.locale === (options.sourceLocale ?? resolveLocale)) {
+    // Now-shared field without a shared row: the source-locale row (4.2).
+    if (accept(leafKey, CONVERTED_ROW)) target = extractValueFieldData(data)
   }
 
   return target
@@ -221,10 +265,9 @@ const restoreGroupFieldData = (
   target: any,
   data: FlattenedFieldValue,
   pathIndex: number,
-  warnings: string[],
-  unavailableByArray: UnavailableByArray,
-  resolveLocale?: string
+  ctx: RestoreContext
 ): any => {
+  const { warnings } = ctx
   if (pathIndex >= data.field_path.length) {
     warnings.push(`Path ended unexpectedly while restoring group: ${data.field_path.join('.')}`)
     return target
@@ -240,15 +283,7 @@ const restoreGroupFieldData = (
   }
 
   target = target || {}
-  target[fieldName] = restoreFieldData(
-    subField,
-    target[fieldName],
-    data,
-    pathIndex + 1,
-    warnings,
-    unavailableByArray,
-    resolveLocale
-  )
+  target[fieldName] = restoreFieldData(subField, target[fieldName], data, pathIndex + 1, ctx)
   return target
 }
 
@@ -257,10 +292,9 @@ const restoreArrayFieldData = (
   target: any,
   data: FlattenedFieldValue,
   pathIndex: number,
-  warnings: string[],
-  unavailableByArray: UnavailableByArray,
-  resolveLocale?: string
+  ctx: RestoreContext
 ): any => {
+  const { warnings } = ctx
   if (pathIndex >= data.field_path.length) {
     warnings.push(`Path ended unexpectedly while restoring array: ${data.field_path.join('.')}`)
     return target
@@ -303,9 +337,7 @@ const restoreArrayFieldData = (
     target[arrayIndex][fieldName],
     data,
     pathIndex + 2,
-    warnings,
-    unavailableByArray,
-    resolveLocale
+    ctx
   )
   return target
 }
@@ -315,10 +347,9 @@ const restoreBlocksFieldData = (
   target: any,
   data: FlattenedFieldValue,
   pathIndex: number,
-  warnings: string[],
-  unavailableByArray: UnavailableByArray,
-  resolveLocale?: string
+  ctx: RestoreContext
 ): any => {
+  const { warnings, unavailableByArray } = ctx
   const arrayIndex = Number.parseInt(data.field_path[pathIndex] ?? '', 10)
   if (Number.isNaN(arrayIndex) || arrayIndex < 0) {
     warnings.push(
@@ -379,9 +410,7 @@ const restoreBlocksFieldData = (
     target[arrayIndex][fieldName],
     data,
     pathIndex + 3,
-    warnings,
-    unavailableByArray,
-    resolveLocale
+    ctx
   )
   return target
 }
