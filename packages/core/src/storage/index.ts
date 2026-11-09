@@ -27,6 +27,12 @@ export {
   resolveReadLocale,
   type VersionLocaleLedger,
 } from './locale-resolution.js'
+export {
+  conversionLocales,
+  findLocalizationMismatches,
+  type LocalizationMismatch,
+  type VersionFieldLocale,
+} from './localized-toggle.js'
 export { flattenFieldSetData } from './storage-flatten.js'
 export {
   extractFlattenedFieldValue,
