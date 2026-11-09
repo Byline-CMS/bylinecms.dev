@@ -7,9 +7,11 @@
   "type": "module",
   "scripts": {
     "seed": "tsx --env-file=../../packages/db-postgres/.env harness/seed.ts",
-    "bench": "tsx --env-file=../../packages/db-postgres/.env harness/run-bench.ts"
+    "bench": "tsx --env-file=../../packages/db-postgres/.env harness/run-bench.ts",
+    "bench:save": "tsx --env-file=../../packages/db-postgres/.env harness/run-save-bench.ts"
   },
   "dependencies": {
+    "@byline/auth": "workspace:*",
     "@byline/core": "workspace:*",
     "@byline/db-postgres": "workspace:*",
     "pg": "^8.23.1"

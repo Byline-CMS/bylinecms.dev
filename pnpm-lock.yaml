@@ -397,6 +397,9 @@ importers:
 
   benchmarks/storage:
     dependencies:
+      '@byline/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@byline/core':
         specifier: workspace:*
         version: link:../../packages/core
