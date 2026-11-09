@@ -1,5 +1,17 @@
 # @byline/search-mysql
 
+## 6.13.3
+
+### Patch Changes
+
+- fixed toggling a field's `localized` flag (reads convert old rows, saves repair them) and preserved translations by item `_id` across structural single-locale saves
+- Updated dependencies [cfdf261]
+- Updated dependencies
+- Updated dependencies [eb5ba70]
+- Updated dependencies [86b0ec4]
+  - @byline/core@6.13.3
+  - @byline/search-analysis@6.13.3
+
 ## 6.13.2
 
 ### Patch Changes

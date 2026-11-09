@@ -1,5 +1,16 @@
 # @byline/i18n
 
+## 6.13.3
+
+### Patch Changes
+
+- fixed toggling a field's `localized` flag (reads convert old rows, saves repair them) and preserved translations by item `_id` across structural single-locale saves
+- 86b0ec4: Reject duplicate array and block item IDs within each container on ordinary content writes. Field validation identifies the container and conflicting item positions. IDs may repeat in separate containers; missing IDs retain positional matching, and historical restore keeps its validation exemption.
+  
+  Explain blocked saves when stored content cannot be reconstructed during a collection mutation read or an all-locale merge. This includes collection value-only saves and damaged singletons that can still be opened for editing. The lifecycle returns a structured repair-required validation error; the admin editor asks for a compatible schema or content migration and retains unsaved edits. Reconstruction diagnostics stay on the server, and unrelated database failures retain their original classification. The strict save behavior is unchanged.
+- Updated dependencies
+  - @byline/ui@6.13.3
+
 ## 6.13.2
 
 ### Patch Changes

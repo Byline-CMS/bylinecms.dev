@@ -1,5 +1,22 @@
 # @byline/core
 
+## 6.13.3
+
+### Patch Changes
+
+- cfdf261: Changing a field's `localized` flag now preserves readable content and converts stored values on the next single-locale save. Newly localized fields retain their old shared value in other existing locales; newly shared fields use the document's source-locale value. Field filters and sorts follow the current declaration, and conversion saves preserve array and block item translations by `_id`.
+- fixed toggling a field's `localized` flag (reads convert old rows, saves repair them) and preserved translations by item `_id` across structural single-locale saves
+- eb5ba70: Preserve translations by item identity when a single-locale save removes, inserts, replaces, or reorders array or block items, including nested containers. Structural saves rebuild the locale map instead of copying translations by their former positions; value-only edits keep the existing copy-forward path. The fix covers whole-document updates, editor patches, and singletons on both database adapters.
+  
+  Preserve each surviving item's `_id` when submitting structural changes. Payloads without IDs retain positional matching. A block changed to a different `_type` no longer inherits translations from its former type.
+  
+  Structural saves require a strict all-locale read. If reconstruction reports schema damage, the save is rejected without committing content or a revision, including on singletons that load leniently for editing. Repair the schema or migrate the incompatible rows before retrying.
+- 86b0ec4: Reject duplicate array and block item IDs within each container on ordinary content writes. Field validation identifies the container and conflicting item positions. IDs may repeat in separate containers; missing IDs retain positional matching, and historical restore keeps its validation exemption.
+  
+  Explain blocked saves when stored content cannot be reconstructed during a collection mutation read or an all-locale merge. This includes collection value-only saves and damaged singletons that can still be opened for editing. The lifecycle returns a structured repair-required validation error; the admin editor asks for a compatible schema or content migration and retains unsaved edits. Reconstruction diagnostics stay on the server, and unrelated database failures retain their original classification. The strict save behavior is unchanged.
+- Updated dependencies
+  - @byline/auth@6.13.3
+
 ## 6.13.2
 
 ### Patch Changes

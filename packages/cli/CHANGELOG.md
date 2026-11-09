@@ -1,5 +1,11 @@
 # @byline/cli
 
+## 6.13.3
+
+### Patch Changes
+
+- fixed toggling a field's `localized` flag (reads convert old rows, saves repair them) and preserved translations by item `_id` across structural single-locale saves
+
 ## 6.13.2
 
 ### Patch Changes
