@@ -311,7 +311,11 @@ Each read result carries `resolvedLocale`, the locale its fields were selected i
 
 ### 9. Create / update / delete
 
-Read an existing document with `findByIdForEdit()` before editing and pass its `revision` as `expectedRevision`. For deliberate sequential writes, carry forward each successful receipt. A rejected write requires a fresh editorial decision after reload; never fetch a newer revision and retry automatically. Writes delegate to the corresponding `document-lifecycle` service. Collection hooks (`beforeCreate`, `afterUpdate`, etc.) fire the same way they do when the admin UI writes. `update` accepts whole-document `data`: patches are admin-UI internal.
+Read an existing document with `findByIdForEdit()` before editing and pass its `revision` as `expectedRevision`. For deliberate sequential writes, carry forward each successful receipt. A rejected write requires a fresh editorial decision after reload; never fetch a newer revision and retry automatically. Writes delegate to the corresponding `document-lifecycle` service. Collection hooks (`beforeCreate`, `afterUpdate`, etc.) fire the same way they do when the admin UI writes.
+
+`update` replaces the whole document's data for the selected locale, including shared fields; it does not merge an object of changed properties. Submit all fields and containers you intend to retain. When a single-locale write removes or reorders array or block items, preserve each surviving item's `_id` from the editable read. Byline uses these identities to associate other locales' values with the correct items when it merges a document after a localization toggle. Items without `_id` are matched by position, which is unsuitable for removal or reordering.
+
+An existing limitation remains in ordinary single-locale saves that use locale copy-forward: removing or reordering items can attach another locale's values to the wrong item, even when `_id` is supplied. The localization-toggle conversion path uses identity merging, but does not fix ordinary copy-forward. See [changing a field's localization](../08-internationalization/index.md#changing-field-localization) for when conversion occurs.
 
 ```ts
 const created = await client.collection('news').create(
@@ -321,7 +325,7 @@ const created = await client.collection('news').create(
 
 const updated = await client.collection('news').update(
   created.documentId,
-  { title: 'Revised title' },
+  { title: 'Revised title', summary: '…' },
   { locale: 'en', expectedRevision: created.revision }
 )
 

@@ -244,7 +244,9 @@ current `localized` flag. Paths that do not resolve are not mismatches.
 `persistExistingDocumentVersion` runs this check for every single-locale save
 with a previous version, and takes the merged-write path when the version has
 unavailable blocks or a mismatch. Every single-locale caller (update,
-copy-to-locale, restore, and the singleton equivalents) already goes through it.
+copy-to-locale, and their singleton equivalents) already goes through it.
+Restore also uses this persistence service, but writes `locale: 'all'` with
+the supplied locale map; it is not a single-locale caller.
 The cost is one indexed query per single-locale save over one version's rows,
 plus path resolution for its distinct paths. The storage benchmark harness
 (`benchmarks/storage/`) measures reads only, so the plan adds a single-locale

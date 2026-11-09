@@ -59,6 +59,20 @@ locales are `en`, `fr`, `es`, `de`, `zh-CN`, and `th-TH`. The three sets remain
 independent even when some codes overlap.
 :::
 
+## Changing field localization
+
+A field's `localized` flag controls whether its value is shared or varies by content locale. Changing that flag requires no database migration or separate content migration. Byline reads older versions using the current declaration and converts their stored values when the document is next saved in a single locale. Earlier versions remain unchanged in storage.
+
+When a shared field becomes localized, its old shared value supplies any locale that has no value of its own. An existing value for a particular locale takes precedence. On the next single-locale save, Byline preserves the shared value for the document's source locale and every concrete locale represented in the previous version's stored fields, then merges the submitted locale's edits. It does not create translations for every locale configured in the application. For a document with no other localized values, this normally means its source locale plus the locale being saved.
+
+These copied values still need editorial translation. For example, if a shared English summary becomes localized on a document that already has English and French titles, the French editor initially sees the English summary. Saving a French translation preserves the old summary for English. An all-locale read exposes the converted values as a locale map; projected reads can omit incomplete locales represented only in fields outside the projection.
+
+When a localized field becomes shared, its source-locale value becomes the value seen in every locale. If a shared stored value already exists, that shared value wins. If neither exists, the field is absent; Byline does not choose another translation. The next single-locale save writes the shared value and drops the old translations from the new version. Historical versions retain their stored rows, although reads still interpret them using the current field declaration.
+
+Public delivery continues to use the document's existing locale eligibility until the next save recomputes it. A public exact read of an ineligible locale withholds fields that are currently localized, including a newly localized field's old shared value. A field that is now shared remains visible using the rule above. These two changes—source-locale values replacing former translations and newly localized values being withheld—are intentional. See [public delivery of advertised locales](./03-content-locales.md#public-delivery-of-advertised-locales) for eligibility and fallback rules.
+
+Field filters and sorts follow the current declaration too. If a version already contains both shared and locale-specific rows for the same field, sorts choose the same winning value as reconstruction, but a filter can still match the losing value until a save converts the rows. Substring full-text queries can likewise return extra or missing matches before conversion. See [Core Document Storage](../03-architecture/01-document-storage.md#what-happens-when-you-save-a-document) for the save process and [Client SDK](../05-reading-and-delivery/01-client-sdk.md#write-surface) for whole-document writes and item identity requirements.
+
 ## How this section is organised
 
 - **[The host i18n system](./01-host-i18n.md)** — the public-site half: routable
