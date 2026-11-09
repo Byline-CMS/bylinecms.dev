@@ -48,6 +48,12 @@ function getConnectionString(): string {
 }
 
 runAdapterConformanceSuite({
+  async seedDocumentSourceLocale(documentId, locale) {
+    await setupTestDB([])
+      .db.update(documents)
+      .set({ source_locale: locale })
+      .where(eq(documents.id, documentId))
+  },
   async readPasskeyAudit(actorId) {
     const { db } = setupTestDB()
     return db

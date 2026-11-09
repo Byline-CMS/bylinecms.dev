@@ -181,7 +181,23 @@ export function localizedToggleSuite(hooks: ConformanceHooks) {
       },
     ])
     const caseCompatibility = collection('compatibility', [text('title', true)])
+    const sourceTitle = text('title', true)
+    const caseSourceLocales = collection('source-locales', [sourceTitle])
+    const targetSourceTitle = text('title', true)
+    const caseSourceTarget = collection('source-target', [targetSourceTitle])
+    const caseSourceParent = collection('source-parent', [
+      text('title', true),
+      {
+        name: 'topic',
+        type: 'relation',
+        targetCollection: caseSourceTarget.path,
+        optional: true,
+      },
+    ])
     const filterSide = [
+      caseSourceLocales,
+      caseSourceTarget,
+      caseSourceParent,
       caseNineShared,
       caseNineLocalized,
       caseThirteen,
@@ -1395,6 +1411,45 @@ export function localizedToggleSuite(hooks: ConformanceHooks) {
         expect(
           await ordered(caseThirteen, parsedSort(caseThirteen, { title: 'desc' }), 'fr')
         ).toEqual([b.id, a.id])
+      })
+
+      it('uses each document source locale for now-shared filters and sorts in one result set', async () => {
+        const english = await write(caseSourceLocales, { title: { en: 'B', fr: '0' } })
+        const french = await write(caseSourceLocales, { title: { en: 'Y', fr: 'A' } })
+        await hooks.seedDocumentSourceLocale(french.id, 'fr')
+        sourceTitle.localized = false
+
+        // The default (en) and requested (fr) locale both give a different
+        // ordering from the two documents' individual source locales.
+        expect(
+          await ordered(caseSourceLocales, parsedSort(caseSourceLocales, { title: 'asc' }), 'fr')
+        ).toEqual([french.id, english.id])
+        expect(
+          await ordered(caseSourceLocales, parsedSort(caseSourceLocales, { title: 'desc' }), 'en')
+        ).toEqual([english.id, french.id])
+        expect(await matching(caseSourceLocales, { title: { $in: ['A', 'B'] } }, 'fr')).toEqual(
+          expect.arrayContaining([english.id, french.id])
+        )
+        expect(await matching(caseSourceLocales, { title: { $in: ['Y', '0'] } }, 'fr')).toEqual([])
+        expect((await byId(caseSourceLocales, english, 'fr')).fields.title).toBe('B')
+        expect((await byId(caseSourceLocales, french, 'en')).fields.title).toBe('A')
+      })
+
+      it('uses the relation target source locale when it differs from the parent and default', async () => {
+        const target = await write(caseSourceTarget, { title: { en: 'Target EN', fr: 'Cible FR' } })
+        await hooks.seedDocumentSourceLocale(target.id, 'fr')
+        const parent = await write(caseSourceParent, {
+          title: { en: 'Parent EN', fr: 'Parent FR' },
+          topic: { targetDocumentId: target.id, targetCollectionId: ids[caseSourceTarget.path] },
+        })
+        targetSourceTitle.localized = false
+
+        expect(await matching(caseSourceParent, { topic: { title: 'Cible FR' } }, 'en')).toEqual([
+          parent.id,
+        ])
+        expect(await matching(caseSourceParent, { topic: { title: 'Target EN' } }, 'en')).toEqual(
+          []
+        )
       })
 
       describe('case 19: filter and sort precedence on a version holding both a shared row and a locale row for one path', () => {

@@ -86,6 +86,8 @@ export { versioningSuite } from './suites/versioning.js'
  * its own hooks.
  */
 export interface ConformanceHooks {
+  /** Seed a source-locale fixture; callers supply equally complete locale maps. */
+  seedDocumentSourceLocale(documentId: string, locale: string): Promise<void>
   /** Test-only interposition between source SELECT and field reconstruction. */
   withSourceReadBarrier<T>(writer: () => Promise<void>, read: () => Promise<T>): Promise<T>
   observeRevisionContention?: SingletonContentionObserver
