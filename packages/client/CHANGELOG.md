@@ -1,5 +1,14 @@
 # @byline/client
 
+## 6.13.2
+
+### Patch Changes
+
+- fixed **`@byline/cli`** `byline init` overwriting customized vite settings or crashing when updating them, and reported merges that still need hand edits as manual
+- Updated dependencies
+  - @byline/auth@6.13.2
+  - @byline/core@6.13.2
+
 ## 6.13.1
 
 ### Patch Changes

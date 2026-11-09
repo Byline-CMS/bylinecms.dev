@@ -1,5 +1,21 @@
 # @byline/host-tanstack-start
 
+## 6.13.2
+
+### Patch Changes
+
+- fixed **`@byline/cli`** `byline init` overwriting customized vite settings or crashing when updating them, and reported merges that still need hand edits as manual
+- Updated dependencies
+  - @byline/admin@6.13.2
+  - @byline/ai@6.13.2
+  - @byline/analytics@6.13.2
+  - @byline/analytics-agent@6.13.2
+  - @byline/auth@6.13.2
+  - @byline/client@6.13.2
+  - @byline/core@6.13.2
+  - @byline/i18n@6.13.2
+  - @byline/ui@6.13.2
+
 ## 6.13.1
 
 ### Patch Changes
