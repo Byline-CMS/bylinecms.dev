@@ -123,11 +123,24 @@ interface OuterScope {
   status: SQL
   path: SQL
   /**
+   * SQL for the scope document's `source_locale` column. A field filter on a
+   * field whose current declaration is not localized matches the shared row
+   * or this document's source-locale row (`COALESCE(<this>, <default content
+   * locale>)`), the row reconstruction shows for a now-shared field.
+   */
+  sourceLocale: SQL
+  /**
    * SQL for the content locale this scope's localized values are matched in:
    * the locale reconstruction shows for the document (see
    * `effectiveLocaleSql`). Omitted ⇒ the requested locale, exactly.
    */
   effectiveLocale?: SQL
+  /**
+   * Whether `effectiveLocale` can be SQL `NULL` (a public exact read of an
+   * ineligible locale, which withholds localized values). A filter on a
+   * localized field then must not fall back to the shared row.
+   */
+  effectiveLocaleMayWithhold?: boolean
   /** Present when relation hops must resolve each target's own effective locale. */
   policy?: FilterLocalePolicy
 }
@@ -475,6 +488,62 @@ export class DocumentQueries implements IDocumentQueries {
     }
     if (visibility === 'public') return sql`(CASE WHEN ${eligible} THEN ${locale} END)`
     return sql`${locale}`
+  }
+
+  /**
+   * Whether `effectiveLocaleSql` with these arguments can yield SQL `NULL`:
+   * only its public exact branch withholds an ineligible locale.
+   */
+  private effectiveLocaleMayWithhold(
+    locale: string,
+    onMissingLocale: MissingLocalePolicy | undefined,
+    visibility: LocaleVisibility | undefined
+  ): boolean {
+    return (
+      locale !== 'all' &&
+      onMissingLocale !== 'omit' &&
+      onMissingLocale !== 'fallback' &&
+      visibility === 'public'
+    )
+  }
+
+  /**
+   * The locale arms a field filter or the sort join may match, chosen from the
+   * field's current `localized` declaration (spec 4.4). Ports unchanged from pg:
+   *
+   *   - `true`: the effective-locale row, otherwise the shared row; when the
+   *     effective locale may be withheld (`NULL`), the shared row only while it
+   *     is not, so a withheld value cannot match through its shared row.
+   *   - `false`: the shared row, otherwise the document's source-locale row.
+   *   - omitted (a descriptor built by hand): the earlier arms, unchanged.
+   */
+  private fieldLocaleArms(
+    localized: boolean | undefined,
+    effectiveLocale: SQL,
+    sourceLocale: SQL,
+    mayWithhold: boolean
+  ): SQL {
+    if (localized === false) {
+      return sql`(locale = 'all' OR locale = COALESCE(${sourceLocale}, ${this.defaultContentLocale}))`
+    }
+    if (localized === true && mayWithhold) {
+      return sql`(locale = ${effectiveLocale} OR (locale = 'all' AND ${effectiveLocale} IS NOT NULL))`
+    }
+    return sql`(locale = ${effectiveLocale} OR locale = 'all')`
+  }
+
+  /**
+   * The sort join's candidate order before `LIMIT 1`, so it sorts by the row
+   * reconstruction shows when a version holds both a shared row and a locale
+   * row for the field: a localized field prefers its locale row, a shared
+   * field its shared row. Omitted `localized` keeps the earlier unordered join.
+   */
+  private sortLocalePrecedence(localized: boolean | undefined): SQL {
+    if (localized === true)
+      return sql`\n          ORDER BY CASE WHEN locale = 'all' THEN 1 ELSE 0 END`
+    if (localized === false)
+      return sql`\n          ORDER BY CASE WHEN locale = 'all' THEN 0 ELSE 1 END`
+    return sql``
   }
 
   /**
@@ -1062,12 +1131,18 @@ export class DocumentQueries implements IDocumentQueries {
         documentId: sql`${view.document_id}`,
         status: sql`${view.status}`,
         path: this.pathProjection(sql`${view.document_id}`, locale, sql`${view.source_locale}`),
+        sourceLocale: sql`${view.source_locale}`,
         effectiveLocale: this.effectiveLocaleSql(
           row,
           locale,
           onMissingLocale,
           localeVisibility,
           policy.advertiseByCollectionId.get(collection_id) ?? false
+        ),
+        effectiveLocaleMayWithhold: this.effectiveLocaleMayWithhold(
+          locale,
+          onMissingLocale,
+          localeVisibility
         ),
         policy,
       }
@@ -1212,12 +1287,18 @@ export class DocumentQueries implements IDocumentQueries {
         documentId: sql`${view.document_id}`,
         status: sql`${view.status}`,
         path: this.pathProjection(sql`${view.document_id}`, locale, sql`${view.source_locale}`),
+        sourceLocale: sql`${view.source_locale}`,
         effectiveLocale: this.effectiveLocaleSql(
           row,
           locale,
           onMissingLocale,
           localeVisibility,
           policy.advertiseByCollectionId.get(collection_id) ?? false
+        ),
+        effectiveLocaleMayWithhold: this.effectiveLocaleMayWithhold(
+          locale,
+          onMissingLocale,
+          localeVisibility
         ),
         policy,
       }
@@ -1353,6 +1434,7 @@ export class DocumentQueries implements IDocumentQueries {
         documentId: sql`${documentVersions.document_id}`,
         status: sql`${documentVersions.status}`,
         path: this.pathProjection(sql`${documentVersions.document_id}`, filterLocale),
+        sourceLocale: sql`(SELECT source_locale FROM byline_documents WHERE id = ${documentVersions.document_id})`,
       }
       for (const filter of filters) {
         conditions.push(this.buildFilterExists(filter, filterLocale, scope, 'any', 0))
@@ -1494,6 +1576,7 @@ export class DocumentQueries implements IDocumentQueries {
           filterLocale,
           sql`${view.source_locale}`
         ),
+        sourceLocale: sql`${view.source_locale}`,
         effectiveLocale: this.effectiveLocaleSql(
           {
             versionId: sql`${view.id}`,
@@ -1584,6 +1667,7 @@ export class DocumentQueries implements IDocumentQueries {
         documentId: sql`${documentVersions.document_id}`,
         status: sql`${documentVersions.status}`,
         path: this.pathProjection(sql`${documentVersions.document_id}`, filterLocale),
+        sourceLocale: sql`(SELECT source_locale FROM byline_documents WHERE id = ${documentVersions.document_id})`,
       }
       for (const filter of filters) {
         conditions.push(this.buildFilterExists(filter, filterLocale, scope, 'any', 0))
@@ -2156,6 +2240,7 @@ export class DocumentQueries implements IDocumentQueries {
           sql`${currentDocumentsView.document_id}`,
           this.defaultContentLocale
         ),
+        sourceLocale: sql`${currentDocumentsView.source_locale}`,
       }
       for (const f of filters) {
         conditions.push(
@@ -2502,6 +2587,7 @@ export class DocumentQueries implements IDocumentQueries {
       localeVisibility,
       filterPolicy.advertiseByCollectionId.get(collection_id) ?? false
     )
+    const mayWithhold = this.effectiveLocaleMayWithhold(locale, onMissingLocale, localeVisibility)
 
     // `onMissingLocale: 'omit'` — exclude documents not available in the
     // requested locale (filtered at the SQL layer so pagination stays correct).
@@ -2565,7 +2651,9 @@ export class DocumentQueries implements IDocumentQueries {
             documentId: sql`d.document_id`,
             status: sql`d.status`,
             path: this.pathProjection(sql`d.document_id`, locale, sql`d.source_locale`),
+            sourceLocale: sql`d.source_locale`,
             effectiveLocale,
+            effectiveLocaleMayWithhold: mayWithhold,
             policy: filterPolicy,
           },
           readMode,
@@ -2589,7 +2677,7 @@ export class DocumentQueries implements IDocumentQueries {
           FROM ${sql.raw(storeTable)}
           WHERE document_version_id = d.id
             AND field_name = ${sort.fieldName}
-            AND (locale = ${effectiveLocale} OR locale = 'all')
+            AND ${this.fieldLocaleArms(sort.localized, effectiveLocale, sql`d.source_locale`, mayWithhold)}${this.sortLocalePrecedence(sort.localized)}
           LIMIT 1
         ) _sort ON true`
         // MySQL has no `NULLS LAST`. `DESC` already sorts NULL last by
@@ -2731,6 +2819,7 @@ export class DocumentQueries implements IDocumentQueries {
       documentId: sql`${alias}.document_id`,
       status: sql`${alias}.status`,
       path: this.pathProjection(sql`${alias}.document_id`, locale, sql`${alias}.source_locale`),
+      sourceLocale: sql`${alias}.source_locale`,
       effectiveLocale: treePolicy
         ? this.effectiveLocaleSql(
             {
@@ -2778,7 +2867,9 @@ export class DocumentQueries implements IDocumentQueries {
         return this.buildFieldExists(
           filter,
           outerScope.effectiveLocale ?? sql`${locale}`,
-          outerScope.docVersionId
+          outerScope.docVersionId,
+          outerScope.sourceLocale,
+          outerScope.effectiveLocaleMayWithhold === true
         )
       case 'relation':
         return this.buildRelationExists(filter, locale, outerScope, readMode, depth)
@@ -2828,9 +2919,19 @@ export class DocumentQueries implements IDocumentQueries {
   /**
    * Build an EXISTS subquery for a single field-level filter. Ports
    * unchanged from pg (aside from `buildFilterCondition`'s `ILIKE` → `LIKE`
-   * one level down).
+   * one level down). `locale` is the scope's effective locale and
+   * `sourceLocale` its document's `source_locale` column; `filter.localized`
+   * chooses between them (see `fieldLocaleArms`). No `NOT EXISTS` guard
+   * excludes a losing row when a version holds both a shared row and a locale
+   * row for the field (spec 4.4, decision 9).
    */
-  private buildFieldExists(filter: FieldFilter, locale: SQL, outerDocVersionId: SQL): SQL {
+  private buildFieldExists(
+    filter: FieldFilter,
+    locale: SQL,
+    outerDocVersionId: SQL,
+    sourceLocale: SQL,
+    mayWithhold: boolean
+  ): SQL {
     const storeTable = storeTableNames[filter.storeType as StoreType]
     if (!storeTable) {
       throw ERR_DATABASE({
@@ -2846,7 +2947,7 @@ export class DocumentQueries implements IDocumentQueries {
       SELECT 1 FROM ${sql.raw(storeTable)}
       WHERE document_version_id = ${outerDocVersionId}
         AND field_name = ${filter.fieldName}
-        AND (locale = ${locale} OR locale = 'all')
+        AND ${this.fieldLocaleArms(filter.localized, locale, sourceLocale, mayWithhold)}
         AND ${condition}
     )`
   }
@@ -2897,6 +2998,9 @@ export class DocumentQueries implements IDocumentQueries {
         locale,
         sql.raw(`td${depth}.source_locale`)
       ),
+      // Inside the hop the scope document is the target, so a now-shared
+      // field falls back to the target's own source locale.
+      sourceLocale: sql.raw(`td${depth}.source_locale`),
       // Each target is matched in its own effective locale (populate shows
       // targets under fallback), judged by its own source, ledger, checkboxes
       // and collection opt-in.

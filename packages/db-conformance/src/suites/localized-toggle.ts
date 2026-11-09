@@ -7,16 +7,23 @@
  */
 
 import { createSuperAdminContext } from '@byline/auth'
-import type {
-  ArrayField,
-  BlocksField,
-  BylineLogger,
-  CollectionDefinition,
-  IDbAdapter,
-  LocaleVisibility,
-  MissingLocalePolicy,
-  MultiCollectionDefinition,
-  SingletonDefinition,
+import {
+  type ArrayField,
+  type BlocksField,
+  type BylineLogger,
+  type CollectionDefinition,
+  type DocumentFilter,
+  type FieldFilter,
+  type FieldSort,
+  type IDbAdapter,
+  type LocaleVisibility,
+  type MissingLocalePolicy,
+  type MultiCollectionDefinition,
+  parseSort,
+  parseWhere,
+  type QueryPredicate,
+  type SingletonDefinition,
+  type SortSpec,
 } from '@byline/core'
 import { defineLogger } from '@byline/core/logger'
 import {
@@ -143,6 +150,47 @@ export function localizedToggleSuite(hooks: ConformanceHooks) {
       { name: 'body', type: 'richText', localized: true, optional: true },
       code14b,
     ])
+
+    // Filter and sort collections (spec 4.4). Each case owns its collection,
+    // so a sort over the whole collection sees only that case's documents.
+    const title9 = text('title', true)
+    const caseNineShared = collection('nine-shared', [title9])
+    const summary9 = text('summary', false)
+    const caseNineLocalized = collection('nine-localized', [text('title', true), summary9])
+    const title13 = text('title', true)
+    const caseThirteen = collection('thirteen', [title13])
+    const title19 = text('title', true)
+    const caseNineteen = collection('nineteen', [title19])
+    const summary20 = text('summary', false)
+    const sku20 = text('sku', true)
+    const caseTwenty = collection('twenty', [text('title', true), summary20, sku20])
+    const name21 = text('name', true)
+    const label21 = text('label', false)
+    const caseTwentyOneTarget = collection('twenty-one-target', [
+      text('title', true),
+      name21,
+      label21,
+    ])
+    const caseTwentyOne = collection('twenty-one', [
+      text('title', true),
+      {
+        name: 'topic',
+        type: 'relation',
+        targetCollection: caseTwentyOneTarget.path,
+        optional: true,
+      },
+    ])
+    const caseCompatibility = collection('compatibility', [text('title', true)])
+    const filterSide = [
+      caseNineShared,
+      caseNineLocalized,
+      caseThirteen,
+      caseNineteen,
+      caseTwenty,
+      caseTwentyOneTarget,
+      caseTwentyOne,
+      caseCompatibility,
+    ]
 
     // Save-side collections (spec 4.3). Each test or describe owns its
     // collection, so a toggle never leaks into another case.
@@ -277,6 +325,7 @@ export function localizedToggleSuite(hooks: ConformanceHooks) {
       caseFourteen,
       caseLedgerProjection,
       ledgerCase,
+      ...filterSide,
       ...saveSide,
     ]
     const ids: Record<string, string> = {}
@@ -1264,6 +1313,212 @@ export function localizedToggleSuite(hooks: ConformanceHooks) {
         expect(await currentVersionId(singletonCopyClean, seeded.documentId)).toBe(
           seeded.documentVersionId
         )
+      })
+    })
+
+    describe('filters and sorts follow the current declaration (4.4)', () => {
+      const parseContext = {
+        collections: toggled,
+        resolveCollectionId: async (path: string) => ids[path]!,
+      }
+      type ReadOptions = {
+        onMissingLocale?: MissingLocalePolicy
+        localeVisibility?: LocaleVisibility
+      }
+      /** The ids of the documents a parser-generated where clause matches. */
+      const matching = async (
+        def: CollectionDefinition,
+        where: QueryPredicate,
+        locale: string,
+        options: ReadOptions = {}
+      ) => {
+        const { filters } = await parseWhere(where, def, parseContext)
+        return matchingFilters(def, filters, locale, options)
+      }
+      const matchingFilters = async (
+        def: CollectionDefinition,
+        filters: DocumentFilter[],
+        locale: string,
+        options: ReadOptions = {}
+      ) => {
+        const { documents } = await adapter.queries.documents.findDocuments({
+          collection_id: ids[def.path]!,
+          filters,
+          locale,
+          pageSize: 100,
+          ...options,
+        })
+        return documents.map((d: any) => d.document_id as string)
+      }
+      /** The collection's document ids in a sort's order. */
+      const ordered = async (def: CollectionDefinition, sort: FieldSort, locale: string) => {
+        const { documents } = await adapter.queries.documents.findDocuments({
+          collection_id: ids[def.path]!,
+          sort,
+          locale,
+          pageSize: 100,
+        })
+        return documents.map((d: any) => d.document_id as string)
+      }
+      const parsedSort = (def: CollectionDefinition, spec: SortSpec) => {
+        const { fieldSort } = parseSort(spec, def)
+        if (!fieldSort) throw new Error('expected a field sort')
+        return fieldSort
+      }
+
+      it('case 9: case 6, a where-clause on the field in fr matches the en value and not the fr value. Case 2, a where-clause in fr matches the shared value', async () => {
+        const shared = await write(caseNineShared, {
+          title: { en: 'Title EN', fr: 'Titre FR', de: 'Titel DE' },
+        })
+        title9.localized = false
+        expect(await matching(caseNineShared, { title: 'Title EN' }, 'fr')).toEqual([shared.id])
+        expect(await matching(caseNineShared, { title: 'Titre FR' }, 'fr')).toEqual([])
+
+        const localized = await write(caseNineLocalized, {
+          title: { en: 'Title EN', fr: 'Titre FR' },
+          summary: 'Shared',
+        })
+        summary9.localized = true
+        expect(await matching(caseNineLocalized, { summary: 'Shared' }, 'fr')).toEqual([
+          localized.id,
+        ])
+      })
+
+      it('case 13: sort on a now-shared field with en and fr rows, read in fr: documents order by the en value', async () => {
+        // The fr values order the documents the other way round.
+        const a = await write(caseThirteen, { title: { en: 'A', fr: 'Z' } })
+        const b = await write(caseThirteen, { title: { en: 'B', fr: 'Y' } })
+        title13.localized = false
+        expect(
+          await ordered(caseThirteen, parsedSort(caseThirteen, { title: 'asc' }), 'fr')
+        ).toEqual([a.id, b.id])
+        expect(
+          await ordered(caseThirteen, parsedSort(caseThirteen, { title: 'desc' }), 'fr')
+        ).toEqual([b.id, a.id])
+      })
+
+      describe('case 19: filter and sort precedence on a version holding both a shared row and a locale row for one path', () => {
+        // Each document's current version holds `title:all` and `title:en`,
+        // constructed as in case 22: written localized, toggled to shared, then
+        // saved in fr before this fix (copy-forward carries the stale en row).
+        // The shared values order the documents one way and the en values the
+        // other, so a sort that picks the losing row fails in one direction.
+        let a: Doc
+        let b: Doc
+        const mixed = async (en: string, sharedValue: string) => {
+          title19.localized = true
+          const doc = await write(caseNineteen, { title: { en, fr: `${en} FR` } })
+          title19.localized = false
+          await adapter.commands.documents.createDocumentVersion({
+            collectionId: ids[caseNineteen.path]!,
+            collectionVersion: 1,
+            collectionConfig: caseNineteen,
+            action: 'update',
+            documentId: doc.id,
+            documentData: { title: sharedValue },
+            locale: 'fr',
+            previousVersionId: doc.versionId,
+            status: 'published',
+          })
+          expect(await storedPairs(caseNineteen, doc.id)).toEqual(['title:all', 'title:en'])
+          return doc
+        }
+        beforeAll(async () => {
+          a = await mixed('Z', 'A')
+          b = await mixed('Y', 'B')
+        })
+
+        it('a sort orders by the winning value in both directions', async () => {
+          // Now shared: the shared row wins (4.2).
+          title19.localized = false
+          const sort = (direction: 'asc' | 'desc') => parsedSort(caseNineteen, { title: direction })
+          expect(await ordered(caseNineteen, sort('asc'), 'en')).toEqual([a.id, b.id])
+          expect(await ordered(caseNineteen, sort('desc'), 'en')).toEqual([b.id, a.id])
+          // Now localized: the effective-locale row wins (4.1).
+          title19.localized = true
+          expect(await ordered(caseNineteen, sort('asc'), 'en')).toEqual([b.id, a.id])
+          expect(await ordered(caseNineteen, sort('desc'), 'en')).toEqual([a.id, b.id])
+        })
+
+        it("a where filter's behaviour matches the decision in 4.4: it matches the winning value and, with no NOT EXISTS guard, may match the losing value", async () => {
+          title19.localized = false
+          expect(await matching(caseNineteen, { title: 'A' }, 'en')).toEqual([a.id])
+          expect(await matching(caseNineteen, { title: 'Z' }, 'en')).toEqual([a.id])
+          title19.localized = true
+          expect(await matching(caseNineteen, { title: 'Z' }, 'en')).toEqual([a.id])
+          expect(await matching(caseNineteen, { title: 'A' }, 'en')).toEqual([a.id])
+        })
+      })
+
+      it('case 20: withheld locale (4.2a): a where filter on a now-localized field does not match its shared value on a public exact read of an ineligible locale', async () => {
+        // `fr` lacks the localized title, so it is incomplete and ineligible.
+        const doc = await write(caseTwenty, {
+          title: { en: 'Title EN' },
+          summary: 'Shared',
+          sku: { en: 'SKU EN', fr: 'SKU FR' },
+        })
+        summary20.localized = true
+        sku20.localized = false
+        const publicExact = { localeVisibility: 'public' as const }
+
+        expect(await matching(caseTwenty, { summary: 'Shared' }, 'fr', publicExact)).toEqual([])
+        // The same filter matches where the locale is not withheld.
+        expect(await matching(caseTwenty, { summary: 'Shared' }, 'en', publicExact)).toEqual([
+          doc.id,
+        ])
+        expect(
+          await matching(caseTwenty, { summary: 'Shared' }, 'fr', { localeVisibility: 'editorial' })
+        ).toEqual([doc.id])
+        // A now-shared field is never withheld: it matches its source value (case 12).
+        expect(await matching(caseTwenty, { sku: 'SKU EN' }, 'fr', publicExact)).toEqual([doc.id])
+        expect(await matching(caseTwenty, { sku: 'SKU FR' }, 'fr', publicExact)).toEqual([])
+      })
+
+      it('case 21: a relation sub-filter on a toggled field of the target collection follows the table in 4.4', async () => {
+        const topic = await write(caseTwentyOneTarget, {
+          title: { en: 'Topic EN', fr: 'Sujet FR' },
+          name: { en: 'Name EN', fr: 'Nom FR' },
+          label: 'Shared label',
+        })
+        const note = await write(caseTwentyOne, {
+          title: { en: 'Note EN', fr: 'Note FR' },
+          topic: { targetDocumentId: topic.id, targetCollectionId: ids[caseTwentyOneTarget.path] },
+        })
+        name21.localized = false
+        label21.localized = true
+
+        // Now shared: the target's source-locale row, not its fr row.
+        expect(await matching(caseTwentyOne, { topic: { name: 'Name EN' } }, 'fr')).toEqual([
+          note.id,
+        ])
+        expect(await matching(caseTwentyOne, { topic: { name: 'Nom FR' } }, 'fr')).toEqual([])
+        // Now localized: the target's shared row serves fr.
+        expect(await matching(caseTwentyOne, { topic: { label: 'Shared label' } }, 'fr')).toEqual([
+          note.id,
+        ])
+      })
+
+      it('compatibility: a hand-built FieldFilter and FieldSort without localized, on a localized field with en and fr rows, read in fr, match and order as before (the fr row)', async () => {
+        const a = await write(caseCompatibility, { title: { en: 'A', fr: 'Z' } })
+        const b = await write(caseCompatibility, { title: { en: 'B', fr: 'Y' } })
+        const titleIs = (value: string): FieldFilter => ({
+          kind: 'field',
+          fieldName: 'title',
+          storeType: 'text',
+          valueColumn: 'value',
+          operator: '$eq',
+          value,
+        })
+        const byTitle = (direction: 'asc' | 'desc'): FieldSort => ({
+          fieldName: 'title',
+          storeType: 'text',
+          valueColumn: 'value',
+          direction,
+        })
+        expect(await matchingFilters(caseCompatibility, [titleIs('Z')], 'fr')).toEqual([a.id])
+        expect(await matchingFilters(caseCompatibility, [titleIs('A')], 'fr')).toEqual([])
+        expect(await ordered(caseCompatibility, byTitle('asc'), 'fr')).toEqual([b.id, a.id])
+        expect(await ordered(caseCompatibility, byTitle('desc'), 'fr')).toEqual([a.id, b.id])
       })
     })
 

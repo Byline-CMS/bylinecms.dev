@@ -120,6 +120,7 @@ describe('parseWhere', () => {
       valueColumn: 'value',
       operator: '$eq',
       value: 'Hello',
+      localized: true,
     })
   })
 
@@ -133,6 +134,7 @@ describe('parseWhere', () => {
       valueColumn: 'value',
       operator: '$contains',
       value: 'launch',
+      localized: true,
     })
   })
 
@@ -146,6 +148,7 @@ describe('parseWhere', () => {
       valueColumn: 'value_integer',
       operator: '$gte',
       value: 100,
+      localized: false,
     })
   })
 
@@ -159,6 +162,7 @@ describe('parseWhere', () => {
       valueColumn: 'value_float',
       operator: '$gt',
       value: 4.5,
+      localized: false,
     })
   })
 
@@ -172,6 +176,7 @@ describe('parseWhere', () => {
       valueColumn: 'value',
       operator: '$eq',
       value: true,
+      localized: false,
     })
   })
 
@@ -188,6 +193,7 @@ describe('parseWhere', () => {
       valueColumn: 'value_timestamp_tz',
       operator: '$gte',
       value: '2026-01-01T00:00:00Z',
+      localized: false,
     })
   })
 
@@ -200,6 +206,7 @@ describe('parseWhere', () => {
       valueColumn: 'value',
       operator: '$in',
       value: ['Hello', 'World'],
+      localized: true,
     })
   })
 
@@ -249,6 +256,7 @@ describe('parseWhere', () => {
       valueColumn: 'target_document_id',
       operator: '$eq',
       value: 'some-category-doc-id',
+      localized: false,
     })
   })
 
@@ -262,6 +270,7 @@ describe('parseWhere', () => {
       valueColumn: 'target_document_id',
       operator: '$in',
       value: ['cat-a', 'cat-b'],
+      localized: false,
     })
   })
 
@@ -280,6 +289,7 @@ describe('parseWhere', () => {
           valueColumn: 'value',
           operator: '$eq',
           value: 'news',
+          localized: false,
         },
       ],
     })
@@ -353,6 +363,7 @@ describe('parseWhere', () => {
         valueColumn: 'value',
         operator: '$contains',
         value: 'news',
+        localized: true,
       },
     ])
   })
@@ -379,6 +390,7 @@ describe('parseWhere', () => {
         valueColumn: 'value',
         operator: '$eq',
         value: 'news',
+        localized: false,
       },
     ])
   })
@@ -479,6 +491,7 @@ describe('parseSort', () => {
       storeType: 'text',
       valueColumn: 'value',
       direction: 'asc',
+      localized: true,
     })
     expect(result.orderBy).toBeUndefined()
   })
@@ -490,6 +503,7 @@ describe('parseSort', () => {
       storeType: 'numeric',
       valueColumn: 'value_integer',
       direction: 'desc',
+      localized: false,
     })
   })
 
@@ -498,6 +512,67 @@ describe('parseSort', () => {
     expect(result.orderBy).toBe('created_at')
     expect(result.orderDirection).toBe('desc')
     expect(result.fieldSort).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// The field's current `localized` flag (spec 4.4)
+// ---------------------------------------------------------------------------
+
+describe('parseWhere / parseSort — the current localized flag', () => {
+  // An omitted flag selects the adapters' legacy locale arms, so the parser
+  // must always set an explicit boolean — `false` included.
+  it('sets localized: true on a filter for a localized field', async () => {
+    const result = await parseWhere({ title: 'x' }, testCollection)
+    expect(result.filters[0]).toMatchObject({ kind: 'field', fieldName: 'title', localized: true })
+  })
+
+  it('sets localized: false, not omitted, on a filter for a shared field', async () => {
+    const result = await parseWhere({ views: 3 }, testCollection)
+    const filter = result.filters[0]
+    expect(filter?.kind).toBe('field')
+    if (filter?.kind !== 'field') return
+    expect(filter.localized).toBe(false)
+  })
+
+  it('sets localized: false on a scalar filter on a relation field', async () => {
+    const result = await parseWhere({ category: 'abc' }, testCollection)
+    const filter = result.filters[0]
+    if (filter?.kind !== 'field') throw new Error('expected a field filter')
+    expect(filter.localized).toBe(false)
+  })
+
+  it('sets localized on every filter in a combinator', async () => {
+    const result = await parseWhere({ $or: [{ title: 'x' }, { views: 3 }] }, testCollection)
+    const group = result.filters[0]
+    if (group?.kind !== 'or') throw new Error('expected an or group')
+    expect(group.children.map((c) => (c.kind === 'field' ? c.localized : 'n/a'))).toEqual([
+      true,
+      false,
+    ])
+  })
+
+  it('sets localized on a relation sub-filter nested filter from the target definition', async () => {
+    const result = await parseWhere({ category: { name: 'x', slug: 'y' } }, testCollection, ctx)
+    const relation = result.filters[0]
+    if (relation?.kind !== 'relation') throw new Error('expected a relation filter')
+    expect(relation.nested).toEqual([
+      expect.objectContaining({ kind: 'field', fieldName: 'name', localized: true }),
+      expect.objectContaining({ kind: 'field', fieldName: 'slug', localized: false }),
+    ])
+    for (const nested of relation.nested) {
+      if (nested.kind === 'field') expect(typeof nested.localized).toBe('boolean')
+    }
+  })
+
+  it('sets localized: true on a sort for a localized field', () => {
+    const result = parseSort({ title: 'asc' }, testCollection)
+    expect(result.fieldSort?.localized).toBe(true)
+  })
+
+  it('sets localized: false, not omitted, on a sort for a shared field', () => {
+    const result = parseSort({ views: 'desc' }, testCollection)
+    expect(result.fieldSort).toHaveProperty('localized', false)
   })
 })
 
@@ -926,6 +1001,7 @@ describe('parseWhere — relation quantifiers', () => {
           valueColumn: 'value',
           operator: '$eq',
           value: 'news',
+          localized: false,
         },
       ],
     })
@@ -1022,6 +1098,7 @@ describe('parseWhere — multi-operator objects', () => {
     valueColumn: 'value_integer',
     operator,
     value,
+    localized: false,
   })
 
   it('emits one filter per operator in a closed range', async () => {

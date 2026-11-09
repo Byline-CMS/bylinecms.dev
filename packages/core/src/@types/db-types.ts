@@ -132,6 +132,16 @@ export interface FieldFilter {
   operator: FieldFilterOperator
   /** The value(s) to compare against. */
   value: string | number | boolean | null | Array<string | number>
+  /**
+   * The field's current `localized` declaration, which selects the rows the
+   * predicate may match (see docs/08-internationalization): `true` matches the
+   * effective-locale row, otherwise the shared row, and nothing when the locale
+   * is withheld; `false` matches the shared row, otherwise the document's
+   * source-locale row. `parse-where` always sets it. Omitted, the adapter keeps
+   * its earlier arms (the requested or effective locale, or the shared row) for
+   * descriptors built by hand.
+   */
+  localized?: boolean
 }
 
 /**
@@ -251,6 +261,14 @@ export interface FieldSort {
   valueColumn: string
   /** Sort direction. */
   direction: 'asc' | 'desc'
+  /**
+   * The field's current `localized` declaration. The sort join orders its
+   * candidate rows by the read's precedence before taking one: `true` prefers
+   * the effective-locale row over the shared row, `false` prefers the shared
+   * row over the document's source-locale row. `parseSort` always sets it.
+   * Omitted, the adapter keeps its earlier join for descriptors built by hand.
+   */
+  localized?: boolean
 }
 
 /** Query-only executor facade, valid only during its snapshot callback. */

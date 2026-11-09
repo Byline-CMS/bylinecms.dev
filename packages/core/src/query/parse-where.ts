@@ -14,6 +14,7 @@ import type {
   DocumentFilter,
   FieldFilter,
   FieldFilterOperator,
+  FieldSort,
   RelationFilter,
 } from '../@types/db-types.js'
 import type { CollectionDefinition } from '../@types/index.js'
@@ -94,12 +95,7 @@ export interface ParsedWhere {
 
 export interface ParsedSort {
   /** Field-level sort descriptor (when sorting by a collection field). */
-  fieldSort?: {
-    fieldName: string
-    storeType: string
-    valueColumn: string
-    direction: 'asc' | 'desc'
-  }
+  fieldSort?: FieldSort & { localized: boolean }
   /** Document-level sort column (when sorting by created_at, updated_at, path). */
   orderBy?: string
   orderDirection?: 'asc' | 'desc'
@@ -669,6 +665,8 @@ async function parseWhereInternal(
         valueColumn: storeInfo.valueColumn,
         operator: parsed.operator,
         value: parsed.value,
+        // Always explicit: an omitted flag selects the adapters' legacy arms.
+        localized: isLocalized(field),
       } satisfies FieldFilter)
     }
   }
@@ -718,6 +716,7 @@ export function parseSort(
       storeType: storeInfo.storeType,
       valueColumn: storeInfo.valueColumn,
       direction,
+      localized: isLocalized(field),
     },
   }
 }
@@ -725,6 +724,15 @@ export function parseSort(
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * The field's current `localized` declaration as an explicit boolean. Filters
+ * and sorts carry it so the adapter matches the rows reconstruction displays
+ * after the flag is toggled (spec 4.4).
+ */
+function isLocalized(field: CollectionDefinition['fields'][number]): boolean {
+  return (field as { localized?: boolean }).localized === true
+}
 
 interface NormalisedOperator {
   operator: FieldFilterOperator
