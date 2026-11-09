@@ -246,8 +246,9 @@ with a previous version, and takes the merged-write path when the version has
 unavailable blocks or a mismatch. Every single-locale caller (update,
 copy-to-locale, restore, and the singleton equivalents) already goes through it.
 The cost is one indexed query per single-locale save over one version's rows,
-plus path resolution for its distinct paths; the plan measures it against the
-save benchmarks in `docs/03-architecture/01-document-storage.md`.
+plus path resolution for its distinct paths. The storage benchmark harness
+(`benchmarks/storage/`) measures reads only, so the plan adds a single-locale
+save scenario to measure it.
 
 *Builder's call, recorded as a decision:* there is no shortcut based on
 `collection_version`. A save made before this fix, after a toggle, already
