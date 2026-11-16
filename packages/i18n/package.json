@@ -66,7 +66,7 @@
     "@byline/ui": "workspace:*",
     "@formatjs/intl-localematcher": "^0.10.1",
     "clsx": "^2.1.1",
-    "intl-messageformat": "^12.1.4",
+    "intl-messageformat": "^12.1.5",
     "negotiator": "^1.1.0"
   },
   "peerDependencies": {
@@ -74,9 +74,9 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.4",
+    "@biomejs/biome": "2.6.8",
     "@rsbuild/plugin-react": "^2.1.1",
-    "@rslib/core": "^1.0.5",
+    "@rslib/core": "^1.0.7",
     "@types/negotiator": "^0.6.5",
     "@types/node": "^26.6.6",
     "@types/react": "19.3.0",
@@ -85,8 +85,8 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "typescript": "^7.0.2",
-    "vite": "^8.3.5",
-    "vitest": "^5.0.5"
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
   },
   "publishConfig": {
     "access": "public",

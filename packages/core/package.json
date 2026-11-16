@@ -98,14 +98,14 @@
   ],
   "dependencies": {
     "@byline/auth": "workspace:*",
-    "dotenv": "^18.0.9",
+    "dotenv": "^18.0.10",
     "pino": "^10.4.0",
     "sharp": "^0.35.5",
     "uuid": "^14.0.3",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.4",
+    "@biomejs/biome": "2.6.8",
     "@types/node": "^26.6.6",
     "chokidar": "^6.0.0",
     "chokidar-cli": "^3.0.0",
@@ -113,7 +113,7 @@
     "tsc-alias": "^1.9.10",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "publishConfig": {
     "access": "public",

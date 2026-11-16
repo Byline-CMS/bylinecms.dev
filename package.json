@@ -46,14 +46,14 @@
     "*.{js,jsx,mjs,cjs,ts,tsx,json,jsonc}": "biome check --write --no-errors-on-unmatched --diagnostic-level=error"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.4",
+    "@biomejs/biome": "2.6.8",
     "@changesets/cli": "^3.0.3",
-    "knip": "^6.44.1",
-    "lint-staged": "^17.6.0",
+    "knip": "^6.45.1",
+    "lint-staged": "^17.6.1",
     "simple-git-hooks": "^2.14.0"
   },
   "dependencies": {
-    "turbo": "^2.11.10",
+    "turbo": "^2.11.11",
     "typescript": "^7.0.2"
   },
   "engines": {

@@ -55,17 +55,17 @@
   ],
   "dependencies": {
     "@byline/core": "workspace:*",
-    "isbot": "^5.2.2"
+    "isbot": "^5.2.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.4",
+    "@biomejs/biome": "2.6.8",
     "@types/node": "^26.6.6",
     "chokidar": "^6.0.0",
     "chokidar-cli": "^3.0.0",
     "npm-run-all": "^4.1.5",
     "tsc-alias": "^1.9.10",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "publishConfig": {
     "access": "public",
