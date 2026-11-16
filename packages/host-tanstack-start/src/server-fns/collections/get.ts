@@ -17,6 +17,7 @@ import {
   getCollectionSchemasForPath,
   getLogger,
   getServerConfig,
+  type RelationProjections,
 } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
@@ -38,10 +39,11 @@ const getDocumentFn = createServerFn({ method: 'GET' })
       locale?: string
       depth?: number
       populateRelations?: boolean
+      relationProjections?: RelationProjections
     }) => input
   )
   .handler(async ({ data }) => {
-    const { collection: path, id, locale, depth, populateRelations } = data
+    const { collection: path, id, locale, depth, populateRelations, relationProjections } = data
     const logger = getLogger()
     const config = await ensureCollection(path)
     if (!config) {
@@ -61,6 +63,7 @@ const getDocumentFn = createServerFn({ method: 'GET' })
       locale,
       depth,
       populateRelations,
+      relationProjections,
     })
 
     const document = await handle.findByIdForEdit(id, {
@@ -241,11 +244,12 @@ export async function getCollectionDocument(
   id: string,
   locale?: string,
   depth?: number,
-  populateRelations?: boolean
+  populateRelations?: boolean,
+  relationProjections?: RelationProjections
 ) {
   try {
     return await getDocumentFn({
-      data: { collection, id, locale, depth, populateRelations },
+      data: { collection, id, locale, depth, populateRelations, relationProjections },
     })
   } catch (err) {
     if (err instanceof BylineError && err.code === ErrorCodes.NOT_FOUND) return null

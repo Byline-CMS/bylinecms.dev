@@ -20,13 +20,19 @@ import {
   getServerConfig,
   type PopulateSpec,
   type QueryPredicate,
+  type RelationProjections,
 } from '@byline/core'
 
 import { ensureCollection } from '../../integrations/api-utils.js'
 import { bylineCore } from '../../integrations/byline-core.js'
 import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 import { withEditableRevision } from '../editable-revision.js'
-import { resolveListViewState, sortableFieldNames } from './list-view-state.js'
+import {
+  defaultSortFieldNames,
+  resolveConfiguredSort,
+  resolveListViewState,
+  sortableFieldNames,
+} from './list-view-state.js'
 import { serialise } from './utils'
 import type { ListViewPreferenceValue } from './list-view-state.js'
 
@@ -43,6 +49,21 @@ export interface CollectionSearchParams {
   locale?: string
   status?: string
   fields?: string[]
+  /**
+   * Relation-column projections computed by the route loader where the target
+   * admin configs are registered (see `buildRelationProjections`). Added to
+   * the server's own projection so a server runtime that has not loaded the
+   * admin config still fetches every field a relation cell renders.
+   */
+  relation_projections?: RelationProjections
+  /**
+   * The collection admin config's `defaultSort`, sent by the route loader for
+   * the same reason. It fills the configured-default slot in the sort
+   * precedence (after explicit params and the stored user preference); it is
+   * never treated as an explicit sort. Ignored for a field that boot
+   * validation would reject (see `defaultSortFieldNames`).
+   */
+  default_sort?: { order: string; desc: boolean }
 }
 
 // ---------------------------------------------------------------------------
@@ -81,14 +102,14 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
     // `defaultSort` → the storage fallback (`created_at desc`). The
     // effective sort is echoed through `meta.order`/`meta.desc` below so
     // the list header renders the right indicator on a params-less landing.
-    const adminConfig = getCollectionAdminConfig(path)
     const configuredSort =
-      config.definition.orderable !== true && adminConfig?.defaultSort != null
-        ? {
-            order: String(adminConfig.defaultSort.field),
-            desc: adminConfig.defaultSort.direction === 'desc',
-          }
-        : undefined
+      config.definition.orderable === true
+        ? undefined
+        : resolveConfiguredSort(
+            getCollectionAdminConfig(path),
+            params.default_sort,
+            defaultSortFieldNames(config.definition.fields)
+          )
 
     // Per-user preference — read only when it could matter (some param
     // absent). Failures (headless context, unauthenticated preview, DB
@@ -127,10 +148,14 @@ export const getCollectionDocuments = createServerFn({ method: 'GET' })
     // `useAsTitle` — the same map the edit view uses. Populate only fires for
     // relation fields actually loaded (i.e. selected as columns), so building
     // the full map is harmless for collections whose relations aren't shown.
-    const populateMap = buildRelationSummaryPopulateMap(config.definition.fields, (targetPath) => ({
-      def: getCollectionDefinition(targetPath),
-      admin: getCollectionAdminConfig(targetPath),
-    }))
+    const populateMap = buildRelationSummaryPopulateMap(
+      config.definition.fields,
+      (targetPath) => ({
+        def: getCollectionDefinition(targetPath),
+        admin: getCollectionAdminConfig(targetPath),
+      }),
+      params.relation_projections
+    )
     const hasRelations = Object.keys(populateMap).length > 0
     const populate: PopulateSpec | undefined = hasRelations ? populateMap : undefined
 

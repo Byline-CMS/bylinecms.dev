@@ -8,7 +8,12 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { resolveListViewState, sortableFieldNames } from './list-view-state.js'
+import {
+  defaultSortFieldNames,
+  resolveConfiguredSort,
+  resolveListViewState,
+  sortableFieldNames,
+} from './list-view-state.js'
 
 const base = {
   params: {},
@@ -137,5 +142,59 @@ describe('sortableFieldNames', () => {
       'created_at',
       'updated_at',
     ])
+  })
+})
+
+describe('resolveConfiguredSort', () => {
+  const allowed = defaultSortFieldNames([{ name: 'title' }, { name: 'summary' }])
+
+  it('uses the server-registered admin config when present', () => {
+    expect(
+      resolveConfiguredSort(
+        { defaultSort: { field: 'title', direction: 'desc' } },
+        { order: 'summary', desc: false },
+        allowed
+      )
+    ).toEqual({ order: 'title', desc: true })
+  })
+
+  it('falls back to the loader-sent default when the server has no admin config', () => {
+    expect(resolveConfiguredSort(null, { order: 'title', desc: false }, allowed)).toEqual({
+      order: 'title',
+      desc: false,
+    })
+  })
+
+  // Cold (no server admin config, loader-sent default) and warm (server admin
+  // config registered) must resolve identically for every name boot
+  // validation accepts, including the document columns.
+  for (const field of ['title', 'createdAt', 'updatedAt', 'path']) {
+    for (const direction of ['asc', 'desc'] as const) {
+      it(`resolves ${field} ${direction} the same on a cold and a warm server`, () => {
+        const warm = resolveConfiguredSort({ defaultSort: { field, direction } }, null, allowed)
+        const cold = resolveConfiguredSort(
+          null,
+          { order: field, desc: direction === 'desc' },
+          allowed
+        )
+        expect(cold).toEqual(warm)
+        expect(cold).toEqual({ order: field, desc: direction === 'desc' })
+      })
+    }
+  }
+
+  it('ignores a loader-sent default that boot validation would reject', () => {
+    expect(resolveConfiguredSort(null, { order: 'body', desc: true }, allowed)).toBeUndefined()
+    expect(resolveConfiguredSort(null, { order: 42, desc: true }, allowed)).toBeUndefined()
+  })
+
+  it('leaves a stored preference ahead of the loader-sent default', () => {
+    const configuredSort = resolveConfiguredSort(null, { order: 'title', desc: false }, allowed)
+    const result = resolveListViewState({
+      ...base,
+      preference: { order: 'summary', desc: true },
+      configuredSort,
+    })
+    expect(result.sort).toEqual({ summary: 'desc' })
   })
 })

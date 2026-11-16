@@ -24,6 +24,7 @@
  * since the preference was written.
  */
 
+import type { CollectionAdminConfig } from '@byline/core'
 import { fieldTypeToStore } from '@byline/core'
 
 /**
@@ -52,6 +53,53 @@ export function sortableFieldNames(fields: Array<{ name: string; type: string }>
     'created_at',
     'updated_at',
   ]
+}
+
+/**
+ * Field names a configured `defaultSort` may name — the same rule the admin
+ * config's boot validation applies (`validate-admin-configs.ts`, rule 7): any
+ * top-level schema field, plus the document columns `createdAt`, `updatedAt`,
+ * and `path`. Deliberately broader than {@link sortableFieldNames}, which
+ * guards hand-editable stored preferences.
+ */
+export function defaultSortFieldNames(fields: Array<{ name?: string }>): string[] {
+  return [
+    ...fields.flatMap((f) => (typeof f.name === 'string' ? [f.name] : [])),
+    'createdAt',
+    'updatedAt',
+    'path',
+  ]
+}
+
+/**
+ * Resolve the configured default sort for the list read. The server's own
+ * admin config wins when its runtime has registered one; otherwise the
+ * `defaultSort` the route loader sent stands in. The admin registry on the
+ * server is filled only after its runtime has rendered an admin route, so
+ * without the loader's copy a cold server would silently ignore the
+ * collection's `defaultSort`. A loader-sent field is accepted under the same
+ * rule boot validation applies to the admin config (see
+ * {@link defaultSortFieldNames}), so a cold and a warm server sort alike.
+ */
+export function resolveConfiguredSort(
+  adminConfig: Pick<CollectionAdminConfig, 'defaultSort'> | null,
+  requested: { order?: unknown; desc?: unknown } | null | undefined,
+  allowedFields: string[]
+): { order: string; desc: boolean } | undefined {
+  if (adminConfig?.defaultSort != null) {
+    return {
+      order: String(adminConfig.defaultSort.field),
+      desc: adminConfig.defaultSort.direction === 'desc',
+    }
+  }
+  if (
+    requested != null &&
+    typeof requested.order === 'string' &&
+    allowedFields.includes(requested.order)
+  ) {
+    return { order: requested.order, desc: requested.desc === true }
+  }
+  return undefined
 }
 
 export interface ListViewPreferenceValue {

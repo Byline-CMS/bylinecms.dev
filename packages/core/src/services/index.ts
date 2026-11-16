@@ -58,7 +58,9 @@ export {
   type UnresolvedRelationValue,
 } from './populate.js'
 export {
+  buildRelationProjections,
   buildRelationSummaryPopulateMap,
+  type RelationProjections,
   type RelationTargetResolver,
   resolveRelationProjection,
 } from './relation-projection.js'

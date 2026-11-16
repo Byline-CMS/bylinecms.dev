@@ -7,7 +7,7 @@
  */
 
 import { getAdminBylineClient } from '@byline/client/server'
-import { ERR_NOT_FOUND, getCollectionDefinition } from '@byline/core'
+import { ERR_NOT_FOUND, getCollectionDefinition, type RelationProjections } from '@byline/core'
 
 import { resolveAdminDocumentRead } from './admin-document-presentation.js'
 import { serialise } from './serialise.js'
@@ -17,6 +17,8 @@ export interface SingletonDocumentReadInput {
   locale?: string
   depth?: number
   populateRelations?: boolean
+  /** Route-loader projections; see `AdminDocumentReadInput.relationProjections`. */
+  relationProjections?: RelationProjections
 }
 
 /**

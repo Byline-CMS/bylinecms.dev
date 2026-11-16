@@ -65,10 +65,46 @@ export type RelationTargetResolver = (targetPath: string) => {
 }
 
 /**
+ * Caller-supplied relation-summary projections, keyed by source relation
+ * field name, each listing target field names. Serializable, so a route
+ * loader can compute it where the admin config is registered and send it
+ * to the server with the read.
+ */
+export type RelationProjections = Record<string, string[]>
+
+/**
+ * Compute the relation-summary projection for every relation field in a
+ * source `FieldSet` (recursing into `group`, `array`, and `blocks`), keyed by
+ * relation field name. Route loaders call this where the target admin
+ * configs are registered and pass the result to the server, so the server's
+ * projection does not depend on which configs its own runtime has loaded.
+ */
+export function buildRelationProjections(
+  fields: FieldSet,
+  resolve: RelationTargetResolver
+): RelationProjections {
+  const out: RelationProjections = {}
+  forEachRelationField(fields, (field) => {
+    if (out[field.name] !== undefined) return
+    const { def, admin } = resolve(field.targetCollection)
+    out[field.name] = resolveRelationProjection(field, def, admin)
+  })
+  return out
+}
+
+/**
  * Walk a source collection's `FieldSet` (recursing into `group`, `array`,
  * and `blocks`), locate every `RelationField`, and produce a `PopulateMap`
  * keyed by relation field name with a `{ select }` projection suitable
  * for rendering the summary tile on the admin edit view.
+ *
+ * `requested` carries caller-supplied projections (see
+ * {@link buildRelationProjections}). Each requested name is kept only when it
+ * names a top-level field on the relation's target schema; entries for
+ * relation names the source schema does not declare are ignored. Requested
+ * names are added to the projection the server resolves on its own, so a
+ * server runtime without the target admin config still fetches every field
+ * the summary tile renders.
  *
  * Relation field names must be unique within the source schema; if the
  * same name appears twice with different targets the first wins.
@@ -79,30 +115,39 @@ export type RelationTargetResolver = (targetPath: string) => {
  */
 export function buildRelationSummaryPopulateMap(
   fields: FieldSet,
-  resolve: RelationTargetResolver
+  resolve: RelationTargetResolver,
+  requested?: RelationProjections
 ): PopulateMap {
   const map: PopulateMap = {}
-  walkFields(fields, map, resolve)
+  forEachRelationField(fields, (field) => {
+    if (map[field.name] !== undefined) return
+    const { def, admin } = resolve(field.targetCollection)
+    const select = new Set(resolveRelationProjection(field, def, admin))
+    const extra =
+      requested != null && Object.hasOwn(requested, field.name) ? requested[field.name] : undefined
+    if (def != null && Array.isArray(extra)) {
+      for (const name of extra) {
+        if (typeof name === 'string' && def.fields.some((f) => f.name === name)) select.add(name)
+      }
+    }
+    map[field.name] = select.size > 0 ? { select: Array.from(select) } : true
+  })
   return map
 }
 
-function walkFields(fields: FieldSet, map: PopulateMap, resolve: RelationTargetResolver): void {
+function forEachRelationField(fields: FieldSet, visit: (field: RelationField) => void): void {
   for (const field of fields as readonly Field[]) {
     switch (field.type) {
-      case 'relation': {
-        if (map[field.name] !== undefined) break
-        const { def, admin } = resolve(field.targetCollection)
-        const select = resolveRelationProjection(field, def, admin)
-        map[field.name] = select.length > 0 ? { select } : true
+      case 'relation':
+        visit(field)
         break
-      }
       case 'group':
       case 'array':
-        walkFields(field.fields, map, resolve)
+        forEachRelationField(field.fields, visit)
         break
       case 'blocks':
         for (const block of field.blocks) {
-          walkFields(block.fields, map, resolve)
+          forEachRelationField(block.fields, visit)
         }
         break
       default:

@@ -24,6 +24,7 @@ import { getContentLocaleRouteConfig } from './get-content-locale-route-config.j
 import { getMultiCollectionDefinition } from './get-multi-collection-definition.js'
 import { decodeListReturnState } from './list-return-state.js'
 import { persistListReturnState, readListReturnState } from './list-return-storage.js'
+import { getRelationProjections } from './relation-projections.js'
 
 const searchSchema = z.object({
   locale: z.string().optional(),
@@ -55,13 +56,15 @@ export function createCollectionEditRoute(path: string) {
       // Auto-populate direct relation fields (depth 1) so the edit form's
       // relation-summary tiles render with target data (category name, media
       // thumbnail, etc.) on first paint. Projection is derived from each
-      // target's `CollectionAdminConfig.itemView` columns.
+      // target's `CollectionAdminConfig.itemView` columns, computed here
+      // because the server's admin-config registry may not be loaded yet.
       const data = await getCollectionDocument(
         params.collection,
         params.id,
         deps.locale,
         undefined,
-        true
+        true,
+        getRelationProjections(collectionDef.fields)
       )
 
       if (!data) {

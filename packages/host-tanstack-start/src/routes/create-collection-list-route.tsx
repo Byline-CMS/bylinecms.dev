@@ -30,6 +30,7 @@ import {
 import { getAdminRoutePath } from './admin-path.js'
 import { getMultiCollectionDefinition } from './get-multi-collection-definition.js'
 import { collectionListSearchSchema as searchSchema } from './list-return-state.js'
+import { getRelationProjections } from './relation-projections.js'
 import type { CollectionTreeRow } from '../server-fns/collections/tree.js'
 
 export function createCollectionListRoute(path: string) {
@@ -93,6 +94,16 @@ export function createCollectionListRoute(path: string) {
             locale: deps.locale,
             status: deps.status,
             fields,
+            // Sent from here because the server's admin-config registry may
+            // not be loaded yet; see relation-projections.ts.
+            relation_projections: getRelationProjections(collectionDef.fields),
+            default_sort:
+              adminConfig?.defaultSort != null
+                ? {
+                    order: String(adminConfig.defaultSort.field),
+                    desc: adminConfig.defaultSort.direction === 'desc',
+                  }
+                : undefined,
           },
         },
       })

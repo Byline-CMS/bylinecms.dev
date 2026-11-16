@@ -16,6 +16,7 @@ import {
   documentAbilityKey,
   getServerConfig,
   getSingletonAdminConfig,
+  type RelationProjections,
 } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { z } from 'zod'
@@ -28,6 +29,7 @@ import { readSingletonDocument } from '../server-fns/singleton-document-read.js'
 import { getAdminRoutePath } from './admin-path.js'
 import { getContentLocaleRouteConfig } from './get-content-locale-route-config.js'
 import { getSingletonDefinition } from './get-singleton-definition.js'
+import { getRelationProjections } from './relation-projections.js'
 
 const searchSchema = z.object({ locale: z.string().optional() })
 
@@ -38,7 +40,10 @@ const searchSchema = z.object({ locale: z.string().optional() })
  * capability details.
  */
 export const getSingletonRouteDocument = createServerFn({ method: 'GET' })
-  .validator((input: { singleton: string; locale?: string }) => input)
+  .validator(
+    (input: { singleton: string; locale?: string; relationProjections?: RelationProjections }) =>
+      input
+  )
   .handler(async ({ data }) => {
     const definition = getSingletonDefinition(data.singleton)
     if (definition == null) return null
@@ -47,6 +52,7 @@ export const getSingletonRouteDocument = createServerFn({ method: 'GET' })
       singleton: data.singleton,
       locale: data.locale,
       populateRelations: true,
+      relationProjections: data.relationProjections,
     })
     if (document == null) {
       return {
@@ -133,9 +139,14 @@ export function createSingletonRoute(path: string) {
       params: { singleton: string }
       deps: { locale?: string }
     }) => {
-      if (getSingletonDefinition(params.singleton) == null) throw notFound()
+      const definition = getSingletonDefinition(params.singleton)
+      if (definition == null) throw notFound()
       return getSingletonRouteDocument({
-        data: { singleton: params.singleton, locale: deps.locale },
+        data: {
+          singleton: params.singleton,
+          locale: deps.locale,
+          relationProjections: getRelationProjections(definition.fields),
+        },
       })
     },
     staleTime: 0,

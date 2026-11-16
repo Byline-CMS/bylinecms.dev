@@ -12,12 +12,21 @@ import {
   getCollectionAdminConfig,
   getCollectionDefinition,
   type PopulateSpec,
+  type RelationProjections,
 } from '@byline/core'
 
 export interface AdminDocumentReadInput {
   locale?: string
   depth?: number
   populateRelations?: boolean
+  /**
+   * Relation-summary projections computed by the route loader where the
+   * target admin configs are registered (see `buildRelationProjections`).
+   * The server's own admin-config registry is filled only after its runtime
+   * has rendered an admin route, so without these a cold server would drop
+   * item-view fields such as a media thumbnail.
+   */
+  relationProjections?: RelationProjections
 }
 
 export interface AdminDocumentReadOptions {
@@ -47,10 +56,14 @@ export function resolveAdminDocumentRead(
     populate = '*'
     depth = input.depth
   } else if (autoRelationsActive && definition != null) {
-    const populateMap = buildRelationSummaryPopulateMap(definition.fields, (targetPath) => ({
-      def: getCollectionDefinition(targetPath),
-      admin: getCollectionAdminConfig(targetPath),
-    }))
+    const populateMap = buildRelationSummaryPopulateMap(
+      definition.fields,
+      (targetPath) => ({
+        def: getCollectionDefinition(targetPath),
+        admin: getCollectionAdminConfig(targetPath),
+      }),
+      input.relationProjections
+    )
     if (Object.keys(populateMap).length > 0) {
       populate = populateMap
       depth = 1

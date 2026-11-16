@@ -8,6 +8,8 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import type { RelationProjections } from '@byline/core'
+
 import { adminSessionMiddleware } from '../../integrations/session-middleware.js'
 import { readSingletonDocument } from '../singleton-document-read.js'
 
@@ -16,6 +18,7 @@ export interface GetSingletonInput {
   locale?: string
   depth?: number
   populateRelations?: boolean
+  relationProjections?: RelationProjections
 }
 
 /**
