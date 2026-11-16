@@ -1,5 +1,13 @@
 # @byline/i18n
 
+## 6.13.4
+
+### Patch Changes
+
+- fixed relation-summary tiles losing item-view fields such as media thumbnails, and list views ignoring `defaultSort`, when a server had not yet loaded the admin config
+- Updated dependencies
+  - @byline/ui@6.13.4
+
 ## 6.13.3
 
 ### Patch Changes
