@@ -292,8 +292,7 @@ export function derivePath(
  * selects the schema used to flatten each surviving block.
  *
  * Reconstructed `locale: 'all'` trees carry stable `_id` values for
- * blocks and array items (see CLAUDE.md → "Block/array items carry a
- * stable `_id`"). For a *duplicate*, the new document is conceptually a
+ * blocks and array items (see docs/03-architecture/01-document-storage.md). For a *duplicate*, the new document is conceptually a
  * fresh entity — its blocks should get fresh meta ids rather than
  * inheriting the source's. Mutates the tree in place.
  *

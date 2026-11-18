@@ -12,9 +12,8 @@ Data persists in `./data` (gitignored). Connection settings and the database
 name are configured in `docker-compose.yml` and the workspace `.env` files
 (`apps/webapp/.env`, `packages/db-postgres/.env`).
 
-For initializing and seeding the database, generating/applying Drizzle
-migrations, and the test database, see the root `CLAUDE.md` (Database section)
-and `docs/TESTING.md`.
+For local setup, migrations and test databases, see the shared
+[database guidance](../AGENTS.md#database-and-migrations) and [testing guide](../docs/13-testing.md).
 
 ## Installing the Postgres 16 client tools (Debian/Ubuntu)
 

@@ -276,4 +276,5 @@ context guarantees structural rather than convention-based.
 - `apps/webapp/byline/admin.config.ts` and the collection `admin.tsx` files
   (slot authoring shape).
 - `src/routes/_byline/route.tsx`, `route.lazy.tsx` (retire one point), and the
-  registration comments in `client.tsx` / `admin.config.ts` / `CLAUDE.md`.
+  registration comments in `client.tsx` and `admin.config.ts`, plus the
+  “App Configuration Boundaries” section in the repository’s `AGENTS.md`.

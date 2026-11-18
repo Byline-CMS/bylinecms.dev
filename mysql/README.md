@@ -15,9 +15,8 @@ Data persists in `./data` (gitignored). Connection settings and the database
 name are configured in `docker-compose.yml` and the workspace `.env` files
 (`apps/webapp/.env`, `packages/db-mysql/.env`).
 
-For initializing and seeding the database, generating/applying migrations, and
-the test database, see the root `CLAUDE.md` (Database section) and
-`docs/12-testing.md`.
+For local setup, migrations and test databases, see the shared
+[database guidance](../AGENTS.md#database-and-migrations) and [testing guide](../docs/13-testing.md).
 
 ## Initializing the databases
 

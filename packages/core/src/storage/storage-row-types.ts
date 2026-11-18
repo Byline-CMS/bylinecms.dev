@@ -43,8 +43,8 @@ interface FlattenedDateTimeFieldValue extends BaseFlattenedFieldData {
   // for form/API input hand this a `Date`, so `Date` covers every value
   // that reaches `flattenFieldSetData` through the validated API surface.
   // The `string` arm stays for the documented direct-`db.commands.*`
-  // escape hatch (seeds, migrations, internal tooling — see CLAUDE.md's
-  // "Auth" section) that can call `createDocumentVersion` with
+  // escape hatch (seeds, migrations, internal tooling — see AGENTS.md,
+  // "Storage And Lifecycle") that can call `createDocumentVersion` with
   // hand-built field-set data bypassing Zod entirely, e.g. a raw
   // `'YYYY-MM-DD'` or ISO string. `storage-insert.ts`'s `toDateOnlyString`
   // / `toDate` (pg) and `toDate` (mysql) tolerate both shapes on purpose.

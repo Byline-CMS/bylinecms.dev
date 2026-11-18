@@ -30,7 +30,7 @@ export interface LocalizationMismatch {
 /**
  * Turn a stored path into a declaration path by dropping purely numeric
  * (array/block index) segments. Eliding indexes from a storage path yields the
- * declaration path (see CLAUDE.md "Field Path Grammar").
+ * declaration path (see docs/03-architecture/04-path-grammar.md).
  */
 function toDeclarationPath(storedPath: string): string {
   return storedPath
