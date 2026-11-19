@@ -1,5 +1,16 @@
 # @byline/storage-s3
 
+## 6.14.0
+
+### Minor Changes
+
+- added adapter-owned core storage migrations with journaled `byline storage status`, `adopt` and `migrate` commands for **`@byline/db-postgres`** and **`@byline/db-mysql`**, replacing the cli baseline squash
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/core@6.14.0
+
 ## 6.13.4
 
 ### Patch Changes

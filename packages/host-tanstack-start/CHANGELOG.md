@@ -1,5 +1,24 @@
 # @byline/host-tanstack-start
 
+## 6.14.0
+
+### Minor Changes
+
+- added adapter-owned core storage migrations with journaled `byline storage status`, `adopt` and `migrate` commands for **`@byline/db-postgres`** and **`@byline/db-mysql`**, replacing the cli baseline squash
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/admin@6.14.0
+  - @byline/ai@6.14.0
+  - @byline/analytics@6.14.0
+  - @byline/analytics-agent@6.14.0
+  - @byline/auth@6.14.0
+  - @byline/client@6.14.0
+  - @byline/core@6.14.0
+  - @byline/i18n@6.14.0
+  - @byline/ui@6.14.0
+
 ## 6.13.4
 
 ### Patch Changes
