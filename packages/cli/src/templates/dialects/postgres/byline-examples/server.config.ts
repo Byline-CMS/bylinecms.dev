@@ -98,23 +98,6 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     //   : undefined,
   })
 
-  // Ensure the search-index schema before the provider serves any traffic.
-  // `@byline/search-postgres` owns its schema (numbered SQL inside the
-  // package) and applies it via `migrate(pool)` — it is NOT part of the
-  // host's Drizzle migration stream. We run it deliberately here, rather
-  // than relying on the driver's `autoMigrate` option, so startup DDL is an
-  // explicit, awaited step. Reuses the adapter's pool — no second
-  // connection. See docs/06-search/index.md.
-  //
-  // Wrapped defensively: a migration failure degrades search but must not
-  // take down the whole app at boot. We log loudly and continue. (For
-  // locked-down Postgres where the app role can't run DDL, drop this call and
-  // apply `migrations/0001_init.sql` by hand as a deploy step instead.)
-  try {
-    await migrate(db.pool, { log: (m) => console.log(m) })
-  } catch (err) {
-    console.error('[search-postgres] migrate failed — search may be unavailable:', err)
-  }
 
   const adminStore = createAdminStore(db.drizzle)
 
@@ -276,6 +259,24 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     // collection declares a `search` config.
     search: postgresSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
   })
+
+  // Ensure the search-index schema before the provider serves any traffic.
+  // `@byline/search-postgres` owns its schema (numbered SQL inside the
+  // package) and applies it via `migrate(pool)` — it is NOT part of the
+  // host's Drizzle migration stream. We run it deliberately here, rather
+  // than relying on the driver's `autoMigrate` option, so startup DDL is an
+  // explicit, awaited step. Reuses the adapter's pool — no second
+  // connection. See docs/06-search/index.md.
+  //
+  // Wrapped defensively: a migration failure degrades search but must not
+  // take down the whole app at boot. We log loudly and continue. (For
+  // locked-down Postgres where the app role can't run DDL, drop this call and
+  // apply `migrations/0001_init.sql` by hand as a deploy step instead.)
+  try {
+    await migrate(db.pool, { log: (m) => console.log(m) })
+  } catch (err) {
+    console.error('[search-postgres] migrate failed — search may be unavailable:', err)
+  }
 
   // Register admin-subsystem abilities (admin.users.*, admin.roles.*) on
   // the shared registry. Collection abilities are auto-registered by

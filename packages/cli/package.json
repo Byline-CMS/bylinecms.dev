@@ -33,6 +33,7 @@
     "build": "tsc -p tsconfig.json && tsc-alias && node ./scripts/copy-templates.js && chmod +x dist/cli.js",
     "dev": "tsc -w -p tsconfig.json",
     "clean": "node scripts/clean.js node_modules dist .turbo",
+    "check:postgres-compatibility": "node scripts/check-postgres-compatibility.mjs",
     "check:artifact": "node scripts/check-package-artifact.mjs",
     "check:templates": "node scripts/check-dialect-templates.mjs",
     "sync:baselines": "node scripts/sync-db-baselines.mjs",

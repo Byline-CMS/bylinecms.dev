@@ -102,21 +102,6 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       : undefined,
   })
 
-  // Ensure the search-index schema before the provider serves any traffic.
-  // The driver owns its schema (numbered SQL in `@byline/search-postgres`);
-  // we apply it deliberately here rather than relying on `autoMigrate` so
-  // startup is deterministic and DDL is an explicit, awaited step. Reuses the
-  // adapter's pool — no second connection. See the package README.
-  //
-  // Wrapped defensively: a migration failure degrades search but must not take
-  // down the whole app at boot — log loudly and continue.
-  //
-  try {
-    await migrate(db.pool, { log: (m) => console.log(m) })
-  } catch (err) {
-    console.error('[search-postgres] migrate failed — search may be unavailable:', err)
-  }
-
   const adminStore = createAdminStore(db.drizzle)
 
   // Built-in JWT session provider. Signing secret comes from the
@@ -281,6 +266,21 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       enabled: true,
     },
   })
+
+  // Ensure the search-index schema before the provider serves any traffic.
+  // The driver owns its schema (numbered SQL in `@byline/search-postgres`);
+  // we apply it deliberately here rather than relying on `autoMigrate` so
+  // startup is deterministic and DDL is an explicit, awaited step. Reuses the
+  // adapter's pool — no second connection. See the package README.
+  //
+  // Wrapped defensively: a migration failure degrades search but must not take
+  // down the whole app at boot — log loudly and continue.
+  //
+  try {
+    await migrate(db.pool, { log: (m) => console.log(m) })
+  } catch (err) {
+    console.error('[search-postgres] migrate failed — search may be unavailable:', err)
+  }
 
   // Register admin-subsystem abilities (admin.users.*, admin.roles.*) on
   // the shared registry. Collection abilities are auto-registered by

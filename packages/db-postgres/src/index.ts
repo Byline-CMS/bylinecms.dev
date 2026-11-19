@@ -21,6 +21,7 @@ import pg from 'pg'
 import * as schema from './database/schema/index.js'
 import { documentVersions } from './database/schema/index.js'
 import { DBManagerImpl, TXManagerImpl } from './lib/db-manager.js'
+import { assertRuntimeStorage } from './migrations/runtime.js'
 import { createAuditCommands } from './modules/audit/audit-commands.js'
 import { createAuditQueries } from './modules/audit/audit-queries.js'
 import { createCounterCommands } from './modules/counters/counters-commands.js'
@@ -288,6 +289,7 @@ export const pgAdapter = ({
   }
 
   return {
+    assertStorageCompatible: () => assertRuntimeStorage(pool),
     commands: {
       ...commandBuilders,
       counters: counterCommands,

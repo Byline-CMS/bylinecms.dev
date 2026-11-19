@@ -281,6 +281,9 @@ export interface ReadSnapshotQueries {
 }
 
 export interface IDbAdapter {
+  /** Read-only runtime schema and privilege check before any boot writes. */
+  assertStorageCompatible?(): Promise<void | { warning: string }>
+
   /** Dedicated read-only repeatable-read transaction; never joins ambient writes. */
   withReadSnapshot<T>(fn: (queries: ReadSnapshotQueries) => Promise<T>): Promise<T>
   /** Required revision schema and transaction-scoped guard capability. */

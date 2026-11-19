@@ -165,28 +165,6 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   //     : undefined,
   // })
 
-  // Ensure the search-index schema before the provider serves any traffic.
-  // The selected search driver owns its schema in an independent numbered
-  // migration stream. Both built-in SQL providers expose the same `migrate`
-  // function shape and reuse their database adapter's existing pool.
-  // Apply it deliberately here rather than relying on `autoMigrate` so
-  // startup is deterministic and DDL is an explicit, awaited step. Reuses the
-  // adapter's pool — no second connection. See the package README.
-  //
-  // Wrapped defensively: a migration failure degrades search but must not take
-  // down the whole app at boot — log loudly and continue.
-  //
-  try {
-    await migrateSearch(db.pool, { log: (m) => console.log(m) })
-  } catch (err) {
-    console.error('[search-postgres] migrate failed — search may be unavailable:', err)
-  }
-
-  // Analytics owns an independent numbered migration stream, just like the
-  // search provider. Unlike optional search degradation, a configured
-  // analytics subsystem must migrate successfully before its route and task
-  // runtime are registered.
-  await migrateAnalytics(db.pool, { log: (message) => console.log(message) })
   const analytics = registerAnalytics(
     createAnalytics({
       // Reuse the document adapter's pool; analytics owns tables and
@@ -416,6 +394,29 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   // Connect it to the application logger afterward; the runtime logs only
   // operational counts and sanitized persistence error metadata.
   analytics.setLogger(core.logger)
+
+  // Ensure the search-index schema before the provider serves any traffic.
+  // The selected search driver owns its schema in an independent numbered
+  // migration stream. Both built-in SQL providers expose the same `migrate`
+  // function shape and reuse their database adapter's existing pool.
+  // Apply it deliberately here rather than relying on `autoMigrate` so
+  // startup is deterministic and DDL is an explicit, awaited step. Reuses the
+  // adapter's pool — no second connection. See the package README.
+  //
+  // Wrapped defensively: a migration failure degrades search but must not take
+  // down the whole app at boot — log loudly and continue.
+  //
+  try {
+    await migrateSearch(db.pool, { log: (m) => console.log(m) })
+  } catch (err) {
+    console.error('[search-postgres] migrate failed — search may be unavailable:', err)
+  }
+
+  // Analytics owns an independent numbered migration stream, just like the
+  // search provider. Unlike optional search degradation, a configured
+  // analytics subsystem must migrate successfully before server boot completes
+  // and its routes and recurring tasks can run.
+  await migrateAnalytics(db.pool, { log: (message) => console.log(message) })
 
   // Register admin-subsystem abilities (admin.users.*, admin.roles.*) on
   // the shared registry. Collection abilities are auto-registered by

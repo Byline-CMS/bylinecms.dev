@@ -254,4 +254,4 @@ jobs:
           cache: "pnpm"
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec turbo run build --filter=@byline/cli...
-      - run: pnpm --filter @byline/cli exec vitest run --mode=integration tests/postgres-coexistence.integration.test.ts tests/postgres-inspection.integration.test.ts tests/postgres-operations.integration.test.ts tests/postgres-online.integration.test.ts
+      - run: pnpm --filter @byline/cli exec vitest run --mode=integration tests/postgres-coexistence.integration.test.ts tests/postgres-inspection.integration.test.ts tests/postgres-operations.integration.test.ts tests/postgres-online.integration.test.ts tests/postgres-startup.integration.test.ts

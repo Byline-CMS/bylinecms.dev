@@ -268,6 +268,14 @@ Supervised adoption and migration display the target and ask you to confirm that
 | 4 | Empty or unrelated database, available for installation after setup preflight |
 | 1 | Inspection failure or operator intervention required |
 
+### PostgreSQL application startup
+
+Core checks the migration journal before collection registration, revision checks, backfills, seeds and workers. At the transition release targeting 0015, a valid unjournaled installation logs an adoption warning. Once the application requires a later schema, an absent journal fails readiness. A known pending step requires a release job. A newer online suffix can admit this application only when every recorded compatibility floor permits its schema contract. A fenced or malformed suffix stops startup. The startup check uses the journal and targeted runtime invariants independently of the major-version range for deep inspection.
+
+A separate runtime role needs CONNECT on the database, USAGE on the target schema, SELECT on the core journal and views, SELECT/INSERT/UPDATE/DELETE on each core table (including the audit and scheduler tables), and USAGE on core sequences when present. Grant those rights on the adapter's named objects. Reserve journal writes and DDL for the migration owner. Seeds, imports and workers that initialize core use the same check. Search and analytics own separate journals. In a restricted-role host, provision their schemas and grants in the release phase and disable their startup migration calls.
+
+For an online classification, run `pnpm --filter @byline/cli check:postgres-compatibility` from a built checkout against the disposable local PostgreSQL test server. Set `BYLINE_TEST_PREVIOUS_RELEASE` to each deployed release admitted by the proposed floor. The harness installs published packages in a temporary consumer and exercises its reader, writer, publication workflow and worker alongside the candidate. Rehearse a database-wide recovery point with writers fenced. Restoring a shared database also restores host data and requires coordination with its owner.
+
 ### Run a scheduled PostgreSQL upgrade
 
 Stage the target release and run its CLI once before promoting the application. Give the release job the ordinary `BYLINE_DB_POSTGRES_CONNECTION_STRING` and a separate writable `BYLINE_MIGRATION_DATABASE_URL`. Configure and verify a direct or session-preserving endpoint for the DDL role. Transaction or statement pooling cannot retain the migration lock. Both URLs must identify the intended database and installation. A restored clone inherits the installation identifier, so pair endpoints within the same deployment environment.

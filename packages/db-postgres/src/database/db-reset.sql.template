@@ -18,3 +18,6 @@ ALTER ROLE ${db_user} WITH PASSWORD '${db_pass}';
 DROP DATABASE IF EXISTS ${db_name};
 
 CREATE DATABASE ${db_name} WITH OWNER ${db_user};
+
+\connect ${db_name}
+CREATE EXTENSION pgcrypto;

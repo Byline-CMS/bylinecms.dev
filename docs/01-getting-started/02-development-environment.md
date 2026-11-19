@@ -69,14 +69,11 @@ reset.
 :::
 
 ```sh
-# You can optionally run pnpm --filter @byline/db-postgres drizzle:generate, although since
-# this is a development repo - migrations have already been generated
-# and committed.
-# pnpm --filter @byline/db-postgres drizzle:generate
-pnpm --filter @byline/db-postgres drizzle:migrate
+pnpm --filter @byline/db-postgres build
+pnpm --filter @byline/db-postgres db:install
 ```
 
-This Drizzle command applies to a dedicated development database. PostgreSQL test bootstrap and CLI installations use the adapter's own journal. See [the testing guide](../13-testing.md) for rebuilding a disposable test database.
+The local installer accepts a dedicated `_dev` or `_test` database and records the same core journal as CLI setup. For a populated legacy database, use `byline storage status` and supervised adoption. Drizzle generation remains available for developing schema changes.
 
 ### 2.3. Configure the webapp, and optionally seed documents
 

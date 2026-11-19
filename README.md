@@ -343,7 +343,8 @@ Initialise the database and run migrations, from the repository root:
 ```sh
 cp packages/db-postgres/.env.example packages/db-postgres/.env
 pnpm --filter @byline/db-postgres db:init
-pnpm --filter @byline/db-postgres drizzle:migrate
+pnpm --filter @byline/db-postgres build
+pnpm --filter @byline/db-postgres db:install
 ```
 
 Configure the webapp and seed it:

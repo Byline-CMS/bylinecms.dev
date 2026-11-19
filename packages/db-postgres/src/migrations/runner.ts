@@ -109,7 +109,11 @@ export class JournalIssue extends Error {
   }
 }
 
-export async function readJournal(client: Client, steps: StorageStep[]): Promise<JournalRow[]> {
+export async function readJournal(
+  client: Pick<Client, 'query'>,
+  steps: StorageStep[],
+  mode: 'operator' | 'runtime' = 'operator'
+): Promise<JournalRow[]> {
   const exists = await client.query("SELECT to_regclass('public.byline_core_migrations') AS name")
   if (!exists.rows[0].name) return []
   const metadata = await client.query<{ columns: string[]; valid: boolean }>(
@@ -174,7 +178,10 @@ export async function readJournal(client: Client, steps: StorageStep[]): Promise
       latest.version
     )
 
-  if (latest.version > steps.at(-1)!.version)
+  if (
+    latest.version > steps.at(-1)!.version &&
+    (mode === 'operator' || latest.compatible_from > steps.at(-1)!.version)
+  )
     throw new JournalIssue(
       'newer',
       `PostgreSQL core journal is at newer version ${latest.version}`,

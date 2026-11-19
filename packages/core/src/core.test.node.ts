@@ -57,3 +57,21 @@ it('rejects revision-incompatible storage before any boot database writes', asyn
   await expect(initBylineCore(config, {} as PinoLogger)).rejects.toBe(schemaError)
   expect(write).not.toHaveBeenCalled()
 })
+
+it('stops initialization before revision checks, collection writes and backfill if storage is incompatible', async () => {
+  const config = serverConfig('/core-check/admin')
+  const guard = vi.fn().mockRejectedValue(new Error('core migration required'))
+  const later = vi.fn()
+  config.db = testAdapter({
+    assertStorageCompatible: guard,
+    revisions: { assertCompatibleSchema: later },
+    commands: {
+      collections: { create: later, update: later },
+      counters: { ensureCounterGroup: later },
+    },
+    backfillSourceLocales: later,
+  })
+  await expect(initBylineCore(config, {} as PinoLogger)).rejects.toThrow('core migration required')
+  expect(guard).toHaveBeenCalledOnce()
+  expect(later).not.toHaveBeenCalled()
+})

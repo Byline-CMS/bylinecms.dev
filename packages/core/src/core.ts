@@ -228,6 +228,8 @@ export const initBylineCore = async <TAdminStore = unknown>(
   // Reconcile collection definitions with the database: insert new rows,
   // bump schema versions when the fingerprint has drifted, and build the
   // in-memory record cache used by the lifecycle/upload/client paths.
+  const storageReadiness = await composed.db.assertStorageCompatible?.()
+  if (storageReadiness?.warning) composed.logger.warn(storageReadiness.warning)
   await assertDocumentRevisionCapability(composed.db)
 
   const collectionRecords = await ensureCollections({

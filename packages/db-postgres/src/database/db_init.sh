@@ -34,4 +34,4 @@ echo "Initializing DB '${POSTGRES_DATABASE}' (enter postgres root password below
 sed -e "s/\${db_name}/${POSTGRES_DATABASE}/" \
     -e "s/\${db_user}/${POSTGRES_USER_ESC}/" \
     -e "s/\${db_pass}/${POSTGRES_PASSWORD_ESC}/" db-reset.sql.template \
-  | psql -h 127.0.0.1 -U postgres -q
+  | psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -q
