@@ -83,11 +83,11 @@ Each adapter owns an independent numbered migration stream under its package `mi
 
 The runner discovers the SQL files bundled with the selected package, applies each file transactionally, and serializes concurrent startup. This stream is separate from Byline's core Drizzle migrations, like the search-provider migration streams.
 
-A configured analytics runtime without its schema is an invalid partial startup. Run and await analytics migrations before registering the runtime or exposing its host integration.
+A configured analytics runtime without its schema is an invalid partial startup. Run and await analytics migrations before the host serves requests or starts the scheduler. Registering the runtime and the rollup task does not touch the database, so the reference host registers both while it builds core and calls `migrateAnalytics()` after `initBylineCore()`, inside the same awaited bootstrap in `apps/webapp/byline/server.config.ts`. Do not wrap that call in a `try`/`catch` that continues startup. Unlike an optional search provider, analytics must not run without its tables.
 
 ## Maintenance registration
 
-`defineAnalyticsRollupTask({ analytics })` creates an inert recurring-task definition. Registering it does not start a timer. The application must also run `startBylineScheduler()` or invoke due tasks from its external scheduling path.
+`defineAnalyticsRollupTask({ analytics })` creates an inert recurring-task definition. Registering it does not start a timer. The application must also run `startBylineScheduler()` or invoke due tasks from its external scheduling path. Start the scheduler only after the server bootstrap, including `migrateAnalytics()`, has completed. The [recurring-task guide](../11-scheduling/01-recurring-tasks.md#starting-the-ticker) shows the ordering.
 
 The default task runs hourly. It rolls up completed UTC days, catches up a bounded number of days per invocation, flushes idle-day metrics, and applies retention after it converges. [Storage, rollups, and operations](./04-storage-rollups-and-operations.md) describes those effects.
 

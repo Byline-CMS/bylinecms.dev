@@ -95,6 +95,8 @@ declare global {
 globalThis.__bylineSchedulerController__ ??= startBylineScheduler(getBylineCore())
 ```
 
+Start the ticker only after server bootstrap has finished, including every subsystem migration that a registered task depends on. In the reference host, `apps/webapp/src/server.ts` imports `byline/server.config.ts` first. That module awaits `initBylineCore()`, the search migration and `migrateAnalytics()` at its top level, so the import does not complete until those tables exist. The first tick therefore cannot run `analytics.rollup` against a fresh database that has no analytics tables. If your host starts the scheduler from inside its configuration function, or does not await the bootstrap, a due task can run before its tables exist.
+
 The `??=` and the global are load-bearing in development: without them, every Vite hot reload starts an additional ticker in the same process, and the competing timers all claim and fence one another.
 
 `startBylineScheduler` is exported from the server-only `@byline/core/scheduler` subpath. The browser-safe package root exposes only the inert surface — `defineRecurringTask`, `MIN_INTERVAL_MS`, `MIN_LEASE_MS` and the types — so importing core in a client bundle never pulls in Node timers.
