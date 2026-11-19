@@ -183,7 +183,7 @@ The client method calls the provider clear operation first, then repopulates pub
 
 Use the provider that matches the database selected by the CLI; search does not
 require choosing or operating a second engine. PostgreSQL is the default;
-`byline init --database mysql` selects MySQL 8.0.14 or later.
+`byline init --database mysql` selects a supported MySQL release.
 Example installations receive the matching database and search packages,
 connection environment variable, server adapter, and `migrate(pool)` call.
 Minimal installations omit search for either database. Both providers pass the

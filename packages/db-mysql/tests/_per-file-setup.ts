@@ -15,7 +15,7 @@ loadEnv({ path: '.env.test' })
 
 /**
  * Vitest `setupFiles`: runs once per test file. The `beforeAll` truncates
- * every user table (foreign keys disabled around the truncates — MySQL has
+ * core data tables (foreign keys disabled around the truncates — MySQL has
  * no `TRUNCATE ... CASCADE` — and restored afterwards) so each file starts
  * from a known state — a crashed test in a prior file can't leak rows into
  * the next. Mirrors `packages/db-postgres/tests/_per-file-setup.ts`.

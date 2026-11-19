@@ -6,29 +6,11 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-
-import { drizzle, type MySql2Database } from 'drizzle-orm/mysql2'
-import { migrate } from 'drizzle-orm/mysql2/migrator'
 import mysql from 'mysql2/promise'
 
-import * as schema from '../database/schema/index.js'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-/**
- * Drizzle migrations folder. Migrations (`*.sql` + `meta/_journal.json`)
- * live only under `src/` — the TypeScript build doesn't copy them into
- * `dist/`. Anchor on `src/database/migrations` from either location:
- *
- *   src/lib/test-db.ts  → ../../src/database/migrations ✓
- *   dist/lib/test-db.js → ../../src/database/migrations ✓
- *
- * `path.resolve` normalises the `../..` away, so the same string works
- * for both build modes. Mirrors `packages/db-postgres/src/lib/test-db.ts`.
- */
-const MIGRATIONS_FOLDER = path.resolve(__dirname, '../../src/database/migrations')
+import { loadBaseline, prefix } from '../migrations/assets.js'
+import { rows } from '../migrations/catalog.js'
+import { installCoreStorage } from '../migrations/index.js'
 
 /**
  * Belt for the script-level braces in `common.sh`. Parses the connection
@@ -61,62 +43,38 @@ export function assertTestDatabase(connectionString: string | undefined): string
   return dbName
 }
 
-/**
- * Run Drizzle migrations against the configured connection. Idempotent —
- * Drizzle tracks applied migrations in `__drizzle_migrations`. Opens and
- * closes its own pool; safe to call from a vitest globalSetup.
- */
+/** Install the frozen adapter baseline on an explicitly isolated target. */
 export async function migrateTestDatabase(connectionString: string): Promise<void> {
   assertTestDatabase(connectionString)
-  const pool = mysql.createPool({ uri: connectionString, connectionLimit: 1, timezone: 'Z' })
-  try {
-    const db = drizzle(pool, { schema, mode: 'default' })
-    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER })
-  } finally {
-    await pool.end()
-  }
+  await installCoreStorage(connectionString)
 }
 
-/**
- * Wipe every user table so each test file starts from a known state. MySQL
- * has no `TRUNCATE ... CASCADE` — foreign keys must be disabled around the
- * truncates instead, and restored afterwards (including on failure), or a
- * later test file inherits a permanently-disabled FK session setting.
- * Skips Drizzle's own `__drizzle_migrations` ledger. Self-maintaining as the
- * schema grows — new tables come along for the ride without any code change.
- */
-export async function truncateAllTables(db: MySql2Database<typeof schema>): Promise<void> {
-  const [rows] = await db.execute<{ table_name: string }>(`
-    SELECT TABLE_NAME AS table_name FROM information_schema.tables
-    WHERE table_schema = DATABASE()
-      AND table_type = 'BASE TABLE'
-      AND table_name <> '__drizzle_migrations'
-  `)
-  const tables = (rows as unknown as { table_name: string }[]).map((r) => `\`${r.table_name}\``)
-  if (tables.length === 0) return
-
-  await db.execute('SET FOREIGN_KEY_CHECKS = 0')
+/** Clear the manifest's content tables on one physical session. */
+export async function resetTestDatabase(connectionString: string): Promise<void> {
+  const database = assertTestDatabase(connectionString)
+  const { stages } = loadBaseline()
+  const tables = new Set(
+    [...prefix(stages, stages.length)]
+      .filter(([, lines]) => lines.some((line) => line.startsWith('CREATE TABLE ')))
+      .map(([name]) => name)
+  )
+  const connection = await mysql.createConnection(connectionString)
   try {
-    for (const table of tables) {
-      await db.execute(`TRUNCATE TABLE ${table}`)
+    const references = await rows(
+      connection,
+      `SELECT TABLE_SCHEMA AS db,TABLE_NAME AS child,REFERENCED_TABLE_NAME AS parent
+      FROM information_schema.KEY_COLUMN_USAGE WHERE REFERENCED_TABLE_SCHEMA=DATABASE()`
+    )
+    for (const ref of references)
+      if (tables.has(ref.parent) && (ref.db !== database || !tables.has(ref.child)))
+        throw new Error(`Refusing to truncate core tables referenced by ${ref.db}.${ref.child}`)
+    await connection.query('SET FOREIGN_KEY_CHECKS=0')
+    try {
+      for (const table of tables) await connection.query(`TRUNCATE TABLE ${mysql.escapeId(table)}`)
+    } finally {
+      await connection.query('SET FOREIGN_KEY_CHECKS=1')
     }
   } finally {
-    await db.execute('SET FOREIGN_KEY_CHECKS = 1')
-  }
-}
-
-/**
- * Convenience: assert + open a short-lived pool + truncate + close. Useful
- * from a vitest setupFile (`beforeAll`) where the caller doesn't otherwise
- * need a long-lived db handle.
- */
-export async function resetTestDatabase(connectionString: string): Promise<void> {
-  assertTestDatabase(connectionString)
-  const pool = mysql.createPool({ uri: connectionString, connectionLimit: 1, timezone: 'Z' })
-  try {
-    const db = drizzle(pool, { schema, mode: 'default' })
-    await truncateAllTables(db)
-  } finally {
-    await pool.end()
+    await connection.end()
   }
 }

@@ -1,26 +1,30 @@
-import { drizzle } from 'drizzle-orm/mysql2'
-import { migrate } from 'drizzle-orm/mysql2/migrator'
-import { type ConnectionOptions, escapeId, escape as escapeValue, type RowDataPacket } from 'mysql2'
-import { type Connection, createConnection, createPool, type Pool } from 'mysql2/promise'
+import { createRequire } from 'node:module'
 
+import { type ConnectionOptions, escapeId, escape as escapeValue, type RowDataPacket } from 'mysql2'
+import { type Connection, createConnection } from 'mysql2/promise'
+
+import { CLI_PACKAGE_VERSION } from '../release-policy.js'
 import { databaseAdapterDefinition } from './adapters.js'
 import { parseDbUrl, withDbDatabase } from './urls.js'
-import type {
-  BaselineArgs,
-  DbProvisioner,
-  DbTargetInspection,
-  ProvisionArgs,
-} from './provisioner.js'
+import type { DbProvisioner, DbTargetInspection, ProvisionArgs } from './provisioner.js'
 
-/**
- * Keep this CLI-owned floor synchronized with
- * `packages/db-mysql/src/lib/boot-check.ts`. The CLI cannot import the adapter
- * because it verifies the server before installing host dependencies.
- */
-export const MYSQL_MINIMUM_VERSION = { major: 8, minor: 0, patch: 14 } as const
+async function mysqlMigrations() {
+  const { version } = createRequire(import.meta.url)('@byline/db-mysql/package.json')
+  if (version !== CLI_PACKAGE_VERSION)
+    throw new Error(
+      `CLI ${CLI_PACKAGE_VERSION} requires its matching MySQL adapter; resolved ${version}`
+    )
+  return import('@byline/db-mysql/migrations')
+}
+
+export const MYSQL_MINIMUM_VERSION = { major: 8, minor: 0, patch: 16 } as const
 
 export const mysqlProvisioner: DbProvisioner = {
   adapter: 'mysql',
+
+  async verifyBaselineAssets() {
+    ;(await mysqlMigrations()).verifyStorageMigrations()
+  },
 
   async verifyAdminConnection(adminUrl) {
     const connection = await connect(adminUrl)
@@ -48,7 +52,14 @@ export const mysqlProvisioner: DbProvisioner = {
           ORDER BY TABLE_NAME`,
         [database]
       )
-      return { exists: true, objects: objects.map((row) => row.name) }
+      const names = objects.map((row) => row.name)
+      let interruptedInstall = false
+      if (names.includes('byline_core_migrations')) {
+        const target = new URL(adminUrl)
+        target.pathname = database
+        interruptedInstall = await (await mysqlMigrations()).hasInterruptedInstall(target.href)
+      }
+      return { exists: true, objects: names, interruptedInstall }
     } finally {
       await connection.end()
     }
@@ -59,7 +70,10 @@ export const mysqlProvisioner: DbProvisioner = {
   },
 
   async applyBaseline(args) {
-    await applyMysqlBaseline(args)
+    const result = await (await mysqlMigrations()).installCoreStorage(args.applicationUrl, {
+      resumeOnly: args.resumeOnly,
+    })
+    args.logger.success(`MySQL core storage verified at version ${result.version}`)
   },
 }
 
@@ -133,41 +147,17 @@ async function provisionMysqlTarget(args: ProvisionArgs): Promise<void> {
   }
 }
 
-async function applyMysqlBaseline(args: BaselineArgs): Promise<void> {
-  if (!args.migrationsFolder) throw new Error('Missing MySQL baseline directory')
-  args.logger.step(`running MySQL baseline from ${args.migrationsFolder}`)
-  const pool = migrationPool(args.applicationUrl)
-  try {
-    await verifiedServerVersion(pool)
-    const db = drizzle(pool)
-    await migrate(db, { migrationsFolder: args.migrationsFolder })
-    const [rows] = await pool.query<Array<RowDataPacket & { count: number }>>(
-      `SELECT count(*) AS count
-         FROM information_schema.TABLES
-        WHERE TABLE_SCHEMA = DATABASE()`
-    )
-    args.logger.success(`baseline applied — ${rows[0]?.count ?? 'unknown'} tables and views`)
-  } finally {
-    await pool.end()
-  }
-}
-
 async function connect(raw: string): Promise<Connection> {
   return createConnection(connectionOptions(raw))
 }
 
-function migrationPool(raw: string): Pool {
-  return createPool({
-    ...connectionOptions(raw),
-    connectionLimit: 1,
-  })
-}
-
-async function verifiedServerVersion(connection: Connection | Pool): Promise<string> {
+async function verifiedServerVersion(connection: Connection): Promise<string> {
   const [rows] =
     await connection.query<Array<RowDataPacket & { v?: unknown }>>('SELECT VERSION() AS v')
   const version = rows[0]?.v
   assertSupportedMySqlVersion(version)
+  const migrations = await mysqlMigrations()
+  migrations.assertMigrationServer(version)
   return version
 }
 
@@ -188,6 +178,6 @@ function connectionOptions(raw: string): ConnectionOptions {
 function unsupportedEngineError(reported: string): Error {
   const minimum = MYSQL_MINIMUM_VERSION
   return new Error(
-    `@byline/cli requires MySQL ${minimum.major}.${minimum.minor}.${minimum.patch}+ for @byline/db-mysql compatibility (LATERAL joins); server reports ${reported}. MariaDB is not supported.`
+    `@byline/cli requires MySQL ${minimum.major}.${minimum.minor}.${minimum.patch}+ for @byline/db-mysql compatibility (LATERAL joins and enforced CHECK constraints); server reports ${reported}. MariaDB is not supported.`
   )
 }

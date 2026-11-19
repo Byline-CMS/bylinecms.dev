@@ -36,7 +36,6 @@
     "check:postgres-compatibility": "node scripts/check-postgres-compatibility.mjs",
     "check:artifact": "node scripts/check-package-artifact.mjs",
     "check:templates": "node scripts/check-dialect-templates.mjs",
-    "sync:baselines": "node scripts/sync-db-baselines.mjs",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "test": "vitest run --passWithNoTests",
     "test:integration": "pnpm run build && vitest run --mode=integration",
@@ -46,11 +45,11 @@
     "dist"
   ],
   "dependencies": {
+    "@byline/db-mysql": "workspace:*",
     "@byline/db-postgres": "workspace:*",
     "@clack/prompts": "^1.9.0",
     "commander": "^15.1.0",
     "diff": "^9.0.0",
-    "drizzle-orm": "^0.45.4",
     "execa": "^10.2.1",
     "jsonc-parser": "^3.3.1",
     "minimatch": "^11.0.8",
@@ -69,6 +68,7 @@
     "@types/pg": "^8.23.1",
     "@types/semver": "^7.8.0",
     "dotenv": "^18.0.10",
+    "drizzle-orm": "^0.45.4",
     "mdast-util-to-string": "^4.0.0",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",

@@ -108,6 +108,8 @@ The PostgreSQL storage and client suites share this isolation strategy:
 - Before each file, `setupFiles` truncates the core data tables listed in the adapter manifest with `RESTART IDENTITY`. Core, host and provider migration histories survive cleanup. A foreign key from an unrelated table blocks truncation so cleanup cannot cascade into host data.
 - **No transaction-per-test** — the storage code opens its own transactions; wrapping tests in one would break the lifecycle paths under test.
 
+MySQL global setup calls its adapter installer on a designated `_test` database. To rebuild an old disposable test database explicitly, run `pnpm db:init:test:mysql`. Per-file cleanup truncates the baseline's core tables on one connection. The core journal and unrelated tables survive.
+
 Both `@byline/client` and `@byline/db-postgres` use the same vitest config shape (`globalSetup`, `setupFiles`, `fileParallelism: false`, `maxWorkers: 1`, and `isolate: false`), so the isolation story is identical across packages.
 
 ## CI

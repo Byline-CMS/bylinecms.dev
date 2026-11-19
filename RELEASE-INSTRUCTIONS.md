@@ -38,79 +38,11 @@ This replaces `pnpm release:npm` / `changeset publish`, which **cannot publish u
 
 NOTE: The manual flow will not create a Releases entry in the repo (and therefore not create any attached zip binaries). Create the umbrella GitHub release separately — or use the `/release` command, which orchestrates this whole sequence (changeset → version-packages → release commit → `./publish-packages.sh` → main sync → umbrella release).
 
-## III Squashing the Drizzle migrations before a release
+## III Verify core storage migration assets
 
-PostgreSQL fresh installs and test bootstrap use the numbered SQL and companion manifests in `packages/db-postgres/migrations/`. Freeze those files once released. Keep `sql/` closed at 0015. For PostgreSQL schema changes, generate the development diff, author the next runner SQL and manifest, and compare fresh and upgraded catalogs with the intended Drizzle schema.
+Each SQL adapter ships its own frozen baseline and numbered suffix. PostgreSQL starts at 0015 and MySQL at 0010. Preserve all released runner SQL, manifests and legacy scripts byte for byte. Drizzle generation under `src/database/migrations/` supplies development diffs when authoring a new numbered step.
 
-PostgreSQL uses its adapter journal for development, tests and deployments. Generate its Drizzle development diff when authoring a step. Use the release compatibility harness against the real previous package release for each online classification. The following squash and re-key procedure applies to MySQL.
-
-1. **Bring the MySQL development and test databases up to date** using the MySQL Drizzle migration and test bootstrap commands.
-
-2. **Squash.** In each adapter, delete `src/database/migrations/*.sql` and everything in `src/database/migrations/meta/`, then regenerate:
-
-   ```sh
-   pnpm --filter @byline/db-mysql drizzle:generate
-   ```
-
-   Each squashed development chain now has one `0000_<name>.sql`, its `meta/0000_snapshot.json`, and a one-entry `meta/_journal.json`.
-
-3. **Check the squash changed nothing.** The new snapshot must describe exactly the schema the old chain produced. Compare it with the last pre-squash snapshot, ignoring the snapshot ids (run from the repository root; set `ADAPTER` and `LAST` to the adapter and the last pre-squash snapshot, e.g. `0001_snapshot.json`):
-
-   ```sh
-   ADAPTER=db-postgres LAST=0001_snapshot.json node -e '
-     const fs = require("node:fs"), { execSync } = require("node:child_process")
-     const dir = `packages/${process.env.ADAPTER}/src/database/migrations/meta`
-     const strip = ({ id, prevId, ...rest }) => rest
-     const before = strip(JSON.parse(execSync(`git show HEAD:${dir}/${process.env.LAST}`)))
-     const after = strip(JSON.parse(fs.readFileSync(`${dir}/0000_snapshot.json`, "utf8")))
-     console.log(JSON.stringify(before) === JSON.stringify(after) ? "schema identical" : "SCHEMA DIFFERS")'
-   ```
-
-   Stop if it reports a difference: the schema moved during the squash.
-
-4. **Re-key each local database's ledger** with the helper. It reads each adapter's one-entry journal, computes the new key (the SHA-256 of the new `0000` file, plus the entry's `when`), and replaces the ledger rows with that single row in one transaction. It is a dry run unless you pass `--apply`:
-
-   ```sh
-   pnpm --filter @byline/db-mysql drizzle:rekey                      # development databases (.env), dry run
-   pnpm --filter @byline/db-mysql drizzle:rekey -- --apply           # development databases, write
-   pnpm --filter @byline/db-mysql drizzle:rekey:test -- --apply  # MySQL Drizzle test DB only
-   ```
-
-   Run the helper from `@byline/db-mysql`. The helper only touches the Drizzle ledger — no schema, no data — and refuses to run when:
-
-   - the database name does not end in `_dev` or `_test`;
-   - the journal has more than one entry (nothing has been squashed);
-   - the database has no ledger, or an empty one (a fresh database needs `drizzle:migrate` instead);
-   - the ledger holds a row newer than the baseline (the database ran migrations generated after this squash).
-
-   Running it again on a re-keyed database reports "already keyed" and changes nothing. It cannot check that the database applied every squashed migration — that is what step 1 guarantees.
-
-   Never re-key a deployed database. For journaled PostgreSQL installations use `byline storage migrate`. Existing MySQL installations follow the release-tagged native `sql/` instructions. For a disposable `*_test` database, re-initialising it (`pnpm db:init:test`, `pnpm db:init:test:mysql`) is an equally good alternative.
-
-   If you need to do it by hand, the helper's equivalent is:
-
-   ```sql
-   -- MySQL (in the target database)
-   START TRANSACTION;
-   DELETE FROM __drizzle_migrations;
-   INSERT INTO __drizzle_migrations (hash, created_at) VALUES ('<sha256 of 0000_*.sql>', <journal when>);
-   COMMIT;
-   ```
-
-5. **Verify.** `pnpm drizzle:migrate` must report success without applying anything, and each ledger must hold exactly one row whose hash matches the new file:
-
-   ```sql
-   SELECT count(*), max(hash) FROM __drizzle_migrations;            -- MySQL
-   ```
-
-   A focused integration run (for example `pnpm --filter @byline/db-mysql test:integration`) confirms the test runner's startup migration is also a no-op.
-
-6. **Sync the MySQL CLI baseline** so `byline init` installs the new schema, then check them:
-
-   ```sh
-   pnpm --filter @byline/cli sync:baselines
-   pnpm --filter @byline/cli check:templates
-   pnpm --filter @byline/cli check:artifact
-   ```
-
-7. **Commit** the squash and the synced baselines (for example `chore(db): squashed drizzle migrations` and `chore(cli): synced squashed database baselines`), with `git commit -s`.
+1. Compare fresh installation and native-upgraded catalogs against the intended schema and rehearse recovery on isolated databases. For MySQL interrupt the physical session at each newly introduced durable DDL prefix and verify supervised recovery.
+2. Run `pnpm --filter @byline/cli check:templates` and `pnpm --filter @byline/cli check:artifact` after building both adapters and the CLI. The packed CLI must resolve both exact adapter versions and validate their raw SQL before host dependencies are present.
+3. Run `node scripts/check-native-sql-history.mjs --base <previous-release-tag>`. Apply a new suffix through the adapter. Never re-key the host or core journals.
+4. Before classifying any PostgreSQL step online, run `pnpm --filter @byline/cli check:postgres-compatibility` against the real prior release and retain its writer, worker and lock-budget evidence.

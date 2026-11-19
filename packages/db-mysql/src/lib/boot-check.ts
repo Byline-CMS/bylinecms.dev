@@ -15,11 +15,11 @@
 // Keep this adapter floor synchronized with the pre-install check in
 // `packages/cli/src/lib/database/mysql.ts`; the CLI contract test compares
 // the two constants without adding a runtime dependency on this package.
-const MIN = { major: 8, minor: 0, patch: 14 }
+const MIN = { major: 8, minor: 0, patch: 16 }
 
 const unsupportedEngineError = (reported: string): Error =>
   new Error(
-    `@byline/db-mysql requires MySQL ${MIN.major}.${MIN.minor}.${MIN.patch}+ (LATERAL joins); server reports ${reported}. MariaDB is not supported.`
+    `@byline/db-mysql requires MySQL ${MIN.major}.${MIN.minor}.${MIN.patch}+ (LATERAL joins and enforced CHECK constraints); server reports ${reported}. MariaDB is not supported.`
   )
 
 /**

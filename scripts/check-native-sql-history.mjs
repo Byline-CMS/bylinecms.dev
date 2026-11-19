@@ -13,10 +13,7 @@ import { basename } from 'node:path'
 // Installations first booted on 3.15.0–4.8.0 could never receive either, and
 // writing to the index failed until `0002_analyzer_fingerprint` repaired them.
 //
-// Deliberately excluded: `packages/db-*/src/database/migrations/` and
-// `packages/cli/src/templates/migrations/`. Those hold Drizzle's single
-// squashed baseline, which is *meant* to be rewritten; `sync:baselines` and
-// `baseline-drift.test.ts` are the gates that govern them.
+// Development Drizzle diffs under src/database/migrations are separate from released assets.
 const SQL_HISTORY_PATTERN = /^packages\/[^/]+\/(?:sql|migrations)\/[^/]+\.sql$/
 const CORE_MANIFEST = /^packages\/db-(?:postgres|mysql)\/migrations\/\d{4}_[^/]+\.json$/
 const NUMBERED_SQL = /^\d{4}_.+\.sql$/

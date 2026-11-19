@@ -103,35 +103,9 @@ the init scripts' shell-side URL parsing both percent-decode the userinfo the
 same way, so an unencoded reserved character parses differently, or fails to
 parse, on one side or the other.
 
-## Engine floor: MySQL 8.0.14+
+## Supported MySQL versions
 
-`mysqlAdapter` runs a boot-time `SELECT VERSION()` check against the pool's
-first connection and throws if the server is older than 8.0.14 or is
-MariaDB (MariaDB reports version strings that would otherwise satisfy the
-numeric floor, so it is rejected explicitly by name — see
-`src/lib/boot-check.ts`). A too-old server or MariaDB is a configuration
-error, so the check fails fast at `initBylineCore()` boot rather than
-surfacing later as an obscure SQL error the first time a query needs a
-feature the server doesn't have.
-
-8.0.14 is not an arbitrary floor — it is the first MySQL release with two
-features this adapter's storage layer depends on:
-
-- **`LEFT JOIN LATERAL`**, used for the field-level sort path in
-  `findDocuments`.
-- **Subqueries in a view's `FROM` clause**, which MySQL forbade before
-  8.0.14. Both current-version views
-  (`byline_current_documents`, `byline_current_published_documents`) resolve
-  the current version per document via a `ROW_NUMBER() OVER (PARTITION BY
-  document_id)` window inside a derived table in their `FROM` clause — the
-  same shape as the Postgres adapter's views — so this restriction, not the
-  `LATERAL` requirement, is the adapter's real engine floor.
-
-MariaDB is out of scope for this release: it lacks `LATERAL` joins, so
-supporting it would need a correlated-subquery rewrite of the field-sort
-path. Tracked as
-[on-demand follow-up work](https://github.com/Byline-CMS/bylinecms.dev/issues/54)
-if you need it sooner than "on demand."
+The adapter requires MySQL 8.0.16 or later. Its queries use lateral joins, its current-document views use window functions, and core migrations depend on enforced CHECK constraints. Migration catalog comparisons are verified on MySQL 8.0.16, 8.0.46, 8.4.13 and 9.7.1. Select an InnoDB database with the utf8mb4_0900_ai_ci default collation. Grant the named schema privileges directly to the migration account. The dedicated CLI checks the server patch before provisioning, and the adapter repeats that check before creating its journal. MariaDB does not implement the required query contract.
 
 ## UUID and timestamp conventions
 

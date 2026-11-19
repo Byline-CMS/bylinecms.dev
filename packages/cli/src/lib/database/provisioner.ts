@@ -4,6 +4,7 @@ import type { DatabaseAdapterId } from '../../types.js'
 import type { Logger } from '../../ui/logger.js'
 
 export interface DbTargetInspection {
+  interruptedInstall?: boolean
   exists: boolean
   objects: string[]
 }
@@ -19,7 +20,7 @@ export interface ProvisionArgs {
 
 export interface BaselineArgs {
   applicationUrl: string
-  migrationsFolder?: string
+  resumeOnly?: boolean
   logger: Pick<Logger, 'step' | 'success'>
 }
 

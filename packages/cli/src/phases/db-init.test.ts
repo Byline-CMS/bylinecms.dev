@@ -50,9 +50,7 @@ describe.each([
     if (baseline?.type === 'baseline') {
       expect(baseline.args.applicationUrl).toMatch(new RegExp(`^${protocol}`))
       expect(new URL(baseline.args.applicationUrl).hostname).toBe('application-service.test')
-      if (adapter === 'mysql')
-        expect(baseline.args.migrationsFolder).toMatch(/\/migrations\/mysql$/)
-      else expect(baseline.args.migrationsFolder).toBeUndefined()
+      expect(baseline.args.resumeOnly).toBe(false)
     }
   })
 
@@ -151,6 +149,18 @@ it('builds a tag-pinned, adapter-correct native SQL upgrade URL', () => {
   expect(nativeSqlUpgradeUrl('mysql')).toBe(
     `https://github.com/Byline-CMS/bylinecms.dev/blob/v${CLI_PACKAGE_VERSION}/packages/db-mysql/sql/README.md`
   )
+})
+
+it('resumes an interrupted MySQL baseline with the existing credentials and skips provisioning', async () => {
+  const { ctx, calls } = testContext(
+    'mysql',
+    { exists: true, objects: ['byline_core_migrations'], interruptedInstall: true },
+    { port: 3306 }
+  )
+  ctx.secrets.dbPassword = 'existing-password'
+  expect((await dbInitPhase.apply(await dbInitPhase.plan(ctx), ctx)).state).toBe('done')
+  expect(calls.map((call) => call.type)).toEqual(['inspect', 'baseline'])
+  expect(calls[1]).toMatchObject({ type: 'baseline', args: { resumeOnly: true } })
 })
 
 function testContext(

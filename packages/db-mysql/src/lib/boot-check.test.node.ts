@@ -15,7 +15,7 @@ const queryReturning = (v: string) => async () => [{ v }]
 describe('assertMySqlVersion', () => {
   describe('accepts supported MySQL server versions', () => {
     it.each([
-      ['8.0.14', '8.0.14 — the exact floor'],
+      ['8.0.16', '8.0.16 — the exact floor'],
       ['8.4.0', '8.4.0'],
       ['9.7.1', "9.7.1 — this repo's dev container"],
       ['8.0.35-0ubuntu0.22.04.1', 'a distro-suffixed release string'],
@@ -26,7 +26,7 @@ describe('assertMySqlVersion', () => {
 
   describe('rejects unsupported servers', () => {
     it.each([
-      ['8.0.13', 'one patch below the floor'],
+      ['8.0.15', 'one patch below the floor'],
       ['8.0.0', 'the 8.0 GA release, below the floor'],
       ['5.7.44', 'MySQL 5.7'],
       ['11.4.2-MariaDB', 'a MariaDB version string'],

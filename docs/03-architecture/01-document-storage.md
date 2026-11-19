@@ -65,7 +65,7 @@ over an `IDbAdapter` factory. Both adapters run the same 14 suites against their
 database; a change to the shared model that breaks either adapter's behaviour fails a
 conformance suite before it fails anything a consumer would notice.
 
-PostgreSQL is the CLI's default database choice. MySQL 8.0.14 or later is also
+PostgreSQL is the CLI's default database choice. a supported MySQL release is also
 generally available: its storage layer passes the full conformance suite,
 `@byline/search-mysql` passes the shared search-provider conformance suite, and
 `byline init --database mysql` provisions and scaffolds the matching adapter,

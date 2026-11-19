@@ -58,10 +58,15 @@
       "import": "./dist/database/schema/index.js",
       "require": "./dist/database/schema/index.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./migrations": {
+      "types": "./dist/migrations/index.d.ts",
+      "import": "./dist/migrations/index.js"
+    }
   },
   "files": [
-    "dist"
+    "dist",
+    "migrations"
   ],
   "dependencies": {
     "@byline/admin": "workspace:*",

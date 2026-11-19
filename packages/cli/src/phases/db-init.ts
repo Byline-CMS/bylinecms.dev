@@ -1,4 +1,3 @@
-import { baselineDir } from '../lib/baseline.js'
 import { databaseAdapterDefinition } from '../lib/database/adapters.js'
 import {
   databaseIdentifierRequirement,
@@ -51,7 +50,7 @@ export const dbInitPhase: Phase = {
       }
     }
     if (answers.dbAdapter) {
-      notes.push(`apply the bundled ${answers.dbAdapter} fresh-install baseline`)
+      notes.push(`apply the adapter-owned ${answers.dbAdapter} fresh-install baseline`)
     }
     return { writes: [], commands: [], notes }
   },
@@ -121,31 +120,32 @@ export const dbInitPhase: Phase = {
       }
     }
 
+    let resumeOnly = false
     if (!ctx.reset) {
       ctx.logger.step(`inspecting database "${answers.dbName}" before any mutation`)
-      const targetState = classifyDbTarget(
-        await provisioner.inspectTarget(adminUrl, answers.dbName),
-        adapter
-      )
-      if (targetState === 'byline-schema' || targetState === 'occupied-schema') {
+      const inspection = await provisioner.inspectTarget(adminUrl, answers.dbName)
+      resumeOnly = adapter === 'mysql' && inspection.interruptedInstall === true
+      const targetState = classifyDbTarget(inspection, adapter)
+      if (!resumeOnly && (targetState === 'byline-schema' || targetState === 'occupied-schema')) {
         refuseOccupiedTarget(ctx, adapter, answers.dbName, targetState)
         return { state: 'blocked' }
       }
     }
 
-    const password = await resolveAppPassword(ctx, definition.label)
+    const password = await resolveAppPassword(ctx, definition.label, resumeOnly)
     if (!password) return { state: 'blocked' }
     ctx.secrets.dbPassword = password
 
     await provisioner.verifyBaselineAssets?.()
-    await provisioner.provisionTarget({
-      adminUrl,
-      database: answers.dbName,
-      user: answers.dbUser,
-      password,
-      reset: ctx.reset,
-      logger: ctx.logger,
-    })
+    if (!resumeOnly)
+      await provisioner.provisionTarget({
+        adminUrl,
+        database: answers.dbName,
+        user: answers.dbUser,
+        password,
+        reset: ctx.reset,
+        logger: ctx.logger,
+      })
 
     const applicationUrl = buildDbUrl(adapter, {
       host: answers.dbHost,
@@ -156,7 +156,7 @@ export const dbInitPhase: Phase = {
     })
     await provisioner.applyBaseline({
       applicationUrl,
-      migrationsFolder: adapter === 'mysql' ? baselineDir(ctx.templatesDir(), adapter) : undefined,
+      resumeOnly,
       logger: ctx.logger,
     })
 
@@ -253,7 +253,11 @@ async function resolveAdminUrl(
   return url
 }
 
-async function resolveAppPassword(ctx: Context, databaseLabel: string): Promise<string | null> {
+async function resolveAppPassword(
+  ctx: Context,
+  databaseLabel: string,
+  resumeOnly: boolean
+): Promise<string | null> {
   if (ctx.secrets.dbPassword) return ctx.secrets.dbPassword
   const fromEnv = process.env.BYLINE_DB_PASSWORD
   if (fromEnv) {
@@ -265,7 +269,9 @@ async function resolveAppPassword(ctx: Context, databaseLabel: string): Promise<
     return fromEnv
   }
   const password = await ctx.prompter.password({
-    message: `Choose a password for that ${databaseLabel} database login (min 8 chars)`,
+    message: resumeOnly
+      ? `Enter the existing ${databaseLabel} login password to resume installation`
+      : `Choose a password for that ${databaseLabel} database login (min 8 chars)`,
     validate: (value) => (value.length < 8 ? 'must be at least 8 characters' : undefined),
   })
   return password || null

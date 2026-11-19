@@ -36,7 +36,7 @@ describe.each(DATABASE_ADAPTER_IDS)('%s database adapter registration', (id) => 
 it('keeps the default explicit and first without relying on registry key order', () => {
   expect(DEFAULT_DATABASE_ADAPTER).toBe('postgres')
   expect(DATABASE_ADAPTER_IDS[0]).toBe(DEFAULT_DATABASE_ADAPTER)
-  expect(DATABASE_ADAPTERS.mysql.selectionLabel).toContain('8.0.14')
+  expect(DATABASE_ADAPTERS.mysql.selectionLabel).toContain('8.0.16')
 })
 
 it('keeps cross-adapter package and environment registrations unique', () => {

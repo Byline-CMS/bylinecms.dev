@@ -1,0 +1,1125 @@
+{
+  "version": 10,
+  "name": "baseline",
+  "classification": "fenced",
+  "compatible_from": 10,
+  "sha256": "1342b02e7e594bdc9a1a4d1b54951fdfd9683d9aba9724cb5ca8bbb2189c3302",
+  "journal": [
+    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Byline core migration journal format 1'",
+    "CREATE TABLE `byline_core_migrations` (",
+    "PRIMARY KEY (`version`)",
+    "column 1 `version` int unsigned NOT NULL",
+    "column 10 `recorded_by` varchar(288) NOT NULL",
+    "column 11 `completed_at` datetime(6) DEFAULT NULL",
+    "column 2 `format_version` int unsigned NOT NULL",
+    "column 3 `installation_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+    "column 4 `origin` varchar(10) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+    "column 5 `digest` char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+    "column 6 `state` varchar(10) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+    "column 7 `classification` varchar(10) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+    "column 8 `compatible_from` int unsigned NOT NULL",
+    "column 9 `stage` int unsigned NOT NULL"
+  ],
+  "stages": [
+    {
+      "object": "byline_admin_login_sessions",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_admin_login_sessions` (",
+        "PRIMARY KEY (`id`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 2 `admin_user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 3 `session_version` int NOT NULL",
+        "column 4 `expires_at` datetime(6) NOT NULL",
+        "column 5 `revoked_at` datetime(6) DEFAULT NULL"
+      ]
+    },
+    {
+      "object": "byline_admin_passkey_attempts",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_admin_passkey_attempts` (",
+        "PRIMARY KEY (`token_hash`)",
+        "column 1 `token_hash` varbinary(64) NOT NULL",
+        "column 10 `proof_credential_id` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL",
+        "column 11 `created_at` datetime(6) NOT NULL",
+        "column 12 `expires_at` datetime(6) NOT NULL",
+        "column 13 `consumed_at` datetime(6) DEFAULT NULL",
+        "column 2 `purpose` varchar(24) NOT NULL",
+        "column 3 `challenge` varchar(43) DEFAULT NULL",
+        "column 4 `actor_user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL",
+        "column 5 `actor_login_id` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL",
+        "column 6 `actor_generation` int DEFAULT NULL",
+        "column 7 `action` varchar(8) DEFAULT NULL",
+        "column 8 `target_user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL",
+        "column 9 `credential_record_id` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL"
+      ]
+    },
+    {
+      "object": "byline_admin_passkey_credentials",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_admin_passkey_credentials` (",
+        "PRIMARY KEY (`id`)",
+        "UNIQUE KEY `byline_admin_passkey_credentials_credential_id_unique` (`credential_id`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 10 `created_at` datetime(6) NOT NULL",
+        "column 11 `last_used_at` datetime(6) DEFAULT NULL",
+        "column 12 `revoked_at` datetime(6) DEFAULT NULL",
+        "column 2 `admin_user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL",
+        "column 3 `credential_id` varbinary(1366) NOT NULL",
+        "column 4 `public_key` text NOT NULL",
+        "column 5 `counter` bigint NOT NULL",
+        "column 6 `transports` json NOT NULL",
+        "column 7 `backup_eligible` tinyint(1) NOT NULL",
+        "column 8 `backed_up` tinyint(1) NOT NULL",
+        "column 9 `name` varchar(80) NOT NULL"
+      ]
+    },
+    {
+      "object": "byline_admin_permissions",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_admin_permissions` (",
+        "PRIMARY KEY (`id`)",
+        "UNIQUE KEY `uq_byline_admin_permissions_role_ability` (`admin_role_id`,`ability`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 2 `vid` int NOT NULL DEFAULT '1'",
+        "column 3 `admin_role_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 4 `ability` varchar(128) NOT NULL",
+        "column 5 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 6 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_admin_refresh_tokens",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_admin_refresh_tokens` (",
+        "PRIMARY KEY (`id`)",
+        "UNIQUE KEY `byline_admin_refresh_tokens_token_hash_unique` (`token_hash`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 10 `last_used_at` datetime(6) DEFAULT NULL",
+        "column 11 `user_agent` varchar(512) DEFAULT NULL",
+        "column 12 `ip` varchar(45) DEFAULT NULL",
+        "column 13 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 14 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 2 `admin_user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 3 `sid` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL",
+        "column 4 `token_hash` varchar(64) NOT NULL",
+        "column 5 `session_version` int NOT NULL DEFAULT '-1'",
+        "column 6 `issued_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 7 `expires_at` datetime(6) NOT NULL",
+        "column 8 `revoked_at` datetime(6) DEFAULT NULL",
+        "column 9 `rotated_to_id` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL"
+      ]
+    },
+    {
+      "object": "byline_admin_role_admin_user",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_admin_role_admin_user` (",
+        "PRIMARY KEY (`admin_role_id`,`admin_user_id`)",
+        "column 1 `admin_role_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 2 `admin_user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 3 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_admin_roles",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_admin_roles` (",
+        "PRIMARY KEY (`id`)",
+        "UNIQUE KEY `byline_admin_roles_machine_name_unique` (`machine_name`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 2 `vid` int NOT NULL DEFAULT '1'",
+        "column 3 `name` varchar(128) NOT NULL",
+        "column 4 `machine_name` varchar(128) NOT NULL",
+        "column 5 `description` text",
+        "column 6 `order` int NOT NULL DEFAULT '0'",
+        "column 7 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 8 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_admin_sign_in_rate_limits",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_admin_sign_in_rate_limits` (",
+        "PRIMARY KEY (`key`)",
+        "column 1 `key` varchar(64) NOT NULL",
+        "column 2 `attempts` int NOT NULL",
+        "column 3 `expires_at` datetime(3) NOT NULL"
+      ]
+    },
+    {
+      "object": "byline_admin_user_preferences",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_admin_user_preferences` (",
+        "PRIMARY KEY (`user_id`,`scope`)",
+        "column 1 `user_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 2 `scope` varchar(255) NOT NULL",
+        "column 3 `value` json NOT NULL",
+        "column 4 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 5 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_admin_users",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_admin_users` (",
+        "PRIMARY KEY (`id`)",
+        "UNIQUE KEY `byline_admin_users_email_unique` (`email`)",
+        "UNIQUE KEY `byline_admin_users_username_unique` (`username`)",
+        "UNIQUE KEY `byline_admin_users_webauthn_user_handle_unique` (`webauthn_user_handle`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 10 `remember_me` tinyint(1) NOT NULL DEFAULT '0'",
+        "column 11 `last_login` datetime(6) DEFAULT NULL",
+        "column 12 `last_login_ip` varchar(45) DEFAULT NULL",
+        "column 13 `failed_login_attempts` int NOT NULL DEFAULT '0'",
+        "column 14 `is_super_admin` tinyint(1) NOT NULL DEFAULT '0'",
+        "column 15 `is_enabled` tinyint(1) NOT NULL DEFAULT '0'",
+        "column 16 `is_email_verified` tinyint(1) NOT NULL DEFAULT '0'",
+        "column 17 `preferred_locale` varchar(16) DEFAULT NULL",
+        "column 18 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 19 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 2 `webauthn_user_handle` varbinary(43) DEFAULT NULL",
+        "column 3 `session_version` int NOT NULL DEFAULT '0'",
+        "column 4 `vid` int NOT NULL DEFAULT '1'",
+        "column 5 `given_name` varchar(100) DEFAULT NULL",
+        "column 6 `family_name` varchar(100) DEFAULT NULL",
+        "column 7 `username` varchar(64) DEFAULT NULL",
+        "column 8 `email` varchar(254) NOT NULL",
+        "column 9 `password` varchar(255) NOT NULL"
+      ]
+    },
+    {
+      "object": "byline_audit_log",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_audit_log` (",
+        "PRIMARY KEY (`id`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 10 `occurred_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 2 `document_id` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL",
+        "column 3 `collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL",
+        "column 4 `actor_id` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL",
+        "column 5 `actor_realm` varchar(16) NOT NULL",
+        "column 6 `action` varchar(64) NOT NULL",
+        "column 7 `field` varchar(128) DEFAULT NULL",
+        "column 8 `before` json DEFAULT NULL",
+        "column 9 `after` json DEFAULT NULL"
+      ]
+    },
+    {
+      "object": "byline_store_boolean",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_store_boolean` (",
+        "PRIMARY KEY (`id`)",
+        "UNIQUE KEY `unique_boolean_field` (`document_version_id`,`field_path`,`locale`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 10 `value` tinyint(1) NOT NULL",
+        "column 2 `document_version_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 3 `collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 4 `field_path` varchar(500) NOT NULL",
+        "column 5 `field_name` varchar(255) NOT NULL",
+        "column 6 `locale` varchar(10) NOT NULL DEFAULT 'default'",
+        "column 7 `parent_path` varchar(500) DEFAULT NULL",
+        "column 8 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 9 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_collections",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_collections` (",
+        "PRIMARY KEY (`id`)",
+        "UNIQUE KEY `byline_collections_path_unique` (`path`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 2 `path` varchar(255) NOT NULL",
+        "column 3 `singular` text NOT NULL",
+        "column 4 `plural` text NOT NULL",
+        "column 5 `config` json NOT NULL",
+        "column 6 `version` int NOT NULL DEFAULT '1'",
+        "column 7 `schema_hash` varchar(64) DEFAULT NULL",
+        "column 8 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 9 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_counter_groups",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_counter_groups` (",
+        "PRIMARY KEY (`group_name`)",
+        "column 1 `group_name` varchar(255) NOT NULL",
+        "column 2 `sequence_name` text NOT NULL",
+        "column 3 `current_value` bigint NOT NULL DEFAULT '0'",
+        "column 4 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_store_datetime",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_store_datetime` (",
+        "PRIMARY KEY (`id`)",
+        "UNIQUE KEY `unique_datetime_field` (`document_version_id`,`field_path`,`locale`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 10 `date_type` varchar(20) NOT NULL",
+        "column 11 `value_date` date DEFAULT NULL",
+        "column 12 `value_time` time(3) DEFAULT NULL",
+        "column 13 `value_timestamp_tz` datetime(6) DEFAULT NULL",
+        "column 2 `document_version_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 3 `collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 4 `field_path` varchar(500) NOT NULL",
+        "column 5 `field_name` varchar(255) NOT NULL",
+        "column 6 `locale` varchar(10) NOT NULL DEFAULT 'default'",
+        "column 7 `parent_path` varchar(500) DEFAULT NULL",
+        "column 8 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 9 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_document_available_locales",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_document_available_locales` (",
+        "PRIMARY KEY (`document_id`,`locale`)",
+        "column 1 `document_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 2 `locale` varchar(10) NOT NULL",
+        "column 3 `collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 4 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 5 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_document_paths",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_document_paths` (",
+        "UNIQUE KEY `idx_document_paths_collection_locale_path` (`collection_id`,`locale`,`path`,`alive`)",
+        "UNIQUE KEY `unique_document_paths_document_locale` (`document_id`,`locale`)",
+        "column 1 `document_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 2 `locale` varchar(10) NOT NULL",
+        "column 3 `collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 4 `path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL",
+        "column 5 `deleted_at` datetime(6) DEFAULT NULL",
+        "column 6 `alive` tinyint(1) GENERATED ALWAYS AS ((case when (`deleted_at` is null) then true else NULL end)) STORED",
+        "column 7 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 8 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_document_publish_schedules",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CONSTRAINT `check_publish_schedules_authorized_revision` CHECK (((`authorized_revision` is null) or (`authorized_revision` between 1 and 9007199254740991)))",
+        "CONSTRAINT `check_publish_schedules_state` CHECK ((`state` in (_utf8mb4'armed',_utf8mb4'needs_reconfirm')))",
+        "CONSTRAINT `check_publish_schedules_suspended_reason` CHECK (((`suspended_reason` is null) or (`suspended_reason` in (_utf8mb4'content_edited',_utf8mb4'document_metadata_changed',_utf8mb4'upgrade_invalidated'))))",
+        "CREATE TABLE `byline_document_publish_schedules` (",
+        "PRIMARY KEY (`document_id`)",
+        "column 1 `document_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 10 `last_authorized_by` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL",
+        "column 11 `last_authorized_at` datetime(6) NOT NULL",
+        "column 12 `scheduled_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 13 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 14 `execution_token` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL",
+        "column 15 `execution_expires_at` datetime(6) DEFAULT NULL",
+        "column 16 `last_attempt_at` datetime(6) DEFAULT NULL",
+        "column 17 `next_attempt_at` datetime(6) NOT NULL",
+        "column 18 `attempt_count` int NOT NULL DEFAULT '0'",
+        "column 19 `last_error` text",
+        "column 2 `collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 3 `target_version_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 4 `authorized_revision` bigint DEFAULT NULL",
+        "column 5 `publish_at` datetime(6) NOT NULL",
+        "column 6 `state` varchar(32) NOT NULL DEFAULT 'armed'",
+        "column 7 `suspended_at` datetime(6) DEFAULT NULL",
+        "column 8 `suspended_reason` varchar(32) DEFAULT NULL",
+        "column 9 `scheduled_by` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL"
+      ]
+    },
+    {
+      "object": "byline_document_relationships",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_document_relationships` (",
+        "UNIQUE KEY `uq_document_relationships_child` (`child_document_id`)",
+        "column 1 `child_document_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 2 `parent_document_id` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL",
+        "column 3 `order_key` varchar(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 4 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 5 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_document_version_locales",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_document_version_locales` (",
+        "PRIMARY KEY (`document_version_id`,`locale`)",
+        "column 1 `document_version_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 2 `locale` varchar(10) NOT NULL"
+      ]
+    },
+    {
+      "object": "byline_document_versions",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_document_versions` (",
+        "PRIMARY KEY (`id`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 10 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 11 `created_by` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL",
+        "column 12 `change_summary` text",
+        "column 2 `document_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 3 `collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 4 `collection_version` int NOT NULL",
+        "column 5 `doc` json DEFAULT NULL",
+        "column 6 `event_type` varchar(20) NOT NULL DEFAULT 'create'",
+        "column 7 `status` varchar(50) DEFAULT 'draft'",
+        "column 8 `is_deleted` tinyint(1) DEFAULT '0'",
+        "column 9 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_documents",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CONSTRAINT `check_documents_revision` CHECK ((`revision` between 1 and 9007199254740991))",
+        "CREATE TABLE `byline_documents` (",
+        "PRIMARY KEY (`id`)",
+        "UNIQUE KEY `uq_documents_collection_id_id` (`collection_id`,`id`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 2 `collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 3 `order_key` varchar(128) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL",
+        "column 4 `source_locale` varchar(10) NOT NULL",
+        "column 5 `revision` bigint NOT NULL",
+        "column 6 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 7 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_store_file",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_store_file` (",
+        "PRIMARY KEY (`id`)",
+        "UNIQUE KEY `unique_file_field` (`document_version_id`,`field_path`,`locale`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 10 `file_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 11 `filename` varchar(255) NOT NULL",
+        "column 12 `original_filename` varchar(255) NOT NULL",
+        "column 13 `mime_type` varchar(100) NOT NULL",
+        "column 14 `file_size` bigint NOT NULL",
+        "column 15 `file_hash` varchar(64) DEFAULT NULL",
+        "column 16 `storage_validator_kind` varchar(32) DEFAULT NULL",
+        "column 17 `storage_validator_value` varchar(1024) DEFAULT NULL",
+        "column 18 `storage_provider` varchar(50) NOT NULL",
+        "column 19 `storage_path` text NOT NULL",
+        "column 2 `document_version_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 20 `storage_url` text",
+        "column 21 `image_width` int DEFAULT NULL",
+        "column 22 `image_height` int DEFAULT NULL",
+        "column 23 `image_format` varchar(20) DEFAULT NULL",
+        "column 24 `processing_status` varchar(20) DEFAULT 'pending'",
+        "column 25 `thumbnail_generated` tinyint(1) DEFAULT '0'",
+        "column 26 `variants` json DEFAULT NULL",
+        "column 3 `collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 4 `field_path` varchar(500) NOT NULL",
+        "column 5 `field_name` varchar(255) NOT NULL",
+        "column 6 `locale` varchar(10) NOT NULL DEFAULT 'default'",
+        "column 7 `parent_path` varchar(500) DEFAULT NULL",
+        "column 8 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 9 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_store_json",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_store_json` (",
+        "PRIMARY KEY (`id`)",
+        "UNIQUE KEY `unique_json_field` (`document_version_id`,`field_path`,`locale`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 10 `value` json NOT NULL",
+        "column 11 `json_schema` varchar(100) DEFAULT NULL",
+        "column 12 `object_keys` json DEFAULT NULL",
+        "column 2 `document_version_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 3 `collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 4 `field_path` varchar(500) NOT NULL",
+        "column 5 `field_name` varchar(255) NOT NULL",
+        "column 6 `locale` varchar(10) NOT NULL DEFAULT 'default'",
+        "column 7 `parent_path` varchar(500) DEFAULT NULL",
+        "column 8 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 9 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_store_meta",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_store_meta` (",
+        "PRIMARY KEY (`id`)",
+        "UNIQUE KEY `unique_meta_node` (`document_version_id`,`type`,`path`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 2 `document_version_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 3 `collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 4 `type` varchar(50) NOT NULL",
+        "column 5 `path` varchar(512) NOT NULL",
+        "column 6 `item_id` varchar(255) NOT NULL",
+        "column 7 `meta` json DEFAULT NULL",
+        "column 8 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 9 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_store_numeric",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_store_numeric` (",
+        "PRIMARY KEY (`id`)",
+        "UNIQUE KEY `unique_numeric_field` (`document_version_id`,`field_path`,`locale`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 10 `number_type` varchar(20) NOT NULL",
+        "column 11 `value_integer` int DEFAULT NULL",
+        "column 12 `value_decimal` decimal(10,2) DEFAULT NULL",
+        "column 13 `value_float` float DEFAULT NULL",
+        "column 2 `document_version_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 3 `collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 4 `field_path` varchar(500) NOT NULL",
+        "column 5 `field_name` varchar(255) NOT NULL",
+        "column 6 `locale` varchar(10) NOT NULL DEFAULT 'default'",
+        "column 7 `parent_path` varchar(500) DEFAULT NULL",
+        "column 8 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 9 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_recurring_tasks",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_recurring_tasks` (",
+        "PRIMARY KEY (`name`)",
+        "column 1 `name` varchar(255) NOT NULL",
+        "column 10 `last_duration_ms` bigint DEFAULT NULL",
+        "column 11 `consecutive_failures` int NOT NULL DEFAULT '0'",
+        "column 12 `last_status` varchar(32) NOT NULL DEFAULT 'never_run'",
+        "column 13 `last_error` text",
+        "column 14 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 15 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 2 `interval_ms` bigint NOT NULL",
+        "column 3 `next_run_at` datetime(6) NOT NULL",
+        "column 4 `lease_token` char(36) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL",
+        "column 5 `lease_owner` varchar(255) DEFAULT NULL",
+        "column 6 `lease_expires_at` datetime(6) DEFAULT NULL",
+        "column 7 `last_started_at` datetime(6) DEFAULT NULL",
+        "column 8 `last_succeeded_at` datetime(6) DEFAULT NULL",
+        "column 9 `last_failed_at` datetime(6) DEFAULT NULL"
+      ]
+    },
+    {
+      "object": "byline_store_relation",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_store_relation` (",
+        "PRIMARY KEY (`id`)",
+        "UNIQUE KEY `unique_relation_field` (`document_version_id`,`field_path`,`locale`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 10 `target_document_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 11 `target_collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 12 `relationship_type` varchar(50) DEFAULT 'reference'",
+        "column 13 `cascade_delete` tinyint(1) DEFAULT '0'",
+        "column 2 `document_version_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 3 `collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 4 `field_path` varchar(500) NOT NULL",
+        "column 5 `field_name` varchar(255) NOT NULL",
+        "column 6 `locale` varchar(10) NOT NULL DEFAULT 'default'",
+        "column 7 `parent_path` varchar(500) DEFAULT NULL",
+        "column 8 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 9 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_singleton_documents",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_singleton_documents` (",
+        "PRIMARY KEY (`collection_id`)",
+        "UNIQUE KEY `byline_singleton_documents_document_id_unique` (`document_id`)",
+        "column 1 `collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 2 `document_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL"
+      ]
+    },
+    {
+      "object": "byline_store_text",
+      "add": [
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci",
+        "CREATE TABLE `byline_store_text` (",
+        "PRIMARY KEY (`id`)",
+        "UNIQUE KEY `unique_text_field` (`document_version_id`,`field_path`,`locale`)",
+        "column 1 `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 10 `value` text NOT NULL",
+        "column 11 `word_count` int DEFAULT NULL",
+        "column 2 `document_version_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 3 `collection_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL",
+        "column 4 `field_path` varchar(500) NOT NULL",
+        "column 5 `field_name` varchar(255) NOT NULL",
+        "column 6 `locale` varchar(10) NOT NULL DEFAULT 'default'",
+        "column 7 `parent_path` varchar(500) DEFAULT NULL",
+        "column 8 `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+        "column 9 `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"
+      ]
+    },
+    {
+      "object": "byline_admin_login_sessions",
+      "add": [
+        "CONSTRAINT `fk_admin_login_sessions_user` FOREIGN KEY (`admin_user_id`) REFERENCES `byline_admin_users` (`id`) ON DELETE CASCADE",
+        "KEY `fk_admin_login_sessions_user` (`admin_user_id`)"
+      ]
+    },
+    {
+      "object": "byline_admin_passkey_credentials",
+      "add": [
+        "CONSTRAINT `fk_admin_passkeys_user` FOREIGN KEY (`admin_user_id`) REFERENCES `byline_admin_users` (`id`) ON DELETE SET NULL",
+        "KEY `fk_admin_passkeys_user` (`admin_user_id`)"
+      ]
+    },
+    {
+      "object": "byline_admin_permissions",
+      "add": [
+        "CONSTRAINT `fk_admin_permissions_admin_role_id` FOREIGN KEY (`admin_role_id`) REFERENCES `byline_admin_roles` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_admin_refresh_tokens",
+      "add": [
+        "CONSTRAINT `fk_admin_refresh_tokens_sid` FOREIGN KEY (`sid`) REFERENCES `byline_admin_login_sessions` (`id`) ON DELETE CASCADE",
+        "KEY `fk_admin_refresh_tokens_sid` (`sid`)"
+      ]
+    },
+    {
+      "object": "byline_admin_refresh_tokens",
+      "add": [
+        "CONSTRAINT `fk_admin_refresh_tokens_admin_user_id` FOREIGN KEY (`admin_user_id`) REFERENCES `byline_admin_users` (`id`) ON DELETE CASCADE",
+        "KEY `fk_admin_refresh_tokens_admin_user_id` (`admin_user_id`)"
+      ]
+    },
+    {
+      "object": "byline_admin_role_admin_user",
+      "add": [
+        "CONSTRAINT `fk_admin_role_admin_user_admin_role_id` FOREIGN KEY (`admin_role_id`) REFERENCES `byline_admin_roles` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_admin_role_admin_user",
+      "add": [
+        "CONSTRAINT `fk_admin_role_admin_user_admin_user_id` FOREIGN KEY (`admin_user_id`) REFERENCES `byline_admin_users` (`id`) ON DELETE CASCADE",
+        "KEY `fk_admin_role_admin_user_admin_user_id` (`admin_user_id`)"
+      ]
+    },
+    {
+      "object": "byline_admin_user_preferences",
+      "add": [
+        "CONSTRAINT `fk_admin_user_preferences_user_id` FOREIGN KEY (`user_id`) REFERENCES `byline_admin_users` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_store_boolean",
+      "add": [
+        "CONSTRAINT `fk_store_boolean_document_version_id` FOREIGN KEY (`document_version_id`) REFERENCES `byline_document_versions` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_store_boolean",
+      "add": [
+        "CONSTRAINT `fk_store_boolean_collection_id` FOREIGN KEY (`collection_id`) REFERENCES `byline_collections` (`id`) ON DELETE CASCADE",
+        "KEY `fk_store_boolean_collection_id` (`collection_id`)"
+      ]
+    },
+    {
+      "object": "byline_store_datetime",
+      "add": [
+        "CONSTRAINT `fk_store_datetime_document_version_id` FOREIGN KEY (`document_version_id`) REFERENCES `byline_document_versions` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_store_datetime",
+      "add": [
+        "CONSTRAINT `fk_store_datetime_collection_id` FOREIGN KEY (`collection_id`) REFERENCES `byline_collections` (`id`) ON DELETE CASCADE",
+        "KEY `fk_store_datetime_collection_id` (`collection_id`)"
+      ]
+    },
+    {
+      "object": "byline_document_available_locales",
+      "add": [
+        "CONSTRAINT `fk_document_available_locales_document_id` FOREIGN KEY (`document_id`) REFERENCES `byline_documents` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_document_available_locales",
+      "add": [
+        "CONSTRAINT `fk_document_available_locales_collection_id` FOREIGN KEY (`collection_id`) REFERENCES `byline_collections` (`id`) ON DELETE CASCADE",
+        "KEY `fk_document_available_locales_collection_id` (`collection_id`)"
+      ]
+    },
+    {
+      "object": "byline_document_paths",
+      "add": [
+        "CONSTRAINT `fk_document_paths_document_id` FOREIGN KEY (`document_id`) REFERENCES `byline_documents` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_document_paths",
+      "add": [
+        "CONSTRAINT `fk_document_paths_collection_id` FOREIGN KEY (`collection_id`) REFERENCES `byline_collections` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_document_publish_schedules",
+      "add": [
+        "CONSTRAINT `fk_publish_schedules_document` FOREIGN KEY (`document_id`) REFERENCES `byline_documents` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_document_publish_schedules",
+      "add": [
+        "CONSTRAINT `fk_publish_schedules_collection` FOREIGN KEY (`collection_id`) REFERENCES `byline_collections` (`id`) ON DELETE CASCADE",
+        "KEY `fk_publish_schedules_collection` (`collection_id`)"
+      ]
+    },
+    {
+      "object": "byline_document_publish_schedules",
+      "add": [
+        "CONSTRAINT `fk_publish_schedules_target_version` FOREIGN KEY (`target_version_id`) REFERENCES `byline_document_versions` (`id`) ON DELETE CASCADE",
+        "KEY `fk_publish_schedules_target_version` (`target_version_id`)"
+      ]
+    },
+    {
+      "object": "byline_document_relationships",
+      "add": [
+        "CONSTRAINT `fk_document_relationships_child_document_id` FOREIGN KEY (`child_document_id`) REFERENCES `byline_documents` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_document_relationships",
+      "add": [
+        "CONSTRAINT `fk_document_relationships_parent_document_id` FOREIGN KEY (`parent_document_id`) REFERENCES `byline_documents` (`id`) ON DELETE SET NULL",
+        "KEY `fk_document_relationships_parent_document_id` (`parent_document_id`)"
+      ]
+    },
+    {
+      "object": "byline_document_version_locales",
+      "add": [
+        "CONSTRAINT `fk_document_version_locales_document_version_id` FOREIGN KEY (`document_version_id`) REFERENCES `byline_document_versions` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_document_versions",
+      "add": [
+        "CONSTRAINT `fk_document_versions_document_id` FOREIGN KEY (`document_id`) REFERENCES `byline_documents` (`id`) ON DELETE CASCADE",
+        "KEY `fk_document_versions_document_id` (`document_id`)"
+      ]
+    },
+    {
+      "object": "byline_document_versions",
+      "add": [
+        "CONSTRAINT `fk_document_versions_collection_id` FOREIGN KEY (`collection_id`) REFERENCES `byline_collections` (`id`) ON DELETE CASCADE",
+        "KEY `fk_document_versions_collection_id` (`collection_id`)"
+      ]
+    },
+    {
+      "object": "byline_documents",
+      "add": [
+        "CONSTRAINT `fk_documents_collection_id` FOREIGN KEY (`collection_id`) REFERENCES `byline_collections` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_store_file",
+      "add": [
+        "CONSTRAINT `fk_store_file_document_version_id` FOREIGN KEY (`document_version_id`) REFERENCES `byline_document_versions` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_store_file",
+      "add": [
+        "CONSTRAINT `fk_store_file_collection_id` FOREIGN KEY (`collection_id`) REFERENCES `byline_collections` (`id`) ON DELETE CASCADE",
+        "KEY `fk_store_file_collection_id` (`collection_id`)"
+      ]
+    },
+    {
+      "object": "byline_store_json",
+      "add": [
+        "CONSTRAINT `fk_store_json_document_version_id` FOREIGN KEY (`document_version_id`) REFERENCES `byline_document_versions` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_store_json",
+      "add": [
+        "CONSTRAINT `fk_store_json_collection_id` FOREIGN KEY (`collection_id`) REFERENCES `byline_collections` (`id`) ON DELETE CASCADE",
+        "KEY `fk_store_json_collection_id` (`collection_id`)"
+      ]
+    },
+    {
+      "object": "byline_store_meta",
+      "add": [
+        "CONSTRAINT `fk_store_meta_document_version_id` FOREIGN KEY (`document_version_id`) REFERENCES `byline_document_versions` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_store_meta",
+      "add": [
+        "CONSTRAINT `fk_store_meta_collection_id` FOREIGN KEY (`collection_id`) REFERENCES `byline_collections` (`id`) ON DELETE CASCADE",
+        "KEY `fk_store_meta_collection_id` (`collection_id`)"
+      ]
+    },
+    {
+      "object": "byline_store_numeric",
+      "add": [
+        "CONSTRAINT `fk_store_numeric_document_version_id` FOREIGN KEY (`document_version_id`) REFERENCES `byline_document_versions` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_store_numeric",
+      "add": [
+        "CONSTRAINT `fk_store_numeric_collection_id` FOREIGN KEY (`collection_id`) REFERENCES `byline_collections` (`id`) ON DELETE CASCADE",
+        "KEY `fk_store_numeric_collection_id` (`collection_id`)"
+      ]
+    },
+    {
+      "object": "byline_store_relation",
+      "add": [
+        "CONSTRAINT `fk_store_relation_document_version_id` FOREIGN KEY (`document_version_id`) REFERENCES `byline_document_versions` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_store_relation",
+      "add": [
+        "CONSTRAINT `fk_store_relation_collection_id` FOREIGN KEY (`collection_id`) REFERENCES `byline_collections` (`id`) ON DELETE CASCADE",
+        "KEY `fk_store_relation_collection_id` (`collection_id`)"
+      ]
+    },
+    {
+      "object": "byline_store_relation",
+      "add": [
+        "CONSTRAINT `fk_store_relation_target_document_id` FOREIGN KEY (`target_document_id`) REFERENCES `byline_documents` (`id`)",
+        "KEY `fk_store_relation_target_document_id` (`target_document_id`)"
+      ]
+    },
+    {
+      "object": "byline_store_relation",
+      "add": [
+        "CONSTRAINT `fk_store_relation_target_collection_id` FOREIGN KEY (`target_collection_id`) REFERENCES `byline_collections` (`id`)",
+        "KEY `fk_store_relation_target_collection_id` (`target_collection_id`)"
+      ]
+    },
+    {
+      "object": "byline_singleton_documents",
+      "add": [
+        "CONSTRAINT `fk_singleton_documents_document` FOREIGN KEY (`collection_id`, `document_id`) REFERENCES `byline_documents` (`collection_id`, `id`) ON DELETE CASCADE",
+        "KEY `fk_singleton_documents_document` (`collection_id`,`document_id`)"
+      ]
+    },
+    {
+      "object": "byline_store_text",
+      "add": [
+        "CONSTRAINT `fk_store_text_document_version_id` FOREIGN KEY (`document_version_id`) REFERENCES `byline_document_versions` (`id`) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "object": "byline_store_text",
+      "add": [
+        "CONSTRAINT `fk_store_text_collection_id` FOREIGN KEY (`collection_id`) REFERENCES `byline_collections` (`id`) ON DELETE CASCADE",
+        "KEY `fk_store_text_collection_id` (`collection_id`)"
+      ]
+    },
+    {
+      "object": "byline_admin_login_sessions",
+      "remove": ["KEY `fk_admin_login_sessions_user` (`admin_user_id`)"],
+      "add": ["KEY `idx_admin_login_sessions_user` (`admin_user_id`)"]
+    },
+    {
+      "object": "byline_admin_login_sessions",
+      "add": ["KEY `idx_admin_login_sessions_expiry` (`expires_at`)"]
+    },
+    {
+      "object": "byline_admin_login_sessions",
+      "add": ["KEY `idx_admin_login_sessions_revoked` (`revoked_at`)"]
+    },
+    {
+      "object": "byline_admin_passkey_attempts",
+      "add": ["KEY `idx_admin_passkey_attempts_expiry` (`expires_at`)"]
+    },
+    {
+      "object": "byline_admin_passkey_attempts",
+      "add": ["KEY `idx_admin_passkey_attempts_consumed` (`consumed_at`)"]
+    },
+    {
+      "object": "byline_admin_passkey_attempts",
+      "add": ["KEY `idx_admin_passkey_attempts_login` (`actor_login_id`)"]
+    },
+    {
+      "object": "byline_admin_passkey_credentials",
+      "remove": ["KEY `fk_admin_passkeys_user` (`admin_user_id`)"],
+      "add": ["KEY `idx_admin_passkeys_user` (`admin_user_id`)"]
+    },
+    {
+      "object": "byline_admin_permissions",
+      "add": ["KEY `idx_byline_admin_permissions_role` (`admin_role_id`)"]
+    },
+    {
+      "object": "byline_admin_refresh_tokens",
+      "remove": ["KEY `fk_admin_refresh_tokens_sid` (`sid`)"],
+      "add": ["KEY `idx_admin_refresh_tokens_sid` (`sid`)"]
+    },
+    {
+      "object": "byline_admin_refresh_tokens",
+      "add": ["KEY `idx_admin_refresh_tokens_legacy_expiry` (`sid`,`expires_at`)"]
+    },
+    {
+      "object": "byline_admin_refresh_tokens",
+      "remove": ["KEY `fk_admin_refresh_tokens_admin_user_id` (`admin_user_id`)"],
+      "add": ["KEY `idx_byline_admin_refresh_tokens_user` (`admin_user_id`)"]
+    },
+    {
+      "object": "byline_admin_refresh_tokens",
+      "add": ["KEY `idx_byline_admin_refresh_tokens_token_hash` (`token_hash`)"]
+    },
+    {
+      "object": "byline_admin_role_admin_user",
+      "remove": ["KEY `fk_admin_role_admin_user_admin_user_id` (`admin_user_id`)"],
+      "add": ["KEY `idx_byline_admin_role_admin_user_user` (`admin_user_id`)"]
+    },
+    {
+      "object": "byline_admin_roles",
+      "add": ["KEY `idx_byline_admin_roles_machine_name` (`machine_name`)"]
+    },
+    {
+      "object": "byline_admin_sign_in_rate_limits",
+      "add": ["KEY `idx_admin_sign_in_rate_limits_expiry` (`expires_at`)"]
+    },
+    {
+      "object": "byline_admin_users",
+      "add": ["KEY `idx_byline_admin_users_email` (`email`)"]
+    },
+    {
+      "object": "byline_audit_log",
+      "add": ["KEY `idx_audit_log_document_id` (`document_id`,`id`)"]
+    },
+    {
+      "object": "byline_audit_log",
+      "add": ["KEY `idx_audit_log_actor_id` (`actor_id`,`id`)"]
+    },
+    {
+      "object": "byline_audit_log",
+      "add": ["KEY `idx_audit_log_action` (`action`,`id`)"]
+    },
+    {
+      "object": "byline_store_boolean",
+      "add": ["KEY `idx_boolean_value` (`value`)"]
+    },
+    {
+      "object": "byline_store_boolean",
+      "add": ["KEY `idx_boolean_path_value` (`field_path`,`value`)"]
+    },
+    {
+      "object": "byline_store_boolean",
+      "remove": ["KEY `fk_store_boolean_collection_id` (`collection_id`)"],
+      "add": ["KEY `idx_boolean_collection_value` (`collection_id`,`field_path`,`value`)"]
+    },
+    {
+      "object": "byline_store_datetime",
+      "add": ["KEY `idx_datetime_date` (`value_date`)"]
+    },
+    {
+      "object": "byline_store_datetime",
+      "add": ["KEY `idx_datetime_timestamp_tz` (`value_timestamp_tz`)"]
+    },
+    {
+      "object": "byline_store_datetime",
+      "add": ["KEY `idx_datetime_path_date` (`field_path`,`value_timestamp_tz`)"]
+    },
+    {
+      "object": "byline_store_datetime",
+      "remove": ["KEY `fk_store_datetime_collection_id` (`collection_id`)"],
+      "add": ["KEY `idx_datetime_collection_date` (`collection_id`,`value_timestamp_tz`)"]
+    },
+    {
+      "object": "byline_document_available_locales",
+      "add": ["KEY `idx_document_available_locales_document_id` (`document_id`)"]
+    },
+    {
+      "object": "byline_document_paths",
+      "add": ["KEY `idx_document_paths_document_id` (`document_id`)"]
+    },
+    {
+      "object": "byline_document_publish_schedules",
+      "add": ["KEY `idx_document_publish_schedules_due` (`state`,`next_attempt_at`,`publish_at`)"]
+    },
+    {
+      "object": "byline_document_publish_schedules",
+      "add": ["KEY `idx_document_publish_schedules_execution_expiry` (`execution_expires_at`)"]
+    },
+    {
+      "object": "byline_document_relationships",
+      "remove": ["KEY `fk_document_relationships_parent_document_id` (`parent_document_id`)"],
+      "add": ["KEY `idx_document_relationships_parent_order` (`parent_document_id`,`order_key`)"]
+    },
+    {
+      "object": "byline_document_versions",
+      "remove": ["KEY `fk_document_versions_document_id` (`document_id`)"],
+      "add": ["KEY `idx_documents_document_id` (`document_id`)"]
+    },
+    {
+      "object": "byline_document_versions",
+      "remove": ["KEY `fk_document_versions_collection_id` (`collection_id`)"],
+      "add": [
+        "KEY `idx_documents_collection_document_deleted` (`collection_id`,`document_id`,`is_deleted`)"
+      ]
+    },
+    {
+      "object": "byline_document_versions",
+      "add": ["KEY `idx_documents_current_view` (`collection_id`,`document_id`,`is_deleted`,`id`)"]
+    },
+    {
+      "object": "byline_document_versions",
+      "add": ["KEY `idx_documents_event_type` (`event_type`)"]
+    },
+    {
+      "object": "byline_document_versions",
+      "add": ["KEY `idx_documents_created_at` (`created_at`)"]
+    },
+    {
+      "object": "byline_document_versions",
+      "add": ["KEY `idx_documents_document_collection` (`document_id`,`collection_id`)"]
+    },
+    {
+      "object": "byline_documents",
+      "add": ["KEY `idx_documents_collection` (`collection_id`)"]
+    },
+    {
+      "object": "byline_documents",
+      "add": ["KEY `idx_documents_collection_order` (`collection_id`,`order_key`)"]
+    },
+    {
+      "object": "byline_store_file",
+      "add": ["KEY `idx_file_file_id` (`file_id`)"]
+    },
+    {
+      "object": "byline_store_file",
+      "add": ["KEY `idx_file_mime_type` (`mime_type`)"]
+    },
+    {
+      "object": "byline_store_file",
+      "add": ["KEY `idx_file_size` (`file_size`)"]
+    },
+    {
+      "object": "byline_store_file",
+      "add": ["KEY `idx_file_hash` (`file_hash`)"]
+    },
+    {
+      "object": "byline_store_file",
+      "add": ["KEY `idx_file_image_dimensions` (`image_width`,`image_height`)"]
+    },
+    {
+      "object": "byline_store_file",
+      "add": ["KEY `idx_file_storage_provider` (`storage_provider`)"]
+    },
+    {
+      "object": "byline_store_file",
+      "add": ["KEY `idx_file_processing_status` (`processing_status`)"]
+    },
+    {
+      "object": "byline_store_json",
+      "add": ["KEY `idx_json_schema` (`json_schema`)"]
+    },
+    {
+      "object": "byline_store_meta",
+      "add": ["KEY `idx_meta_document_type_path` (`document_version_id`,`type`,`path`)"]
+    },
+    {
+      "object": "byline_store_meta",
+      "add": ["KEY `idx_meta_item_id` (`item_id`)"]
+    },
+    {
+      "object": "byline_store_meta",
+      "remove": ["KEY `fk_store_meta_collection_id` (`collection_id`)"],
+      "add": ["KEY `idx_meta_collection_type` (`collection_id`,`type`)"]
+    },
+    {
+      "object": "byline_store_numeric",
+      "add": ["KEY `idx_numeric_integer` (`value_integer`)"]
+    },
+    {
+      "object": "byline_store_numeric",
+      "add": ["KEY `idx_numeric_decimal` (`value_decimal`)"]
+    },
+    {
+      "object": "byline_store_numeric",
+      "add": ["KEY `idx_numeric_float` (`value_float`)"]
+    },
+    {
+      "object": "byline_store_numeric",
+      "add": ["KEY `idx_numeric_integer_range` (`field_path`,`value_integer`)"]
+    },
+    {
+      "object": "byline_store_numeric",
+      "add": ["KEY `idx_numeric_decimal_range` (`field_path`,`value_decimal`)"]
+    },
+    {
+      "object": "byline_store_relation",
+      "remove": ["KEY `fk_store_relation_target_document_id` (`target_document_id`)"],
+      "add": ["KEY `idx_relation_target_document` (`target_document_id`)"]
+    },
+    {
+      "object": "byline_store_relation",
+      "remove": ["KEY `fk_store_relation_target_collection_id` (`target_collection_id`)"],
+      "add": ["KEY `idx_relation_target_collection` (`target_collection_id`)"]
+    },
+    {
+      "object": "byline_store_relation",
+      "add": ["KEY `idx_relation_type` (`relationship_type`)"]
+    },
+    {
+      "object": "byline_store_relation",
+      "add": ["KEY `idx_relation_reverse` (`target_document_id`,`field_path`)"]
+    },
+    {
+      "object": "byline_store_relation",
+      "remove": ["KEY `fk_store_relation_collection_id` (`collection_id`)"],
+      "add": [
+        "KEY `idx_relation_collection_to_collection` (`collection_id`,`target_collection_id`)"
+      ]
+    },
+    {
+      "object": "byline_store_text",
+      "add": ["KEY `idx_text_value` (`value`(191))"]
+    },
+    {
+      "object": "byline_store_text",
+      "add": ["KEY `idx_text_locale_value` (`locale`,`value`(191))"]
+    },
+    {
+      "object": "byline_store_text",
+      "add": ["KEY `idx_text_path_value` (`field_path`,`value`(191))"]
+    },
+    {
+      "object": "byline_current_documents",
+      "add": [
+        "CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `byline_current_documents` AS with `sq` as (select `byline_document_versions`.`id` AS `id`,`byline_document_versions`.`document_id` AS `document_id`,`byline_document_versions`.`collection_id` AS `collection_id`,`byline_document_versions`.`collection_version` AS `collection_version`,`byline_document_versions`.`event_type` AS `event_type`,`byline_document_versions`.`status` AS `status`,`byline_document_versions`.`is_deleted` AS `is_deleted`,`byline_document_versions`.`created_at` AS `created_at`,`byline_document_versions`.`updated_at` AS `updated_at`,`byline_document_versions`.`created_by` AS `created_by`,`byline_document_versions`.`change_summary` AS `change_summary`,row_number() OVER (PARTITION BY `byline_document_versions`.`document_id` ORDER BY `byline_document_versions`.`id` desc )  AS `rn` from `byline_document_versions` where (`byline_document_versions`.`is_deleted` = false)) select `sq`.`id` AS `id`,`sq`.`document_id` AS `document_id`,`sq`.`collection_id` AS `collection_id`,`sq`.`collection_version` AS `collection_version`,`sq`.`event_type` AS `event_type`,`sq`.`status` AS `status`,`sq`.`is_deleted` AS `is_deleted`,`sq`.`created_at` AS `created_at`,`sq`.`updated_at` AS `updated_at`,`sq`.`created_by` AS `created_by`,`sq`.`change_summary` AS `change_summary`,`byline_documents`.`order_key` AS `order_key`,`byline_documents`.`source_locale` AS `source_locale` from (`sq` join `byline_documents` on((`byline_documents`.`id` = `sq`.`document_id`))) where (`sq`.`rn` = 1)"
+      ]
+    },
+    {
+      "object": "byline_current_published_documents",
+      "add": [
+        "CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `byline_current_published_documents` AS with `sq` as (select `byline_document_versions`.`id` AS `id`,`byline_document_versions`.`document_id` AS `document_id`,`byline_document_versions`.`collection_id` AS `collection_id`,`byline_document_versions`.`collection_version` AS `collection_version`,`byline_document_versions`.`event_type` AS `event_type`,`byline_document_versions`.`status` AS `status`,`byline_document_versions`.`is_deleted` AS `is_deleted`,`byline_document_versions`.`created_at` AS `created_at`,`byline_document_versions`.`updated_at` AS `updated_at`,`byline_document_versions`.`created_by` AS `created_by`,`byline_document_versions`.`change_summary` AS `change_summary`,row_number() OVER (PARTITION BY `byline_document_versions`.`document_id` ORDER BY `byline_document_versions`.`id` desc )  AS `rn` from `byline_document_versions` where ((`byline_document_versions`.`is_deleted` = false) and (`byline_document_versions`.`status` = 'published'))) select `sq`.`id` AS `id`,`sq`.`document_id` AS `document_id`,`sq`.`collection_id` AS `collection_id`,`sq`.`collection_version` AS `collection_version`,`sq`.`event_type` AS `event_type`,`sq`.`status` AS `status`,`sq`.`is_deleted` AS `is_deleted`,`sq`.`created_at` AS `created_at`,`sq`.`updated_at` AS `updated_at`,`sq`.`created_by` AS `created_by`,`sq`.`change_summary` AS `change_summary`,`byline_documents`.`order_key` AS `order_key`,`byline_documents`.`source_locale` AS `source_locale` from (`sq` join `byline_documents` on((`byline_documents`.`id` = `sq`.`document_id`))) where (`sq`.`rn` = 1)"
+      ]
+    }
+  ]
+}

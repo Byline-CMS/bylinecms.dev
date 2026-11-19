@@ -11,15 +11,15 @@ import {
 } from './mysql.js'
 
 describe('MySQL version support', () => {
-  it.each(['8.0.14', '8.4.0', '9.7.1', '8.0.35-0ubuntu0.22.04.1'])('accepts %s', (version) => {
+  it.each(['8.0.16', '8.4.0', '9.7.1', '8.0.35-0ubuntu0.22.04.1'])('accepts %s', (version) => {
     expect(() => assertSupportedMySqlVersion(version)).not.toThrow()
   })
 
-  it.each(['8.0.13', '8.0.0', '5.7.44'])(
+  it.each(['8.0.15', '8.0.0', '5.7.44'])(
     'rejects old MySQL %s against the numeric floor',
     (version) => {
       expect(() => assertSupportedMySqlVersion(version)).toThrow(
-        /@byline\/cli requires MySQL 8\.0\.14/
+        /@byline\/cli requires MySQL 8\.0\.16/
       )
     }
   )

@@ -26,7 +26,7 @@ See `byline init --help` for the full flag list.
 
 ### Database selection
 
-The installer offers PostgreSQL (the default) and MySQL 8.0.14 or later. Pass
+The installer supports PostgreSQL and the verified MySQL releases 8.0.16, 8.0.46, 8.4.13 and 9.7.1. Pass
 `--database postgres` or `--database mysql` to choose noninteractively. MariaDB
 is not supported, and the Docker strategy remains deferred; use a running
 server with administrator credentials.
@@ -111,7 +111,7 @@ By default `setup` consults `.byline-install.json` and skips phases already
 recorded as complete. `--force` bypasses completion state, but it does not turn
 the fresh baseline into an upgrade or weaken occupied-database checks.
 
-The ordinary dedicated path applies the adapter's PostgreSQL baseline or the CLI's bundled MySQL baseline only
+The ordinary dedicated path applies the selected adapter's frozen baseline only
 to a missing or empty database. It refuses an existing Byline schema and an
 unrelated occupied schema before mutation. Upgrade an existing installation
 to the cutover checkpoint with the numbered native SQL under `packages/db-postgres/sql` or

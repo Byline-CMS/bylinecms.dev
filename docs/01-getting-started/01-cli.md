@@ -49,7 +49,7 @@ PostgreSQL cutover inspection supports server majors 15 through 18. It compares 
 - Ideally, an application already under Git. The installer warns and asks for
   confirmation outside a Git repository, because Git is how you roll an
   installation back.
-- A running PostgreSQL server or MySQL 8.0.14 or later, with administrator
+- A running PostgreSQL server or a supported MySQL release, with administrator
   credentials. PostgreSQL is the default. MariaDB is not supported.
 - Choose the existing-server option when asked; the bundled-Docker option is
   not yet implemented.
@@ -108,7 +108,7 @@ and `--to` accept.
 |---|---|---|
 | Where should the admin UI be mounted? | `/admin` | May be nested, such as `/internal/cms`. |
 | Where should the sign-in page be mounted? | `/sign-in` | May be nested, such as `/staff/login`. |
-| Which database should Byline use? | PostgreSQL | Choose PostgreSQL or MySQL 8.0.14 or later. Pass `--database postgres` or `--database mysql` to make this choice noninteractively. |
+| Which database should Byline use? | PostgreSQL | Choose PostgreSQL or a supported MySQL release. Pass `--database postgres` or `--database mysql` to make this choice noninteractively. |
 | How will Byline connect to the database? | — | Choose the existing-server option, then give an administrator connection URL, a database name (default `byline`), and an application role or user (default `byline`). |
 | Include the example collections, blocks, and fields? | yes | The overlay that mirrors `apps/webapp/byline` in this repo. |
 | Include the markdown → Byline import example script? | no | Only asked when you kept the examples. |
@@ -240,7 +240,7 @@ package and connection variable are not added.
 
 Dedicated setup inspects the target before provisioning. A missing or empty target can receive the fresh baseline. Setup refuses an occupied target even with `--force`.
 
-PostgreSQL fresh installs use the exact matching `@byline/db-postgres/migrations` runner and the adapter's frozen SQL baseline. In a transaction the runner creates the core objects and records native checkpoint 0015 in `public.byline_core_migrations`. MySQL setup still uses the CLI's bundled Drizzle baseline. Search and analytics have their own migration histories.
+PostgreSQL fresh installs use the exact matching `@byline/db-postgres/migrations` runner and the adapter's frozen SQL baseline. In a transaction the runner creates the core objects and records native checkpoint 0015 in `public.byline_core_migrations`. The MySQL installer verifies the exact server patch before provisioning. Supported patches are 8.0.16, 8.0.46, 8.4.13 and 9.7.1. Select a database with the utf8mb4_0900_ai_ci collation. MySQL dedicated setup uses the matching adapter's frozen 0010 baseline and records each DDL stage in its core journal. If setup loses its connection, repeat it with the existing login. The adapter checks the committed schema before resuming. An unexpected definition requires a scoped repair or a fenced restore. Search and analytics have their own migration histories.
 
 If your PostgreSQL host already manages other tables, you can install core into its existing `public` schema:
 

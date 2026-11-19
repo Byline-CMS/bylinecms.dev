@@ -87,11 +87,11 @@ jobs:
       # Pinned to 8.0 deliberately: the adapter's engine floor is MySQL
       # 8.0.14 (the release that added LATERAL joins and lifted the
       # no-subquery-in-a-view's-FROM restriction, both of which the storage
-      # layer relies on). Local development runs `mysql:latest` (9.x) via
+      # layer relies on). Local development runs `mysql:9.7.1` via
       # `mysql/docker-compose.yml`, so pinning 8.0 here is what actually
       # exercises the floor rather than a version comfortably above it.
       mysql:
-        image: mysql:8.0
+        image: mysql:8.0.46
         env:
           MYSQL_ROOT_PASSWORD: test
           MYSQL_DATABASE: byline_test
