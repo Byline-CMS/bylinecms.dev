@@ -82,6 +82,11 @@
       "outputs": [],
       "cache": false
     },
+    "@byline/db-mysql#test:prepare": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "env": ["BYLINE_DB_MYSQL_CONNECTION_STRING"]
+    },
     "test:integration": {
       "dependsOn": ["^build"],
       "outputs": [],

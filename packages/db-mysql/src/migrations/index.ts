@@ -26,7 +26,7 @@ export async function installCoreStorage(
   const connection = await createConnection(connectionString)
   try {
     if (steps.length === 1) return await installOnConnection(connection, baseline, options)
-    const { database } = await migrationSession(connection)
+    const { database } = await migrationSession(connection, true)
     return await withLock(connection, database, 5, async () => {
       const history = (await inventory(connection)).has(journal)
         ? await readHistory(connection, database, steps)
@@ -72,7 +72,7 @@ export async function hasInterruptedInstall(connectionString: string) {
   }
 }
 
-export { assertMigrationServer } from './runner.js'
+export { verifyCatalogFormat } from './format.js'
 export type { StorageStatus } from './inspect.js'
 
 export async function inspectCoreStorage(connectionString: string) {

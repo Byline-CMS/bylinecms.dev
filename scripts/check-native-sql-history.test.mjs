@@ -24,6 +24,7 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -132,9 +133,32 @@ describe('released SQL is immutable', () => {
     assert.match(out, /1 released script\(s\) unchanged/)
   })
 
-  // Drizzle's squashed baselines are rewritten by design; `sync:baselines` and
-  // baseline-drift.test.ts govern them instead. Watching them here would make
-  // every baseline squash a release blocker.
+  it('checks each new core SQL/manifest pair, contiguous suffix and closed native stream', () => {
+    const sql = 'SELECT 1;'
+    const stem = 'packages/db-postgres/migrations/'
+    const manifest = (version, name) =>
+      JSON.stringify({ version, name, sha256: createHash('sha256').update(sql).digest('hex') })
+    const repo = releasedRepo({
+      [`${stem}0015_baseline.sql`]: sql,
+      [`${stem}0015_baseline.json`]: manifest(15, 'baseline'),
+    })
+    write(repo, { [`${stem}0016_add.sql`]: sql })
+    assert.match(check(repo).out, /unmatched core storage asset/)
+    write(repo, { [`${stem}0016_add.json`]: manifest(16, 'add') })
+    assert.equal(check(repo).code, 0)
+    write(repo, { [`${stem}0016_add.sql`]: 'SELECT 2;' })
+    assert.match(check(repo).out, /digest mismatch/)
+    write(repo, {
+      [`${stem}0016_add.sql`]: sql,
+      [`${stem}0018_gap.sql`]: sql,
+      [`${stem}0018_gap.json`]: manifest(18, 'gap'),
+    })
+    assert.match(check(repo).out, /version, name or digest mismatch/)
+    write(repo, { 'packages/db-postgres/sql/0016_wrong_stream.sql': sql })
+    assert.match(check(repo).out, /closed native stream/)
+  })
+
+  // Development Drizzle diffs have their own catalog equivalence gate.
   for (const path of [
     'packages/db-postgres/src/database/migrations/0000_lively_talisman.sql',
     'packages/cli/src/templates/migrations/postgres/0000_lively_talisman.sql',

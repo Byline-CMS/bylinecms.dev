@@ -18,7 +18,7 @@ Two test suites, two commands:
   `byline_test` PostgreSQL and MySQL databases; CLI tests create their own
   temporary databases.
 
-CI runs both in the same job against PostgreSQL and MySQL service containers.
+CI runs both in the same job against PostgreSQL and MySQL service containers. The root integration command initializes core on the dedicated MySQL test database before the independent search and analytics suites can create their tables. It checks the `_test` suffix and preserves existing migration history.
 
 ## TL;DR
 

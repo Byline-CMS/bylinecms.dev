@@ -54,6 +54,22 @@ export function validatePolicy(step: StorageStep, previousFloor: number) {
   return true
 }
 
+// Release SQL runs inside the transaction that records its receipt. Reject
+// session/ownership control before provisioning or sending any SQL to PostgreSQL.
+export function validateRunnerSql(sql: string) {
+  const statements = sql.replace(/--[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
+  if (
+    !statements.trim() ||
+    /byline:ownership-guard/i.test(sql) ||
+    /(?:^|;)\s*(?:BEGIN|START\s+TRANSACTION|COMMIT|END|ROLLBACK|ABORT|PREPARE\s+TRANSACTION|GRANT|REVOKE|VACUUM|ALTER\s+SYSTEM|(?:CREATE|DROP)\s+(?:DATABASE|TABLESPACE))\b/i.test(
+      statements
+    ) ||
+    /\b(?:OWNER\s+TO|REASSIGN\s+OWNED|CONCURRENTLY)\b/i.test(statements) ||
+    /^\s*\\/m.test(statements)
+  )
+    throw Error('PostgreSQL runner SQL must preserve transaction and ownership control')
+}
+
 export function loadStorageSteps(): StorageStep[] {
   const files = readdirSync(directory).sort()
   const manifests = files.filter((file) => /^\d{4}_[a-z0-9_]+\.json$/.test(file))
@@ -75,6 +91,7 @@ export function loadStorageSteps(): StorageStep[] {
       )
     )
       throw new Error(`Invalid PostgreSQL storage migration ${file}`)
+    validateRunnerSql(sql.toString('utf8'))
     previousFloor = entry.compatible_from
     return { ...entry, sql: sql.toString('utf8') }
   })

@@ -2,18 +2,21 @@ import { readFileSync } from 'node:fs'
 
 import { expect, it } from 'vitest'
 
-import { loadStorageSteps, type StorageStep, validatePolicy } from './assets.js'
+import { loadStorageSteps, type StorageStep, validatePolicy, validateRunnerSql } from './assets.js'
 
 it('ships one verified SQL file per step and excludes transaction and ownership control', () => {
   const steps = loadStorageSteps()
   expect(steps[0]?.version).toBe(15)
-  for (const step of steps) {
-    const sql = step.sql.replace(/--[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
-    expect(sql).not.toMatch(
-      /(?:^|;)\s*(?:BEGIN|START\s+TRANSACTION|COMMIT|END|ROLLBACK|ABORT|GRANT|REVOKE|VACUUM)\b/im
-    )
-    expect(sql).not.toMatch(/\b(?:OWNER\s+TO|REASSIGN\s+OWNED|INDEX\s+CONCURRENTLY)\b/i)
-    expect(step.sql).not.toContain('byline:ownership-guard')
+  for (const step of steps) expect(() => validateRunnerSql(step.sql)).not.toThrow()
+  for (const unsafe of [
+    'COMMIT',
+    '-- comment\n BEGIN',
+    'GRANT SELECT ON a TO b',
+    'ALTER TABLE a OWNER TO b',
+    'CREATE INDEX CONCURRENTLY idx ON a(id)',
+    '/* byline:ownership-guard */ SELECT 1',
+  ]) {
+    expect(() => validateRunnerSql(`SELECT 1; ${unsafe}`)).toThrow(/transaction and ownership/)
   }
 })
 
@@ -22,12 +25,6 @@ it('routes the testing bootstrap to the same adapter installation entry point', 
   expect(helper).toContain("from '../migrations/index.js'")
   expect(helper).toContain('await installCoreStorage(connectionString)')
   expect(helper).not.toContain('node-postgres/migrator')
-})
-
-it('keeps released PostgreSQL storage frozen until startup enforcement ships', () => {
-  expect(loadStorageSteps().map((step) => [step.version, step.classification])).toEqual([
-    [15, 'fenced'],
-  ])
 })
 
 it('requires complete release evidence, bounded timeouts and a monotonic predecessor-compatible floor', () => {

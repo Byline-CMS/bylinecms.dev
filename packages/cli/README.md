@@ -26,7 +26,7 @@ See `byline init --help` for the full flag list.
 
 ### Database selection
 
-The installer supports PostgreSQL and the verified MySQL releases 8.0.16, 8.0.46, 8.4.13 and 9.7.1. Pass
+The installer supports PostgreSQL and MySQL 8.0.16 or later when its live migration catalog check passes. Pass
 `--database postgres` or `--database mysql` to choose noninteractively. MariaDB
 is not supported, and the Docker strategy remains deferred; use a running
 server with administrator credentials.

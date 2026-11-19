@@ -201,6 +201,7 @@ jobs:
       - run: pnpm --filter @byline/webapp test:built-server-status
       # Integration tests now - require byline_test DB
       - run: pnpm test:integration
+      - run: pnpm --filter @byline/cli check:storage-release
 
       # Temporal regression guard. Both adapters anchor `date` values to UTC
       # midnight deliberately, so the same stored value names the same calendar
@@ -255,3 +256,36 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec turbo run build --filter=@byline/cli...
       - run: pnpm --filter @byline/cli exec vitest run --mode=integration tests/postgres-coexistence.integration.test.ts tests/postgres-inspection.integration.test.ts tests/postgres-operations.integration.test.ts tests/postgres-online.integration.test.ts tests/postgres-startup.integration.test.ts
+
+  mysql-core-storage:
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mysql: ['8.0.16', '8.0.46', '8.4.13', '9.7.1']
+    services:
+      mysql:
+        image: mysql:${{ matrix.mysql }}
+        env:
+          MYSQL_ROOT_PASSWORD: test
+          MYSQL_ROOT_HOST: '%'
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -ptest --silent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      BYLINE_CLI_MYSQL_ADMIN_URL: mysql://root:test@127.0.0.1:3306/mysql
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo run build --filter=@byline/cli...
+      - run: pnpm --filter @byline/cli exec vitest run --mode=integration tests/mysql-format.integration.test.ts tests/mysql-install.integration.test.ts tests/mysql-adoption.integration.test.ts tests/mysql-upgrades.integration.test.ts

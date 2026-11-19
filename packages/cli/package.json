@@ -40,7 +40,8 @@
     "test": "vitest run --passWithNoTests",
     "test:integration": "pnpm run build && vitest run --mode=integration",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.tests.json",
-    "check:mysql-compatibility": "node scripts/check-storage-compatibility.mjs mysql"
+    "check:mysql-compatibility": "node scripts/check-storage-compatibility.mjs mysql",
+    "check:storage-release": "node scripts/check-storage-release.mjs"
   },
   "files": [
     "dist"

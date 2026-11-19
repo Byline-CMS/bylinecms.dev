@@ -12,7 +12,6 @@ import {
   logicalTable,
   migrationSession,
   requireSchemaPrivileges,
-  verifiedMysqlReleases,
   verifyPrefix,
   withLock,
 } from './runner.js'
@@ -42,6 +41,7 @@ export interface StorageStatus {
   database: string
   schema: string
   supportedServerMajors: string
+  formatNote?: string
   serverVersion?: string
   serverMajor?: number
   inspection: 'catalog' | 'catalog and content' | 'journal'
@@ -64,9 +64,11 @@ export function status(
     dialect: 'mysql',
     schema: database,
     database,
-    supportedServerMajors: verifiedMysqlReleases.join(', '),
+    supportedServerMajors: 'MySQL 8.0.16 or later with a matching live catalog format',
     target: step.version,
     observed: null,
+    formatNote:
+      'Read-only catalog inspection. The migration connection verifies server formatting with a temporary table before writing. A rendering discrepancy needs confirmation on a restored copy.',
     findings: [],
     pending: [],
     inspection: 'catalog',
@@ -264,7 +266,10 @@ export async function inspectOnConnection(
     })
   } catch (error) {
     const message = (error as Error).message
-    const state = message.includes('unsupported-engine') ? 'unsupported-engine' : 'inaccessible'
+    const state =
+      message.includes('unsupported-engine') || message.includes('requires MySQL')
+        ? 'unsupported-engine'
+        : 'inaccessible'
     return report(state, {
       findings: [{ check: 'catalog access', observed: message, remedy: actions[state] }],
     })
@@ -276,7 +281,7 @@ export async function adoptOnConnection(
   step: MysqlStep,
   steps: MysqlStep[] = [step]
 ) {
-  const { database } = await migrationSession(connection)
+  const { database } = await migrationSession(connection, true)
   return withLock(connection, database, 5, async () => {
     await connection.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
     await connection.query('START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY')

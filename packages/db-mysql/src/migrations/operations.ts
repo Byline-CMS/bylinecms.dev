@@ -269,7 +269,7 @@ export async function migrateOnConnection(
   options: Options = {}
 ) {
   for (const [i, step] of steps.slice(1).entries()) checkSuffix(step, steps[i]!)
-  const { database, version: server } = await migrationSession(connection)
+  const { database, version: server } = await migrationSession(connection, true)
   return withLock(connection, database, 5, async () => {
     const history = await readHistory(connection, database, steps)
     const first = history[0],

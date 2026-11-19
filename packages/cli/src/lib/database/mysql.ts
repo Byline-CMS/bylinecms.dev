@@ -157,7 +157,7 @@ async function verifiedServerVersion(connection: Connection): Promise<string> {
   const version = rows[0]?.v
   assertSupportedMySqlVersion(version)
   const migrations = await mysqlMigrations()
-  migrations.assertMigrationServer(version)
+  await migrations.verifyCatalogFormat(connection)
   return version
 }
 

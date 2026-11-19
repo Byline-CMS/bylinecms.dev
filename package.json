@@ -28,7 +28,7 @@
     "knip:exports:report": "knip --config knip.exports.json --workspace './packages/*' --no-config-hints --no-exit-code --max-show-issues 100",
     "typecheck": "turbo run typecheck --continue",
     "test": "turbo run test",
-    "test:integration": "turbo run test:integration --concurrency=1",
+    "test:integration": "turbo run test:prepare --filter=@byline/db-mysql && turbo run test:integration --concurrency=1",
     "test:scripts": "node --test scripts/*.test.mjs",
     "version-packages": "changeset version",
     "release:tag": "turbo run build --filter=\"./packages/*\" && changeset tag",

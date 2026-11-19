@@ -42,7 +42,7 @@ export const DATABASE_ADAPTERS = {
   mysql: {
     id: 'mysql',
     label: 'MySQL',
-    selectionLabel: 'MySQL (8.0.16, 8.0.46, 8.4.13 or 9.7.1)',
+    selectionLabel: 'MySQL 8.0.16 or later (verified during setup)',
     packageName: '@byline/db-mysql',
     adminPackageName: '@byline/db-mysql/admin',
     searchPackageName: '@byline/search-mysql',

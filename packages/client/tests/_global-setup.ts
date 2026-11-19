@@ -18,8 +18,7 @@ loadEnv({ path: '.env.test' })
 /**
  * Vitest `globalSetup`: runs once per `vitest run` (before any test file).
  * Asserts the configured connection points at a `_test` database and
- * applies the full Drizzle migration set. Drizzle's migrator is
- * idempotent, so re-running the suite is cheap.
+ * applies the adapter-owned core migrations and verifies existing history.
  */
 export default async function setup() {
   const connectionString = process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING

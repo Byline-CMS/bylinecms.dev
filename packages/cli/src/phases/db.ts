@@ -108,18 +108,20 @@ export const dbPhase: Phase = {
       password: adminUser,
       database: definition.defaultAdminDatabase,
     })
+    const adminEnvKey =
+      adapter === 'postgres' ? 'BYLINE_CLI_POSTGRES_ADMIN_URL' : 'BYLINE_CLI_MYSQL_ADMIN_URL'
     const adminUrl =
-      (adapter === 'postgres' ? process.env.BYLINE_CLI_POSTGRES_ADMIN_URL : undefined) ??
+      process.env[adminEnvKey] ??
       (await ctx.prompter.text({
         message: `${definition.label} administrator connection URL (used for user/database creation)`,
         placeholder: adminUrlDefault,
         defaultValue: adminUrlDefault,
       }))
 
-    if (adapter === 'postgres' && process.env.BYLINE_CLI_POSTGRES_ADMIN_URL) {
+    if (process.env[adminEnvKey]) {
       const endpoint = new URL(adminUrl)
       ctx.logger.step(
-        `Using BYLINE_CLI_POSTGRES_ADMIN_URL administrator endpoint ${endpoint.hostname}:${endpoint.port || '5432'}`
+        `Using ${adminEnvKey} administrator endpoint ${endpoint.hostname}:${endpoint.port || definition.url.defaultPort}`
       )
     }
 

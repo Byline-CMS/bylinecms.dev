@@ -5,26 +5,12 @@ import type { Connection, RowDataPacket } from 'mysql2/promise'
 import { assertMySqlVersion } from '../lib/boot-check.js'
 import { advance, type MysqlStep, prefix } from './assets.js'
 import { assertDefinition, createJournal, definition, journal, rows } from './catalog.js'
+import { verifyCatalogFormat } from './format.js'
 import { readPrivileges } from './privileges.js'
 
 type Fault = (point: 'journal' | 'intent' | 'ddl', stage: number) => void
 
-// Recovery relies on exact catalog comparisons. Extend this list only after
-// the entire install and disconnect matrix passes on that server patch.
-export const verifiedMysqlReleases = ['8.0.16', '8.0.46', '8.4.13', '9.7.1'] as const
-export function assertMigrationServer(version: string) {
-  if (
-    /mariadb/i.test(version) ||
-    !verifiedMysqlReleases.some(
-      (release) => version === release || version.startsWith(`${release}-`)
-    )
-  )
-    throw new Error(
-      `unsupported-engine: MySQL ${version} has no verified migration catalog contract. Use a verified release (${verifiedMysqlReleases.join(', ')}) or an adapter tested on this server.`
-    )
-}
-
-export async function migrationSession(connection: Connection) {
+export async function migrationSession(connection: Connection, probe = false) {
   const [s] = await rows(
     connection,
     `SELECT VERSION() AS version, DATABASE() AS db, @@foreign_key_checks AS fk,
@@ -32,7 +18,6 @@ export async function migrationSession(connection: Connection) {
     @@collation_database AS collation, @@sql_quote_show_create AS quoted`
   )
   await assertMySqlVersion(async () => [{ v: s?.version }])
-  assertMigrationServer(s?.version)
   if (
     !s?.db ||
     !s.fk ||
@@ -45,6 +30,7 @@ export async function migrationSession(connection: Connection) {
     throw new Error(
       'Select an InnoDB utf8mb4_0900_ai_ci database with autocommit, quoted catalog identifiers and FK, UNIQUE and CHECK enforcement enabled'
     )
+  if (probe) await verifyCatalogFormat(connection)
   return { database: String(s.db), version: String(s.version) }
 }
 
@@ -190,7 +176,7 @@ export async function installOnConnection(
   step: MysqlStep,
   options: { fault?: Fault; lockSeconds?: number; resumeOnly?: boolean } = {}
 ) {
-  const { database } = await migrationSession(connection)
+  const { database } = await migrationSession(connection, true)
   return withLock(connection, database, options.lockSeconds ?? 5, async () => {
     await requireSchemaPrivileges(connection, database, [
       'SELECT',

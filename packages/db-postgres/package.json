@@ -71,7 +71,8 @@
   },
   "files": [
     "dist",
-    "migrations"
+    "migrations",
+    "scripts/render-baseline.mjs"
   ],
   "dependencies": {
     "@byline/admin": "workspace:*",

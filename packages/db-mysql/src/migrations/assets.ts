@@ -161,12 +161,50 @@ export function checkSuffix(step: MysqlStep, previous: MysqlStep) {
   }
 }
 
+// A later release may qualify the same immutable online step on another MySQL
+// patch. Bind the attestation to both files and to every writer in the step.
+export interface PatchEvidence {
+  server_version: string
+  sql_sha256: string
+  manifest_sha256: string
+  tested_releases: Record<string, number>
+  evidence: string
+}
+
+export function applyPatchEvidence(
+  step: MysqlStep,
+  manifestDigest: string,
+  filename: string,
+  proof: PatchEvidence
+) {
+  const online = step.online
+  const stem = `${String(step.version).padStart(4, '0')}_${step.name}`
+  if (
+    step.classification !== 'online' ||
+    !online ||
+    !/^\d+\.\d+\.\d+$/.test(proof.server_version) ||
+    filename !== `${stem}.online-${proof.server_version}.json` ||
+    !proof.evidence?.trim() ||
+    proof.sql_sha256 !== step.sha256 ||
+    proof.manifest_sha256 !== manifestDigest ||
+    online.server_versions.includes(proof.server_version) ||
+    !proof.tested_releases ||
+    Object.keys(proof.tested_releases).length !== Object.keys(online.tested_releases).length ||
+    !Object.entries(online.tested_releases).every(
+      ([release, contract]) => proof.tested_releases[release] === contract
+    )
+  )
+    throw Error(`Invalid or duplicate MySQL online evidence ${filename}`)
+  online.server_versions.push(proof.server_version)
+}
+
 export function loadSteps(): MysqlStep[] {
   const files = readdirSync(directory).sort()
   const manifests = files.filter((f) => /^\d{4}_[a-z0-9_]+\.json$/.test(f))
+  const proofs = files.filter((f) => /^\d{4}_[a-z0-9_]+\.online-\d+\.\d+\.\d+\.json$/.test(f))
   if (
     !manifests.length ||
-    files.length !== manifests.length * 2 ||
+    files.length !== manifests.length * 2 + proofs.length ||
     manifests[0] !== '0010_baseline.json'
   )
     throw Error('Invalid MySQL migration asset inventory')
@@ -189,6 +227,17 @@ export function loadSteps(): MysqlStep[] {
     }
     checkSuffix(step, steps.at(-1)!)
     steps.push(step)
+  }
+  for (const file of proofs) {
+    const step = steps.find((s) => s.version === Number(file.slice(0, 4)))
+    if (!step) throw Error(`Unmatched MySQL patch evidence ${file}`)
+    const manifest = readFileSync(new URL(`${file.split('.online-')[0]}.json`, directory))
+    applyPatchEvidence(
+      step,
+      createHash('sha256').update(manifest).digest('hex'),
+      file,
+      JSON.parse(readFileSync(new URL(file, directory), 'utf8'))
+    )
   }
   return steps
 }

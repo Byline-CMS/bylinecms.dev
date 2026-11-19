@@ -240,7 +240,7 @@ package and connection variable are not added.
 
 Dedicated setup inspects the target before provisioning. A missing or empty target can receive the fresh baseline. Setup refuses an occupied target even with `--force`.
 
-PostgreSQL fresh installs use the exact matching `@byline/db-postgres/migrations` runner and the adapter's frozen SQL baseline. In a transaction the runner creates the core objects and records native checkpoint 0015 in `public.byline_core_migrations`. The MySQL installer verifies the exact server patch before provisioning. Supported patches are 8.0.16, 8.0.46, 8.4.13 and 9.7.1. Select a database with the utf8mb4_0900_ai_ci collation. MySQL dedicated setup uses the matching adapter's frozen 0010 baseline and records each DDL stage in its core journal. If setup loses its connection, repeat it with the existing login. The adapter checks the committed schema before resuming. An unexpected definition requires a scoped repair or a fenced restore. Search and analytics have their own migration histories.
+PostgreSQL fresh installs use the exact matching `@byline/db-postgres/migrations` runner and the adapter's frozen SQL baseline. In a transaction the runner creates the core objects and records native checkpoint 0015 in `public.byline_core_migrations`. Before provisioning, the MySQL installer checks MySQL 8.0.16 or later with a connection-local temporary table. It compares the catalog format and verifies that the server rejects a row that violates a CHECK constraint. The migration identity needs CREATE TEMPORARY TABLES. Select a database with the utf8mb4_0900_ai_ci collation. MySQL dedicated setup uses the matching adapter's frozen 0010 baseline and records each DDL stage in its core journal. If setup loses its connection, repeat it with the existing login. The adapter checks the committed schema before resuming. An unexpected definition requires a scoped repair or a fenced restore. Search and analytics have their own migration histories.
 
 If your PostgreSQL host already manages other tables, you can install core into its existing `public` schema:
 
@@ -370,3 +370,7 @@ declarations are planned at `^x.y.z`. Unbounded ranges and tags such as
 links are never replaced: the linked workspace package must resolve locally
 and satisfy the same range, otherwise the dependency phase blocks for manual
 repair.
+
+A managed MySQL patch update can pass the installation format check immediately. An online migration still requires release-workload evidence for that exact server patch and every deployed writer release. If that evidence is missing, the deployment job stops before applying the pending set. Use the supervised procedure with writers fenced or deploy a release carrying the new evidence.
+
+For dedicated MySQL setup, the job can supply its administrator endpoint in `BYLINE_CLI_MYSQL_ADMIN_URL` and the new application account password in `BYLINE_DB_PASSWORD`. These setup credentials belong in the install job's secret environment. The release job uses `BYLINE_MIGRATION_DATABASE_URL` for later schema changes. For PostgreSQL installations that require an operator-reviewed SQL file, follow the supervised SQL-only installation procedure in `packages/db-postgres/sql/README.md` in the target release.

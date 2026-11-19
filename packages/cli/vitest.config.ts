@@ -9,7 +9,7 @@ const exampleTemplate = resolve(
 )
 
 export default defineConfig(({ mode }) => {
-  const isIntegration = mode === 'integration' || mode === 'compatibility'
+  const isIntegration = ['integration', 'compatibility', 'packed'].includes(mode)
   return {
     resolve: {
       alias: [{ find: /^~\/(.*)$/, replacement: `${exampleTemplate}/$1` }],
@@ -17,9 +17,11 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: 'node',
       include: isIntegration
-        ? mode === 'compatibility'
-          ? ['tests/release/*.compatibility.test.ts']
-          : ['tests/**/*.integration.test.ts']
+        ? mode === 'packed'
+          ? ['tests/release/packed-storage.test.ts']
+          : mode === 'compatibility'
+            ? ['tests/release/*.compatibility.test.ts']
+            : ['tests/**/*.integration.test.ts']
         : ['src/**/*.test.{ts,tsx}', 'src/**/*.test.node.ts'],
       // Template-contract and scaffold tests run full ts-morph programs and
       // in-memory typechecks; live provisioning also needs room for server DDL.

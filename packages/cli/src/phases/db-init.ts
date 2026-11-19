@@ -214,7 +214,9 @@ async function resolveAdminUrl(
 ): Promise<string | null> {
   const suppliedUrl =
     ctx.secrets.adminUrl ??
-    (adapter === 'postgres' ? process.env.BYLINE_CLI_POSTGRES_ADMIN_URL : undefined)
+    (adapter === 'postgres'
+      ? process.env.BYLINE_CLI_POSTGRES_ADMIN_URL
+      : process.env.BYLINE_CLI_MYSQL_ADMIN_URL)
   if (suppliedUrl) {
     try {
       parseDbUrl(suppliedUrl, adapter)

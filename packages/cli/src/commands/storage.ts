@@ -59,6 +59,7 @@ function printStatus(status: StorageStatus) {
   )
   for (const finding of status.findings)
     console.log(`${finding.check}: ${finding.observed}. ${finding.remedy}`)
+  if (status.dialect === 'mysql' && status.formatNote) console.log(status.formatNote)
   console.log(status.next)
 }
 

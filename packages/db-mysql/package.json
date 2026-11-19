@@ -38,7 +38,8 @@
     "test:integration": "LOG_LEVEL=off vitest run --mode=integration",
     "test:watch": "LOG_LEVEL=off vitest --mode=integration",
     "typecheck": "tsc --noEmit",
-    "db:install": "node --env-file=.env scripts/install-local.mjs"
+    "db:install": "node --env-file=.env scripts/install-local.mjs",
+    "test:prepare": "node --env-file-if-exists=.env.test --input-type=module -e \"import { migrateTestDatabase } from './dist/lib/test-db.js'; await migrateTestDatabase(process.env.BYLINE_DB_MYSQL_CONNECTION_STRING)\""
   },
   "exports": {
     ".": {

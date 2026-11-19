@@ -38,6 +38,17 @@ it('adopted schema advances safely, blocks readiness at final unrecorded DDL, an
       )
       const opts = { runtime, control, deployedReleases: ['0.0.0-fixture'] }
       await expect(assertRuntimeStorage(pool, [base, online])).rejects.toThrow(/pending/)
+      const [server] = await rows(direct, 'SELECT VERSION() AS version')
+      if (!online.online!.server_versions.includes(String(server!.version).split('-')[0]!)) {
+        await expect(migrateOnConnection(direct, [base, online], opts)).rejects.toThrow(
+          /blocked at 11/
+        )
+        expect(await rows(direct, 'SELECT version FROM byline_core_migrations')).toMatchObject([
+          { version: 10 },
+        ])
+        expect(await migrateOnConnection(direct, [base, online])).toEqual({ applied: [11] })
+        return
+      }
       await expect(migrateOnConnection(direct, [base, online, fenced], opts)).rejects.toThrow(
         /blocked at 12/
       )
@@ -183,12 +194,17 @@ it('enforces the requested DDL algorithm and cancels an over-budget statement wi
       blocker = await createConnection(url.href)
     try {
       const opts = { runtime, control, deployedReleases: ['0.0.0-fixture'] }
+      const [server] = await rows(direct, 'SELECT VERSION() AS version')
+      // This isolated algorithm/timeout fixture exercises the current server directly.
+      const onServer = onlineColumns(base, '0.0.0-fixture', [
+        String(server!.version).split('-')[0]!,
+      ])
       // InnoDB cannot change this column's type using INSTANT. MySQL must
       // refuse, rather than silently rebuilding under a different algorithm.
       const sql =
         'ALTER TABLE `byline_documents` MODIFY COLUMN `revision` DECIMAL(20) NOT NULL, ALGORITHM=INSTANT, LOCK=DEFAULT'
       const denied = {
-        ...online,
+        ...onServer,
         statements: [sql],
         stages: [
           {
@@ -208,8 +224,8 @@ it('enforces the requested DDL algorithm and cancels an over-budget statement wi
       // timeout test; both definition and stage are still the verified before-state.
       await direct.query('DELETE FROM byline_core_migrations WHERE version=11')
       const timed = {
-        ...online,
-        online: { ...online.online!, lock_timeout_ms: 2000, statement_timeout_ms: 150 },
+        ...onServer,
+        online: { ...onServer.online!, lock_timeout_ms: 2000, statement_timeout_ms: 150 },
       }
       await blocker.beginTransaction()
       await blocker.query('SELECT id FROM byline_documents LIMIT 1')

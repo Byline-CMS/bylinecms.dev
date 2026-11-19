@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { basename } from 'node:path'
 
 // Every package that owns an independent numbered migration stream, not just
@@ -47,6 +48,58 @@ for (const path of taggedFiles) {
   if (!tagged.equals(current)) {
     errors.push(`${path}: content differs from ${base}`)
   }
+}
+
+// The native streams closed at cutover. A new migration must ship in the
+// runner directory with its immutable descriptor and matching raw bytes.
+for (const [dialect, floor] of [
+  ['postgres', 15],
+  ['mysql', 10],
+]) {
+  const root = `packages/db-${dialect}`
+  const legacy = `${root}/sql`
+  if (existsSync(legacy)) {
+    const seen = new Set()
+    for (const file of readdirSync(legacy).filter((f) => NUMBERED_SQL.test(f))) {
+      const version = Number(file.slice(0, 4))
+      if (version > floor || seen.has(version))
+        errors.push(`${legacy}/${file}: closed native stream at ${floor}`)
+      seen.add(version)
+    }
+  }
+  const dir = `${root}/migrations`
+  if (!existsSync(dir)) continue
+  const files = new Set(readdirSync(dir))
+  const manifests = [...files].filter((f) => /^\d{4}_[a-z0-9_]+\.json$/.test(f)).sort()
+  if (manifests[0] !== `${String(floor).padStart(4, '0')}_baseline.json`)
+    errors.push(`${dir}: missing cutover baseline`)
+  for (const [index, file] of manifests.entries()) {
+    const raw = file.replace(/\.json$/, '.sql')
+    try {
+      const manifest = JSON.parse(readFileSync(`${dir}/${file}`, 'utf8'))
+      const bytes = readFileSync(`${dir}/${raw}`)
+      if (
+        manifest.version !== floor + index ||
+        file !== `${String(manifest.version).padStart(4, '0')}_${manifest.name}.json` ||
+        createHash('sha256').update(bytes).digest('hex') !== manifest.sha256
+      )
+        throw Error('version, name or digest mismatch')
+      files.delete(file)
+      files.delete(raw)
+      if (dialect === 'mysql' && manifest.classification === 'online') {
+        for (const proof of files) {
+          if (
+            proof.startsWith(`${file.slice(0, -5)}.online-`) &&
+            /\.online-\d+\.\d+\.\d+\.json$/.test(proof)
+          )
+            files.delete(proof)
+        }
+      }
+    } catch (error) {
+      errors.push(`${dir}/${file}: ${error.message}`)
+    }
+  }
+  for (const file of files) errors.push(`${dir}/${file}: unmatched core storage asset`)
 }
 
 if (errors.length > 0) {
