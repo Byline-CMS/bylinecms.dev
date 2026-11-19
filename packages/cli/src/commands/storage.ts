@@ -57,8 +57,9 @@ function printStatus(status: StorageStatus) {
   console.log(
     `Server ${status.dialect === 'postgres' ? `major ${status.serverMajor ?? 'unknown'}` : (status.serverVersion ?? 'unknown')}; supported for storage commands: ${status.supportedServerMajors}.`
   )
+  // Adapters write some observations as full sentences; avoid printing "..".
   for (const finding of status.findings)
-    console.log(`${finding.check}: ${finding.observed}. ${finding.remedy}`)
+    console.log(`${finding.check}: ${finding.observed.replace(/\.$/, '')}. ${finding.remedy}`)
   if (status.dialect === 'mysql' && status.formatNote) console.log(status.formatNote)
   console.log(status.next)
 }

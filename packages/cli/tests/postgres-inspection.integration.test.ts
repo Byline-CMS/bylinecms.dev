@@ -104,7 +104,23 @@ it('recognizes the tagged native upgrade and diagnoses historical evidence witho
       await db.query(
         'ALTER TABLE byline_documents ADD CONSTRAINT check_documents_revision CHECK (revision BETWEEN 1 AND 9007199254740991)'
       )
+      // A type rewrite re-parses dependent CHECKs exactly as pg_dump/restore does,
+      // pushing the varchar IN array cast into each element. Status must still match.
+      for (const column of ['state', 'suspended_reason'])
+        for (const type of ['varchar(64)', 'varchar(32)'])
+          await db.query(
+            `ALTER TABLE byline_document_publish_schedules ALTER COLUMN ${column} TYPE ${type}`
+          )
+      expect(
+        (
+          await db.query(
+            "SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conname='check_document_publish_schedules_state'"
+          )
+        ).rows[0].def
+      ).toContain("ARRAY[('armed'::character varying)::text")
+      expect(await inspect()).toMatchObject({ state: 'recognized', findings: [] })
       expect(await adoptCoreStorage(url.href)).toEqual({ adopted: true, version: 15 })
+      expect(await adoptCoreStorage(url.href)).toEqual({ adopted: false, version: 15 })
       expect(
         (
           await db.query(

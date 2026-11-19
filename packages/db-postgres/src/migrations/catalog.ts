@@ -54,7 +54,27 @@ export interface Finding {
   remedy: string
 }
 
+// `varchar IN ('a', 'b')` deparses as `= ANY ((ARRAY['a'::character varying, ...])::text[])`.
+// When PostgreSQL re-parses that text (pg_dump/restore, ALTER COLUMN ... TYPE), it pushes
+// the array cast into each element: `= ANY (ARRAY[('a'::character varying)::text, ...])`.
+// Both forms are the same predicate, so fold the re-parsed form back before comparing.
+const literal = `'(?:[^']|'')*'::character varying`
+const reparsedVarcharArray = new RegExp(
+  String.raw`= ANY \(ARRAY\[(\(${literal}\)::text(?:, \(${literal}\)::text)*)\]\)`,
+  'g'
+)
+const reparsedElement = new RegExp(String.raw`\((${literal})\)::text`, 'g')
+
+export function normalizeCatalogDefinition(definition: string): string {
+  return definition.replace(
+    reparsedVarcharArray,
+    (_match, items: string) => `= ANY ((ARRAY[${items.replace(reparsedElement, '$1')}])::text[])`
+  )
+}
+
 export function catalogFindings(actual: Record<string, string>): Finding[] {
+  for (const key of Object.keys(actual))
+    if (key.includes('/constraint/')) actual[key] = normalizeCatalogDefinition(actual[key]!)
   // Native 0013 lets PostgreSQL name this FK. The Drizzle baseline supplies
   // its own name. Compare the complete definition, including the target and action.
   const prefix = 'byline_admin_login_sessions/constraint/'
