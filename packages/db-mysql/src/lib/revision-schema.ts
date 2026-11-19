@@ -11,6 +11,7 @@ type Check = { name: string; clause: string; valid: unknown }
 function normalize(clause: string): string {
   return clause
     .toLowerCase()
+    .replace(/isnull\((`?[a-z_]+`?)\)/g, '($1 is null)')
     .replace(/::(?:character varying|bigint|integer|text)(?:\[\])?/g, '')
     .replace(/_utf8mb[34]/g, '')
     .replace(/^check/, '')

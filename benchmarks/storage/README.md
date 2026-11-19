@@ -143,7 +143,7 @@ Prerequisites:
 - Docker Postgres running (`cd postgres && ./postgres.sh up -d`).
 - `BYLINE_DB_POSTGRES_CONNECTION_STRING` in either `packages/db-postgres/.env`
   or exported in the shell. The harness picks it up via `dotenv`.
-- Migrations applied (`pnpm drizzle:migrate`).
+- Install storage on the designated benchmark database with the selected adapter’s local installer.
 
 Seed and measure one scale:
 

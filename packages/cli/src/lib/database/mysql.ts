@@ -8,7 +8,7 @@ import { databaseAdapterDefinition } from './adapters.js'
 import { parseDbUrl, withDbDatabase } from './urls.js'
 import type { DbProvisioner, DbTargetInspection, ProvisionArgs } from './provisioner.js'
 
-async function mysqlMigrations() {
+export async function mysqlMigrations() {
   const { version } = createRequire(import.meta.url)('@byline/db-mysql/package.json')
   if (version !== CLI_PACKAGE_VERSION)
     throw new Error(

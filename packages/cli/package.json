@@ -33,13 +33,14 @@
     "build": "tsc -p tsconfig.json && tsc-alias && node ./scripts/copy-templates.js && chmod +x dist/cli.js",
     "dev": "tsc -w -p tsconfig.json",
     "clean": "node scripts/clean.js node_modules dist .turbo",
-    "check:postgres-compatibility": "node scripts/check-postgres-compatibility.mjs",
+    "check:postgres-compatibility": "node scripts/check-storage-compatibility.mjs postgres",
     "check:artifact": "node scripts/check-package-artifact.mjs",
     "check:templates": "node scripts/check-dialect-templates.mjs",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "test": "vitest run --passWithNoTests",
     "test:integration": "pnpm run build && vitest run --mode=integration",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.tests.json"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.tests.json",
+    "check:mysql-compatibility": "node scripts/check-storage-compatibility.mjs mysql"
   },
   "files": [
     "dist"

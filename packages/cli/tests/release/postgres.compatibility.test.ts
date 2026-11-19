@@ -13,27 +13,7 @@ import {
   onlineOnConnection,
 } from '../../../db-postgres/dist/migrations/operations.js'
 import { withTarget } from '../postgres-target.js'
-
-async function reply(child: ChildProcess) {
-  const ac = new AbortController()
-  try {
-    const [response] = await Promise.race([
-      once(child, 'message', { signal: ac.signal }),
-      once(child, 'exit', { signal: ac.signal }).then(([code]) => {
-        throw Error(`Consumer exited ${code}`)
-      }),
-    ])
-    if (response.error) throw Error(response.error)
-    return response.result
-  } finally {
-    ac.abort()
-  }
-}
-async function call(child: ChildProcess, action: string, label?: string, id?: string) {
-  const response = reply(child)
-  child.send({ action, label, id })
-  return response
-}
+import { call, reply } from './consumer-ipc.js'
 
 it('runs released and candidate readers, writers and workers at each online checkpoint and restores the fenced recovery point', async () => {
   await withTarget(async ({ host, url, database }) => {
@@ -51,7 +31,7 @@ it('runs released and candidate readers, writers and workers at each online chec
     }
     const start = async (root: string, name: string, endpoint = url) => {
       const child = fork(
-        fileURLToPath(new URL('./postgres-consumer.mjs', import.meta.url)),
+        fileURLToPath(new URL('./storage-consumer.mjs', import.meta.url)),
         [root, name],
         {
           execArgv: [],

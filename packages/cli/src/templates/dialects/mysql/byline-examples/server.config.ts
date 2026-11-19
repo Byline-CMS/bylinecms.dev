@@ -59,14 +59,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
       : undefined,
   })
 
-  // Search owns its disposable projection and numbered migration stream.
-  // Apply it explicitly at startup with the adapter's existing pool. A
-  // migration failure degrades search without taking down the application.
-  try {
-    await migrate(db.pool, { log: (message) => console.log(message) })
-  } catch (error) {
-    console.error('[search-mysql] migrate failed — search may be unavailable:', error)
-  }
+
 
   const adminStore = createAdminStore(db.drizzle)
   const signingSecret = process.env.BYLINE_JWT_SECRET
@@ -137,6 +130,15 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
     },
     search: mysqlSearch({ pool: db.pool, defaultLocale: i18n.content.defaultLocale }),
   })
+
+  // Search owns its disposable projection and numbered migration stream.
+  // Apply it explicitly at startup with the adapter's existing pool. A
+  // migration failure degrades search without taking down the application.
+  try {
+    await migrate(db.pool, { log: (message) => console.log(message) })
+  } catch (error) {
+    console.error('[search-mysql] migrate failed — search may be unavailable:', error)
+  }
 
   registerAdminAbilities(core.abilities)
   return core

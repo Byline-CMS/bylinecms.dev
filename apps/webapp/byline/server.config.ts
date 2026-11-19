@@ -143,7 +143,7 @@ async function buildBylineCore(): Promise<BylineCore<AdminStore>> {
   //   • `BYLINE_DB_MYSQL_CONNECTION_STRING` in `apps/webapp/.env.local` — see
   //     `.env.local.example`. The MySQL container is `mysql/docker-compose.yml`
   //     (`cd mysql && ./mysql.sh up -d`).
-  //   • a migrated database: `cd packages/db-mysql && pnpm drizzle:migrate`
+  //   • a migrated database: `pnpm --filter @byline/db-mysql db:install`
   //   • seed data if you want content to look at: `cd apps/webapp && pnpm tsx
   //     byline/seed.ts` (it reads whichever adapter this file configures)
   //

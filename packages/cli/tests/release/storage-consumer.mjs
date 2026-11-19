@@ -6,12 +6,19 @@ import { pathToFileURL } from 'node:url'
 
 const resolve = createRequire(join(process.argv[2], 'package.json')).resolve
 const load = (name) => import(pathToFileURL(resolve(name)).href)
-const { pgAdapter } = await load('@byline/db-postgres')
+const mysql = process.argv[4] === 'mysql'
+const adapter = mysql
+  ? (await load('@byline/db-mysql')).mysqlAdapter
+  : (await load('@byline/db-postgres')).pgAdapter
 const { defineCollection, defineWorkflow, initBylineCore } = await load('@byline/core')
 const { runDueTasks } = await load('@byline/core/scheduler')
 const { createBylineClient } = await load('@byline/client')
 const { createSuperAdminContext } = await load('@byline/auth')
-const url = new URL(process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING)
+const url = new URL(
+  mysql
+    ? process.env.BYLINE_DB_MYSQL_CONNECTION_STRING
+    : process.env.BYLINE_DB_POSTGRES_CONNECTION_STRING
+)
 if (url.hostname !== '127.0.0.1' || !url.pathname.endsWith('_test'))
   throw new Error('Expected loopback test database')
 const collection = defineCollection({
@@ -23,7 +30,7 @@ const collection = defineCollection({
   }),
   fields: [{ name: 'title', type: 'text', label: 'Title' }],
 })
-const db = pgAdapter({
+const db = adapter({
   connectionString: url.href,
   collections: [collection],
   defaultContentLocale: 'en',

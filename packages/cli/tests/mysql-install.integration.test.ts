@@ -1,38 +1,16 @@
 import { randomBytes } from 'node:crypto'
 
 import { hasInterruptedInstall, installCoreStorage } from '@byline/db-mysql/migrations'
-import { type Connection, createConnection } from 'mysql2/promise'
+import { createConnection } from 'mysql2/promise'
 import { expect, it } from 'vitest'
 
 import { resetTestDatabase } from '../../db-mysql/dist/lib/test-db.js'
 import { loadBaseline } from '../../db-mysql/dist/migrations/assets.js'
 import { rows } from '../../db-mysql/dist/migrations/catalog.js'
 import { installOnConnection, withLock } from '../../db-mysql/dist/migrations/runner.js'
+import { withMysqlTarget as fixture } from './mysql-target.js'
 
 const step = loadBaseline()
-async function fixture(work: (url: URL, admin: Connection, name: string) => Promise<void>) {
-  const url = new URL(process.env.BYLINE_CLI_MYSQL_ADMIN_URL ?? '')
-  if (url.protocol !== 'mysql:' || !['localhost', '127.0.0.1'].includes(url.hostname))
-    throw new Error('MySQL migration fixtures require a loopback test server')
-  const connection = await createConnection(url.href)
-  const name = `byline_cli_recovery_${randomBytes(5).toString('hex')}_test`
-  try {
-    await connection.query(
-      `CREATE DATABASE ${name} CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`
-    )
-    url.pathname = name
-    console.info(
-      'MySQL recovery fixture',
-      name,
-      (await rows(connection, 'SELECT VERSION() AS v'))[0]?.v
-    )
-    await work(url, connection, name)
-  } finally {
-    await connection.query(`DROP DATABASE IF EXISTS ${name}`)
-    await connection.end()
-  }
-}
-
 it.each([
   ['journal', 0],
   ['intent', 0],

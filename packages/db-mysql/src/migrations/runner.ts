@@ -5,12 +5,13 @@ import type { Connection, RowDataPacket } from 'mysql2/promise'
 import { assertMySqlVersion } from '../lib/boot-check.js'
 import { advance, type MysqlStep, prefix } from './assets.js'
 import { assertDefinition, createJournal, definition, journal, rows } from './catalog.js'
+import { readPrivileges } from './privileges.js'
 
 type Fault = (point: 'journal' | 'intent' | 'ddl', stage: number) => void
 
 // Recovery relies on exact catalog comparisons. Extend this list only after
 // the entire install and disconnect matrix passes on that server patch.
-const verifiedMysqlReleases = ['8.0.16', '8.0.46', '8.4.13', '9.7.1'] as const
+export const verifiedMysqlReleases = ['8.0.16', '8.0.46', '8.4.13', '9.7.1'] as const
 export function assertMigrationServer(version: string) {
   if (
     /mariadb/i.test(version) ||
@@ -44,7 +45,7 @@ export async function migrationSession(connection: Connection) {
     throw new Error(
       'Select an InnoDB utf8mb4_0900_ai_ci database with autocommit, quoted catalog identifiers and FK, UNIQUE and CHECK enforcement enabled'
     )
-  return String(s.db)
+  return { database: String(s.db), version: String(s.version) }
 }
 
 export async function withLock<T>(
@@ -82,7 +83,7 @@ export async function withLock<T>(
   return result
 }
 
-async function inventory(connection: Connection) {
+export async function inventory(connection: Connection) {
   return new Set(
     (
       await rows(
@@ -95,43 +96,35 @@ async function inventory(connection: Connection) {
 
 // Prove schema-wide visibility before interpreting an absent name. Include global
 // and schema grants; MySQL interprets the latter's escaped wildcard characters.
-async function verifyInstallerPrivileges(connection: Connection, database: string) {
-  const granted = await rows(
-    connection,
-    `SELECT PRIVILEGE_TYPE AS p FROM information_schema.USER_PRIVILEGES
-    WHERE GRANTEE=CONCAT(QUOTE(SUBSTRING_INDEX(CURRENT_USER(),'@',1)),'@',QUOTE(SUBSTRING_INDEX(CURRENT_USER(),'@',-1)))
-    UNION SELECT PRIVILEGE_TYPE FROM information_schema.SCHEMA_PRIVILEGES
-    WHERE GRANTEE=CONCAT(QUOTE(SUBSTRING_INDEX(CURRENT_USER(),'@',1)),'@',QUOTE(SUBSTRING_INDEX(CURRENT_USER(),'@',-1))) AND (? = TABLE_SCHEMA OR ? LIKE TABLE_SCHEMA)`,
-    [database, database]
-  )
-  const privileges = new Set(granted.map((r) => r.p))
-  for (const name of [
-    'SELECT',
-    'INSERT',
-    'UPDATE',
-    'ALTER',
-    'CREATE',
-    'INDEX',
-    'REFERENCES',
-    'CREATE VIEW',
-    'SHOW VIEW',
-    'TRIGGER',
-  ]) {
-    if (!privileges.has(name))
+export async function requireSchemaPrivileges(
+  connection: Connection,
+  database: string,
+  required: string[]
+) {
+  const has = await readPrivileges(connection, database)
+  for (const name of required) {
+    if (!has(undefined, name))
       throw new Error(
-        `MySQL installer requires schema-wide ${name} on ${database}; grant this privilege directly to the migration account. Role-only grants are not visible to this preflight.`
+        `MySQL installer requires schema-wide ${name} on ${database}; grant this privilege to the migration account or one of its active roles.`
       )
   }
 }
 
-async function verifyPrefix(
+// Native ALTER TABLE scripts append columns. Adapter writes address them by
+// name. Preserve their definitions and the ordered columns of every key.
+export function logicalTable(lines: string[]) {
+  return lines.map((line) => line.replace(/^column \d+ /, 'column ')).sort()
+}
+
+export async function verifyPrefix(
   connection: Connection,
   database: string,
   step: MysqlStep,
   count: number,
   actualNames: Set<string>,
   dedicated: boolean,
-  allowNext: boolean
+  allowNext: boolean,
+  adopted = false
 ) {
   const expected = prefix(step.stages, count)
   const all = new Set(step.stages.map((stage) => stage.object))
@@ -162,8 +155,8 @@ async function verifyPrefix(
     }
     assertDefinition(
       `MySQL ${database} version ${step.version} at stage ${count} object ${name}`,
-      before,
-      actual
+      adopted ? logicalTable(before) : before,
+      adopted ? logicalTable(actual) : actual
     )
   }
   return ahead
@@ -197,9 +190,20 @@ export async function installOnConnection(
   step: MysqlStep,
   options: { fault?: Fault; lockSeconds?: number; resumeOnly?: boolean } = {}
 ) {
-  const database = await migrationSession(connection)
+  const { database } = await migrationSession(connection)
   return withLock(connection, database, options.lockSeconds ?? 5, async () => {
-    await verifyInstallerPrivileges(connection, database)
+    await requireSchemaPrivileges(connection, database, [
+      'SELECT',
+      'INSERT',
+      'UPDATE',
+      'ALTER',
+      'CREATE',
+      'INDEX',
+      'REFERENCES',
+      'CREATE VIEW',
+      'SHOW VIEW',
+      'TRIGGER',
+    ])
     const names = await inventory(connection)
     let row: RowDataPacket | undefined
     if (names.has(journal)) {
@@ -225,7 +229,8 @@ export async function installOnConnection(
       count,
       names,
       row?.state !== 'applied',
-      row?.state === 'applying'
+      row?.state === 'applying',
+      row?.origin === 'adopted'
     )
     if (row?.state === 'applied') return { database, version: step.version, changed: false }
     if (!names.has(journal)) {

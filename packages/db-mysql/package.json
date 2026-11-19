@@ -32,15 +32,13 @@
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "db:init": "cd src/database && ./db_init.sh",
     "drizzle:generate": "tsc -p tsconfig.json && drizzle-kit generate --config=drizzle.config.ts",
-    "drizzle:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
-    "drizzle:rekey": "node --env-file-if-exists=.env scripts/drizzle-rekey.mjs",
-    "drizzle:rekey:test": "node --env-file-if-exists=.env.test scripts/drizzle-rekey.mjs",
     "drizzle:push": "tsc -p tsconfig.json && drizzle-kit push --config=drizzle.config.ts",
     "drizzle:drop": "drizzle-kit drop --config=drizzle.config.ts",
     "test": "vitest run --mode=node",
     "test:integration": "LOG_LEVEL=off vitest run --mode=integration",
     "test:watch": "LOG_LEVEL=off vitest --mode=integration",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:install": "node --env-file=.env scripts/install-local.mjs"
   },
   "exports": {
     ".": {

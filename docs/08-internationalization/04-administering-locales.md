@@ -49,10 +49,7 @@ not every aspect of the former site behavior. The initial path-lookup qualificat
 is described in [Content locales](./03-content-locales.md#the-fallback-chain-and-onmissinglocale).
 
 `source_locale` is surfaced on every read payload as `sourceLocale`, and the
-editor shows it as a small neutral badge next to the document title. For
-in-place upgrades, the column is populated at boot (`initBylineCore()` stamps any
-unstamped rows with the configured default idempotently), so a vanilla
-`drizzle:migrate` never fails on a constraint and upgrades self-heal.
+editor shows it as a small neutral badge next to the document title. During an in-place upgrade, confirm the historical default on a restored copy and complete the tagged source-locale backfill before adopting core storage. Startup uses the configured default for any remaining legacy rows where the schema permits it.
 
 ## Re-anchoring documents onto the new default
 

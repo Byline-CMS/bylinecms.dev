@@ -3,10 +3,12 @@ import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { parseEnv } from 'node:util'
 
-import type { StorageStatus } from '@byline/db-postgres/migrations'
+import type { StorageStatus as MysqlStatus } from '@byline/db-mysql/migrations'
+import type { StorageStatus as PostgresStatus } from '@byline/db-postgres/migrations'
 import type { Command } from 'commander'
 import { valid } from 'semver'
 
+import { mysqlMigrations } from '../lib/database/mysql.js'
 import { postgresMigrations } from '../lib/database/postgres.js'
 import { inspectAdapterSelection } from '../lib/database/selection.js'
 import { CLI_PACKAGE_VERSION } from '../lib/release-policy.js'
@@ -22,11 +24,13 @@ interface Options {
   targetAdapterVersion?: string
 }
 
-function hostVersion(cwd: string) {
+type StorageStatus = PostgresStatus | MysqlStatus
+
+function hostVersion(cwd: string, dialect: 'postgres' | 'mysql') {
   const manifest = resolve(cwd, 'package.json')
   if (!existsSync(manifest)) return { version: undefined, declared: false }
   const pkg = JSON.parse(readFileSync(manifest, 'utf8'))
-  const name = '@byline/db-postgres'
+  const name = `@byline/db-${dialect}`
   const declared = [
     'dependencies',
     'devDependencies',
@@ -42,16 +46,16 @@ function hostVersion(cwd: string) {
   }
   const adapter = JSON.parse(readFileSync(path, 'utf8'))
   if (adapter.name !== name || typeof adapter.version !== 'string')
-    throw new Error('Invalid host PostgreSQL adapter metadata')
+    throw new Error(`Invalid host ${dialect} adapter metadata`)
   return { version: adapter.version as string, declared }
 }
 
 function printStatus(status: StorageStatus) {
   console.log(
-    `${status.dialect} ${status.database}.${status.schema}: ${status.state} (${status.inspection}); observed ${status.observed ?? 'unknown'}, target ${status.target}, pending ${status.pending.join(', ') || 'none'}.`
+    `${status.dialect} ${status.database}${status.dialect === 'postgres' ? '.public' : ''}: ${status.state} (${status.inspection}); observed ${status.observed ?? 'unknown'}, target ${status.target}, pending ${status.pending.join(', ') || 'none'}.`
   )
   console.log(
-    `Server major ${status.serverMajor ?? 'unknown'}; supported for storage commands: ${status.supportedServerMajors}.`
+    `Server ${status.dialect === 'postgres' ? `major ${status.serverMajor ?? 'unknown'}` : (status.serverVersion ?? 'unknown')}; supported for storage commands: ${status.supportedServerMajors}.`
   )
   for (const finding of status.findings)
     console.log(`${finding.check}: ${finding.observed}. ${finding.remedy}`)
@@ -65,23 +69,26 @@ async function runStorage(operation: Operation, options: Options) {
     options.database
   )
   if (selection.state === 'blocked') throw new Error(selection.reason)
-  if ((selection.adapter ?? 'postgres') !== 'postgres')
-    throw new Error(
-      'Storage commands currently support PostgreSQL. Follow the MySQL release upgrade guide.'
-    )
-  const key = 'BYLINE_DB_POSTGRES_CONNECTION_STRING'
+  const dialect = selection.adapter ?? 'postgres'
+  const label = dialect === 'postgres' ? 'PostgreSQL' : 'MySQL'
+  const protocols = dialect === 'postgres' ? ['postgresql:', 'postgres:'] : ['mysql:']
+  const key =
+    dialect === 'postgres'
+      ? 'BYLINE_DB_POSTGRES_CONNECTION_STRING'
+      : 'BYLINE_DB_MYSQL_CONNECTION_STRING'
   const path = resolve(cwd, '.env.local')
   const url =
     process.env[key] ?? (existsSync(path) ? parseEnv(readFileSync(path, 'utf8'))[key] : undefined)
   if (!url) throw new Error(`Set ${key} for the target database.`)
   const endpoint = new URL(url)
-  if (!['postgresql:', 'postgres:'].includes(endpoint.protocol) || endpoint.pathname.length < 2)
-    throw new Error('Expected a PostgreSQL connection URL with a database name.')
-  const host = hostVersion(cwd)
-  const adapter = await postgresMigrations()
+  if (!protocols.includes(endpoint.protocol) || endpoint.pathname.length < 2)
+    throw new Error(`Expected a ${label} connection URL with a database name.`)
+  const host = hostVersion(cwd, dialect)
+  const adapter = dialect === 'postgres' ? await postgresMigrations() : await mysqlMigrations()
   const target = decodeURIComponent(endpoint.pathname.slice(1))
+  const targetName = dialect === 'postgres' ? `${target}.public` : target
   console.log(
-    `PostgreSQL ${target}.public — CLI adapter ${CLI_PACKAGE_VERSION}; host adapter ${host.version ?? (host.declared ? 'declared but unresolved' : 'standalone')}.`
+    `${label} ${targetName} — CLI adapter ${CLI_PACKAGE_VERSION}; host adapter ${host.version ?? (host.declared ? 'declared but unresolved' : 'standalone')}.`
   )
   if (operation === 'status') {
     const status = await adapter.inspectCoreStorage(url)
@@ -124,8 +131,8 @@ async function runStorage(operation: Operation, options: Options) {
         'Set BYLINE_MIGRATION_DATABASE_URL to the verified direct/session endpoint for this deployment.'
       )
     const direct = new URL(directUrl)
-    if (!['postgres:', 'postgresql:'].includes(direct.protocol) || direct.pathname.length < 2)
-      throw new Error('Expected a direct PostgreSQL URL with a database name.')
+    if (!protocols.includes(direct.protocol) || direct.pathname.length < 2)
+      throw new Error(`Expected a direct ${label} URL with a database name.`)
     const deployedReleases = options.deployedAdapterVersion ?? []
     if (deployedReleases.some((v) => !valid(v)))
       throw new Error('Supply exact deployed adapter versions from release inventory.')
@@ -154,7 +161,12 @@ async function runStorage(operation: Operation, options: Options) {
   printStatus(preview)
   const admissible =
     operation === 'adopt' ? ['recognized', 'current', 'pending'] : ['pending', 'current']
-  if (!admissible.includes(preview.state))
+  const recovering =
+    dialect === 'mysql' &&
+    operation === 'migrate' &&
+    preview.state === 'interrupted' &&
+    preview.findings.some((f) => f.check === 'upgrade-stage')
+  if (!recovering && !admissible.includes(preview.state))
     throw new Error(`Cannot ${operation}: ${preview.state}. ${preview.next}`)
   console.log(
     `Supervised ${operation} requires fenced writers and workers and a verified backup. Deploy matching adapter ${CLI_PACKAGE_VERSION} before reopening traffic.`
@@ -169,7 +181,7 @@ async function runStorage(operation: Operation, options: Options) {
         ? `observed checkpoint ${preview.observed}`
         : `pending versions ${preview.pending.join(', ') || 'none'}`
     const confirmed = await createPrompter().confirm({
-      message: `Confirm writers are fenced and a backup is available. ${operation} ${target}.public using adapter ${CLI_PACKAGE_VERSION}, ${versions}?`,
+      message: `Confirm writers are fenced and a backup is available. ${operation} ${targetName} using adapter ${CLI_PACKAGE_VERSION}, ${versions}?`,
       defaultValue: false,
     })
     if (!confirmed) throw new Error('Storage operation cancelled.')

@@ -105,7 +105,7 @@ parse, on one side or the other.
 
 ## Supported MySQL versions
 
-The adapter requires MySQL 8.0.16 or later. Its queries use lateral joins, its current-document views use window functions, and core migrations depend on enforced CHECK constraints. Migration catalog comparisons are verified on MySQL 8.0.16, 8.0.46, 8.4.13 and 9.7.1. Select an InnoDB database with the utf8mb4_0900_ai_ci default collation. Grant the named schema privileges directly to the migration account. The dedicated CLI checks the server patch before provisioning, and the adapter repeats that check before creating its journal. MariaDB does not implement the required query contract.
+The adapter requires MySQL 8.0.16 or later. Its queries use lateral joins, its current-document views use window functions, and core migrations depend on enforced CHECK constraints. Migration catalog comparisons are verified on MySQL 8.0.16, 8.0.46, 8.4.13 and 9.7.1. Select an InnoDB database with the utf8mb4_0900_ai_ci default collation. Grant the named schema privileges to the migration account or an active role. The dedicated CLI checks the server patch before provisioning, and the adapter repeats that check before creating its journal. MariaDB does not implement the required query contract.
 
 ## UUID and timestamp conventions
 

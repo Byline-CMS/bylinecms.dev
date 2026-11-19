@@ -41,15 +41,6 @@
     "drizzle:generate": {
       "cache": false
     },
-    "drizzle:migrate": {
-      "cache": false
-    },
-    "drizzle:rekey": {
-      "cache": false
-    },
-    "drizzle:rekey:test": {
-      "cache": false
-    },
     "dev:seed": {
       "cache": false
     },
