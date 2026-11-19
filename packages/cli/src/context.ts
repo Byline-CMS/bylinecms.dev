@@ -27,6 +27,7 @@ export interface ContextOptions {
 }
 
 export interface Secrets {
+  applicationUrl?: string
   dbPassword?: string
   adminUrl?: string
 }

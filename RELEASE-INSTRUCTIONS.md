@@ -40,7 +40,9 @@ NOTE: The manual flow will not create a Releases entry in the repo (and therefor
 
 ## III Squashing the Drizzle migrations before a release
 
-Each release ships one squashed Drizzle migration per adapter as the fresh-install baseline that `byline init` applies. Existing installations never run that baseline; they upgrade with the hand-written scripts in `packages/db-postgres/sql/` and `packages/db-mysql/sql/`. A human does the squash at release preparation, after every feature in the release has its hand-written upgrade script.
+PostgreSQL fresh installs and test bootstrap use the numbered SQL and companion manifests in `packages/db-postgres/migrations/`. Freeze those files once released. Keep `sql/` closed at 0015. PostgreSQL schema changes resume when journal compatibility enforcement ships: generate the development diff, author the next runner SQL and manifest, and compare fresh and upgraded catalogs with the intended Drizzle schema.
+
+The steps below govern **MySQL's CLI baseline** and optional Drizzle-only development databases. A PostgreSQL development squash affects only `src/database/migrations/`. Re-key only an explicitly identified, dedicated Drizzle development ledger. Exclude runner-managed tests, shared host journals and deployed installations from this procedure.
 
 The squash replaces the migration chain with a single new `0000` migration whose journal timestamp is newer than anything a local database has applied. Drizzle decides what to apply by comparing that timestamp with the newest row in its ledger (`drizzle.__drizzle_migrations` on PostgreSQL, `__drizzle_migrations` on MySQL), so after a squash every local database that already ran the old chain would try to re-apply the whole baseline and fail with "already exists". Step 4 below re-keys those ledgers so the databases are recognised as up to date.
 
@@ -53,7 +55,7 @@ The squash replaces the migration chain with a single new `0000` migration whose
    pnpm --filter @byline/db-mysql drizzle:generate
    ```
 
-   Each adapter now has one `0000_<name>.sql`, its `meta/0000_snapshot.json`, and a one-entry `meta/_journal.json`.
+   Each squashed development chain now has one `0000_<name>.sql`, its `meta/0000_snapshot.json`, and a one-entry `meta/_journal.json`.
 
 3. **Check the squash changed nothing.** The new snapshot must describe exactly the schema the old chain produced. Compare it with the last pre-squash snapshot, ignoring the snapshot ids (run from the repository root; set `ADAPTER` and `LAST` to the adapter and the last pre-squash snapshot, e.g. `0001_snapshot.json`):
 
@@ -74,7 +76,7 @@ The squash replaces the migration chain with a single new `0000` migration whose
    ```sh
    pnpm drizzle:rekey                      # development databases (.env), dry run
    pnpm drizzle:rekey -- --apply           # development databases, write
-   pnpm drizzle:rekey:test -- --apply      # *_test databases (.env.test)
+   pnpm --filter @byline/db-mysql drizzle:rekey:test -- --apply  # MySQL Drizzle test DB only
    ```
 
    Each adapter also has its own `pnpm --filter @byline/db-postgres drizzle:rekey` (and `@byline/db-mysql`). The helper only touches the Drizzle ledger — no schema, no data — and refuses to run when:
@@ -113,7 +115,7 @@ The squash replaces the migration chain with a single new `0000` migration whose
 
    A focused integration run (for example `pnpm --filter @byline/db-postgres test:integration`) confirms the test runner's startup migration is also a no-op.
 
-6. **Sync the CLI baselines** so `byline init` installs the new schema, then check them:
+6. **Sync the MySQL CLI baseline** so `byline init` installs the new schema, then check them:
 
    ```sh
    pnpm --filter @byline/cli sync:baselines

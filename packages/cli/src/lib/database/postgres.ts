@@ -1,7 +1,8 @@
-import { drizzle } from 'drizzle-orm/node-postgres'
-import { migrate } from 'drizzle-orm/node-postgres/migrator'
+import { createRequire } from 'node:module'
+
 import { Client } from 'pg'
 
+import { CLI_PACKAGE_VERSION } from '../release-policy.js'
 import { databaseAdapterDefinition } from './adapters.js'
 import { buildDbUrl, parseDbUrl, withDbDatabase } from './urls.js'
 import type {
@@ -11,8 +12,22 @@ import type {
   ProvisionArgs,
 } from './provisioner.js'
 
+async function migrations() {
+  const { version } = createRequire(import.meta.url)('@byline/db-postgres/package.json')
+  if (version !== CLI_PACKAGE_VERSION)
+    throw new Error(
+      `CLI ${CLI_PACKAGE_VERSION} requires its matching PostgreSQL adapter; resolved ${version}`
+    )
+  return import('@byline/db-postgres/migrations')
+}
+
 export const postgresProvisioner: DbProvisioner = {
   adapter: 'postgres',
+
+  async verifyBaselineAssets() {
+    const { verifyStorageMigrations } = await migrations()
+    verifyStorageMigrations()
+  },
 
   async verifyAdminConnection(adminUrl) {
     const connectionString = normalizedAdminUrl(adminUrl)
@@ -43,11 +58,11 @@ export const postgresProvisioner: DbProvisioner = {
     await target.connect()
     try {
       const result = await target.query<{ name: string }>(
-        `SELECT table_name AS name
-           FROM information_schema.tables
-          WHERE table_schema = 'public'
-            AND table_type IN ('BASE TABLE', 'VIEW')
-          ORDER BY table_name`
+        `SELECT relname AS name FROM pg_catalog.pg_class WHERE relnamespace='public'::regnamespace
+         UNION SELECT typname FROM pg_catalog.pg_type WHERE typnamespace='public'::regnamespace
+         UNION SELECT nspname FROM pg_catalog.pg_namespace
+           WHERE nspname NOT IN ('public','information_schema') AND left(nspname,3) <> 'pg_'
+         ORDER BY name`
       )
       return { exists: true, objects: result.rows.map((row) => row.name) }
     } finally {
@@ -137,23 +152,13 @@ async function provisionPostgresTarget(args: ProvisionArgs): Promise<void> {
 }
 
 async function applyPostgresBaseline(args: BaselineArgs): Promise<void> {
-  args.logger.step(`running PostgreSQL baseline from ${args.migrationsFolder}`)
-  const client = new Client({ connectionString: args.applicationUrl })
-  await client.connect()
-  try {
-    const db = drizzle(client)
-    await migrate(db, { migrationsFolder: args.migrationsFolder })
-    const result = await client.query<{ count: string }>(
-      `SELECT count(*)::text AS count
-         FROM information_schema.tables
-        WHERE table_schema = 'public'`
-    )
-    args.logger.success(
-      `baseline applied — ${result.rows[0]?.count ?? 'unknown'} tables in public schema`
-    )
-  } finally {
-    await client.end().catch(() => {})
-  }
+  const { installCoreStorage } = await migrations()
+  const result = await installCoreStorage(args.applicationUrl)
+  args.logger.success(
+    result.applied.length
+      ? `installed core storage versions ${result.applied.join(', ')}`
+      : 'verified PostgreSQL core storage'
+  )
 }
 
 function normalizedAdminUrl(raw: string): string {

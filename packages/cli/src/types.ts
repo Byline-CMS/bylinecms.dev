@@ -71,6 +71,7 @@ export interface Phase {
 }
 
 export interface Answers {
+  dbExistingDatabase?: boolean
   dbAdapter?: DatabaseAdapterId
   dbStrategy?: DbStrategy
   dbHost?: string

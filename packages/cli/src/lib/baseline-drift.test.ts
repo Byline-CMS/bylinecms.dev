@@ -14,26 +14,23 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { baselineDir } from './baseline.js'
-import type { DatabaseAdapterId } from '../types.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const templates = resolve(here, '../templates')
 const packages = resolve(here, '../../..')
 const fixtures: string[] = []
 
-const adapterSources: Record<DatabaseAdapterId, string> = {
-  postgres: resolve(packages, 'db-postgres/src/database/migrations'),
-  mysql: resolve(packages, 'db-mysql/src/database/migrations'),
-}
-
 afterEach(() => {
   for (const fixture of fixtures.splice(0)) rmSync(fixture, { recursive: true, force: true })
 })
 
-describe.each<DatabaseAdapterId>(['postgres', 'mysql'])('bundled %s baseline', (dialect) => {
+describe('bundled MySQL baseline', () => {
   it('matches the adapter source as one complete runtime migration bundle', () => {
     expect(() =>
-      assertBaselineContract(adapterSources[dialect], baselineDir(templates, dialect))
+      assertBaselineContract(
+        resolve(packages, 'db-mysql/src/database/migrations'),
+        baselineDir(templates, 'mysql')
+      )
     ).not.toThrow()
   })
 })

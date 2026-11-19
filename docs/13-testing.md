@@ -104,8 +104,8 @@ Two layers prevent tests from pointing at the wrong database:
 
 The PostgreSQL storage and client suites share this isolation strategy:
 
-- **Migrate once per test run** — vitest `globalSetup` migrates before any test file loads. Drizzle's migrator is idempotent so re-runs are cheap.
-- **TRUNCATE between files** — `setupFiles` truncates every table in `public` (except `__drizzle_migrations`) with `RESTART IDENTITY CASCADE` via a `beforeAll` at the top of each test file. Existing per-test track-and-clean code (e.g. the admin tests) stays in place as a belt; TRUNCATE is the braces.
+- Vitest `globalSetup` calls the PostgreSQL adapter's core installer before loading tests. A repeat run verifies the recorded checkpoint. An old unjournaled disposable test database needs an explicit rebuild with `pnpm db:init:test`.
+- Before each file, `setupFiles` truncates the core data tables listed in the adapter manifest with `RESTART IDENTITY`. Core, host and provider migration histories survive cleanup. A foreign key from an unrelated table blocks truncation so cleanup cannot cascade into host data.
 - **No transaction-per-test** — the storage code opens its own transactions; wrapping tests in one would break the lifecycle paths under test.
 
 Both `@byline/client` and `@byline/db-postgres` use the same vitest config shape (`globalSetup`, `setupFiles`, `fileParallelism: false`, `maxWorkers: 1`, and `isolate: false`), so the isolation story is identical across packages.

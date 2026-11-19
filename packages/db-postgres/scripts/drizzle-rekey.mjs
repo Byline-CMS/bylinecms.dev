@@ -63,6 +63,12 @@ try {
     fail(`refusing database '${database}': only *_dev and *_test databases may be re-keyed.`)
   }
 
+  const core = await client.query("SELECT to_regclass('public.byline_core_migrations') AS journal")
+  if (core.rows[0].journal)
+    fail(
+      'Core storage is runner-managed. Leave this database and its host Drizzle ledger untouched.'
+    )
+
   const exists = await client.query(
     "SELECT to_regclass('drizzle.__drizzle_migrations') IS NOT NULL AS present"
   )

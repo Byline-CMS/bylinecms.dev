@@ -79,7 +79,8 @@ describe.each(configurations)('$adapter CLI database installation', (configurati
     const provisioner = databaseProvisioner(configuration.adapter)
     expect(
       classifyDbTarget(
-        await provisioner.inspectTarget(configuration.adminUrl, configuration.freshDatabase)
+        await provisioner.inspectTarget(configuration.adminUrl, configuration.freshDatabase),
+        configuration.adapter
       )
     ).toBe('byline-schema')
 
@@ -93,7 +94,8 @@ describe.each(configurations)('$adapter CLI database installation', (configurati
 
     expect(
       classifyDbTarget(
-        await provisioner.inspectTarget(configuration.adminUrl, configuration.occupiedDatabase)
+        await provisioner.inspectTarget(configuration.adminUrl, configuration.occupiedDatabase),
+        configuration.adapter
       )
     ).toBe('occupied-schema')
 

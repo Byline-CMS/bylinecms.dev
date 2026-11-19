@@ -65,10 +65,15 @@
       "import": "./dist/lib/test-db.js",
       "require": "./dist/lib/test-db.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./migrations": {
+      "types": "./dist/migrations/index.d.ts",
+      "node": "./dist/migrations/index.js"
+    }
   },
   "files": [
-    "dist"
+    "dist",
+    "migrations"
   ],
   "dependencies": {
     "@byline/admin": "workspace:*",

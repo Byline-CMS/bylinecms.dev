@@ -50,7 +50,9 @@ describe.each([
     if (baseline?.type === 'baseline') {
       expect(baseline.args.applicationUrl).toMatch(new RegExp(`^${protocol}`))
       expect(new URL(baseline.args.applicationUrl).hostname).toBe('application-service.test')
-      expect(baseline.args.migrationsFolder).toMatch(new RegExp(`/migrations/${adapter}$`))
+      if (adapter === 'mysql')
+        expect(baseline.args.migrationsFolder).toMatch(/\/migrations\/mysql$/)
+      else expect(baseline.args.migrationsFolder).toBeUndefined()
     }
   })
 

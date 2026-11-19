@@ -76,6 +76,8 @@ reset.
 pnpm --filter @byline/db-postgres drizzle:migrate
 ```
 
+This Drizzle command applies to a dedicated development database. PostgreSQL test bootstrap and CLI installations use the adapter's own journal. See [the testing guide](../13-testing.md) for rebuilding a disposable test database.
+
 ### 2.3. Configure the webapp, and optionally seed documents
 
 ```

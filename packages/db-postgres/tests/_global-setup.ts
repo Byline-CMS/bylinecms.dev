@@ -13,7 +13,7 @@ import { assertTestDatabase, migrateTestDatabase } from '../src/lib/test-db.js'
 /**
  * Vitest `globalSetup`: runs once per `vitest run` before any test file
  * loads. Asserts the configured connection points at a `_test` database
- * and applies the full Drizzle migration set. Drizzle's migrator is
+ * and installs or verifies the adapter-owned core baseline. The installer is
  * idempotent, so re-running the suite is cheap.
  */
 export default async function setup() {

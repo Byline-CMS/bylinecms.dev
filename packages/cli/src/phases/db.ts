@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { parseEnv } from 'node:util'
+
 import { databaseAdapterDefinition } from '../lib/database/adapters.js'
 import {
   databaseIdentifierRequirement,
@@ -16,11 +19,18 @@ export const dbPhase: Phase = {
   async detect(ctx) {
     const adapter = inspectDatabaseAdapter(ctx)
     if (adapter.state === 'blocked') return 'blocked'
+    if (ctx.cliFlags.existingDatabase) return 'pending'
     return ctx.state.isComplete('db') && adapter.state === 'resolved' ? 'done' : 'pending'
   },
 
   async plan(ctx) {
     const answers = ctx.state.get().answers
+    if (ctx.cliFlags.existingDatabase)
+      return {
+        writes: [],
+        commands: [],
+        notes: ['use the supplied PostgreSQL application connection'],
+      }
     const notes: string[] = []
     if (answers.dbAdapter) notes.push(`database adapter: ${answers.dbAdapter}`)
     else notes.push('will ask: PostgreSQL or MySQL?')
@@ -38,6 +48,41 @@ export const dbPhase: Phase = {
     const definition = databaseAdapterDefinition(adapter)
     const provisioner = databaseProvisioner(adapter, ctx.provisioners)
 
+    if (ctx.cliFlags.existingDatabase) {
+      const path = ctx.resolve('.env.local')
+      const key = definition.connectionEnvKey
+      const applicationUrl =
+        process.env[key] ??
+        (existsSync(path) ? parseEnv(readFileSync(path, 'utf8'))[key] : undefined)
+      if (adapter !== 'postgres' || !applicationUrl) {
+        ctx.logger.error('Existing-database setup requires BYLINE_DB_POSTGRES_CONNECTION_STRING')
+        return { state: 'blocked' }
+      }
+      const target = parseDbUrl(applicationUrl, adapter)
+      if (!target.database || !target.host)
+        throw new Error('Supply a PostgreSQL URL naming the target database and host')
+      const saved = ctx.state.get().answers
+      const port = target.port ?? definition.url.defaultPort
+      if (
+        (saved.dbName && saved.dbName !== target.database) ||
+        (saved.dbHost && saved.dbHost !== target.host) ||
+        (saved.dbPort && saved.dbPort !== port)
+      ) {
+        throw new Error('The supplied PostgreSQL target differs from the saved setup target')
+      }
+      ctx.secrets.applicationUrl = applicationUrl
+      ctx.state.patchAnswers({
+        dbExistingDatabase: true,
+        dbName: target.database,
+        dbHost: target.host,
+        dbPort: port,
+        dbUser: target.user,
+      })
+      ctx.logger.info(
+        `using existing PostgreSQL database ${target.database} on ${target.host}:${port}`
+      )
+      return { state: 'done' }
+    }
     const strategy = await ctx.prompter.select({
       message: `How will Byline connect to ${definition.label}?`,
       options: [
@@ -54,23 +99,26 @@ export const dbPhase: Phase = {
       return { state: 'blocked' }
     }
 
+    const saved = ctx.state.get().answers
     const adminUser = adapter === 'postgres' ? 'postgres' : 'root'
     const adminUrlDefault = buildDbUrl(adapter, {
-      host: '127.0.0.1',
-      port: definition.url.defaultPort,
+      host: saved.dbHost ?? '127.0.0.1',
+      port: saved.dbPort ?? definition.url.defaultPort,
       user: adminUser,
       password: adminUser,
       database: definition.defaultAdminDatabase,
     })
-    const adminUrl = await ctx.prompter.text({
-      message: `${definition.label} administrator connection URL (used for user/database creation)`,
-      placeholder: adminUrlDefault,
-      defaultValue: adminUrlDefault,
-    })
+    const adminUrl =
+      (adapter === 'postgres' ? process.env.BYLINE_CLI_POSTGRES_ADMIN_URL : undefined) ??
+      (await ctx.prompter.text({
+        message: `${definition.label} administrator connection URL (used for user/database creation)`,
+        placeholder: adminUrlDefault,
+        defaultValue: adminUrlDefault,
+      }))
 
     const dbName = await ctx.prompter.text({
       message: 'Database name to create',
-      defaultValue: 'byline',
+      defaultValue: saved.dbName ?? 'byline',
     })
     if (!isValidDatabaseIdentifier(adapter, 'database', dbName)) {
       ctx.logger.error(
@@ -87,7 +135,7 @@ export const dbPhase: Phase = {
       message: `Database login for the app to connect as (${
         adapter === 'postgres' ? 'a Postgres role' : 'a MySQL user'
       }, created if it does not exist)`,
-      defaultValue: 'byline',
+      defaultValue: saved.dbUser ?? 'byline',
     })
     if (!isValidDatabaseIdentifier(adapter, 'user', dbUser)) {
       ctx.logger.error(

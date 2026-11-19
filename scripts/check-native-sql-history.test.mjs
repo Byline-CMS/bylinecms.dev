@@ -93,6 +93,8 @@ describe('released SQL is immutable', () => {
   for (const path of [
     'packages/db-postgres/sql/0008_add-thing.sql',
     'packages/db-mysql/sql/0003_add-thing.sql',
+    'packages/db-postgres/migrations/0015_baseline.sql',
+    'packages/db-postgres/migrations/0015_baseline.json',
     'packages/search-postgres/migrations/0001_init.sql',
     'packages/search-mysql/migrations/0001_init.sql',
     'packages/analytics-postgres/migrations/0001_init.sql',

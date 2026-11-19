@@ -64,6 +64,10 @@ program
   .description(
     'Prepare DB and seed admin/docs for an app that is already wired (post-manual-config)'
   )
+  .option(
+    '--existing-database',
+    'install PostgreSQL core on the supplied connection without provisioning'
+  )
   .option('--no-seed-admin', 'skip the super-admin seed')
   .option('--no-seed-docs', 'skip the example docs seed')
   .option('--apply', 'skip per-phase confirmation prompts (still prints diffs)')
@@ -82,6 +86,7 @@ program
     if (opts.pm) assertPackageManager(opts.pm as string)
     await runSetup({
       // commander flips `--no-seed-admin` to `seedAdmin: false`
+      existingDatabase: opts.existingDatabase === true,
       noSeedAdmin: opts.seedAdmin === false,
       noSeedDocs: opts.seedDocs === false,
       apply: opts.apply as boolean | undefined,

@@ -12,6 +12,7 @@ import { runSetupChecks } from './setup-checks.js'
 import type { DatabaseAdapterId, PackageManager, Phase, PhaseId } from '../types.js'
 
 export interface SetupOptions {
+  existingDatabase?: boolean
   noSeedAdmin?: boolean
   noSeedDocs?: boolean
   apply?: boolean
@@ -69,6 +70,18 @@ export async function runSetup(opts: SetupOptions): Promise<void> {
   const prompter = createPrompter({ yes: opts.yes })
   const state = new StateStore(cwd)
 
+  const existingDatabase = opts.existingDatabase || state.get().answers.dbExistingDatabase === true
+  if (
+    existingDatabase &&
+    (opts.reset ||
+      opts.resetIMeanIt ||
+      opts.database === 'mysql' ||
+      state.get().answers.dbAdapter === 'mysql')
+  ) {
+    logger.error('Existing-database setup requires PostgreSQL and cannot reset the database')
+    process.exit(1)
+  }
+
   const ctx = new Context({
     cwd,
     apply: opts.apply ?? false,
@@ -77,7 +90,7 @@ export async function runSetup(opts: SetupOptions): Promise<void> {
     reset: opts.reset ?? false,
     resetConfirmed: opts.resetIMeanIt ?? false,
     pm: opts.pm ?? state.get().answers.pm,
-    cliFlags: { ...opts } as Record<string, string | boolean | undefined>,
+    cliFlags: { ...opts, existingDatabase } as Record<string, string | boolean | undefined>,
     logger,
     prompter,
     state,
@@ -107,7 +120,11 @@ export async function runSetup(opts: SetupOptions): Promise<void> {
       notes.push('existing document data WILL be lost')
     } else {
       notes.push('database is NOT being reset (pass --reset to drop and recreate)')
-      notes.push('the database phase will still refuse every occupied database')
+      notes.push(
+        existingDatabase
+          ? 'verify core storage on the supplied PostgreSQL connection'
+          : 'the database phase will still refuse every occupied database'
+      )
       notes.push('a fresh baseline is never treated as an upgrade, even under --force')
     }
     prompter.note(notes.join('\n'), '--force')

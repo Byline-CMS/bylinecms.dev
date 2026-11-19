@@ -233,27 +233,19 @@ package and connection variable are not added.
 
 ## Fresh baselines, rebuilds, and upgrades
 
-Every Byline release carries one squashed Drizzle SQL baseline per database
-adapter inside the CLI. The CLI applies that baseline only to a missing or
-empty target database. It is a description of the target release's complete
-schema, not a history that can upgrade an earlier Byline installation.
+Dedicated setup inspects the target before provisioning. A missing or empty target can receive the fresh baseline. Setup refuses an occupied target even with `--force`.
 
-Before any database mutation or application-password prompt, the ordinary
-initialization path inspects the target:
+PostgreSQL fresh installs use the exact matching `@byline/db-postgres/migrations` runner and the adapter's frozen SQL baseline. In a transaction the runner creates the core objects and records native checkpoint 0015 in `public.byline_core_migrations`. MySQL setup still uses the CLI's bundled Drizzle baseline. Search and analytics have their own migration histories.
 
-- A missing or empty database can receive the fresh baseline.
-- A database with Byline tables is refused. Apply the numbered native SQL
-  scripts from `packages/db-postgres/sql` or `packages/db-mysql/sql` at the
-  Git tag for the release you are upgrading to.
-- A database with unrelated tables or views is refused. Byline requires a
-  dedicated empty database rather than merging into occupied application
-  storage.
+If your PostgreSQL host already manages other tables, you can install core into its existing `public` schema:
 
-`--force` re-runs detection but does not bypass these refusals. The CLI does
-not apply native SQL upgrades automatically. Search providers own a separate,
-disposable numbered migration stream and may apply it from the generated
-example configuration; search migrations are not part of the database
-baseline.
+```sh
+byline setup --database postgres --existing-database --apply
+```
+
+Set `BYLINE_DB_POSTGRES_CONNECTION_STRING` to the direct target connection in the environment or in the host's `.env.local`. Install `pgcrypto` beforehand. The installing role needs USAGE and CREATE on `public`. It owns the core objects it creates. When the runtime uses another role, arrange the required content privileges and journal SELECT for that role. Coordinate a quiet period for host DDL and reserve the names reported by the adapter. A conflicting object aborts the install. A retry verifies a completed install before continuing to the configured seeds. Shared setup bypasses database/role provisioning and rejects reset. The host's Drizzle journal remains independent.
+
+For an unjournaled Byline installation, consult the native upgrade instructions at the target release tag. The legacy PostgreSQL series ends at 0015. This installer cannot adopt that database. MySQL continues to use its release-tagged native SQL upgrades. Startup compatibility and scheduled online upgrades belong to subsequent migration releases.
 
 For an intentional rebuild, use
 `byline setup --force --reset --i-mean-it`. This path skips the inspection

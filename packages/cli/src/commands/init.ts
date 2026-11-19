@@ -28,6 +28,12 @@ export async function runInit(opts: InitOptions): Promise<void> {
   const prompter = createPrompter({ yes: opts.yes })
   const state = new StateStore(cwd)
 
+  const shared = state.get().answers.dbExistingDatabase === true
+  if (shared && (opts.reset || opts.resetIMeanIt)) {
+    logger.error('A shared PostgreSQL installation cannot be reset')
+    process.exit(1)
+  }
+
   const ctx = new Context({
     cwd,
     apply: opts.apply ?? false,
@@ -36,7 +42,7 @@ export async function runInit(opts: InitOptions): Promise<void> {
     reset: opts.reset ?? false,
     resetConfirmed: opts.resetIMeanIt ?? false,
     pm: opts.pm ?? state.get().answers.pm,
-    cliFlags: { ...opts } as Record<string, string | boolean | undefined>,
+    cliFlags: { ...opts, existingDatabase: shared } as Record<string, string | boolean | undefined>,
     logger,
     prompter,
     state,

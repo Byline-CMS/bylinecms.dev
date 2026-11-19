@@ -134,6 +134,7 @@ async function provisionMysqlTarget(args: ProvisionArgs): Promise<void> {
 }
 
 async function applyMysqlBaseline(args: BaselineArgs): Promise<void> {
+  if (!args.migrationsFolder) throw new Error('Missing MySQL baseline directory')
   args.logger.step(`running MySQL baseline from ${args.migrationsFolder}`)
   const pool = migrationPool(args.applicationUrl)
   try {

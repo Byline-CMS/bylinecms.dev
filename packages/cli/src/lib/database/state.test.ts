@@ -7,12 +7,15 @@ describe.each([
   [{ exists: true, objects: [] }, 'empty'],
   [{ exists: true, objects: ['byline_documents'] }, 'byline-schema'],
   [{ exists: true, objects: ['BYLINE_DOCUMENTS'] }, 'byline-schema'],
+  [{ exists: true, objects: ['byline_analytics_migrations'] }, 'occupied-schema'],
   [{ exists: true, objects: ['posts'] }, 'occupied-schema'],
   [{ exists: true, objects: ['posts', 'byline_documents'] }, 'byline-schema'],
   [{ exists: true, objects: ['current_documents_view'] }, 'occupied-schema'],
   [{ exists: true, objects: ['__drizzle_migrations'] }, 'occupied-schema'],
 ] as const)('database target classification', (inspection, expected) => {
   it(`classifies ${JSON.stringify(inspection)} as ${expected}`, () => {
-    expect(classifyDbTarget({ ...inspection, objects: [...inspection.objects] })).toBe(expected)
+    expect(classifyDbTarget({ ...inspection, objects: [...inspection.objects] }, 'postgres')).toBe(
+      expected
+    )
   })
 })

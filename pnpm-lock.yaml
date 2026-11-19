@@ -837,6 +837,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@byline/db-postgres':
+        specifier: workspace:*
+        version: link:../db-postgres
       '@clack/prompts':
         specifier: ^1.9.0
         version: 1.9.0

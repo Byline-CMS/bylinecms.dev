@@ -1,28 +1,8 @@
 # Hand-written upgrade scripts (`sql/`)
 
-These numbered `.sql` scripts are the **Drizzle-independent** upgrade path for
-existing production databases — the ones that do not run `drizzle:migrate`
-(after a release squash the Drizzle journal no longer matches a deployed DB).
-Each Byline release squashes its Drizzle schema into the fresh-install baseline
-bundled by `@byline/cli`. That baseline describes the target schema from
-scratch; it is not an upgrade history and the CLI refuses to apply it to an
-occupied database.
+This historical hand-applied stream ends at **0015**. For an existing installation without a core journal, follow the native instructions in the target release tag, including the required backfills and writer fences. In shared databases review the ownership guard below before using any historical script. This release cannot adopt an existing installation.
 
-To upgrade an existing installation, check out or browse the Git tag for the
-target Byline release, read this directory in that tag, and apply every
-numbered script you have not already applied, in filename order. The CLI does
-not apply these scripts. Each script is idempotent, wrapped in a single
-transaction, and applied by hand:
-
-```sh
-psql "$DATABASE_URL" -f packages/db-postgres/sql/0005_add-admin-user-preferences.sql
-```
-
-The squashed Drizzle source under `src/database/migrations/` and
-`@byline/search-postgres` (`migrate(pool)`) both connect over a pool as the
-application's DB role, so their objects are owned correctly by construction.
-Search owns an independent, disposable migration stream. The rules below apply
-only to this hand-written storage-upgrade stream.
+Fresh installations now run the immutable SQL and manifest in [the adapter's migrations directory](../migrations/). The PostgreSQL adapter records checkpoint 15 in `public.byline_core_migrations`. Future numbered runner steps start at 0016. The separate `src/database/migrations/` directory belongs to Drizzle development tooling.
 
 ## Ownership guard
 

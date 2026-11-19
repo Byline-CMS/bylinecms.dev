@@ -111,7 +111,7 @@ By default `setup` consults `.byline-install.json` and skips phases already
 recorded as complete. `--force` bypasses completion state, but it does not turn
 the fresh baseline into an upgrade or weaken occupied-database checks.
 
-The ordinary path applies the CLI's release-specific, squashed baseline only
+The ordinary dedicated path applies the adapter's PostgreSQL baseline or the CLI's bundled MySQL baseline only
 to a missing or empty database. It refuses an existing Byline schema and an
 unrelated occupied schema before mutation. Upgrade an existing installation
 with the numbered native SQL under `packages/db-postgres/sql` or
@@ -122,3 +122,5 @@ Use `--force --reset --i-mean-it` only for an intentional rebuild. Reset skips
 occupied-database inspection, drops the named database, reapplies the fresh
 baseline, and discards all document data. Without `--i-mean-it`, the reset path
 asks for confirmation.
+
+For a shared PostgreSQL database, run `byline setup --database postgres --existing-database --apply` with a direct `BYLINE_DB_POSTGRES_CONNECTION_STRING` and a preinstalled `pgcrypto` extension. The adapter verifies the target and records the frozen baseline in `public.byline_core_migrations`. The host keeps its own Drizzle journal. Shared setup rejects destructive resets. For dedicated PostgreSQL provisioning you can supply the administrator endpoint in `BYLINE_CLI_POSTGRES_ADMIN_URL`.

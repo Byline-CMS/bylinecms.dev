@@ -18,6 +18,7 @@ import { basename } from 'node:path'
 // squashed baseline, which is *meant* to be rewritten; `sync:baselines` and
 // `baseline-drift.test.ts` are the gates that govern them.
 const SQL_HISTORY_PATTERN = /^packages\/[^/]+\/(?:sql|migrations)\/[^/]+\.sql$/
+const CORE_MANIFEST = /^packages\/db-(?:postgres|mysql)\/migrations\/\d{4}_[^/]+\.json$/
 const NUMBERED_SQL = /^\d{4}_.+\.sql$/
 
 const base = readOption('--base')
@@ -30,7 +31,11 @@ git(['rev-parse', '--verify', `${base}^{commit}`])
 const taggedFiles = git(['ls-tree', '-r', '--name-only', base, '--', 'packages'])
   .toString('utf8')
   .split('\n')
-  .filter((path) => SQL_HISTORY_PATTERN.test(path) && NUMBERED_SQL.test(basename(path)))
+  .filter(
+    (path) =>
+      CORE_MANIFEST.test(path) ||
+      (SQL_HISTORY_PATTERN.test(path) && NUMBERED_SQL.test(basename(path)))
+  )
   .sort()
 
 const errors = []

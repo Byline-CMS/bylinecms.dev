@@ -7,7 +7,6 @@ const packagesRoot = resolve(cliRoot, '..')
 const targetRoot = resolve(cliRoot, 'src/templates/migrations')
 
 const adapters = {
-  postgres: 'db-postgres',
   mysql: 'db-mysql',
 }
 

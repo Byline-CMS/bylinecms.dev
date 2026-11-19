@@ -38,13 +38,14 @@
     "sync:baselines": "node scripts/sync-db-baselines.mjs",
     "lint": "biome check --write --unsafe --diagnostic-level=error",
     "test": "vitest run --passWithNoTests",
-    "test:integration": "vitest run --mode=integration",
+    "test:integration": "pnpm run build && vitest run --mode=integration",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.tests.json"
   },
   "files": [
     "dist"
   ],
   "dependencies": {
+    "@byline/db-postgres": "workspace:*",
     "@clack/prompts": "^1.9.0",
     "commander": "^15.1.0",
     "diff": "^9.0.0",

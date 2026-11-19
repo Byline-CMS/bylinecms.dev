@@ -17,6 +17,7 @@ export const dbInitPhase: Phase = {
   defaultMode: 'confirm',
 
   async detect(ctx) {
+    if (ctx.cliFlags.existingDatabase) return ctx.secrets.applicationUrl ? 'pending' : 'blocked'
     if (ctx.state.isComplete('db-init')) return 'done'
     const answers = ctx.state.get().answers
     if (!answers.dbAdapter || !answers.dbName || !answers.dbUser || !answers.dbHost) {
@@ -27,6 +28,12 @@ export const dbInitPhase: Phase = {
 
   async plan(ctx) {
     const answers = ctx.state.get().answers
+    if (ctx.cliFlags.existingDatabase)
+      return {
+        writes: [],
+        commands: [],
+        notes: ['verify or install core storage on the existing PostgreSQL target'],
+      }
     const notes: string[] = []
     if (answers.dbAdapter) notes.push(`database adapter: ${answers.dbAdapter}`)
     if (answers.dbName) notes.push(`provision database "${answers.dbName}"`)
@@ -52,6 +59,15 @@ export const dbInitPhase: Phase = {
   async apply(_plan, ctx) {
     const answers = ctx.state.get().answers
     const adapter = answers.dbAdapter
+    if (ctx.cliFlags.existingDatabase) {
+      if (adapter !== 'postgres' || ctx.reset || !ctx.secrets.applicationUrl)
+        return { state: 'blocked' }
+      await databaseProvisioner(adapter, ctx.provisioners).applyBaseline({
+        applicationUrl: ctx.secrets.applicationUrl,
+        logger: ctx.logger,
+      })
+      return { state: 'done' }
+    }
     if (!adapter || !answers.dbName || !answers.dbUser || !answers.dbHost) {
       ctx.logger.error('db-init prerequisites missing — run the db phase first')
       return { state: 'blocked' }
@@ -70,11 +86,6 @@ export const dbInitPhase: Phase = {
     }
 
     const definition = databaseAdapterDefinition(adapter)
-    if (definition.baseline !== 'drizzle-sql') {
-      ctx.logger.error(`${definition.label} does not support a Drizzle SQL baseline`)
-      return { state: 'blocked' }
-    }
-
     const adminUrl = await resolveAdminUrl(ctx, adapter, answers.dbHost, answers.dbPort)
     if (!adminUrl) return { state: 'blocked' }
 
@@ -113,7 +124,8 @@ export const dbInitPhase: Phase = {
     if (!ctx.reset) {
       ctx.logger.step(`inspecting database "${answers.dbName}" before any mutation`)
       const targetState = classifyDbTarget(
-        await provisioner.inspectTarget(adminUrl, answers.dbName)
+        await provisioner.inspectTarget(adminUrl, answers.dbName),
+        adapter
       )
       if (targetState === 'byline-schema' || targetState === 'occupied-schema') {
         refuseOccupiedTarget(ctx, adapter, answers.dbName, targetState)
@@ -125,6 +137,7 @@ export const dbInitPhase: Phase = {
     if (!password) return { state: 'blocked' }
     ctx.secrets.dbPassword = password
 
+    await provisioner.verifyBaselineAssets?.()
     await provisioner.provisionTarget({
       adminUrl,
       database: answers.dbName,
@@ -143,7 +156,7 @@ export const dbInitPhase: Phase = {
     })
     await provisioner.applyBaseline({
       applicationUrl,
-      migrationsFolder: baselineDir(ctx.templatesDir(), adapter),
+      migrationsFolder: adapter === 'mysql' ? baselineDir(ctx.templatesDir(), adapter) : undefined,
       logger: ctx.logger,
     })
 
@@ -195,10 +208,13 @@ async function resolveAdminUrl(
   host: string,
   port?: number
 ): Promise<string | null> {
-  if (ctx.secrets.adminUrl) {
+  const suppliedUrl =
+    ctx.secrets.adminUrl ??
+    (adapter === 'postgres' ? process.env.BYLINE_CLI_POSTGRES_ADMIN_URL : undefined)
+  if (suppliedUrl) {
     try {
-      parseDbUrl(ctx.secrets.adminUrl, adapter)
-      return ctx.secrets.adminUrl
+      parseDbUrl(suppliedUrl, adapter)
+      return suppliedUrl
     } catch (error) {
       ctx.logger.error((error as Error).message)
       return null

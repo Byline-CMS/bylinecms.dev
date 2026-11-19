@@ -6,30 +6,13 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-
 import { sql } from 'drizzle-orm'
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
-import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import pg from 'pg'
 
 import * as schema from '../database/schema/index.js'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-/**
- * Drizzle migrations folder. Migrations (`*.sql` + `meta/_journal.json`)
- * live only under `src/` — the TypeScript build doesn't copy them into
- * `dist/`. Anchor on `src/database/migrations` from either location:
- *
- *   src/lib/test-db.ts  → ../../src/database/migrations ✓
- *   dist/lib/test-db.js → ../../src/database/migrations ✓
- *
- * `path.resolve` normalises the `../..` away, so the same string works
- * for both build modes.
- */
-const MIGRATIONS_FOLDER = path.resolve(__dirname, '../../src/database/migrations')
+import { loadStorageSteps } from '../migrations/assets.js'
+import { installCoreStorage } from '../migrations/index.js'
 
 /**
  * Belt for the script-level braces in `common.sh`. Parses the connection
@@ -62,42 +45,36 @@ export function assertTestDatabase(connectionString: string | undefined): string
   return dbName
 }
 
-/**
- * Run Drizzle migrations against the configured connection. Idempotent —
- * Drizzle tracks applied migrations in `__drizzle_migrations`. Opens and
- * closes its own pool; safe to call from a vitest globalSetup or a node:test
- * bootstrap module.
- */
+/** Set up a repository test database through the published core installation path. */
 export async function migrateTestDatabase(connectionString: string): Promise<void> {
-  assertTestDatabase(connectionString)
-  const pool = new pg.Pool({ connectionString, max: 1 })
+  const name = assertTestDatabase(connectionString)
+  const client = new pg.Client({ connectionString })
   try {
-    const db = drizzle(pool, { schema })
-    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER })
+    await client.connect()
+    const target = await client.query(
+      "SELECT current_database() AS db, to_regclass('public.byline_documents') IS NULL AS fresh"
+    )
+    if (target.rows[0].db !== name)
+      throw new Error('Connected database differs from guarded test target')
+    if (target.rows[0].fresh) await client.query('CREATE EXTENSION IF NOT EXISTS pgcrypto')
   } finally {
-    await pool.end()
+    await client.end()
+  }
+  try {
+    await installCoreStorage(connectionString)
+  } catch (cause) {
+    throw new Error(
+      `Cannot initialize test database ${name}. For a disposable legacy test database, explicitly rebuild with pnpm db:init:test. ${cause instanceof Error ? cause.message : cause}`,
+      { cause }
+    )
   }
 }
 
-/**
- * Wipe every user table in the `public` schema (skipping Drizzle's own
- * `__drizzle_migrations` ledger). Uses a single `TRUNCATE ... RESTART
- * IDENTITY CASCADE` so foreign-key chains, sequences, and dependent rows
- * all reset cleanly in one statement.
- *
- * Self-maintaining as the schema grows — new tables come along for the
- * ride without any code change.
- */
+/** Truncate only core content tables. An external FK must never cascade into host data. */
 export async function truncateAllTables(db: NodePgDatabase<typeof schema>): Promise<void> {
-  const rows = await db.execute<{ table_name: string }>(sql`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public'
-      AND table_type = 'BASE TABLE'
-      AND table_name <> '__drizzle_migrations'
-  `)
-  const tables = rows.rows.map((r) => `"public"."${r.table_name}"`)
-  if (tables.length === 0) return
-  await db.execute(sql.raw(`TRUNCATE ${tables.join(', ')} RESTART IDENTITY CASCADE`))
+  const names = loadStorageSteps().flatMap((step) => step.relations.r ?? [])
+  const tables = names.map((name) => sql`public.${sql.identifier(name)}`)
+  await db.execute(sql`TRUNCATE ${sql.join(tables, sql.raw(', '))} RESTART IDENTITY`)
 }
 
 /**
@@ -106,10 +83,13 @@ export async function truncateAllTables(db: NodePgDatabase<typeof schema>): Prom
  * need a long-lived db handle.
  */
 export async function resetTestDatabase(connectionString: string): Promise<void> {
-  assertTestDatabase(connectionString)
+  const name = assertTestDatabase(connectionString)
   const pool = new pg.Pool({ connectionString, max: 1 })
   try {
     const db = drizzle(pool, { schema })
+    const target = await db.execute<{ name: string }>(sql`SELECT current_database() AS name`)
+    if (target.rows[0]?.name !== name)
+      throw new Error('Connected database differs from guarded test target')
     await truncateAllTables(db)
   } finally {
     await pool.end()

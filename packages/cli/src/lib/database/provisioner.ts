@@ -19,12 +19,13 @@ export interface ProvisionArgs {
 
 export interface BaselineArgs {
   applicationUrl: string
-  migrationsFolder: string
+  migrationsFolder?: string
   logger: Pick<Logger, 'step' | 'success'>
 }
 
 export interface DbProvisioner {
   readonly adapter: DatabaseAdapterId
+  verifyBaselineAssets?(): Promise<void>
   verifyAdminConnection(adminUrl: string): Promise<string>
   inspectTarget(adminUrl: string, database: string): Promise<DbTargetInspection>
   provisionTarget(args: ProvisionArgs): Promise<void>

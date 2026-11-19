@@ -12,7 +12,6 @@ export interface DatabaseAdapterDefinition {
   url: DatabaseUrlCodec
   defaultAdminDatabase: string
   prerequisites: readonly string[]
-  baseline: 'drizzle-sql' | 'none'
 }
 
 /**
@@ -39,7 +38,6 @@ export const DATABASE_ADAPTERS = {
     }),
     defaultAdminDatabase: 'postgres',
     prerequisites: ['pgcrypto'],
-    baseline: 'drizzle-sql',
   },
   mysql: {
     id: 'mysql',
@@ -57,7 +55,6 @@ export const DATABASE_ADAPTERS = {
     }),
     defaultAdminDatabase: 'mysql',
     prerequisites: [],
-    baseline: 'drizzle-sql',
   },
 } as const satisfies Record<DatabaseAdapterId, DatabaseAdapterDefinition>
 
