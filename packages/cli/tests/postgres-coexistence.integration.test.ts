@@ -1,7 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { randomBytes } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -18,6 +16,7 @@ import { installOnConnection } from '../../db-postgres/dist/migrations/runner.js
 import { postgresProvisioner } from '../src/lib/database/postgres.js'
 import { dependencySpecsFor } from '../src/manifest/deps.js'
 import { ENV_FILE_PATHS, envSpecsForAdapter } from '../src/manifest/env.js'
+import { withTarget } from './postgres-target.js'
 
 const dist = fileURLToPath(new URL('../dist/', import.meta.url))
 const legacyTimestamp = 1793427239806 // PostgreSQL v6.13.4 release baseline
@@ -111,57 +110,6 @@ async function hostLedger(client: Client) {
   return (
     await client.query('SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY id')
   ).rows
-}
-
-interface Target {
-  host: Client
-  url: URL
-  database: string
-  role: string
-  cwd: string
-}
-async function withTarget(use: (target: Target) => Promise<void>) {
-  const url = new URL(process.env.BYLINE_CLI_POSTGRES_ADMIN_URL ?? '')
-  if (url.hostname !== '127.0.0.1' || url.port !== '5432' || url.pathname !== '/postgres') {
-    throw new Error('Coexistence fixture requires the loopback PostgreSQL test administrator')
-  }
-  const id = randomBytes(5).toString('hex')
-  const database = `byline_cli_coexist_${id}_test`
-  const role = `byline_install_${id}_test`
-  const password = randomBytes(16).toString('hex')
-  const admin = new Client({ connectionString: url.href })
-  url.pathname = `/${database}`
-  const host = new Client({ connectionString: url.href })
-  url.username = role
-  url.password = password
-  const cwd = mkdtempSync(join(tmpdir(), 'byline-coexist-'))
-  let createdRole = false
-  let createdDatabase = false
-  try {
-    await admin.connect()
-    await admin.query(`CREATE ROLE ${role} LOGIN PASSWORD ${admin.escapeLiteral(password)}`)
-    createdRole = true
-    await admin.query(`CREATE DATABASE ${database}`)
-    createdDatabase = true
-    await host.connect()
-    const info = await host.query('SELECT current_database() AS db, version() AS server')
-    expect(info.rows[0].db).toBe(database)
-    console.info(info.rows[0].db, info.rows[0].server)
-    await host.query('CREATE EXTENSION pgcrypto')
-    await host.query(`GRANT CREATE, USAGE ON SCHEMA public TO ${role}`)
-    await host.query('CREATE TABLE host_sentinel (id integer PRIMARY KEY)')
-    await host.query('INSERT INTO host_sentinel VALUES (42)')
-    await use({ host, url, database, role, cwd })
-  } finally {
-    await host.end()
-    try {
-      if (createdDatabase) await admin.query(`DROP DATABASE ${database}`)
-      if (createdRole) await admin.query(`DROP ROLE ${role}`)
-    } finally {
-      await admin.end()
-      rmSync(cwd, { recursive: true, force: true })
-    }
-  }
 }
 
 async function exercise(order: Order, path: InstallPath) {
@@ -354,7 +302,7 @@ it('retries a lost baseline commit acknowledgement without replaying SQL', async
         },
       })
       await expect(installOnConnection(client, loadStorageSteps())).rejects.toThrow(
-        'lost commit acknowledgement'
+        'Commit outcome unknown'
       )
     } finally {
       await client.end()
@@ -412,7 +360,7 @@ it('installs through real dedicated setup, refuses occupied retries and supports
               dbName: dedicated,
               dbUser: role,
               dbHost: url.hostname,
-              dbPort: 5432,
+              dbPort: Number(url.port),
             },
           })
         )

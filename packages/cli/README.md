@@ -114,7 +114,7 @@ the fresh baseline into an upgrade or weaken occupied-database checks.
 The ordinary dedicated path applies the adapter's PostgreSQL baseline or the CLI's bundled MySQL baseline only
 to a missing or empty database. It refuses an existing Byline schema and an
 unrelated occupied schema before mutation. Upgrade an existing installation
-with the numbered native SQL under `packages/db-postgres/sql` or
+to the cutover checkpoint with the numbered native SQL under `packages/db-postgres/sql` or
 `packages/db-mysql/sql` from the target release tag; the CLI does not apply
 those upgrade scripts.
 
@@ -124,3 +124,5 @@ baseline, and discards all document data. Without `--i-mean-it`, the reset path
 asks for confirmation.
 
 For a shared PostgreSQL database, run `byline setup --database postgres --existing-database --apply` with a direct `BYLINE_DB_POSTGRES_CONNECTION_STRING` and a preinstalled `pgcrypto` extension. The adapter verifies the target and records the frozen baseline in `public.byline_core_migrations`. The host keeps its own Drizzle journal. Shared setup rejects destructive resets. For dedicated PostgreSQL provisioning you can supply the administrator endpoint in `BYLINE_CLI_POSTGRES_ADMIN_URL`.
+
+For existing PostgreSQL installations, run `byline storage status`. With all writers fenced and a verified backup, use `byline storage adopt` on a recognized checkpoint and `byline storage migrate` on a journaled target.

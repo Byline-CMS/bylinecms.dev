@@ -1,6 +1,6 @@
 # Hand-written upgrade scripts (`sql/`)
 
-This historical hand-applied stream ends at **0015**. For an existing installation without a core journal, follow the native instructions in the target release tag, including the required backfills and writer fences. In shared databases review the ownership guard below before using any historical script. This release cannot adopt an existing installation.
+This historical hand-applied stream ends at **0015**. For an existing installation without a core journal, follow the native instructions in the target release tag, including the required backfills and writer fences. In shared databases review the ownership guard below before using any historical script. Use `byline storage status` to inspect the catalog and historical data. Once the database matches the checkpoint, fence writers and use `byline storage adopt` to record 0015.
 
 Fresh installations now run the immutable SQL and manifest in [the adapter's migrations directory](../migrations/). The PostgreSQL adapter records checkpoint 15 in `public.byline_core_migrations`. Future numbered runner steps start at 0016. The separate `src/database/migrations/` directory belongs to Drizzle development tooling.
 

@@ -12,7 +12,7 @@ import type {
   ProvisionArgs,
 } from './provisioner.js'
 
-async function migrations() {
+export async function postgresMigrations() {
   const { version } = createRequire(import.meta.url)('@byline/db-postgres/package.json')
   if (version !== CLI_PACKAGE_VERSION)
     throw new Error(
@@ -25,7 +25,7 @@ export const postgresProvisioner: DbProvisioner = {
   adapter: 'postgres',
 
   async verifyBaselineAssets() {
-    const { verifyStorageMigrations } = await migrations()
+    const { verifyStorageMigrations } = await postgresMigrations()
     verifyStorageMigrations()
   },
 
@@ -152,12 +152,12 @@ async function provisionPostgresTarget(args: ProvisionArgs): Promise<void> {
 }
 
 async function applyPostgresBaseline(args: BaselineArgs): Promise<void> {
-  const { installCoreStorage } = await migrations()
+  const { installCoreStorage } = await postgresMigrations()
   const result = await installCoreStorage(args.applicationUrl)
   args.logger.success(
     result.applied.length
       ? `installed core storage versions ${result.applied.join(', ')}`
-      : 'verified PostgreSQL core storage'
+      : 'core journal current; expected PostgreSQL relations present'
   )
 }
 

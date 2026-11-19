@@ -184,6 +184,10 @@ function refuseOccupiedTarget(
     ctx.logger.info(
       `upgrade the existing installation with native SQL for the target release: ${nativeSqlUpgradeUrl(adapter)}`
     )
+    if (adapter === 'postgres')
+      ctx.logger.info(
+        'Inspect this database with byline storage status. Fence writers before byline storage adopt or byline storage migrate.'
+      )
     ctx.logger.info(
       'only when destroying and rebuilding this Byline installation is intended, run: byline setup --force --reset --i-mean-it'
     )

@@ -4,6 +4,7 @@ import { Command } from 'commander'
 import { runDoctor } from './commands/doctor.js'
 import { runInit } from './commands/init.js'
 import { runSetup } from './commands/setup.js'
+import { registerStorageCommands } from './commands/storage.js'
 import { DATABASE_ADAPTER_IDS } from './lib/database/adapters.js'
 import { isDatabaseAdapterId } from './lib/database/selection.js'
 import { CLI_PACKAGE_VERSION } from './lib/release-policy.js'
@@ -108,6 +109,8 @@ program
   .action(async () => {
     await runDoctor()
   })
+
+registerStorageCommands(program)
 
 program.parseAsync(process.argv).catch((e: Error) => {
   console.error(e.message)

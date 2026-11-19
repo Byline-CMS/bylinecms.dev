@@ -31,10 +31,15 @@ configured example application without touching your own code.
 |---|---|
 | `byline init` | The full installer. Detects what is already in place, then runs the remaining phases. |
 | `byline setup` | Database provisioning and seeding only, for an application you wired by hand. Touches no project files. |
+| `byline storage status` | Inspects the PostgreSQL journal or scans an unjournaled installation for adoption evidence. |
+| `byline storage adopt` | Records a verified PostgreSQL checkpoint after you fence writers. |
+| `byline storage migrate` | Applies pending PostgreSQL migrations to a journaled database. |
 | `byline doctor` | Read-only. Reports which installation phases are complete. |
 
-All three run through your package runner without a global install: for
+These commands run through your package runner without a global install: for
 example `npx @byline/cli@latest init` or `pnpm dlx @byline/cli@latest init`.
+
+PostgreSQL cutover inspection supports server majors 15 through 18. It compares the definitions of both current-document views and reports the supported major range before an existing installation can be adopted.
 
 ## Requirements
 
@@ -245,7 +250,39 @@ byline setup --database postgres --existing-database --apply
 
 Set `BYLINE_DB_POSTGRES_CONNECTION_STRING` to the direct target connection in the environment or in the host's `.env.local`. Install `pgcrypto` beforehand. The installing role needs USAGE and CREATE on `public`. It owns the core objects it creates. When the runtime uses another role, arrange the required content privileges and journal SELECT for that role. Coordinate a quiet period for host DDL and reserve the names reported by the adapter. A conflicting object aborts the install. A retry verifies a completed install before continuing to the configured seeds. Shared setup bypasses database/role provisioning and rejects reset. The host's Drizzle journal remains independent.
 
-For an unjournaled Byline installation, consult the native upgrade instructions at the target release tag. The legacy PostgreSQL series ends at 0015. This installer cannot adopt that database. MySQL continues to use its release-tagged native SQL upgrades. Startup compatibility and scheduled online upgrades belong to subsequent migration releases.
+### Adopt and upgrade an existing PostgreSQL installation
+
+From the host root or a standalone directory containing the target CLI, supply the database connection in `BYLINE_DB_POSTGRES_CONNECTION_STRING`. Run `byline storage status --database postgres` against a restored copy first. Status reads one consistent snapshot. For an unjournaled candidate it checks the catalog and scans content for historical locale, path, revision and schedule evidence. Its output names discrepancies and their remedies. The legacy native upgrade stream ends at 0015. Follow the target release instructions to reach that checkpoint, with special care to preserve unrelated objects in a shared database.
+
+Take a verified backup and fence all writers, workers and host schema changes. When status reports `recognized`, run `byline storage adopt`. Adoption repeats the inspection under the lock and writes one journal row with origin `adopted`. Running it again at the checkpoint verifies the database and preserves that row. Run `byline storage status` to confirm the recorded version. To apply later numbered steps under the fence, run `byline storage migrate`. Each successful step commits independently. If the connection drops during commit, reconnect and inspect the journal before retrying.
+
+The CLI reports the selected database, CLI-owned adapter release and installed host adapter release when present. Install unresolved host dependencies before a mutation. If you stage the target CLI ahead of the host upgrade, use `--target-adapter-version <exact-release>` with the matching CLI-owned release while fenced, then deploy the matching application before reopening traffic. MySQL continues to use release-tagged native SQL for existing installations.
+
+Supervised adoption and migration display the target and ask you to confirm that writers are fenced and a verified backup is available. For an unattended supervised operation, pass `--yes` only after your deployment has established that fence.
+
+| `storage status` exit code | Meaning |
+|---|---|
+| 0 | Current |
+| 2 | Known pending migrations |
+| 3 | Recognized existing installation, ready for supervised adoption |
+| 4 | Empty or unrelated database, available for installation after setup preflight |
+| 1 | Inspection failure or operator intervention required |
+
+### Run a scheduled PostgreSQL upgrade
+
+Stage the target release and run its CLI once before promoting the application. Give the release job the ordinary `BYLINE_DB_POSTGRES_CONNECTION_STRING` and a separate writable `BYLINE_MIGRATION_DATABASE_URL`. Configure and verify a direct or session-preserving endpoint for the DDL role. Transaction or statement pooling cannot retain the migration lock. Both URLs must identify the intended database and installation. A restored clone inherits the installation identifier, so pair endpoints within the same deployment environment.
+
+For example, a deployment with two active adapter releases can pass their exact versions from its inventory.
+
+```sh
+byline storage migrate --database postgres --online-only \
+  --deployed-adapter-version "$ACTIVE_WEB_ADAPTER_VERSION" \
+  --deployed-adapter-version "$ACTIVE_WORKER_ADAPTER_VERSION"
+```
+
+Promote only on exit zero. With no pending work the command needs no fleet declaration. Otherwise the job checks every pending step against every declared writer and worker release under the core lock. A fenced step or untested release stops the entire set before any DDL. If an eligible step fails during execution, keep promotion stopped and run status. Earlier steps may already be committed. Give the application its ordinary runtime credentials when it starts. A host without a release phase can run the same command in a one-shot init job. The initial cutover ships only the fenced 0015 baseline.
+
+
 
 For an intentional rebuild, use
 `byline setup --force --reset --i-mean-it`. This path skips the inspection

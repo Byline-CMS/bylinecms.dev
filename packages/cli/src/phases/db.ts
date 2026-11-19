@@ -116,6 +116,13 @@ export const dbPhase: Phase = {
         defaultValue: adminUrlDefault,
       }))
 
+    if (adapter === 'postgres' && process.env.BYLINE_CLI_POSTGRES_ADMIN_URL) {
+      const endpoint = new URL(adminUrl)
+      ctx.logger.step(
+        `Using BYLINE_CLI_POSTGRES_ADMIN_URL administrator endpoint ${endpoint.hostname}:${endpoint.port || '5432'}`
+      )
+    }
+
     const dbName = await ctx.prompter.text({
       message: 'Database name to create',
       defaultValue: saved.dbName ?? 'byline',

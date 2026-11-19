@@ -88,7 +88,7 @@ The squash replaces the migration chain with a single new `0000` migration whose
 
    Running it again on a re-keyed database reports "already keyed" and changes nothing. It cannot check that the database applied every squashed migration — that is what step 1 guarantees.
 
-   Never re-key a deployed database. Deployed installations upgrade through the `sql/` scripts and do not run Drizzle migrations at all. For a disposable `*_test` database, re-initialising it (`pnpm db:init:test`, `pnpm db:init:test:mysql`) is an equally good alternative.
+   Never re-key a deployed database. For journaled PostgreSQL installations use `byline storage migrate`. Existing MySQL installations follow the release-tagged native `sql/` instructions. For a disposable `*_test` database, re-initialising it (`pnpm db:init:test`, `pnpm db:init:test:mysql`) is an equally good alternative.
 
    If you need to do it by hand, the helper's equivalent is:
 

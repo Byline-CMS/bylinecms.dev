@@ -13,9 +13,13 @@ export function isDatabaseAdapterId(value: unknown): value is DatabaseAdapterId 
 }
 
 export function inspectDatabaseAdapter(ctx: Context): DatabaseAdapterInspection {
-  const persisted = ctx.state.get().answers.dbAdapter
-  const requested = ctx.cliFlags.database
+  return inspectAdapterSelection(ctx.state.get().answers.dbAdapter, ctx.cliFlags.database)
+}
 
+export function inspectAdapterSelection(
+  persisted: unknown,
+  requested: unknown
+): DatabaseAdapterInspection {
   if (requested !== undefined && !isDatabaseAdapterId(requested)) {
     return {
       state: 'blocked',
