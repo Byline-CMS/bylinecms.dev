@@ -37,19 +37,30 @@ Before choosing or consuming the release changeset, run this sequence from the
 repository root:
 
 ```sh
-pnpm --filter @byline/cli sync:baselines
-git diff --exit-code -- packages/cli/src/templates/migrations
-pnpm --filter @byline/cli exec vitest run src/lib/baseline-drift.test.ts
 pnpm check:native-sql-history -- --base "v${PREV_VERSION}"
+pnpm build:packages
+pnpm --filter @byline/cli check:templates
+pnpm --filter @byline/cli check:artifact
+pnpm --filter @byline/cli check:storage-release
 ```
 
-The sync command first requires each database adapter's Drizzle source and
-journal to contain exactly one squashed baseline, then copies both baselines
-into the CLI. The diff check refuses uncommitted bundle drift; the Vitest
-contract verifies source and bundle bytes and inventory; the history guard
-requires every numbered `packages/db-*/sql/*.sql` file from the previous tag to
-remain present and byte-identical. Stop before versioning, build, pack, or
-publication if any command fails.
+These are the core storage gates from
+[Release instructions §III](../../RELEASE-INSTRUCTIONS.md#iii-verify-core-storage-migration-assets).
+Each SQL adapter ships its own frozen baseline and numbered steps under
+`packages/db-*/migrations/`; there is no CLI baseline to squash or synchronise.
+The history guard requires every released numbered SQL file under
+`packages/db-*/sql/` and `packages/*/migrations/`, and every core manifest, to
+remain present and byte-identical. The template and artifact checks confirm the
+packed CLI resolves both exact adapter versions and validates their raw SQL.
+`check:storage-release` packs the Byline dependency graph into a clean consumer
+and exercises setup, adoption, startup and release jobs; it needs
+`BYLINE_CLI_POSTGRES_ADMIN_URL` and `BYLINE_CLI_MYSQL_ADMIN_URL` pointing at
+loopback test servers (set in `packages/cli/.env.test`).
+
+If the release adds a new numbered core step, also complete the remaining §III
+items — catalog and recovery rehearsal, and the `check:postgres-compatibility` /
+`check:mysql-compatibility` evidence before classifying any step online. Stop
+before versioning, build, pack, or publication if any command fails.
 
 ## Step 1 — Choose bump level
 
