@@ -2,22 +2,30 @@ name: CI
 
 on:
   pull_request:
+  # `main` is deliberately absent: it only ever receives fast-forwards of
+  # release commits that already ran here on `develop`, so a `main` trigger
+  # would rerun the full suite on an identical SHA. Tag pushes (per-package
+  # and umbrella release tags) do not trigger runs either.
   push:
-    branches: [develop, main]
+    branches: [develop]
+  # Manual runs: `gh workflow run ci.yml --ref <branch-or-tag>`, e.g. on
+  # `develop` before a release or against a published `vX.Y.Z` tag.
+  workflow_dispatch:
 
-# Run one job per ref; cancel earlier in-flight runs on the same ref to
-# save minutes when a contributor pushes a quick fix-up.
+# Ordinary runs share one group per ref and cancel earlier in-flight runs,
+# to save minutes when a contributor pushes a quick fix-up.
+#
+# A pushed release commit (`chore(release): X.Y.Z`) instead gets its own group
+# keyed by SHA and is never cancelled. `/release` gates npm publication on this
+# exact run (or links to it under `--skip-ci`), so a later `develop` push must
+# not cancel it, and pushing the release commit must not cancel the parent
+# commit's still-running `develop` run either.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore(release):')) && github.sha || github.ref }}
+  cancel-in-progress: ${{ !(github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore(release):')) }}
 
 jobs:
   lint-and-typecheck:
-    # Skip release commits (`chore(release): 1.2.3`) — they only bump versions
-    # and CHANGELOG entries; the underlying code has already been gated by an
-    # earlier run. PRs evaluate the head_commit context as empty, so this
-    # condition only filters direct pushes to develop/main.
-    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -65,7 +73,6 @@ jobs:
       - run: pnpm test:scripts
 
   test-suite:
-    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     runs-on: ubuntu-latest
 
     services:
@@ -228,7 +235,6 @@ jobs:
         run: pnpm --filter @byline/db-postgres --filter @byline/db-mysql --filter @byline/analytics-postgres --filter @byline/analytics-mysql test:integration
 
   postgres-cutover-floor:
-    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -258,7 +264,6 @@ jobs:
       - run: pnpm --filter @byline/cli exec vitest run --mode=integration tests/postgres-coexistence.integration.test.ts tests/postgres-inspection.integration.test.ts tests/postgres-operations.integration.test.ts tests/postgres-online.integration.test.ts tests/postgres-startup.integration.test.ts
 
   mysql-core-storage:
-    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
