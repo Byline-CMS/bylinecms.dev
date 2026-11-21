@@ -5,6 +5,8 @@ agent: build
 
 Drive a complete lockstep release for the package names in `.changeset/config.json` `fixed[0]`. Treat `$ARGUMENTS` as an optional bump level (`patch`, `minor`, or `major`). Never hard-code the package count or list.
 
+`--skip-ci` may accompany the bump level, in either order. By default, publication waits until CI has passed on the exact commit `./publish-packages.sh` will tag. With `--skip-ci`, publication does not wait; CI keeps running and the release notes record the bypass with a link to the run. The flag skips the wait, never a known failure: a run that has already failed blocks both modes.
+
 The workflow is resumable, but npm publication is irreversible. Stop for explicit approval immediately before running `./publish-packages.sh --yes`, and stop again to show the complete GitHub release notes before creating or editing the umbrella release.
 
 ## 1. Preflight
@@ -15,9 +17,19 @@ Before changing files or remotes:
 2. Require an empty `git status --porcelain`. Do not sweep unrelated work into a release.
 3. Record the current branch as `ORIGINAL_BRANCH`; releases normally land on `develop`. If currently on `main` or a feature branch, ask before continuing.
 4. Run `git fetch origin`, verify local and remote `develop` and `main` exist, and use `git rev-list --left-right --count <branch>...origin/<branch>` to require `0 0` for both. Stop on divergence.
-5. Read `PREV_VERSION` from `packages/core/package.json`.
+5. Check for a prepared release (see [Resuming a prepared release](#resuming-a-prepared-release)); otherwise read `PREV_VERSION` from `packages/core/package.json`.
 6. Read the exact fixed package names from `.changeset/config.json`, map each name to its `packages/*/package.json`, and verify all currently equal `PREV_VERSION`.
 7. Verify the prior package tag `@byline/core@<PREV_VERSION>` resolves; use it as the release-range anchor.
+
+### Resuming a prepared release
+
+Before reading `PREV_VERSION`, read the current version `V`. If the umbrella tag `v<V>` exists neither locally nor on origin, and a commit whose subject is exactly `chore(release): <V>` is reachable from `HEAD`, an earlier run prepared `V` without finishing it, usually because the CI gate stopped it. Resume instead of starting a new release:
+
+1. Set `NEXT_VERSION=<V>` and `RELEASE_COMMIT` to that commit's full SHA. Read `PREV_VERSION` from `git show <RELEASE_COMMIT>^:packages/core/package.json`.
+2. Show `PREV_VERSION -> NEXT_VERSION`, `RELEASE_COMMIT`, `HEAD`, and `git log --oneline <RELEASE_COMMIT>..HEAD`, and ask the user to confirm resuming. Create no changeset or release commit.
+3. If `HEAD` is not `RELEASE_COMMIT`, verify no fixed package's version differs from `NEXT_VERSION`, re-run the database schema gates with `--base "v${PREV_VERSION}"`, and push the branch if it is ahead of origin.
+4. If any per-package tag `<name>@<NEXT_VERSION>` points at a commit other than `HEAD`, stop and ask how to reconcile.
+5. Continue at the CI gate. If an earlier attempt already published some packages, `./publish-packages.sh` skips them and finishes the rest and the tags. The CI line in the release notes reflects the gate decision made in this session.
 
 ### Database schema gates
 
@@ -52,7 +64,7 @@ before versioning, build, pack, or publication if any command fails.
 
 ## 2. Choose the bump
 
-- If `$ARGUMENTS` is exactly `patch`, `minor`, or `major`, use it.
+- If `$ARGUMENTS` contains `patch`, `minor`, or `major`, use it.
 - Otherwise ask one question with Patch (recommended), Minor, and Major choices.
 - Compute the expected next semantic version now and record it as `EXPECTED_VERSION`.
 
@@ -86,12 +98,36 @@ Read relevant commit diffs when subjects are insufficient. Produce one or two co
 4. Commit exactly `chore(release): <NEXT_VERSION>` without skipping hooks.
 5. Push the current branch normally.
 
+## 5b. CI gate
+
+Capture the full anchor SHA once: `RELEASE_ANCHOR="$(git rev-parse HEAD)"`. Use this value for the CI lookup, the publication checkpoint, the pre-publish check, and the umbrella tag; never re-read `HEAD` in its place. Normally it is the release commit. After a fix-forward it is the newest fix commit above the release commit. Confirm it is on origin, pushing first if not.
+
+Find or start the run:
+
+- On `develop`, the push started a run. `.github/workflows/ci.yml` gives a pushed `chore(release):` commit its own concurrency group keyed by SHA, so neither the parent commit's run nor a later `develop` push can cancel it.
+- On any other branch, pushes start no run and a pull request run tests a merge commit. Dispatch one immediately with `gh workflow run ci.yml --repo Byline-CMS/bylinecms.dev --ref <branch>` and accept only a `workflow_dispatch` run. If GitHub rejects the dispatch, stop in both modes and suggest releasing from `develop`.
+
+```sh
+gh run list --repo Byline-CMS/bylinecms.dev --workflow ci.yml --commit "$RELEASE_ANCHOR" \
+  --json databaseId,status,conclusion,event,headSha,url --limit 5
+```
+
+Use the newest run whose `headSha` equals `RELEASE_ANCHOR`, retrying for up to about two minutes while GitHub registers it. Record `CI_RUN_ID` and `CI_RUN_URL`. If no run appears, stop in both modes: a missing run is never a pass, and `--skip-ci` needs a run to link.
+
+Evaluate the run and its jobs with `gh run view "$CI_RUN_ID" --repo Byline-CMS/bylinecms.dev --json status,conclusion,headSha,jobs`. A fast job can fail while the integration suite keeps the run `in_progress`. The run has a **known failure** if its `conclusion` is anything other than empty or `success`, or if any job concluded `failure`, `cancelled`, `timed_out` or `action_required`.
+
+- **Known failure:** stop in both modes. Show the failed jobs (`gh run view <id> --repo Byline-CMS/bylinecms.dev --log-failed`, truncated) and offer `gh run rerun <id> --repo Byline-CMS/bylinecms.dev --failed` for a suspected flake. For a real defect, land the fix above the release commit and push. Either way, invoking the release again resumes the prepared version here. Never reset or force-push the shared branch.
+- **Completed with `success`:** continue with `CI_STATUS=passed`, in either mode.
+- **Queued or in progress with no failed job, default mode:** wait without busy-polling (for example `gh run watch "$CI_RUN_ID" --repo Byline-CMS/bylinecms.dev --exit-status` in the background; a full run takes roughly 15–40 minutes), then evaluate again.
+- **Queued or in progress with no failed job, `--skip-ci`:** continue immediately with `CI_STATUS=bypassed`.
+
 ## 6. Publication checkpoint
 
 Show the user:
 
 - `PREV_VERSION -> NEXT_VERSION`
-- Release commit SHA
+- `RELEASE_ANCHOR` (full SHA), and whether it is the release commit or a fix-forward commit
+- CI: `passed — <CI_RUN_URL>`, or `in progress, bypassed with --skip-ci — <CI_RUN_URL>` with a reminder that its outcome will not stop this publication
 - Changeset summary
 - Fixed package count and names
 - Remaining irreversible/visible steps: npm publish and package tags, fast-forward `main`, umbrella tag, GitHub release
@@ -100,11 +136,13 @@ Wait for explicit approval. Do not infer approval from invoking this command.
 
 ## 7. Publish packages and package tags
 
-Run:
+Immediately after approval, re-check that `git rev-parse HEAD` equals `RELEASE_ANCHOR` and `git status --porcelain` is empty, then re-evaluate `CI_RUN_ID` as in the CI gate. A moved checkout, a dirty tree, or a known failure that appeared during the approval prompt stops publication in both modes. Then run:
 
 ```sh
 ./publish-packages.sh --yes
 ```
+
+The script tags `HEAD`, which the re-check above just confirmed is `RELEASE_ANCHOR`.
 
 This is the authoritative publisher for passkey-only npm 2FA. It builds, uses `pnpm pack` to rewrite `workspace:*`, refuses workspace leaks, publishes with npm, and creates/pushes each per-package tag. Do not replace it with `pnpm release:npm`, `changeset publish`, or `git push --tags`.
 
@@ -120,7 +158,7 @@ If publication fails partway, stop and surface the output. The script is intenti
 
 ## 9. Prepare the umbrella GitHub release
 
-Use `v<NEXT_VERSION>` as the umbrella tag and the release commit as its anchor.
+Use `v<NEXT_VERSION>` as the umbrella tag and `RELEASE_ANCHOR` as its anchor. Confirm `git rev-list -n 1 "@byline/core@<NEXT_VERSION>"` equals it (in a new session, recover the anchor from that tag); stop if it does not.
 
 Check idempotent state before acting:
 
@@ -137,6 +175,8 @@ Build full release notes from conversation context, commits/diffs since the prio
 
 Each bullet should explain the user-visible change, why it matters, and any consumer action. Lead package-specific bullets with bold code package names; use **monorepo** for cross-cutting work. Mark breaking behavior and migration steps explicitly.
 
+Immediately before the closing line, add one CI line: `CI: passed before publication — <CI_RUN_URL>`, or with `--skip-ci` and an unfinished run, `CI: published without waiting for CI (--skip-ci) — <CI_RUN_URL>`. The run page shows the eventual result, so the notes are never edited afterwards.
+
 Always end with:
 
 ```text
@@ -150,11 +190,11 @@ Show the complete notes, version, and anchor SHA, then wait for explicit approva
 Only after approval, perform the missing idempotent steps:
 
 ```sh
-git tag v<NEXT_VERSION> <anchor-sha>
+git tag v<NEXT_VERSION> <RELEASE_ANCHOR>
 git push origin v<NEXT_VERSION>
 gh release create v<NEXT_VERSION> --repo Byline-CMS/bylinecms.dev --title "v<NEXT_VERSION>" --notes-file <notes-file>
 ```
 
-If editing an existing release was approved, use `gh release edit` instead. Report the final GitHub release URL and final branch/worktree status.
+If editing an existing release was approved, use `gh release edit` instead. Report the final GitHub release URL and final branch/worktree status. With `--skip-ci`, also report `CI_RUN_URL` and the run's current state; a failure after publication is fixed in a follow-up patch release, never by unpublishing.
 
-Never amend release commits, force-push, move existing package tags, bypass hooks, or publish without the checkpoint approval.
+Never amend release commits, force-push, move existing package tags, bypass hooks, publish over a failed CI run, or publish without the checkpoint approval.
