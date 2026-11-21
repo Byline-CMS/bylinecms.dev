@@ -116,7 +116,7 @@ The store is pure TypeScript with no React dependency. It lives in the admin pac
 export type TargetRole = 'field' | 'grip' | 'toggle' | 'menu' | `action:${string}`
 export interface ViewTarget { path: string; role: TargetRole; offset: number | null }
 export type SaveOutcome = 'success' | 'refused'
-export interface PendingRestore { saveSeq: number; target: ViewTarget | null; focusWarning: boolean }
+export interface PendingRestore { saveSeq: number; target: ViewTarget | null; focusWarning: boolean; expectedRevision: number | null }
 
 export interface EditorViewStateStore {
   getTab(tabSet: string): string | undefined
@@ -128,8 +128,9 @@ export interface EditorViewStateStore {
   clearTarget(): void
   beginSave(): number
   markSaveWarning(): void            // flags the most recent begun save; its restore focuses the warning
+  expectRefresh(receipt: { revision: number }): void   // records the most recent begun save's receipt revision (Task 1 F6)
   settleSave(saveSeq: number, outcome: SaveOutcome): void
-  takePendingRestore(): PendingRestore | null
+  takePendingRestore(renderedRevision: number | undefined): PendingRestore | null  // null until renderedRevision >= expectedRevision
   cancelPendingRestore(): void       // the user moved on; nothing pending fires
   subscribe(listener: () => void): () => void
 }
@@ -155,6 +156,8 @@ expect(isTrustedAddress('content[0]')).toBe(false)
   - `a successful save yields one restoration`: after `setTarget({path:'title',role:'field',offset:120})`, `beginSave()` and `settleSave(s,'success')`, `takePendingRestore()` returns `{ saveSeq: s, target: { path:'title', role:'field', offset:120 }, focusWarning: false }`. A second call returns `null`.
   - `a warning belongs to its own save`: `const a = beginSave(); markSaveWarning(); settleSave(a,'success')` makes `takePendingRestore()` return `focusWarning: true`. A following `const b = beginSave(); settleSave(b,'success')` returns `focusWarning: false`.
   - `cancelling discards a pending restoration`: after a successful `settleSave`, `cancelPendingRestore()` makes `takePendingRestore()` return `null`.
+  - `restoration waits for the expected revision`: after `const s = beginSave(); expectRefresh({ revision: 47 }); settleSave(s,'success')`, `takePendingRestore(46)` returns `null` and keeps the restoration pending. `takePendingRestore(47)` returns it with `expectedRevision: 47`. A following call returns `null`.
+  - `no receipt means no revision gate`: without `expectRefresh`, `takePendingRestore(undefined)` returns the restoration with `expectedRevision: null`. This is the path for hosts that do not report a receipt.
   - `a newer save supersedes a pending restoration`: `const a = beginSave(); const b = beginSave(); settleSave(a,'success')` makes `takePendingRestore()` return `null`. After `settleSave(b,'success')`, it returns `saveSeq === b`.
   - `subscribe notifies on writes`: a listener is called once for each `setTab`, `setCollapsed` and `setTarget`.
 
@@ -254,9 +257,9 @@ git commit -s -m "feat(admin): added the editor view-state store and address hel
   - A returned committed-hook result resolves, so it restores as a success.
   - In the thrown committed path, the host calls `store.markSaveWarning()` before `reloadDocument()`, so the warning decision belongs to that save attempt.
   - Restoration never reads `mutationIssue`. It stays `'committed'` after later saves, because `useDocumentMutationState` never clears it, and reading it would send a later ordinary save back to the old warning.
-  - Apply whatever host changes finding F6 calls for, so that settling waits for the refreshed data.
+  - Both hosts call `store.expectRefresh({ revision })` beside each `mutation.adopt(result)` on the save path (Task 1 F6, readiness contract step 1).
 - **Moving on cancels.** While a restoration is pending, `FormContent` calls `cancelPendingRestore()` on the first `focusin` outside the control that held focus when the save started, and on the first `keydown` or `pointerdown`. Focus and scroll then stay where you put them.
-- **Restoration hook.** `useRestoreAfterSave(formRef)` in `FormContent` runs only when a store is present. Without a store, `useDocumentReloadRecovery`'s existing behaviour stays in charge. With a store, it waits for the ready signal from findings F2, F3 and F6, then calls `takePendingRestore()` once:
+- **Restoration hook.** `useRestoreAfterSave(formRef)` in `FormContent` runs only when a store is present. Without a store, `useDocumentReloadRecovery`'s existing behaviour stays in charge. With a store, it follows the readiness contract in Task 1 F6. It calls `takePendingRestore(initialData.revision)` on each render until that returns a restoration, then waits for the target to be ready (contract step 3), and then:
   - When `focusWarning` is true, focus the warning and scroll it into view.
   - Otherwise resolve the target (below), focus it with `preventScroll`, and scroll so its top sits at `offset`. When `offset` is null or outside `[0, innerHeight - 40]`, or the target resolved to a fallback, use `scrollIntoView({ block: 'nearest' })`.
   - When there is no target, focus the heading.
@@ -290,6 +293,10 @@ git commit -s -m "feat(admin): added the editor view-state store and address hel
   - `thrown committed path: the warning has focus and is visible`
   - `a thrown committed warning followed by an ordinary successful save in the same visit: the second save focuses the working target, not the warning`
   - `path-only save restores focus to the path control exactly once, after confirmation, without a remount`
+  - `delayed content: the old instance never consumes; restoration waits until the rendered revision reaches the receipt`
+  - `surviving metadata: a path-only save re-rendering the same instance with the new revision consumes once`
+  - `a target whose block populates one effect after mount is focused, not replaced by a fallback`
+  - `a target whose item is gone from the saved data falls back immediately, without waiting out the bound`
   - `a returned committed-hook-failed result restores like success`, using the real result shape from `hasCommittedDocumentHookFailure`'s fixture or the server function's type
 
 **Gates:** all package `test` scripts touched, `pnpm typecheck`, `pnpm lint`, `pnpm knip`.
@@ -391,4 +398,105 @@ git commit -s -m "feat(admin): added the editor view-state store and address hel
 
 ## Task 1 findings
 
-To be completed by Task 1. Answer F1 to F5 with the log excerpts that support each answer.
+Observed on 2026-11-22 against the local dev server (`pnpm dev`, React development build with StrictMode), using temporary `[vs]` instrumentation and a `requestAnimationFrame` sampler of `document.activeElement` and `scrollY`. The instrumentation has been removed. Pages used: a docs document (`Details` and `Content` tabs, one richtext block), the "Test Page" page (three tabs, blocks, inline image) and the `site-settings` singleton. Times are `performance.now()` in milliseconds. StrictMode doubles each mount (`unmount`/`mount` pairs a few milliseconds apart). That doubling is a development artifact and is omitted below.
+
+**F1 — store owner.** The route component survives both navigations, for collections and singletons. No `unmount RouteComponent` was logged after a save or a locale switch.
+
+```
+collection save:    …calling navigate → new versionId render → unmount FormContent / mount FormContent   (EditView, FormRenderer, RouteComponent untouched)
+collection locale:  unmount EditView, unmount FormRenderer, unmount FormContent → mount …                 (RouteComponent untouched)
+singleton locale:   unmount SingletonView, unmount FormRenderer, unmount FormContent → mount …            (RouteComponent untouched)
+```
+
+The visit store can therefore be owned by the route component (`CollectionEditComponent`, `SingletonRouteComponent`), keyed by document identity. No admin-shell provider is needed. Task 3 must still start a new visit when the `id` param changes inside the same route component (Review focus 3).
+
+**F2 — ready signal, version-changing save, collection.** `isBusy` turns false before the new data arrives, because `edit.tsx` starts `navigate()` without awaiting it.
+
+```
+49585 isBusy true
+49732 save: onSubmit success, calling navigate
+49769 recovery restore effect {target: BUTTON#contentLocale, originalCanReceiveFocus: false}
+49781 isBusy false
+49895 render FormContent {versionId: <new>}
+49911 unmount FormContent → mount FormContent
+```
+
+The new version renders, in a new `FormContent` instance, about 130 ms after `isBusy` turned false. At the moment `isBusy` turns false, a version-changing save cannot be told apart from a path-only save. Both are idle, and both still render the version the save started from. Readiness must therefore come from the save's receipt (F6), not from `isBusy` or a mount.
+
+**Target availability after the remount.** This was measured separately, with a `MutationObserver` and `requestAnimationFrame` probe on the docs document. The target was the "Constrained Width" checkbox inside the block, after a content save from y=600.
+
+```
+  32 form=old inert=true  items=1 target=1213 sh=2004 y=600 rev=46
+ 208 form=old inert=false items=1 target=1213 sh=2004 y=600 rev=46
+ 403 form=NEW inert=false items=1 target=1813 sh=2004 y=0   rev=47
+```
+
+At the first observable DOM change after the remount, the new form, its block item and the nested target were all present, and the form was not `inert`. The scroll position had already been clamped to 0. **Limitation:** this is one observation on one document. `BlocksField` and `ArrayField` populate their items from an effect, and rich-text and relation widgets can render later still. So the form's mount is **not** a guarantee that a nested target exists. Task 6 must prove that the target is ready before consuming the restoration or falling back (see the readiness contract in F6).
+
+**F3 — ready signal, path-only save.** The `versionId` is unchanged and nothing remounts.
+
+```
+90940 isBusy true
+91033 save: onSubmit success, calling navigate
+91077 isBusy false            (no further FormContent mount)
+```
+
+A repeat run read the router's loader data. The revision went from 16 to 17, with the `versionId` unchanged and the form element unchanged. The new revision reached the loader data about 160 ms after `inert` was removed. The surviving form therefore re-renders with new metadata after `isBusy` has already turned false. The old restore effect did not run at all. When the save went busy, focus was on the system-fields dialog's "Save Changes" button, which `captureFocusBeforeBusy` treats as outside the form, so nothing was captured. Focus ended on `<body>` when the dialog closed.
+
+**F2/F3 for the singleton.** `singletons/view.tsx` awaits `router.invalidate()`, so the new data has arrived before `isBusy` turns false. The remount follows about 25 ms later.
+
+```
+21455 isBusy true
+21529 singleton: invalidate start
+21633 singleton: invalidate settled
+21654 isBusy false
+21666 render FormContent {versionId: <new>}
+21680 unmount FormContent → mount FormContent
+```
+
+**F4 — the #98 diagnosis holds, and is wider than the issue says.** Every observed save path ended with focus on `<body>`, by different routes. In the version-changing paths, the old restore effect focused a control: the locale selector as a fallback, or, for Enter in a field, the original input. The remount then removed that control. The path-only save never remounted and never attempted a restore.
+
+| Path | Focus sequence |
+| --- | --- |
+| Click Save (docs) | `Save` → `BODY` (form `inert`) → `BUTTON "English"` (old fallback: the locale selector) → `BODY` at remount |
+| Tab to Save + Enter (page) | identical to the click path |
+| Enter in the Title field (page) | `INPUT[name=title]` → `BODY` (`inert`) → `INPUT[name=title]` (restored) → `BODY` at remount |
+| Path-only save via the confirmation dialog | `Save Changes` → `BODY`, no restore attempted |
+| Singleton click Save | `Save` → `BODY` → `BUTTON "English"` → `BODY` at remount |
+
+The Enter-in-field path, which `form-renderer-submit.test.tsx` models and passes, is also broken in the real host. It restores the input first and then loses it to the remount. The click and Tab-and-Enter paths fall back to the locale selector, because the Save button is disabled. The locale selector is the first focusable element in the form, because `headerSlot` renders inside it.
+
+**F5 — scroll.** There are two separate causes.
+
+1. *Save.* Scroll drops to 0 at the `FormContent` remount even with `resetScroll: false`, and no `scrollTo` call is made. With `body` `min-height` pinned to the pre-save height, scroll stayed at 400 through the save. That held both with and without `resetScroll: false`. The cause is a transient height collapse while the new `FormContent` mounts, and the browser clamps the scroll position. The router does not reset scroll for the same-URL post-save navigation. Restoration therefore re-anchors after the remount (Task 6). `resetScroll: false` on the save navigation is harmless but not required.
+2. *Locale switch.* With the height pinned, `router.navigate({ search: { locale } })` still scrolled to the top. The scroll was smooth, starting about 190 ms in, because `html` has `scroll-behavior: smooth`. Passing `resetScroll: false` kept scroll at 400. Every locale-changing navigation needs `resetScroll: false` (Task 7).
+
+`html { scroll-behavior: smooth }` also means that restoration must scroll with `behavior: 'instant'`. Otherwise it animates, and the animation can be cancelled by the user's next input.
+
+**F6 — host save-completion signals.**
+
+Neither host's completion signal is enough on its own:
+- **Collection** (`edit.tsx`): `onSubmit` resolves before the refreshed data arrives.
+- **Singleton:** the new version renders about 30 ms *after* `router.invalidate()` settles (21633 → 21666).
+
+Awaiting a router promise therefore proves nothing. Every successful save does return a receipt carrying `revision`, and also `documentVersionId` when a version was created. Both hosts already pass it to `mutation.adopt(result)`. The loaded document carries `revision`, and the observations confirm that it advances for content saves (46 → 47) and for path-only saves (16 → 17).
+
+**Readiness contract (replaces "isBusy false" and "new mount").**
+
+1. **Expect.** On a successful save, the host calls `store.expectRefresh({ revision })` with the receipt's revision, where it already calls `mutation.adopt(result)`. This covers a normal result, a returned committed-hook result and the thrown committed path, whose details also carry the revision. This is a small host change in both `edit.tsx` and `singletons/view.tsx`. Task 2 adds `expectRefresh` to the store.
+2. **Data ready.** A `FormContent` instance may consume the pending restoration only once its rendered `initialData.revision` is at least the expected revision. For a version-changing save, the old instance never renders the new revision: the `FormProvider` key changes in the same render that delivers it, so only the new instance can qualify. For a path-only save, the surviving instance qualifies when it re-renders with the new metadata. Either case covers delayed content, because nothing happens until the revision arrives.
+3. **Target ready.** Once the data is ready, resolve the target. If its marker is absent, decide which of two cases applies before falling back:
+   - **Genuinely missing.** Some item on the target's trusted path is no longer in the form store's value for its parent array (by `_id`), or the field no longer exists in the schema. Fall back immediately (spec §5.6).
+   - **Still mounting.** The data contains the item but the DOM does not yet. Retry on each animation frame until the marker appears and is usable (connected, not `inert`, not in hidden content). Stop after a bound with no further DOM mutation inside the form; the plan proposes 30 frames or 500 ms, whichever comes first. Then fall back.
+4. **Cancellation still applies** while waiting in steps 2 and 3. Focusing, typing or clicking elsewhere discards the restoration (Task 6).
+
+Task 6's tests add two cases:
+- *delayed content*: the receipt arrives, and the rendered revision lags by several renders
+- *surviving metadata*: a path-only save re-renders the same instance with the new revision
+
+They also cover a target whose block populates one effect after the mount.
+
+**Other observations.**
+
+- Tab selection survived every save, as the spec's revision 2 says. It was lost on every locale switch (#97 confirmed for collections and singletons).
+- The docs document's status bar changed from "Published" to "Draft, a published version is currently live" after the observation saves. Each save created a version. The test values were restored afterwards.
