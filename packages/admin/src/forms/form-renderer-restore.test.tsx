@@ -448,6 +448,81 @@ describe('restoring the working target after a save', () => {
     expect(scrollBy).toHaveBeenCalledWith({ top: -300, behavior: 'instant' })
   })
 
+  describe('signed offsets across the viewport edge', () => {
+    let scrollIntoView: ReturnType<typeof vi.fn>
+
+    const saveAndRestoreAt = async (
+      recorded: { top: number; height: number },
+      reloaded: { top: number; height: number }
+    ) => {
+      const store = createEditorViewStateStore()
+      const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => {})
+      vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(800)
+      let rect = recorded
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+        () =>
+          ({
+            top: rect.top,
+            bottom: rect.top + rect.height,
+            left: 0,
+            right: 0,
+            width: 10,
+            height: rect.height,
+          }) as DOMRect
+      )
+      const onSubmit = hostSubmit(store, 2)
+      render({ store, data: doc(1), onSubmit })
+      typeInto(input('title'), 'Edited')
+      await clickSave()
+      rect = reloaded
+      render({ store, data: doc(2, { title: 'Edited' }), onSubmit })
+      expect(document.activeElement).toBe(input('title'))
+      return { scrollBy }
+    }
+
+    beforeEach(() => {
+      scrollIntoView = vi.fn()
+      ;(HTMLElement.prototype as any).scrollIntoView = scrollIntoView
+    })
+    afterEach(() => {
+      delete (HTMLElement.prototype as any).scrollIntoView
+    })
+
+    it('a partially visible target above the viewport restores its signed offset', async () => {
+      const { scrollBy } = await saveAndRestoreAt(
+        { top: -204, height: 954 },
+        { top: 0, height: 954 }
+      )
+      expect(scrollBy).toHaveBeenCalledWith({ top: 204, behavior: 'instant' })
+      expect(scrollIntoView).not.toHaveBeenCalled()
+    })
+
+    it('a shorter partially visible field above the viewport also restores its signed offset', async () => {
+      const { scrollBy } = await saveAndRestoreAt(
+        { top: -60, height: 300 },
+        { top: 0, height: 300 }
+      )
+      expect(scrollBy).toHaveBeenCalledWith({ top: 60, behavior: 'instant' })
+      expect(scrollIntoView).not.toHaveBeenCalled()
+    })
+
+    it('an entirely offscreen target keeps the nearest fallback', async () => {
+      const { scrollBy } = await saveAndRestoreAt(
+        { top: -500, height: 100 },
+        { top: 0, height: 100 }
+      )
+      expect(scrollBy).not.toHaveBeenCalled()
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', behavior: 'instant' })
+    })
+
+    it('after a shorter reloaded layout the restored control is brought into view', async () => {
+      // The signed offset is applied, but the page is still short: the
+      // control sits below the viewport afterwards.
+      await saveAndRestoreAt({ top: -204, height: 954 }, { top: 1200, height: 300 })
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', behavior: 'instant' })
+    })
+  })
+
   it('a target that mounts one effect later is focused after a StrictMode commit replay', async () => {
     const store = createEditorViewStateStore()
     const onSubmit = hostSubmit(store, 2)

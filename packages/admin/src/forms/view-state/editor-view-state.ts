@@ -16,6 +16,11 @@ export interface ViewTarget {
   path: string
   role: TargetRole
   offset: number | null
+  /**
+   * Whether any part of the target overlapped the viewport when `offset` was
+   * recorded. Only then is the signed offset (possibly negative) reapplied.
+   */
+  intersecting?: boolean
 }
 
 export type SaveOutcome = 'success' | 'refused'

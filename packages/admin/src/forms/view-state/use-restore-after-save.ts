@@ -24,10 +24,7 @@ import { finishRestore, focusForRestore, isRestoreLive } from './restore-session
 import { replaySelection } from './selection-memory'
 import { TARGET_ATTR } from './target-markers'
 import { scrollByInstantly, scrollIntoViewInstantly, useRestoration } from './use-restoration'
-import type { PendingRestore } from './editor-view-state'
-
-/** A recorded offset is reused only while the element's top stays this far inside the viewport. */
-const BOTTOM_MARGIN_PX = 40
+import type { PendingRestore, ViewTarget } from './editor-view-state'
 
 /** Scrolls so the element's marker sits at the recorded viewport offset. */
 function scrollToOffset(element: HTMLElement, offset: number): void {
@@ -35,8 +32,40 @@ function scrollToOffset(element: HTMLElement, offset: number): void {
   scrollByInstantly(anchor.getBoundingClientRect().top - offset)
 }
 
-function offsetIsUsable(offset: number | null): offset is number {
-  return offset != null && offset >= 0 && offset <= window.innerHeight - BOTTOM_MARGIN_PX
+/**
+ * A recorded signed offset is reused only when the target overlapped the
+ * viewport at record time (it may have been partly above it); an entirely
+ * offscreen target falls back to scrolling it into view.
+ */
+function offsetIsUsable(target: ViewTarget | null): target is ViewTarget & { offset: number } {
+  if (target?.offset == null) return false
+  return target.intersecting ?? target.offset >= 0
+}
+
+/** The restored caret's rect when the selection sits inside `element`, else null. */
+function caretRect(element: HTMLElement): DOMRect | null {
+  const selection = element.ownerDocument.getSelection?.()
+  if (selection == null || selection.rangeCount === 0) return null
+  const range = selection.getRangeAt(0)
+  if (!element.contains(range.commonAncestorContainer)) return null
+  const rect = range.getClientRects?.()[0] ?? range.getBoundingClientRect?.()
+  if (rect == null || (rect.width === 0 && rect.height === 0 && rect.top === 0)) return null
+  return rect
+}
+
+/**
+ * After the scroll is applied, brings the control (or its caret, when it
+ * has one) into view if a shorter layout or a clamped scroll left it out.
+ */
+function ensureVisible(element: HTMLElement): void {
+  const caret = caretRect(element)
+  if (caret) {
+    if (caret.bottom > window.innerHeight) scrollByInstantly(caret.bottom - window.innerHeight)
+    else if (caret.top < 0) scrollByInstantly(caret.top)
+    return
+  }
+  const rect = element.getBoundingClientRect()
+  if (!(rect.top < window.innerHeight && rect.bottom > 0)) scrollIntoViewInstantly(element)
 }
 
 /**
@@ -94,7 +123,7 @@ export function useRestoreAfterSave(
           return true
         }
 
-        const complete = (element: HTMLElement, exact: boolean, offset: number | null) => {
+        const complete = (element: HTMLElement, exact: boolean, placed: ViewTarget | null) => {
           finishRestore(store, restore.saveSeq)
           let focused = element
           if (!focusForRestore(element)) {
@@ -102,8 +131,9 @@ export function useRestoreAfterSave(
             const heading = formHeading(form)
             if (heading && focusForRestore(heading)) focused = heading
           }
-          if (exact && focused === element && offsetIsUsable(offset)) {
-            scrollToOffset(focused, offset)
+          if (exact && focused === element && offsetIsUsable(placed)) {
+            scrollToOffset(focused, placed.offset)
+            ensureVisible(focused)
           } else {
             scrollIntoViewInstantly(focused)
           }
@@ -124,7 +154,7 @@ export function useRestoreAfterSave(
 
         const exact = findExactControl(form, target)
         if (exact) {
-          complete(exact, true, target.offset)
+          complete(exact, true, target)
           // Only the exact control, and only once it holds focus, may get
           // its caret or selection back.
           if (exact.ownerDocument.activeElement === exact) {

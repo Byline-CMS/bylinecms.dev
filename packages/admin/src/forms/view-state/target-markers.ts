@@ -83,13 +83,22 @@ export function findMarker(root: ParentNode, path: string, role: string): HTMLEl
   return null
 }
 
+/** A rect's signed viewport offset, and whether any part of it was inside the viewport. */
+export function viewportPlacement(rect: DOMRect): { offset: number; intersecting: boolean } {
+  const viewportHeight = typeof window === 'undefined' ? 0 : window.innerHeight
+  return {
+    offset: rect.top,
+    intersecting: rect.top < viewportHeight && rect.bottom > 0,
+  }
+}
+
 /** Records the closest marker of `element` as the working target. Returns whether one was found. */
 export function recordTargetFromElement(store: EditorViewStateStore, element: Element): boolean {
   const marker = element.closest(`[${TARGET_ATTR}]`)
   const path = marker?.getAttribute(TARGET_ATTR)
   const role = marker?.getAttribute(ROLE_ATTR) as TargetRole | null | undefined
   if (marker == null || !path || !role || path === SYSTEM_TARGETS.document) return false
-  store.setTarget({ path, role, offset: marker.getBoundingClientRect().top })
+  store.setTarget({ path, role, ...viewportPlacement(marker.getBoundingClientRect()) })
   return true
 }
 
@@ -143,7 +152,11 @@ function recordTarget(
   form: ParentNode | null
 ): void {
   const marker = form ? findMarker(form, path, role) : null
-  store.setTarget({ path, role, offset: marker ? marker.getBoundingClientRect().top : null })
+  store.setTarget({
+    path,
+    role,
+    ...(marker ? viewportPlacement(marker.getBoundingClientRect()) : { offset: null }),
+  })
 }
 
 /** `recordTarget` bound to the surrounding form and its store; a no-op without a store. */

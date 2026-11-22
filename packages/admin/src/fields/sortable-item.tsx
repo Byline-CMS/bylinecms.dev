@@ -13,7 +13,7 @@ import { ChevronDownIcon, GripperVerticalIcon, useSortable } from '@byline/ui/re
 import cx from 'clsx'
 
 import { useEditorViewState } from '../forms/view-state/editor-view-state-context'
-import { targetMarker } from '../forms/view-state/target-markers'
+import { targetMarker, viewportPlacement } from '../forms/view-state/target-markers'
 import { DraggableContextMenu } from './draggable-context-menu'
 import styles from './sortable-item.module.css'
 
@@ -83,7 +83,7 @@ const ItemFrame = ({
       store.setTarget({
         path: itemPath,
         role: 'toggle',
-        offset: event.currentTarget.getBoundingClientRect().top,
+        ...viewportPlacement(event.currentTarget.getBoundingClientRect()),
       })
     }
   }
