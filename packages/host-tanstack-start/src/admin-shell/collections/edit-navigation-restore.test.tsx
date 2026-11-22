@@ -480,12 +480,15 @@ describe('collection edit view: focus and scroll across in-editor navigations', 
     expect(store.getTarget()?.path).toBe('summary')
   })
 
-  async function save() {
+  async function save({ settle = false }: { settle?: boolean } = {}) {
     const submit = saveButton()
     if (submit == null) throw new Error('save button not found')
     act(() => submit.focus())
     await act(async () => {
       submit.click()
+      // A save that resolves at once finishes its follow-up updates on a
+      // later turn; wait for them inside act.
+      if (settle) await new Promise((resolve) => setTimeout(resolve, 0))
     })
   }
 
@@ -498,7 +501,7 @@ describe('collection edit view: focus and scroll across in-editor navigations', 
     })
     render(doc(7, 'v7'))
     typeInto(title(), 'Edited')
-    await save()
+    await save({ settle: true })
     expect(mocks.update).toHaveBeenCalledTimes(1)
     loseFocus()
 

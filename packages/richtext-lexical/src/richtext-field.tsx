@@ -8,7 +8,12 @@
 
 import type React from 'react'
 
-import { LocaleBadge, useFieldError, useFieldValue } from '@byline/admin/react'
+import {
+  LocaleBadge,
+  useFieldError,
+  useFieldValue,
+  useRichTextSelectionMemory,
+} from '@byline/admin/react'
 import type { RichTextField as FieldType } from '@byline/core'
 import { ErrorText, Label } from '@byline/ui/react'
 import cx from 'clsx'
@@ -66,6 +71,9 @@ export const RichTextField = ({
   const fieldPath = path ?? field.name
   const fieldError = useFieldError(fieldPath)
   const fieldValue = useFieldValue<any>(fieldPath)
+  // Root-editor selection only; nested editors never receive it, and a form
+  // without a visit store gets none, so it does no selection work.
+  const selectionMemory = useRichTextSelectionMemory(fieldPath)
   const incomingValue = value ?? fieldValue
   const incomingDefault = defaultValue
 
@@ -129,6 +137,7 @@ export const RichTextField = ({
           featureBeforeEditor={featureBeforeEditor}
           featureAfterEditor={featureAfterEditor}
           featureChildren={featureChildren}
+          selectionMemory={selectionMemory ?? undefined}
           // Ensure React fully remounts when instanceKey changes
           key={fieldId}
         />

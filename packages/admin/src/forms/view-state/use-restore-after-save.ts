@@ -21,6 +21,7 @@ import {
   resolveRestoreTarget,
 } from './resolve-target'
 import { finishRestore, focusForRestore, isRestoreLive } from './restore-session'
+import { replaySelection } from './selection-memory'
 import { TARGET_ATTR } from './target-markers'
 import { scrollByInstantly, scrollIntoViewInstantly, useRestoration } from './use-restoration'
 import type { PendingRestore } from './editor-view-state'
@@ -122,7 +123,15 @@ export function useRestoreAfterSave(
         }
 
         const exact = findExactControl(form, target)
-        if (exact) return complete(exact, true, target.offset)
+        if (exact) {
+          complete(exact, true, target.offset)
+          // Only the exact control, and only once it holds focus, may get
+          // its caret or selection back.
+          if (exact.ownerDocument.activeElement === exact) {
+            replaySelection(store, restore.saveSeq, target.path, exact)
+          }
+          return true
+        }
 
         if (
           !final &&

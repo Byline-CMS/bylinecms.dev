@@ -11,6 +11,7 @@ import { APPLY_VALUE_TAG } from './constants'
 import { useNormalizationStatus } from './normalize/normalization-status'
 import { normalizeValue } from './normalize/normalize-value'
 import { hashSerializedState } from './utils/hashSerializedState'
+import type { BaselineStatus } from './baseline-signal'
 
 export function ApplyValuePlugin({
   value,
@@ -18,12 +19,27 @@ export function ApplyValuePlugin({
   lastEmittedHashRef,
   normalizedIncomingHashRef,
   hasNormalizedBaselineRef,
+  onBaselineReady,
+  onBaselineReset,
 }: {
   value?: SerializedEditorState | null
   incomingHash?: string
   lastEmittedHashRef: React.RefObject<string | undefined>
   normalizedIncomingHashRef: React.RefObject<string | undefined>
   hasNormalizedBaselineRef: React.RefObject<boolean>
+  /**
+   * Called wherever this plugin establishes the baseline for a value (sets
+   * `hasNormalizedBaselineRef.current = true`), with how that value fared.
+   * Never called for a refused or null value. Observing it changes nothing
+   * about emission.
+   */
+  onBaselineReady?: (status: BaselineStatus) => void
+  /**
+   * Called wherever the editor stops holding an established baseline: a
+   * different value is being applied, a value is refused, or the value is
+   * null.
+   */
+  onBaselineReset?: () => void
 }): React.JSX.Element | null {
   const [editor] = useLexicalComposerContext()
   const { setStatus } = useNormalizationStatus()
@@ -32,13 +48,24 @@ export function ApplyValuePlugin({
   const isRefusedRef = useRef(false)
 
   const cancelWaiterRef = useRef<() => void>(undefined)
+  // Read through a ref so a new callback never re-runs the apply effect.
+  const onBaselineReadyRef = useRef(onBaselineReady)
+  onBaselineReadyRef.current = onBaselineReady
+  const onBaselineResetRef = useRef(onBaselineReset)
+  onBaselineResetRef.current = onBaselineReset
+  // How the value last applied fared; the echo path below re-establishes
+  // the baseline for that same value.
+  const appliedStatusRef = useRef<BaselineStatus>('ok')
 
   // A layout effect, not a passive one: this is the ONLY path by which a
   // stored value reaches the editor — the root extension deliberately
   // carries no `$initialEditorState` — so applying before paint avoids
   // showing an empty field first.
   useLayoutEffect(() => {
-    if (value == null) return
+    if (value == null) {
+      onBaselineResetRef.current?.()
+      return
+    }
 
     const nextRawHash = incomingHash
 
@@ -57,6 +84,7 @@ export function ApplyValuePlugin({
           cancelWaiterRef.current()
           cancelWaiterRef.current = undefined
         }
+        onBaselineReadyRef.current?.(appliedStatusRef.current)
       }
       return
     }
@@ -76,6 +104,7 @@ export function ApplyValuePlugin({
     }
 
     hasNormalizedBaselineRef.current = false
+    onBaselineResetRef.current?.()
 
     // Adapt the stored value to what this editor actually accepts.
     // Lexical throws on an unregistered type and loses the text, so a
@@ -114,6 +143,8 @@ export function ApplyValuePlugin({
     }
 
     isRefusedRef.current = false
+    const appliedStatus: BaselineStatus = normalized.status === 'adapted' ? 'adapted' : 'ok'
+    appliedStatusRef.current = appliedStatus
     setStatus(
       normalized.status === 'adapted'
         ? { kind: 'adapted', convertedTypes: normalized.convertedTypes }
@@ -148,6 +179,8 @@ export function ApplyValuePlugin({
           const settled = editor.getEditorState().toJSON() as SerializedEditorState
           normalizedIncomingHashRef.current = hashSerializedState(settled)
           hasNormalizedBaselineRef.current = true
+          // Outside any editor update: a listener may run its own.
+          onBaselineReadyRef.current?.(appliedStatus)
         })
       })
     })

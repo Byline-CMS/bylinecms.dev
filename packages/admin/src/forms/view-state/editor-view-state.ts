@@ -58,6 +58,41 @@ interface ActionRestoreInput {
   launchedFromPopup?: boolean
 }
 
+/** A caret or selection point in a rich-text root editor. */
+interface StructuralPoint {
+  /** Child indexes from the editor root down to the point's node. Never node keys. */
+  path: number[]
+  /** A text offset in a text node, or a child index in an element node. */
+  offset: number
+}
+
+/**
+ * A rich-text root editor's selection, recorded structurally. Lexical node
+ * keys change when the document reloads, so a point is addressed by its
+ * child-index path from the root instead.
+ */
+export type StructuralSelection = { anchor: StructuralPoint; focus: StructuralPoint }
+
+type SelectionRange =
+  | { kind: 'richText'; sel: StructuralSelection }
+  | { kind: 'text'; start: number; end: number; direction: 'forward' | 'backward' | 'none' }
+
+/**
+ * The caret or selection last recorded for the working target. Its content
+ * fingerprint is computed on demand, once, when a save begins: recording a
+ * caret move costs no serialization, and the store never holds field values.
+ * `null` means the content cannot be fingerprinted (the control is gone).
+ */
+type LiveSelection = SelectionRange & { fingerprint: () => string | null }
+
+/**
+ * A selection as a save restoration replays it, with the fingerprint of the
+ * content the save started from. A rich-text selection is replayed only into
+ * structurally identical content, a plain control's only while its value
+ * still has this fingerprint.
+ */
+type RecordedSelection = SelectionRange & { fingerprint: string }
+
 export interface PendingActionRestore extends ActionRestoreInput {
   actionSeq: number
   /** The working target when the action was recorded; `null` after a locale change. */
@@ -96,6 +131,35 @@ export interface EditorViewStateStore {
     locale: string | undefined
     revision: number | undefined
   }): PendingActionRestore | null
+  /**
+   * Records the caret or selection of `path`, ignored unless `path` is the
+   * working target. Read-only view state: it never notifies. Moving the
+   * working target to another path or role clears it; recording the same
+   * target again (a delayed change callback from the same edit) keeps it.
+   */
+  setSelection(path: string, selection: LiveSelection): void
+  /**
+   * Drops the recorded selection of `path`: a nested editor was edited, or
+   * the root editor moved to a selection that cannot be recorded.
+   */
+  clearSelection(path: string): void
+  /**
+   * Lets the restoration of save `saveSeq`, having focused the exact control
+   * for `path`, hand on the selection that was current when the save began.
+   * Returns the grant's id, or `null` when there is nothing to replay.
+   * Subscribers are notified on a later microtask, so an editor that is
+   * already waiting can take the selection outside the restoration's own
+   * call stack.
+   */
+  grantSelection(saveSeq: number, path: string): number | null
+  /**
+   * Returns the granted selection for `path` once. Without a live grant (no
+   * successful save is being restored, the editor moved on, a newer save or
+   * navigation began) it returns `null`.
+   */
+  takeSelection(path: string): RecordedSelection | null
+  /** Ends grant `grantId` (its window expired, or the editor moved on). */
+  revokeSelection(grantId: number): void
   /** The user moved on; nothing pending fires. */
   cancelPendingRestore(): void
   /**
@@ -123,6 +187,18 @@ export function createEditorViewStateStore(): EditorViewStateStore {
   let actionSeq = 0
   let action: PendingActionRestore | null = null
   let observedLocale: string | null = null
+  // The working target's latest caret or selection.
+  let selection: { path: string; record: LiveSelection } | null = null
+  // The selection current when the latest save began.
+  let saveSelection: { saveSeq: number; path: string; record: RecordedSelection } | null = null
+  let grantSeq = 0
+  // A save restoration's permission to replay `saveSelection`.
+  let grant: { id: number; path: string; record: RecordedSelection } | null = null
+
+  const dropSelectionReplay = () => {
+    saveSelection = null
+    grant = null
+  }
 
   const notify = () => {
     for (const listener of [...listeners]) listener()
@@ -135,6 +211,8 @@ export function createEditorViewStateStore(): EditorViewStateStore {
    */
   const clearLocaleBoundState = () => {
     target = null
+    selection = null
+    dropSelectionReplay()
   }
 
   return {
@@ -153,17 +231,37 @@ export function createEditorViewStateStore(): EditorViewStateStore {
     },
     getTarget: () => target,
     setTarget(next) {
+      if (target?.path !== next.path || target.role !== next.role) selection = null
       target = next
       notify()
     },
     clearTarget() {
       target = null
+      selection = null
       notify()
     },
     beginSave() {
       seq += 1
       pending = null
       action = null
+      grant = null
+      saveSelection = null
+      if (selection && target && selection.path === target.path) {
+        const { fingerprint, ...range } = selection.record
+        let resolved: string | null = null
+        try {
+          resolved = fingerprint()
+        } catch {
+          resolved = null
+        }
+        if (resolved != null) {
+          saveSelection = {
+            saveSeq: seq,
+            path: selection.path,
+            record: { ...range, fingerprint: resolved } as RecordedSelection,
+          }
+        }
+      }
       current = {
         saveSeq: seq,
         target: target ? { ...target } : null,
@@ -205,6 +303,7 @@ export function createEditorViewStateStore(): EditorViewStateStore {
       // A newer action supersedes a save that has not been restored yet.
       pending = null
       current = null
+      dropSelectionReplay()
       action = { ...input, actionSeq, target: target ? { ...target } : null }
       // The caller learns the identity before any subscriber can consume it.
       onSeq?.(actionSeq)
@@ -239,11 +338,36 @@ export function createEditorViewStateStore(): EditorViewStateStore {
       if (action && action.toLocale !== locale) action = null
       return true
     },
+    setSelection(path, record) {
+      if (target?.path !== path) return
+      selection = { path, record }
+    },
+    clearSelection(path) {
+      if (selection?.path === path) selection = null
+    },
+    grantSelection(saveSeq, path) {
+      if (saveSelection?.saveSeq !== saveSeq || saveSelection.path !== path) return null
+      grantSeq += 1
+      grant = { id: grantSeq, path, record: saveSelection.record }
+      saveSelection = null
+      queueMicrotask(notify)
+      return grantSeq
+    },
+    takeSelection(path) {
+      if (grant?.path !== path) return null
+      const { record } = grant
+      grant = null
+      return record
+    },
+    revokeSelection(grantId) {
+      if (grant?.id === grantId) grant = null
+    },
     cancelPendingRestore() {
       const hadPending = pending !== null || action !== null
       pending = null
       current = null
       action = null
+      dropSelectionReplay()
       if (hadPending) notify()
     },
     subscribe(listener) {

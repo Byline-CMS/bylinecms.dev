@@ -9,6 +9,7 @@
 import { createContext, type RefObject, useCallback, useContext, useEffect } from 'react'
 
 import { useEditorViewState } from './editor-view-state-context'
+import { recordTextSelection } from './selection-memory'
 import { type AnchorCandidate, pickViewAnchor } from './view-anchor'
 import { isTrustedAddress } from './view-state-address'
 import type { ActionRole, EditorViewStateStore, TargetRole, ViewAnchor } from './editor-view-state'
@@ -119,6 +120,17 @@ export function topmostVisibleAnchor(form: ParentNode): ViewAnchor | null {
 }
 
 /**
+ * Records the caret of a plain input or textarea inside a field marker
+ * (`recordTextSelection`). Rich-text editors record their own selection.
+ */
+function recordCaretFromElement(store: EditorViewStateStore, element: Element): void {
+  const marker = element.closest(`[${TARGET_ATTR}]`)
+  const path = marker?.getAttribute(TARGET_ATTR)
+  if (!path || marker?.getAttribute(ROLE_ATTR) !== 'field') return
+  recordTextSelection(store, path, element)
+}
+
+/**
  * Records an address explicitly, for changes that raise no DOM `input` or
  * `change` event (pickers, uploads, structural actions). The offset comes
  * from the marker in `form` when it is rendered there, and is `null`
@@ -153,10 +165,20 @@ export function useRecordTarget(): (path: string, role: TargetRole) => void {
 const EDIT_EVENTS = ['input', 'change', 'beforeinput'] as const
 
 /**
+ * Events after which a plain input's or textarea's caret may have moved
+ * without an edit: a selection, a key (arrows, Home, End), a pointer.
+ */
+const CARET_EVENTS = ['select', 'keyup', 'pointerup'] as const
+
+/**
  * Records the working target from DOM edit events inside the form: the
  * closest marker of the element that changed. Focus alone never records, and
  * edits inside a `TRANSIENT_ATTR` surface never record. A no-op without a
  * visit store.
+ *
+ * It also records the caret of the working target's plain input or
+ * textarea, after an edit and after `CARET_EVENTS`. That is read-only view
+ * state; rich-text editors record their own selection.
  *
  * Widgets whose edits raise no native event (pickers, uploads, structural
  * actions) record from their own change handlers inside `@byline/admin`. A
@@ -173,11 +195,20 @@ export function useRecordEditTargets(formRef: RefObject<HTMLFormElement | null>)
     const onEdit = (event: Event) => {
       const element = event.target
       if (!(element instanceof Element) || element.closest(`[${TRANSIENT_ATTR}]`)) return
-      recordTargetFromElement(store, element)
+      // Recording a target clears the previous selection, so the caret is
+      // recorded after it.
+      if (recordTargetFromElement(store, element)) recordCaretFromElement(store, element)
+    }
+    const onCaret = (event: Event) => {
+      const element = event.target
+      if (!(element instanceof Element) || element.closest(`[${TRANSIENT_ATTR}]`)) return
+      recordCaretFromElement(store, element)
     }
     for (const type of EDIT_EVENTS) form.addEventListener(type, onEdit)
+    for (const type of CARET_EVENTS) form.addEventListener(type, onCaret)
     return () => {
       for (const type of EDIT_EVENTS) form.removeEventListener(type, onEdit)
+      for (const type of CARET_EVENTS) form.removeEventListener(type, onCaret)
     }
   }, [formRef, store])
 }

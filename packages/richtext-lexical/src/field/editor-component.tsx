@@ -17,7 +17,9 @@ import { ErrorBoundary } from 'react-error-boundary'
 
 import { richTextValidate } from '../validate/validate'
 import { ApplyValuePlugin } from './apply-value-plugin'
+import { createBaselineSignal } from './baseline-signal'
 import { EditorContext } from './editor-context'
+import { SelectionRestorePlugin } from './selection-restore-plugin'
 import { hashSerializedState } from './utils/hashSerializedState'
 import type { EditorFieldProps } from '../types'
 
@@ -52,6 +54,7 @@ export const EditorComponent = memo(function EditorComponent({
   featureBeforeEditor,
   featureAfterEditor,
   featureChildren,
+  selectionMemory,
 }: EditorFieldProps): React.JSX.Element {
   const disabled = readonly ?? false
   const dispatchFieldUpdateTask = useRef<number>(undefined)
@@ -62,6 +65,7 @@ export const EditorComponent = memo(function EditorComponent({
   const lastEmittedHashRef = useRef<string | undefined>(undefined)
   const normalizedIncomingHashRef = useRef<string | undefined>(undefined)
   const hasNormalizedBaselineRef = useRef<boolean>(false)
+  const baselineSignal = useMemo(createBaselineSignal, [])
   // const _debugLogCountRef = useRef<number>(0)
 
   // TODO: implement validation handling (currently unused)
@@ -187,7 +191,12 @@ export const EditorComponent = memo(function EditorComponent({
               lastEmittedHashRef={lastEmittedHashRef}
               normalizedIncomingHashRef={normalizedIncomingHashRef}
               hasNormalizedBaselineRef={hasNormalizedBaselineRef}
+              onBaselineReady={selectionMemory ? baselineSignal.ready : undefined}
+              onBaselineReset={selectionMemory ? baselineSignal.reset : undefined}
             />
+            {selectionMemory && (
+              <SelectionRestorePlugin memory={selectionMemory} baseline={baselineSignal} />
+            )}
             {featureChildren}
           </EditorContext>
         </ErrorBoundary>

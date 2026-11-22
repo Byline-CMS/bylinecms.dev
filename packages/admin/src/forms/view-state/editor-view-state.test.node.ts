@@ -329,6 +329,207 @@ describe('editor view state store', () => {
     })
   })
 
+  describe('caret and selection', () => {
+    const richRange = {
+      kind: 'richText' as const,
+      sel: { anchor: { path: [0, 0], offset: 5 }, focus: { path: [0, 0], offset: 5 } },
+    }
+    const richSel = { ...richRange, fingerprint: () => 'abc' }
+    const textRange = { kind: 'text' as const, start: 3, end: 3, direction: 'none' as const }
+    const textSel = { ...textRange, fingerprint: () => 'f00' }
+
+    /** Records `selection` for the working target, saves successfully and returns the save. */
+    const savedWith = (selection: typeof richSel | typeof textSel) => {
+      const s = createEditorViewStateStore()
+      s.setTarget({ ...target })
+      s.setSelection('title', selection)
+      const n = s.beginSave()
+      s.settleSave(n, 'success')
+      return { s, n }
+    }
+
+    it('is taken once, only after the save restoration grants it for the target', () => {
+      const { s, n } = savedWith(richSel)
+      expect(s.takeSelection('title')).toBeNull()
+      expect(s.grantSelection(n, 'title')).not.toBeNull()
+      expect(s.takeSelection('other')).toBeNull()
+      expect(s.takeSelection('title')).toEqual({ ...richRange, fingerprint: 'abc' })
+      expect(s.takeSelection('title')).toBeNull()
+    })
+
+    it('fingerprints the content once, when the save begins, and never before', () => {
+      const s = createEditorViewStateStore()
+      s.setTarget({ ...target })
+      const fingerprint = vi.fn(() => 'abc')
+      s.setSelection('title', { ...richRange, fingerprint })
+      s.setSelection('title', { ...richRange, fingerprint })
+      expect(fingerprint).not.toHaveBeenCalled()
+      const n = s.beginSave()
+      expect(fingerprint).toHaveBeenCalledTimes(1)
+      s.settleSave(n, 'success')
+      s.grantSelection(n, 'title')
+      expect(s.takeSelection('title')?.fingerprint).toBe('abc')
+      expect(fingerprint).toHaveBeenCalledTimes(1)
+    })
+
+    it('content that cannot be fingerprinted is not replayed', () => {
+      for (const fingerprint of [
+        () => null,
+        () => {
+          throw new Error('editor gone')
+        },
+      ]) {
+        const s = createEditorViewStateStore()
+        s.setTarget({ ...target })
+        s.setSelection('title', { ...richRange, fingerprint })
+        const n = s.beginSave()
+        s.settleSave(n, 'success')
+        expect(s.grantSelection(n, 'title')).toBeNull()
+      }
+    })
+
+    it('a granted selection notifies subscribers on a later microtask', async () => {
+      const { s, n } = savedWith(richSel)
+      const listener = vi.fn()
+      s.subscribe(listener)
+      s.grantSelection(n, 'title')
+      expect(listener).not.toHaveBeenCalled()
+      await Promise.resolve()
+      expect(listener).toHaveBeenCalledTimes(1)
+    })
+
+    it('carries a plain-field selection the same way', () => {
+      const { s, n } = savedWith(textSel)
+      s.grantSelection(n, 'title')
+      expect(s.takeSelection('title')).toEqual({ ...textRange, fingerprint: 'f00' })
+    })
+
+    it('ignores a selection for a path that is not the working target', () => {
+      const s = createEditorViewStateStore()
+      s.setTarget({ ...target })
+      s.setSelection('other', richSel)
+      const n = s.beginSave()
+      s.settleSave(n, 'success')
+      expect(s.grantSelection(n, 'other')).toBeNull()
+      expect(s.takeSelection('other')).toBeNull()
+    })
+
+    it('recording the same working target again keeps the selection; another target clears it', () => {
+      // A delayed change callback from the same edit records the same target.
+      const same = createEditorViewStateStore()
+      same.setTarget({ ...target })
+      same.setSelection('title', richSel)
+      same.setTarget({ ...target, offset: 40 })
+      const n = same.beginSave()
+      same.settleSave(n, 'success')
+      expect(same.grantSelection(n, 'title')).not.toBeNull()
+
+      for (const next of [
+        { ...target, path: 'other' },
+        { ...target, role: 'toggle' as const },
+      ]) {
+        const s = createEditorViewStateStore()
+        s.setTarget({ ...target })
+        s.setSelection('title', richSel)
+        s.setTarget(next)
+        s.setTarget({ ...target })
+        const m = s.beginSave()
+        s.settleSave(m, 'success')
+        expect(s.grantSelection(m, 'title')).toBeNull()
+      }
+    })
+
+    it('clearing the selection of the target drops it; another path is unaffected', () => {
+      const s = createEditorViewStateStore()
+      s.setTarget({ ...target })
+      s.setSelection('title', richSel)
+      s.clearSelection('other')
+      s.clearSelection('title')
+      const n = s.beginSave()
+      s.settleSave(n, 'success')
+      expect(s.grantSelection(n, 'title')).toBeNull()
+
+      const kept = createEditorViewStateStore()
+      kept.setTarget({ ...target })
+      kept.setSelection('title', richSel)
+      kept.clearSelection('other')
+      const m = kept.beginSave()
+      kept.settleSave(m, 'success')
+      expect(kept.grantSelection(m, 'title')).not.toBeNull()
+    })
+
+    it('a grant belongs to its own save', () => {
+      const { s, n } = savedWith(richSel)
+      expect(s.grantSelection(n + 1, 'title')).toBeNull()
+      expect(s.grantSelection(n, 'other')).toBeNull()
+    })
+
+    it('the selection recorded after the save began is not replayed', () => {
+      const s = createEditorViewStateStore()
+      s.setTarget({ ...target })
+      const n = s.beginSave()
+      s.setSelection('title', richSel)
+      s.settleSave(n, 'success')
+      expect(s.grantSelection(n, 'title')).toBeNull()
+    })
+
+    it('revoking ends only the grant it names', () => {
+      const { s, n } = savedWith(richSel)
+      const grant = s.grantSelection(n, 'title')
+      if (grant == null) throw new Error('no grant')
+      s.revokeSelection(grant + 1)
+      expect(s.takeSelection('title')).toEqual({ ...richRange, fingerprint: 'abc' })
+
+      const second = savedWith(richSel)
+      const id = second.s.grantSelection(second.n, 'title')
+      if (id == null) throw new Error('no grant')
+      second.s.revokeSelection(id)
+      expect(second.s.takeSelection('title')).toBeNull()
+    })
+
+    it('moving on, a newer save or an action discards a granted selection', () => {
+      for (const supersede of [
+        (s: ReturnType<typeof createEditorViewStateStore>) => s.cancelPendingRestore(),
+        (s: ReturnType<typeof createEditorViewStateStore>) => s.beginSave(),
+        (s: ReturnType<typeof createEditorViewStateStore>) =>
+          s.setActionRestore({
+            role: 'action:status',
+            fallbackRole: null,
+            anchor: null,
+            fromLocale: null,
+            toLocale: null,
+            expectedRevision: null,
+          }),
+      ]) {
+        const { s, n } = savedWith(richSel)
+        s.grantSelection(n, 'title')
+        supersede(s)
+        expect(s.takeSelection('title')).toBeNull()
+      }
+    })
+
+    it('a committed locale change clears the recorded and the granted selection', () => {
+      const s = createEditorViewStateStore()
+      s.observeContentLocale('en')
+      s.setTarget({ ...target })
+      s.setSelection('title', richSel)
+      const n = s.beginSave()
+      s.settleSave(n, 'success')
+      s.grantSelection(n, 'title')
+      s.observeContentLocale('fr')
+      expect(s.takeSelection('title')).toBeNull()
+    })
+
+    it('recording a selection does not notify subscribers', () => {
+      const s = createEditorViewStateStore()
+      s.setTarget({ ...target })
+      const listener = vi.fn()
+      s.subscribe(listener)
+      s.setSelection('title', richSel)
+      expect(listener).not.toHaveBeenCalled()
+    })
+  })
+
   it('subscribe notifies on writes', () => {
     const s = createEditorViewStateStore()
     const listener = vi.fn()

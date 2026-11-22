@@ -508,3 +508,98 @@ describe('restoring the working target after a save', () => {
     expect(marker('title', 'field')).not.toBeNull()
   })
 })
+
+describe('restoring a plain field’s caret after a save', () => {
+  /** Places the caret the way arrow keys would, then lets the key up record it. */
+  const placeCaret = (element: HTMLInputElement, start: number, end = start) => {
+    act(() => {
+      element.setSelectionRange(start, end)
+      element.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowLeft', bubbles: true }))
+    })
+  }
+
+  it('plain field: caret midway, save, caret restored at the saved offset', async () => {
+    const store = createEditorViewStateStore()
+    const onSubmit = hostSubmit(store, 2)
+    render({ store, data: doc(1), onSubmit })
+    typeInto(input('title'), 'Hello world')
+    placeCaret(input('title'), 5)
+    await clickSave()
+
+    render({ store, data: doc(2, { title: 'Hello world' }), onSubmit })
+    const after = input('title')
+    expect(document.activeElement).toBe(after)
+    expect([after.selectionStart, after.selectionEnd]).toEqual([5, 5])
+    // Placing the caret is view state: the form stays clean.
+    expect(saveButton().disabled).toBe(true)
+    expect(container.textContent).toContain('Close')
+    expect(container.textContent).not.toContain('Cancel')
+  })
+
+  it('plain field: a selected range comes back with its direction', async () => {
+    const store = createEditorViewStateStore()
+    const onSubmit = hostSubmit(store, 2)
+    render({ store, data: doc(1), onSubmit })
+    typeInto(input('title'), 'Hello world')
+    act(() => {
+      input('title').setSelectionRange(2, 7, 'backward')
+      input('title').dispatchEvent(new Event('select', { bubbles: true }))
+    })
+    await clickSave()
+
+    render({ store, data: doc(2, { title: 'Hello world' }), onSubmit })
+    const after = input('title')
+    expect([after.selectionStart, after.selectionEnd, after.selectionDirection]).toEqual([
+      2,
+      7,
+      'backward',
+    ])
+  })
+
+  it('plain field: value changed by the save, caret not applied', async () => {
+    const store = createEditorViewStateStore()
+    const onSubmit = hostSubmit(store, 2)
+    render({ store, data: doc(1), onSubmit })
+    typeInto(input('title'), 'Hello world')
+    placeCaret(input('title'), 5)
+    await clickSave()
+
+    const setRange = vi.spyOn(HTMLInputElement.prototype, 'setSelectionRange')
+    render({ store, data: doc(2, { title: 'Hello world!' }), onSubmit })
+    expect(document.activeElement).toBe(input('title'))
+    expect(setRange).not.toHaveBeenCalled()
+  })
+
+  it('plain field: no pending successful save, no caret applied', async () => {
+    const store = createEditorViewStateStore()
+    const onSubmit = vi.fn(async () => {
+      throw new Error('save failed')
+    })
+    render({ store, data: doc(1), onSubmit })
+    typeInto(input('title'), 'Hello world')
+    placeCaret(input('title'), 5)
+    await clickSave()
+
+    const setRange = vi.spyOn(HTMLInputElement.prototype, 'setSelectionRange')
+    render({ store, data: doc(2, { title: 'Hello world' }), onSubmit })
+    await frames()
+    expect(setRange).not.toHaveBeenCalled()
+    expect(store.takeSelection('title')).toBeNull()
+  })
+
+  it('plain field: moving on before the refresh discards the caret with the focus', async () => {
+    const store = createEditorViewStateStore()
+    const onSubmit = hostSubmit(store, 2)
+    render({ store, data: doc(1), onSubmit })
+    typeInto(input('title'), 'Hello world')
+    placeCaret(input('title'), 5)
+    await clickSave()
+    act(() => outside.focus())
+
+    const setRange = vi.spyOn(HTMLInputElement.prototype, 'setSelectionRange')
+    render({ store, data: doc(2, { title: 'Hello world' }), onSubmit })
+    await frames()
+    expect(document.activeElement).toBe(outside)
+    expect(setRange).not.toHaveBeenCalled()
+  })
+})

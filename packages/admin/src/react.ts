@@ -73,6 +73,10 @@ export {
   claimSaveAttempt,
   noteActionLaunch,
 } from './forms/view-state/restore-session.js'
+export {
+  type RichTextSelectionMemory,
+  useRichTextSelectionMemory,
+} from './forms/view-state/selection-memory.js'
 export { documentActionMarker } from './forms/view-state/target-markers.js'
 export { useEditorViewVisit } from './forms/view-state/use-editor-view-visit.js'
 // Validation error code → translation helper. Sibling to schemas in

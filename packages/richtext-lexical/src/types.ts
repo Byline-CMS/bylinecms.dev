@@ -1,3 +1,4 @@
+import type { RichTextSelectionMemory } from '@byline/admin/react'
 import type { EditorConfig as LexicalEditorConfig, SerializedEditorState } from 'lexical'
 
 import type { EditorConfig, EditorSettings } from './field/config/types'
@@ -40,4 +41,9 @@ export type EditorFieldProps = {
   ) => string | boolean | Promise<string | boolean>
   onError?: (error: Error) => void
   lexicalEditorProps?: LexicalEditorProps
+  /**
+   * The field's selection memory (`useRichTextSelectionMemory`). When given,
+   * the root editor records its selection and puts it back after a save.
+   */
+  selectionMemory?: RichTextSelectionMemory
 }
