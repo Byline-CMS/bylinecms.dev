@@ -520,6 +520,47 @@ describe('editor view state store', () => {
       expect(s.takeSelection('title')).toBeNull()
     })
 
+    describe('releasing a live selection when its producer unmounts', () => {
+      it('releases only the selection the owner recorded, without calling its fingerprint', () => {
+        const s = createEditorViewStateStore()
+        s.setTarget({ ...target })
+        const owner = {}
+        const fingerprint = vi.fn(() => 'abc')
+        s.setSelection('title', { ...richRange, fingerprint }, owner)
+        s.releaseSelection(owner)
+        const n = s.beginSave()
+        s.settleSave(n, 'success')
+        expect(fingerprint).not.toHaveBeenCalled()
+        expect(s.grantSelection(n, 'title')).toBeNull()
+      })
+
+      it("an older owner's release keeps a newer owner's selection", () => {
+        const s = createEditorViewStateStore()
+        s.setTarget({ ...target })
+        const older = {}
+        const newer = {}
+        s.setSelection('title', richSel, older)
+        s.setSelection('title', { ...richSel, fingerprint: () => 'new' }, newer)
+        s.releaseSelection(older)
+        const n = s.beginSave()
+        s.settleSave(n, 'success')
+        expect(s.grantSelection(n, 'title')).not.toBeNull()
+        expect(s.takeSelection('title')).toEqual({ ...richRange, fingerprint: 'new' })
+      })
+
+      it('a selection a save already snapshotted survives the release', () => {
+        const s = createEditorViewStateStore()
+        s.setTarget({ ...target })
+        const owner = {}
+        s.setSelection('title', richSel, owner)
+        const n = s.beginSave()
+        s.releaseSelection(owner)
+        s.settleSave(n, 'success')
+        expect(s.grantSelection(n, 'title')).not.toBeNull()
+        expect(s.takeSelection('title')).toEqual({ ...richRange, fingerprint: 'abc' })
+      })
+    })
+
     it('recording a selection does not notify subscribers', () => {
       const s = createEditorViewStateStore()
       s.setTarget({ ...target })

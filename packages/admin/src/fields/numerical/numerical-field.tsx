@@ -113,11 +113,13 @@ export const NumericalField = ({
     if (CustomField) {
       // A custom slot reports value changes only through `onChange`, so it
       // records the working target there. Its own native events (a local
-      // filter box, say) are transient and never record.
+      // filter box, say) are transient and never record. The declared input
+      // id tells restoration which of the slot's controls is the value control.
       return (
         <div
           className="byline-field-custom-slot"
           data-byline-transient=""
+          data-byline-control-id={htmlId}
           style={{ display: 'contents' }}
         >
           <CustomField

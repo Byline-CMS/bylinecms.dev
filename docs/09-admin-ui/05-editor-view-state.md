@@ -45,6 +45,10 @@ After a successful save, the editor does the following:
 4. Never restores a caret inside a nested editor such as an image caption. Editing a caption leaves focus on the field.
 5. Never falls back to a neighbouring item. If the exact target is gone, the editor uses the nearest ancestor that has a stable identity, or the containing field.
 
+For a rich-text field, focus returns to a focusable wrapper around the editor until the editor can place the caret itself. When you saved with the keyboard, the wrapper shows the admin focus ring, so you can see where focus went. After a save with the mouse, the browser does not treat the focus as keyboard focus, and no ring appears.
+
+A recorded caret belongs to the control or editor that recorded it. If that field is hidden or remounted before the next save, and nothing records a new caret, the save restores focus without a caret. A caret that a save has already captured is still replayed into the remounted field.
+
 A refused save, such as a validation failure or a concurrency conflict, skips this successful-save restoration. The form's existing validation and conflict focus behaviour still runs. When a save commits but an after-hook then throws an error that the editor shows as an inline warning, focus goes to that warning. A committed-hook result that is returned and shown only as a toast restores normally.
 
 ## Locale switches and other actions
@@ -71,9 +75,9 @@ The TanStack Start host in `@byline/host-tanstack-start` already does everything
 
 ## Custom fields
 
-Built-in fields take part automatically. A custom component supplied through the `components.Field` slot for a text, textArea or numerical field records edits through the `onChange` callback it receives, so call that callback whenever the value changes. A custom widget that has no native input event and never calls a slot callback is not recorded, so the editor cannot return to it.
+Built-in fields take part automatically. A custom component supplied through the `components.Field` slot for a text, textArea or numerical field records edits through the `onChange` callback it receives, so call that callback whenever the value changes. Give your value control the `id` prop the slot receives. Restoration focuses the element with that id inside the field in preference to document order, so a slot can place a filter box before its value control. Without a matching element, restoration focuses the first value-entry control in the slot. A custom widget that has no native input event and never calls a slot callback is not recorded, so the editor cannot return to it.
 
-`SortableItem` and `StaticItem` accept an optional `itemPath` prop, the item's instance path. Pass it when you render your own array or block items so their collapsed state is remembered by identity. Without it, the item is not remembered. Rich-text fields built on `@byline/richtext-lexical` use `useRichTextSelectionMemory` from `@byline/admin/react` to record and replay the root editor's selection.
+`SortableItem` and `StaticItem` accept an optional `itemPath` prop, the item's instance path. Pass it when you render your own array or block items so their collapsed state is remembered by identity. Without it, the item is not remembered. Rich-text fields built on `@byline/richtext-lexical` use `useRichTextSelectionMemory` from `@byline/admin/react` to record and replay the root editor's selection. Each editor instance passes its own owner token to `record` and calls `release` with that token when it unmounts, so the visit store never keeps a closure over an editor that has gone.
 
 ## Limits
 

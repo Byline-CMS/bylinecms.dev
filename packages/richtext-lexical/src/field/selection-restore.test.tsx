@@ -184,10 +184,20 @@ const render = async (
   store: EditorViewStateStore | null,
   data: Record<string, unknown>,
   onSubmit: () => Promise<void>,
-  { settle = true }: { settle?: boolean } = {}
+  {
+    settle = true,
+    fieldList = fields,
+    into = root,
+    within = container,
+  }: {
+    settle?: boolean
+    fieldList?: readonly unknown[]
+    into?: Root
+    within?: HTMLElement
+  } = {}
 ) => {
   await act(async () => {
-    root.render(
+    into.render(
       <I18nProvider
         bundle={adminTranslations({ locales: ['en'] })}
         activeLocale="en"
@@ -204,7 +214,7 @@ const render = async (
         >
           <FormRenderer
             mode="edit"
-            fields={fields as never}
+            fields={fieldList as never}
             initialLocale="en"
             initialData={data}
             collectionPath="pages"
@@ -217,7 +227,8 @@ const render = async (
     )
   })
   // The editor loads lazily; let it mount and settle its baseline.
-  for (let attempt = 0; attempt < 20 && editorRoot() == null; attempt++) {
+  const hasBody = fieldList.some((field) => (field as { name?: string }).name === 'body')
+  for (let attempt = 0; hasBody && attempt < 20 && editorRoot(within) == null; attempt++) {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 5))
     })
@@ -241,8 +252,8 @@ const wrapper = () => {
 }
 
 /** The root editor's content-editable element; nested editors sit inside it. */
-const editorRoot = () =>
-  container
+const editorRoot = (within: HTMLElement = container) =>
+  within
     .querySelector('[data-byline-target="body"]')
     ?.querySelector<HTMLElement>('[contenteditable]') ?? null
 
@@ -711,6 +722,100 @@ describe('fix round 1: baseline and grant meet in either order', () => {
     await settleBaseline()
     expect(document.activeElement).toBe(document.body)
     expect(caretOf(editorOf(editorRoot()))).toBeNull()
+  })
+})
+
+describe('final fix: the live selection does not outlive its editor', () => {
+  const withoutBody = fields.filter((field) => field.name !== 'body')
+
+  it('the editor unmounts before a save: the detached editor is never serialized and no caret is granted', async () => {
+    const store = createEditorViewStateStore()
+    const onSubmit = hostSubmit(store, 2)
+    await render(store, doc(1, content(paragraph('Hello world'))), onSubmit)
+    await edit(editorRoot() as HTMLElement, appendText('!'))
+    await placeCaret(editorRoot() as HTMLElement, 5)
+    const detached = editorOf(editorRoot())
+
+    // The field disappears (a condition, a tab change) with no replacement.
+    await render(store, doc(1, content(paragraph('Hello world'))), onSubmit, {
+      fieldList: withoutBody,
+    })
+    expect(editorRoot()).toBeNull()
+    expect(store.getTarget()?.path).toBe('body')
+
+    const getState = vi.spyOn(detached, 'getEditorState')
+    const toJSON = vi.spyOn(Object.getPrototypeOf(detached.getEditorState()), 'toJSON')
+    getState.mockClear()
+    const saveSeq = store.beginSave()
+    store.settleSave(saveSeq, 'success')
+    expect(getState).not.toHaveBeenCalled()
+    expect(toJSON).not.toHaveBeenCalled()
+    expect(store.grantSelection(saveSeq, 'body')).toBeNull()
+  })
+
+  it('a selection snapshotted by a successful save survives the old editor unmounting and reaches the new one', async () => {
+    const store = createEditorViewStateStore()
+    const onSubmit = hostSubmit(store, 2)
+    await editAndSave(store, onSubmit)
+    const before = editorRoot()
+
+    // The old editor is torn down entirely before the replacement mounts. The
+    // refreshed revision has not rendered yet, so the restoration still waits.
+    await render(store, doc(1, content(paragraph('Hello world!'))), onSubmit, {
+      fieldList: withoutBody,
+    })
+    expect(editorRoot()).toBeNull()
+
+    await render(store, doc(2, content(paragraph('Hello world!'))), onSubmit)
+    await flushEmission()
+    const after = editorRoot() as HTMLElement
+    expect(after).not.toBe(before)
+    expect(document.activeElement).toBe(after)
+    expect(caretOf(editorOf(after))).toEqual(['Hello world!', 5])
+  })
+
+  it("an older editor's teardown leaves a newer editor's selection in place", async () => {
+    const store = createEditorViewStateStore()
+    const onSubmit = hostSubmit(store, 2)
+    await render(store, doc(1, content(paragraph('Hello world'))), onSubmit)
+    await edit(editorRoot() as HTMLElement, appendText('!'))
+    await placeCaret(editorRoot() as HTMLElement, 5)
+    const older = editorOf(editorRoot())
+
+    // A second form on the same visit (the replacement, mounted before the
+    // old one goes) records its own caret in the same field.
+    const second = document.createElement('div')
+    document.body.append(second)
+    const secondRoot = createRoot(second)
+    try {
+      await render(store, doc(1, content(paragraph('Hello world'))), onSubmit, {
+        into: secondRoot,
+        within: second,
+      })
+      const newer = editorRoot(second) as HTMLElement
+      await edit(newer, appendText('?'))
+      await placeCaret(newer, 3)
+
+      await act(async () => {
+        root.unmount()
+      })
+      root = createRoot(container)
+
+      const olderState = vi.spyOn(older, 'getEditorState')
+      const saveSeq = store.beginSave()
+      store.settleSave(saveSeq, 'success')
+      expect(olderState).not.toHaveBeenCalled()
+      expect(store.grantSelection(saveSeq, 'body')).not.toBeNull()
+      expect(store.takeSelection('body')).toMatchObject({
+        kind: 'richText',
+        sel: { anchor: { offset: 3 }, focus: { offset: 3 } },
+      })
+    } finally {
+      await act(async () => {
+        secondRoot.unmount()
+      })
+      second.remove()
+    }
   })
 })
 

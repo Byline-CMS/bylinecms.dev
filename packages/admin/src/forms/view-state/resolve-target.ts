@@ -9,7 +9,7 @@
 import { type Field, formatInstancePath, parseInstancePath } from '@byline/core'
 
 import { hasExistingIdTargets } from '../nested-path'
-import { findMarker } from './target-markers'
+import { CONTROL_ID_ATTR, findMarker, TARGET_ATTR } from './target-markers'
 import { trustedAddress } from './view-state-address'
 import type { ViewTarget } from './editor-view-state'
 
@@ -57,15 +57,39 @@ function firstUsable(
 }
 
 /**
+ * The control a custom field slot declared through its input id
+ * (`CONTROL_ID_ATTR`), looked up only inside this marker's own slot, not a
+ * nested field's.
+ */
+function declaredControlWithin(marker: Element): HTMLElement | null {
+  for (const holder of marker.querySelectorAll(`[${CONTROL_ID_ATTR}]`)) {
+    if (holder.parentElement?.closest(`[${TARGET_ATTR}]`) !== marker) continue
+    const id = holder.getAttribute(CONTROL_ID_ATTR)
+    if (!id) continue
+    for (const candidate of holder.querySelectorAll('[id]')) {
+      if (candidate.id !== id) continue
+      if (candidate.closest(`[${LOADING_ATTR}]`)) return null
+      return isUsable(candidate) && candidate.matches(FOCUSABLE) ? candidate : null
+    }
+  }
+  return null
+}
+
+/**
  * The exact control for a marker: the marker itself when it is focusable (a
  * rich-text field's `tabIndex={-1}` wrapper, an item header button),
+ * otherwise a custom slot's declared input (`declaredControlWithin`),
  * otherwise its first usable value-entry control, otherwise its first usable
  * focusable descendant. The value-entry preference exists because the editor
  * changed the field's value, not, say, its Regenerate button.
  */
 function exactControlWithin(marker: Element): HTMLElement | null {
   if (marker.matches(FOCUSABLE)) return isUsable(marker) ? marker : null
-  return firstUsable(marker, ENTRY_CONTROLS) ?? firstUsable(marker, FOCUSABLE)
+  return (
+    declaredControlWithin(marker) ??
+    firstUsable(marker, ENTRY_CONTROLS) ??
+    firstUsable(marker, FOCUSABLE)
+  )
 }
 
 /**

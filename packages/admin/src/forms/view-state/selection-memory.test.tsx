@@ -74,3 +74,85 @@ describe('plain-field selection support', () => {
     expect(JSON.stringify(record)).not.toContain('secret')
   })
 })
+
+describe('plain-field selection lifetime', () => {
+  const textInput = (value: string) => {
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.value = value
+    return input
+  }
+
+  /** Spies on reads of `input.value` from here on. */
+  const spyOnValue = (input: HTMLInputElement) => {
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')
+    const read = vi.fn(() => descriptor?.get?.call(input))
+    Object.defineProperty(input, 'value', { configurable: true, get: read })
+    return read
+  }
+
+  it('the control leaves the document before a save: it is never read and no caret is granted', () => {
+    const input = textInput('Hello world')
+    const marker = fieldWith(input)
+    input.setSelectionRange(5, 5)
+    const store = createEditorViewStateStore()
+    store.setTarget({ path: 'count', role: 'field', offset: 0 })
+    recordTextSelection(store, 'count', input)
+
+    // The field disappears (a condition, a tab change) with no replacement.
+    marker.remove()
+    const read = spyOnValue(input)
+    const saveSeq = store.beginSave()
+    store.settleSave(saveSeq, 'success')
+    expect(read).not.toHaveBeenCalled()
+    expect(store.grantSelection(saveSeq, 'count')).toBeNull()
+  })
+
+  it('a selection snapshotted by a successful save survives the old control unmounting and reaches the new one', () => {
+    const old = textInput('Hello world')
+    const oldMarker = fieldWith(old)
+    old.setSelectionRange(5, 5)
+    const store = createEditorViewStateStore()
+    store.setTarget({ path: 'count', role: 'field', offset: 0 })
+    recordTextSelection(store, 'count', old)
+    const saveSeq = store.beginSave()
+    oldMarker.remove()
+    store.settleSave(saveSeq, 'success')
+
+    const replacement = textInput('Hello world')
+    fieldWith(replacement)
+    replacement.focus()
+    replacement.setSelectionRange(0, 0)
+    replaySelection(store, saveSeq, 'count', replacement)
+    expect([replacement.selectionStart, replacement.selectionEnd]).toEqual([5, 5])
+
+    // The replayed caret belongs to the new control: a second save with no
+    // caret move restores it again, without reading the old control.
+    const read = spyOnValue(old)
+    const second = store.beginSave()
+    store.settleSave(second, 'success')
+    expect(read).not.toHaveBeenCalled()
+    expect(store.grantSelection(second, 'count')).not.toBeNull()
+    expect(store.takeSelection('count')).toMatchObject({ kind: 'text', start: 5, end: 5 })
+  })
+
+  it("an older control's removal leaves a newer control's selection in place", () => {
+    const store = createEditorViewStateStore()
+    store.setTarget({ path: 'count', role: 'field', offset: 0 })
+    const old = textInput('Hello world')
+    const oldMarker = fieldWith(old)
+    old.setSelectionRange(5, 5)
+    recordTextSelection(store, 'count', old)
+
+    const newer = textInput('Hello world')
+    fieldWith(newer)
+    newer.setSelectionRange(2, 2)
+    recordTextSelection(store, 'count', newer)
+    oldMarker.remove()
+
+    const saveSeq = store.beginSave()
+    store.settleSave(saveSeq, 'success')
+    expect(store.grantSelection(saveSeq, 'count')).not.toBeNull()
+    expect(store.takeSelection('count')).toMatchObject({ kind: 'text', start: 2, end: 2 })
+  })
+})

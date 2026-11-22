@@ -141,13 +141,22 @@ export interface EditorViewStateStore {
    * working target. Read-only view state: it never notifies. Moving the
    * working target to another path or role clears it; recording the same
    * target again (a delayed change callback from the same edit) keeps it.
+   * `owner` identifies the instance that produced the selection (a rich-text
+   * editor), so its teardown can release it with `releaseSelection`.
    */
-  setSelection(path: string, selection: LiveSelection): void
+  setSelection(path: string, selection: LiveSelection, owner?: object): void
   /**
    * Drops the recorded selection of `path`: a nested editor was edited, or
    * the root editor moved to a selection that cannot be recorded.
    */
   clearSelection(path: string): void
+  /**
+   * Drops the live selection when `owner` produced it: the producing editor
+   * or control is unmounting, and its fingerprint must never be called
+   * again. A selection already snapshotted by a save, and a selection
+   * recorded by another owner, are kept.
+   */
+  releaseSelection(owner: object): void
   /**
    * Lets the restoration of save `saveSeq`, having focused the exact control
    * for `path`, hand on the selection that was current when the save began.
@@ -193,7 +202,7 @@ export function createEditorViewStateStore(): EditorViewStateStore {
   let action: PendingActionRestore | null = null
   let observedLocale: string | null = null
   // The working target's latest caret or selection.
-  let selection: { path: string; record: LiveSelection } | null = null
+  let selection: { path: string; record: LiveSelection; owner: object | null } | null = null
   // The selection current when the latest save began.
   let saveSelection: { saveSeq: number; path: string; record: RecordedSelection } | null = null
   let grantSeq = 0
@@ -343,12 +352,15 @@ export function createEditorViewStateStore(): EditorViewStateStore {
       if (action && action.toLocale !== locale) action = null
       return true
     },
-    setSelection(path, record) {
+    setSelection(path, record, owner) {
       if (target?.path !== path) return
-      selection = { path, record }
+      selection = { path, record, owner: owner ?? null }
     },
     clearSelection(path) {
       if (selection?.path === path) selection = null
+    },
+    releaseSelection(owner) {
+      if (selection != null && selection.owner === owner) selection = null
     },
     grantSelection(saveSeq, path) {
       if (saveSelection?.saveSeq !== saveSeq || saveSelection.path !== path) return null

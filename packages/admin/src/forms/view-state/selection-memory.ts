@@ -59,6 +59,11 @@ function fingerprintText(value: string): string {
  * at `path`. Read-only: it touches neither the control nor form state. The
  * store ignores it unless `path` is the working target. The value's
  * fingerprint is taken only if a save begins.
+ *
+ * The record holds the control weakly. Once the control has left the
+ * document (its field was hidden, remounted or its form unmounted), the
+ * fingerprint is `null` without reading the control, so the selection is
+ * dropped and no caret is replayed from it.
  */
 export function recordTextSelection(
   store: EditorViewStateStore,
@@ -69,11 +74,15 @@ export function recordTextSelection(
   const range = selectionOf(element)
   if (range == null) return
   const direction = element.selectionDirection
+  const control = new WeakRef(element)
   store.setSelection(path, {
     kind: 'text',
     ...range,
     direction: direction === 'forward' || direction === 'backward' ? direction : 'none',
-    fingerprint: () => fingerprintText(element.value),
+    fingerprint: () => {
+      const live = control.deref()
+      return live?.isConnected ? fingerprintText(live.value) : null
+    },
   })
 }
 
@@ -104,7 +113,11 @@ export function replaySelection(
       control.setSelectionRange(record.start, record.end, record.direction)
     } catch {
       // The control stopped supporting selection; its focus stands.
+      return
     }
+    // The replayed caret now belongs to the restored control, so a later
+    // save without a caret move still finds it.
+    recordTextSelection(store, path, control)
     return
   }
   grantHolders.set(store, { grantId, control })
@@ -127,11 +140,18 @@ export interface RichTextSelectionMemory {
   /**
    * Records the root editor's selection. `fingerprint` describes the content
    * the selection belongs to; it is called only if a save begins, so a caret
-   * move costs no serialization.
+   * move costs no serialization. `owner` identifies the recording editor
+   * instance; pass the same token to `release` when it unmounts.
    */
-  record(sel: StructuralSelection, fingerprint: () => string | null): void
+  record(sel: StructuralSelection, fingerprint: () => string | null, owner: object): void
   /** Drops the recorded selection (a nested edit, a non-range selection). */
   clear(): void
+  /**
+   * Releases the live selection `owner` recorded, when the editor unmounts.
+   * A selection already snapshotted by a save, and one recorded by a newer
+   * editor instance, are kept.
+   */
+  release(owner: object): void
   /**
    * The selection to replay, once, while the restoration of the current
    * successful save is handing it on and the control it focused still holds
@@ -154,11 +174,14 @@ export function useRichTextSelectionMemory(path: string): RichTextSelectionMemor
   return useMemo(() => {
     if (store == null) return null
     return {
-      record(sel, fingerprint) {
-        store.setSelection(path, { kind: 'richText', sel, fingerprint })
+      record(sel, fingerprint, owner) {
+        store.setSelection(path, { kind: 'richText', sel, fingerprint }, owner)
       },
       clear() {
         store.clearSelection(path)
+      },
+      release(owner) {
+        store.releaseSelection(owner)
       },
       take() {
         const holder = grantHolders.get(store)

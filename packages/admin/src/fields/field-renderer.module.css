@@ -43,4 +43,13 @@
   :global(.byline-field-richtext-target) {
     min-width: 0;
   }
+
+  /* Restoration focuses this wrapper programmatically. Browsers match
+   :focus-visible then only when the last interaction was the keyboard, so a
+   keyboard save shows where focus returned and a mouse save shows no ring. */
+  .richtext-target:focus-visible,
+  :global(.byline-field-richtext-target):focus-visible {
+    outline: 2px solid var(--primary-500);
+    outline-offset: 2px;
+  }
 }

@@ -96,7 +96,8 @@ const NESTED_EDIT_EVENTS = ['beforeinput', 'input', 'paste', 'cut', 'drop'] as c
  * input event, and only while the root's own content-editable holds focus.
  * The content fingerprint is computed on demand when a save begins. An edit
  * inside a nested editor, or a non-range root selection (a selected image),
- * clears the recorded selection.
+ * clears the recorded selection. Unmounting releases this editor's live
+ * selection from the visit store, which outlives it.
  *
  * Restoring is a rendezvous between two conditions that may arrive in
  * either order: `ApplyValuePlugin` has established the baseline for the
@@ -122,7 +123,12 @@ export function SelectionRestorePlugin({
   useEffect(() => {
     let disposed = false
     let scheduled = false
-    const fingerprint = () => editorFingerprint(editor)
+    // Identifies this editor instance's recordings, so its teardown releases
+    // only what it recorded, never a newer instance's selection.
+    const owner = {}
+    // Never serializes a torn-down editor, even if a save begins before the
+    // release below has run.
+    const fingerprint = () => (disposed ? null : editorFingerprint(editor))
 
     const record = () => {
       scheduled = false
@@ -142,7 +148,7 @@ export function SelectionRestorePlugin({
         return
       }
       if (rootElement == null || rootElement.ownerDocument.activeElement !== rootElement) return
-      if (selection !== undefined) memory.record(selection, fingerprint)
+      if (selection !== undefined) memory.record(selection, fingerprint, owner)
     }
 
     const unregisterUpdates = editor.registerUpdateListener(({ tags }) => {
@@ -170,6 +176,10 @@ export function SelectionRestorePlugin({
       disposed = true
       unregisterUpdates()
       unregisterRoot()
+      // The visit store outlives this editor: drop its live selection, and
+      // with it the closure over the editor. A selection a save has already
+      // snapshotted is kept for the editor that replaces this one.
+      memory.release(owner)
     }
   }, [editor, memory])
 

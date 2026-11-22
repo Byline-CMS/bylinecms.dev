@@ -65,6 +65,7 @@ const fields = [
   { name: 'snippet', label: 'Snippet', type: 'code' as const, optional: true },
   { name: 'slow', label: 'Slow', type: 'text' as const, optional: true },
   { name: 'picked', label: 'Picked', type: 'text' as const, optional: true },
+  { name: 'reversed', label: 'Reversed', type: 'text' as const, optional: true },
 ]
 
 /**
@@ -87,6 +88,31 @@ const PickerSlot = ({
       <input id={id} name="picked" readOnly value={value ?? ''} />
       <input name="picked-filter" value={filter} onChange={(e) => setFilter(e.target.value)} />
       <button type="button" className="pick" onClick={() => onChange(`picked:${filter}`)}>
+        Pick
+      </button>
+    </div>
+  )
+}
+
+/**
+ * The same picker with its filter box first in DOM order and its value
+ * control second. Restoration must use the declared input id, not DOM order.
+ */
+const FilterFirstSlot = ({
+  id,
+  value,
+  onChange,
+}: {
+  id: string
+  value?: string
+  onChange: (value: string) => void
+}) => {
+  const [filter, setFilter] = useState('')
+  return (
+    <div>
+      <input name="reversed-filter" value={filter} onChange={(e) => setFilter(e.target.value)} />
+      <input id={id} name="reversed" readOnly value={value ?? ''} />
+      <button type="button" className="pick-reversed" onClick={() => onChange(`picked:${filter}`)}>
         Pick
       </button>
     </div>
@@ -122,6 +148,7 @@ const adminConfig = {
     slow: { components: { Field: SlowField } },
     title: { components: { afterField: RecordingButton } },
     picked: { components: { Field: PickerSlot } },
+    reversed: { components: { Field: FilterFirstSlot } },
   },
 }
 
@@ -130,7 +157,14 @@ const doc = (revision: number, versionId = `v${revision}`) => ({
   versionId,
   revision,
   status: 'draft',
-  fields: { title: 'Title', lookup: 'L', snippet: 'const a = 1', slow: '', picked: '' },
+  fields: {
+    title: 'Title',
+    lookup: 'L',
+    snippet: 'const a = 1',
+    slow: '',
+    picked: '',
+    reversed: '',
+  },
 })
 
 let containers: HTMLDivElement[] = []
@@ -332,6 +366,20 @@ describe('custom components.Field slots', () => {
     renderInto(root, store, doc(2))
     await frames()
     expect(document.activeElement).toBe(container.querySelector('input[name="picked"]'))
+  })
+
+  it('restores to the declared input id when the filter comes before the value control', async () => {
+    const store = createEditorViewStateStore()
+    const { container, root } = mountRoot()
+    renderInto(root, store, doc(1), hostSubmit(store, 2))
+    typeInto(container.querySelector('input[name="reversed-filter"]'), 'abc')
+    act(() => container.querySelector<HTMLButtonElement>('.pick-reversed')?.click())
+    expect(store.getTarget()).toMatchObject({ path: 'reversed', role: 'field' })
+    await save(container)
+
+    renderInto(root, store, doc(2))
+    await frames()
+    expect(document.activeElement).toBe(container.querySelector('input[name="reversed"]'))
   })
 })
 

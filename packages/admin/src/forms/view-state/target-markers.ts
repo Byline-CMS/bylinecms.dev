@@ -32,6 +32,14 @@ const ROLE_ATTR = 'data-byline-role'
 const TRANSIENT_ATTR = 'data-byline-transient'
 
 /**
+ * Names the declared input id of a custom field slot (`components.Field`).
+ * Restoration focuses the element with that id inside the field's own marker
+ * in preference to DOM order, so a slot whose filter box comes before its
+ * value control still restores to the value control.
+ */
+export const CONTROL_ID_ATTR = 'data-byline-control-id'
+
+/**
  * The owning form element. Marker lookups are scoped to it, because two
  * mounted forms can carry identical addresses.
  */
