@@ -12,6 +12,7 @@ import { useTranslation } from '@byline/i18n/react'
 import { ChevronDownIcon, GripperVerticalIcon, useSortable } from '@byline/ui/react'
 import cx from 'clsx'
 
+import { useEditorViewState } from '../forms/view-state/editor-view-state-context'
 import { DraggableContextMenu } from './draggable-context-menu'
 import styles from './sortable-item.module.css'
 
@@ -33,6 +34,12 @@ import styles from './sortable-item.module.css'
 // ---------------------------------------------------------------------------
 
 interface ItemFrameProps {
+  /**
+   * Item instance path; keys the collapsed state in the per-visit view-state
+   * store. Optional for external callers of the public export: without it the
+   * collapsed state is local only and the store is never read or written.
+   */
+  itemPath?: string
   label: ReactNode
   children: ReactNode
   onAddBelow?: () => void
@@ -47,6 +54,7 @@ interface ItemFrameProps {
 }
 
 const ItemFrame = ({
+  itemPath,
   label,
   children,
   onAddBelow,
@@ -58,7 +66,19 @@ const ItemFrame = ({
   rootClassName,
 }: ItemFrameProps) => {
   const { t } = useTranslation('byline-admin')
-  const [collapsed, setCollapsed] = useState(false)
+  const viewState = useEditorViewState()
+  // Seeded once from the per-visit store. Local state stays authoritative so
+  // positional (untrusted) items, which the store ignores, still toggle.
+  const store = viewState && itemPath ? viewState : null
+  const [collapsed, setCollapsed] = useState(() =>
+    itemPath ? (store?.isCollapsed(itemPath) ?? false) : false
+  )
+
+  const toggleCollapsed = () => {
+    const next = !collapsed
+    setCollapsed(next)
+    if (store && itemPath) store.setCollapsed(itemPath, next)
+  }
 
   return (
     <div
@@ -85,7 +105,7 @@ const ItemFrame = ({
         <button
           type="button"
           className={cx('byline-sortable-toggle', styles.toggle)}
-          onClick={() => setCollapsed((prev) => !prev)}
+          onClick={toggleCollapsed}
           aria-label={
             collapsed
               ? t('fields.sortable.expandAriaLabel')
@@ -116,12 +136,14 @@ const ItemFrame = ({
 
 export const SortableItem = ({
   id,
+  itemPath,
   label,
   children,
   onAddBelow,
   onRemove,
 }: {
   id: string
+  itemPath?: string
   label: ReactNode
   children: ReactNode
   onAddBelow?: () => void
@@ -143,6 +165,7 @@ export const SortableItem = ({
 
   return (
     <ItemFrame
+      itemPath={itemPath}
       label={label}
       onAddBelow={onAddBelow}
       onRemove={onRemove}
@@ -166,17 +189,20 @@ export const SortableItem = ({
 }
 
 export const StaticItem = ({
+  itemPath,
   label,
   children,
   onAddBelow,
   onRemove,
 }: {
+  itemPath?: string
   label: ReactNode
   children: ReactNode
   onAddBelow?: () => void
   onRemove?: () => void
 }) => (
   <ItemFrame
+    itemPath={itemPath}
     label={label}
     onAddBelow={onAddBelow}
     onRemove={onRemove}

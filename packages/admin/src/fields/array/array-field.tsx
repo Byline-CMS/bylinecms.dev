@@ -273,6 +273,7 @@ export const ArrayField = ({
       return (
         <StaticItem
           key={itemWrapper.id}
+          itemPath={arrayElementPath}
           label={itemLabel}
           onAddBelow={field.readOnly ? undefined : () => handleInsertBelow(index)}
           onRemove={field.readOnly ? undefined : () => handleRemoveItem(index)}
@@ -288,6 +289,7 @@ export const ArrayField = ({
       <SortableItem
         key={itemWrapper.id}
         id={itemWrapper.id}
+        itemPath={arrayElementPath}
         label={itemLabel}
         onAddBelow={field.readOnly ? undefined : () => handleInsertBelow(index)}
         onRemove={field.readOnly ? undefined : () => handleRemoveItem(index)}

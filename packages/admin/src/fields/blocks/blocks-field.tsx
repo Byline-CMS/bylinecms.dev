@@ -272,6 +272,7 @@ export const BlocksField = ({
       <Item
         key={itemWrapper.id}
         id={itemWrapper.id}
+        itemPath={arrayElementPath}
         label={label ?? subField.blockType}
         onAddBelow={field.readOnly ? undefined : () => handleInsertBelow(index)}
         onRemove={field.readOnly ? undefined : () => handleRemoveItem(index)}
