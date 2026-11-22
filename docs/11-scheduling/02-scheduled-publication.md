@@ -14,7 +14,7 @@ Companions:
 
 Scheduled publication lets an authorized editor choose a future instant at which a specific reviewed document version becomes published. At that instant Byline performs the same workflow status transition as an immediate publish: the same `beforeStatusChange` and `afterStatusChange` hooks and the same auto-archive of previously published versions. The unattended transition runs under a stable system actor, while separate schedule audit records retain the human authorization captured earlier. Read this document when you want to turn the feature on, or when you need to know what happens to a schedule as content changes underneath it.
 
-Scheduled publication is a delayed workflow mutation, not a read filter. Before the instant, the scheduled version is not publicly readable. If the document has an older published version, public reads continue serving that version; a document that has never been published remains excluded. This differs from an embargo, where content is already published and a `beforeRead` predicate hides it until request time — see the embargo recipe in [Authentication and authorization](../07-auth-and-security/01-authn-authz.md). Both remain available; they are not the same mechanism.
+Scheduling publishes the reviewed version through the regular workflow when it is due. Until then, public reads continue to serve any earlier published version. A document that has never been published stays out of public results.
 
 Publication is document-grain. The version that publishes carries every locale it was authored with, so scheduling publishes all of a version's locales together. There is no per-locale schedule.
 
@@ -22,21 +22,7 @@ Publication is document-grain. The version that publishes carries every locale i
 
 Three steps, in this order. The schema must exist before a ticker starts, because the scheduler's first sweep reconciles its task rows.
 
-**1. Apply the native upgrade scripts.** Existing installations run both the scheduler table and the schedule table for their adapter. Obtain these source-repository upgrade artifacts from the Git tag for the target Byline release; they are not exported by the adapter npm packages. Apply every script not already applied, in filename order.
-
-The PostgreSQL scripts are idempotent and each runs in one transaction. Run them as the application's database role when possible; their ownership guard also makes running them as a superuser safe. The MySQL scripts are idempotent, but MySQL DDL auto-commits and therefore cannot provide transactional atomicity. Run them as the application role or another account with the required database privileges, and inspect a failed migration before rerunning it because earlier DDL may already have committed.
-
-```sh
-# PostgreSQL
-psql "$DATABASE_URL" -f packages/db-postgres/sql/0007_add-recurring-tasks.sql
-psql "$DATABASE_URL" -f packages/db-postgres/sql/0008_add-document-publish-schedules.sql
-
-# MySQL
-mysql "$DATABASE" < packages/db-mysql/sql/0002_add-recurring-tasks.sql
-mysql "$DATABASE" < packages/db-mysql/sql/0003_add-document-publish-schedules.sql
-```
-
-Installations created by `@byline/cli` receive both tables in the bundled baseline and need neither script.
+**1. Verify the storage schema.** Fresh installations include the scheduler and publication schedule tables. For an existing installation, follow the [CLI storage upgrade procedure](../01-getting-started/01-cli.md#fresh-baselines-rebuilds-and-upgrades) before starting the ticker. The historical scripts that introduced the two tables were PostgreSQL 0007 and 0008 and MySQL 0002 and 0003.
 
 **2. Enable the feature.**
 

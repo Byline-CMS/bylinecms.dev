@@ -325,5 +325,4 @@ These parts are planned and do not exist in Byline today. Do not build on them u
 - An admin extraction log or any other user interface.
 - Reference drivers for Tika or Docling.
 - Server-issued upload receipts, tracked in [issue #108](https://github.com/Byline-CMS/bylinecms.dev/issues/108).
-- Embargo and access restrictions.
 - A stable page map. Version 1 stays provisional until sentinel evidence from a real corpus supports declaring it stable.

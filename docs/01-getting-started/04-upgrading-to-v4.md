@@ -314,7 +314,7 @@ the operation overlay, or the collection tuple and regenerate.
 ## 7. Review request-scoped read contexts
 
 The v4 read pipeline binds a shared `ReadContext` to one immutable request
-authority. This prevents authorization predicates, embargo cutoffs, preview
+authority. This prevents authorization predicates, preview
 state, and recursion state from leaking across actors or requests.
 
 The TanStack host's admin, public, and viewer client factories now resolve one

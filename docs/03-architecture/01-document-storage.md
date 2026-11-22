@@ -391,15 +391,9 @@ This is the real inflection point, and it still lands above the scale most Bylin
 
 ### Why development-machine numbers still tell you something
 
-A production deployment caches at three layers: source (per `document_version_id`), reverse proxy (stale-while-revalidate over rendered pages), and browser (`ETag` derived from `document_version_id`). In steady state, **most reads never reach the storage layer**. The 7-way UNION ALL runs on cache miss.
+A host can cache rendered pages or resolved documents. The [caching guide](../05-reading-and-delivery/06-caching.md) describes the reference application’s opt-in data cache and CDN middleware. Cache hit rates and concurrent request capacity depend on the deployment. The July sweep measured individual storage calls.
 
-That makes these numbers less a performance gate than a way to characterise three things that do matter operationally:
-
-1. **Cold-path latency.** The first unique visitor to a new version pays the cost, and it stays low across realistic scales.
-2. **Cache stampede behaviour.** Bulk publish and invalidation events push many concurrent misses through storage at once. Per-query cold latency bounds the blast radius: at ~3 ms per single-document read, even a 1000-RPS stampede on a fresh deploy stays manageable on one Postgres connection.
-3. **List-view cache-miss path.** Single-document reads key cleanly on `document_version_id`. List views with arbitrary filter and sort combinations have a combinatorial cache-key space and resist aggressive caching, which makes their raw query performance more operationally relevant than single-document read performance.
-
-Production numbers will differ: different hardware, tuned Postgres, real concurrency, real cache behaviour. The *shape* of the cost is the durable finding: flat in document count for single-document reads and batch fetches, growing only on the unfiltered list-view path, which has a well-understood mitigation if it becomes load-bearing.
+Point reads and batch fetches stayed roughly flat as the fixture grew. List pagination and filtering with sort became more expensive. The [benchmark plan](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/benchmarks/storage/README.md#next-benchmark-and-read-path-review) sets out the comparison across adapters and the read-path code review that will use those measurements.
 
 ### What the sweep did not measure
 

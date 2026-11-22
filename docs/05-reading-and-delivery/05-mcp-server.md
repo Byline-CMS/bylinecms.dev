@@ -25,7 +25,7 @@ authentication and sequencing are historical, not current implementation guidanc
 Social-channel orchestration remains the client's responsibility. Neither this
 proposal nor the specification describes a shipped MCP server. The companion
 [implementation plan](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/specs/2026-10-10-mcp-server-plan.md)
-sequences the code changes and verification checkpoints.
+records the October implementation sequence. The [upcoming transport review](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/specs/2026-10-10-mcp-server-plan.md#strategy-review-before-benchmarking) will decide whether to move read and search ahead of authoring.
 :::
 
 ## Overview
@@ -186,11 +186,11 @@ for the "publish to production Byline" story and lets MCP be its *own* remote
 boundary. Option (A) is viable too but couples MCP's ship date to the HTTP family's.
 Either way the MCP server is `packages/mcp` and consumes the shared operation layer.
 
-## Sequencing — why after `hasMany`
+## Original sequencing proposal (superseded)
 
 The thing that makes an MCP read experience impressive is **rich, populated
 content**. An MCP that cannot represent many-to-many relationships will feel thin,
-and relationship completeness (`hasMany`) is high on the TODO already. So:
+and the original proposal predated support for `hasMany`. It proposed three steps:
 
 - Land `hasMany` and confirm `populate` is complete across relation cardinalities.
 - Land the operation layer + `http-nitro` (proves the contract; see Transports).

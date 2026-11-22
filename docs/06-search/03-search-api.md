@@ -258,6 +258,8 @@ Exact corpus-wide authorized totals require pushing a supported predicate into t
 
 ## Current limits
 
+Byline already supports full-text search with both SQL providers. The [retrieval roadmap](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/specs/2026-10-31-extraction-retrieval-track-roadmap.md) tracks the proposed rules and shared provider tests for filters, facet counts under access restrictions, locale discovery and index visibility. You can use the capabilities below to determine what your provider supports today.
+
 The public types carry `where`, `facets`, `rangeFacets`, and their result buckets for providers that implement those features. The PostgreSQL and MySQL providers leave `rangeFacets` and `structuredFilters` unset (false) and currently report:
 
 ```ts

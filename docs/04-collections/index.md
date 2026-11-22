@@ -10,7 +10,7 @@ Companions:
 - [Fields](./01-fields.md) — field-level schema and admin (slot components, helper factories, the per-field richtext editor swap).
 - [Blocks](./02-blocks.md) — `defineBlock` / `defineBlockAdmin`, the per-block schema/admin split, and block-tailored editors.
 - [Rich Text](./07-rich-text.md) — the Lexical adapter, its `EditorConfig`, and per-field overrides.
-- [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md) — auth + access-control subsystem, including seven worked `beforeRead` row-scoping recipes (owner-only drafts, multi-tenant, private singletons, …).
+- [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md) — auth + access-control subsystem, including six worked `beforeRead` row-scoping recipes (owner-only drafts, multi-tenant, private singletons, …).
 - [Document Storage](../03-architecture/01-document-storage.md) — *document* versioning (the sibling pillar: this doc covers *schema* versioning).
 - [Document Paths](./05-document-paths.md) — how `useAsPath` lands in `byline_document_paths`.
 - [Singletons](./09-singletons.md) — cardinality-one document slots, their client handle, lifecycle, workflow, storage identity, and modelling limits.

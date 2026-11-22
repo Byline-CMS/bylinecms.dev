@@ -801,7 +801,7 @@ Storage paths, provider names and recorded digests compare **exactly** (bytes, n
 
 #### Persistence
 
-`byline_store_file` stores the hash in `file_hash` and the validator in the pair `storage_validator_kind` (`varchar(32)`) / `storage_validator_value` (`varchar(1024)`), both `NULL` when unknown. Existing installations add the validator columns with the upgrade script `packages/db-postgres/sql/0015_add-stored-file-validator.sql` or `packages/db-mysql/sql/0010_add-stored-file-validator.sql`.
+`byline_store_file` stores the hash in `file_hash` and the validator in the pair `storage_validator_kind` (`varchar(32)`) / `storage_validator_value` (`varchar(1024)`), both `NULL` when unknown. For upgrades, follow the [CLI storage upgrade procedure](../01-getting-started/01-cli.md#fresh-baselines-rebuilds-and-upgrades). The legacy scripts that introduced the columns were `packages/db-postgres/sql/0015_add-stored-file-validator.sql` or `packages/db-mysql/sql/0010_add-stored-file-validator.sql`.
 
 ### Immutable media retention
 

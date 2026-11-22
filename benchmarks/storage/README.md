@@ -9,20 +9,7 @@ realistic document counts.
 
 ## Why these benchmarks exist
 
-Byline CMS workloads are **read-heavy but highly cachable**. A production
-deployment will typically cache at three layers:
-
-- **Source** — the resolved document body, naturally keyed by
-  `document_version_id` (immutable per version). A single materialisation
-  can serve millions of requests before the version is superseded.
-- **Reverse proxy** — stale-while-revalidate over the rendered page
-  response, so even cache expiry events don't force a synchronous
-  storage hit.
-- **Browser** — `ETag` headers derived from `document_version_id`
-  provide trivial 304 responses on repeat visits.
-
-In steady state, therefore, **most reads never touch the storage layer
-at all**. The 7-way `UNION ALL` runs only on cache miss.
+Applications can cache content in memory, at a reverse proxy or in the browser. Hit rates vary by host. This harness measures storage calls directly, including list pages whose filters and sort order vary between requests.
 
 That makes these benchmarks less about a production performance gate
 and more about three things:
@@ -49,6 +36,16 @@ approach the inflection point, and that itself is a useful thing to
 publish.
 
 ---
+
+## Next benchmark and read-path review
+
+Review [MCP and transports](../../specs/2026-10-10-mcp-server-plan.md#strategy-review-before-benchmarking) before starting the PostgreSQL refresh and the [MySQL comparison (#53)](https://github.com/Byline-CMS/bylinecms.dev/issues/53).
+
+The November code review found that query construction, locale handling and document reconstruction span two large SQL adapter modules and the client collection handle. At v6.15.0 the [PostgreSQL module](../../packages/db-postgres/src/modules/storage/storage-queries.ts) was 3,189 lines, the [MySQL module](../../packages/db-mysql/src/modules/storage/storage-queries.ts) 3,270, and the [client handle](../../packages/client/src/collection-handle.ts) 1,936. A change to one read rule can require tracing behavior across all three.
+
+1. Retain the July fixture and scale points. Measure full and selective reads, list pages, filters with sort, batch reads, population and single-locale saves on both engines under equivalent conditions. Record the revision, fixture, host, engine version, median, p95 and execution plans for slow reads.
+2. Trace the costly calls from the SDK through the adapter SQL and row reconstruction. Distinguish database time from application work. Check whether each engine joins document metadata before limiting the page, as PostgreSQL did in July ([#40](https://github.com/Byline-CMS/bylinecms.dev/issues/40)).
+3. Record which query changes the measurements support and which code changes would make those paths easier to maintain. Preserve published-version selection, authorization, locale fallback, sorting and pagination. Test proposed changes against the same workload and the shared storage conformance cases on both engines.
 
 ## Scope
 
@@ -78,8 +75,8 @@ publish.
 
 ## Platform
 
-All runs in this folder are executed on an **Apple M1 Pro MacBook Pro**
-against a local Dockerised Postgres 17. This is a deliberate choice:
+The April and July read sweeps ran on an **Apple M1 Pro MacBook Pro**
+against local Dockerised PostgreSQL 17. The November save measurement used an M5 Max and PostgreSQL 18.4. This is a deliberate choice:
 it's a widely-recognised developer machine, fast enough to surface
 genuine performance characteristics but nothing like a tuned
 production DB host.
@@ -215,6 +212,8 @@ the platform it ran on, and any observations. The harness writes
 these as markdown so they render directly on GitHub.
 
 Current results:
+
+- [November single-locale save](./results/2026-11-09-storage-save-single-locale.md) measured localization checks on PostgreSQL at 10,000 documents. It covers a different workload and machine from the July read sweep.
 
 - **[2026-07-21 sweep summary](./results/2026-07-21-storage-cold-summary.md)** — rerun of the same 1k / 10k / 50k / 100k sweep on the same M1 Pro. Single-doc reads, batch, and populate are unchanged; list-view queries regressed ≈2× (128 → 276 ms page-list at 100k) after the document-grain / version split added a `byline_documents` join to the `current_documents` view. Root-cause plan analysis and the fix direction are in the summary.
 - **[2026-04-18 sweep summary](./results/2026-04-18-storage-cold-summary.md)** — original baseline. 1k / 10k / 50k / 100k on M1 Pro. Single-doc reads and populate stay flat (≈3 ms, ≈7 ms batch) at all scales; list views are the only query type that scales with N. Per-scale raw output (with `EXPLAIN ANALYZE`) alongside.

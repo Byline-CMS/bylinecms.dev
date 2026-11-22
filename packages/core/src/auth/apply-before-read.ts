@@ -209,7 +209,7 @@ function getBeforeReadCacheEntry(
 /**
  * `requestId` stays in the token deliberately. A `ReadContext` is a
  * per-logical-request object, and predicates cached on it may embed
- * request-time state (embargo cutoffs, preview windows), so reusing one
+ * request-time state (such as preview windows), so reusing one
  * across requests must fail loudly even for the same actor. The flip side
  * is a contract on host adapters: a `RequestContext` factory must return
  * the same instance for every call within one logical request (see

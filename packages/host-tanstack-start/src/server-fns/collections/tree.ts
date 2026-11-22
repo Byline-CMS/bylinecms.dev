@@ -193,8 +193,8 @@ export const getCollectionTree = createServerFn({ method: 'GET' })
       const handle = getAdminBylineClient().collection(path)
       // Shared deliberately across the structural and unplaced reads: the
       // beforeRead predicate cache is per-ReadContext, so sharing gives both
-      // halves one predicate snapshot — a time-dependent predicate (embargo
-      // cutoff) evaluated twice could otherwise disagree between the placed
+      // halves one predicate snapshot — a time-dependent predicate
+      // evaluated twice could otherwise disagree between the placed
       // forest and the unplaced list. The request-memoized context factory
       // keeps this sharing safe (one request authority per request).
       const readContext = createReadContext()

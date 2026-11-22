@@ -20,7 +20,7 @@ Registration and execution are deliberately separate. `initBylineCore()` validat
 
 The database adapter must implement the optional scheduler capability. `@byline/db-postgres` and `@byline/db-mysql` both do. `initBylineCore()` fails at boot with an actionable error if tasks are registered against an adapter that does not.
 
-Existing installations must apply the native upgrade script that creates the scheduler's table before starting a ticker — `packages/db-postgres/sql/0007_add-recurring-tasks.sql` or `packages/db-mysql/sql/0002_add-recurring-tasks.sql`. These scripts are source-repository upgrade artifacts rather than npm package exports; obtain them from the Git tag for the target Byline release. The first sweep reconciles task rows and fails loudly against a missing table. Installations created by `@byline/cli` receive the table in the bundled baseline.
+Fresh installations include the scheduler table. For an existing installation, follow the [CLI storage upgrade procedure](../01-getting-started/01-cli.md#fresh-baselines-rebuilds-and-upgrades) before starting a ticker. On legacy installations the scheduler table first appeared in PostgreSQL script 0007 and MySQL script 0002. The first sweep reconciles task rows and requires this table.
 
 ## Native authentication maintenance
 

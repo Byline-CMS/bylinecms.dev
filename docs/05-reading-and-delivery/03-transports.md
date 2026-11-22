@@ -11,14 +11,13 @@ Companions:
 - [Client SDK](./01-client-sdk.md) — `@byline/client` is the in-process transport and the layer every other transport delegates to. Transports are bindings over the same `CollectionHandle` / `document-lifecycle` surface.
 - [Authentication & Authorization](../07-auth-and-security/01-authn-authz.md) — service-layer enforcement (`assertActorCanPerform`) means transports carry no policy; they only resolve a `RequestContext`. The per-transport context resolver is the one genuinely pluggable auth seam.
 - [MCP Server](./05-mcp-server.md) — MCP is a *peer transport* in this family, sharing the operation layer but binding it to tools/resources/prompts instead of HTTP routes.
-- [Relationships](../04-collections/03-relationships.md) — `populate` / `depth` are part of the operation surface every transport exposes; relationship completeness (`hasMany`) gates a satisfying read experience over any transport.
+- [Relationships](../04-collections/03-relationships.md) — `populate` / `depth` are part of the operation surface every transport exposes; ordered `hasMany` relationships already ship.
 
 :::note[Planned]
 This document describes a planned subsystem: the intended, contract-first
 architecture for Byline's transport layer. It is the concrete form of the stable
 HTTP boundary that [Routing & API](./02-routing-and-api.md) defers until the
-first non-admin client arrives. Treat it as the design the implementation
-follows rather than a description of shipped code.
+first non-admin client arrives. The package layout below records the original HTTP proposal. The [MCP plan](https://github.com/Byline-CMS/bylinecms.dev/blob/develop/specs/2026-10-10-mcp-server-plan.md#strategy-review-before-benchmarking) proposes shared operations with a separate MCP binding. The next strategy review will decide the first caller and the operations it needs.
 :::
 
 ## Overview
@@ -180,32 +179,16 @@ infrastructure, and the cheapest possible real proof of the contract layer.
 | Package              | Role                                                                 |
 |----------------------|----------------------------------------------------------------------|
 | `packages/http`      | The contract. `OperationDefinition[]`, HTTP method/path mapping, error envelope, pagination shape, `ContextResolver` interface. No framework imports. |
-| `packages/http-nitro`| Binding. Iterates the manifest into h3 route handlers. Co-mounts in the TanStack host (scenario 2). **Ship first.** |
+| `packages/http-nitro`| Binding. Iterates the manifest into h3 route handlers. Co-mounts in the TanStack host (scenario 2). First binding proposed for an HTTP consumer. |
 | `packages/http-fastify`| Binding. Standalone Node API server (scenarios 3/4). Ships when split-host demand appears. |
 | `packages/http-hono` | Binding. Edge/Workers/Deno runtimes. Deferred until an edge consumer exists. |
-| `packages/mcp`       | Peer transport. Binds the *same* operations to MCP tools/resources/prompts. See [MCP Server](./05-mcp-server.md). Ships after `hasMany`. |
+| `packages/mcp`       | Peer transport. Binds the *same* operations to MCP tools/resources/prompts. See [MCP Server](./05-mcp-server.md). Its pilot scope is under review. |
 
-Whether the transport-agnostic `OperationDefinition[]` lives in `packages/http` or
-is factored up into `@byline/core` is left open until MCP proves what is genuinely
-shared between HTTP and MCP. Pragmatically: define it inside `packages/http` first,
-designed so the descriptors are *extractable*, and lift the shared core out only
-when `packages/mcp` lands and demonstrates the overlap. Do not pre-abstract for a
-consumer that does not exist yet.
+The original HTTP proposal placed operation descriptors in `packages/http`. The October MCP plan instead proposes `@byline/operations` so a desktop client can use MCP without a public document HTTP API. Today the SDK and the host’s admin server functions are available. Both published transport packages and the shared operations package remain proposals.
 
-## Restraint
+## Delivery decisions
 
-Every `@byline/http-*` / `@byline/mcp` package is lockstep-release surface and docs
-surface. Do **not** publish the empty matrix for symmetry. Ship in this order, each
-gated by real demand:
-
-1. `packages/http` (contract) **+** `packages/http-nitro` — together, because the
-   contract is unproven until something binds it, and Nitro is the cheapest binding
-   (the host already runs it).
-2. `packages/http-fastify` — when a split-host / standalone-API deployment
-   (scenario 3/4) is actually needed.
-3. `packages/mcp` — after `hasMany`, so the operation surface exposes complete
-   relationships (see [MCP Server](./05-mcp-server.md)).
-4. `packages/http-hono` — only when an edge runtime consumer exists.
+A stable document HTTP API needs a caller with concrete requirements for routes, credentials and responses. A desktop MCP pilot can exercise authorized operations independently. The strategy review will decide which operations to share and whether the first MCP pilot needs read and search or also needs authoring. Additional HTTP bindings depend on demand for those runtimes.
 
 ## Relationship to Routing & API
 

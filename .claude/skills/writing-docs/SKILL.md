@@ -107,7 +107,7 @@ One or two lines — what must already be true (a collection defined, a realm co
 The minimal, complete code that does the job. Real Byline APIs, not pseudocode.
 
 ## Variations / edge cases
-The two or three ways real usage bends this (multi-tenant, embargo, soft-delete).
+The two or three ways real usage bends this (multi-tenant, soft-delete).
 ```
 A recipe is not a tutorial: assume competence, skip the hand-holding, get to the code.
 

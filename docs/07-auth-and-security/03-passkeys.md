@@ -149,7 +149,7 @@ Removal revokes all native sessions and pending passkey-management authorization
 
 ## Upgrade an existing installation
 
-Fresh installations created by the 6.8.0 CLI receive the passkey schema in their baseline. Existing installations apply the new numbered upgrade script for their adapter, after all earlier outstanding scripts and before starting the updated application:
+Fresh installations include the passkey schema. For an existing installation, follow the [CLI storage upgrade procedure](../01-getting-started/01-cli.md#fresh-baselines-rebuilds-and-upgrades). The table records the legacy scripts used when upgrading to Byline 6.8.0.
 
 | Adapter | Passkey upgrade | Immediately preceding script |
 |---|---|---|

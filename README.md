@@ -33,9 +33,10 @@ than features bolted on later.
   Documents flatten into typed `store_*` tables (text, numeric, boolean,
   datetime, json, file, relation) addressed by a custom path notation —
   indexable, query-friendly, and the basis for selective field loading.
-- **Immutable versioning by default.** Every change creates a new
-  UUIDv7-ordered version. "Current" is a pointer, not a mutation.
-- **Patch-based updates.** Clients accumulate `DocumentPatch[]`; the server
+- **Immutable content versions.** Saving content creates a new UUIDv7-ordered
+  version. Workflow changes, paths, advertised locales and tree placement have
+  separate audited write operations.
+- **Patch-based editor updates.** Admin forms accumulate `DocumentPatch[]`; the server
   applies them against the reconstructed document. A foundation for
   collaborative editing later.
 - **Schema separated from presentation.** Collection definitions are
@@ -148,7 +149,7 @@ schema versioning.
   internal TanStack-server-fn transport phase, today's server-fn surface, and
   what triggers a stable HTTP boundary.
 - **[Transports](docs/05-reading-and-delivery/03-transports.md)** — the planned
-  separation of framework-agnostic operations from host-specific bindings.
+  separation of shared operations from host-specific bindings and the [MCP and transport review](specs/2026-10-10-mcp-server-plan.md#strategy-review-before-benchmarking) scheduled before the next storage benchmarks.
 - **[Markdown Export](docs/05-reading-and-delivery/04-markdown-export.md)** —
   one-way Lexical-to-markdown rendering, the `.md` URL surface, and `llms.txt`
   for agent consumers.
@@ -177,7 +178,9 @@ schema versioning.
 - **[PostgreSQL and MySQL search providers](docs/06-search/06-postgres-and-mysql.md)**
   — the two built-in physical implementations and their operational behavior.
 - **[Attachment extraction for search](docs/06-search/07-attachment-extraction.md)**
-  — the planned boundary for Tika, Docling, OCR, and vision-model services.
+  — verified source reads and the boundary between a provider and the application that runs it.
+- **[Extraction provider contract](docs/06-search/10-extraction-provider-contract.md)**
+  — provisional types, evidence checks and the provider conformance kit shipped in 6.13.0.
 - **[Native search engines and backend portability](docs/06-search/08-native-engine-providers.md)**
   — the stable search projection shared by portable SQL analysis and native
   search engines.
@@ -221,6 +224,8 @@ schema versioning.
 - **[Richtext field capabilities](docs/09-admin-ui/04-richtext-capabilities.md)**
   — accepted editor structures, visible controls, and handling stored content
   whose structures are no longer supported.
+
+- **[Editor view state](docs/09-admin-ui/05-editor-view-state.md)** — how the editor restores the selected tab, focus and scroll position across saves and locale changes.
 
 ### 10. [API Reference](docs/10-api-reference/index.md)
 
@@ -438,7 +443,7 @@ We’re not certain yet, and likely not at this early stage. Our priority is to 
 
 <details>
 <summary>6. What's here now?</summary>
-The storage, versioning, workflow, auth, client SDK, and admin UI are all in place. We're shipping under the 6.x line: APIs are stable and the core architecture is settled, with several capabilities (collection-versioning history, a stable public HTTP API, list-view materialisation under load) deferred to fill in across the 6.x line.
+The storage, versioning, workflow, auth, client SDK, and admin UI are all in place. We're shipping under the 6.x line: APIs are stable and the core architecture is settled, with several capabilities (collection-versioning history, a stable public HTTP API, list-view materialisation under load) tracked as follow-up work with separate delivery decisions.
 </details>
 
 <details>
