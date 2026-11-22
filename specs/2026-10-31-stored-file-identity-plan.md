@@ -11,7 +11,9 @@ Companions:
 - [Specification](./2026-10-31-stored-file-identity-spec.md) — the contract this plan implements. Section numbers below refer to it.
 - [Track roadmap](./2026-10-31-extraction-retrieval-track-roadmap.md) — Phase 1 tasks 1.2–1.7 map onto the stages here.
 
-## Start here
+Byline 6.12.0 shipped the four stages below. [Issue #85](https://github.com/Byline-CMS/bylinecms.dev/issues/85) records the close-out. Server-issued upload receipts remain open under [#108](https://github.com/Byline-CMS/bylinecms.dev/issues/108).
+
+## Original implementation procedure
 
 1. Tony accepted the specification and answered its questions on 2026-10-31
    (decisions table below). Checkpoint 1 was approved at snapshot `61a9a60`.

@@ -499,26 +499,28 @@ MySQL copies through column-generic helpers (`copyForwardStoreRows`,
 the stored-file-identity db-conformance suite covers the locale-deletion copy
 on both adapters.
 
-## 9. Issue #85 acceptance criteria (proposed)
+## 9. Issue #85 release criteria
 
-- [ ] `fileHash` is SHA-256, lower-case hex, of the original bytes as passed to
+These criteria defined the v6.12.0 release. [Issue #85](https://github.com/Byline-CMS/bylinecms.dev/issues/85) records the close-out.
+
+- `fileHash` is SHA-256, lower-case hex, of the original bytes as passed to
       and stored verbatim by the provider; the JSDoc says so.
-- [ ] Every ordinary upload records `fileHash` with no extra storage read.
-- [ ] `storageValidator` is recorded where the provider supplies one, persisted
+- Every ordinary upload records `fileHash` with no extra storage read.
+- `storageValidator` is recorded where the provider supplies one, persisted
       in both adapters, and documented as never compared with the hash.
-- [ ] Unknown values are absent; empty strings and malformed digests are
+- Unknown values are absent; empty strings and malformed digests are
       rejected at validation.
-- [ ] `IStorageProvider.download?` returns bytes bound to their validator, with
+- `IStorageProvider.download?` returns bytes bound to their validator, with
       a fail-closed `expect` precondition whose errors distinguish a proven
       change from an unverifiable expectation; `head?` exists; both are
       implemented in `storage-local` and `storage-s3`.
-- [ ] S3 never treats a `"null"` or absent version id as a validator.
-- [ ] `storage-local` replaces files atomically on upload and on move,
+- S3 never treats a `"null"` or absent version id as a validator.
+- `storage-local` replaces files atomically on upload and on move,
       including the cross-filesystem fallback.
-- [ ] An idempotent backfill fills reachable objects and leaves unreachable ones
+- An idempotent backfill fills reachable objects and leaves unreachable ones
       absent under the stated legacy-null policy; a report-only verify mode
       re-hashes recorded values; both accept an optional collection scope.
-- [ ] Storage conformance covers changed bytes, unchanged bytes, bound reads,
+- Storage conformance covers changed bytes, unchanged bytes, bound reads,
       stale preconditions, missing objects, and providers lacking `head` or
       `download`.
 

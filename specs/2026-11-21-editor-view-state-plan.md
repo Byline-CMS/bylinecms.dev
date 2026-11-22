@@ -11,7 +11,7 @@ Companions:
 - [Specification](./2026-11-21-editor-view-state-spec.md) — approved revision 2. This plan argues from it. Read both.
 - Issues #97 and #98 — closed by stages 1 and 2. Issue #113 is out of scope.
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> Shipped in [v6.15.0](https://github.com/Byline-CMS/bylinecms.dev/releases/tag/v6.15.0). The checklists below record the original implementation and verification procedure. [Issue #113](https://github.com/Byline-CMS/bylinecms.dev/issues/113) tracks the separate editor warning after a committed save.
 
 **Goal:** Keep tabs, collapsed items, the working position and, in stage 3, the rich-text caret through saves and locale switches for one editing visit.
 

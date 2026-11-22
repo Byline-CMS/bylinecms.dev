@@ -92,18 +92,18 @@ earlier snapshots also preserve intermediate findings.
 
 ## Downstream checks and pending work
 
-Infonomic and FORRU were copied to `/tmp/byline-css-consumers` with independent
+Two downstream applications were copied to `/tmp/byline-css-consumers` with independent
 APFS file clones. Their six installed styled Byline packages were replaced with
 local release tarballs from `/tmp/byline-css-packages`. Both production builds
-passed. FORRU's source/output CSS checks passed (10 tests); Infonomic's production
-CSS checks passed (4 tests). The real repositories' dependencies and lockfiles
+passed. One application passed all 10 source/output CSS checks. The other passed
+all four production CSS checks. The real repositories' dependencies and lockfiles
 were not changed by these compatibility checks.
 
-Both downstream browser checks remain pending, explicitly deferred by the owner
-on 2026-10-25. FORRU's database was stopped; Infonomic's configured port was in use
-by the separate Byline database. Earlier downstream CMS visual approval applies
+The owner deferred both downstream browser checks on 2026-10-25. The first
+application's database was stopped. The second used a port occupied by the
+separate Byline database. Earlier downstream CMS visual approval applies
 to the old packages and does not constitute approval of this upstream release.
-Infonomic's separate application-area authenticated checks remain deferred too.
+The owner also deferred authenticated checks for the second application's own pages.
 
 Before adopting the published release, restore those local databases and compare
 the two sites' public pages and CMS editors/dialogs against their saved baselines.

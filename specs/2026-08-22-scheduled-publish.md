@@ -8,8 +8,7 @@ Companions:
 
 - `specs/2026-08-22-scheduler.md` — the shared in-process recurring-task runner.
 - `specs/2026-08-22-analytics-spec.md` — the other initial scheduler consumer.
-- `docs/07-auth-and-security/01-authn-authz.md` §6 — the existing read-time embargo
-  recipe, which is a different feature.
+- [Scheduled publication](../docs/11-scheduling/02-scheduled-publication.md) describes the editor and operator workflow.
 
 ## Goal
 
@@ -36,11 +35,6 @@ Scheduled publication is a delayed workflow mutation, not a read filter:
 - Publication is document-grain. The version that publishes carries every locale it was authored
   with, so scheduling publishes all of a version's locales together. There is no per-locale
   schedule in v1.
-
-This differs from the existing embargo recipe, where content is already considered published and
-a `beforeRead` predicate hides it until request-time `now`. Embargoes can lift without a running
-scheduler but interact poorly with caches and do not emit a publication lifecycle event. Both
-features may remain available, but the admin UI must not present them as the same mechanism.
 
 ## Decisions
 

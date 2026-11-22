@@ -8,14 +8,14 @@ summary: "Keep the document editor's tabs, collapsed items and working position 
 
 Companions:
 
-- Implementation plan — to be written as `2026-11-21-editor-view-state-plan.md` once this specification is settled.
+- [Implementation plan](./2026-11-21-editor-view-state-plan.md)
 - Issue #97 — tab selection resets when switching content locale.
 - Issue #98 — focus is lost to `<body>` after saving with the Save button.
 - Issue #113 — inline warning parity for a returned committed-hook result, out of scope here.
 - [Admin UI](../docs/09-admin-ui/index.md) — the form, field and layout components this work touches.
 - [Path grammar](../docs/03-architecture/04-path-grammar.md) — the instance-path syntax, including `[id=…]` item selectors, used to address remembered targets.
 
-Date: 2026-11-21. Status: approved, revision 2 (2026-11-22).
+Date: 2026-11-21. Revision 2 was approved on 2026-11-22 and shipped in [v6.15.0](https://github.com/Byline-CMS/bylinecms.dev/releases/tag/v6.15.0). Section 3 records the behaviour observed before that release. [Issue #113](https://github.com/Byline-CMS/bylinecms.dev/issues/113) tracks how the editor presents a hook error after a successful save.
 
 ## 1. Purpose
 

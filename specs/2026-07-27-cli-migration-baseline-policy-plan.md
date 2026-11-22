@@ -1,6 +1,6 @@
 # CLI MySQL GA and migration-baseline policy — implementation plan
 
-**Status:** Draft, revised after repository review
+**Status** · Historical baseline policy. Byline 6.14.0 introduced adapter-owned core migration journals. Use the [CLI operator guide](../docs/01-getting-started/01-cli.md#fresh-baselines-rebuilds-and-upgrades) and [November migration specification](./2026-11-19-core-storage-migrations-spec.md) for current upgrades.
 
 **Date:** 2026-07-27
 

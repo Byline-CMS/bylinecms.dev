@@ -13,7 +13,7 @@ Companions:
 - [Drizzle-free adapters analysis](./2026-07-24-drizzle-free-adapters-analysis.md) separates migration ownership from schema definitions and queries.
 - [PostgreSQL host journal conflict, issue 105](https://github.com/Byline-CMS/bylinecms.dev/issues/105) and [development database squash history, issue 73](https://github.com/Byline-CMS/bylinecms.dev/issues/73).
 
-**Status** · Code plan for the reviewed November 19 operator contract. Checkpoint 1 covers the spec and this plan. Implementation starts only on a separate instruction.
+**Status** · Shipped in [v6.14.0](https://github.com/Byline-CMS/bylinecms.dev/releases/tag/v6.14.0). [v6.14.1](https://github.com/Byline-CMS/bylinecms.dev/releases/tag/v6.14.1) corrected PostgreSQL adoption after a database restore. Follow the [CLI operator guide](../docs/01-getting-started/01-cli.md#fresh-baselines-rebuilds-and-upgrades) for current commands.
 
 ## Sequence and ownership
 

@@ -13,15 +13,15 @@ Companions:
 - [Internationalization](../docs/08-internationalization/index.md) — the version completeness ledger, locale resolution and locale visibility.
 - Issue #106 — the tracking issue. Section 3 below verifies its diagnosis and section 4 corrects its proposed behaviour.
 
+This behaviour shipped in [v6.13.3](https://github.com/Byline-CMS/bylinecms.dev/releases/tag/v6.13.3). [Issue #106](https://github.com/Byline-CMS/bylinecms.dev/issues/106) records the original failure.
+
 ## 1. Purpose
 
 A field's `localized` flag decides whether the field stores one value shared by
 every content locale (store rows with `locale = 'all'`) or one value per
 content locale (store rows with `locale = 'en'`, `'fr'`, and so on). Byline
 promises that changing this flag on an existing collection needs no database
-migration and no content migration. Today that promise does not hold: after the
-toggle, strict reads of any affected document fail, and saves can carry stale
-rows forward or lose the old value.
+migration and no content migration. Before v6.13.3, changing the flag could cause strict reads to fail and saves to carry stale rows forward or lose the old value.
 
 This specification makes the toggle safe. You change the flag, and every
 existing document keeps reading without errors and without losing values. Each

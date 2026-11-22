@@ -9,12 +9,12 @@ summary: "Define provisional, schema-versioned extraction provider contracts in 
 Companions:
 
 - [Implementation plan](./2026-10-31-extraction-contracts-plan.md) — stages, checkpoints and checks. Section numbers there refer to this document.
-- [Track roadmap](./2026-10-31-extraction-retrieval-track-roadmap.md) — Phase 4 of the extraction, retrieval and agent-access track, now scheduled next.
+- [Track roadmap](./2026-10-31-extraction-retrieval-track-roadmap.md) — Phase 4 release evidence and remaining retrieval work.
 - [Stored-file content identity specification](./2026-10-31-stored-file-identity-spec.md) — the shipped 6.12.0 baseline this work consumes: `fileHash`, `storageValidator`, `download` and `head`.
-- [Attachment extraction for search](../docs/06-search/07-attachment-extraction.md) — the current planning page, which this phase rewrites.
+- [Attachment extraction for search](../docs/06-search/07-attachment-extraction.md) — the published concepts and lifecycle guide.
 - Issue #5 — the tracking issue. Issue #108 (upload receipts) is related but not a prerequisite.
 
-**Status:** revision 4, accepted by Tony on 2026-11-04. It adds decisions 9
+**Release status.** Revision 4 was accepted on 4 November 2026 and shipped in 6.13.0. [Issue #5](https://github.com/Byline-CMS/bylinecms.dev/issues/5) records release verification. Revision 4 adds decisions 9
 to 12 (§14): reuse of verified historical output whose producer was never
 recorded (§5.10), evidence refresh (§6.7), an exact browser-guard exception
 (§3) and the truncated-file expectation (§10.1).
@@ -25,9 +25,9 @@ Turbo's strict environment mode withheld those variables from the `test` task,
 so all eight CI runs that reached the S3 tests, from the suite's first run on
 2026-10-31 to `3223e697`, skipped it. They reported 21 unit tests passed and 1
 skipped. The S3 unit tests did run in CI; the live conformance suite did not.
-Live evidence for this work is the two independent local runs against
-`rustfs/rustfs:1.0.4`, each 82 of 82. A `@byline/storage-s3#test` task in
-`turbo.json` now forwards the variables and disables caching.
+Two independent local runs against `rustfs/rustfs:1.0.4` each passed 82 of 82 checks.
+The `@byline/storage-s3#test` task in `turbo.json` now forwards the variables and
+disables caching. [CI run 41831562839](https://github.com/Byline-CMS/bylinecms.dev/actions/runs/41831562839) exercised the live suite before release.
 
 Revision 3 was accepted by Tony on 2026-10-31 with all eight §14
 decisions. A completing clarification (same day, no decision reopened)
@@ -37,8 +37,8 @@ closed three review findings: failed eligibility updates (§7), the provider
 version before reuse (§5.10) and evidence compatibility (§6.4). Revision 3
 separates a host-configured deployment identifier from the engine version
 (§5.7, §5.10) and limits version-equality conformance to a stable engine. The
-implementation is complete and uncommitted on branch `feat/extraction-contracts-5`,
-based on `b05b9640` (v6.12.1). Release is pending.
+implementation started from `b05b9640` (v6.12.1) and merged into `develop`
+at `3223e697` before the v6.13.0 release.
 
 ## 1. Purpose
 
@@ -1239,7 +1239,6 @@ implements the layer. The owning roadmap phase is named.
 | Eventual exclusion: a marking path attempts a write and reports `excluded` or `exclusion pending`; a later write repairs it | Host now; store (future) |
 | Regression: the eligibility mark fails, the search write succeeds, old text remains searchable — reported as `pending: eligibility-update-failed`, never `excluded`; the editor message says "exclusion pending"; a later successful mark and write repairs it | Host now; store (future) |
 | Durable exclusion survives a failed and a late write across hits, totals, facets and snippets | Phase 3 contract plus store |
-| Restriction during extraction refuses stale promotion and enforces retrieval restriction | Phase 6 |
 | Create and import paths with an existing attachment trigger extraction explicitly | Orchestration (future); host now |
 | Migration classifies rows by state and never selects blocked or failed rows | Store (future); host importer now |
 | Save, derivation and projection outcomes reach editor, admin and CLI surfaces accurately | Admin (future); host now |
@@ -1250,7 +1249,6 @@ implements the layer. The owning roadmap phase is named.
 - The search join, projection revisions, the read guard, stale-write
   prevention (Phase 3 supplies the search contract pieces).
 - Workers, jobs and claim fencing (Phase 5).
-- Embargo and access restrictions (Phase 6).
 - A router, tiering or quality gates.
 - An admin extraction log or any user interface.
 - Reference drivers (Tika, Docling). The downstream Tika driver stays in the
@@ -1354,38 +1352,42 @@ not reopen decisions 1 to 8.
     for the truncated PDF. *Recommendation:* accept recovery, subject to the
     real-engine check in §15.
 
-## 15. Issue #5 acceptance criteria (proposed)
+## 15. Issue #5 release criteria
 
-- [ ] Provider contract types, typed failures and guards exported from the
+These criteria defined the v6.13.0 release. [Issue #5](https://github.com/Byline-CMS/bylinecms.dev/issues/5) records the close-out.
+
+- Provider contract types, typed failures and guards exported from the
       `@byline/core` root, provisional, with no `node:` import in the root
       graph beyond the single allowlisted dynamic import (§3), enforced by the
       browser guard.
-- [ ] `ExtractionArtifact` schema version 1 and page map version 1 types with
+- `ExtractionArtifact` schema version 1 and page map version 1 types with
       `validateExtractionArtifact` and `validatePageMap`.
-- [ ] `producerConfigHash` with canonical JSON, and `buildExtractionProducer`
+- `producerConfigHash` with canonical JSON, and `buildExtractionProducer`
       carrying the hashed deployment identifier.
-- [ ] `readVerifiedSource`, `probeVerifiedSource` and `VerifiedSourceBody`
+- `readVerifiedSource`, `probeVerifiedSource` and `VerifiedSourceBody`
       in `@byline/core/stored-files`, passing the §10.2 cases against
       `storage-local` and `storage-s3`.
-- [ ] `isSourceVerificationEvidence` and `decideExtractionWork` with table
+- `isSourceVerificationEvidence` and `decideExtractionWork` with table
       tests.
-- [ ] Lifecycle outcome types and `exclusionState` exported as provisional,
+- Lifecycle outcome types and `exclusionState` exported as provisional,
       with the failed-mark regression covered.
-- [ ] `resolveVersion`, `deploymentIdentifier` and the §5.10 version rules
+- `resolveVersion`, `deploymentIdentifier` and the §5.10 version rules
       in `decideExtractionWork`, with the successive-run regression test.
-- [ ] `@byline/extraction-conformance` with fixtures and self-tests against
+- `@byline/extraction-conformance` with fixtures and self-tests against
       honest and dishonest fakes.
-- [ ] The §5.10 historical exception in `decideExtractionWork` and
+- The §5.10 historical exception in `decideExtractionWork` and
       `validateExtractionArtifact`, with its regression table, and the §6.7
       evidence refresh rule documented.
-- [ ] Documentation per §13; changeset; downstream adoption note.
-- [ ] Before release: green CI on `develop`, with its log showing the live S3
+- Documentation per §13; changeset; downstream adoption note.
+- Before release: green CI on `develop`, with its log showing the live S3
       suite passed and not skipped, and the kit run against a real
       provider, with the fixtures in §10.1 case 5 validated against it.
-- [ ] Not included: store, join, worker, router, admin log, reference
+- Not included: store, join, worker, router, admin log, reference
       drivers (tracked in the follow-up issue).
 
-## 16. Downstream adoption (planned)
+## 16. Downstream adoption
+
+A downstream installation has adopted the released contracts and verified the in-memory and spooled read paths in production. These steps describe the upgrade for other hosts.
 
 1. Upgrade to the release; replace the host `extractor-types.ts` imports
    with `@byline/core`. Reconcile field names (none are expected to differ

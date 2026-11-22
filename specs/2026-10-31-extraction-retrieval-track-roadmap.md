@@ -14,11 +14,7 @@ Companions:
 
 ## Purpose and ground rules
 
-A downstream institutional installation — a bilingual Thai/English research
-library of about 285 publications and 345 attachments — is starting attachment
-extraction, then hybrid retrieval and a cited research assistant. It builds
-host-side first and upstreams generic infrastructure afterwards: generic CMS
-infrastructure goes to Byline core, and collection-domain work stays in the host.
+A downstream research library is evaluating extraction and retrieval against a real corpus. Byline provides shared contracts and SQL providers. The host owns its collection policy and pilot evaluation.
 
 This roadmap is the durable task list for the Byline side of that work. It
 exists because the work spans several sessions. Tick tasks as they land, and
@@ -31,9 +27,8 @@ Rules that apply to every phase:
   until Tony accepts that phase's spec.
 - **Independently releasable.** Each phase ships on its own and does not
   depend on a later phase.
-- **Order (Tony, 2026-10-31).** Phase 4 (extraction contracts) next, then
-  Phase 3 (search), Phase 5 (jobs), Phase 6 (embargo), and Phase 2 (MCP)
-  last. The phase numbers are kept so earlier references stay valid.
+- **Planning order (23 November 2026).** Review MCP and the other transports before starting the [storage benchmark refresh](../benchmarks/storage/README.md#next-benchmark-and-read-path-review). Decide which caller and operations the first pilot should support, what can reuse the in-process SDK, and when delegated access is needed. Record the outcome in the [MCP plan](./2026-10-10-mcp-server-plan.md). The review can finish before any transport is implemented.
+- **Search design can proceed during the downstream pilot delay.** PostgreSQL and MySQL can exercise filters, authorized facet counts, locale behavior and index-update ordering on shared fixtures. Pilot results will inform the extraction store, reference drivers and page-map guarantees in [#109](https://github.com/Byline-CMS/bylinecms.dev/issues/109). The jobs pattern follows search. The MCP implementation sequence remains open for the transport review.
 - **Two-agent review.** Each phase runs as one coordinated run (`/coordinate`).
   Claude Code implements, and a second agent reviews at the plan's checkpoints.
   Approval names a snapshot. Commits happen only when Tony asks.
@@ -52,11 +47,10 @@ Rules that apply to every phase:
 |---|---|---|
 | 0 — Anthropic structured outputs | #104 | **Done** — `9eeac5ec`, issue closed |
 | 1 — Stored-file content identity | #85 (#72 only where hashing touches it) | **Done** — released in v6.12.0, #85 closed; receipts follow in #108 |
-| 4 — Extraction contracts in core | #5 | **Implemented, not released** — spec revision 4 and decisions 1–12 accepted; all stages approved in run `2026-11-04-extraction-contracts`; merged into `develop` at `3223e697`; release gates in the plan |
-| 3 — Search `where`, facets and locale discovery | #6, #81, #76 | Not started — second |
-| 5 — Jobs-table pattern on the scheduler | new issue | Not started — third |
-| 6 — Embargo as an access state (spec only) | new issue | Not started — fourth |
-| 2 — Native MCP server, read-only phase 1 | #12 | Not started — last |
+| 4 — Extraction contracts in core | #5 | **Released in v6.13.0** — spec revision 4 and decisions 1–12 accepted; all stages approved in run `2026-11-04-extraction-contracts`; merged into `develop` at `3223e697`; release and adoption evidence recorded in [#5](https://github.com/Byline-CMS/bylinecms.dev/issues/5) |
+| 3 — Search `where`, facets and locale discovery | #6, #81, #76 | Ready for specification and conformance design |
+| 5 — Jobs-table pattern on the scheduler | new issue | Not started — after search |
+| 2 — Native MCP server, read-only phase 1 | #12 | Strategy review next, before benchmarking. Implementation order to be decided |
 
 ## Phase 0 — Anthropic structured outputs (#104) — done
 
@@ -115,8 +109,7 @@ Tasks:
       `db-*/sql/` upgrade script entry).
 - [x] 1.6 Idempotent backfill with the legacy-null policy; integration tests on
       both databases. **Checkpoint 3.**
-- [x] 1.7 Docs, changeset, downstream adoption note (issue #85 update and the
-      upload-receipts issue drafted, awaiting Tony's go-ahead to post). **Checkpoint 4.**
+- [x] 1.7 Documentation, changeset and adoption note shipped. [#108](https://github.com/Byline-CMS/bylinecms.dev/issues/108) tracks server-issued upload receipts separately.
 
 ## Phase 2 — Native MCP server, read-only phase 1 (#12)
 
@@ -167,30 +160,18 @@ Tasks:
 - [ ] 3.2 Core types in `search-types.ts`; `@byline/client` forwarding and
       validation (closes the "search `where` unvalidated" follow-up from
       6.10.1).
-- [ ] 3.2a String-typed filter fields with `$in`, including a large-list
-      form for allow-lists of thousands of keys, and `where` on document id;
-      portable across both built-in providers, each behind a capability.
-      Needed by the durable exclusion level in the extraction spec §8.2.
-- [ ] 3.2b `SearchQuery.returnFields` (declared filter fields only) and
-      `SearchHit.fields`, behind a `returnFields` capability, forwarded
-      unchanged through `@byline/client` hydration.
-- [ ] 3.2c Stale-write prevention on upsert: an optional `expectedVersion`
-      (or provider-native optimistic token) raising a typed stale-write
-      error when superseded, an explicit commit where the provider needs it,
-      and an existence probe, so a host can tell acknowledgement from
-      searchable visibility.
+- [ ] 3.2a Specify how providers reject a stale write, handle an equal-revision retry and confirm that an acknowledged update is searchable. Cover a delayed delete as well as a delayed upsert.
 - [ ] 3.3 `search-postgres` implementation.
 - [ ] 3.4 `search-mysql` implementation.
-- [ ] 3.5 `search-conformance` suites for filters (including string `$in`,
-      the large-list form and document id), facets, `returnFields`,
-      stale-write refusal and the existence probe, and capabilities, run
-      against both databases. **Checkpoint 2.**
+- [ ] 3.5 Run shared conformance cases against both SQL providers for supported filters, facets under row scoping, stale writes and visibility checks. **Checkpoint 2.**
 - [ ] 3.6 Locale discovery and result-scope separation in at least one
       built-in provider, with the other provider declaring the capability
       honestly. **Checkpoint 3.**
 - [ ] 3.7 Docs, changeset, adoption note. **Checkpoint 4.**
 
-## Phase 4 — Extraction contracts in core (#5) — next
+Optional follow-ups after write protection and visibility checks are portable include returned hit fields, string `$in` (including large lists) and filtering by document ID. They do not gate the next phase.
+
+## Phase 4 — Extraction contracts in core (#5) — shipped in 6.13.0
 
 Goal: move the provider-neutral extraction contracts the downstream prototype
 keeps in its own extractor package into `@byline/core`, beside
@@ -212,11 +193,11 @@ Tasks:
       structural validators, producer hash, evidence validator and work
       decision (plan Stage 1, checkpoint 2); verified source read and probe
       with storage conformance (plan Stage 2, checkpoint 3).
-- [x] 4.3 Publishable provider conformance kit, implemented with release pending, with sentinel page-map
+- [x] 4.3 Publishable provider conformance kit, released in 6.13.0, with sentinel page-map
       verification and dishonest-fake self-tests. Structural page-map
       validity is not provenance; only sentinels are (plan Stage 3,
       checkpoint 4).
-- [ ] 4.4 Docs, changeset, issue updates, adoption note (plan Stage 4,
+- [x] 4.4 Docs, changeset, issue updates, adoption note (plan Stage 4,
       checkpoint 5).
 
 ## Phase 5 — Jobs-table pattern on the scheduler
@@ -241,15 +222,6 @@ Tasks:
 - [ ] 5.3 `docs/11-scheduling/` page, changeset, adoption note.
       **Checkpoint 3.**
 
-## Phase 6 — Embargo as a first-class access state (spec only)
-
-- [ ] 6.1 Open an issue; spec covering declaration (field-level flag versus
-      workflow status), enforcement at read, index, prune and derivation
-      boundaries, prune-on-restrict and periodic reconciliation, and public
-      storage locations (private location or signed URLs). Write it so the
-      downstream per-file flag can converge on it once the installation reports
-      what it learned. **Checkpoint 1.**
-
 ## Not in this track
 
 - #14 (admin route splat resolver): land it the next time Byline itself adds
@@ -266,3 +238,4 @@ Tasks:
 | 2026-10-31 | Phase 4 spec and plan drafted against the downstream identity and lifecycle policy; three manual review rounds; revision 3 and decisions 1–8 accepted; plan made self-contained for handover. Next: Stage 1 in a new session | `9cb74b02` |
 | 2026-11-04 | Readiness review against the downstream plan and open issues found no prerequisite. Decisions 9–12 and spec revision 4 accepted; coordinated run restarted on v6.12.1. Plan Stages 1–3 implemented and approved, with live S3 and real-Tika runs; Stage 4 documentation drafted | `8c885889`, `acdde3e4`, `8498333c`, `5ae6b481`, `3223e697` |
 | 2026-11-04 | Correction: live S3 conformance had never run in CI. Turbo's strict environment mode withheld `BYLINE_S3_TEST_*`, so all eight CI runs that reached the S3 tests since 2026-10-31 skipped the suite while its unit tests ran. Added a `@byline/storage-s3#test` task that forwards the variables and disables caching | this entry's commit |
+| 2026-11-23 | Reconciled the 6.13.0 release and downstream adoption. Search design can proceed. Review MCP and transports before the benchmark refresh. | [#5 close-out](https://github.com/Byline-CMS/bylinecms.dev/issues/5) |

@@ -11,7 +11,7 @@ Companions:
 - [Implementation plan](./2026-11-19-core-storage-migrations-plan.md)
 - [PostgreSQL host journal conflict, issue 105](https://github.com/Byline-CMS/bylinecms.dev/issues/105)
 
-**Status** · Operator contract for review, including the proposed scheduled-update policy, 2026-11-19.
+**Status** · Shipped in [v6.14.0](https://github.com/Byline-CMS/bylinecms.dev/releases/tag/v6.14.0). [v6.14.1](https://github.com/Byline-CMS/bylinecms.dev/releases/tag/v6.14.1) corrected PostgreSQL adoption after a database restore. Follow the [CLI operator guide](../docs/01-getting-started/01-cli.md#fresh-baselines-rebuilds-and-upgrades) for current commands.
 
 ## How the migration works
 

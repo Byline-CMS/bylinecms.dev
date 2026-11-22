@@ -11,25 +11,11 @@ Companions:
 - [Specification](./2026-10-31-extraction-contracts-spec.md) — the contract this plan implements. Section numbers below refer to it.
 - [Track roadmap](./2026-10-31-extraction-retrieval-track-roadmap.md) — Phase 4 tasks 4.1–4.4 map onto the stages here.
 
-## Start here
+## Release record
 
-This section is written so a new session can pick the work up without the
-conversation that produced it.
+All four stages shipped in **6.13.0**. [Issue #5](https://github.com/Byline-CMS/bylinecms.dev/issues/5) records the documentation, adoption note, live S3 CI result and real-provider conformance run. A downstream installation has adopted the release. The outstanding store, worker and search join are tracked in [#109](https://github.com/Byline-CMS/bylinecms.dev/issues/109).
 
-### State (2026-11-04)
-
-1. Tony accepted specification revision 3 and decisions 1 to 8 on 2026-10-31,
-   and revision 4 with decisions 9 to 12 on 2026-11-04. Stages 1 to 3 are
-   approved at checkpoints 2 to 4. **Next: Stage 4 review, then release gates.**
-2. Branch `feat/extraction-contracts-5`, fast-forwarded to `b05b9640`
-   (v6.12.1). All implementation is uncommitted until Tony asks.
-3. **Review uses the `/coordinate` mailbox**, run
-   `2026-11-04-extraction-contracts`, with Claude Code as implementer and a
-   second agent as reviewer. The handshake there defines the checkpoints and
-   their scopes. Run `2026-10-31-extraction-contracts` is superseded.
-4. The specification is self-contained. It reproduces the downstream
-   prototype contract it replaces, so no file outside this repository is
-   needed to implement it.
+The following stages record the implementation and verification procedure used for that release.
 
 ### Ground rules
 
@@ -43,7 +29,7 @@ conversation that produced it.
    downstream. Any such run needs its own administrative decision, scope and
    approval.
 
-### Repository facts the stages depend on
+### Repository baseline used for implementation
 
 - **Root entry is browser-safe.** `packages/core/src/index.ts` and everything
   it imports must gain no `node:` import; hash with WebCrypto `sha256Hex`
@@ -51,8 +37,7 @@ conversation that produced it.
   guarded dynamic `import('node:async_hooks')` in `lib/logger.ts`, the only
   permitted exception. Server-only code goes in
   `packages/core/src/storage/stored-files-server.ts`, exported as
-  `@byline/core/stored-files`. There is no automated guard for this today;
-  Stage 1 adds one.
+  `@byline/core/stored-files`. Stage 1 added the automated guard for this entry.
 - **Tests** are `*.test.node.ts`, run with `pnpm --filter <pkg> test`
   (Vitest `--mode=node`). Packages that consume `@byline/core` read its
   `dist`, so run `pnpm --filter @byline/core build` before their tests.
@@ -102,7 +87,7 @@ conversation that produced it.
 
 Roadmap task 4.2. Spec §5, §7.
 
-- [ ] `packages/core/src/@types/extraction-types.ts`: `ExtractionProvider`,
+- `packages/core/src/@types/extraction-types.ts`: `ExtractionProvider`,
       `ExtractorCapabilities`, `ExtractionHints`, `ExtractionHintName`,
       `ExtractionInput`, `ExtractionResult`, `ExtractionMetadata`,
       `RoutingSignals`, `ExtractionFailureScope`, `PageMapV1`,
@@ -110,36 +95,36 @@ Roadmap task 4.2. Spec §5, §7.
       unions and the §7 lifecycle types. JSDoc carries the normative rules
       and the provisional marker on every exported symbol. Re-export from
       `@types/index.ts`.
-- [ ] `packages/core/src/extraction/errors.ts`: `ExtractionProviderError`
+- `packages/core/src/extraction/errors.ts`: `ExtractionProviderError`
       with the `code` brand; `isExtractionProviderError`,
       `isFileExtractionFailure`.
-- [ ] `packages/core/src/extraction/page-map.ts`: `validatePageMap` with
+- `packages/core/src/extraction/page-map.ts`: `validatePageMap` with
       typed `PageMapIssue` codes, one per §5.8 rule.
-- [ ] `packages/core/src/extraction/producer.ts`: canonical JSON,
+- `packages/core/src/extraction/producer.ts`: canonical JSON,
       `producerConfigHash` over WebCrypto `sha256Hex` (identifier form
       validated), `ExtractionProducerIdentity` and `buildExtractionProducer`.
-- [ ] `packages/core/src/extraction/artifact.ts`:
+- `packages/core/src/extraction/artifact.ts`:
       `validateExtractionArtifact`.
-- [ ] `packages/core/src/extraction/evidence.ts`:
+- `packages/core/src/extraction/evidence.ts`:
       `isSourceVerificationEvidence` with the §6.4 rules, including the
       `readBasis` / `preconditionFallback` compatibility table and legacy
       records without `readBasis`.
-- [ ] `packages/core/src/extraction/work.ts`: `decideExtractionWork` with the
+- `packages/core/src/extraction/work.ts`: `decideExtractionWork` with the
       §5.10 version rules and `versionUnchecked`; `deploymentIdentifier` in
       `producerConfigHash`; a named successive-run regression test (no
       engine version, identifier `A` → extract, reuse; `B` → extract once,
       reuse) plus the resolved-but-unreported and mid-run sequences. Add the
       §5.10 historical exception, `producerUnchecked`, and its full regression
       table from §10.2.
-- [ ] `packages/core/src/extraction/outcomes.ts`: `exclusionState` (§7).
-- [ ] Root barrel exports; `pnpm knip:exports` baseline updated only for
+- `packages/core/src/extraction/outcomes.ts`: `exclusionState` (§7).
+- Root barrel exports; `pnpm knip:exports` baseline updated only for
       deliberate public symbols.
-- [ ] Unit tests (`*.test.node.ts`) for every validator rule, the work
+- Unit tests (`*.test.node.ts`) for every validator rule, the work
       decision and version tables, the evidence compatibility table and
       malformed new fields, every `exclusionState` row (the failed-mark,
       successful-write regression as its own named test), the canonical hash
       and the cross-copy error guard (§10.2, last paragraph).
-- [ ] Browser-safety guard (none exists today): a test that walks the static
+- Browser-safety guard (none exists today): a test that walks the static
       and dynamic import graph of the built root entry (`dist/index.js`). It
       fails on any `node:` specifier except a dynamic import of
       `node:async_hooks` in `lib/logger.js`, on an allowlist entry that no
@@ -167,17 +152,17 @@ source, then `pnpm exec biome check packages/core`.
 
 Roadmap task 4.2 (continued). Spec §6.
 
-- [ ] `packages/core/src/storage/verified-read.ts`: `readVerifiedSource`,
+- `packages/core/src/storage/verified-read.ts`: `readVerifiedSource`,
       `probeVerifiedSource`, `VerifiedSourceBody` (memory or `0600` spool in
       `os.tmpdir()`, deleted on every failure path and by `dispose`).
       Hashing reuses the streaming SHA-256 from `hashStream`; extract a
       shared helper rather than duplicating it.
-- [ ] Export from `stored-files-server.ts`.
-- [ ] Unit tests over a scripted fake `IStorageProvider`: unrecognised
+- Export from `stored-files-server.ts`.
+- Unit tests over a scripted fake `IStorageProvider`: unrecognised
       precondition reason, precondition on both reads (two calls exactly),
       mid-body error, abort, spool cleanup, `download` never called for
       `missing-hash`, `head` never called without evidence.
-- [ ] `@byline/storage-conformance`: the §10.2 cases that real providers
+- `@byline/storage-conformance`: the §10.2 cases that real providers
       can exercise (unchanged, different bytes, identical bytes rewritten,
       unsupported kind, deleted, large body spooled, probe matrix, provider
       without `head`). Run in `storage-local` and `storage-s3`.
@@ -197,20 +182,20 @@ the later store (§10.3), and the documentation in Stage 4 states the rule.
 
 Roadmap task 4.3. Spec §10.1.
 
-- [ ] `packages/extraction-conformance` (`@byline/extraction-conformance`):
+- `packages/extraction-conformance` (`@byline/extraction-conformance`):
       package manifest following `storage-conformance`, but publishable per
       decision 4 (`private` removed, `files`, `exports`, `vitest` as a peer
       dependency, MPL header, README). Add to `.changeset/config.json`
       `fixed[0]`. Not added to the CLI dependency manifest (see "Repository
       facts").
-- [ ] `scripts/generate-fixtures.mjs`: writes a three-page PDF with one
+- `scripts/generate-fixtures.mjs`: writes a three-page PDF with one
       sentinel per page (`BYLINE-SENTINEL-PAGE-1` …), a truncated copy and a
       corrupt file with no PDF structure to recover,
       using hand-written PDF syntax and no dependencies. Commit the outputs
       under `fixtures/`; a test asserts the committed files match the
       generator's output.
-- [ ] `defineExtractionProviderConformance(hooks)` with cases 1–9.
-- [ ] Self-tests: an honest fake (returns canned results for the fixtures,
+- `defineExtractionProviderConformance(hooks)` with cases 1–9.
+- Self-tests: an honest fake (returns canned results for the fixtures,
       with a correct page map) passes; dishonest fakes fail the intended
       case — markdown emitted with `markdown: false`, a page map with a
       shifted page, an untyped error for the truncated file, a corrupt file
@@ -218,13 +203,13 @@ Roadmap task 4.3. Spec §10.1.
       infrastructure error typed as `file`, an abort that resolves, a
       `resolveVersion` that disagrees with the result's `providerVersion`.
       A second honest fake that recovers the truncated file also passes.
-- [ ] Run the kit against a real provider through a local link, outside the
+- Run the kit against a real provider through a local link, outside the
       repository, and report the result at checkpoint 4. Treat the fixture
       expectations as an experiment: one engine's result does not prove how
       every engine behaves. If a real engine recovers the corrupt fixture, revise
       the fixture or the expectation rather than classify that as a provider
       defect.
-- [ ] `check:artifact` and `publish-packages.sh` dry run include the new
+- `check:artifact` and `publish-packages.sh` dry run include the new
       package (build the CLI first, as before).
 
 **Checkpoint 4.** Scope: `packages/extraction-conformance/**`,
@@ -238,20 +223,20 @@ step only.
 
 Roadmap task 4.4. Spec §13, §15, §16.
 
-- [ ] Rewrite `docs/06-search/07-attachment-extraction.md` as concepts and
+- Rewrite `docs/06-search/07-attachment-extraction.md` as concepts and
       lifecycle (keep `path`); add `docs/06-search/10-extraction-provider-contract.md`;
       extend the Content identity section of
       `docs/04-collections/06-file-media-uploads.md`; update
       `docs/06-search/index.md`. Use `/document`; text diagrams, no Mermaid.
-- [ ] README for `@byline/extraction-conformance`.
-- [ ] Update `CLAUDE.md` (package table and the Search section's planned
+- README for `@byline/extraction-conformance`.
+- Update `CLAUDE.md` (package table and the Search section's planned
       list) and the roadmap.
-- [ ] Changeset (minor) naming the provisional status.
-- [ ] Draft the issue #5 rewrite and the follow-up issue; post only when
+- Changeset (minor) naming the provisional status.
+- Draft the issue #5 rewrite and the follow-up issue; post only when
       Tony says.
-- [ ] Downstream adoption note (spec §16), with no downstream names in the
+- Downstream adoption note (spec §16), with no downstream names in the
       repository.
-- [ ] Document the §5.10 historical exception, `producerUnchecked` and the
+- Document the §5.10 historical exception, `producerUnchecked` and the
       §6.7 evidence refresh rule, including what a caller implements.
 
 **Checkpoint 5.** Scope: `docs/**`, `CLAUDE.md`, the roadmap, the changeset,
@@ -262,11 +247,7 @@ test`, `pnpm exec biome check .`.
 
 ## Release gates
 
-These are not checkpoints, and Tony decides the release. This work merged into
-`develop` without a pull request, so the gate is CI on `develop`. Before release:
-green CI, including the integration suites; the CI log showing the live S3 suite
-passed and not skipped (82 tests at the time of writing); and the real-provider
-kit result from Stage 3.
+The release gates passed on `develop`. [CI run 41831562839](https://github.com/Byline-CMS/bylinecms.dev/actions/runs/41831562839) included the live S3 suite. The kit also ran against a real provider before release.
 
 **Correction (2026-11-04):** the live S3 suite never ran in CI before this date,
 because Turbo's strict environment mode withheld `BYLINE_S3_TEST_*`. The S3 unit

@@ -11,7 +11,7 @@ Companions:
 - [Specification](./2026-11-09-localized-toggle-spec.md) — the contract this plan implements. Section and decision numbers below refer to it; conformance case numbers refer to its section 5.
 - Issue #106 — the tracking issue.
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> Shipped in [v6.13.3](https://github.com/Byline-CMS/bylinecms.dev/releases/tag/v6.13.3). These tasks record the implementation and verification procedure.
 
 **Goal:** Changing a field's `localized` flag needs no migration: existing documents read without errors or lost values, and each converts to the new shape on its next save.
 
