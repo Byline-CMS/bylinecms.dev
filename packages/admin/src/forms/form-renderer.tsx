@@ -36,7 +36,7 @@ import { computeStatusTransitions } from './status-transitions'
 import { UnavailableBlocksProvider } from './unavailable-blocks'
 import { useDocumentReloadRecovery } from './use-document-reload-recovery'
 import { type SystemFieldsSubmitPayload, useFormSubmission } from './use-form-submission'
-import { EditorViewStateContext } from './view-state/editor-view-state-context'
+import { EditorViewStateContext, useEditorViewState } from './view-state/editor-view-state-context'
 import type { DocumentActionsLocaleOption } from './document-actions'
 import type { UseNavigationGuard } from './navigation-guard'
 import type { EditorViewStateStore } from './view-state/editor-view-state'
@@ -296,11 +296,14 @@ const FormContent = ({
   // ---------------------------------------------------------------------
 
   const tabSets = adminConfig?.tabSets ?? []
+  // With a visit store the store is the source of truth for tab choices; the
+  // `_activeTabBySet` ref fallback only serves forms without one.
+  const viewState = useEditorViewState()
 
   const initialActiveTabBySet = useMemo<Record<string, string>>(() => {
     const result: Record<string, string> = {}
     for (const set of tabSets) {
-      const saved = _activeTabBySet?.[set.name]
+      const saved = viewState ? viewState.getTab(set.name) : _activeTabBySet?.[set.name]
       if (saved && set.tabs.some((t) => t.name === saved)) {
         result[set.name] = saved
       } else {
@@ -310,7 +313,7 @@ const FormContent = ({
     return result
     // initial-only; subsequent updates flow through setActiveTabBySet.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabSets, _activeTabBySet])
+  }, [tabSets, _activeTabBySet, viewState])
 
   const [activeTabBySet, setActiveTabBySet] =
     useState<Record<string, string>>(initialActiveTabBySet)
@@ -318,9 +321,10 @@ const FormContent = ({
   const handleTabChange = useCallback(
     (tabSetName: string, tabName: string) => {
       setActiveTabBySet((prev) => ({ ...prev, [tabSetName]: tabName }))
-      _onTabChange?.(tabSetName, tabName)
+      if (viewState) viewState.setTab(tabSetName, tabName)
+      else _onTabChange?.(tabSetName, tabName)
     },
-    [_onTabChange]
+    [_onTabChange, viewState]
   )
 
   // Live document heading — tracks the useAsTitle field as the user types

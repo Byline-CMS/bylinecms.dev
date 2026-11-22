@@ -28,7 +28,6 @@
     "packages/admin/src/forms/upload-executor.ts|type|UploadResult",
     "packages/admin/src/forms/use-form-submission.ts|type|SubmissionPhase",
     "packages/admin/src/forms/use-form-tabs.ts|type|ResolvedTabSet",
-    "packages/admin/src/forms/view-state/editor-view-state-context.tsx|export|useEditorViewState",
     "packages/admin/src/forms/view-state/editor-view-state.ts|type|PendingRestore",
     "packages/admin/src/forms/view-state/editor-view-state.ts|type|SaveOutcome",
     "packages/admin/src/forms/view-state/editor-view-state.ts|type|TargetRole",

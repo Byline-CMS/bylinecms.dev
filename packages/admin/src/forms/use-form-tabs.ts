@@ -34,11 +34,15 @@ export interface UseFormTabsResult {
  * Tab visibility, per-tab error counts, and fallback when the selected tab is
  * hidden.
  *
- * It deliberately does **not** own the selection. `FormRenderer` lifts that
- * above the keyed `FormProvider` so the editor's tab choices survive the
- * remount a locale change triggers; a hook living inside that subtree would
- * lose them on every switch. The selection arrives as `activeTabBySet` and
- * changes are reported upward.
+ * It deliberately does **not** own the selection. The selection arrives as
+ * `activeTabBySet` and changes are reported upward by the caller. `FormContent`
+ * seeds it from the per-visit view-state store when the form has one, which is
+ * what keeps a tab choice across a content-locale switch. Without a store,
+ * `FormRenderer` keeps it in a ref above the keyed `FormProvider`, which
+ * survives `FormProvider` remounts but not a remount of `FormRenderer` itself.
+ *
+ * Falling back off a hidden tab happens in `resolve` and is never recorded as a
+ * new choice.
  */
 export function useFormTabs(
   fieldToTabPath: Map<string, { tabSetName: string; tabName: string }>,
