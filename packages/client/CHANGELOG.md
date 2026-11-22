@@ -1,5 +1,17 @@
 # @byline/client
 
+## 6.15.0
+
+### Minor Changes
+
+- kept editor tabs, collapsed items, focus, scroll position and caret across saves and content-locale switches (#97, #98)
+
+### Patch Changes
+
+- Updated dependencies
+  - @byline/auth@6.15.0
+  - @byline/core@6.15.0
+
 ## 6.14.1
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @byline/ui
 
+## 6.15.0
+
+### Minor Changes
+
+- kept editor tabs, collapsed items, focus, scroll position and caret across saves and content-locale switches (#97, #98)
+
+### Patch Changes
+
+- 7f70552: **`Avatar`** no longer loads a hardcoded placeholder photo from `picsum.photos`. New optional `src` and `alt` props (`alt` defaults to `initials`) render an image only when `src` is given; without one, no request is made and the initials show immediately.
+
 ## 6.14.1
 
 ### Patch Changes
