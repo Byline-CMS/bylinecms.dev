@@ -17,6 +17,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BylineFieldServicesProvider } from '../fields/field-services-context'
 import { FormProvider, useFormContext } from './form-context'
 import { type UseFormSubmissionResult, useFormSubmission } from './use-form-submission'
+import {
+  createEditorViewStateStore,
+  type EditorViewStateStore,
+} from './view-state/editor-view-state'
+import { EditorViewStateContext } from './view-state/editor-view-state-context'
 
 ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -68,7 +73,13 @@ interface Harness {
 
 const renderHookInForm = (
   options: Partial<Parameters<typeof useFormSubmission>[0]> = {},
-  { uploadField = async () => ({}) }: { uploadField?: (...args: any[]) => Promise<any> } = {}
+  {
+    uploadField = async () => ({}),
+    store = null,
+  }: {
+    uploadField?: (...args: any[]) => Promise<any>
+    store?: EditorViewStateStore | null
+  } = {}
 ): Harness => {
   const harness = {} as Harness
 
@@ -102,9 +113,11 @@ const renderHookInForm = (
             } as any
           }
         >
-          <FormProvider initialData={{ fields: { title: 'hello' } }} collectionPath="pages">
-            <Probe />
-          </FormProvider>
+          <EditorViewStateContext.Provider value={store}>
+            <FormProvider initialData={{ fields: { title: 'hello' } }} collectionPath="pages">
+              <Probe />
+            </FormProvider>
+          </EditorViewStateContext.Provider>
         </BylineFieldServicesProvider>
       </I18nProvider>
     )
@@ -560,5 +573,132 @@ describe('useFormSubmission upload sequencing', () => {
 
     expect(onSubmit).not.toHaveBeenCalled()
     expect(h.result.phase.kind).toBe('idle')
+  })
+})
+
+describe('useFormSubmission save lifecycle with a view-state store', () => {
+  const target = { path: 'title', role: 'field' as const, offset: 12 }
+  const storeWithTarget = () => {
+    const store = createEditorViewStateStore()
+    store.setTarget(target)
+    return store
+  }
+
+  it('begins the save immediately before onSubmit and settles it as a success', async () => {
+    const store = storeWithTarget()
+    const order: string[] = []
+    const spy = vi.spyOn(store, 'beginSave')
+    const h = renderHookInForm(
+      {
+        onSubmit: async () => {
+          order.push(`submit:${spy.mock.calls.length}`)
+        },
+      },
+      { store }
+    )
+    act(() => {
+      h.ctx.setFieldValue('title', 'changed')
+    })
+    await act(async () => {
+      await h.result.submit()
+    })
+    expect(order).toEqual(['submit:1'])
+    expect(store.takePendingRestore(undefined)).toMatchObject({ target, focusWarning: false })
+  })
+
+  it('a rejected onSubmit settles as refused and leaves nothing pending', async () => {
+    const store = storeWithTarget()
+    const h = renderHookInForm(
+      {
+        onSubmit: async () => {
+          throw new Error('refused')
+        },
+      },
+      { store }
+    )
+    act(() => {
+      h.ctx.setFieldValue('title', 'changed')
+    })
+    await act(async () => {
+      await h.result.submit()
+    })
+    expect(store.takePendingRestore(undefined)).toBeNull()
+  })
+
+  it('validation failure, upload failure and cancelled confirmation leave nothing pending', async () => {
+    // Validation failure.
+    const validationStore = storeWithTarget()
+    const validationBegin = vi.spyOn(validationStore, 'beginSave')
+    const required = [{ name: 'title', label: 'Title', type: 'text' as const, required: true }]
+    const validation = renderHookInForm({ fields: required }, { store: validationStore })
+    act(() => {
+      validation.ctx.setFieldValue('title', '')
+    })
+    await act(async () => {
+      await validation.result.submit()
+    })
+    expect(validationBegin).not.toHaveBeenCalled()
+    expect(validationStore.takePendingRestore(undefined)).toBeNull()
+
+    // Upload failure.
+    const uploadStore = storeWithTarget()
+    const uploadBegin = vi.spyOn(uploadStore, 'beginSave')
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const upload = renderHookInForm(
+      {},
+      {
+        store: uploadStore,
+        uploadField: async () => {
+          throw new Error('upload failed')
+        },
+      }
+    )
+    act(() => {
+      upload.ctx.setFieldValue('title', 'dirty title')
+      upload.ctx.addPendingUpload('cover', {
+        file: new File(['x'], 'x.png', { type: 'image/png' }),
+        previewUrl: 'blob:preview',
+      } as any)
+    })
+    await act(async () => {
+      await upload.result.submit()
+    })
+    consoleError.mockRestore()
+    expect(uploadBegin).not.toHaveBeenCalled()
+    expect(uploadStore.takePendingRestore(undefined)).toBeNull()
+
+    // Cancelled system-fields confirmation.
+    const confirmStore = storeWithTarget()
+    const confirmBegin = vi.spyOn(confirmStore, 'beginSave')
+    const confirm = renderHookInForm({ mode: 'edit', documentId: 'doc-1' }, { store: confirmStore })
+    act(() => {
+      confirm.ctx.setSystemPath('/moved')
+    })
+    await act(async () => {
+      await confirm.result.submit()
+    })
+    act(() => {
+      confirm.result.cancelSystemFields()
+    })
+    expect(confirmBegin).not.toHaveBeenCalled()
+    expect(confirmStore.takePendingRestore(undefined)).toBeNull()
+  })
+
+  it('a confirmed system-fields save begins only after confirmation', async () => {
+    const store = storeWithTarget()
+    const begin = vi.spyOn(store, 'beginSave')
+    const h = renderHookInForm({ mode: 'edit', documentId: 'doc-1' }, { store })
+    act(() => {
+      h.ctx.setSystemPath('/moved')
+    })
+    await act(async () => {
+      await h.result.submit()
+    })
+    expect(begin).not.toHaveBeenCalled()
+    await act(async () => {
+      await h.result.confirmSystemFields()
+    })
+    expect(begin).toHaveBeenCalledTimes(1)
+    expect(store.takePendingRestore(undefined)).toMatchObject({ target })
   })
 })

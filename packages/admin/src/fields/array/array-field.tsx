@@ -21,6 +21,12 @@ import { useFieldError, useFormContext } from '../../forms/form-context'
 import { useScopedDomId } from '../../forms/form-dom-scope'
 import { hasExistingIdTargets } from '../../forms/nested-path'
 import { moveRepeatingItems, repeatingItemId, repeatingItemPath } from '../../forms/repeating-items'
+import {
+  addedItemTarget,
+  movedItemTarget,
+  removedItemTarget,
+} from '../../forms/view-state/structural-targets'
+import { targetMarker, useRecordTarget } from '../../forms/view-state/target-markers'
 import styles from './array-field.module.css'
 
 // ---------------------------------------------------------------------------
@@ -64,6 +70,7 @@ export const ArrayField = ({
   const fieldError = useFieldError(path)
   const htmlId = useScopedDomId(path)
   const [items, setItems] = useState<{ id: string; data: any }[]>([])
+  const recordTarget = useRecordTarget()
 
   useEffect(() => {
     // Prefer the live form-store value over `defaultValue` when seeding the
@@ -107,6 +114,8 @@ export const ArrayField = ({
 
     setItems((prev) => moveItem(prev, move.fromIndex, move.toIndex))
     setFieldStore(path, move.items)
+    const moved = movedItemTarget(path, currentArray[move.fromIndex], move.toIndex)
+    recordTarget(moved.path, moved.role)
     appendPatch({
       kind: 'array.move',
       path,
@@ -166,6 +175,8 @@ export const ArrayField = ({
     const newArrayValue = currentArray ? [...currentArray] : []
     newArrayValue.splice(insertAt, 0, newItem)
     setFieldStore(path, newArrayValue)
+    const added = addedItemTarget(repeatingItemPath(path, newItem, insertAt), childFields)
+    recordTarget(added.path, added.role)
   }
 
   const handleRemoveItem = (index: number) => {
@@ -188,6 +199,8 @@ export const ArrayField = ({
     const newArrayValue = [...currentArray]
     newArrayValue.splice(index, 1)
     setFieldStore(path, newArrayValue)
+    const next = removedItemTarget(path, currentArray, index)
+    recordTarget(next.path, next.role)
   }
 
   const handleInsertBelow = (index: number) => {
@@ -310,6 +323,7 @@ export const ArrayField = ({
           void handleAddItem()
         }}
         aria-label={t('fields.array.addItemAriaLabel')}
+        {...targetMarker(path, 'action:add')}
       >
         <PlusIcon />
       </IconButton>
@@ -330,7 +344,7 @@ export const ArrayField = ({
   )
 
   return (
-    <div className={`byline-field-array ${field.name}`}>
+    <div className={`byline-field-array ${field.name}`} {...targetMarker(path, 'field')}>
       {field.label && (
         <h3 className={cx('byline-field-array-title', styles.title)}>{field.label}</h3>
       )}

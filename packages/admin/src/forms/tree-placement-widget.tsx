@@ -18,6 +18,7 @@ import cx from 'clsx'
 import { useBylineFieldServices } from '../fields/field-services-context.js'
 import { RelationPicker } from '../fields/relation/relation-picker.js'
 import styles from './tree-placement-widget.module.css'
+import { SYSTEM_TARGETS, targetMarker, useRecordTarget } from './view-state/target-markers'
 
 export interface TreePlacementWidgetProps {
   disabled?: boolean
@@ -70,6 +71,7 @@ export const TreePlacementWidget = ({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const recordTarget = useRecordTarget()
 
   const treeServicesReady = getTreeAncestors != null && placeTreeNode != null
 
@@ -108,6 +110,7 @@ export const TreePlacementWidget = ({
   const place = useCallback(
     async (parentDocumentId: string | null, optimistic: { id: string; title: string } | null) => {
       if (disabled || placeTreeNode == null || busy) return
+      recordTarget(SYSTEM_TARGETS.treePlacement, 'field')
       const previousParent = parent
       const previousPlaced = placed
       setError(null)
@@ -139,6 +142,7 @@ export const TreePlacementWidget = ({
       placeTreeNode,
       busy,
       parent,
+      recordTarget,
       placed,
       collectionPath,
       documentId,
@@ -161,7 +165,10 @@ export const TreePlacementWidget = ({
   if (!treeServicesReady) return null
 
   return (
-    <div className={cx('byline-form-tree', styles.tree)}>
+    <div
+      className={cx('byline-form-tree', styles.tree)}
+      {...targetMarker(SYSTEM_TARGETS.treePlacement, 'field')}
+    >
       <span className={cx('byline-form-tree-heading', styles.heading)}>
         {t('treeWidget.label')}
       </span>

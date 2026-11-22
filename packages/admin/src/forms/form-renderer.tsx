@@ -37,6 +37,10 @@ import { UnavailableBlocksProvider } from './unavailable-blocks'
 import { useDocumentReloadRecovery } from './use-document-reload-recovery'
 import { type SystemFieldsSubmitPayload, useFormSubmission } from './use-form-submission'
 import { EditorViewStateContext, useEditorViewState } from './view-state/editor-view-state-context'
+import { isRestoreLive, isSaveAttemptActive } from './view-state/restore-session'
+import { TargetFormContext, useRecordEditTargets } from './view-state/target-markers'
+import { useCancelRestoreOnMoveOn } from './view-state/use-cancel-restore-on-move-on'
+import { useRestoreAfterSave } from './view-state/use-restore-after-save'
 import type { DocumentActionsLocaleOption } from './document-actions'
 import type { UseNavigationGuard } from './navigation-guard'
 import type { EditorViewStateStore } from './view-state/editor-view-state'
@@ -367,15 +371,32 @@ const FormContent = ({
     onSubmit,
     isBlocked: (): boolean => recovery.mutationBlockedRef.current,
     onBeforeBusy: (): void => recovery.captureFocusBeforeBusy(),
+    onSaveSettled: (outcome): void => {
+      // With a visit store, a successful save is restored after the refresh
+      // by useRestoreAfterSave; without one, today's recovery stays in charge.
+      if (outcome === 'success' && viewState) recovery.standDownAfterSuccess()
+    },
   })
   const recovery = useDocumentReloadRecovery({
     mutationsBlocked,
     mutationIssue,
     onReloadDocument,
     isBusy: submission.isBusy,
+    // A committed save settles as a success and its restoration focuses the
+    // warning, so it owns that focus from the moment the save is in flight.
+    // Any other issue refuses the save, so it can only coincide with an
+    // earlier save's live restoration.
+    restorationPending: viewState
+      ? (issue: string): boolean =>
+          issue === 'committed' ? isSaveAttemptActive(viewState) : isRestoreLive(viewState)
+      : undefined,
   })
   const { formRef, warningRef, mutationBlockedRef, discarding, reloadFailed, requestDiscard } =
     recovery
+  // Working target and save restoration (#98). Each is a no-op without a store.
+  useRecordEditTargets(formRef)
+  useCancelRestoreOnMoveOn()
+  useRestoreAfterSave(formRef, { warningRef, revision: initialData?.revision, fields })
   const guard = useGuard(hasChanges && !discarding)
   const isUploading = submission.phase.kind === 'uploading'
   const isSubmitting = submission.phase.kind === 'submitting'
@@ -413,7 +434,7 @@ const FormContent = ({
       : ''
 
   return (
-    <>
+    <TargetFormContext.Provider value={formRef}>
       <span
         className={cx('byline-form-busy-status', styles['busy-status'])}
         role="status"
@@ -519,7 +540,7 @@ const FormContent = ({
           )}
         </form>
       </div>
-    </>
+    </TargetFormContext.Provider>
   )
 }
 

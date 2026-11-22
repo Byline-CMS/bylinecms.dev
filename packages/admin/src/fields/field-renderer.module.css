@@ -20,6 +20,9 @@
  *                                    field needs an absolutely-positioned
  *                                    locale badge in the corner
  *   .byline-field-localized-badge  — the absolutely-positioned badge slot
+ *   .byline-field-richtext-target  — focusable wrapper around a rich-text
+ *                                    editor; the working-target marker that
+ *                                    restoration focuses after a save
  */
 
 @layer byline-components.cms {
@@ -34,5 +37,10 @@
     top: 0;
     right: 0;
     line-height: 1;
+  }
+
+  .richtext-target,
+  :global(.byline-field-richtext-target) {
+    min-width: 0;
   }
 }

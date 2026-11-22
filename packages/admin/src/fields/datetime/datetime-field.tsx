@@ -12,6 +12,7 @@ import cx from 'clsx'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
 import { useScopedDomId } from '../../forms/form-dom-scope'
+import { targetMarker } from '../../forms/view-state/target-markers'
 import styles from './datetime-field.module.css'
 
 export const DateTimeField = ({
@@ -37,7 +38,7 @@ export const DateTimeField = ({
   const incomingValue = value ?? fieldValue ?? defaultValue ?? null
 
   return (
-    <div className={`byline-field-datetime ${field.name}`}>
+    <div className={`byline-field-datetime ${field.name}`} {...targetMarker(fieldPath, 'field')}>
       <DatePicker
         disabled={field.readOnly}
         id={htmlId}

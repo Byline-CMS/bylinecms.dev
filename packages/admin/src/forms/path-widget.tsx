@@ -18,6 +18,7 @@ import cx from 'clsx'
 
 import { useFieldValue, useFormContext, useSystemPath } from './form-context'
 import styles from './path-widget.module.css'
+import { SYSTEM_TARGETS, targetMarker, useRecordTarget } from './view-state/target-markers'
 
 /**
  * Coerce an arbitrary source-field value (string, Date, or other) into
@@ -104,6 +105,7 @@ export const PathWidget = ({
   disabled = false,
 }: PathWidgetProps) => {
   const { setSystemPath } = useFormContext()
+  const recordTarget = useRecordTarget()
   const { t } = useTranslation('byline-admin')
   const systemPath = useSystemPath()
   const sourceValue = useFieldValue<unknown>(useAsPath ?? '')
@@ -153,8 +155,9 @@ export const PathWidget = ({
   const handleRegenerate = useCallback(() => {
     if (!disabled && livePreview.length > 0) {
       setSystemPath(livePreview)
+      recordTarget(SYSTEM_TARGETS.path, 'field')
     }
-  }, [disabled, livePreview, setSystemPath])
+  }, [disabled, livePreview, recordTarget, setSystemPath])
 
   // Validate live: if the typed value differs from its slugified form,
   // surface an inline hint without blocking input (mirrors the previous
@@ -199,7 +202,7 @@ export const PathWidget = ({
     !isReadOnly && useAsPath && livePreview.length > 0 && livePreview !== systemPath
 
   return (
-    <div className="byline-form-path">
+    <div className="byline-form-path" {...targetMarker(SYSTEM_TARGETS.path, 'field')}>
       <div className={cx('byline-form-path-header', styles.header)}>
         <Label id="system-path-label" htmlFor="system-path" label={t('pathWidget.label')} />
         {showRegenerate && (

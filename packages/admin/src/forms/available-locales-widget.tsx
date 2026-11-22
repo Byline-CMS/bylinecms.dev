@@ -17,6 +17,7 @@ import cx from 'clsx'
 import { reconcileLocaleState } from './available-locales-reconcile'
 import styles from './available-locales-widget.module.css'
 import { useFormContext, useSystemAvailableLocales } from './form-context'
+import { SYSTEM_TARGETS, targetMarker, useRecordTarget } from './view-state/target-markers'
 
 export { type ReconciledLocaleState, reconcileLocaleState } from './available-locales-reconcile'
 
@@ -64,6 +65,7 @@ export const AvailableLocalesWidget = ({
 }: AvailableLocalesWidgetProps) => {
   const { t } = useTranslation('byline-admin')
   const { setSystemAvailableLocales } = useFormContext()
+  const recordTarget = useRecordTarget()
   const advertised = useSystemAvailableLocales()
 
   const advertisedSet = useMemo(() => new Set(advertised), [advertised])
@@ -79,8 +81,9 @@ export const AvailableLocalesWidget = ({
         next.delete(code)
       }
       setSystemAvailableLocales([...next])
+      recordTarget(`${SYSTEM_TARGETS.availableLocales}.${code}`, 'field')
     },
-    [mutationsBlocked, advertised, setSystemAvailableLocales]
+    [mutationsBlocked, advertised, recordTarget, setSystemAvailableLocales]
   )
 
   if (contentLocales.length === 0) {
@@ -88,7 +91,10 @@ export const AvailableLocalesWidget = ({
   }
 
   return (
-    <div className={cx('byline-form-available-locales', styles.container)}>
+    <div
+      className={cx('byline-form-available-locales', styles.container)}
+      {...targetMarker(SYSTEM_TARGETS.availableLocales, 'field')}
+    >
       <Label
         id="available-locales"
         htmlFor="available-locales-group"
@@ -105,19 +111,26 @@ export const AvailableLocalesWidget = ({
           const checked = advertisedSet.has(code)
           const { intent, disabled } = reconcileLocaleState(checked, ledgerSet.has(code))
           return (
-            <Checkbox
+            // Each option is its own target, so a save returns to the
+            // checkbox that was edited rather than the first enabled one.
+            <div
               key={code}
-              id={`available-locale-${code}`}
-              name={`__availableLocale_${code}__`}
-              label={label}
-              intent={intent}
-              checked={checked}
-              disabled={mutationsBlocked || disabled}
-              onCheckedChange={(value) => toggle(code, value === true)}
-              helpText={
-                code === sourceLocale ? t('availableLocalesWidget.sourceRowHint') : undefined
-              }
-            />
+              className="byline-form-available-locales-item"
+              {...targetMarker(`${SYSTEM_TARGETS.availableLocales}.${code}`, 'field')}
+            >
+              <Checkbox
+                id={`available-locale-${code}`}
+                name={`__availableLocale_${code}__`}
+                label={label}
+                intent={intent}
+                checked={checked}
+                disabled={mutationsBlocked || disabled}
+                onCheckedChange={(value) => toggle(code, value === true)}
+                helpText={
+                  code === sourceLocale ? t('availableLocalesWidget.sourceRowHint') : undefined
+                }
+              />
+            </div>
           )
         })}
       </div>

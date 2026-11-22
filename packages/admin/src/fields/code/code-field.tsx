@@ -14,6 +14,7 @@ import cx from 'clsx'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
 import { useScopedDomId } from '../../forms/form-dom-scope'
+import { targetMarker } from '../../forms/view-state/target-markers'
 import { LocaleBadge } from '../locale-badge'
 import styles from './code-field.module.css'
 
@@ -146,8 +147,11 @@ export const CodeField = ({
         fallback={
           // Read-only monospace textarea: keeps the layout stable and the
           // content visible while the editor chunk loads.
+          // `data-byline-loading` tells save restoration this is not the
+          // editor yet, so it keeps waiting instead of focusing it.
           <textarea
             className={cx('byline-field-code-loading', styles.loading)}
+            data-byline-loading=""
             readOnly
             value={incomingValue}
             rows={6}
@@ -175,7 +179,7 @@ export const CodeField = ({
   }
 
   return (
-    <div className={`byline-field-code ${field.name}`}>
+    <div className={`byline-field-code ${field.name}`} {...targetMarker(fieldPath, 'field')}>
       {renderLabel()}
       {BeforeField && <BeforeField {...slotBaseProps} />}
       {renderInput()}

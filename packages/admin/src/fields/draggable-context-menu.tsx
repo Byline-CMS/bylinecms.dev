@@ -18,14 +18,18 @@ import {
 } from '@byline/ui/react'
 import cx from 'clsx'
 
+import { targetMarker } from '../forms/view-state/target-markers'
 import styles from './draggable-context-menu.module.css'
 
 interface DraggableContextMenuProps {
+  /** The item's instance path; marks the trigger as the item's `menu` target. */
+  itemPath?: string
   onAddBelow?: () => void
   onRemove?: () => void
 }
 
 export function DraggableContextMenu({
+  itemPath,
   onAddBelow,
   onRemove,
 }: DraggableContextMenuProps): React.JSX.Element {
@@ -43,6 +47,7 @@ export function DraggableContextMenu({
             variant="text"
             size="sm"
             aria-label={t('fields.draggableMenu.triggerAriaLabel')}
+            {...(itemPath ? targetMarker(itemPath, 'menu') : {})}
           />
         }
       >

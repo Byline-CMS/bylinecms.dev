@@ -17,6 +17,7 @@ import { placeholderForField } from '../../fields/field-helpers'
 import { FieldRenderer } from '../../fields/field-renderer'
 import { useFieldError } from '../../forms/form-context'
 import { useScopedDomId } from '../../forms/form-dom-scope'
+import { targetMarker } from '../../forms/view-state/target-markers'
 import styles from './group-field.module.css'
 
 // ---------------------------------------------------------------------------
@@ -88,7 +89,7 @@ export const GroupField = ({
   }, [defaultValue, field.fields])
 
   return (
-    <div className={`byline-field-group ${field.name}`}>
+    <div className={`byline-field-group ${field.name}`} {...targetMarker(path, 'field')}>
       {field.label && (
         <div className={cx('byline-field-group-header', styles.header)}>
           <h3 className={cx('byline-field-group-title', styles.title)}>

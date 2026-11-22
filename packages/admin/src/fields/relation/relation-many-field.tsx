@@ -33,6 +33,7 @@ import cx from 'clsx'
 
 import { useFieldError, useFieldValue, useFormContext } from '../../forms/form-context'
 import { useScopedDomId } from '../../forms/form-dom-scope'
+import { targetMarker, useRecordTarget } from '../../forms/view-state/target-markers'
 import styles from './relation-field.module.css'
 import { RelationPicker, type RelationPickerSelection } from './relation-picker'
 import { RelationSummary } from './relation-summary'
@@ -132,6 +133,7 @@ export const RelationManyField = ({ field, defaultValue, id, path }: RelationMan
   const { t } = useTranslation('byline-admin')
   const fieldError = useFieldError(fieldPath)
   const { getFieldValue, setFieldValue } = useFormContext()
+  const recordTarget = useRecordTarget()
 
   const targetDefinition = getCollectionDefinition(field.targetCollection)
   const targetDef: MultiCollectionDefinition | null =
@@ -179,6 +181,7 @@ export const RelationManyField = ({ field, defaultValue, id, path }: RelationMan
         return next
       })
     }
+    recordTarget(fieldPath, 'field')
     setFieldValue(fieldPath, [
       ...current,
       ...additions.map((s) => ({
@@ -190,6 +193,7 @@ export const RelationManyField = ({ field, defaultValue, id, path }: RelationMan
 
   const handleRemove = (targetDocumentId: string) => {
     if (field.readOnly) return
+    recordTarget(fieldPath, 'field')
     setFieldValue(
       fieldPath,
       currentArray().filter((v) => v.targetDocumentId !== targetDocumentId)
@@ -204,11 +208,12 @@ export const RelationManyField = ({ field, defaultValue, id, path }: RelationMan
     moveToIndex: number
   }) => {
     if (field.readOnly || moveFromIndex === moveToIndex) return
+    recordTarget(fieldPath, 'field')
     setFieldValue(fieldPath, moveItem(currentArray(), moveFromIndex, moveToIndex))
   }
 
   return (
-    <div className={`byline-field-relation ${field.name}`}>
+    <div className={`byline-field-relation ${field.name}`} {...targetMarker(fieldPath, 'field')}>
       <div className={cx('byline-field-relation-header', styles.header)}>
         <Label
           id={`${htmlId}-label`}

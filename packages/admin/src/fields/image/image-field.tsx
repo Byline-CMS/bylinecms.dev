@@ -33,6 +33,7 @@ import {
   useIsFieldUploading,
 } from '../../forms/form-context'
 import { useScopedDomId } from '../../forms/form-dom-scope'
+import { targetMarker, useRecordTarget } from '../../forms/view-state/target-markers'
 import { useFieldChangeHandler } from '../use-field-change-handler'
 import styles from './image-field.module.css'
 import { ImageUploadField } from './image-upload-field'
@@ -67,6 +68,7 @@ export const ImageField = ({
 
   // Re-use the standard field change handler so patches are emitted correctly.
   const handleChange = useFieldChangeHandler(field, fieldPath)
+  const recordTarget = useRecordTarget()
 
   // When the field has been explicitly set (dirty), use the field value from
   // form state — even if it's null (user clicked Remove). Only fall back to
@@ -108,6 +110,7 @@ export const ImageField = ({
     if (isPending) {
       removePendingUpload(fieldPath)
     }
+    recordTarget(fieldPath, 'field')
     handleChange(null)
   }
 
@@ -119,7 +122,7 @@ export const ImageField = ({
   const htmlId = useScopedDomId(fieldPath)
 
   return (
-    <div className={`byline-field-image ${field.name}`}>
+    <div className={`byline-field-image ${field.name}`} {...targetMarker(fieldPath, 'field')}>
       <div className={cx('byline-field-image-header', styles.header)}>
         <Label
           id={htmlId}
@@ -144,6 +147,7 @@ export const ImageField = ({
             collectionPath={collectionPath}
             fieldPath={fieldPath}
             onUploaded={(uploaded) => {
+              recordTarget(fieldPath, 'field')
               handleChange(uploaded)
             }}
           />

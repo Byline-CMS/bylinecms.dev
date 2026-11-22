@@ -21,6 +21,7 @@ import { Input } from '@byline/ui/react'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
 import { useScopedDomId } from '../../forms/form-dom-scope'
+import { targetMarker, useRecordTarget } from '../../forms/view-state/target-markers'
 
 type NumericalValue = string | number | null
 
@@ -45,6 +46,7 @@ export const NumericalField = ({
   components?: FieldComponentSlots
 }) => {
   const fieldPath = path ?? field.name
+  const recordTarget = useRecordTarget()
   const fieldError = useFieldError(fieldPath)
   const fieldValue = useFieldValue<NumericalValue | undefined>(fieldPath)
   const incomingValue =
@@ -109,13 +111,25 @@ export const NumericalField = ({
   // ── Field input rendering ────────────────────────────────────
   const renderInput = () => {
     if (CustomField) {
+      // A custom slot reports value changes only through `onChange`, so it
+      // records the working target there. Its own native events (a local
+      // filter box, say) are transient and never record.
       return (
-        <CustomField
-          {...slotBaseProps}
-          onChange={(nextValue: NumericalValue) => commit(nextValue)}
-          defaultValue={defaultValue}
-          placeholder={field.placeholder}
-        />
+        <div
+          className="byline-field-custom-slot"
+          data-byline-transient=""
+          style={{ display: 'contents' }}
+        >
+          <CustomField
+            {...slotBaseProps}
+            onChange={(nextValue: NumericalValue) => {
+              recordTarget(fieldPath, 'field')
+              commit(nextValue)
+            }}
+            defaultValue={defaultValue}
+            placeholder={field.placeholder}
+          />
+        </div>
       )
     }
     return (
@@ -149,7 +163,10 @@ export const NumericalField = ({
   }
 
   return (
-    <div className={`byline-field-${field.type} ${field.name}`}>
+    <div
+      className={`byline-field-${field.type} ${field.name}`}
+      {...targetMarker(fieldPath, 'field')}
+    >
       {renderLabel()}
       {BeforeField && <BeforeField {...slotBaseProps} />}
       {renderInput()}

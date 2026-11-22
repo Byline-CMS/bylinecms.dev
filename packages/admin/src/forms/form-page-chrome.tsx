@@ -51,7 +51,10 @@ export interface FormHeadingRowProps {
 
 export const FormHeadingRow = ({ heading, headerSlot }: FormHeadingRowProps): ReactNode => (
   <div className={cx('byline-form-heading-row', styles['heading-row'])}>
-    <h1 className={cx('byline-form-heading', styles.heading)}>{heading}</h1>
+    {/* Programmatic focus target: restoration never leaves focus on <body>. */}
+    <h1 className={cx('byline-form-heading', styles.heading)} tabIndex={-1}>
+      {heading}
+    </h1>
     {/* Source-locale anchor indicator removed pending heading-layout work.
         To re-enable: render `<SourceLocaleBadge locale={sourceLocale} />`
         here from `initialData.sourceLocale` (mismatch-only is the intended

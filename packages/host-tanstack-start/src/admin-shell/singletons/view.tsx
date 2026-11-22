@@ -10,7 +10,7 @@
 
 import { useRouter } from '@tanstack/react-router'
 
-import { type EditorViewStateStore, FormRenderer } from '@byline/admin/react'
+import { claimSaveAttempt, type EditorViewStateStore, FormRenderer } from '@byline/admin/react'
 import type { SingletonAdminConfig, SingletonDefinition, UnavailableBlock } from '@byline/core'
 import {
   getDefaultStatus,
@@ -19,6 +19,7 @@ import {
   getWorkflowStatuses,
   validateStatusTransition,
 } from '@byline/core'
+import { getDocumentHookCommittedDetails } from '@byline/core/services'
 import { useTranslation } from '@byline/i18n/react'
 import { Container, Section, useToastManager } from '@byline/ui/react'
 
@@ -133,6 +134,9 @@ export function SingletonView({
   }
 
   const handleSubmit = async ({ data }: { data: Record<string, any> }) => {
+    // Claimed before the first await: this save attempt's restoration
+    // receipt, which a late callback from an older attempt cannot touch.
+    const saveAttempt = claimSaveAttempt(document == null ? undefined : viewState)
     try {
       mutation.assertWritable()
       const result = await updateSingleton({
@@ -146,6 +150,7 @@ export function SingletonView({
         },
       })
       mutation.adopt(result)
+      saveAttempt.expectRefresh(result)
       if (document != null) notifyScheduleSuspended()
       if (hasCommittedDocumentHookFailure(result)) {
         notifyCommittedHookFailure()
@@ -161,6 +166,10 @@ export function SingletonView({
       const handled = mutation.report(err)
       if (handled === 'blocked') throw err
       if (handled === 'committed') {
+        // The warning decision belongs to this save attempt, before reload.
+        saveAttempt.markSaveWarning()
+        const committed = getDocumentHookCommittedDetails(err)
+        if (committed) saveAttempt.expectRefresh(committed)
         notifyCommittedHookFailure()
         await reload()
         return

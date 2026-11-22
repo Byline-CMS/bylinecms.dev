@@ -28,6 +28,7 @@ import { useFormDomScope } from './form-dom-scope'
 import styles from './form-renderer.module.css'
 import { useFormLayout } from './use-form-layout'
 import { useFormTabs } from './use-form-tabs'
+import { TABSET_FIELDS_ATTR } from './view-state/resolve-target'
 
 export interface FormLayoutProps {
   fields: Field[]
@@ -125,9 +126,19 @@ export const FormLayout = ({
   const renderTabSet = (set: TabSetDefinition): ReactNode => {
     const { visibleTabs, activeTabName, activeTab, errorCounts } = tabs.resolve(set)
     const idBase = `${domScope}tabset:${set.name}`
+    // Lets save restoration tell a target under an unselected tab (fall back
+    // to the active trigger at once) from one that is still mounting.
+    const tabSetFields = [...fieldToTabPath]
+      .filter(([, tabPath]) => tabPath.tabSetName === set.name)
+      .map(([name]) => name)
+      .join(' ')
 
     return (
-      <div key={idBase} className={cx('byline-form-tabset', styles.tabset)}>
+      <div
+        key={idBase}
+        className={cx('byline-form-tabset', styles.tabset)}
+        {...{ [TABSET_FIELDS_ATTR]: tabSetFields }}
+      >
         {visibleTabs.length > 0 && (
           <AdminTabs
             idBase={idBase}

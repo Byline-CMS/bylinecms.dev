@@ -16,6 +16,7 @@ import {
 import {
   defineAdminConfig,
   defineSingleton,
+  ERR_DOCUMENT_HOOK_COMMITTED,
   ERR_DOCUMENT_STALE,
   type SingletonDefinition,
 } from '@byline/core'
@@ -525,5 +526,61 @@ describe('SingletonView', () => {
     render(loadedDocument)
     expect(mocks.viewStatesSeen.length).toBeGreaterThan(0)
     expect(mocks.viewStatesSeen.every((seen) => seen === store)).toBe(true)
+  })
+})
+
+describe('SingletonView: restoring the working target after a save', () => {
+  const savedDocument = { ...loadedDocument, versionId: 'version-next', revision: 8 }
+
+  it('a refresh that renders before the save settles still restores the working target', async () => {
+    viewStateUnderTest = createEditorViewStateStore()
+    // As observed in the host: `router.invalidate()` delivers the new version
+    // and the form remounts before the submit handler has resolved.
+    mocks.invalidate.mockImplementationOnce(async () => {
+      root.render(view({ ...savedDocument, fields: { ...savedDocument.fields, title: 'Saved' } }))
+    })
+    render(loadedDocument)
+    const before = container.querySelector<HTMLInputElement>('input[name="title"]')
+    typeIntoTitle('Saved')
+    await submit()
+
+    const after = container.querySelector<HTMLInputElement>('input[name="title"]')
+    expect(after).not.toBe(before)
+    expect(document.activeElement).toBe(after)
+  })
+
+  it('thrown committed path: the warning has focus', async () => {
+    viewStateUnderTest = createEditorViewStateStore()
+    mocks.update.mockRejectedValueOnce(
+      ERR_DOCUMENT_HOOK_COMMITTED({
+        message: 'Test failure',
+        details: {
+          phase: 'afterUpdate',
+          documentId: 'doc-settings',
+          documentVersionId: 'version-next',
+          revision: 8,
+          sideEffectCode: 'ERR_UNHANDLED',
+        },
+      })
+    )
+    mocks.invalidate.mockImplementationOnce(async () => {
+      root.render(view(savedDocument))
+    })
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+    try {
+      render(loadedDocument)
+      typeIntoTitle('Saved')
+      await submit()
+
+      const warning = container.querySelector('.byline-document-concurrency')
+      expect(warning).not.toBeNull()
+      expect(document.activeElement).toBe(warning)
+      // The restoration chose the warning and made it visible.
+      expect(scrollIntoView.mock.contexts.at(-1)).toBe(warning)
+      expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'nearest', behavior: 'instant' })
+    } finally {
+      delete (Element.prototype as any).scrollIntoView
+    }
   })
 })

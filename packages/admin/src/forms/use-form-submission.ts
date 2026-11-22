@@ -17,6 +17,9 @@ import { useTranslation } from '@byline/i18n/react'
 import { useBylineFieldServices } from '../fields/field-services-context'
 import { useFormContext } from './form-context'
 import { executeUploadsWithProgress } from './upload-executor'
+import { useEditorViewState } from './view-state/editor-view-state-context'
+import { beginSaveAttempt, settleSaveAttempt } from './view-state/restore-session'
+import type { SaveOutcome } from './view-state/editor-view-state'
 
 /**
  * Payload emitted by the form on Save. Carries the content (field data +
@@ -68,6 +71,12 @@ export interface UseFormSubmissionOptions {
    * hook only signals the transition.
    */
   onBeforeBusy?: () => void
+  /**
+   * Called once `onSubmit` has settled, before the form leaves its busy
+   * phase. Only reached when a save was actually delivered: validation,
+   * upload and confirmation exits never call it.
+   */
+  onSaveSettled?: (outcome: SaveOutcome) => void
 }
 
 export interface UseFormSubmissionResult {
@@ -91,7 +100,17 @@ const IDLE: SubmissionPhase = { kind: 'idle' }
  * final request. `phase` drives the UI; the ref decides admission.
  */
 export function useFormSubmission(options: UseFormSubmissionOptions): UseFormSubmissionResult {
-  const { mode, fields, documentId, advertiseLocales, onSubmit, isBlocked, onBeforeBusy } = options
+  const {
+    mode,
+    fields,
+    documentId,
+    advertiseLocales,
+    onSubmit,
+    isBlocked,
+    onBeforeBusy,
+    onSaveSettled,
+  } = options
+  const viewState = useEditorViewState()
 
   const {
     getFieldValues,
@@ -136,19 +155,29 @@ export function useFormSubmission(options: UseFormSubmissionOptions): UseFormSub
       }
       onBeforeBusy?.()
       setPhase({ kind: 'submitting' })
+      // The save attempt begins here and nowhere earlier: a validation
+      // failure, an upload failure or a cancelled confirmation never reaches
+      // this point, so it never leaves a restoration pending. The host's
+      // `onSubmit` must be called synchronously after this, because it
+      // claims the attempt before its first `await` (`claimSaveAttempt`).
+      const saveSeq = viewState ? beginSaveAttempt(viewState) : null
+      let outcome: SaveOutcome = 'refused'
       try {
         await onSubmit(payload)
         resetHasChanges()
+        outcome = 'success'
       } catch (error) {
         const validation = getDocumentFieldValidationDetails(error)
         for (const issue of validation?.issues ?? []) setFieldError(issue.field, issue.message)
         // Intentionally swallowed here — the host has already reported the
         // failure to the user. Dirty state is preserved by not resetting.
       } finally {
+        if (viewState && saveSeq != null) settleSaveAttempt(viewState, saveSeq, outcome)
+        onSaveSettled?.(outcome)
         setPhase(IDLE)
       }
     },
-    [isBlocked, onBeforeBusy, onSubmit, resetHasChanges, setFieldError]
+    [isBlocked, onBeforeBusy, onSaveSettled, onSubmit, resetHasChanges, setFieldError, viewState]
   )
 
   const runUploads = useCallback(async (): Promise<boolean> => {

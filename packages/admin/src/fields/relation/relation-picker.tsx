@@ -324,7 +324,11 @@ export const RelationPicker = ({
           </div>
         </Modal.Header>
         <Modal.Content>
-          <div className={cx('byline-field-relation-picker-body', styles.body)}>
+          {/* Searching and paging the picker edits no field value. */}
+          <div
+            className={cx('byline-field-relation-picker-body', styles.body)}
+            data-byline-transient=""
+          >
             <Search
               onSearch={(q) => {
                 setPage(1)

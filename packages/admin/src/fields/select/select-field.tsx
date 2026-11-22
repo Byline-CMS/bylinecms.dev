@@ -12,6 +12,7 @@ import cx from 'clsx'
 
 import { useFieldError, useFieldValue, useIsDirty } from '../../forms/form-context'
 import { useScopedDomId } from '../../forms/form-dom-scope'
+import { targetMarker } from '../../forms/view-state/target-markers'
 import styles from './select-field.module.css'
 
 export const SelectField = ({
@@ -37,7 +38,7 @@ export const SelectField = ({
   const htmlId = useScopedDomId(fieldPath, id)
 
   return (
-    <div className={`byline-field-select ${field.name}`}>
+    <div className={`byline-field-select ${field.name}`} {...targetMarker(fieldPath, 'field')}>
       {field.label && (
         <Label
           id={htmlId}

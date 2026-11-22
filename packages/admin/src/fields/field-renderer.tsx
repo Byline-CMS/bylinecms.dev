@@ -20,6 +20,14 @@ import cx from 'clsx'
 
 import { useFormContext } from '../forms/form-context'
 import { useScopedDomId } from '../forms/form-dom-scope'
+import { useEditorViewState } from '../forms/view-state/editor-view-state-context'
+import {
+  findMarker,
+  recordTargetFromElement,
+  targetMarker,
+  useRecordTarget,
+  useTargetForm,
+} from '../forms/view-state/target-markers'
 import { ArrayField } from './array/array-field'
 import { BlocksField } from './blocks/blocks-field'
 import { CheckboxField } from './checkbox/checkbox-field'
@@ -95,6 +103,31 @@ export const FieldRenderer = ({
 
   const handleChange = useFieldChangeHandler(field, path)
   const { getFieldValue } = useFormContext()
+  const viewState = useEditorViewState()
+  const recordTarget = useRecordTarget()
+  const getForm = useTargetForm()
+
+  // Widgets whose changes raise no DOM `input`/`change` event (pickers,
+  // toggles built on buttons) record the working target from their change
+  // handler. Every call here comes from the editor's own action.
+  const handlePickedChange = (value: any) => {
+    recordTarget(path, 'field')
+    handleChange(value)
+  }
+  // Content-editable editors (rich text, code) may report a change after a
+  // debounce or without a DOM `input` event. They record only while focus is
+  // inside the field, so an initialisation or programmatic change never moves
+  // the working target.
+  const handleEditorChange = (value: any) => {
+    const form = getForm()
+    if (viewState && form) {
+      const marker = findMarker(form, path, 'field')
+      if (marker?.contains(marker.ownerDocument.activeElement)) {
+        recordTargetFromElement(viewState, marker)
+      }
+    }
+    handleChange(value)
+  }
 
   // Conditional visibility (BaseField.condition) — re-evaluated on every form
   // edit; the field unmounts while its condition is false.
@@ -155,7 +188,7 @@ export const FieldRenderer = ({
           <CodeField
             field={hideLabel ? { ...field, label: undefined } : field}
             defaultValue={defaultValue}
-            onChange={handleChange}
+            onChange={handleEditorChange}
             path={path}
             id={htmlId}
             locale={isLocalised ? contentLocale : undefined}
@@ -167,7 +200,7 @@ export const FieldRenderer = ({
           <CheckboxField
             field={hideLabel ? { ...field, label: undefined } : field}
             defaultValue={defaultValue}
-            onChange={handleChange}
+            onChange={handlePickedChange}
             path={path}
             id={htmlId}
           />
@@ -177,7 +210,7 @@ export const FieldRenderer = ({
           <SelectField
             field={hideLabel ? { ...field, label: undefined } : field}
             defaultValue={defaultValue}
-            onChange={handleChange}
+            onChange={handlePickedChange}
             path={path}
             id={htmlId}
           />
@@ -195,15 +228,24 @@ export const FieldRenderer = ({
               '`fields.richText.editor` in your admin config.'
           )
         }
+        // The marker sits on a focusable wrapper, never on the editor's
+        // content-editable root: focusing the root could establish a caret
+        // before a saved selection has been validated.
         return (
-          <RichTextEditor
-            field={hideLabel ? { ...field, label: undefined } : field}
-            defaultValue={defaultValue}
-            onChange={handleChange}
-            path={path}
-            instanceKey={htmlId}
-            locale={isLocalised ? contentLocale : undefined}
-          />
+          <div
+            className={cx('byline-field-richtext-target', styles['richtext-target'])}
+            tabIndex={-1}
+            {...targetMarker(path, 'field')}
+          >
+            <RichTextEditor
+              field={hideLabel ? { ...field, label: undefined } : field}
+              defaultValue={defaultValue}
+              onChange={handleEditorChange}
+              path={path}
+              instanceKey={htmlId}
+              locale={isLocalised ? contentLocale : undefined}
+            />
+          </div>
         )
       }
       case 'datetime':
@@ -211,7 +253,7 @@ export const FieldRenderer = ({
           <DateTimeField
             field={hideLabel ? { ...field, label: undefined } : field}
             defaultValue={defaultValue}
-            onChange={handleChange}
+            onChange={handlePickedChange}
             path={path}
             id={htmlId}
           />
@@ -280,7 +322,7 @@ export const FieldRenderer = ({
           <RelationField
             field={hideLabel ? { ...field, label: undefined } : field}
             defaultValue={defaultValue}
-            onChange={handleChange}
+            onChange={handlePickedChange}
             path={path}
             id={htmlId}
           />

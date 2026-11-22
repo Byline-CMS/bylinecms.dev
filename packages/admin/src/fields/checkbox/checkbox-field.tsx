@@ -11,6 +11,7 @@ import { Checkbox } from '@byline/ui/react'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
 import { useScopedDomId } from '../../forms/form-dom-scope'
+import { targetMarker } from '../../forms/view-state/target-markers'
 import styles from './checkbox-field.module.css'
 
 export const CheckboxField = ({
@@ -35,7 +36,10 @@ export const CheckboxField = ({
   const checked = value ?? fieldValue ?? defaultValue ?? false
 
   return (
-    <div className={`byline-field-checkbox ${field.name} ${styles['field-checkbox']}`}>
+    <div
+      className={`byline-field-checkbox ${field.name} ${styles['field-checkbox']}`}
+      {...targetMarker(fieldPath, 'field')}
+    >
       <Checkbox
         disabled={field.readOnly}
         id={htmlId}

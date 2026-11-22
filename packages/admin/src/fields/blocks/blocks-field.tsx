@@ -37,6 +37,12 @@ import { useScopedDomId } from '../../forms/form-dom-scope'
 import { hasExistingIdTargets } from '../../forms/nested-path'
 import { moveRepeatingItems, repeatingItemId, repeatingItemPath } from '../../forms/repeating-items'
 import { useUnavailableBlocks } from '../../forms/unavailable-blocks'
+import {
+  addedItemTarget,
+  movedItemTarget,
+  removedItemTarget,
+} from '../../forms/view-state/structural-targets'
+import { targetMarker, useRecordTarget } from '../../forms/view-state/target-markers'
 import styles from './blocks-field.module.css'
 
 // ---------------------------------------------------------------------------
@@ -67,6 +73,7 @@ export const BlocksField = ({
   const fieldError = useFieldError(path)
   const htmlId = useScopedDomId(path)
   const [items, setItems] = useState<{ id: string; data: any }[]>([])
+  const recordTarget = useRecordTarget()
   const [showAddBlockModal, setShowAddBlockModal] = useState(false)
   const [pendingInsertIndex, setPendingInsertIndex] = useState<number | null>(null)
 
@@ -137,6 +144,8 @@ export const BlocksField = ({
 
     setItems((prev) => moveItem(prev, move.fromIndex, move.toIndex))
     setFieldStore(path, move.items)
+    const moved = movedItemTarget(path, currentArray[move.fromIndex], move.toIndex)
+    recordTarget(moved.path, moved.role)
     appendPatch({
       kind: 'array.move',
       path,
@@ -190,6 +199,8 @@ export const BlocksField = ({
     const newArrayValue = currentArray ? [...currentArray] : []
     newArrayValue.splice(insertAt, 0, newItem)
     setFieldStore(path, newArrayValue)
+    const added = addedItemTarget(repeatingItemPath(path, newItem, insertAt), compositeFields)
+    recordTarget(added.path, added.role)
   }
 
   const handleRemoveItem = (index: number) => {
@@ -213,6 +224,8 @@ export const BlocksField = ({
     const newArrayValue = [...currentArray]
     newArrayValue.splice(index, 1)
     setFieldStore(path, newArrayValue)
+    const next = removedItemTarget(path, currentArray, index)
+    recordTarget(next.path, next.role)
   }
 
   const handleInsertBelow = (index: number, forcedVariantName?: string) => {
@@ -283,7 +296,7 @@ export const BlocksField = ({
   }
 
   return (
-    <div className={`byline-field-blocks ${field.name}`}>
+    <div className={`byline-field-blocks ${field.name}`} {...targetMarker(path, 'field')}>
       {field.label && (
         <h3 className={cx('byline-field-blocks-title', styles.title)}>{field.label}</h3>
       )}
@@ -322,6 +335,7 @@ export const BlocksField = ({
             }}
             disabled={field.readOnly || !selectedBlockName}
             aria-label={t('fields.blocks.addBlockAriaLabel')}
+            {...targetMarker(path, 'action:add')}
             variant="outlined"
           >
             <PlusIcon />

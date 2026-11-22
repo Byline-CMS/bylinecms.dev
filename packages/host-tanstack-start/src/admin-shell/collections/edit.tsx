@@ -8,7 +8,7 @@
 
 import { useState } from 'react'
 
-import { type EditorViewStateStore, FormRenderer } from '@byline/admin/react'
+import { claimSaveAttempt, type EditorViewStateStore, FormRenderer } from '@byline/admin/react'
 import type {
   CollectionAdminConfig,
   MultiCollectionDefinition,
@@ -21,6 +21,7 @@ import {
   getWorkflowStatuses,
   validateStatusTransition,
 } from '@byline/core'
+import { getDocumentHookCommittedDetails } from '@byline/core/services'
 import type { AnyCollectionSchemaTypes } from '@byline/core/zod-schemas'
 import { useTranslation } from '@byline/i18n/react'
 import { Container, Section, useToastManager } from '@byline/ui/react'
@@ -726,6 +727,9 @@ export const EditView = ({
     availableLocalesDirty: boolean
     systemAvailableLocales?: string[]
   }) => {
+    // Claimed before the first await: this save attempt's restoration
+    // receipt, which a late callback from an older attempt cannot touch.
+    const saveAttempt = claimSaveAttempt(viewState)
     try {
       mutation.assertWritable()
       const result = await updateCollectionDocumentWithPatches({
@@ -740,6 +744,7 @@ export const EditView = ({
         },
       })
       mutation.adopt(result)
+      saveAttempt.expectRefresh(result)
       const hookFailed = hasCommittedDocumentHookFailure(result)
       if (
         (contentDirty || pathDirty || availableLocalesDirty) &&
@@ -777,11 +782,17 @@ export const EditView = ({
         // baseline after this handler returns, so bypass the guard during the
         // intentional post-save refresh rather than racing that state update.
         ignoreBlocker: true,
+        // Save restoration re-anchors the working target after the refresh.
+        resetScroll: false,
       })
     } catch (err) {
       const handled = mutation.report(err)
       if (handled === 'blocked') throw err
       if (handled === 'committed') {
+        // The warning decision belongs to this save attempt, before reload.
+        saveAttempt.markSaveWarning()
+        const committed = getDocumentHookCommittedDetails(err)
+        if (committed) saveAttempt.expectRefresh(committed)
         notifyCommittedHookFailure()
         reloadDocument()
         return

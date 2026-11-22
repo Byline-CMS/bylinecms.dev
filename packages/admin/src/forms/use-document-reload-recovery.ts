@@ -14,11 +14,20 @@ export function useDocumentReloadRecovery({
   mutationIssue,
   onReloadDocument,
   isBusy,
+  restorationPending,
 }: {
   mutationsBlocked: boolean
   mutationIssue?: string | null
   onReloadDocument?: () => void | Promise<void>
   isBusy: boolean
+  /**
+   * Whether a save restoration (`useRestoreAfterSave`) owns focus for this
+   * mutation issue right now. Only forms with a visit store pass it. While it
+   * returns true, the mutation-issue focus stands down: the restoration
+   * focuses the warning itself when its save asked for that, and otherwise
+   * the working target.
+   */
+  restorationPending?: (issue: string) => boolean
 }) {
   const formRef = useRef<HTMLFormElement>(null)
   const focusBeforeBusyRef = useRef<HTMLElement | null>(null)
@@ -28,8 +37,11 @@ export function useDocumentReloadRecovery({
   const warningRef = useRef<HTMLDivElement>(null)
   const mutationBlockedRef = useRef(mutationsBlocked)
   mutationBlockedRef.current = mutationsBlocked || discarding
+  const restorationPendingRef = useRef(restorationPending)
+  restorationPendingRef.current = restorationPending
   useEffect(() => {
-    if (mutationIssue) warningRef.current?.focus()
+    if (!mutationIssue || restorationPendingRef.current?.(mutationIssue)) return
+    warningRef.current?.focus()
   }, [mutationIssue])
   useEffect(() => {
     if (!discarding) return
@@ -75,6 +87,15 @@ export function useDocumentReloadRecovery({
     target?.focus({ preventScroll: true })
   }, [isBusy, mutationIssue])
 
+  // A successful save in a form with a visit store is restored by
+  // `useRestoreAfterSave`, which waits for the refreshed form. The busy-end
+  // recovery above would otherwise focus a control the refresh is about to
+  // replace. Refused saves never call this and keep the recovery above.
+  const standDownAfterSuccess = useCallback(() => {
+    restoreFocusAfterBusyRef.current = false
+    focusBeforeBusyRef.current = null
+  }, [])
+
   const requestDiscard = useCallback(() => {
     mutationBlockedRef.current = true
     setReloadFailed(false)
@@ -88,5 +109,6 @@ export function useDocumentReloadRecovery({
     reloadFailed,
     requestDiscard,
     captureFocusBeforeBusy,
+    standDownAfterSuccess,
   }
 }

@@ -29,6 +29,7 @@ import cx from 'clsx'
 
 import { useFieldError, useFieldValue } from '../../forms/form-context'
 import { useScopedDomId } from '../../forms/form-dom-scope'
+import { targetMarker } from '../../forms/view-state/target-markers'
 import styles from './relation-field.module.css'
 import { RelationPicker } from './relation-picker'
 import { RelationSummary } from './relation-summary'
@@ -134,7 +135,7 @@ export const RelationField = ({
   const isUnknown = targetDef == null
 
   return (
-    <div className={`byline-field-relation ${field.name}`}>
+    <div className={`byline-field-relation ${field.name}`} {...targetMarker(fieldPath, 'field')}>
       <div className={cx('byline-field-relation-header', styles.header)}>
         <Label
           id={`${htmlId}-label`}

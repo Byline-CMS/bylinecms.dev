@@ -68,6 +68,7 @@ export * from './forms/path-widget.js'
 export * from './forms/scheduled-publication-state.js'
 export * from './forms/view-state/editor-view-state.js'
 export { useEditorViewState } from './forms/view-state/editor-view-state-context.js'
+export { claimSaveAttempt } from './forms/view-state/restore-session.js'
 export { useEditorViewVisit } from './forms/view-state/use-editor-view-visit.js'
 // Validation error code → translation helper. Sibling to schemas in
 // `@byline/core/validation`, which emit codes; this helper maps the

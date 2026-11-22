@@ -6,13 +6,14 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { type CSSProperties, type ReactNode, type Ref, useState } from 'react'
+import { type CSSProperties, type MouseEvent, type ReactNode, type Ref, useState } from 'react'
 
 import { useTranslation } from '@byline/i18n/react'
 import { ChevronDownIcon, GripperVerticalIcon, useSortable } from '@byline/ui/react'
 import cx from 'clsx'
 
 import { useEditorViewState } from '../forms/view-state/editor-view-state-context'
+import { targetMarker } from '../forms/view-state/target-markers'
 import { DraggableContextMenu } from './draggable-context-menu'
 import styles from './sortable-item.module.css'
 
@@ -74,10 +75,17 @@ const ItemFrame = ({
     itemPath ? (store?.isCollapsed(itemPath) ?? false) : false
   )
 
-  const toggleCollapsed = () => {
+  const toggleCollapsed = (event: MouseEvent<HTMLButtonElement>) => {
     const next = !collapsed
     setCollapsed(next)
-    if (store && itemPath) store.setCollapsed(itemPath, next)
+    if (store && itemPath) {
+      store.setCollapsed(itemPath, next)
+      store.setTarget({
+        path: itemPath,
+        role: 'toggle',
+        offset: event.currentTarget.getBoundingClientRect().top,
+      })
+    }
   }
 
   return (
@@ -101,11 +109,12 @@ const ItemFrame = ({
       >
         {grip}
         <div className={cx('byline-sortable-label', styles.label)}>{label}</div>
-        <DraggableContextMenu onAddBelow={onAddBelow} onRemove={onRemove} />
+        <DraggableContextMenu itemPath={itemPath} onAddBelow={onAddBelow} onRemove={onRemove} />
         <button
           type="button"
           className={cx('byline-sortable-toggle', styles.toggle)}
           onClick={toggleCollapsed}
+          {...(itemPath ? targetMarker(itemPath, 'toggle') : {})}
           aria-label={
             collapsed
               ? t('fields.sortable.expandAriaLabel')
@@ -178,6 +187,7 @@ export const SortableItem = ({
           className={cx('byline-sortable-grip', styles.grip)}
           {...attributes}
           {...listeners}
+          {...(itemPath ? targetMarker(itemPath, 'grip') : {})}
         >
           <GripperVerticalIcon className={cx('byline-sortable-grip-icon', styles['grip-icon'])} />
         </button>

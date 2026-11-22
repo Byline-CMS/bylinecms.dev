@@ -33,6 +33,7 @@ import {
   useIsFieldUploading,
 } from '../../forms/form-context'
 import { useScopedDomId } from '../../forms/form-dom-scope'
+import { targetMarker, useRecordTarget } from '../../forms/view-state/target-markers'
 import { useFieldChangeHandler } from '../use-field-change-handler'
 import styles from './file-field.module.css'
 import { FileUploadField } from './file-upload-field'
@@ -83,6 +84,7 @@ export const FileField = ({
   const { removePendingUpload, documentId, collectionPath } = useFormContext()
 
   const handleChange = useFieldChangeHandler(field, fieldPath)
+  const recordTarget = useRecordTarget()
 
   // Mirror the image-field rule: once the field has been touched, the form
   // value is authoritative (even when null, so a click-to-remove sticks);
@@ -114,6 +116,7 @@ export const FileField = ({
     if (isPending) {
       removePendingUpload(fieldPath)
     }
+    recordTarget(fieldPath, 'field')
     handleChange(null)
   }
 
@@ -128,7 +131,7 @@ export const FileField = ({
   const htmlId = useScopedDomId(fieldPath)
 
   return (
-    <div className={`byline-field-file ${field.name}`}>
+    <div className={`byline-field-file ${field.name}`} {...targetMarker(fieldPath, 'field')}>
       <div className={cx('byline-field-file-header', styles.header)}>
         <Label
           id={htmlId}
@@ -153,6 +156,7 @@ export const FileField = ({
             collectionPath={collectionPath}
             fieldPath={fieldPath}
             onUploaded={(uploaded) => {
+              recordTarget(fieldPath, 'field')
               handleChange(uploaded)
             }}
           />

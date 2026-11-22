@@ -42,6 +42,8 @@ vi.mock('@byline/admin/react', () => ({
     mocks.formProps.push(props)
     return <div data-testid="form-renderer" />
   },
+  // No view-state store reaches this host test; the claim is inert.
+  claimSaveAttempt: () => ({ expectRefresh: () => {}, markSaveWarning: () => {} }),
 }))
 
 vi.mock('@byline/i18n/react', () => ({
@@ -334,6 +336,7 @@ describe('collection post-save navigation', () => {
       params: { collection: 'languages', id: 'language-en' },
       search: expect.any(Function),
       ignoreBlocker: true,
+      resetScroll: false,
     })
   })
 
