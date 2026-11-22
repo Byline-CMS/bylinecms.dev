@@ -4,9 +4,9 @@ import { defineConfig } from 'vitest/config'
 // Mirrors the dual-mode pattern used by `@byline/core`. Node-mode picks
 // up `*.test.node.ts(x)` files (pure, no DOM); jsdom-mode picks up the
 // remaining `*.test.ts(x)`. The package-level `test` script runs both
-// modes (jsdom first, then node), so the real-wiring Lexical tests, such
-// as the caret-restore regressions in `selection-restore.test.tsx`, run
-// in CI alongside the framework-agnostic node suite.
+// modes (jsdom first, then node), so the real-wiring Lexical smoke tests,
+// such as `selection-restore.test.tsx`, run in CI alongside the
+// framework-agnostic node suite.
 //
 // jsdom mode carries the React plugin because the extension graph is
 // React-bearing: a test that builds the default extension set pulls in

@@ -31,10 +31,16 @@ import { hashSerializedState } from './utils/hashSerializedState'
 // A stub with only the core types means nothing in these fixtures needs
 // converting, so the plugin's apply behaviour is what is under test here
 // rather than normalization (covered in `normalize/`).
+let appliedState: unknown = null
 const mockEditor = {
   update: (fn: () => void) => fn(),
   parseEditorState: vi.fn((val) => val),
-  setEditorState: vi.fn(),
+  setEditorState: vi.fn((state: unknown) => {
+    appliedState = state
+  }),
+  // ApplyValuePlugin reads the settled state two animation frames after it
+  // applies a value; without this the frame fires after the test and throws.
+  getEditorState: () => ({ toJSON: () => appliedState }),
   _nodes: new Map<string, unknown>([
     ['root', {}],
     ['paragraph', {}],
