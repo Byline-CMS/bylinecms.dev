@@ -32,6 +32,9 @@ create routes.
   field decides which structures it accepts, how that differs from which
   controls it shows, and what happens to stored content a field no longer
   supports.
+- [Editor view state](./05-editor-view-state.md) — what the document editor
+  remembers across saves and locale switches, what starts a new editing visit,
+  and what a host or custom field must do to take part.
 
 ## Document API view
 
