@@ -8,8 +8,14 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
+import {
+  beginActionRestore,
+  documentActionMarker,
+  noteActionLaunch,
+  useEditorViewState,
+} from '@byline/admin/react'
 import type { SingletonAdminConfig, SingletonPreviewDocument } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Button, HistoryIcon, IconButton, Label, Select, Tooltip } from '@byline/ui/react'
@@ -43,6 +49,9 @@ export function SingletonViewMenu({
 }) {
   const navigate = useNavigate()
   const { t } = useTranslation('byline-admin')
+  // The edit form's visit store; `null` on the history view.
+  const viewState = useEditorViewState()
+  const localeRef = useRef<HTMLSpanElement>(null)
 
   // Edit always represents one concrete locale. Strip the history-only `all`
   // sentinel if a copied URL brings it back to the form.
@@ -59,13 +68,28 @@ export function SingletonViewMenu({
 
   const handleLocaleChange = (value: string | null) => {
     if (value == null) return
+    if (activeView === 'history') {
+      navigate({
+        to: getAdminRoutePath('singletons', '$singleton', 'history'),
+        params: { singleton },
+        search: { locale: value },
+      })
+      return
+    }
+    // Recorded before navigating, without clearing anything: the new locale's
+    // form consumes it, and Stay on the unsaved-changes prompt discards it.
+    // The listbox hands focus back to the selector's trigger as it closes.
+    const trigger = localeRef.current?.querySelector('[aria-haspopup], button, select')
+    if (viewState && trigger) noteActionLaunch(viewState, trigger)
+    beginActionRestore(viewState, {
+      role: 'action:locale',
+      fromLocale: locale ?? defaultContentLocale,
+    }).record({ toLocale: value })
     navigate({
-      to:
-        activeView === 'history'
-          ? getAdminRoutePath('singletons', '$singleton', 'history')
-          : getAdminRoutePath('singletons', '$singleton'),
+      to: getAdminRoutePath('singletons', '$singleton'),
       params: { singleton },
       search: { locale: value },
+      resetScroll: false,
     })
   }
 
@@ -78,21 +102,28 @@ export function SingletonViewMenu({
           htmlFor="contentLocale"
           label={t('collections.viewMenu.contentLocaleLabel')}
         />
-        <Select<string>
-          name="contentLocale"
-          id="contentLocale"
-          className={cx('byline-view-menu-locale-select', collectionStyles.localeSelect)}
-          size="xs"
-          variant="outlined"
-          value={locale ?? defaultContentLocale}
-          items={[
-            ...(activeView === 'history'
-              ? [{ value: 'all', label: t('collections.viewMenu.localeAll') }]
-              : []),
-            ...contentLocales.map((entry) => ({ value: entry.code, label: entry.label })),
-          ]}
-          onValueChange={handleLocaleChange}
-        />
+        {/* `display: contents` keeps the select a direct item of the flex group. */}
+        <span
+          ref={localeRef}
+          style={{ display: 'contents' }}
+          {...documentActionMarker('action:locale')}
+        >
+          <Select<string>
+            name="contentLocale"
+            id="contentLocale"
+            className={cx('byline-view-menu-locale-select', collectionStyles.localeSelect)}
+            size="xs"
+            variant="outlined"
+            value={locale ?? defaultContentLocale}
+            items={[
+              ...(activeView === 'history'
+                ? [{ value: 'all', label: t('collections.viewMenu.localeAll') }]
+                : []),
+              ...contentLocales.map((entry) => ({ value: entry.code, label: entry.label })),
+            ]}
+            onValueChange={handleLocaleChange}
+          />
+        </span>
       </div>
       <div className={cx('byline-view-menu-nav', collectionStyles.group)}>
         {adminConfig?.preview != null && doc != null && (

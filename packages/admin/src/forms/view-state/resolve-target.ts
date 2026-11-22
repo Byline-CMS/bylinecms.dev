@@ -6,8 +6,9 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { formatInstancePath, parseInstancePath } from '@byline/core'
+import { type Field, formatInstancePath, parseInstancePath } from '@byline/core'
 
+import { hasExistingIdTargets } from '../nested-path'
 import { findMarker } from './target-markers'
 import { trustedAddress } from './view-state-address'
 import type { ViewTarget } from './editor-view-state'
@@ -92,14 +93,14 @@ function addressChain(path: string): string[] {
   return chain
 }
 
-export function topLevelName(path: string): string | null {
+function topLevelName(path: string): string | null {
   const parsed = parseInstancePath(path)
   const first = parsed.ok ? parsed.segments[0] : undefined
   return first?.kind === 'field' ? first.name : null
 }
 
 /** The tab-set container that holds `fieldName`, when it sits in a tab set. */
-export function tabSetContaining(form: ParentNode, fieldName: string): HTMLElement | null {
+function tabSetContaining(form: ParentNode, fieldName: string): HTMLElement | null {
   for (const container of form.querySelectorAll<HTMLElement>(`[${TABSET_FIELDS_ATTR}]`)) {
     const names = (container.getAttribute(TABSET_FIELDS_ATTR) ?? '').split(' ')
     if (names.includes(fieldName)) return container
@@ -135,6 +136,26 @@ export function isExactControlPending(form: ParentNode, target: ViewTarget): boo
   if (!isUsable(marker)) return false
   if (marker.querySelector(`[${LOADING_ATTR}]`)) return true
   return !marker.matches(FOCUSABLE) && marker.querySelector(FOCUSABLE) == null
+}
+
+/**
+ * Whether `target` is gone, or can never mount: its field is not in the
+ * schema, sits under an unselected tab, or an item on its trusted path is no
+ * longer in the form's data. Restoration then falls back without waiting.
+ */
+export function isTargetGone(
+  form: ParentNode,
+  target: ViewTarget,
+  fields: readonly Field[],
+  values: unknown
+): boolean {
+  const trusted = trustedAddress(target.path)
+  const name = trusted === '' ? null : topLevelName(trusted)
+  if (name == null) return true
+  if (!fields.some((field) => 'name' in field && field.name === name)) return true
+  // A field under an unselected tab is not rendered and will not be.
+  if (tabSetContaining(form, name) && findMarker(form, name, 'field') == null) return true
+  return !hasExistingIdTargets(values, trusted)
 }
 
 /**

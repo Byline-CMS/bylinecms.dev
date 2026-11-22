@@ -17,7 +17,7 @@
  * visible at its call site.
  */
 
-import type { ReactNode, RefObject } from 'react'
+import { type ReactNode, type RefObject, useRef } from 'react'
 
 import type {
   SlugifierFn,
@@ -40,6 +40,9 @@ import {
   type UseScheduledPublicationReturn,
 } from './scheduled-publication-control'
 import { TreePlacementWidget } from './tree-placement-widget'
+import { useEditorViewState } from './view-state/editor-view-state-context'
+import { noteActionLaunch } from './view-state/restore-session'
+import { documentActionMarker } from './view-state/target-markers'
 import type { PublishedVersionInfo } from './form-renderer'
 import type { StatusTransitions } from './status-transitions'
 
@@ -125,12 +128,19 @@ export const FormStatusBar = ({
 }: FormStatusBarProps): ReactNode => {
   const { t } = useTranslation('byline-admin')
   const { primaryStatus, secondaryStatuses, isTerminal } = transitions
-  const runTransition = async (status: string) => {
+  const viewState = useEditorViewState()
+  const statusWrapRef = useRef<HTMLDivElement>(null)
+  const runTransition = async (status: string, viaMenu = false) => {
     if (isBlocked() || !onStatusChange) return
     if (hasChanges) {
       onUnsavedChanges()
       return
     }
+    // The menu item has focus now, but the menu's trigger is what survives.
+    const trigger = viaMenu
+      ? statusWrapRef.current?.querySelector('[aria-haspopup]:not([aria-haspopup="false"])')
+      : null
+    if (viewState && trigger) noteActionLaunch(viewState, trigger)
     onStatusBusyChange(true)
     try {
       await onStatusChange(status)
@@ -194,7 +204,11 @@ export const FormStatusBar = ({
           )}
         </Button>
         {primaryStatus && onStatusChange && (
-          <div className={cx('byline-form-actions-status-wrap', styles['actions-status-wrap'])}>
+          <div
+            ref={statusWrapRef}
+            className={cx('byline-form-actions-status-wrap', styles['actions-status-wrap'])}
+            {...documentActionMarker('action:status')}
+          >
             <ComboButton
               buttonClassName={cx(
                 'byline-form-actions-combo-button',
@@ -215,7 +229,7 @@ export const FormStatusBar = ({
               type="button"
               intent={isTerminal ? 'info' : 'success'}
               disabled={disabled || statusBusy}
-              onOptionSelect={runTransition}
+              onOptionSelect={(status) => runTransition(status, true)}
               onButtonClick={isTerminal ? undefined : () => runTransition(primaryStatus.name)}
             >
               {statusBusy

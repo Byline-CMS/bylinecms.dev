@@ -584,3 +584,51 @@ describe('SingletonView: restoring the working target after a save', () => {
     }
   })
 })
+
+describe('SingletonView: focus and scroll across in-editor navigations', () => {
+  const frames = async (ms = 80) => {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, ms))
+    })
+  }
+  const statusControl = () =>
+    container.querySelector<HTMLElement>('[data-byline-role="action:status"] button')
+
+  it('after a locale switch the locale selector has focus and scroll is not reset', () => {
+    viewStateUnderTest = createEditorViewStateStore()
+    render(loadedDocument)
+    const select = container.querySelector<HTMLSelectElement>('select[name="contentLocale"]')
+    if (select == null) throw new Error('locale selector not found')
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value')?.set
+    act(() => {
+      setter?.call(select, 'fr')
+      select.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    expect(mocks.navigate).toHaveBeenLastCalledWith({
+      to: '/internal/cms/singletons/$singleton',
+      params: { singleton: 'site-settings' },
+      search: { locale: 'fr' },
+      resetScroll: false,
+    })
+
+    render(loadedDocument, 'fr')
+    expect(document.activeElement).toBe(container.querySelector('select[name="contentLocale"]'))
+  })
+
+  it('a status change refreshed before its handler resolves focuses the status control once it is enabled again', async () => {
+    viewStateUnderTest = createEditorViewStateStore()
+    // `router.invalidate()` delivers the refreshed document while the status
+    // control is still disabled by the running action.
+    mocks.invalidate.mockImplementationOnce(async () => {
+      root.render(view({ ...loadedDocument, revision: 8, status: 'published' }))
+    })
+    render(loadedDocument)
+    await act(async () => {
+      statusControl()?.click()
+    })
+    expect(mocks.changeStatus).toHaveBeenCalledTimes(1)
+    await frames()
+    expect(statusControl()).not.toBeNull()
+    expect(document.activeElement).toBe(statusControl())
+  })
+})

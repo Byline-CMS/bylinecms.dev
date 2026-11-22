@@ -8,7 +8,7 @@
  * Copyright (c) Infonomic Company Limited
  */
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 import { useTranslation } from '@byline/i18n/react'
 import {
@@ -25,6 +25,9 @@ import {
 import cx from 'clsx'
 
 import styles from './document-actions.module.css'
+import { useEditorViewState } from './view-state/editor-view-state-context'
+import { noteActionLaunch } from './view-state/restore-session'
+import { documentActionMarker } from './view-state/target-markers'
 import type { PublishedVersionInfo } from './form-renderer'
 import type { ScheduledPublicationState } from './scheduled-publication-state.js'
 
@@ -141,6 +144,17 @@ export function DocumentActions({
   onCancelScheduledPublication?: () => void | Promise<void>
 }) {
   const { t } = useTranslation('byline-admin')
+  const viewState = useEditorViewState()
+  const menuRef = useRef<HTMLSpanElement>(null)
+  /**
+   * An action chosen from this menu (scheduling, copy or delete locale) runs
+   * after its menu and modal have closed; the menu's trigger is where focus
+   * returns, so the action expects it back.
+   */
+  const noteMenuLaunch = () => {
+    const trigger = menuRef.current?.querySelector('[aria-haspopup], button')
+    if (viewState && trigger) noteActionLaunch(viewState, trigger)
+  }
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false)
   const [duplicateBusy, setDuplicateBusy] = useState(false)
@@ -186,28 +200,40 @@ export function DocumentActions({
         // Short form: the menu supplies the "this document" context that the
         // modal's title and submit button have to spell out for themselves.
         label: t('scheduledPublication.actions.scheduleMenuItem'),
-        onSelect: onSchedulePublication,
+        onSelect: () => {
+          noteMenuLaunch()
+          onSchedulePublication()
+        },
       })
     }
     if (scheduling.actions.confirm && onConfirmScheduledPublication != null) {
       schedulingActions.push({
         key: 'confirm',
         label: t('scheduledPublication.actions.confirm'),
-        onSelect: () => void onConfirmScheduledPublication(),
+        onSelect: () => {
+          noteMenuLaunch()
+          void onConfirmScheduledPublication()
+        },
       })
     }
     if (scheduling.actions.reschedule && onSchedulePublication != null) {
       schedulingActions.push({
         key: 'reschedule',
         label: t('scheduledPublication.actions.reschedule'),
-        onSelect: onSchedulePublication,
+        onSelect: () => {
+          noteMenuLaunch()
+          onSchedulePublication()
+        },
       })
     }
     if (scheduling.actions.cancel && onCancelScheduledPublication != null) {
       schedulingActions.push({
         key: 'cancel',
         label: t('scheduledPublication.actions.cancel'),
-        onSelect: () => void onCancelScheduledPublication(),
+        onSelect: () => {
+          noteMenuLaunch()
+          void onCancelScheduledPublication()
+        },
       })
     }
   }
@@ -267,6 +293,7 @@ export function DocumentActions({
     // is not silently sticky.
     setCopyTargetLocale(availableTargetLocales[0]?.code ?? '')
     setCopyOverwrite(false)
+    noteMenuLaunch()
     setShowCopyToLocaleConfirm(true)
   }
 
@@ -296,6 +323,7 @@ export function DocumentActions({
     // the first available target.
     const preferred = deletableLocales.find((loc) => loc.code === sourceLocale)?.code
     setDeleteTargetLocale(preferred ?? deletableLocales[0]?.code ?? '')
+    noteMenuLaunch()
     setShowDeleteLocaleConfirm(true)
   }
 
@@ -324,26 +352,28 @@ export function DocumentActions({
   return (
     <>
       {hasAnyAction && (
-        <DropdownComponent.Root>
-          <DropdownComponent.Trigger
-            disabled={disabled}
-            render={<IconButton variant="text" intent="noeffect" size="sm" />}
-          >
-            <EllipsisIcon
-              className={cx('byline-form-actions-icon', styles.icon)}
-              width="15px"
-              height="15px"
-            />
-          </DropdownComponent.Trigger>
-
-          <DropdownComponent.Portal>
-            <DropdownComponent.Content
-              className={cx('byline-form-actions-menu', styles.menu)}
-              align="end"
-              data-side="top"
-              sideOffset={10}
+        // `display: contents`: holds the trigger for `noteMenuLaunch` without a box.
+        <span ref={menuRef} style={{ display: 'contents' }}>
+          <DropdownComponent.Root>
+            <DropdownComponent.Trigger
+              disabled={disabled}
+              render={<IconButton variant="text" intent="noeffect" size="sm" />}
             >
-              {/*{publishedVersion && (
+              <EllipsisIcon
+                className={cx('byline-form-actions-icon', styles.icon)}
+                width="15px"
+                height="15px"
+              />
+            </DropdownComponent.Trigger>
+
+            <DropdownComponent.Portal>
+              <DropdownComponent.Content
+                className={cx('byline-form-actions-menu', styles.menu)}
+                align="end"
+                data-side="top"
+                sideOffset={10}
+              >
+                {/*{publishedVersion && (
               <>
                 <DropdownComponent.Item disabled={disabled} onClick={onUnpublish}>
                   <div className={cx('byline-form-actions-item', styles.item)}>
@@ -356,87 +386,99 @@ export function DocumentActions({
                 <DropdownComponent.Separator />
               </>
             )}*/}
-              {schedulingActions.length > 0 && (
-                <>
-                  {schedulingActions.map((action) => (
-                    <DropdownComponent.Item
-                      disabled={disabled}
-                      key={action.key}
-                      onClick={action.onSelect}
-                    >
-                      <div className={cx('byline-form-actions-item', styles.item)}>
-                        <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                          <button type="button" disabled={disabled}>
-                            {action.label}
-                          </button>
-                        </span>
-                      </div>
-                    </DropdownComponent.Item>
-                  ))}
-                  <DropdownComponent.Separator />
-                </>
-              )}
-              {copyToLocaleAvailable && (
-                <DropdownComponent.Item disabled={disabled} onClick={handleOpenCopyToLocale}>
-                  <div className={cx('byline-form-actions-item', styles.item)}>
-                    <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                      <button type="button" disabled={disabled}>
-                        {t('documentActions.copyToLocaleMenuItem')}
-                      </button>
-                    </span>
-                  </div>
-                </DropdownComponent.Item>
-              )}
-              {deleteLocaleAvailable && (
-                <DropdownComponent.Item disabled={disabled} onClick={handleOpenDeleteLocale}>
-                  <div className={cx('byline-form-actions-item', styles.item)}>
-                    <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                      <button type="button" disabled={disabled}>
-                        {t('documentActions.deleteLocale.menuItem')}
-                      </button>
-                    </span>
-                  </div>
-                </DropdownComponent.Item>
-              )}
-              {onDuplicate && (
-                <DropdownComponent.Item disabled={disabled} onClick={handleOpenDuplicate}>
-                  <div className={cx('byline-form-actions-item', styles.item)}>
-                    <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                      <button type="button" disabled={disabled}>
-                        {t('common.actions.duplicate')}
-                      </button>
-                    </span>
-                  </div>
-                </DropdownComponent.Item>
-              )}
-              {onDelete && (
-                <>
-                  <DropdownComponent.Separator />
+                {schedulingActions.length > 0 && (
+                  <>
+                    {schedulingActions.map((action) => (
+                      <DropdownComponent.Item
+                        disabled={disabled}
+                        key={action.key}
+                        onClick={action.onSelect}
+                        {...documentActionMarker('action:schedule')}
+                      >
+                        <div className={cx('byline-form-actions-item', styles.item)}>
+                          <span
+                            className={cx('byline-form-actions-item-text', styles['item-text'])}
+                          >
+                            <button type="button" disabled={disabled}>
+                              {action.label}
+                            </button>
+                          </span>
+                        </div>
+                      </DropdownComponent.Item>
+                    ))}
+                    <DropdownComponent.Separator />
+                  </>
+                )}
+                {copyToLocaleAvailable && (
                   <DropdownComponent.Item
                     disabled={disabled}
-                    onClick={() => {
-                      setShowDeleteConfirm(true)
-                    }}
+                    onClick={handleOpenCopyToLocale}
+                    {...documentActionMarker('action:copy-locale')}
                   >
                     <div className={cx('byline-form-actions-item', styles.item)}>
-                      <span className={cx('byline-form-actions-item-icon', styles['item-icon'])}>
-                        <DeleteIcon width="16px" height="16px" />
-                      </span>
                       <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
-                        <button
-                          type="button"
-                          className={cx('byline-form-actions-delete', styles.delete)}
-                        >
-                          {t('common.actions.delete')}
+                        <button type="button" disabled={disabled}>
+                          {t('documentActions.copyToLocaleMenuItem')}
                         </button>
                       </span>
                     </div>
                   </DropdownComponent.Item>
-                </>
-              )}
-            </DropdownComponent.Content>
-          </DropdownComponent.Portal>
-        </DropdownComponent.Root>
+                )}
+                {deleteLocaleAvailable && (
+                  <DropdownComponent.Item
+                    disabled={disabled}
+                    onClick={handleOpenDeleteLocale}
+                    {...documentActionMarker('action:delete-locale')}
+                  >
+                    <div className={cx('byline-form-actions-item', styles.item)}>
+                      <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
+                        <button type="button" disabled={disabled}>
+                          {t('documentActions.deleteLocale.menuItem')}
+                        </button>
+                      </span>
+                    </div>
+                  </DropdownComponent.Item>
+                )}
+                {onDuplicate && (
+                  <DropdownComponent.Item disabled={disabled} onClick={handleOpenDuplicate}>
+                    <div className={cx('byline-form-actions-item', styles.item)}>
+                      <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
+                        <button type="button" disabled={disabled}>
+                          {t('common.actions.duplicate')}
+                        </button>
+                      </span>
+                    </div>
+                  </DropdownComponent.Item>
+                )}
+                {onDelete && (
+                  <>
+                    <DropdownComponent.Separator />
+                    <DropdownComponent.Item
+                      disabled={disabled}
+                      onClick={() => {
+                        setShowDeleteConfirm(true)
+                      }}
+                    >
+                      <div className={cx('byline-form-actions-item', styles.item)}>
+                        <span className={cx('byline-form-actions-item-icon', styles['item-icon'])}>
+                          <DeleteIcon width="16px" height="16px" />
+                        </span>
+                        <span className={cx('byline-form-actions-item-text', styles['item-text'])}>
+                          <button
+                            type="button"
+                            className={cx('byline-form-actions-delete', styles.delete)}
+                          >
+                            {t('common.actions.delete')}
+                          </button>
+                        </span>
+                      </div>
+                    </DropdownComponent.Item>
+                  </>
+                )}
+              </DropdownComponent.Content>
+            </DropdownComponent.Portal>
+          </DropdownComponent.Root>
+        </span>
       )}
 
       <Modal

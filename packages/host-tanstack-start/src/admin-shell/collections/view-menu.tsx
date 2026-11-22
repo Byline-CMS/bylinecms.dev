@@ -7,8 +7,14 @@
  */
 
 import type { ReactNode } from 'react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
+import {
+  beginActionRestore,
+  documentActionMarker,
+  noteActionLaunch,
+  useEditorViewState,
+} from '@byline/admin/react'
 import type { CollectionAdminConfig, PreviewDocument } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
 import { Button, HistoryIcon, IconButton, Label, Select, Tooltip } from '@byline/ui/react'
@@ -89,6 +95,9 @@ export const ViewMenu = ({
 }) => {
   const navigate = useNavigate()
   const { t } = useTranslation('byline-admin')
+  // The edit form's visit store; `null` on the history and API views.
+  const viewState = useEditorViewState()
+  const localeRef = useRef<HTMLSpanElement>(null)
 
   // Edit view must never use 'all' locale — strip it from the URL and fall
   // back to the default locale if it somehow arrives via navigation.
@@ -123,10 +132,21 @@ export const ViewMenu = ({
         search: search as never,
       })
     } else {
+      // Recorded before navigating, without clearing anything: the new
+      // locale's form consumes it, and Stay on the unsaved-changes prompt
+      // discards it.
+      // The listbox hands focus back to the selector's trigger as it closes.
+      const trigger = localeRef.current?.querySelector('[aria-haspopup], button, select')
+      if (viewState && trigger) noteActionLaunch(viewState, trigger)
+      beginActionRestore(viewState, {
+        role: 'action:locale',
+        fromLocale: locale ?? defaultContentLocale,
+      }).record({ toLocale: value })
       navigate({
         to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection, id: documentId },
         search: search as never,
+        resetScroll: false,
       })
     }
   }
@@ -157,21 +177,28 @@ export const ViewMenu = ({
           htmlFor="contentLocale"
           label={t('collections.viewMenu.contentLocaleLabel')}
         />
-        <Select<string>
-          name="contentLocale"
-          id="contentLocale"
-          className={cx('byline-view-menu-locale-select', styles.localeSelect)}
-          size="xs"
-          variant="outlined"
-          value={locale ?? defaultContentLocale}
-          items={[
-            ...(activeView !== 'edit'
-              ? [{ value: 'all', label: t('collections.viewMenu.localeAll') }]
-              : []),
-            ...contentLocales.map((loc) => ({ value: loc.code, label: loc.label })),
-          ]}
-          onValueChange={handleLocaleChange}
-        />
+        {/* `display: contents` keeps the select a direct item of the flex group. */}
+        <span
+          ref={localeRef}
+          style={{ display: 'contents' }}
+          {...documentActionMarker('action:locale')}
+        >
+          <Select<string>
+            name="contentLocale"
+            id="contentLocale"
+            className={cx('byline-view-menu-locale-select', styles.localeSelect)}
+            size="xs"
+            variant="outlined"
+            value={locale ?? defaultContentLocale}
+            items={[
+              ...(activeView !== 'edit'
+                ? [{ value: 'all', label: t('collections.viewMenu.localeAll') }]
+                : []),
+              ...contentLocales.map((loc) => ({ value: loc.code, label: loc.label })),
+            ]}
+            onValueChange={handleLocaleChange}
+          />
+        </span>
         {activeView === 'api' && (
           <>
             <Label

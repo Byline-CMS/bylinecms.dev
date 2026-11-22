@@ -172,7 +172,8 @@ export const NavigationGuardModal = ({
   const { t } = useTranslation('byline-admin')
   return (
     <Modal isOpen={true} closeOnOverlayClick={false} onDismiss={onStay}>
-      <Modal.Container style={{ maxWidth: '460px' }}>
+      {/* Lets a pending restoration tell this prompt from any other dialog. */}
+      <Modal.Container style={{ maxWidth: '460px' }} data-byline-navigation-guard="">
         <Modal.Header className={cx('byline-form-guard-modal-head', styles['guard-modal-head'])}>
           <h3 className={cx('byline-form-guard-modal-title', styles['guard-modal-title'])}>
             {t('forms.navigationGuard.title')}

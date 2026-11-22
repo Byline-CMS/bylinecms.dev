@@ -8,7 +8,12 @@
 
 import { useState } from 'react'
 
-import { claimSaveAttempt, type EditorViewStateStore, FormRenderer } from '@byline/admin/react'
+import {
+  beginActionRestore,
+  claimSaveAttempt,
+  type EditorViewStateStore,
+  FormRenderer,
+} from '@byline/admin/react'
 import type {
   CollectionAdminConfig,
   MultiCollectionDefinition,
@@ -133,15 +138,28 @@ export const EditView = ({
     setEditState({ status: 'warning', message: description })
   }
 
+  // The content locale this view shows; in-visit navigations record it as
+  // their starting locale.
+  const currentLocale = locale ?? defaultContentLocale
+
   const handleLocaleChange = (newLocale: string) => {
+    beginActionRestore(viewState, { role: 'action:locale', fromLocale: currentLocale }).record({
+      toLocale: newLocale,
+    })
     navigate({
       to: getAdminRoutePath('collections', '$collection', '$id'),
       params: { collection: path, id: String(initialData.id) },
       search: (prev: Record<string, unknown>) => ({ ...prev, locale: newLocale }),
+      resetScroll: false,
     })
   }
 
   const handleStatusChange = async (status: string) => {
+    // Claimed before the first await, so moving on during the request discards it.
+    const action = beginActionRestore(viewState, {
+      role: 'action:status',
+      fromLocale: currentLocale,
+    })
     try {
       mutation.assertWritable()
       const result = await updateDocumentStatus({
@@ -166,10 +184,12 @@ export const EditView = ({
       })
       setEditState({ status: 'success', message: description })
       // Refresh the page to reflect the new status.
+      action.record({ expectedRevision: result.revision })
       navigate({
         to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection: path, id: String(initialData.id) },
         search: (prev: Record<string, unknown>) => ({ ...prev }),
+        resetScroll: false,
       })
     } catch (err) {
       const handled = mutation.report(err)
@@ -202,10 +222,15 @@ export const EditView = ({
       to: getAdminRoutePath('collections', '$collection', '$id'),
       params: { collection: path, id: String(initialData.id) },
       search: (prev: Record<string, unknown>) => ({ ...prev }),
+      resetScroll: false,
     })
   }
 
   const handleSchedulePublication = async ({ publishAt }: { publishAt: string }) => {
+    const action = beginActionRestore(viewState, {
+      role: 'action:schedule',
+      fromLocale: currentLocale,
+    })
     try {
       mutation.assertWritable()
       const result = await scheduleCollectionDocumentPublish({
@@ -223,6 +248,7 @@ export const EditView = ({
         description: t('scheduledPublication.toast.scheduledDescription'),
         data: { intent: 'success', iconType: 'success', icon: true, close: true },
       })
+      action.record({ expectedRevision: result.revision })
       reloadDocument()
     } catch (err) {
       const handled = mutation.report(err)
@@ -242,6 +268,10 @@ export const EditView = ({
   }
 
   const handleConfirmScheduledPublication = async () => {
+    const action = beginActionRestore(viewState, {
+      role: 'action:schedule',
+      fromLocale: currentLocale,
+    })
     try {
       mutation.assertWritable()
       const result = await confirmCollectionDocumentScheduledPublish({
@@ -258,6 +288,7 @@ export const EditView = ({
         description: t('scheduledPublication.toast.confirmedDescription'),
         data: { intent: 'success', iconType: 'success', icon: true, close: true },
       })
+      action.record({ expectedRevision: result.revision })
       reloadDocument()
     } catch (err) {
       const handled = mutation.report(err)
@@ -277,6 +308,10 @@ export const EditView = ({
   }
 
   const handleCancelScheduledPublication = async () => {
+    const action = beginActionRestore(viewState, {
+      role: 'action:schedule',
+      fromLocale: currentLocale,
+    })
     try {
       mutation.assertWritable()
       const result = await cancelCollectionDocumentScheduledPublish({
@@ -302,6 +337,7 @@ export const EditView = ({
           close: true,
         },
       })
+      action.record({ expectedRevision: result.revision })
       reloadDocument()
     } catch (err) {
       const handled = mutation.report(err)
@@ -336,6 +372,10 @@ export const EditView = ({
   const restoreWarnings = (initialData as any)?._restoreWarnings as string[] | undefined
 
   const handleUnpublish = async () => {
+    const action = beginActionRestore(viewState, {
+      role: 'action:unpublish',
+      fromLocale: currentLocale,
+    })
     try {
       mutation.assertWritable()
       const result = await unpublishDocument({
@@ -358,10 +398,12 @@ export const EditView = ({
         },
       })
       setEditState({ status: 'success', message: description })
+      action.record({ expectedRevision: result.revision })
       navigate({
         to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection: path, id: String(initialData.id) },
         search: (prev: Record<string, unknown>) => ({ ...prev }),
+        resetScroll: false,
       })
     } catch (err) {
       const handled = mutation.report(err)
@@ -466,6 +508,11 @@ export const EditView = ({
     targetLocale: string
     overwrite: boolean
   }) => {
+    const action = beginActionRestore(viewState, {
+      role: 'action:copy-locale',
+      fallbackRole: 'action:locale',
+      fromLocale: currentLocale,
+    })
     try {
       mutation.assertWritable()
       const result = await copyDocumentToLocale({
@@ -482,10 +529,12 @@ export const EditView = ({
       if (hasCommittedDocumentHookFailure(result)) {
         notifyCommittedHookFailure()
         notifyScheduleSuspended()
+        action.record({ toLocale: targetLocale, expectedRevision: result.revision })
         navigate({
           to: getAdminRoutePath('collections', '$collection', '$id'),
           params: { collection: path, id: String(initialData.id) },
           search: (prev: Record<string, unknown>) => ({ ...prev, locale: targetLocale }),
+          resetScroll: false,
         })
         return
       }
@@ -524,10 +573,12 @@ export const EditView = ({
       })
       // Switch the form to the target locale so the editor sees the
       // copied content immediately.
+      action.record({ toLocale: targetLocale, expectedRevision: result.revision })
       navigate({
         to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection: path, id: String(initialData.id) },
         search: (prev: Record<string, unknown>) => ({ ...prev, locale: targetLocale }),
+        resetScroll: false,
       })
     } catch (err) {
       const handled = mutation.report(err)
@@ -556,6 +607,11 @@ export const EditView = ({
   }
 
   const handleDeleteLocale = async ({ targetLocale }: { targetLocale: string }) => {
+    const action = beginActionRestore(viewState, {
+      role: 'action:delete-locale',
+      fallbackRole: 'action:locale',
+      fromLocale: currentLocale,
+    })
     try {
       mutation.assertWritable()
       const result = await deleteDocumentLocale({
@@ -570,10 +626,12 @@ export const EditView = ({
       if (hasCommittedDocumentHookFailure(result)) {
         notifyCommittedHookFailure()
         notifyScheduleSuspended()
+        action.record({ toLocale: defaultContentLocale, expectedRevision: result.revision })
         navigate({
           to: getAdminRoutePath('collections', '$collection', '$id'),
           params: { collection: path, id: String(initialData.id) },
           search: (prev: Record<string, unknown>) => ({ ...prev, locale: defaultContentLocale }),
+          resetScroll: false,
         })
         return
       }
@@ -597,10 +655,12 @@ export const EditView = ({
       setEditState({ status: 'success', message: description })
       // The deleted locale may be the one being viewed — land on the default
       // locale (which always survives) so the loader re-fetches a valid view.
+      action.record({ toLocale: defaultContentLocale, expectedRevision: result.revision })
       navigate({
         to: getAdminRoutePath('collections', '$collection', '$id'),
         params: { collection: path, id: String(initialData.id) },
         search: (prev: Record<string, unknown>) => ({ ...prev, locale: defaultContentLocale }),
+        resetScroll: false,
       })
     } catch (err) {
       const handled = mutation.report(err)
@@ -843,6 +903,7 @@ export const EditView = ({
           tree={collectionDefinition.tree === true}
           headingLabel={labels.singular}
           initialLocale={locale}
+          effectiveContentLocale={currentLocale}
           onLocaleChange={handleLocaleChange}
           useNavigationGuard={useTanStackNavigationGuard}
           headerSlot={

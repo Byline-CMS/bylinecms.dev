@@ -42,8 +42,9 @@ vi.mock('@byline/admin/react', () => ({
     mocks.formProps.push(props)
     return <div data-testid="form-renderer" />
   },
-  // No view-state store reaches this host test; the claim is inert.
+  // No view-state store reaches this host test; the claims are inert.
   claimSaveAttempt: () => ({ expectRefresh: () => {}, markSaveWarning: () => {} }),
+  beginActionRestore: () => ({ record: () => {} }),
 }))
 
 vi.mock('@byline/i18n/react', () => ({
@@ -386,6 +387,8 @@ describe('collection post-save navigation', () => {
       phase: 'afterCreate',
       expectedSearch: expect.any(Function),
       expectedId: 'language-copy',
+      // Opens another document: a new visit, so the router may reset scroll.
+      expectedScroll: {},
     },
     {
       action: 'onCopyToLocale',
@@ -394,6 +397,8 @@ describe('collection post-save navigation', () => {
       phase: 'afterUpdate',
       expectedSearch: expect.any(Function),
       expectedId: 'language-en',
+      // A locale change within the visit keeps the scroll position.
+      expectedScroll: { resetScroll: false },
     },
     {
       action: 'onDeleteLocale',
@@ -402,6 +407,8 @@ describe('collection post-save navigation', () => {
       phase: 'afterUpdate',
       expectedSearch: expect.any(Function),
       expectedId: 'language-en',
+      // A locale change within the visit keeps the scroll position.
+      expectedScroll: { resetScroll: false },
     },
   ])('treats committed $action hook failures as completed mutations', async (testCase) => {
     testCase.mock.mockResolvedValueOnce({
@@ -437,6 +444,7 @@ describe('collection post-save navigation', () => {
       to: '/admin/collections/$collection/$id',
       params: { collection: 'languages', id: testCase.expectedId },
       search: testCase.expectedSearch,
+      ...testCase.expectedScroll,
     })
   })
 })

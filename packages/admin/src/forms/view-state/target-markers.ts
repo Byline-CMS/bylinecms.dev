@@ -9,7 +9,9 @@
 import { createContext, type RefObject, useCallback, useContext, useEffect } from 'react'
 
 import { useEditorViewState } from './editor-view-state-context'
-import type { EditorViewStateStore, TargetRole } from './editor-view-state'
+import { type AnchorCandidate, pickViewAnchor } from './view-anchor'
+import { isTrustedAddress } from './view-state-address'
+import type { ActionRole, EditorViewStateStore, TargetRole, ViewAnchor } from './editor-view-state'
 
 /**
  * DOM markers that tie an element to a working-target address.
@@ -45,6 +47,8 @@ export const SYSTEM_TARGETS = {
   path: '$path',
   availableLocales: '$availableLocales',
   treePlacement: '$treePlacement',
+  /** Document action controls (status, locale selector); never a working target. */
+  document: '$document',
 } as const
 
 export function targetMarker(
@@ -55,6 +59,17 @@ export function targetMarker(
     'data-byline-target': string
     'data-byline-role': TargetRole
   }
+}
+
+/**
+ * Marks a document action control (the status control, the locale selector),
+ * so the restoration after its navigation can focus it again.
+ */
+export function documentActionMarker(role: ActionRole): {
+  'data-byline-target': string
+  'data-byline-role': TargetRole
+} {
+  return targetMarker(SYSTEM_TARGETS.document, role)
 }
 
 /** The first marker in `root` with exactly this address and role. */
@@ -72,9 +87,35 @@ export function recordTargetFromElement(store: EditorViewStateStore, element: El
   const marker = element.closest(`[${TARGET_ATTR}]`)
   const path = marker?.getAttribute(TARGET_ATTR)
   const role = marker?.getAttribute(ROLE_ATTR) as TargetRole | null | undefined
-  if (marker == null || !path || !role) return false
+  if (marker == null || !path || !role || path === SYSTEM_TARGETS.document) return false
   store.setTarget({ path, role, offset: marker.getBoundingClientRect().top })
   return true
+}
+
+/**
+ * The marker that keeps the scroll position across a navigation, with its
+ * signed viewport offset (`pickViewAnchor`). Document action markers,
+ * positional addresses, zero-size markers and markers inside hidden content
+ * are skipped: none of them can be found again reliably.
+ */
+export function topmostVisibleAnchor(form: ParentNode): ViewAnchor | null {
+  const viewportHeight = typeof window === 'undefined' ? 0 : window.innerHeight
+  const candidates: AnchorCandidate[] = []
+  for (const element of form.querySelectorAll<HTMLElement>(`[${TARGET_ATTR}]`)) {
+    const path = element.getAttribute(TARGET_ATTR)
+    const role = element.getAttribute(ROLE_ATTR) as TargetRole | null
+    if (!path || !role || path === SYSTEM_TARGETS.document || !isTrustedAddress(path)) continue
+    if (element.closest('[hidden], [inert], .byline-sortable-content-hidden')) continue
+    const rect = element.getBoundingClientRect()
+    if (rect.width === 0 && rect.height === 0) continue
+    let depth = 0
+    for (let up = element.parentElement?.closest(`[${TARGET_ATTR}]`); up; ) {
+      depth++
+      up = up.parentElement?.closest(`[${TARGET_ATTR}]`)
+    }
+    candidates.push({ path, role, top: rect.top, bottom: rect.bottom, depth })
+  }
+  return pickViewAnchor(candidates, viewportHeight)
 }
 
 /**

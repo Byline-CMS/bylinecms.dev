@@ -14,6 +14,7 @@ import cx from 'clsx'
 
 import { LocalDateTime } from '../fields/local-date-time'
 import styles from './form-renderer.module.css'
+import { documentActionMarker } from './view-state/target-markers'
 import type { PublishedVersionInfo } from './form-renderer'
 
 /**
@@ -109,6 +110,7 @@ export const FormStatusDisplay = ({
               <button
                 type="button"
                 disabled={disabled}
+                {...documentActionMarker('action:unpublish')}
                 onClick={() => {
                   if (!disabled) void onUnpublish().catch(() => {})
                 }}

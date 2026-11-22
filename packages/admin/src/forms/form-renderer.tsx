@@ -37,9 +37,16 @@ import { UnavailableBlocksProvider } from './unavailable-blocks'
 import { useDocumentReloadRecovery } from './use-document-reload-recovery'
 import { type SystemFieldsSubmitPayload, useFormSubmission } from './use-form-submission'
 import { EditorViewStateContext, useEditorViewState } from './view-state/editor-view-state-context'
-import { isRestoreLive, isSaveAttemptActive } from './view-state/restore-session'
+import {
+  cancelRestore,
+  isRestoreLive,
+  isSaveAttemptActive,
+  observeCommittedLocale,
+  setGuardPromptOpen,
+} from './view-state/restore-session'
 import { TargetFormContext, useRecordEditTargets } from './view-state/target-markers'
 import { useCancelRestoreOnMoveOn } from './view-state/use-cancel-restore-on-move-on'
+import { useRestoreAfterAction } from './view-state/use-restore-after-action'
 import { useRestoreAfterSave } from './view-state/use-restore-after-save'
 import type { DocumentActionsLocaleOption } from './document-actions'
 import type { UseNavigationGuard } from './navigation-guard'
@@ -188,6 +195,13 @@ export interface FormRendererProps {
    */
   defaultLocale?: string
   /**
+   * The content locale the host is showing, with an absent URL locale already
+   * resolved to the host's default (`locale ?? defaultContentLocale`). The
+   * visit store uses it to tell a real locale change from the same locale
+   * named explicitly. Defaults to `initialLocale ?? defaultLocale`.
+   */
+  effectiveContentLocale?: string
+  /**
    * Framework-specific navigation guard hook.
    * When provided, this overrides the adapter from `NavigationGuardProvider` context.
    * If neither is set, a no-op `beforeunload`-only guard is used.
@@ -236,6 +250,7 @@ const FormContent = ({
   initialLocale,
   onLocaleChange,
   defaultLocale = 'en',
+  effectiveContentLocale,
   useNavigationGuard: useNavigationGuardProp,
   restoreWarnings,
   unavailableBlocks,
@@ -393,11 +408,37 @@ const FormContent = ({
   })
   const { formRef, warningRef, mutationBlockedRef, discarding, reloadFailed, requestDiscard } =
     recovery
+  // The committed content locale. A different one than before clears the
+  // previous language's working target, however the switch happened. It runs
+  // before the restorations below, which may consume in the same commit.
+  const committedLocale = effectiveContentLocale ?? initialLocale ?? defaultLocale
+  useEffect(() => {
+    if (viewState) observeCommittedLocale(viewState, committedLocale)
+  }, [committedLocale, viewState])
   // Working target and save restoration (#98). Each is a no-op without a store.
   useRecordEditTargets(formRef)
   useCancelRestoreOnMoveOn()
   useRestoreAfterSave(formRef, { warningRef, revision: initialData?.revision, fields })
+  // Focus and scroll across the other navigations within the visit (§5.7).
+  useRestoreAfterAction(formRef, {
+    locale: committedLocale,
+    revision: initialData?.revision,
+    fields,
+  })
   const guard = useGuard(hasChanges && !discarding)
+  // Answering the unsaved-changes prompt is not moving on from a recorded
+  // navigation: Leave lets it restore, and Stay discards it below.
+  useEffect(() => {
+    if (viewState == null) return
+    setGuardPromptOpen(viewState, guard.isBlocked)
+    return () => setGuardPromptOpen(viewState, false)
+  }, [guard.isBlocked, viewState])
+  const stayOnGuard = () => {
+    // The navigation did not happen: discard its recorded restoration. The
+    // working target, dirty state and visit stay as they are.
+    if (viewState) cancelRestore(viewState)
+    guard.stay()
+  }
   const isUploading = submission.phase.kind === 'uploading'
   const isSubmitting = submission.phase.kind === 'submitting'
   const isBusy = submission.isBusy
@@ -536,7 +577,7 @@ const FormContent = ({
             />
           )}
           {guard.isBlocked && (
-            <NavigationGuardModal onStay={guard.stay} onProceed={guard.proceed} />
+            <NavigationGuardModal onStay={stayOnGuard} onProceed={guard.proceed} />
           )}
         </form>
       </div>

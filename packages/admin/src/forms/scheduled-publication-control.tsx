@@ -52,6 +52,7 @@ import {
   resolveScheduledPublicationWallTime,
   wallTimeInZone,
 } from './scheduled-publication-time.js'
+import { documentActionMarker } from './view-state/target-markers'
 import type {
   ScheduledPublicationCapabilities,
   ScheduledPublicationState,
@@ -362,6 +363,7 @@ export function ScheduledPublicationNotice({
         {state.lastError != null && <p className={styles['notice-error']}>{state.lastError}</p>}
         <div
           className={cx('byline-scheduled-publication-notice-actions', styles['notice-actions'])}
+          {...documentActionMarker('action:schedule')}
         >
           {state.actions.confirm && (
             <Button size="sm" type="button" intent="success" disabled={busy} onClick={onConfirm}>

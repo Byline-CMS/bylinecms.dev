@@ -10,7 +10,12 @@
 
 import { useRouter } from '@tanstack/react-router'
 
-import { claimSaveAttempt, type EditorViewStateStore, FormRenderer } from '@byline/admin/react'
+import {
+  beginActionRestore,
+  claimSaveAttempt,
+  type EditorViewStateStore,
+  FormRenderer,
+} from '@byline/admin/react'
 import type { SingletonAdminConfig, SingletonDefinition, UnavailableBlock } from '@byline/core'
 import {
   getDefaultStatus,
@@ -101,6 +106,19 @@ export function SingletonView({
   const canArmSchedule =
     scheduledPublicationEnabled && canSchedulePublication && publishTransitionValid
 
+  // The empty singleton is a create form and has no visit store.
+  const visitStore = document == null ? undefined : viewState
+  const currentLocale = locale ?? defaultContentLocale
+  /** Claims an in-visit action before its first await (see `beginActionRestore`). */
+  const claimAction = (
+    role: 'action:status' | 'action:unpublish' | 'action:schedule' | 'action:copy-locale'
+  ) =>
+    beginActionRestore(visitStore, {
+      role,
+      fallbackRole: role === 'action:copy-locale' ? 'action:locale' : null,
+      fromLocale: currentLocale,
+    })
+
   const reload = async () => {
     // Invalidation is load-bearing after the first save: the refreshed loader
     // supplies the mapped document id/version, flips FormRenderer to edit mode,
@@ -189,6 +207,7 @@ export function SingletonView({
   }
 
   const handleStatusChange = async (status: string) => {
+    const action = claimAction('action:status')
     try {
       mutation.assertWritable()
       const result = await changeSingletonStatus({
@@ -200,6 +219,7 @@ export function SingletonView({
         t('collections.edit.statusChangedDescription', { status }),
         'success'
       )
+      action.record({ expectedRevision: result.revision })
       await reload()
     } catch (err) {
       const handled = mutation.report(err)
@@ -221,6 +241,7 @@ export function SingletonView({
   }
 
   const handleUnpublish = async () => {
+    const action = claimAction('action:unpublish')
     try {
       mutation.assertWritable()
       const result = await unpublishSingleton({
@@ -232,6 +253,7 @@ export function SingletonView({
         t('collections.edit.unpublishedDescription'),
         'success'
       )
+      action.record({ expectedRevision: result.revision })
       await reload()
     } catch (err) {
       const handled = mutation.report(err)
@@ -259,6 +281,7 @@ export function SingletonView({
     targetLocale: string
     overwrite: boolean
   }) => {
+    const action = claimAction('action:copy-locale')
     try {
       mutation.assertWritable()
       const result = await copySingletonToLocale({
@@ -289,10 +312,12 @@ export function SingletonView({
         )
       }
       notifyScheduleSuspended()
+      action.record({ toLocale: targetLocale, expectedRevision: result.revision })
       navigate({
         to: getAdminRoutePath('singletons', '$singleton'),
         params: { singleton: path },
         search: { locale: targetLocale },
+        resetScroll: false,
       })
     } catch (err) {
       const handled = mutation.report(err)
@@ -312,6 +337,7 @@ export function SingletonView({
   }
 
   const handleSchedulePublication = async ({ publishAt }: { publishAt: string }) => {
+    const action = claimAction('action:schedule')
     try {
       mutation.assertWritable()
       const result = await scheduleSingletonPublish({
@@ -328,6 +354,7 @@ export function SingletonView({
         t('scheduledPublication.toast.scheduledDescription'),
         'success'
       )
+      action.record({ expectedRevision: result.revision })
       await reload()
     } catch (err) {
       const handled = mutation.report(err)
@@ -343,6 +370,7 @@ export function SingletonView({
   }
 
   const handleConfirmScheduledPublication = async () => {
+    const action = claimAction('action:schedule')
     try {
       mutation.assertWritable()
       const result = await confirmSingletonScheduledPublish({
@@ -358,6 +386,7 @@ export function SingletonView({
         t('scheduledPublication.toast.confirmedDescription'),
         'success'
       )
+      action.record({ expectedRevision: result.revision })
       await reload()
     } catch (err) {
       const handled = mutation.report(err)
@@ -373,6 +402,7 @@ export function SingletonView({
   }
 
   const handleCancelScheduledPublication = async () => {
+    const action = claimAction('action:schedule')
     try {
       mutation.assertWritable()
       const result = await cancelSingletonScheduledPublish({
@@ -384,6 +414,7 @@ export function SingletonView({
         t('scheduledPublication.toast.cancelledDescription'),
         'success'
       )
+      action.record({ expectedRevision: result.revision })
       await reload()
     } catch (err) {
       const handled = mutation.report(err)
@@ -404,7 +435,7 @@ export function SingletonView({
         <FormRenderer
           // The empty singleton is a create form; the first saved document starts an edit
           // form that must not inherit anything recorded during creation.
-          viewState={document == null ? undefined : viewState}
+          viewState={visitStore}
           mutationIssue={mutation.issue}
           mutationsBlocked={mutation.blocked}
           observedRevision={mutation.revision}
@@ -418,15 +449,22 @@ export function SingletonView({
           showPath={false}
           initialLocale={locale}
           defaultLocale={defaultContentLocale}
+          effectiveContentLocale={currentLocale}
           onLocaleChange={
             document == null
               ? undefined
-              : (nextLocale) =>
+              : (nextLocale) => {
+                  beginActionRestore(visitStore, {
+                    role: 'action:locale',
+                    fromLocale: currentLocale,
+                  }).record({ toLocale: nextLocale })
                   navigate({
                     to: getAdminRoutePath('singletons', '$singleton'),
                     params: { singleton: path },
                     search: { locale: nextLocale },
+                    resetScroll: false,
                   })
+                }
           }
           useNavigationGuard={useTanStackNavigationGuard}
           headerSlot={
