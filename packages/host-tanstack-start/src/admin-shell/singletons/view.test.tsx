@@ -8,7 +8,11 @@
 
 import { act } from 'react'
 
-import { BylineFieldServicesProvider } from '@byline/admin/react'
+import {
+  BylineFieldServicesProvider,
+  createEditorViewStateStore,
+  type EditorViewStateStore,
+} from '@byline/admin/react'
 import {
   defineAdminConfig,
   defineSingleton,
@@ -32,7 +36,20 @@ const mocks = vi.hoisted(() => ({
   confirmSchedule: vi.fn(),
   cancelSchedule: vi.fn(),
   copyToLocale: vi.fn(),
+  viewStatesSeen: [] as Array<EditorViewStateStore | null | undefined>,
 }))
+
+// Records the view state each FormRenderer receives; behaviour is unchanged.
+vi.mock('@byline/admin/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@byline/admin/react')>()
+  return {
+    ...actual,
+    FormRenderer: (props: React.ComponentProps<typeof actual.FormRenderer>) => {
+      mocks.viewStatesSeen.push(props.viewState)
+      return <actual.FormRenderer {...props} />
+    },
+  }
+})
 
 vi.mock('@tanstack/react-router', () => ({
   useRouter: () => ({ invalidate: mocks.invalidate }),
@@ -177,6 +194,7 @@ const fieldServices = {
 
 let container: HTMLDivElement
 let root: Root
+let viewStateUnderTest: EditorViewStateStore | undefined
 
 function view(
   currentDocument: typeof loadedDocument | null,
@@ -199,6 +217,7 @@ function view(
           locale={locale}
           contentLocales={locales}
           defaultContentLocale="en"
+          viewState={viewStateUnderTest}
         />
       </BylineFieldServicesProvider>
     </I18nProvider>
@@ -239,6 +258,8 @@ function latestToastDescription(): string {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.guardStates.length = 0
+  mocks.viewStatesSeen.length = 0
+  viewStateUnderTest = undefined
   mocks.update.mockResolvedValue({
     documentId: 'doc-settings',
     revision: 8,
@@ -486,5 +507,23 @@ describe('SingletonView', () => {
     act(() => close.click())
 
     expect(mocks.navigate).toHaveBeenCalledWith({ to: '/internal/cms' })
+  })
+
+  it('gives the view-state store to an existing document but not to the empty create form', () => {
+    const store = createEditorViewStateStore()
+    viewStateUnderTest = store
+
+    // Empty singleton: the form is in create mode and must not see the store.
+    render(null)
+    expect(mocks.viewStatesSeen.length).toBeGreaterThan(0)
+    expect(mocks.viewStatesSeen.every((seen) => seen == null)).toBe(true)
+
+    // First saved document: the route's store (same identity) reaches the edit form.
+    mocks.viewStatesSeen.length = 0
+    act(() => root.unmount())
+    root = createRoot(container)
+    render(loadedDocument)
+    expect(mocks.viewStatesSeen.length).toBeGreaterThan(0)
+    expect(mocks.viewStatesSeen.every((seen) => seen === store)).toBe(true)
   })
 })

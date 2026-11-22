@@ -8,7 +8,7 @@
 
 import { useState } from 'react'
 
-import { FormRenderer } from '@byline/admin/react'
+import { type EditorViewStateStore, FormRenderer } from '@byline/admin/react'
 import type {
   CollectionAdminConfig,
   MultiCollectionDefinition,
@@ -62,6 +62,7 @@ export const EditView = ({
   contentLocales,
   defaultContentLocale,
   returnSearch,
+  viewState,
 }: {
   collectionDefinition: MultiCollectionDefinition
   adminConfig?: CollectionAdminConfig
@@ -71,6 +72,8 @@ export const EditView = ({
   defaultContentLocale: string
   /** URL-encoded list search state to return to on close — see list-return-state.ts. */
   returnSearch?: Record<string, unknown>
+  /** In-memory view state owned by the route for this editing visit. */
+  viewState?: EditorViewStateStore
 }) => {
   const mutation = useDocumentMutationState(loadedData)
   const initialData = mutation.document ?? loadedData
@@ -810,6 +813,7 @@ export const EditView = ({
     <Section>
       <Container>
         <FormRenderer
+          viewState={viewState}
           mutationIssue={mutation.issue}
           mutationsBlocked={mutation.blocked}
           observedRevision={mutation.revision}

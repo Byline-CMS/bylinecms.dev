@@ -36,8 +36,10 @@ import { computeStatusTransitions } from './status-transitions'
 import { UnavailableBlocksProvider } from './unavailable-blocks'
 import { useDocumentReloadRecovery } from './use-document-reload-recovery'
 import { type SystemFieldsSubmitPayload, useFormSubmission } from './use-form-submission'
+import { EditorViewStateContext } from './view-state/editor-view-state-context'
 import type { DocumentActionsLocaleOption } from './document-actions'
 import type { UseNavigationGuard } from './navigation-guard'
+import type { EditorViewStateStore } from './view-state/editor-view-state'
 
 // Re-exported so existing importers of this module keep working; the type now
 // lives with `useFormSubmission`, which produces it.
@@ -54,6 +56,11 @@ export interface PublishedVersionInfo {
 
 /** Props shared by both the public FormRenderer and its internal FormContent component. */
 export interface FormRendererProps {
+  /**
+   * In-memory view state for this editing visit. Always provided to the
+   * subtree, so a nested FormRenderer without it shadows its parent with null.
+   */
+  viewState?: EditorViewStateStore | null
   mutationIssue?: 'stale' | 'reload' | 'lock' | 'unavailable' | 'committed' | null
   mutationsBlocked?: boolean
   observedRevision?: number
@@ -520,28 +527,32 @@ export const FormRenderer = (props: FormRendererProps) => {
   const savedTabsRef = useRef<Record<string, string>>({})
 
   return (
-    <UnavailableBlocksProvider
-      issues={props.unavailableBlocks}
-      fields={initialData?.fields ?? initialData ?? {}}
-    >
-      <FormProvider
-        key={`${initialLocale ?? 'default'}-${initialData?.versionId ?? ''}`}
-        initialData={initialData}
-        documentId={mode === 'edit' && typeof initialData?.id === 'string' ? initialData.id : null}
-        collectionPath={collectionPath ?? null}
+    <EditorViewStateContext.Provider value={props.viewState ?? null}>
+      <UnavailableBlocksProvider
+        issues={props.unavailableBlocks}
+        fields={initialData?.fields ?? initialData ?? {}}
       >
-        {/* Forwarded wholesale. An enumerated prop list here silently dropped
+        <FormProvider
+          key={`${initialLocale ?? 'default'}-${initialData?.versionId ?? ''}`}
+          initialData={initialData}
+          documentId={
+            mode === 'edit' && typeof initialData?.id === 'string' ? initialData.id : null
+          }
+          collectionPath={collectionPath ?? null}
+        >
+          {/* Forwarded wholesale. An enumerated prop list here silently dropped
           every prop added to FormRendererProps but not copied down — which is
           how the scheduled-publication handlers reached FormContent as
           `undefined` and the control never rendered. */}
-        <FormContent
-          {...props}
-          _activeTabBySet={savedTabsRef.current}
-          _onTabChange={(tabSetName, tabName) => {
-            savedTabsRef.current = { ...savedTabsRef.current, [tabSetName]: tabName }
-          }}
-        />
-      </FormProvider>
-    </UnavailableBlocksProvider>
+          <FormContent
+            {...props}
+            _activeTabBySet={savedTabsRef.current}
+            _onTabChange={(tabSetName, tabName) => {
+              savedTabsRef.current = { ...savedTabsRef.current, [tabSetName]: tabName }
+            }}
+          />
+        </FormProvider>
+      </UnavailableBlocksProvider>
+    </EditorViewStateContext.Provider>
   )
 }

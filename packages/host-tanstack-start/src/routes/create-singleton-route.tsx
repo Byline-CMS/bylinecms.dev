@@ -30,6 +30,7 @@ import { getAdminRoutePath } from './admin-path.js'
 import { getContentLocaleRouteConfig } from './get-content-locale-route-config.js'
 import { getSingletonDefinition } from './get-singleton-definition.js'
 import { getRelationProjections } from './relation-projections.js'
+import { useEditorViewVisit } from './use-editor-view-visit.js'
 
 const searchSchema = z.object({ locale: z.string().optional() })
 
@@ -156,6 +157,7 @@ export function createSingletonRoute(path: string) {
       const routeState = Route.useLoaderData()
       const { singleton } = Route.useParams() as { singleton: string }
       const { locale } = Route.useSearch() as z.infer<typeof searchSchema>
+      const viewState = useEditorViewVisit(`singleton/${singleton}`)
       const definition = getSingletonDefinition(singleton)
       if (definition == null) throw notFound()
 
@@ -179,6 +181,7 @@ export function createSingletonRoute(path: string) {
             locale={locale}
             contentLocales={contentLocales}
             defaultContentLocale={defaultContentLocale}
+            viewState={viewState}
           />
         </>
       )

@@ -10,7 +10,7 @@
 
 import { useRouter } from '@tanstack/react-router'
 
-import { FormRenderer } from '@byline/admin/react'
+import { type EditorViewStateStore, FormRenderer } from '@byline/admin/react'
 import type { SingletonAdminConfig, SingletonDefinition, UnavailableBlock } from '@byline/core'
 import {
   getDefaultStatus,
@@ -57,6 +57,7 @@ export function SingletonView({
   locale,
   contentLocales,
   defaultContentLocale,
+  viewState,
 }: {
   singletonDefinition: SingletonDefinition
   adminConfig?: SingletonAdminConfig
@@ -66,6 +67,8 @@ export function SingletonView({
   locale?: string
   contentLocales: ReadonlyArray<ContentLocaleOption>
   defaultContentLocale: string
+  /** In-memory view state owned by the route for this editing visit. */
+  viewState?: EditorViewStateStore
 }) {
   const mutation = useDocumentMutationState(loadedDocument)
   const document = mutation.document ?? null
@@ -390,6 +393,9 @@ export function SingletonView({
     <Section>
       <Container>
         <FormRenderer
+          // The empty singleton is a create form; the first saved document starts an edit
+          // form that must not inherit anything recorded during creation.
+          viewState={document == null ? undefined : viewState}
           mutationIssue={mutation.issue}
           mutationsBlocked={mutation.blocked}
           observedRevision={mutation.revision}

@@ -25,6 +25,7 @@ import { getMultiCollectionDefinition } from './get-multi-collection-definition.
 import { decodeListReturnState } from './list-return-state.js'
 import { persistListReturnState, readListReturnState } from './list-return-storage.js'
 import { getRelationProjections } from './relation-projections.js'
+import { useEditorViewVisit } from './use-editor-view-visit.js'
 
 const searchSchema = z.object({
   locale: z.string().optional(),
@@ -87,6 +88,7 @@ export function createCollectionEditRoute(path: string) {
       const toastManager = useToastManager()
       const navigate = useNavigate()
       const { contentLocales, defaultContentLocale } = getContentLocaleRouteConfig()
+      const viewState = useEditorViewVisit(`collection/${collection}/${id}`)
 
       // Return-to-list state. The URL `from` param is the primary carrier;
       // when present we also mirror it into tab-scoped sessionStorage so the
@@ -163,6 +165,7 @@ export function createCollectionEditRoute(path: string) {
             contentLocales={contentLocales}
             defaultContentLocale={defaultContentLocale}
             returnSearch={returnSearch}
+            viewState={viewState}
           />
         </>
       )
