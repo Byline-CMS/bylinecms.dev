@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
+import { useEditorViewVisit } from '@byline/admin/react'
 import type { MultiCollectionDefinition } from '@byline/core'
 import { getCollectionAdminConfig } from '@byline/core'
 import { useTranslation } from '@byline/i18n/react'
@@ -25,7 +26,6 @@ import { getMultiCollectionDefinition } from './get-multi-collection-definition.
 import { decodeListReturnState } from './list-return-state.js'
 import { persistListReturnState, readListReturnState } from './list-return-storage.js'
 import { getRelationProjections } from './relation-projections.js'
-import { useEditorViewVisit } from './use-editor-view-visit.js'
 
 const searchSchema = z.object({
   locale: z.string().optional(),

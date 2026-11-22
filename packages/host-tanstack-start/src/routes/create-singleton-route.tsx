@@ -9,6 +9,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 
+import { useEditorViewVisit } from '@byline/admin/react'
 import type { DocumentPublishScheduleInfo } from '@byline/client'
 import { getAdminRequestContext } from '@byline/client/server'
 import {
@@ -30,7 +31,6 @@ import { getAdminRoutePath } from './admin-path.js'
 import { getContentLocaleRouteConfig } from './get-content-locale-route-config.js'
 import { getSingletonDefinition } from './get-singleton-definition.js'
 import { getRelationProjections } from './relation-projections.js'
-import { useEditorViewVisit } from './use-editor-view-visit.js'
 
 const searchSchema = z.object({ locale: z.string().optional() })
 

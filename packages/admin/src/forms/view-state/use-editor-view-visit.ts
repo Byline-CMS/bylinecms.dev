@@ -8,13 +8,14 @@
 
 import { useState } from 'react'
 
-import { createEditorViewStateStore, type EditorViewStateStore } from '@byline/admin/react'
+import { createEditorViewStateStore, type EditorViewStateStore } from './editor-view-state.js'
 
 /**
- * Owns the in-memory view-state store for one editing visit, identified by
- * `collection/<path>/<id>` or `singleton/<path>`. The route component survives
- * save navigations and locale switches (which remount the editor view), so the
- * store lives here. A different identity starts a new visit and a new store.
+ * Owns the in-memory view-state store for one editing visit. The host supplies
+ * the identity (for example `collection/<path>/<id>` or `singleton/<path>`).
+ * The host's editor route survives save navigations and locale switches (which
+ * remount the editor view), so the store lives with the route. A different
+ * identity starts a new visit and a new store.
  *
  * The swap happens during render ("adjusting state when a prop changes"), so a
  * StrictMode double render settles on one store per identity.
